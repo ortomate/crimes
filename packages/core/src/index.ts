@@ -337,6 +337,21 @@ export type {
   AuditSuppressionsReport,
 } from "./audit-suppressions.js";
 export {
+  emptyTriage,
+  loadTriage,
+  MalformedTriageError,
+  resolveTriagePath,
+  saveTriage,
+  upsertTriageEntry,
+  TRIAGE_RELATIVE_PATH,
+} from "./triage.js";
+export type {
+  Triage,
+  TriageEntry,
+  TriageDisposition,
+  LoadTriageResult,
+} from "./triage.js";
+export {
   judgeVerdict,
   NoDefaultBaseError,
   recommendActions,
