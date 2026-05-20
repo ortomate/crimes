@@ -85,15 +85,6 @@ export interface ScanOptions {
    * sort by agent_risk alone. Default true.
    */
   recencyEnabled?: boolean;
-  /**
-   * Internal flag — when true, the scan does NOT attempt to resurface
-   * triaged/baselined findings on touched files. Used by the resurface
-   * pipeline itself to make a single inner scan call without recursing.
-   * Not meant for external callers.
-   *
-   * @internal
-   */
-  __skipResurface?: boolean;
 }
 
 export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
@@ -154,17 +145,21 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     report.changed_files = inputs.changedAll;
   }
 
-  if (!options.__skipResurface) {
-    const resurfaced = await collectResurfaceForScan({ root, config, options });
-    if (resurfaced.length > 0) {
-      const merged = [...resurfaced, ...report.findings];
-      const next: ScanReport = {
-        ...report,
-        findings: merged,
-        summary: summarise(merged),
-      };
-      return next;
-    }
+  const resurfaced = await collectResurfaceForScan({
+    root,
+    config,
+    allFiles: inputs.allFiles,
+    indexes,
+    detectors,
+  });
+  if (resurfaced.length > 0) {
+    const merged = [...resurfaced, ...report.findings];
+    const next: ScanReport = {
+      ...report,
+      findings: merged,
+      summary: summarise(merged),
+    };
+    return next;
   }
   return report;
 }
@@ -176,11 +171,19 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
  * resurfaced list. Empty when git is unavailable, the diff is empty, or
  * there's nothing to resurface — resurfacing is a quality-of-life feature
  * and must never make `scan()` fail.
+ *
+ * Shares the outer scan's `indexes` (IA, petty, imports, JSX shapes,
+ * function hashes, scoring context) and `detectors`/`config`. The outer
+ * scan already paid the cost of building these over the full file set;
+ * re-detection on a handful of touched files is then just the per-file
+ * detector pass, not a doubled scan.
  */
 async function collectResurfaceForScan(args: {
   root: string;
   config: CrimesConfig;
-  options: ScanOptions;
+  allFiles: string[];
+  indexes: ScanIndexes;
+  detectors: Detector[];
 }): Promise<Finding[]> {
   const resurfaceBase = args.config.triage?.resurfaceBase ?? "main";
   if (resurfaceBase === "") return [];
@@ -222,24 +225,53 @@ async function collectResurfaceForScan(args: {
     return [];
   }
 
-  // Run one inner scan against the diff'd files (with __skipResurface to
-  // avoid recursion). Then index findings by file and use that to
-  // satisfy the reDetect callback. One scan instead of N — cheap.
-  const innerReport = await scan({
-    root: args.root,
-    config: args.config,
-    changed: true,
-    base: resurfaceBase,
-    __skipResurface: true,
-  });
-  const findingsByFile = new Map<string, Finding[]>();
-  for (const f of innerReport.findings) {
-    const list = findingsByFile.get(f.file);
-    if (list) list.push(f);
-    else findingsByFile.set(f.file, [f]);
+  // Map repo-relative diff files back to absolute paths from the outer
+  // scan's `allFiles` so the per-file detector pass uses identical
+  // realpath / discovery semantics (and matches what the indexes were
+  // built against). Files in the diff that aren't in `allFiles` (e.g.
+  // markdown, lockfiles, JSON) are skipped — detectors don't run on
+  // them and they can't carry triage / baseline entries.
+  const allFilesReal = await Promise.all(
+    args.allFiles.map(async (abs) => ({
+      abs,
+      relPath: relative(rootReal, await safeRealpath(abs)).split(sep).join("/"),
+    })),
+  );
+  const absByRelPath = new Map<string, string>();
+  for (const { abs, relPath } of allFilesReal) {
+    absByRelPath.set(relPath, abs);
   }
-  const reDetect = async (file: string): Promise<Finding[]> =>
-    findingsByFile.get(file) ?? [];
+
+  // Per-file detector cache so multiple resurfaced fingerprints on the
+  // same file only pay one detector pass.
+  const detectionCache = new Map<string, Promise<Finding[]>>();
+  const reDetect = async (file: string): Promise<Finding[]> => {
+    const cached = detectionCache.get(file);
+    if (cached) return cached;
+    const absolutePath = absByRelPath.get(file);
+    if (!absolutePath) {
+      const empty = Promise.resolve<Finding[]>([]);
+      detectionCache.set(file, empty);
+      return empty;
+    }
+    const promise = (async () => {
+      const findings = await runDetectorsForFile({
+        root: args.root,
+        absolutePath,
+        detectors: args.detectors,
+        config: args.config,
+        indexes: args.indexes,
+      });
+      // Finalise scores so resurfaced findings carry the same shape as
+      // findings from the outer scan (agent_risk, churn, etc.).
+      for (const f of findings) {
+        finaliseFindingScores(f, args.indexes.scoring);
+      }
+      return findings;
+    })();
+    detectionCache.set(file, promise);
+    return promise;
+  };
 
   return collectResurfaced({
     diffFiles,
