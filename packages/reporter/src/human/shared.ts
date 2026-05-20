@@ -52,6 +52,31 @@ export const DEFAULT_FEEDBACK_HINT_CAP = 5;
 export const RELATED_FILES_DISPLAY_CAP = 5;
 
 /**
+ * Shared semantic glyph vocabulary for human reporters. JSON output
+ * never goes through this — these are presentation-only marks.
+ *
+ * `logo` is intentionally identical to `new`: ⊕ is both the diff-like
+ * "addition" mark and a close visual match for the product favicon, so
+ * it doubles as a terminal-context logo where a heading or banner can
+ * carry it without becoming noisy. Use sparingly; severity glyphs and
+ * `Charge:` markers carry most of the load already.
+ *
+ * Suppressed in `noColor` mode by callers — keeps piped output, CI
+ * logs, and `--no-color` invocations free of Unicode decoration.
+ */
+export const HUMAN_GLYPHS = {
+  logo: "⊕",
+  new: "⊕",
+  fixed: "⊖",
+  unchanged: "≡",
+  charge: "§",
+  related: "⧉",
+  worse: "▲",
+  cleaner: "▼",
+  mixed: "◆",
+} as const;
+
+/**
  * Single-glyph severity prefix for human output. Suppressed when
  * `noColor` is true so piped output, CI logs, and `--no-color` stay
  * emoji-free. JSON output never goes through this path.
@@ -87,9 +112,13 @@ export function renderFinding(
   const symbol = finding.symbol ? ` (${finding.symbol})` : "";
 
   const out: string[] = [];
-  const glyph = severityGlyph(finding.severity, options.noColor === true);
+  const noColor = options.noColor === true;
+  const glyph = severityGlyph(finding.severity, noColor);
+  const chargeLabel = noColor
+    ? "Charge:"
+    : `${HUMAN_GLYPHS.charge} Charge:`;
   out.push(`  ${glyph}${colour.bold(`${n}.`)} ${colour.cyan(location)}${colour.dim(symbol)}`);
-  out.push(`     ${colour.bold("Charge:")} ${finding.charge}`);
+  out.push(`     ${colour.bold(chargeLabel)} ${finding.charge}`);
   const riskLine = renderRiskProfileLine(finding, colour, options);
   if (riskLine) out.push(riskLine);
   out.push(`     ${colour.bold("Summary:")} ${finding.summary}`);
@@ -102,7 +131,10 @@ export function renderFinding(
   if (finding.related_files && finding.related_files.length > 0) {
     const shown = finding.related_files.slice(0, RELATED_FILES_DISPLAY_CAP);
     const hidden = finding.related_files.length - shown.length;
-    out.push(`     ${colour.bold("Also touches:")}`);
+    const alsoTouchesLabel = noColor
+      ? "Also touches:"
+      : `${HUMAN_GLYPHS.related} Also touches:`;
+    out.push(`     ${colour.bold(alsoTouchesLabel)}`);
     for (const rel of shown) {
       out.push(`       · ${colour.cyan(rel)}`);
     }

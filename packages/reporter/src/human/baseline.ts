@@ -4,7 +4,7 @@ import type {
   BaselineEntry,
 } from "@crimes/core";
 import type { ColourFns, FeedbackHintOptions } from "./shared.js";
-import { pc, plainColour, renderFinding } from "./shared.js";
+import { HUMAN_GLYPHS, pc, plainColour, renderFinding } from "./shared.js";
 
 export interface BaselineHumanReportOptions {
   /** Disable ANSI colour output. */
@@ -51,7 +51,8 @@ export function formatBaselineCheckReport(
   report: BaselineCheckReport,
   options: BaselineHumanReportOptions = {},
 ): string {
-  const colour = options.noColor ? plainColour() : pc;
+  const noColor = options.noColor === true;
+  const colour = noColor ? plainColour() : pc;
   const lines: string[] = [];
 
   lines.push(colour.bold("CRIMES BASELINE CHECK"));
@@ -64,7 +65,11 @@ export function formatBaselineCheckReport(
   const fixedCount = colour.green(`${summary.fixed}`);
   const unchangedCount = colour.dim(`${summary.unchanged}`);
 
-  lines.push(`New crimes: ${newCount}`);
+  const newPrefix = noColor ? "" : `${HUMAN_GLYPHS.new} `;
+  const fixedPrefix = noColor ? "" : `${HUMAN_GLYPHS.fixed} `;
+  const unchangedPrefix = noColor ? "" : `${HUMAN_GLYPHS.unchanged} `;
+
+  lines.push(`${newPrefix}New crimes: ${newCount}`);
   lines.push(
     colour.dim(
       `  ${colour.red(`high ${summary.new_by_severity.high}`)}  ${colour.yellow(
@@ -72,13 +77,13 @@ export function formatBaselineCheckReport(
       )}  ${colour.dim(`low ${summary.new_by_severity.low}`)}`,
     ),
   );
-  lines.push(`Fixed crimes: ${fixedCount}`);
-  lines.push(`Unchanged crimes: ${unchangedCount}`);
+  lines.push(`${fixedPrefix}Fixed crimes: ${fixedCount}`);
+  lines.push(`${unchangedPrefix}Unchanged crimes: ${unchangedCount}`);
   lines.push("");
 
   if (report.new_findings.length > 0) {
     lines.push(
-      colour.bold(`New findings (${report.new_findings.length})`),
+      colour.bold(`${newPrefix}New findings (${report.new_findings.length})`),
     );
     report.new_findings.forEach((finding, idx) => {
       // Baseline check has no --all knob; fall back to the default notable
@@ -98,7 +103,7 @@ export function formatBaselineCheckReport(
 
   if (report.fixed_findings.length > 0) {
     lines.push(
-      colour.bold(`Fixed findings (${report.fixed_findings.length})`),
+      colour.bold(`${fixedPrefix}Fixed findings (${report.fixed_findings.length})`),
     );
     report.fixed_findings.forEach((entry, idx) => {
       lines.push(...renderBaselineEntry(entry, idx + 1, colour));

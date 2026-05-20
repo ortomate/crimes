@@ -1366,6 +1366,89 @@ function stubFinding(scores: Partial<FindingScores>): Finding {
   };
 }
 
+describe("human glyph vocabulary (HUMAN_GLYPHS)", () => {
+  it("prefixes Charge: with § in colour mode and stays plain in noColor", () => {
+    const colourful = formatContextHumanReport(sampleContext, { noColor: false });
+    expect(colourful).toContain("§ Charge:");
+    const plain = formatContextHumanReport(sampleContext, { noColor: true });
+    expect(plain).toContain("Charge:");
+    expect(plain).not.toContain("§");
+  });
+
+  it("prefixes 'Also touches:' with ⧉ in colour mode and stays plain in noColor", () => {
+    const withRelated: ScanReport = {
+      ...sampleReport,
+      findings: [
+        {
+          ...sampleReport.findings[0]!,
+          related_files: ["src/nav/registry.ts"],
+        },
+        sampleReport.findings[1]!,
+      ],
+    };
+    const colourful = formatHumanReport(withRelated, {
+      noColor: false,
+      showAll: true,
+    });
+    expect(colourful).toContain("⧉ Also touches:");
+    const plain = formatHumanReport(withRelated, {
+      noColor: true,
+      showAll: true,
+    });
+    expect(plain).toContain("Also touches:");
+    expect(plain).not.toContain("⧉");
+  });
+
+  it("prefixes diff counts with ⊕ / ⊖ / ≡ in colour mode", () => {
+    const colourful = formatDiffReport(sampleDiff, { noColor: false });
+    expect(colourful).toContain("⊕ New crimes:");
+    expect(colourful).toContain("⊖ Fixed crimes:");
+    expect(colourful).toContain("≡ Unchanged crimes:");
+  });
+
+  it("suppresses diff glyphs entirely in noColor mode", () => {
+    const plain = formatDiffReport(sampleDiff, { noColor: true });
+    expect(plain).not.toContain("⊕");
+    expect(plain).not.toContain("⊖");
+    expect(plain).not.toContain("≡");
+    expect(plain).toContain("New crimes: 2");
+    expect(plain).toContain("Fixed crimes: 1");
+    expect(plain).toContain("Unchanged crimes: 8");
+  });
+
+  it("prefixes baseline check counts with ⊕ / ⊖ / ≡ in colour mode", () => {
+    const colourful = formatBaselineCheckReport(sampleBaselineCheck, {
+      noColor: false,
+    });
+    expect(colourful).toContain("⊕ New crimes:");
+    expect(colourful).toContain("⊖ Fixed crimes:");
+    expect(colourful).toContain("≡ Unchanged crimes:");
+  });
+
+  it("prefixes the verdict label with ▲ / ▼ / ≡ / ◆ in colour mode", () => {
+    for (const [verdict, glyph] of [
+      ["worse", "▲"],
+      ["cleaner", "▼"],
+      ["unchanged", "≡"],
+      ["mixed", "◆"],
+    ] as const) {
+      const out = formatVerdictReport(
+        { ...sampleVerdict, verdict, reasons: [], recommended_actions: [] },
+        { noColor: false },
+      );
+      expect(out).toContain(`${glyph} ${verdict.toUpperCase()}`);
+    }
+  });
+
+  it("strips verdict glyphs in noColor mode", () => {
+    const plain = formatVerdictReport(sampleVerdict, { noColor: true });
+    expect(plain).not.toContain("▲");
+    expect(plain).not.toContain("▼");
+    expect(plain).not.toContain("◆");
+    expect(plain).toContain("Verdict: WORSE");
+  });
+});
+
 describe("inline feedback hints (0.7.0)", () => {
   // Feedback hints live inside the rich per-finding block, which is
   // emitted by `--all` (and `--flat`). The default file-grouped layout
