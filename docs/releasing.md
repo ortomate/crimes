@@ -90,10 +90,9 @@ README at publish time, and stale ones are not patched after the fact.
   GitHub Release in Step 5.
 - **[`apps/website/landing/llms.txt`](../apps/website/landing/llms.txt)**
   — add a `docs/releases/vX.Y.Z.md` entry so the AI-overview pass picks
-  up the new release.
-- **[`apps/website/landing/index.html`](../apps/website/landing/index.html)**
-  — landing page has a "Recent releases" list that links to each
-  `docs/releases/vX.Y.Z.md`. Add a row.
+  up the new release. (The landing page's "What's next" strip points
+  at the GitHub Releases page rather than maintaining its own list,
+  so no per-release `index.html` edit is needed.)
 - **JSON schema only if it changed.** If the schema gained fields,
   also update [`docs/json-schema.md`](./json-schema.md) and the pinned
   fixture at [`docs/fixtures/messy-ts-app.json`](./fixtures/messy-ts-app.json).
