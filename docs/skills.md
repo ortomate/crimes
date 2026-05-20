@@ -99,6 +99,7 @@ Picked up automatically by: Codex CLI (`SKILL.md` under
 | "After I edit, what's the post-edit gate?"              | agent `SKILL.md` |
 | "Is this finding a blocker?"                            | agent `SKILL.md` |
 | "What does field X in the JSON mean?"                   | `json-schema.md` |
+| "How should I present results back to the user?"        | `agent-usage.md` |
 | "Show me a worked pre/post-edit example."               | `agent-usage.md` |
 
 `AGENTS.md` is the **repo handbook**. `SKILL.md` is the **workflow recipe**.

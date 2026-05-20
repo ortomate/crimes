@@ -6,11 +6,14 @@ description: Use when editing, reviewing, or investigating a TypeScript / JavaSc
 # crimes — codebase risk workflow
 
 `crimes` is a deterministic CLI (no LLM) that reports change risk and
-agent risk on a TS/JS repo. JSON output is the stable contract — prefer it
-over the human-readable rendering when you need to plan.
+agent risk on a TS/JS repo. JSON output is the stable contract for agent
+decisions; prefer it when planning, gating, comparing, or making
+decisions. For user-facing readbacks, use the default human output
+instead of rebuilding the report in your own prose.
 
 This skill is short on purpose: run the right command at the right moment,
-read the JSON, act on it.
+read the JSON, act on it — and when reporting back, paste the human
+readout rather than re-rendering it.
 
 ## When to invoke
 
@@ -347,6 +350,21 @@ editing", re-sort by `scores.agent_risk` instead.
 - While `schema_version === "0.1.0"`, the shape in
   [`docs/json-schema.md`](../../../docs/json-schema.md) is stable.
 - Refuse to consume a report whose `schema_version` you do not recognise.
+
+## Reporting findings back to humans
+
+Use `--format json` when you need to plan, gate, compare, or make
+decisions. When the user wants to see the results, or when you are
+summarising findings back in chat, prefer running the same command
+without `--format json` and quote or paste the relevant human-readable
+readout. The human report is intentionally designed for people:
+severity glyphs, grouped findings, evidence, feedback commands,
+suppressions, and gate status are already rendered there.
+
+Do not paraphrase the whole JSON payload in your own voice unless you
+need a short executive summary. Use the human readout as the canonical
+user-facing presentation, and add your own interpretation only around
+the parts that matter for the task.
 
 ## See also
 

@@ -22,6 +22,31 @@ agent instructions (root `AGENTS.md`, Claude Code skill), see
 
 ---
 
+## JSON for decisions, human output for readbacks
+
+`crimes` ships two output modes for the same underlying findings.
+Agents should treat them as different tools for different jobs:
+
+- **`--format json` is for agent decisions.** Use it whenever you are
+  planning an edit, gating CI, diffing two refs, or comparing finding
+  counts before / after a change. JSON is the stable contract — the
+  shape is documented in [`json-schema.md`](./json-schema.md) and
+  versioned by `schema_version`.
+- **Default human output is the canonical user-facing readout.** When
+  the user wants to see the results, or you are summarising findings
+  back in chat, rerun the same command without `--format json` and
+  paste the relevant section. Severity glyphs, file groupings,
+  evidence, feedback hints, suppressions, and gate status are all
+  already rendered there for people to read.
+
+Human output is **not** the schema contract — its wording, glyphs, and
+layout can shift between minor releases. Don't parse it. But do treat
+it as the canonical presentation: rather than paraphrasing the whole
+JSON in your own voice, quote the human readout and add interpretation
+only around the parts that matter for the task at hand.
+
+---
+
 ## Per-agent integration
 
 `crimes` ships with two on-disk artefacts that coding agents pick up
