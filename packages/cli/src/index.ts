@@ -11,6 +11,7 @@ import { registerHotspotsCommand } from "./commands/hotspots.js";
 import { registerIgnoreCommand } from "./commands/ignore.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerScanCommand } from "./commands/scan.js";
+import { registerTriageCommand } from "./commands/triage.js";
 import { registerUnignoreCommand } from "./commands/unignore.js";
 import { registerVerdictCommand } from "./commands/verdict.js";
 
@@ -66,6 +67,7 @@ registerDiffCommand(program);
 registerBaselineCommand(program);
 registerVerdictCommand(program);
 registerFeedbackCommand(program);
+registerTriageCommand(program);
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

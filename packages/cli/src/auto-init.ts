@@ -46,6 +46,7 @@ const COMMANDS_THAT_SKIP_PROMPT = new Set([
   "ignore",
   "unignore",
   "baseline",
+  "triage",
 ]);
 
 interface AutoInitOptions {

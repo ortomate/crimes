@@ -23,7 +23,14 @@ export default defineConfig({
   // runtime benefit. It is declared as a real dependency so `npm install -g
   // crimes` resolves it. Everything not listed here stays external (node
   // builtins, typescript), so be explicit when adding new runtime deps.
-  noExternal: [/^@crimes\//, "commander", "fast-glob", "picocolors", "zod"],
+  noExternal: [
+    /^@crimes\//,
+    "commander",
+    "fast-glob",
+    "picocolors",
+    "picomatch",
+    "zod",
+  ],
   // Some bundled deps (commander) are CJS and assume CommonJS globals —
   // `require`, `__filename`, `__dirname` — exist at runtime. The output is
   // ESM, where they don't. We polyfill all three so esbuild's CJS interop
