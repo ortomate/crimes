@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.10.1",
+  "timestamp": "2026-05-20T14:26:59.521Z",
+  "run_id": "d3ea55b0-19ba-4bd5-b133-08a24592aa10",
+  "response": "## Refactor proposal for `src/Card.tsx`\n\nThe card is doing three jobs the design system should own: semantics, palette, and layout. Each change below maps to one of the three findings.\n\n### 1. Accessibility — `crime_00001 (accessible_interaction_risk)`\n\n`<div onClick>` on lines 10/22 is unreachable by keyboard and invisible to AT. The fix depends on what \"click\" means:\n\n- **If it navigates** → render `<a href>`.\n- **If it triggers an action** → render `<button type=\"button\">` and let the user reset its default styling.\n- **Only if the surrounding element must remain a `<div>`** (e.g. a card-sized hit target with nested interactive children) → add `role=\"button\"`, `tabIndex={0}`, an `aria-label`, and a keyboard handler that mirrors `onClick` on `Enter`/`Space`.\n\nPicking the first form below since the whole card behaves as one target:\n\n```tsx\n<button type=\"button\" className={styles.card} onClick={handleActivate} aria-label=\"Open card\">\n  …\n</button>\n```\n\nThis also removes the need for a separate `onKeyDown` handler — `<button>` handles Enter/Space natively.\n\n### 2. Design tokens — `crime_00002 (design_token_escape)`\n\nAll nine literals on lines 16–20, 24, 27 belong in the theme. Replace inline `style={{ … }}` with semantic class names backed by CSS custom properties, so future agents extending the file inherit the palette rather than copying hex values forward:\n\n```tsx\n// src/Card.tsx\nimport styles from \"./Card.module.css\";\n\nexport function Card({ children, onActivate, label }: CardProps) {\n  return (\n    <button type=\"button\" className={styles.card} onClick={onActivate} aria-label={label}>\n      <div className={styles.body}>{children}</div>\n      <aside className={styles.sidebar}>sidebar</aside>\n    </button>\n  );\n}\n```\n\n```css\n/* src/Card.module.css */\n.card {\n  background: var(--color-surface-accent);   /* was #ff00aa */\n  color: var(--color-text-primary);          /* was #0a0a0a */\n  border: 1px solid var(--color-border);     /* was #cccccc */\n  outline-color: var(--color-focus-ring);    /* was #1a73e8 */\n  box-shadow: var(--shadow-sm);              /* was 0 2px 4px rgb(0,0,0) */\n  padding: var(--space-6);                   /* was 24 */\n  border-radius: var(--radius-md);\n}\n.body    { color: var(--color-text-primary); }   /* was #333333 */\n.sidebar { color: var(--color-text-muted); }     /* was #666666 */\n```\n\nThe hex values now live in `theme.css` (or wherever the project defines `--color-*`). If the project doesn't have tokens yet, this refactor surfaces the gap — but the JSX is already token-shaped, so the swap is a single CSS file when tokens arrive.\n\n### 3. Responsive layout — `crime_00003 (responsive_fragility)`\n\nLines 12, 24, 27 set hard `width`s of 800/720/240 px; line 24 also pins `fontSize: 18`. None of that survives a 375 px viewport, and there's no `@media` in the file. Fix by driving the layout from intrinsic sizing + a container query, with `clamp()` for type:\n\n```css\n.card {\n  /* was width: 800; height: 600; maxWidth: 1024 */\n  width: 100%;\n  max-width: 64rem;\n  min-height: 16rem;          /* lets content grow; avoids the fixed 600 */\n  container-type: inline-size;\n\n  display: grid;\n  grid-template-columns: 1fr 15rem;   /* body + sidebar (was 720 / 240 px) */\n  gap: var(--space-4);\n}\n\n.body    { font-size: clamp(0.9375rem, 0.85rem + 0.4cqi, 1.125rem); } /* was 18px */\n.sidebar { font-size: var(--text-sm); }                                /* was 14px */\n\n@container (max-width: 36rem) {\n  .card { grid-template-columns: 1fr; }   /* sidebar collapses below body */\n}\n```\n\nContainer query rather than `@media` because a card's responsive behavior should depend on the slot it lives in, not the viewport — that matches the finding's `fix_shape: \"drive layout from container queries or a fluid scale, not pixel media queries\"`.\n\n### Mapping summary\n\n| Finding | Change |\n|---|---|\n| `accessible_interaction_risk` | Root element becomes `<button type=\"button\">` with `aria-label`; click handler lifted to a named prop. |\n| `design_token_escape` | All nine literals moved to `Card.module.css` and bound to `var(--color-*)`, `var(--space-*)`, `var(--shadow-*)`. |\n| `responsive_fragility` | Fixed `width`/`fontSize` replaced with `max-width` + `grid-template-columns`, `clamp()` typography, and a `@container` rule that collapses the sidebar. |\n\nAfter applying, `crimes scan src/Card.tsx` should drop all three findings; the file becomes a thin JSX shell over a token-driven, container-responsive stylesheet with a keyboard-reachable activation target.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

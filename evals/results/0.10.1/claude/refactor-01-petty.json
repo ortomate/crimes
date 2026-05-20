@@ -1,0 +1,117 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "claude",
+  "crimes_version": "0.10.1",
+  "timestamp": "2026-05-20T14:27:03.053Z",
+  "run_id": "8fa453cf-40d9-4f89-a830-042d774dd553",
+  "response": "## The three petty crimes in `src/petty.ts`\n\n### 1. `describeCheckout` — Option Bag Junk Drawer (crime_00030, L10–19)\n\n**What's there now:** `CheckoutOptions` is six string-ish fields stuffed into one bag — `plan`, `role`, `region`, `currency`, `status`, `retry` — covering at least three concepts (commerce, identity, geo). The shape is wide and shallow; nothing tells an agent which fields are required for which call path.\n\n**Agent failure mode:** An agent asked to \"add a coupon code\" or \"make role optional\" can't see which fields are owned by this function vs. carried through for some caller. They'll add another field to the bag and the next caller will silently start passing `undefined` through `String(options.retry)` and get `\"undefined\"` in the join.\n\n**Refactor:** Split the bag along its real seams and name what the function actually needs.\n\n```ts\ntype CheckoutIdentity = { plan: string; role: string; status: string };\ntype CheckoutLocale   = { region: string; currency: string };\ntype CheckoutPolicy   = { retry: boolean };\n\nexport function describeCheckout(\n  identity: CheckoutIdentity,\n  locale: CheckoutLocale,\n  policy: CheckoutPolicy,\n): string {\n  return [identity.plan, identity.role, locale.region, locale.currency, identity.status, String(policy.retry)].join(\":\");\n}\n```\n\nThis makes the three concerns visible at the call site and forces a new field to land in the type it belongs to.\n\n---\n\n### 2. `resolvePaymentResult` — Return Shape Roulette (crime_00031, L21–32)\n\n**What's there now:** Three branches, three different object shapes (`{ok,code,message}`, `{url,permanent}`, `{ok,value,cached}`), no return type annotation. The detector flagged 0% key overlap between branches — these are different types pretending to be one.\n\n**Agent failure mode:** A caller writes `if (result.ok) return result.value` — works for the success branch, returns `undefined` for the redirect branch (no `ok`, no `value`). Worse, an agent extending the function (\"add a `pending` case\") will mint a fourth shape and TypeScript won't object because the inferred return is already a wide union nobody is checking.\n\n**Refactor:** Discriminated union, explicit return type.\n\n```ts\ntype PaymentResult =\n  | { kind: \"error\";    ok: false; code: string; message: string }\n  | { kind: \"redirect\"; url: string; permanent: boolean }\n  | { kind: \"success\";  ok: true;  value: string; cached: boolean };\n\nexport function resolvePaymentResult(input: /* … */): PaymentResult {\n  if (input.error)    return { kind: \"error\",    ok: false, code: input.code!, message: input.message! };\n  if (input.redirect) return { kind: \"redirect\", url: input.url!, permanent: false };\n  return                     { kind: \"success\",  ok: true,  value: input.value!, cached: false };\n}\n```\n\nNow callers `switch (result.kind)` and exhaustiveness checking catches the next agent who forgets a branch.\n\n---\n\n### 3. `canRunBilling` — Negative Flag Maze (crime_00032, L34–37; also drives crime_00029)\n\n**What's there now:** `!disableBilling && !skipRetry`. Two flags that are both *negatives of a capability* — the function returns whether to run billing, but reads as \"not-off and not-not-retry.\"\n\n**Agent failure mode:** An agent adds a third condition — say, \"also skip when the env is sandboxed\" — and writes `&& !sandbox`, fine. Then someone inverts one flag's meaning at a call site (`disableBilling = false` to \"enable\") and the double-negative chain quietly flips. There's also no early-return / single expression — the `if/else` over a boolean is begging to be edited wrong.\n\n**Refactor:** Invert to positive names and collapse the predicate.\n\n```ts\nexport function canRunBilling(billingEnabled: boolean, retryEnabled: boolean): boolean {\n  return billingEnabled && retryEnabled;\n}\n```\n\nCallers pass `billingEnabled: !disableBilling` at the boundary where the negative flag came from (e.g., a config flag named in the negative for legacy reasons). The negation lives once, at the edge, instead of inside every condition that composes the flags.\n\n---\n\n**Common thread:** all three smells are about *implicit contracts* — a shape, a return, a polarity — that today's reader can fish out of the body but a future agent (with only the signature in context) cannot. The refactors all move the contract into the type system, where the next edit has to confront it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "option_bag_junk_drawer",
+        "passed": false
+      }
+    ]
+  }
+}

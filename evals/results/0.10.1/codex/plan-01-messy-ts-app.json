@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.10.1",
+  "timestamp": "2026-05-20T14:24:24.075Z",
+  "run_id": "bc15aad3-75e7-4de5-982c-47960f3881ca",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e45c4-e506-7920-b359-0da7745c51d5\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll use the repo’s `crimes-codebase-risk` guidance here because this is a crimes triage/planning task. I’m checking the local instructions briefly, then I’ll base the order on the supplied scan data and call out the missing verdict signal if it isn’t available.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes/.agents/skills/crimes/SKILL.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes/.agents/skills/crimes/SKILL.md\\\"\",\"aggregated_output\":\"---\\nname: crimes-codebase-risk\\ndescription: Use when editing, reviewing, or investigating a TypeScript / JavaScript codebase that ships with the crimes CLI. Helps agents run pre-edit context checks, post-edit scans, and interpret findings before risky changes.\\n---\\n\\n# crimes — codebase risk workflow\\n\\n`crimes` is a deterministic CLI (no LLM) that reports change risk and\\nagent risk. JSON output is the stable contract; prefer it when planning.\\n\\n## When to run it\\n\\n- Before editing an unfamiliar file: `crimes context <file> --format json`\\n- Before a broad refactor: `crimes scan <path> --format json`\\n- After edits: `crimes scan --changed --format json`\\n- Before merging a branch: `crimes verdict --format json`\\n\\n## Decision rules\\n\\n- Treat any new `severity: \\\"high\\\"` finding introduced by your edit as a blocker unless the user explicitly accepts it.\\n- Read `evidence[]` before acting; it contains deterministic facts, not LLM opinion.\\n- Use `scores.agent_risk` to decide which findings need human attention first.\\n- If a finding is a false positive, record feedback with `crimes feedback <fingerprint> --verdict fp --note \\\"<why>\\\"` rather than silently ignoring it.\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"The skill says to prioritize JSON output and use `scores.agent_risk` for triage. Since the prompt includes scan JSON but not verdict JSON, I’m checking whether the fixture is present locally so I can include the branch-level verdict instead of guessing.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'command -v crimes || true'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'command -v crimes || true'\",\"aggregated_output\":\"/Users/andrew/.nvm/versions/node/v22.17.1/bin/crimes\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'pwd && rg --files /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app | head -40'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'pwd && rg --files /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app | head -40'\",\"aggregated_output\":\"/Users/andrew/dev/crimes/evals/runner\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/routes/account/subscription.tsx\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/routes/team/index.tsx\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/routes/workspace/members.tsx\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/routes/settings/billing.tsx\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/assets/hero-banner.png\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/assets/partner-logo.svg\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/assets/check-icon.png\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/billing.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/jobs/plan-sync.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/nav/sidebar.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/nav/registry.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/api/plan.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/api/files.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/api/state.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/petty.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/billing.test.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/todo.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/ui/pricing.ts\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/crimes.config.json\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/docs/teams.md\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/docs/billing.md\\n/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/docs/commands.md\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"agent_message\",\"text\":\"The fixture and `crimes` binary are available. I’m going to run the requested JSON commands against the fixture to verify the prompt data and get the missing verdict context.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes scan /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes verdict --root /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes scan /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app --format json'\",\"aggregated_output\":\"crimes: suppressions at /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/.crimes/suppressions.json are malformed: schema_version: Invalid input: expected \\\"0.1.0\\\"\\n\",\"exit_code\":1,\"status\":\"failed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes verdict --root /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app --format json'\",\"aggregated_output\":\"crimes: suppressions at /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/.crimes/suppressions.json are malformed: schema_version: Invalid input: expected \\\"0.1.0\\\"\\n\",\"exit_code\":1,\"status\":\"failed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_8\",\"type\":\"agent_message\",\"text\":\"The installed `crimes` binary rejected the fixture’s suppressions file before returning scan JSON, so I’ll use the scan payload from the prompt as the source of truth. The verdict command is still running; I’m checking whether it produced usable branch-level context.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_9\",\"type\":\"agent_message\",\"text\":\"`crimes verdict --format json` was not usable locally because the fixture suppressions file failed schema validation: `expected \\\"0.1.0\\\"`. So this triage uses the supplied `crimes scan --format json` as the stable signal. With no valid verdict delta, treat this as current-state risk, not branch-regression risk.\\n\\n**Triage Order**\\n\\n| Order | Category | Finding | File | Response | Why |\\n|---:|---|---|---|---|---|\\n| 1 | frontend | `crime_00001` `svg_with_embedded_raster` | `src/assets/partner-logo.svg` | fix now | High severity, high confidence, small effort. Asset fix is isolated. |\\n| 2 | structural | `crime_00002` `direct_date` | `src/date.ts` | fix now | High severity temporal nondeterminism; likely compounds with the other date findings in the same file. |\\n| 3 | structural | `crime_00003` `mixed_utc_local_methods` | `src/date.ts` | fix now | High severity and same hotspot as `crime_00002`; fix together by choosing one time domain. |\\n| 4 | structural | `crime_00005` `large_function` | `src/billing.ts` | fix now | Highest structural complexity risk: 204-line `generateInvoice`. Extract pure helpers before deeper billing edits. |\\n| 5 | structural | `crime_00009` `timezone_unsafe_parse` | `src/date.ts` | fix now | Same date cluster; cheap to fix while introducing explicit clock/timezone handling. |\\n| 6 | structural | `crime_00007` `hardcoded_localhost` | `src/api/files.ts` | fix now | Quick config/env extraction; likely environment-breaking. |\\n| 7 | structural | `crime_00008` `hardcoded_local_path` | `src/api/files.ts` | fix now | Quick portability fix; currently tied to one developer machine. |\\n| 8 | IA | `crime_00006` `missing_agent_context` | repo-level signal via `src/api/files.ts` | fix now | Small effort and directly reduces future agent-edit risk. Add `AGENTS.md` or equivalent. |\\n| 9 | duplication | `crime_00004` `concept_alias_drift` | `docs/billing.md` plus related routes/docs | defer | Real IA/duplication risk, but needs product-language decision before renaming. Document canonical term first. |\\n| 10 | duplication | `crime_00010` `magic_domain_literal_scatter` | `src/api/plan.ts` plus related files | defer | Worth centralizing, but lower than date/env/high-complexity work unless touching plan policy now. |\\n\\n**By Category**\\n\\n**Structural:** fix now  \\n`crime_00002`, `crime_00003`, `crime_00005`, `crime_00007`, `crime_00008`, `crime_00009`.\\n\\n**Frontend:** fix now  \\n`crime_00001`.\\n\\n**IA:** fix now  \\n`crime_00006`.\\n\\n**Duplication:** defer  \\n`crime_00004`, `crime_00010`.\\n\\n**Git-history:** no top-10 action  \\nAll shown top findings have `churn: 0` and `recency: 0`, and the verdict command did not return usable JSON, so there is no git-history escalation signal here.\\n\\nNo top-10 finding looks like an outright `ignore`; the closest candidates are the two duplication items, but they should be deferred pending naming/product-policy decisions rather than suppressed.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":160683,\"cached_input_tokens\":144256,\"output_tokens\":2007,\"reasoning_output_tokens\":609}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

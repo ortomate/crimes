@@ -51,7 +51,7 @@ async function makeRepoWithSuppression(): Promise<{
     path,
     JSON.stringify(
       {
-        schema_version: "0.1.0",
+        schema_version: "0.2.0",
         report_type: "suppressions",
         created_at: "2026-01-01T00:00:00.000Z",
         updated_at: "2026-01-01T00:00:00.000Z",
@@ -138,7 +138,7 @@ describe("crimes unignore", () => {
       overridePath,
       JSON.stringify(
         {
-          schema_version: "0.1.0",
+          schema_version: "0.2.0",
           report_type: "suppressions",
           created_at: "2026-01-01T00:00:00.000Z",
           updated_at: "2026-01-01T00:00:00.000Z",

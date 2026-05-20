@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.10.1",
+  "timestamp": "2026-05-20T14:19:49.821Z",
+  "run_id": "6a63d435-d26d-44b9-8df7-2895259d4e44",
+  "response": "**Break the `src/domain/billing.ts → src/presentation/invoice-view.ts` import.**\n\nWhy that edge specifically:\n\n1. **It's the only architecturally illegal edge in the ring.** The layer-violation finding (`crime_00002`) calls out exactly this import: `domain cannotImport presentation`. The other two edges in the cycle (`application → domain`, `presentation → application`) point in directions the layer rules allow, so they're not the ones to cut.\n\n2. **One change clears two findings.** Removing this edge breaks the cycle *and* resolves the layer violation. Cutting either of the other edges would break the cycle but leave the domain→presentation dependency in place — still a crime, still a re-entry risk on the next refactor.\n\n3. **It matches the intended direction of change.** Domain should be a leaf relative to presentation: views consume domain types, not the reverse. Whatever `billing.ts` is currently reaching into `invoice-view.ts` for is almost certainly a formatter, a view-model shape, or a display string that belongs on the presentation side of the boundary.\n\n**How to break it (in order of preference):**\n\n- If `billing.ts` only uses `invoice-view.ts` for *types*, change the import to `import type { ... }` — that erases the runtime edge entirely and the cycle dies without moving any code. Cheapest fix.\n- If it uses runtime values, extract the shared piece (a type, a constant, a pure helper) into a new leaf module under `src/domain/` (or a `src/shared/` if it's truly neutral) and have both `billing.ts` and `invoice-view.ts` import *down* into it. This is the `break_cycle` action the scan suggests.\n- If `billing.ts` is actually calling presentation logic (formatting an invoice, rendering a string), the call is in the wrong file — move it to the caller in `application/billing-flow.ts`, which is allowed to depend on both layers.\n\nDon't cut `application → domain` or `presentation → application` — those are conventional dependency directions and removing them would just push the mess somewhere else.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

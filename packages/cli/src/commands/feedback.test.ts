@@ -223,7 +223,7 @@ describe("crimes feedback (write)", () => {
       join(root, ".crimes", "suppressions.json"),
       JSON.stringify(
         {
-          schema_version: "0.1.0",
+          schema_version: "0.2.0",
           report_type: "suppressions",
           created_at: "2026-04-01T00:00:00.000Z",
           updated_at: "2026-04-01T00:00:00.000Z",
@@ -353,7 +353,7 @@ describe("crimes feedback recheck", () => {
       join(root, ".crimes", "suppressions.json"),
       JSON.stringify(
         {
-          schema_version: "0.1.0",
+          schema_version: "0.2.0",
           report_type: "suppressions",
           created_at: "2026-04-01T00:00:00.000Z",
           updated_at: "2026-04-01T00:00:00.000Z",

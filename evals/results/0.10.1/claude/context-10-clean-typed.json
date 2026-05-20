@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.10.1",
+  "timestamp": "2026-05-20T14:22:40.405Z",
+  "run_id": "d69eff6d-53d6-4219-919c-0cce1ac240f4",
+  "response": "**Findings:** None. `crimes context src/billing.ts` returns `risk.level: \"none\"` with zero findings across all severities.\n\n**Likely tests path:** `src/billing.test.ts`\n\n**Why this module is low risk to edit:**\n\n- **Zero detector hits.** No structural, dependency, duplication, testability, or history findings fired — the file passes every default detector cleanly.\n- **No agent guidance triggered.** `agent_guidance: []` with the explicit reason *\"no findings on this file and no deterministic related files\"* — nothing the agent needs to slow down for.\n- **Isolated neighbourhood.** `related_files_reason` confirms there's no cross-module entanglement: no IA-finding related files, no shared domain tokens, no domain-prefix siblings, no same-directory neighbours. Changes here don't ripple.\n- **A direct test exists.** `likely_tests` points at a co-located `src/billing.test.ts` — re-run it after editing and you've covered the deterministic post-edit gate.\n\nNet: edit freely, run `src/billing.test.ts` after, and re-run `crimes context src/billing.ts --format json` to confirm `risk.level` stays `none`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

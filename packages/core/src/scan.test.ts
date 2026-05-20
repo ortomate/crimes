@@ -51,7 +51,7 @@ describe("scan", () => {
 
     const report = await scan({ root });
 
-    expect(report.schema_version).toBe("0.1.0");
+    expect(report.schema_version).toBe("0.2.0");
     expect(report.report_type).toBe("scan");
     expect(report.repo.root).toBe(root);
     expect(report.summary.total).toBe(report.findings.length);

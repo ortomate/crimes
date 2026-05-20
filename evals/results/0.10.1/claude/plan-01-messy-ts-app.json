@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.10.1",
+  "timestamp": "2026-05-20T14:23:51.628Z",
+  "run_id": "a478cbd2-a4ac-45ce-a049-288b200f8fa5",
+  "response": "## Triage plan — top 10 findings by agent_risk\n\nDefault ranking is by aggregate risk, with `agent_risk` as the tiebreaker. The top 10 cluster across four of the five categories (no git-history signals in this slice — churn is zero across the report).\n\n### Structural (correctness + complexity)\n| # | ID | Charge | Severity | Action | Why |\n|---|---|---|---|---|---|\n| 2 | crime_00002 | Temporal Recklessness (`src/date.ts`, 8×) | high | **fix now** | Injecting a clock here is a force-multiplier — it also unblocks #3 and #9, which all live in the same file. |\n| 3 | crime_00003 | Half-UTC, Half-Local (`src/date.ts`) | high | **fix now** | Silent off-by-timezone bug; pick UTC throughout `date.ts` while you're already in there. |\n| 5 | crime_00005 | God Function `generateInvoice` (204 LOC, 3.4×) | high | **fix now** | Highest-severity structural finding, low-risk extraction. Do this before further billing edits — God Function + #19 (more Date.now in billing.ts) + #26 (God File) + #27 (logic in comments) all live in `billing.ts`. |\n| 7 | crime_00007 | Dev-server URL `localhost:3000` | medium | **fix now** | Quick win — single line, low-risk, breaks every non-dev env. |\n| 8 | crime_00008 | Localhost-on-Disk `/Users/andrew/…` | medium | **fix now** | Same file as #7, fix in the same patch. |\n| 9 | crime_00009 | Timezone Roulette (ambiguous parse) | medium | **fix now** | Trivial when bundled with the `date.ts` rework from #2/#3. |\n\n### Frontend / assets\n| # | ID | Charge | Severity | Action | Why |\n|---|---|---|---|---|---|\n| 1 | crime_00001 | SVG With Embedded Raster | high | **fix now** | Top-ranked finding (0.70 agent_risk), highest confidence. Quick re-export from the design tool. |\n\n### IA / agent context\n| # | ID | Charge | Severity | Action | Why |\n|---|---|---|---|---|---|\n| 4 | crime_00004 | Concept Alias Drift (tenant ↔ account/team/workspace) | medium | **defer** | Genuinely architectural — needs a product decision on the canonical term before mechanical renames. Track separately. |\n| 6 | crime_00006 | Missing Agent Context | medium | **fix now** | Cheapest leverage in the report. Adding `AGENTS.md` prevents repeat scans of all the other findings by future agents. |\n\n### Duplication\n| # | ID | Charge | Severity | Action | Why |\n|---|---|---|---|---|---|\n| 10 | crime_00010 | String Sprinkles `\"enterprise\"` (4 files) | medium | **defer** | Centralising the literal touches `billing.ts`, `api/plan.ts`, `jobs/plan-sync.ts`, `ui/pricing.ts` — do it after the `generateInvoice` extraction (#5) so you're refactoring one stable surface, not a moving target. |\n\n### Suggested execution order\n1. **One-line patches first** (#7, #8) — establish momentum.\n2. **`AGENTS.md`** (#6) — cheap, helps every future agent run.\n3. **`date.ts` sweep** (#2 → #3 → #9) — one PR; the clock injection is the spine.\n4. **Asset swap** (#1) — independent, ship in parallel.\n5. **`generateInvoice` extraction** (#5) — sets up #26/#27/#19 for later.\n6. **Defer #4 and #10** — both want a stable canonical name before mechanical edits.\n\nNo findings in the top 10 warrant **ignore** — all are high-confidence with concrete evidence.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "direct_date",
+        "passed": false
+      }
+    ]
+  }
+}

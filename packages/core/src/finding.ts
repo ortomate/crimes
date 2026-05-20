@@ -3,11 +3,22 @@
  *
  * Bumping `schema_version` is a breaking change.
  */
-export const SCHEMA_VERSION = "0.1.0" as const;
+export const SCHEMA_VERSION = "0.2.0" as const;
 
 import type { Tier } from "./scoring/tier.js";
 
 export type Severity = "low" | "medium" | "high";
+
+/**
+ * Estimated effort to address a finding. Detector-supplied; defaults from
+ * `core/src/detector-defaults.ts` when a detector omits it.
+ *
+ * - `quick`  — ≤1-line change
+ * - `small`  — under 1 hour
+ * - `medium` — fits within one PR
+ * - `large`  — needs design
+ */
+export type Effort = "quick" | "small" | "medium" | "large";
 
 export interface FindingScores {
   /** How bad the smell is in isolation (0-1). */
@@ -74,6 +85,22 @@ export interface Finding {
   summary: string;
   /** Concrete evidence — short factual strings. */
   evidence: string[];
+  /**
+   * Estimated effort to address. Detector-supplied; `core` fills the
+   * default from `detector-defaults.ts` if the detector omits it.
+   * Always present on findings that have passed `finaliseFindingScores`
+   * (every finding emitted by `scan`); the optional `?` only allows
+   * detector source files to omit it at construction time without
+   * forcing every detector to set redundant defaults.
+   */
+  effort?: Effort;
+  /**
+   * One-line description of the *shape* of the fix, not the fix itself.
+   * Detector-supplied; ≤120 chars, single line. Defaults vary per
+   * detector type — see `core/src/detector-defaults.ts`. Always present
+   * on findings that have passed `finaliseFindingScores`.
+   */
+  fix_shape?: string;
   scores: FindingScores;
   suggested_actions?: SuggestedAction[];
   related_files?: string[];

@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.10.1",
+  "timestamp": "2026-05-20T14:22:11.973Z",
+  "run_id": "411f63e4-e3bc-4336-bf5d-34800527e1f5",
+  "response": "`crimes` found **zero findings** for `src/add.ts` — no structural, dependency, duplication, testability, or churn risks flagged.\n\n- `summary.total`: 0 (0 high / 0 medium / 0 low)\n- `findings`: empty\n- Schema version 0.2.0, report type `scan`\n\n**Verdict: safe to extend.** No risk signals to address before editing. The file appears clean and small enough that no detector tripped. Proceed with your change, then re-run `crimes scan` (or `crimes diff main...HEAD`) after editing to confirm nothing new surfaced.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -21,6 +21,7 @@
  */
 
 import { relative, sep } from "node:path";
+import { getDefaultsFor } from "../detector-defaults.js";
 import type { Finding, FindingScores, Severity } from "../finding.js";
 import { collectChurn } from "../git/churn.js";
 import type { CollectChurnResult } from "../git/churn.js";
@@ -330,6 +331,29 @@ export function finaliseFindingScores(
   finding: Finding,
   scoring: ScoringContext | undefined,
 ): void {
+  // Backfill detector-supplied effort + fix_shape from the per-type
+  // defaults map. Detectors that set their own values keep them; only
+  // missing or invalid values are replaced.
+  const defaults = getDefaultsFor(finding.type);
+  const currentEffort = (finding as Partial<Finding>).effort;
+  if (
+    currentEffort !== "quick" &&
+    currentEffort !== "small" &&
+    currentEffort !== "medium" &&
+    currentEffort !== "large"
+  ) {
+    finding.effort = defaults.effort;
+  }
+  const currentShape = (finding as Partial<Finding>).fix_shape;
+  if (
+    typeof currentShape !== "string" ||
+    currentShape.trim() === "" ||
+    currentShape.includes("\n") ||
+    currentShape.length > 120
+  ) {
+    finding.fix_shape = defaults.fix_shape;
+  }
+
   let churn = 0;
   let test_gap = 0;
   let blast_radius = 0;

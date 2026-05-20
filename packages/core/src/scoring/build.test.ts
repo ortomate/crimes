@@ -339,6 +339,50 @@ describe("ScoringContext.recency", () => {
   });
 });
 
+function stubFinding(overrides: Partial<import("../finding.js").Finding> = {}): import("../finding.js").Finding {
+  return {
+    id: "crime_00001",
+    type: "large_function",
+    charge: "God Function",
+    severity: "medium",
+    confidence: 0.8,
+    file: "src/foo.ts",
+    summary: "stub",
+    evidence: [],
+    scores: { severity: 0.5, confidence: 0.8 },
+    effort: "medium" as const,
+    fix_shape: "placeholder — finalisation overrides if missing",
+    ...overrides,
+  } as import("../finding.js").Finding;
+}
+
+describe("finaliseFindingScores — applies detector defaults", () => {
+  it("fills effort and fix_shape from DETECTOR_DEFAULTS when detector omits them", () => {
+    const finding = stubFinding({ effort: undefined as never, fix_shape: undefined as never });
+    finaliseFindingScores(finding, undefined);
+    expect(finding.effort).toBe("small");
+    expect(finding.fix_shape).toBe("extract pure helpers; keep the orchestrator thin");
+  });
+
+  it("keeps detector-supplied effort and fix_shape when set", () => {
+    const finding = stubFinding({ effort: "large", fix_shape: "bespoke override" });
+    finaliseFindingScores(finding, undefined);
+    expect(finding.effort).toBe("large");
+    expect(finding.fix_shape).toBe("bespoke override");
+  });
+
+  it("falls back to GENERIC_DEFAULT for an unknown detector type", () => {
+    const finding = stubFinding({
+      type: "not_a_real_detector",
+      effort: undefined as never,
+      fix_shape: undefined as never,
+    });
+    finaliseFindingScores(finding, undefined);
+    expect(finding.effort).toBe("medium");
+    expect(finding.fix_shape).toContain("refactor");
+  });
+});
+
 describe("finaliseFindingScores — recency", () => {
   it("populates scores.recency from the scoring context", () => {
     const finding = {

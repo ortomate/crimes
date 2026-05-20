@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.1",
+  "timestamp": "2026-05-20T14:23:59.924Z",
+  "run_id": "ebf8dec1-72a7-4f76-bf39-7b76851a6041",
+  "response": "# Refactor plan — consolidate sanitisers and role checks\n\n**Goal:** collapse `sanitize-a.ts` / `sanitize-b.ts` / `sanitize-c.ts` into one helper and replace the scattered `role === \"admin\"` literals with a single policy function. Done in two ordered steps because the sanitiser bodies themselves contain role checks — centralising the policy first means the new sanitiser calls into it cleanly, instead of having to be touched twice.\n\n## Step 1 — Centralise the `\"admin\"` policy check (crime_00003)\n\n**Scope:** `src/policy.ts`, `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts` (4 files, 6+ occurrences, 2 expression shapes).\n\n1. In `src/policy.ts`, export a single predicate — `export const isAdmin = (role: string) => role === \"admin\";` — and use it inside the four existing call sites in that file. Keep the existing exported function names so callers don't break.\n2. Replace every `role === \"admin\"` literal in `sanitize-a.ts` / `-b.ts` / `-c.ts` with `isAdmin(role)`, imported from `./policy`.\n3. Grep for `\"admin\"` to confirm the literal only survives in `policy.ts`. The \"2 distinct expression shapes\" finding should drop to one.\n\n**Why first:** the sanitiser bodies diverge partly because the role check is written two different ways. Once they all funnel through `isAdmin`, the three sanitiser bodies become structurally identical — which is what makes Step 2 a mechanical extract instead of a judgement call about which variant is canonical.\n\n**Risk / verification:** behaviour-preserving. Add a tiny unit test for `isAdmin` (covers both shapes at once). Re-run `crimes scan` and expect crime_00003 to disappear; agent_risk drops from 0.50 → ~0.\n\n## Step 2 — Extract one shared sanitiser (crime_00002)\n\n**Scope:** `src/sanitize-a.ts:10-36` (`sanitizeUserInput`), `src/sanitize-b.ts:9-35` (`sanitizeText`), `src/sanitize-c.ts:9-35` (`cleanMessage`).\n\n1. Create `src/sanitize.ts` exporting one helper — name it after the broadest current caller intent (`sanitizeUserInput` is the most descriptive; pick that).\n2. Diff the three bodies. With the role check already normalised in Step 1, remaining differences should be small — likely string constants, an output field name, or a return shape. Lift those into parameters with explicit defaults so each old call site can be replaced 1:1.\n3. Re-export thin wrappers from the old module paths (`sanitize-a.ts` → `export { sanitizeUserInput } from \"./sanitize\"`, and aliased exports for `sanitizeText` / `cleanMessage`) **only if** other modules import the old names. If nothing imports them, delete the old files outright — grep `from \"./sanitize-[abc]\"` first.\n4. Confirm callers of all three names still compile.\n\n**Risk / verification:** medium — this is the one that can change behaviour if the three bodies actually differed in something subtle. Before merging the bodies, write a snapshot/parameterised test that exercises each old function against representative input (admin + non-admin role, empty/long/HTML-ish content) and assert outputs match pre-refactor. Then do the merge and confirm the tests still pass. Re-run `crimes scan`; crime_00002 disappears.\n\n**Out of scope for this change set:** the two Temporal Recklessness findings in `telemetry-a.ts:16` and `telemetry-b.ts:16` (and the duplicate `recordSanitiseEvent` block in crime_00001) — those want a clock injection, not a body merge, and bundling them in muddies the diff. Worth a separate small PR after this one lands.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      }
+    ]
+  }
+}

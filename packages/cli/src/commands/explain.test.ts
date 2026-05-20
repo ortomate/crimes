@@ -83,7 +83,7 @@ describe("crimes explain", () => {
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout);
     expect(parsed.report_type).toBe("explain");
-    expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.schema_version).toBe("0.2.0");
     expect(parsed.finding.type).toBe("large_function");
     expect(parsed.detector.charge).toBe("God Function");
     expect(typeof parsed.why_it_matters).toBe("string");

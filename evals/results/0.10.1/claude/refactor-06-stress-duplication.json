@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.1",
+  "timestamp": "2026-05-20T14:26:20.280Z",
+  "run_id": "c98f6f02-912f-4cb5-94f5-999d5ec3a641",
+  "response": "## Confirmed duplication\n\nThe scan surfaces three overlapping problems in `src/`:\n\n1. **`crime_00002` (near-duplicate, 3 files)** — `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` are the same 27-line function with renamed locals (`working` / `cleaned` / `normalised`). All three apply the identical pipeline: null guard → `String(x).trim()` → strip control chars → collapse whitespace → 1000-char cap → reject leading `<`/`>` → reject `\\x` → reject `!!!`/`???` runs (>5) → lowercase if SHOUTING.\n2. **`crime_00001` (exact-duplicate, 2 files)** — `recordSanitiseEvent` is byte-identical in `telemetry-a.ts` and `telemetry-b.ts`.\n3. **`crime_00003` (duplicated policy check)** — `role === \"admin\"` is reimplemented in `policy.ts` three times plus three sibling `assertAdmin{A,B,C}` shapes in the sanitize files (one is even inverted: `role !== \"admin\"`).\n\n## Proposed refactor\n\nThree small consolidations, one per finding. Files that would change:\n\n**A. Consolidate the sanitizer (addresses `crime_00002`)**\n\n- New: `src/sanitize.ts` — single implementation.\n- Change: `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts` — re-export thin aliases (or delete and update call sites; aliases are the lower-risk first step).\n\nProposed public API:\n\n```ts\n// src/sanitize.ts\nexport interface SanitizeOptions {\n  maxLength?: number;      // default 1000\n  shoutThreshold?: number; // default 0.9 — upper-case ratio that triggers lowercase\n  shoutMinLength?: number; // default 30  — minimum length before shout rule applies\n  maxPunctuationRuns?: number; // default 5 — !!!/??? runs allowed\n}\n\nexport function sanitize(input: unknown, opts?: SanitizeOptions): string;\n```\n\nRationale: the three call sites are bit-identical today, so the consolidated function takes no behavioural flags — only the magic numbers become optional, defaulted parameters. `input: unknown` preserves the existing `null`/`undefined` guard without lying about the type. The three legacy names stay as one-line re-exports until callers migrate:\n\n```ts\n// src/sanitize-a.ts\nexport { sanitize as sanitizeUserInput } from \"./sanitize\";\n```\n\n**B. Centralise the policy check (addresses `crime_00003`)**\n\n- New: `src/policy/roles.ts` — one predicate.\n- Change: `src/policy.ts`, `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts` — replace the inline `role === \"admin\"` (and the `!==` variant) with calls to it.\n\nProposed API:\n\n```ts\n// src/policy/roles.ts\nexport type Role = \"admin\" | \"owner\" | string;\nexport function isAdmin(role: Role): boolean;     // role === \"admin\"\nexport function isPrivileged(role: Role): boolean; // admin OR owner — replaces assertAdminB\n```\n\n`canEditBilling`, `canSeeAuditLog`, `canImpersonate` collapse to `return isAdmin(role)`. `assertAdminA` → `isAdmin`; `assertAdminB` → `isPrivileged`; `assertAdminC` → `!isAdmin(role)` (preserving the inverted call site, but routed through the same source of truth — this is the whole point: if the definition of \"admin\" ever needs to change, it changes once).\n\n**C. Deduplicate the telemetry helper (addresses `crime_00001`)**\n\n- New: `src/telemetry.ts` — single `recordSanitiseEvent`.\n- Delete (or empty + re-export): `src/telemetry-a.ts`, `src/telemetry-b.ts`.\n\nAPI is unchanged from today — same signature, same console.log shape:\n\n```ts\n// src/telemetry.ts\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n): void;\n```\n\nWhile we're here, the `Date.now()` call (`crime_00004`/`crime_00005`) is the same line in both copies — fold the **inject-clock** suggestion into this step rather than touching the file twice:\n\n```ts\nexport interface Clock { now(): number }\nexport const systemClock: Clock = { now: () => Date.now() };\n\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  clock: Clock = systemClock,\n): void;\n```\n\nDefault parameter keeps every existing call site working; tests can pass a fake clock without monkey-patching.\n\n## Summary of file changes\n\n| File | Action |\n|---|---|\n| `src/sanitize.ts` | **new** — consolidated `sanitize(input, opts?)` |\n| `src/sanitize-a.ts` | shrink to `export { sanitize as sanitizeUserInput }` + drop `assertAdminA` |\n| `src/sanitize-b.ts` | shrink to `export { sanitize as sanitizeText }` + drop `assertAdminB` |\n| `src/sanitize-c.ts` | shrink to `export { sanitize as cleanMessage }` + drop `assertAdminC` |\n| `src/policy/roles.ts` | **new** — `isAdmin`, `isPrivileged` |\n| `src/policy.ts` | rewrite each predicate as a one-line delegate to `isAdmin` |\n| `src/telemetry.ts` | **new** — single `recordSanitiseEvent` with injectable clock |\n| `src/telemetry-a.ts` | delete (or re-export from `./telemetry`) |\n| `src/telemetry-b.ts` | delete (or re-export from `./telemetry`) |\n\nNet effect: 1 source of truth for the sanitizer, 1 for the admin check, 1 for the telemetry helper, and the `Date.now()` finding goes away as a side-effect. A re-scan should drop `crime_00001`, `crime_00002`, `crime_00003`, and the two `direct_date` findings to zero.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.10.1",
+  "timestamp": "2026-05-20T14:28:06.367Z",
+  "run_id": "ab6ac81e-ccef-4bc4-9d41-da2bcfa01f16",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e45c9-21ec-70c3-afe2-2929bf6b954a\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Based on the scan, there are two architecture findings to act on:\\n\\n**crime_00002: `layer_violation`**\\n\\nFinding:\\n\\n`src/domain/billing.ts` imports `src/presentation/invoice-view.ts`\\n\\nThis import should be broken. The domain layer should not know about presentation concerns like invoice rendering/view models. That dependency inverts the intended architecture and also participates in the circular dependency reported in `crime_00001`.\\n\\nRecommended change:\\n\\nMove the cross-layer collaboration behind a domain-owned or application-owned interface.\\n\\nFor example:\\n\\n- `src/domain/billing.ts` should expose billing concepts, billing rules, or domain events.\\n- `src/presentation/invoice-view.ts` should consume domain/application output and render invoice presentation.\\n- If domain currently calls something like `renderInvoice`, replace that with a domain-neutral abstraction such as an `InvoicePresenter`, `InvoiceFormatter`, or domain event that the application layer wires to presentation.\\n\\nThe direction should become:\\n\\n```text\\npresentation -> application -> domain\\n```\\n\\nor:\\n\\n```text\\napplication depends on domain interface\\npresentation implements/consumes outside the domain\\n```\\n\\nBut not:\\n\\n```text\\ndomain -> presentation\\n```\\n\\nThis also helps break the cycle:\\n\\n```text\\napplication/billing-flow.ts\\ndomain/billing.ts\\npresentation/invoice-view.ts\\n```\\n\\n**crime_00003: `deep_import`**\\n\\nFinding:\\n\\n`src/application/billing-flow.ts` imports:\\n\\n```ts\\nsome-pkg/dist/internal/private/helper.js\\n```\\n\\nThis should be redirected through the package’s public surface.\\n\\nRecommended change:\\n\\nReplace the deep import with the documented public entry point, for example:\\n\\n```ts\\nimport { helper } from \\\"some-pkg\\\";\\n```\\n\\nor, if the package exposes a stable subpath:\\n\\n```ts\\nimport { helper } from \\\"some-pkg/helper\\\";\\n```\\n\\nDo not keep importing from `dist/internal/private/...`. If the needed helper is not exported publicly, the safer fix is to wrap the behavior behind a local application-level adapter and either reimplement the small stable behavior locally or request an upstream export. The application layer should depend on a stable package contract, not private build output.\\n\\n**How the risks differ**\\n\\n`layer_violation` is an architectural direction risk. It tells an agent that a file is crossing a boundary the repo explicitly declared illegal. The danger is conceptual: future edits may put business rules, UI behavior, and orchestration into the wrong layer because the dependency graph teaches the wrong direction.\\n\\n`deep_import` is a package surface risk. It may not violate the repo’s internal layer model, but it reaches past a dependency’s public API into private internals. The danger is upgrade fragility: the imported path can move, disappear, or change semantics without a breaking-version signal.\\n\\nSo I would prioritize:\\n\\n1. Break `src/domain/billing.ts -> src/presentation/invoice-view.ts`.\\n2. Use that refactor to break the circular dependency involving `billing-flow.ts`, `billing.ts`, and `invoice-view.ts`.\\n3. Redirect `some-pkg/dist/internal/private/helper.js` through a public package entry or a local adapter.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19524,\"cached_input_tokens\":17792,\"output_tokens\":698,\"reasoning_output_tokens\":56}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}
