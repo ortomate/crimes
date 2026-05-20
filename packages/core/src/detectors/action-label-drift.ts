@@ -139,6 +139,8 @@ export function analyse(
         "different ways in different views — pick a canonical verb to keep " +
         "agents and reviewers aligned.",
       evidence,
+      effort: "small",
+      fix_shape: "pick one verb per action; update labels uniformly",
       scores: {
         severity: severity === "medium" ? 0.55 : 0.4,
         confidence,

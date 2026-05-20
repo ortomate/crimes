@@ -50,6 +50,8 @@ export const orphanedDestinationDetector: Detector = {
         "doc link, or in-repo import. The page may be in flight, or it may " +
         "have outlived the journey it was built for.",
       evidence,
+      effort: "quick",
+      fix_shape: "delete the orphan destination or wire it up",
       scores: {
         severity: 0.4,
         confidence: 0.65,

@@ -81,6 +81,8 @@ export const rasterShouldBeVectorDetector: AssetDetector = {
         `format: ${dims.format}`,
         `consider replacing with an SVG icon — same render at every DPI, smaller bytes`,
       ],
+      effort: "quick",
+      fix_shape: "ship the SVG source; rasters lose at any scale",
       scores: {
         severity: 0.35,
         confidence: 0.85,

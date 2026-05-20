@@ -114,6 +114,8 @@ export const booleanNamingDriftDetector: Detector = {
         `lines: ${lineList.join(", ")}${offenders.length > 10 ? `, …+${offenders.length - 10} more` : ""}`,
         `built-in React-state names (loading/ready/active/…) are exempt; add project-specific names via \`detectors.options.boolean_naming_drift.allowedNames\``,
       ],
+      effort: "quick",
+      fix_shape: "rename to `isX`/`hasX`/`shouldX`; consistent across the module",
       scores: {
         severity: severity === "medium" ? 0.55 : 0.3,
         confidence: 0.8,

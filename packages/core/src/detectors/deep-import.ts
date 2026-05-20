@@ -67,6 +67,8 @@ export const deepImportDetector: Detector = {
         "published surface ties this file to its private internals; the " +
         "next upgrade may move or remove them silently.",
       evidence,
+      effort: "quick",
+      fix_shape: "import from the package boundary, not the internals",
       scores: {
         severity: severityScore(severity),
         confidence,

@@ -77,6 +77,8 @@ function buildFinding(
       "same structural shape. Extracting a shared component would let edits " +
       "land in one place instead of being repeated by hand.",
     evidence,
+    effort: "small",
+    fix_shape: "extract the shared component; parameterise the differing props",
     scores: {
       severity: 0.55,
       confidence: 0.7,

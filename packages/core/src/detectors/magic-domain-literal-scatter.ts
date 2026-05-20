@@ -51,6 +51,8 @@ export const magicDomainLiteralScatterDetector: Detector = {
           `appears in ${files.length} production files across ${buckets.join(", ")}`,
           `representative files: ${representatives.map((hit) => `${hit.file}:${hit.line}`).join(", ")}`,
         ],
+        effort: "small",
+        fix_shape: "promote the literal to a named constant in one module",
         scores: {
           severity: severityScore(severity),
           confidence,

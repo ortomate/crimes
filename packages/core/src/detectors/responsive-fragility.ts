@@ -62,6 +62,8 @@ export const responsiveFragilityDetector: Detector = {
           `${hits.length === 1 ? "" : "s"} that likely break at small ` +
           "viewports. Add responsive alternatives or convert to fluid units.",
         evidence,
+        effort: "small",
+        fix_shape: "drive layout from container queries or a fluid scale, not pixel media queries",
         scores: {
           severity: 0.4,
           confidence: 0.65,

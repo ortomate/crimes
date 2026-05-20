@@ -45,6 +45,8 @@ export const optionBagJunkDrawerDetector: Detector = {
           `parameter: ${bag}`,
           `${properties.length} distinct property reads: ${properties.slice(0, 8).join(", ")}`,
         ],
+        effort: "small",
+        fix_shape: "split the options bag into named, narrowly-typed records",
         scores: {
           severity: 0.3,
           confidence: round(Math.min(0.62 + properties.length * 0.02, 0.82)),

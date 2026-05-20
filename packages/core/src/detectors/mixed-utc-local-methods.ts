@@ -77,6 +77,8 @@ export const mixedUtcLocalMethodsDetector: Detector = {
           ? `…and ${offenders.length - 3} more receiver${offenders.length - 3 === 1 ? "" : "s"}`
           : `pick one family per variable; usually UTC for storage and local only at the display boundary`,
       ],
+      effort: "medium",
+      fix_shape: "pick one time domain; convert at the boundary",
       scores: {
         severity: 0.8,
         confidence: 0.85,

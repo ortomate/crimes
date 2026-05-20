@@ -117,6 +117,8 @@ function buildFinding(destination: string, entries: NavHit[]): Finding {
       `file${sortedEntries.length === 1 ? "" : "s"} with ${distinctLabels.size} ` +
       "different labels. An agent updating one source will leave the others stale.",
     evidence,
+    effort: "small",
+    fix_shape: "single source of truth for nav; routes derive from it",
     scores: {
       severity: 0.6,
       confidence,

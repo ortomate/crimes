@@ -12,6 +12,8 @@ function makeFinding(overrides: Partial<Finding>): Finding {
     file: "src/billing.ts",
     summary: "...",
     evidence: [],
+    effort: "small",
+    fix_shape: "extract pure helpers; keep the orchestrator thin",
     scores: { severity: 0.9, confidence: 0.9 },
     ...overrides,
   };

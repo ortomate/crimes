@@ -63,6 +63,8 @@ function analyse(ia: IaIndex): Finding[] {
         "point at file(s) that do not exist on disk. Agents reading this doc " +
         "may follow stale instructions.",
       evidence,
+      effort: "small",
+      fix_shape: "sync the doc to the code, or move the assertion into a test",
       scores: {
         severity: 0.35,
         confidence,

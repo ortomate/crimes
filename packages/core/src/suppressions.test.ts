@@ -37,6 +37,8 @@ function makeFinding(overrides: Partial<Finding> = {}): Finding {
     lines: [10, 200],
     summary: "long function",
     evidence: [],
+    effort: "small",
+    fix_shape: "extract pure helpers; keep the orchestrator thin",
     scores: { severity: 0.9, confidence: 0.9 },
     ...overrides,
   };
@@ -871,6 +873,8 @@ describe("suppressionsForFile", () => {
     lines: [10, 200],
     summary: "long function",
     evidence: [],
+    effort: "small",
+    fix_shape: "extract pure helpers; keep the orchestrator thin",
     scores: { severity: 0.9, confidence: 0.9 },
   };
 
@@ -885,6 +889,8 @@ describe("suppressionsForFile", () => {
     lines: [5, 5],
     summary: "uses Date.now()",
     evidence: [],
+    effort: "small",
+    fix_shape: "inject a clock; pass through the domain boundary",
     scores: { severity: 0.45, confidence: 0.8 },
   };
 

@@ -48,6 +48,8 @@ export const dateStringConcatDetector: Detector = {
         `lines: ${lineList.join(", ")}${hits.length > 10 ? `, …+${hits.length - 10} more` : ""}`,
         `use \`toISOString()\` or \`Intl.DateTimeFormat\` instead of \`+\`-concatenation`,
       ],
+      effort: "small",
+      fix_shape: "format dates via a single helper; never concatenate fragments",
       scores: {
         severity: severityScoreFor(severity),
         confidence: 0.85,

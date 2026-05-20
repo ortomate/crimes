@@ -63,6 +63,8 @@ export const todoDensityDetector: Detector = {
           .join(", "),
         `${density.toFixed(1)} markers per 1k LOC (threshold ${threshold})`,
       ],
+      effort: "small",
+      fix_shape: "convert TODOs to tickets or delete; comments are not tracking",
       scores: {
         severity: severityScore(severity),
         confidence: 0.7,

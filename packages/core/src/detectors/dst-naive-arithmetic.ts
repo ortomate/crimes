@@ -55,6 +55,8 @@ export const dstNaiveArithmeticDetector: Detector = {
           ? `file looks like scheduling/billing code — drift here directly affects users`
           : `use a calendar-aware library (Luxon, Temporal, date-fns-tz) for day math`,
       ],
+      effort: "medium",
+      fix_shape: "use a DST-aware library; never add seconds to a wall-clock date",
       scores: {
         severity: severityScoreFor(severity),
         confidence: 0.8,

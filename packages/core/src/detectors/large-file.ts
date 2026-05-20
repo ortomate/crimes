@@ -108,6 +108,8 @@ export const largeFileDetector: Detector = {
           ? ["shape: test file (matches **/*.{test,spec}.[jt]sx? or __tests__/)"]
           : []),
       ],
+      effort: "medium",
+      fix_shape: "split by responsibility; one concern per module",
       scores: {
         severity: severityScore(severity),
         confidence: round(confidence),

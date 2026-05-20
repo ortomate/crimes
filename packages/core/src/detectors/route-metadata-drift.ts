@@ -89,6 +89,8 @@ function analyseRoute(route: IaRouteSignal, ia: IaIndex): Finding[] {
         "competing ways across its path, file, component, page title, and nav " +
         "entries. An agent editing one label may leave the others out of sync.",
       evidence,
+      effort: "small",
+      fix_shape: "derive route metadata from one source; remove the divergent copies",
       scores: {
         severity: 0.6,
         confidence,

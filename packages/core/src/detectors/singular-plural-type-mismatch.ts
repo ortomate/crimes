@@ -83,6 +83,8 @@ export const singularPluralTypeMismatchDetector: Detector = {
         ...(overflow ? [overflow] : []),
         `v1 detector — type aliases and generic types are silently skipped`,
       ],
+      effort: "quick",
+      fix_shape: "make the name agree with the type — `users` for array, `user` for scalar",
       scores: {
         severity: severity === "medium" ? 0.55 : 0.3,
         confidence: 0.7,

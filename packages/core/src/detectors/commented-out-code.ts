@@ -56,6 +56,8 @@ export const commentedOutCodeDetector: Detector = {
           `code-like tokens: ${score.tokens.join(", ")}`,
           `first code-like line: ${score.firstLine}`,
         ],
+        effort: "quick",
+        fix_shape: "delete; git history preserves it",
         scores: {
           severity: severityScore(severity),
           confidence: score.confidence,

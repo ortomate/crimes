@@ -91,6 +91,8 @@ export const logicInCommentsDetector: Detector = {
           `rule terms: ${ruleTerms.slice(0, 5).join(", ")}`,
           `domain terms not found nearby: ${missingTerms.slice(0, 5).join(", ")}`,
         ],
+        effort: "small",
+        fix_shape: "lift the prose rule to an assert / type / test / config check",
         scores: {
           severity: severityScore(severity),
           confidence,

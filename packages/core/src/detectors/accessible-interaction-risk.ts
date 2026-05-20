@@ -56,6 +56,8 @@ export const accessibleInteractionRiskDetector: Detector = {
         "metadata. Keyboard and screen-reader users will not be able to reach " +
         "the interaction.",
       evidence,
+      effort: "small",
+      fix_shape: "use semantic elements; add ARIA only when semantics don't fit",
       scores: {
         severity: 0.65,
         confidence: 0.85,

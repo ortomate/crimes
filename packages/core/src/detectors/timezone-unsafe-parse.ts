@@ -80,6 +80,8 @@ export const timezoneUnsafeParseDetector: Detector = {
         `lines: ${lineList.join(", ")}${unsafe.length > 10 ? `, …+${unsafe.length - 10} more` : ""}`,
         `add \`Z\` for UTC, \`±HH:MM\` for an offset, or parse through a timezone-aware library`,
       ],
+      effort: "small",
+      fix_shape: "parse with explicit timezone; reject ambiguous inputs",
       scores: {
         severity: severityScoreFor(severity),
         confidence: 0.9,

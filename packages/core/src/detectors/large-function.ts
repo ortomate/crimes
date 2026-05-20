@@ -146,6 +146,8 @@ export const largeFunctionDetector: Detector = {
         lines: [fn.startLine, fn.endLine],
         summary: buildSummary({ symbol, length, policy }),
         evidence: buildEvidence({ fn, length, policy, ratio }),
+        effort: "small",
+        fix_shape: "extract pure helpers; keep the orchestrator thin",
         scores: {
           severity: severityScore(severity),
           confidence: round(confidence),

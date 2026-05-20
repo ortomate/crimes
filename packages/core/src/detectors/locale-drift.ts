@@ -61,6 +61,8 @@ export const localeDriftDetector: Detector = {
         `lines: ${lineList.join(", ")}${offenders.length > 10 ? `, …+${offenders.length - 10} more` : ""}`,
         `pass an explicit locale (e.g. \`'en-US'\`) or use Intl.DateTimeFormat`,
       ],
+      effort: "small",
+      fix_shape: "centralise locale; one provider for all formatters",
       scores: {
         severity: severityScoreFor(severity),
         confidence: 0.85,

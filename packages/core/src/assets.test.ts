@@ -167,6 +167,8 @@ describe("scan asset pass", () => {
             file: "logo.png",
             summary: "tagged",
             evidence: ["stub finding"],
+            effort: "medium",
+            fix_shape: "stub",
             scores: { severity: 0.3, confidence: 0.9 },
           },
         ];

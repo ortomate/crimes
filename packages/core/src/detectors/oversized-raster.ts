@@ -80,6 +80,8 @@ export const oversizedRasterDetector: AssetDetector = {
         `format: ${ctx.extension.replace(/^\./, "")}`,
         `consider resizing to the rendered dimensions and re-encoding to webp or avif`,
       ],
+      effort: "quick",
+      fix_shape: "downscale or convert to WebP/AVIF; budget the size",
       scores: {
         severity: severityScore(severity),
         confidence: 0.95,

@@ -37,6 +37,8 @@ export const finderDuplicateFilenameDetector: Detector = {
         `likely intended canonical path: ${canonicalPath}`,
         `suffix number: ${match[2]}`,
       ],
+      effort: "quick",
+      fix_shape: "delete the duplicate; the canonical file already exists",
       scores: {
         severity: 0.55,
         confidence: 0.9,

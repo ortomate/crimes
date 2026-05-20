@@ -145,6 +145,8 @@ function evaluateGroup(
       `group appear across ${allFiles.length} files. An agent extending one ` +
       "vocabulary may duplicate logic that already exists under another name.",
     evidence,
+    effort: "small",
+    fix_shape: "rename the alias to match the canonical term; one term per concept",
     scores: {
       severity: severity === "medium" ? 0.55 : 0.4,
       confidence,

@@ -161,6 +161,8 @@ function buildFinding(
       "overlapping user intent across different parts of the IA. An agent " +
       "updating one flow will likely miss the parallel one.",
     evidence,
+    effort: "small",
+    fix_shape: "fold the parallel destinations into one; route via a switch if necessary",
     scores: {
       severity: 0.55,
       confidence: 0.6,

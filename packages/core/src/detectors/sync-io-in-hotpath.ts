@@ -102,6 +102,8 @@ export const syncIoInHotpathDetector: Detector = {
         `lines: ${lines.slice(0, 10).join(", ")}${lines.length > 10 ? `, …+${lines.length - 10} more` : ""}`,
         `swap for the async variant (\`readFile\`, \`writeFile\`, \`exec\`, …) and \`await\` it`,
       ],
+      effort: "small",
+      fix_shape: "switch to async I/O; await at the call site",
       scores: {
         severity: severityScore(severity),
         confidence: 0.9,

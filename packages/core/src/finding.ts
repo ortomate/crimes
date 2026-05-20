@@ -88,19 +88,14 @@ export interface Finding {
   /**
    * Estimated effort to address. Detector-supplied; `core` fills the
    * default from `detector-defaults.ts` if the detector omits it.
-   * Always present on findings that have passed `finaliseFindingScores`
-   * (every finding emitted by `scan`); the optional `?` only allows
-   * detector source files to omit it at construction time without
-   * forcing every detector to set redundant defaults.
    */
-  effort?: Effort;
+  effort: Effort;
   /**
    * One-line description of the *shape* of the fix, not the fix itself.
    * Detector-supplied; ≤120 chars, single line. Defaults vary per
-   * detector type — see `core/src/detector-defaults.ts`. Always present
-   * on findings that have passed `finaliseFindingScores`.
+   * detector type — see `core/src/detector-defaults.ts`.
    */
-  fix_shape?: string;
+  fix_shape: string;
   scores: FindingScores;
   suggested_actions?: SuggestedAction[];
   related_files?: string[];

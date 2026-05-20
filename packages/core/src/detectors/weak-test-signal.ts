@@ -50,6 +50,8 @@ export const weakTestSignalDetector: Detector = {
             : `${weakAssertions.length} weak assertion matcher${weakAssertions.length === 1 ? "" : "s"}`,
           `lines ${block.startLine}-${block.endLine}`,
         ],
+        effort: "small",
+        fix_shape: "assert behaviour, not implementation; remove no-op assertions",
         scores: {
           severity: severityScore(severity),
           confidence,

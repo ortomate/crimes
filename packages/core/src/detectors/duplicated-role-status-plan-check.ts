@@ -165,6 +165,8 @@ function buildFinding(
       "Extracting a single policy function would prevent the rules from " +
       "drifting silently.",
     evidence,
+    effort: "medium",
+    fix_shape: "centralise the policy check; everyone calls the one helper",
     scores: {
       severity: 0.55,
       confidence: 0.7,

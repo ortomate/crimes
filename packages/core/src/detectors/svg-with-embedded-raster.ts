@@ -96,6 +96,8 @@ export const svgWithEmbeddedRasterDetector: AssetDetector = {
         `SVG byte size: ${ctx.byteSize.toLocaleString()} bytes (includes the base64 overhead)`,
         `re-author the raster region as vector paths, or split it out to its own asset`,
       ],
+      effort: "small",
+      fix_shape: "externalise the embedded raster or replace it with vector geometry",
       scores: {
         severity: matches.length >= 2 ? 0.75 : 0.6,
         confidence: 0.95,

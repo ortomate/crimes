@@ -38,6 +38,8 @@ export const negativeFlagMazeDetector: Detector = {
           `negative flags: ${allSignals.join(", ")}`,
           `condition: ${truncate(condition.text.replace(/\s+/g, " "), 100)}`,
         ],
+        effort: "small",
+        fix_shape: "invert flags to read positively; consolidate combined states",
         scores: {
           severity: 0.25,
           confidence: 0.72,

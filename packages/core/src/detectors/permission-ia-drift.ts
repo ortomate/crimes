@@ -163,6 +163,8 @@ function buildFinding(
       `different role / permission tokens across ${files.length} files. An ` +
       "agent extending one source of access policy may leave the others stale.",
     evidence,
+    effort: "small",
+    fix_shape: "centralise the permission check; every caller goes through it",
     scores: {
       severity: 0.65,
       confidence: 0.7,

@@ -123,6 +123,8 @@ export const hardcodedLocalhostDetector: Detector = {
         `lines: ${lineList.join(", ")}${hits.length > 10 ? `, …+${hits.length - 10} more` : ""}`,
         `move the value behind a config / env var (\`process.env.API_URL\`, settings module, etc.)`,
       ],
+      effort: "quick",
+      fix_shape: "lift the host to config or env; default for dev only",
       scores: {
         severity: severity === "high" ? 0.8 : 0.6,
         confidence: 0.9,

@@ -109,6 +109,8 @@ export const hardcodedLocalPathDetector: Detector = {
         `lines: ${lineList.join(", ")}${hits.length > 10 ? `, …+${hits.length - 10} more` : ""}`,
         `replace with \`os.homedir()\`, \`process.env.HOME\`, or a config-driven base path`,
       ],
+      effort: "quick",
+      fix_shape: "use a portable path or resolve from a configured root",
       scores: {
         severity: severity === "high" ? 0.8 : 0.6,
         confidence: 0.9,

@@ -95,6 +95,8 @@ function analyse(ia: IaIndex): Finding[] {
         "advertises. Readers following the docs will get a 'command not " +
         "found' error.",
       evidence,
+      effort: "small",
+      fix_shape: "regenerate command docs from code or codify them in CI",
       scores: {
         severity: 0.4,
         confidence: 0.8,

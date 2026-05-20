@@ -46,6 +46,8 @@ export const returnShapeRouletteDetector: Detector = {
           `lowest key overlap: ${(weakest.overlap * 100).toFixed(0)}%`,
           `example keys: { ${weakest.left.join(", ")} } vs { ${weakest.right.join(", ")} }`,
         ],
+        effort: "small",
+        fix_shape: "pick one return shape; use a discriminated union if you need both",
         scores: {
           severity: 0.3,
           confidence: round(Math.min(0.64 + shapes.length * 0.03, 0.82)),

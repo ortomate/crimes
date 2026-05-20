@@ -145,6 +145,8 @@ function buildFinding(cycle: string[]): Finding {
       "depends on itself. Edits inside the cycle risk re-entry bugs and " +
       "make tree-shaking unreliable.",
     evidence,
+    effort: "medium",
+    fix_shape: "extract shared types to a leaf module",
     scores: {
       severity: severityScore(severity),
       confidence,

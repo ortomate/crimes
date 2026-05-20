@@ -67,6 +67,8 @@ export const designTokenEscapeDetector: Detector = {
           "belong in the design system; agents extending the file may copy " +
           "them forward without realising they bypass the tokens.",
         evidence,
+        effort: "quick",
+        fix_shape: "replace raw values with the design token",
         scores: {
           severity: severity === "medium" ? 0.55 : 0.4,
           confidence,

@@ -97,6 +97,8 @@ export const layerViolationDetector: Detector = {
         "rules forbid. Crossing a layer boundary may invert the team's intended " +
         "direction of change.",
       evidence,
+      effort: "medium",
+      fix_shape: "route through the layer boundary or relocate the consumer",
       scores: {
         severity: severityScore(severity),
         confidence,

@@ -86,6 +86,8 @@ export function buildFinding(args: {
       "Each fix has to land in every copy; extracting a shared helper would " +
       "make the duplication explicit.",
     evidence,
+    effort: "small",
+    fix_shape: "extract the duplicated block into a shared helper",
     scores: {
       severity: 0.55,
       confidence: args.confidence,

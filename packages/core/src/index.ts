@@ -157,6 +157,7 @@ export type {
 } from "./diff.js";
 export { fingerprintFinding } from "./fingerprint.js";
 export type {
+  Effort,
   Finding,
   FindingScores,
   ScanReport,

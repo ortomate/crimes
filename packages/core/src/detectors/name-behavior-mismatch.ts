@@ -66,6 +66,8 @@ export const nameBehaviorMismatchDetector: Detector = {
           `side-effect-like calls: ${score.calls.slice(0, 5).join(", ")}`,
           `${score.signals.length} side-effect signal${score.signals.length === 1 ? "" : "s"} in the function body`,
         ],
+        effort: "small",
+        fix_shape: "rename to match behaviour, or change the body to match the name",
         scores: {
           severity: severityScore(severity),
           confidence,

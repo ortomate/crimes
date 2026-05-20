@@ -69,6 +69,8 @@ export const highFanInFanOutDetector: Detector = {
         `fan-in ${fanIn}, fan-out ${fanOut}). Edits here ripple widely; ` +
         "treat as load-bearing before refactoring.",
       evidence,
+      effort: "medium",
+      fix_shape: "split or invert: too many consumers means too much coupling",
       scores: {
         severity: severityScore(severity),
         confidence,

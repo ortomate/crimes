@@ -307,6 +307,8 @@ function makeFinding(
     lines: [1, 100],
     summary: "spans 100 lines",
     evidence: [],
+    effort: "small",
+    fix_shape: "extract pure helpers; keep the orchestrator thin",
     scores: { severity: 0.9, confidence: 0.9 },
   };
 }
@@ -494,6 +496,8 @@ describe("tagTierAndSortByRankScore — recencyEnabled: false", () => {
       lines: [1, 100],
       summary: "spans 100 lines",
       evidence: [],
+      effort: "small",
+      fix_shape: "extract pure helpers; keep the orchestrator thin",
       scores: {
         severity: 0.9,
         confidence: 0.9,

@@ -70,6 +70,8 @@ function missingAgentContextFinding(
       "project commands, conventions, or safety rules and are more likely " +
       "to make confident-but-wrong edits.",
     evidence: missingAgentContextEvidence(agentContext),
+    effort: "small",
+    fix_shape: "write a SKILL.md so agents discover the entry points",
     scores: {
       severity: 0.6,
       confidence: 0.9,

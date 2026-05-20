@@ -53,6 +53,8 @@ export const directDateDetector: Detector = {
         `lines: ${lineList.join(", ")}${hits.length > 10 ? `, …+${hits.length - 10} more` : ""}`,
         `each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching`,
       ],
+      effort: "small",
+      fix_shape: "inject a clock; pass through the domain boundary",
       scores: {
         severity: severityScoreFor(severity),
         confidence: 0.9,
