@@ -7,6 +7,7 @@ import { registerContextCommand } from "./commands/context.js";
 import { registerDiffCommand } from "./commands/diff.js";
 import { registerExplainCommand } from "./commands/explain.js";
 import { registerFeedbackCommand } from "./commands/feedback.js";
+import { registerHookCommand } from "./commands/hook.js";
 import { registerHotspotsCommand } from "./commands/hotspots.js";
 import { registerIgnoreCommand } from "./commands/ignore.js";
 import { registerInitCommand } from "./commands/init.js";
@@ -68,6 +69,7 @@ registerBaselineCommand(program);
 registerVerdictCommand(program);
 registerFeedbackCommand(program);
 registerTriageCommand(program);
+registerHookCommand(program);
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

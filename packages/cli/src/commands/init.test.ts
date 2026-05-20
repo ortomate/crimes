@@ -204,7 +204,7 @@ describe("crimes init", () => {
     expect(parsed.hooks.PreToolUse).toHaveLength(1);
     expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write|NotebookEdit");
     expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain(
-      "crimes context",
+      "crimes hook",
     );
   });
 
@@ -286,7 +286,11 @@ describe("crimes init", () => {
     const parsed = JSON.parse(readFileSync(settingsPath, "utf8"));
     const crimesEntries = parsed.hooks.PreToolUse.filter(
       (entry: { hooks: Array<{ command: string }> }) =>
-        entry.hooks.some((h) => h.command.includes("crimes context")),
+        entry.hooks.some(
+          (h) =>
+            h.command.includes("crimes hook") ||
+            h.command.includes("crimes context"),
+        ),
     );
     expect(crimesEntries).toHaveLength(1);
   });

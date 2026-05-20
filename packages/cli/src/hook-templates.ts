@@ -11,13 +11,18 @@ export interface ClaudeSettings {
   [key: string]: unknown;
 }
 
+// Claude Code's PreToolUse hook contract delivers tool input on stdin
+// as JSON (https://code.claude.com/docs/en/hooks). Older drafts of this
+// hook used a `$CLAUDE_TOOL_INPUT_file_path` env var that never existed
+// in the spec — the hook silently no-op'd because the var expanded to
+// "". `crimes hook` reads stdin JSON itself, so the hook command stays
+// stable across hook-host shape changes.
 export const CLAUDE_HOOK_ENTRY: ClaudeHookEntry = {
   matcher: "Edit|Write|NotebookEdit",
   hooks: [
     {
       type: "command",
-      command:
-        'npx -y crimes context "$CLAUDE_TOOL_INPUT_file_path" --format json 2>/dev/null || true',
+      command: "npx -y crimes hook 2>/dev/null || true",
       timeout: 8000,
     },
   ],
@@ -34,8 +39,7 @@ export const CODEX_HOOK_DOCUMENT = JSON.stringify(
           hooks: [
             {
               type: "command",
-              command:
-                'npx -y crimes context "$CODEX_TOOL_INPUT_file_path" --format json 2>/dev/null || true',
+              command: "npx -y crimes hook 2>/dev/null || true",
               timeout: 8000,
             },
           ],
@@ -54,11 +58,18 @@ export interface MergeResult {
   document: ClaudeSettings;
 }
 
-const CRIMES_MARKER = "crimes context";
+// Recognise both the current ("crimes hook") and the legacy 0.11.0-draft
+// ("crimes context $CLAUDE_TOOL_INPUT_file_path") shapes so we don't
+// double-write into a settings.json that already has the broken legacy
+// entry on disk. The first migration pass through `init --agents --force`
+// rewrites the legacy entry to the current one.
+const CRIMES_HOOK_MARKERS = ["crimes hook", "crimes context"] as const;
 
 function isCrimesEntry(entry: ClaudeHookEntry): boolean {
   return entry.hooks.some(
-    (h) => typeof h.command === "string" && h.command.includes(CRIMES_MARKER),
+    (h) =>
+      typeof h.command === "string" &&
+      CRIMES_HOOK_MARKERS.some((marker) => h.command.includes(marker)),
   );
 }
 
