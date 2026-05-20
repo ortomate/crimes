@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  emptyTriage,
   loadTriage,
   resolveTriagePath,
   saveTriage,
@@ -167,5 +168,52 @@ describe("triage", () => {
       }),
     );
     await expect(loadTriage(path)).rejects.toBeInstanceOf(MalformedTriageError);
+  });
+
+  it("emptyTriage returns a fresh document with both timestamps equal", () => {
+    const fixedNow = new Date("2026-05-20T14:00:00Z");
+    const doc = emptyTriage({ now: () => fixedNow });
+    expect(doc.entries).toEqual([]);
+    expect(doc.created_at).toBe("2026-05-20T14:00:00.000Z");
+    expect(doc.updated_at).toBe("2026-05-20T14:00:00.000Z");
+    expect(doc.report_type).toBe("triage");
+    expect(doc.crimes_version).toBeUndefined();
+  });
+
+  it("emptyTriage records crimes_version when supplied", () => {
+    const doc = emptyTriage({
+      now: () => new Date("2026-05-20T14:00:00Z"),
+      crimesVersion: "0.11.0",
+    });
+    expect(doc.crimes_version).toBe("0.11.0");
+  });
+
+  it("surfaces zod path + message in MalformedTriageError", async () => {
+    const root = makeTempRoot();
+    mkdirSync(join(root, ".crimes"), { recursive: true });
+    const path = join(root, ".crimes", "triage.json");
+    writeFileSync(
+      path,
+      JSON.stringify({
+        schema_version: "0.2.0",
+        report_type: "triage",
+        created_at: "2026-05-20T14:00:00Z",
+        updated_at: "2026-05-20T14:00:00Z",
+        entries: [
+          {
+            fingerprint: "x::a::b",
+            type: "x",
+            file: "a",
+            disposition: "wont-fix",
+            // reason missing
+            owner: "@a",
+            date: "2026-05-20",
+          },
+        ],
+      }),
+    );
+    await expect(loadTriage(path)).rejects.toMatchObject({
+      message: expect.stringMatching(/entries\.0\.reason/),
+    });
   });
 });

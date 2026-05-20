@@ -27,8 +27,21 @@ export interface TriageEntry {
   date: string;
 }
 
+/**
+ * Recognised on-disk schema versions for `.crimes/triage.json`. The
+ * loader accepts any prior version still in the active migration window;
+ * the writer always emits the current `SCHEMA_VERSION`. Update this union
+ * each time `SCHEMA_VERSION` bumps to add the previous value.
+ */
+const ACCEPTED_TRIAGE_SCHEMA_VERSIONS = ["0.2.0"] as const;
+
 export interface Triage {
-  schema_version: typeof SCHEMA_VERSION;
+  /**
+   * On-disk schema version. The loader accepts any value in
+   * `ACCEPTED_TRIAGE_SCHEMA_VERSIONS`; the writer always emits the
+   * current `SCHEMA_VERSION`.
+   */
+  schema_version: (typeof ACCEPTED_TRIAGE_SCHEMA_VERSIONS)[number];
   report_type: "triage";
   created_at: string;
   updated_at: string;
@@ -57,7 +70,7 @@ export const TriageEntrySchema = z
 
 export const TriageSchema = z
   .object({
-    schema_version: z.literal(SCHEMA_VERSION),
+    schema_version: z.enum(ACCEPTED_TRIAGE_SCHEMA_VERSIONS),
     report_type: z.literal("triage"),
     created_at: z.string().min(1),
     updated_at: z.string().min(1),
@@ -113,7 +126,7 @@ export async function loadTriage(path: string): Promise<LoadTriageResult> {
 
   const result = TriageSchema.safeParse(parsed);
   if (!result.success) {
-    throw new MalformedTriageError(path, result.error.message);
+    throw new MalformedTriageError(path, formatZodIssues(result.error.issues));
   }
   return {
     entries: result.data.entries,
@@ -173,6 +186,13 @@ export function emptyTriage(
   };
   if (options.crimesVersion) doc.crimes_version = options.crimesVersion;
   return doc;
+}
+
+function formatZodIssues(issues: z.core.$ZodIssue[]): string {
+  const first = issues[0];
+  if (!first) return "validation failed";
+  const path = first.path.length > 0 ? first.path.join(".") : "(root)";
+  return `${path}: ${first.message}`;
 }
 
 function isNodeErrnoException(err: unknown): err is NodeJS.ErrnoException {
