@@ -50,6 +50,8 @@ export const nearDuplicateBlockDetector: Detector = {
           hash,
           hits,
           anchor,
+          fixShape:
+            "consolidate into one helper; pass the differing values as args",
         }),
       );
     }

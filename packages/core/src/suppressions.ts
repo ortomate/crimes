@@ -42,11 +42,24 @@ export interface SuppressionEntry {
 }
 
 /**
+ * Recognised on-disk schema versions for `.crimes/suppressions.json`.
+ * The loader accepts any prior version still in active migration window;
+ * the writer always emits the current `SCHEMA_VERSION`. Update this union
+ * each time `SCHEMA_VERSION` bumps to add the previous value.
+ */
+const ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS = ["0.1.0", "0.2.0"] as const;
+
+/**
  * On-disk suppressions document. Shipped as `.crimes/suppressions.json`
  * by default; the file is intended to be committed and hand-reviewable.
  */
 export interface Suppressions {
-  schema_version: typeof SCHEMA_VERSION;
+  /**
+   * On-disk schema version. The loader accepts any value in
+   * `ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS` (currently `"0.1.0"` or
+   * `"0.2.0"`); the writer always emits the current `SCHEMA_VERSION`.
+   */
+  schema_version: (typeof ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS)[number];
   report_type: "suppressions";
   created_at: string;
   updated_at: string;
@@ -70,7 +83,7 @@ export const SuppressionEntrySchema = z
 
 export const SuppressionsSchema = z
   .object({
-    schema_version: z.literal(SCHEMA_VERSION),
+    schema_version: z.enum(ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS),
     report_type: z.literal("suppressions"),
     created_at: z.string().min(1),
     updated_at: z.string().min(1),

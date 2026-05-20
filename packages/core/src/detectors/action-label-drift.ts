@@ -33,7 +33,13 @@ export const actionLabelDriftDetector: Detector = {
   run(ctx) {
     if (!ctx.ia) return [];
     if (!isPrimaryAnchor(ctx)) return [];
-    return analyse(ctx.ia, ACTION_GROUPS, "action_label_drift", "Action Label Drift");
+    return analyse(
+      ctx.ia,
+      ACTION_GROUPS,
+      "action_label_drift",
+      "Action Label Drift",
+      "pick one verb per action; update labels uniformly",
+    );
   },
 };
 
@@ -66,6 +72,12 @@ export function analyse(
   groups: ActionGroup[],
   type: string,
   charge: string,
+  /**
+   * Per-call fix_shape phrasing. Required so each caller
+   * (action-label-drift vs copy-ia-drift) carries the right
+   * detector-defaults entry onto the emitted finding.
+   */
+  fixShape: string,
   options: { restrictToJsxLabel?: boolean } = {},
 ): Finding[] {
   const findings: Finding[] = [];
@@ -140,7 +152,7 @@ export function analyse(
         "agents and reviewers aligned.",
       evidence,
       effort: "small",
-      fix_shape: "pick one verb per action; update labels uniformly",
+      fix_shape: fixShape,
       scores: {
         severity: severity === "medium" ? 0.55 : 0.4,
         confidence,

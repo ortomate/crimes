@@ -329,11 +329,19 @@ export async function loadBaseline(path: string): Promise<Baseline> {
       `expected report_type "baseline", got ${JSON.stringify(parsed["report_type"])}`,
     );
   }
-  if (parsed["schema_version"] !== SCHEMA_VERSION) {
+  // Accept any schema_version still in the active migration window. The
+  // loader tolerates prior values so users upgrading crimes don't have to
+  // hand-edit baseline.json; the writer always emits the current
+  // SCHEMA_VERSION on the next `crimes baseline save`. Extend this list
+  // whenever SCHEMA_VERSION bumps.
+  if (
+    parsed["schema_version"] !== SCHEMA_VERSION &&
+    parsed["schema_version"] !== "0.1.0"
+  ) {
     throw new MalformedBaselineError(
       path,
       `unsupported schema_version ${JSON.stringify(parsed["schema_version"])}, ` +
-        `this build of crimes understands "${SCHEMA_VERSION}"`,
+        `this build of crimes understands "${SCHEMA_VERSION}" or "0.1.0"`,
     );
   }
   if (!Array.isArray(parsed["findings"])) {

@@ -41,6 +41,7 @@ export const exactDuplicateBlockDetector: Detector = {
           hash,
           hits,
           anchor,
+          fixShape: "extract the duplicated block into a shared helper",
         }),
       );
     }
@@ -56,6 +57,12 @@ export function buildFinding(args: {
   hash: string;
   hits: FunctionHit[];
   anchor: string;
+  /**
+   * Per-call fix_shape phrasing. Required so each caller (exact vs
+   * near-duplicate detectors) carries the right detector-defaults entry
+   * onto the emitted finding.
+   */
+  fixShape: string;
 }): Finding {
   const sortedSites = [...args.hits].sort((a, b) =>
     a.file === b.file ? a.lines[0] - b.lines[0] : a.file.localeCompare(b.file),
@@ -87,7 +94,7 @@ export function buildFinding(args: {
       "make the duplication explicit.",
     evidence,
     effort: "small",
-    fix_shape: "extract the duplicated block into a shared helper",
+    fix_shape: args.fixShape,
     scores: {
       severity: 0.55,
       confidence: args.confidence,

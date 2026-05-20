@@ -26,9 +26,14 @@ export const copyIaDriftDetector: Detector = {
   run(ctx) {
     if (!ctx.ia) return [];
     if (!isPrimaryAnchor(ctx)) return [];
-    return analyse(ctx.ia, ACTION_GROUPS, "copy_ia_drift", "Copy / IA Drift", {
-      restrictToJsxLabel: true,
-    });
+    return analyse(
+      ctx.ia,
+      ACTION_GROUPS,
+      "copy_ia_drift",
+      "Copy / IA Drift",
+      "pick the canonical label; redirect copies to it",
+      { restrictToJsxLabel: true },
+    );
   },
 };
 
