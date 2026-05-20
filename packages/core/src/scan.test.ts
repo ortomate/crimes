@@ -531,6 +531,203 @@ describe("tagTierAndSortByRankScore — recencyEnabled: false", () => {
   });
 });
 
+describe("scan — resurfacing", () => {
+  it(
+    "emits previously_triaged findings at the start of findings[] on a touched file",
+    { timeout: 30_000 },
+    async () => {
+      const root = await makeRepo({
+        "src/big.ts": longFunctionFixture("doStuff"),
+      });
+      await git(root, "init", "--initial-branch=main", "--quiet");
+      await git(root, "add", "-A");
+      await git(root, "commit", "-m", "init", "--quiet");
+
+      // Run a scan to find the fingerprint of the target finding.
+      const initial = await scan({ root });
+      const target = initial.findings.find(
+        (f) => f.file === "src/big.ts" && f.symbol === "doStuff",
+      );
+      expect(target).toBeDefined();
+      const print = `${target!.type}::${target!.file}::${target!.symbol ?? ""}`;
+
+      // Write .crimes/triage.json with that fingerprint marked wont-fix.
+      const triagePath = join(root, ".crimes", "triage.json");
+      await mkdir(dirname(triagePath), { recursive: true });
+      await writeFile(
+        triagePath,
+        JSON.stringify({
+          schema_version: "0.2.0",
+          report_type: "triage",
+          created_at: "2026-05-20T14:00:00Z",
+          updated_at: "2026-05-20T14:00:00Z",
+          entries: [
+            {
+              fingerprint: print,
+              type: target!.type,
+              file: target!.file,
+              symbol: target!.symbol,
+              disposition: "wont-fix",
+              reason: "legacy billing",
+              owner: "@amayfield",
+              date: "2026-04-12",
+            },
+          ],
+        }),
+        "utf8",
+      );
+
+      // Switch to a feature branch and touch the file (so it's in the diff).
+      await git(root, "checkout", "-b", "feature", "--quiet");
+      await writeFile(
+        join(root, "src/big.ts"),
+        longFunctionFixture("doStuff") + "\n// touched\n",
+        "utf8",
+      );
+
+      const report = await scan({ root });
+      expect(report.findings[0]!.previously_triaged).toBe(true);
+      expect(report.findings[0]!.previous_triage?.disposition).toBe("wont-fix");
+      expect(report.findings[0]!.previous_triage?.reason).toBe("legacy billing");
+    },
+  );
+
+  it(
+    "skips resurfacing silently when not in a git repo",
+    { timeout: 15_000 },
+    async () => {
+      const root = await makeRepo({
+        "src/big.ts": longFunctionFixture("doStuff"),
+      });
+      // No git init — scan should still work and the report should NOT
+      // contain previously_triaged annotations.
+      const triagePath = join(root, ".crimes", "triage.json");
+      await mkdir(dirname(triagePath), { recursive: true });
+      await writeFile(
+        triagePath,
+        JSON.stringify({
+          schema_version: "0.2.0",
+          report_type: "triage",
+          created_at: "2026-05-20T14:00:00Z",
+          updated_at: "2026-05-20T14:00:00Z",
+          entries: [], // empty, but the file exists
+        }),
+        "utf8",
+      );
+      const report = await scan({ root });
+      expect(report.findings.every((f) => !f.previously_triaged)).toBe(true);
+    },
+  );
+
+  it(
+    "skips resurfacing when config.triage.resurfaceBase is empty string",
+    { timeout: 30_000 },
+    async () => {
+      // Setup: git repo with a triage entry on a touched file, but
+      // crimes.config.json explicitly sets triage.resurfaceBase = "".
+      const root = await makeRepo({
+        "src/big.ts": longFunctionFixture("doStuff"),
+        "crimes.config.json": JSON.stringify({
+          triage: { resurfaceBase: "" },
+        }),
+      });
+      await git(root, "init", "--initial-branch=main", "--quiet");
+      await git(root, "add", "-A");
+      await git(root, "commit", "-m", "init", "--quiet");
+
+      const initial = await scan({ root });
+      const target = initial.findings[0]!;
+      const print = `${target.type}::${target.file}::${target.symbol ?? ""}`;
+
+      const triagePath = join(root, ".crimes", "triage.json");
+      await mkdir(dirname(triagePath), { recursive: true });
+      await writeFile(
+        triagePath,
+        JSON.stringify({
+          schema_version: "0.2.0",
+          report_type: "triage",
+          created_at: "2026-05-20T14:00:00Z",
+          updated_at: "2026-05-20T14:00:00Z",
+          entries: [
+            {
+              fingerprint: print,
+              type: target.type,
+              file: target.file,
+              ...(target.symbol ? { symbol: target.symbol } : {}),
+              disposition: "wont-fix",
+              reason: "ok",
+              owner: "@a",
+              date: "2026-05-20",
+            },
+          ],
+        }),
+        "utf8",
+      );
+
+      await git(root, "checkout", "-b", "feature", "--quiet");
+      await writeFile(
+        join(root, "src/big.ts"),
+        longFunctionFixture("doStuff") + "\n// touched\n",
+        "utf8",
+      );
+
+      const report = await scan({ root });
+      expect(report.findings.every((f) => !f.previously_triaged)).toBe(true);
+    },
+  );
+
+  it(
+    "drops resurfaced entries whose re-detect produces no match",
+    { timeout: 30_000 },
+    async () => {
+      // Triage entry references a fingerprint that doesn't exist in the
+      // file's current findings (e.g. symbol renamed). collectResurfaced
+      // drops it silently — no annotation in the report.
+      const root = await makeRepo({
+        "src/big.ts": longFunctionFixture("renamedFunction"),
+      });
+      await git(root, "init", "--initial-branch=main", "--quiet");
+      await git(root, "add", "-A");
+      await git(root, "commit", "-m", "init", "--quiet");
+
+      const triagePath = join(root, ".crimes", "triage.json");
+      await mkdir(dirname(triagePath), { recursive: true });
+      await writeFile(
+        triagePath,
+        JSON.stringify({
+          schema_version: "0.2.0",
+          report_type: "triage",
+          created_at: "2026-05-20T14:00:00Z",
+          updated_at: "2026-05-20T14:00:00Z",
+          entries: [
+            {
+              fingerprint: "large_function::src/big.ts::oldFunctionName",
+              type: "large_function",
+              file: "src/big.ts",
+              symbol: "oldFunctionName",
+              disposition: "wont-fix",
+              reason: "ok",
+              owner: "@a",
+              date: "2026-05-20",
+            },
+          ],
+        }),
+        "utf8",
+      );
+
+      await git(root, "checkout", "-b", "feature", "--quiet");
+      await writeFile(
+        join(root, "src/big.ts"),
+        longFunctionFixture("renamedFunction") + "\n// touched\n",
+        "utf8",
+      );
+
+      const report = await scan({ root });
+      expect(report.findings.every((f) => !f.previously_triaged)).toBe(true);
+    },
+  );
+});
+
 describe("applyTriageToScan", () => {
   function triageEntryFor(
     finding: Finding,

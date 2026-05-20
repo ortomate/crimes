@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.10.3",
+  "timestamp": "2026-05-20T17:15:08.542Z",
+  "run_id": "d0e67e71-e6bf-4a77-8595-4972d733e1f2",
+  "response": "`crimes` returned a clean report: `summary.total = 0`, no findings at any severity, empty `findings[]` array. Schema version 0.2.0.\n\n**Verdict: safe to extend.** No structural, dependency, duplication, testability, or churn signals on `src/add.ts` — nothing to read first, nothing to preserve, no `agent_risk` flags to slow down for. Proceed with the edit, then re-run `crimes scan --changed --format json` post-edit to confirm nothing new fired.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.10.3",
+  "timestamp": "2026-05-20T17:13:03.298Z",
+  "run_id": "e0c69454-d031-4246-ad38-717e9ba269f7",
+  "response": "## The cycle\n\nThree files form the ring:\n- `src/application/billing-flow.ts`\n- `src/domain/billing.ts`\n- `src/presentation/invoice-view.ts`\n\n## The import to break: `domain/billing.ts → presentation/invoice-view.ts`\n\nThe scan surfaces this exact edge as a layer violation (finding `crime_00002`): `domain` is configured to never import `presentation`, and yet `domain/billing.ts` does. That's not a coincidence with the cycle — it **is** the cycle's broken link. The other two edges (`application → domain`, `presentation → application`) point in directions a clean-architecture stack actually allows; reversing either of them would just trade one violation for another.\n\n## Why this one, specifically\n\n1. **It's the only architecturally illegal edge in the ring.** Application depending on domain, and presentation depending on application, are both layer-compliant. Domain depending on presentation isn't — domain is the innermost layer and must not know its renderers exist.\n2. **Fixing it kills two findings at once.** Breaking this edge resolves both `crime_00001` (circular_dependency) and `crime_00002` (layer_violation). Nothing else does that.\n3. **Runtime re-entry risk lives here.** At module-init time, `domain/billing.ts` evaluating an import from `presentation/invoice-view.ts` (which transitively re-enters `domain/billing.ts` via the application module) is the classic shape behind `undefined`-on-first-access bugs from circular deps. The other edges only become hazardous *because* this one closes the loop.\n\n## How to break it\n\nLook at what `domain/billing.ts` is actually pulling from `invoice-view.ts`. Almost always it's one of three things, in order of likelihood:\n\n- **A type only** (e.g. `InvoiceViewModel`) — switch to `import type { … } from '../presentation/invoice-view'`. This removes the runtime edge entirely; TS erases it at build time. Cycle gone, layer rule still technically pierced but no runtime hazard. Cheapest possible fix if it applies.\n- **A shared shape that genuinely belongs to the domain** (e.g. an `Invoice` interface that presentation also consumes) — move the declaration into a leaf module under `domain/` (or a new `domain/types.ts`) and have both ends import from there. This is the scan's own `fix_shape` suggestion (\"extract shared types to a leaf module\") and is the correct long-term fix.\n- **A function/helper** — invert the dependency: define the interface in `domain`, have `presentation/invoice-view.ts` implement it, and inject the implementation at the `application` layer. Domain stays pure; presentation depends inward, not the other way around.\n\nDon't break `application → domain` or `presentation → application` — those are load-bearing and pointing the right way. The `deep_import` finding (`crime_00003`) is unrelated to the cycle and can be addressed separately.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

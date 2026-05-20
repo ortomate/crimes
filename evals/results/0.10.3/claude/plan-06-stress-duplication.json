@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.3",
+  "timestamp": "2026-05-20T17:16:59.687Z",
+  "run_id": "874bbb70-abe3-4505-a708-8d8477cdea99",
+  "response": "# Refactor plan: consolidate sanitise helpers + admin role check\n\nThe two duplication findings (`crime_00002`, `crime_00003`) are entangled — each sanitise helper contains an inline `role === \"admin\"` check. Order matters: extract the policy primitive **first** so the sanitise consolidation absorbs the new helper in a single pass, instead of refactoring the sanitise code twice.\n\n## Step 1 — Extract the policy check (`isAdmin`)\n\n**Goal:** single source of truth for the admin role, used everywhere `role === \"admin\"` appears today.\n\n**Changes:**\n1. Create `src/policy.ts` as the canonical home (it already exists per the finding — promote it). Export:\n   ```ts\n   export const isAdmin = (role: string): boolean => role === \"admin\";\n   ```\n2. Replace every `role === \"admin\"` site with `isAdmin(role)`:\n   - `src/policy.ts:1, 3, 8, 13` (internal call sites — collapse these too)\n   - `src/sanitize-a.ts:7`\n   - `src/sanitize-b.ts` (per `related_files`)\n   - `src/sanitize-c.ts` (per `related_files`)\n3. Grep `role === \"admin\"` and `role == \"admin\"` to confirm zero stragglers (the finding flags 2 distinct expression shapes — both must be unified).\n\n**Verification:** existing tests pass; `crimes scan` no longer reports `crime_00003`.\n\n**Risk:** low — pure mechanical substitution, same boolean semantics.\n\n## Step 2 — Consolidate the three sanitise helpers\n\n**Goal:** one `sanitize()` function in a shared module; `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` all collapse into it (or become thin aliases at the boundary if external callers depend on the names).\n\n**Changes:**\n1. Create `src/sanitize.ts` exporting the unified helper. Body is the near-duplicate function from `sanitize-a.ts:10-36` (canonical version), now calling `isAdmin(role)` from Step 1 instead of an inline check.\n2. Diff `sanitize-a/b/c.ts` bodies (lines 10-36, 9-35, 9-35) to identify the parameterised differences the finding hints at (`fix_shape: \"pass the differing values as args\"`). Lift those into function arguments — likely the role-gated allowlist, the field being sanitised, or the output label.\n3. Update call sites:\n   - If `sanitizeUserInput` / `sanitizeText` / `cleanMessage` are only called internally, replace imports with the unified `sanitize(...)`.\n   - If any are exported as a public surface (check `packages/cli` / external consumers), keep them as one-line re-exports for one release cycle, then deprecate.\n4. Delete `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts` once empty.\n\n**Verification:** existing tests pass; `crimes scan` no longer reports `crime_00002`. Confirm sanitised output is byte-identical for representative inputs from each of the three original variants (snapshot test on the consolidated helper using each original's parameter set).\n\n**Risk:** medium — three \"near-duplicate\" bodies means some divergence is real. The snapshot diff in step 2.2 is the gate that catches a behaviour change masquerading as a refactor.\n\n## Why this ordering\n\n- Step 1 is reversible and isolated (one symbol, mechanical replace) — ideal first commit.\n- Step 2 inherits a clean `isAdmin` call in the consolidated body. Reversing the order would force editing the new shared sanitiser a second time once Step 1 lands, and would leave a window where the codebase has *one* sanitiser but *three* inline admin checks — strictly worse than the starting state.\n- The two `direct_date` findings (`crime_00004`, `crime_00005`) in `telemetry-a.ts` / `telemetry-b.ts` are out of scope here — they're a separate clock-injection refactor, and the `recordSanitiseEvent` duplicate (`crime_00001`) sits in telemetry, not sanitisation. Worth a follow-up step but not part of this two-step set.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

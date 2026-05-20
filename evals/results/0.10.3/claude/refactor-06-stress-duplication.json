@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.3",
+  "timestamp": "2026-05-20T17:18:50.557Z",
+  "run_id": "0ec4bebf-d363-4528-84e1-3617ad043a11",
+  "response": "## Duplication confirmed\n\n`crime_00002` (near-duplicate block, confidence 0.85) catches exactly what the task describes — three functions with byte-identical bodies modulo variable renames:\n\n| File | Function | Range |\n|---|---|---|\n| `src/sanitize-a.ts` | `sanitizeUserInput` | 10–36 |\n| `src/sanitize-b.ts` | `sanitizeText` | 9–35 |\n| `src/sanitize-c.ts` | `cleanMessage` | 9–35 |\n\nThe only differences between the three are the parameter name (`raw` / `input` / `value`) and the local accumulator name (`working` / `cleaned` / `normalised`). All three apply the same rules in the same order: null/undefined → empty string, trim, strip control range, collapse whitespace, truncate at 1000, reject if it starts with `<`/`>`, reject if it contains `\\x`, reject if `[!?]{3,}` appears more than 5 times, and lowercase if the upper-case ratio exceeds 0.9 on strings longer than 30. None of the three pulls any caller-specific knobs — they are pure renames.\n\n## Refactor proposal\n\nConsolidate the three into a single helper. Because the bodies are identical, no parameters need to be threaded through to preserve behaviour — the constants (`1000`, `5`, `0.9`, `30`) can stay inline for v1 and be lifted into options later if a caller actually needs to vary them.\n\n**New file:** `src/sanitize.ts`\n\n```ts\nexport function sanitize(value: string | null | undefined): string {\n  if (value === null || value === undefined) return \"\";\n  let working = String(value).trim();\n  working = working.replace(/[\\x00-\\x1F]/g, \"\");\n  working = working.replace(/\\s+/g, \" \");\n  if (working.length > 1000) working = working.slice(0, 1000);\n  if (working.length === 0) return \"\";\n  if (working.startsWith(\"<\") || working.startsWith(\">\")) return \"\";\n  if (working.includes(\"\\\\x\")) return \"\";\n  const screams = (working.match(/[!?]{3,}/g) ?? []).length;\n  if (screams > 5) return \"\";\n  const upperRatio =\n    working.replace(/[^A-Z]/g, \"\").length /\n    (working.replace(/\\s/g, \"\").length || 1);\n  if (upperRatio > 0.9 && working.length > 30) {\n    working = working.toLowerCase();\n  }\n  return working;\n}\n```\n\n**Public API:** one exported function, `sanitize(value: string | null | undefined): string`. Single positional argument so the three current call shapes collapse cleanly; the return contract (empty string on rejection, normalised string otherwise) is unchanged from the originals.\n\n## Files that would change\n\n- **Add** `src/sanitize.ts` — new home for the helper.\n- **Delete** `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts` — bodies move to `sanitize.ts`. The `assertAdminA/B/C` guards in these files are **not** equivalent (strict equals, OR with `\"owner\"`, negation) so do **not** fold them into the sanitize consolidation — they're a separate concern tracked by `crime_00003` and need their own decision.\n- **Update every caller** of `sanitizeUserInput`, `sanitizeText`, `cleanMessage` to import `sanitize` from `./sanitize`. Grep would find these — they aren't in the scan output because the fixture's call sites live in `src/policy.ts` / telemetry files (per the `related_files` and the literal-check evidence).\n\n## Out of scope for this refactor\n\n- `crime_00001` (duplicate `recordSanitiseEvent` across two telemetry files) — same shape of fix but distinct module; do separately.\n- `crime_00003` (admin-role check duplication) — the three `assertAdmin*` guards differ in behaviour and need a product decision, not a mechanical extraction.\n- `crime_00004` / `crime_00005` (`Date.now()` in telemetry) — unrelated to sanitisation.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.10.3",
+  "timestamp": "2026-05-20T17:19:06.193Z",
+  "run_id": "81b56852-8977-4c06-8b28-27a78052a65b",
+  "response": "## Refactor proposal for `src/Card.tsx`\n\nThree findings, three concrete moves. Each ties to one detector.\n\n### 1. `accessible_interaction_risk` (line 10) — make the click target a real button\n\nThe outer `<div onClick>` is unreachable by keyboard and invisible to screen readers. The fix isn't to bolt `role=\"button\" tabIndex={0}` onto a div — the suggested action ranks semantic elements first. Promote the clickable wrapper to a `<button type=\"button\">` (or `<a>` if it navigates), and let the visual chrome live on an inner element so the button's default styling doesn't fight the design.\n\n```tsx\n<button type=\"button\" onClick={...} className={styles.card}>\n  ...\n</button>\n```\n\nIf the card isn't really clickable as a whole and only a region inside is, scope `onClick` to that region instead — fewer accessibility surfaces, clearer intent for agents reading the file.\n\n### 2. `design_token_escape` (9 raw values, line 10 + 24/27) — route through tokens\n\nEvery hex/rgb/px literal becomes a token reference. The shape that matters for agents is: a future edit should be unable to introduce a new raw color without it standing out. Move styles into a CSS module / Tailwind classes / styled-components theme — whatever the design system in this repo actually uses — so the JSX reads in token names, not values:\n\n```tsx\n<button className={styles.card} onClick={...}>\n  <div className={styles.body}>{children}</div>\n  <aside className={styles.sidebar}>sidebar</aside>\n</button>\n```\n\nWith `styles.card` resolving `background: var(--color-surface-accent)`, `color: var(--color-text)`, `box-shadow: var(--shadow-1)`, `outline-color: var(--color-focus-ring)`, etc. The shocking `#ff00aa` background is almost certainly a stand-in — review against the actual token palette before picking the replacement, don't just map the literal to the nearest token.\n\n### 3. `responsive_fragility` (3 fixed widths, no `@media`) — fluid, not fixed\n\nDrop `width: 800` and `width: 720`. Replace with `max-width` + `width: 100%`, and let layout flow:\n\n```css\n.card { width: 100%; max-width: 50rem; padding: clamp(1rem, 2vw, 1.5rem); }\n.body { flex: 1; font-size: clamp(0.95rem, 1.1vw, 1.125rem); }\n.sidebar { flex: 0 0 15rem; }\n\n@container (max-width: 40rem) {\n  .card { flex-direction: column; }\n  .sidebar { flex-basis: auto; }\n}\n```\n\nThe detector flagged `fontSize: 18px` because there's no `@media` *anywhere* in the file — switching the typography to `clamp()` and adding a container query for the sidebar collapse addresses both halves of the signal.\n\n### Why one PR, not three\n\nThese three findings are co-located in a 30-line component and share a single root cause: inline `style={{}}` with raw values. The cleanest move is to delete the inline styles entirely in favor of a stylesheet/class layer, which dissolves all three findings at once. Doing them as separate PRs would mean three rounds of touching the same JSX.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

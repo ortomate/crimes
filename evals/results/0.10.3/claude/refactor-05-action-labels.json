@@ -1,0 +1,77 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.10.3",
+  "timestamp": "2026-05-20T17:20:18.999Z",
+  "run_id": "d62d31a7-dc1e-4456-8e4c-cf104b426de7",
+  "response": "## Confirmed drift\n\n`crime_00011` (action_label_drift) and `crime_00012` (copy_ia_drift) both fire on the same evidence — the \"delete\" action group has three aliases spread across the three list components:\n\n| Component | Verbs present |\n|---|---|\n| `UserList.tsx` | delete, remove |\n| `TeamList.tsx` | delete, archive |\n| `SeatList.tsx` | archive, remove |\n\nNo component is internally consistent, and no two components agree on the same pair. An agent told to \"wire up the delete button on the seats page\" has no canonical signal to follow.\n\n## Canonical label set\n\nPick verbs by **what the action actually does to the record**, not by tone:\n\n- **Delete** — hard removal of an owned entity (account row gone). Use for `UserList` if the row is the user record itself.\n- **Remove** — sever a relationship; the target entity survives. Use for `SeatList` (revoke a seat assignment, user still exists) and arguably for membership-style rows in `TeamList`.\n- **Archive** — soft-delete, recoverable, audit-preserving. Only keep this if the fixture actually has an archive table; otherwise drop it.\n\nA defensible canonical mapping for this fixture: **`UserList` → Delete, `TeamList` → Remove, `SeatList` → Remove**, and retire `archive` entirely unless there's a soft-delete store behind it.\n\n## Refactor `UserList.tsx` first\n\nTwo reasons:\n\n1. It's the only component where the user-record semantics are unambiguous — \"delete a user\" is the canonical destructive action in most SaaS vocabularies, so it anchors the convention. The other two (teams, seats) are relationship-shaped and benefit from being decided *after* the canonical \"true delete\" verb is locked.\n2. `UserList` currently mixes `delete` + `remove` — the most confusable pair, because both feel synonymous in English. Fixing it first removes the alias most likely to leak back into the other components during the cascade.\n\nConcretely: collapse `UserList`'s \"remove\" label to \"Delete\", then sweep `TeamList` and `SeatList` to \"Remove\", then delete the `archive` strings.\n\n## How the two detectors differ on this fixture\n\nOn this fixture they **don't meaningfully differ** — both finger the same three files, same alias group, same agent_risk (0.38), same `pick_canonical_label` action. That's a signal, not a bug: the fixture only exercises the overlap.\n\nThe intended split:\n\n- **`action_label_drift`** is button/verb-scoped — it cares that *the UI control* for one action has multiple labels. Its remediation is \"pick one verb, update labels uniformly\" (fix_shape on crime_00011).\n- **`copy_ia_drift`** is broader information-architecture scope — it cares about copy inconsistency anywhere users navigate (nav strings, page titles, empty states, docs), not just action buttons. Its remediation is \"pick the canonical label; redirect copies to it\" (fix_shape on crime_00012) — note \"copies\", plural surfaces.\n\nWhere they'd diverge: if `archive` also appeared in `docs/`, a page title, or a nav item, only `copy_ia_drift` should fire on those non-button occurrences. Conversely, two synonyms used only on buttons in a single component would fire `action_label_drift` but not `copy_ia_drift`. On `05-stress-ia-drift` the aliases happen to live exclusively on action buttons across three sibling components, so the detectors collapse onto the same evidence — worth flagging as a dedup candidate if this pattern recurs across the eval set.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "permission_ia_drift",
+      "crime_00002": "missing_agent_context",
+      "crime_00003": "docs_code_drift",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "command_drift_docs_code_drift",
+      "crime_00006": "parallel_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Permission IA Drift": "permission_ia_drift",
+      "Missing Agent Context": "missing_agent_context",
+      "Docs-Code Drift": "docs_code_drift",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Parallel Destination": "parallel_destination",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

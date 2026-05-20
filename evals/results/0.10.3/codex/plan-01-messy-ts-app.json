@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.10.3",
+  "timestamp": "2026-05-20T17:16:44.725Z",
+  "run_id": "7c89bf85-edc5-4f4b-87a6-d74cc4680369",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e4662-f1b5-72f1-bf97-b59b1b0349a9\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll use the repo’s `crimes-codebase-risk` guidance here because this is explicitly a crimes triage/planning scenario. I have the scan JSON in the prompt; I’ll check the local workflow notes just enough to align the response format.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes/.agents/skills/crimes/SKILL.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes/.agents/skills/crimes/SKILL.md\\\"\",\"aggregated_output\":\"---\\nname: crimes-codebase-risk\\ndescription: Use when editing, reviewing, or investigating a TypeScript / JavaScript codebase that ships with the crimes CLI. Helps agents run pre-edit context checks, post-edit scans, and interpret findings before risky changes.\\n---\\n\\n# crimes — codebase risk workflow\\n\\n`crimes` is a deterministic CLI (no LLM) that reports change risk and\\nagent risk. JSON output is the stable contract; prefer it when planning.\\n\\n## When to run it\\n\\n- Before editing an unfamiliar file: `crimes context <file> --format json`\\n- Before a broad refactor: `crimes scan <path> --format json`\\n- After edits: `crimes scan --changed --format json`\\n- Before merging a branch: `crimes verdict --format json`\\n\\n## Decision rules\\n\\n- Treat any new `severity: \\\"high\\\"` finding introduced by your edit as a blocker unless the user explicitly accepts it.\\n- Read `evidence[]` before acting; it contains deterministic facts, not LLM opinion.\\n- Use `scores.agent_risk` to decide which findings need human attention first.\\n- If a finding is a false positive, record feedback with `crimes feedback <fingerprint> --verdict fp --note \\\"<why>\\\"` rather than silently ignoring it.\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"The scan output already gives the ranked findings and agent-risk scores. The missing input is `crimes verdict --format json`, so I’m going to run it against the fixture if the local CLI is available, then fold that branch-level signal into the triage.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"pwd && rg --files -g 'package.json' -g 'packages/cli/dist/index.js' -g 'pnpm-lock.yaml' /Users/andrew/dev/crimes | head -40\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"pwd && rg --files -g 'package.json' -g 'packages/cli/dist/index.js' -g 'pnpm-lock.yaml' /Users/andrew/dev/crimes | head -40\\\"\",\"aggregated_output\":\"/Users/andrew/dev/crimes/evals/runner\\n/Users/andrew/dev/crimes/pnpm-lock.yaml\\n/Users/andrew/dev/crimes/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/10-clean-typed/package.json\\n/Users/andrew/dev/crimes/packages/language-js/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/package.json\\n/Users/andrew/dev/crimes/apps/website/package.json\\n/Users/andrew/dev/crimes/packages/cli/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/04-monorepo/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/04-monorepo/pnpm-lock.yaml\\n/Users/andrew/dev/crimes/packages/reporter/package.json\\n/Users/andrew/dev/crimes/evals/runner/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/07-stress-frontend/package.json\\n/Users/andrew/dev/crimes/examples/messy-ts-app/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/09-clean-tiny/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/05-stress-ia-drift/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/03-node-cli-tool/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/package.json\\n/Users/andrew/dev/crimes/packages/core/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/02-react-dashboard/pnpm-lock.yaml\\n/Users/andrew/dev/crimes/evals/fixtures/02-react-dashboard/package.json\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git -C /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app status --short --branch'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git -C /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app status --short --branch'\",\"aggregated_output\":\"## main...origin/main [ahead 11]\\n M ../../packages/cli/package.json\\n M ../../packages/core/src/scan.test.ts\\n M ../../packages/core/src/scan.ts\\n?? ../../evals/results/0.10.3/\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'test -f /Users/andrew/dev/crimes/packages/cli/dist/index.js && node /Users/andrew/dev/crimes/packages/cli/dist/index.js verdict /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"test -f /Users/andrew/dev/crimes/packages/cli/dist/index.js && node /Users/andrew/dev/crimes/packages/cli/dist/index.js scan /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app --format json | node -e 'let s=\\\\\\\"\\\\\\\";process.stdin.on(\\\\\\\"data\\\\\\\",d=>s+=d);process.stdin.on(\\\\\\\"end\\\\\\\",()=>{const j=JSON.parse(s); console.log(JSON.stringify({total:j.summary,totalFindings:j.findings.length,top10:j.findings.slice(0,10).map(f=>({id:f.id,type:f.type,severity:f.severity,file:f.file,agent_risk:f.scores?.agent_risk}))},null,2))})'\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"test -f /Users/andrew/dev/crimes/packages/cli/dist/index.js && node /Users/andrew/dev/crimes/packages/cli/dist/index.js scan /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app --format json | node -e 'let s=\\\\\\\"\\\\\\\";process.stdin.on(\\\\\\\"data\\\\\\\",d=>s+=d);process.stdin.on(\\\\\\\"end\\\\\\\",()=>{const j=JSON.parse(s); console.log(JSON.stringify({total:j.summary,totalFindings:j.findings.length,top10:j.findings.slice(0,10).map(f=>({id:f.id,type:f.type,severity:f.severity,file:f.file,agent_risk:f.scores?.agent_risk}))},null,2))})'\\\"\",\"aggregated_output\":\"{\\n  \\\"total\\\": {\\n    \\\"total\\\": 37,\\n    \\\"high\\\": 4,\\n    \\\"medium\\\": 15,\\n    \\\"low\\\": 18\\n  },\\n  \\\"totalFindings\\\": 37,\\n  \\\"top10\\\": [\\n    {\\n      \\\"id\\\": \\\"crime_00001\\\",\\n      \\\"type\\\": \\\"svg_with_embedded_raster\\\",\\n      \\\"severity\\\": \\\"high\\\",\\n      \\\"file\\\": \\\"src/assets/partner-logo.svg\\\",\\n      \\\"agent_risk\\\": 0.7\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00002\\\",\\n      \\\"type\\\": \\\"direct_date\\\",\\n      \\\"severity\\\": \\\"high\\\",\\n      \\\"file\\\": \\\"src/date.ts\\\",\\n      \\\"agent_risk\\\": 0.62\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00003\\\",\\n      \\\"type\\\": \\\"mixed_utc_local_methods\\\",\\n      \\\"severity\\\": \\\"high\\\",\\n      \\\"file\\\": \\\"src/date.ts\\\",\\n      \\\"agent_risk\\\": 0.61\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00004\\\",\\n      \\\"type\\\": \\\"concept_alias_drift\\\",\\n      \\\"severity\\\": \\\"medium\\\",\\n      \\\"file\\\": \\\"docs/billing.md\\\",\\n      \\\"agent_risk\\\": 0.58\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00005\\\",\\n      \\\"type\\\": \\\"large_function\\\",\\n      \\\"severity\\\": \\\"high\\\",\\n      \\\"file\\\": \\\"src/billing.ts\\\",\\n      \\\"agent_risk\\\": 0.55\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00006\\\",\\n      \\\"type\\\": \\\"missing_agent_context\\\",\\n      \\\"severity\\\": \\\"medium\\\",\\n      \\\"file\\\": \\\"src/api/files.ts\\\",\\n      \\\"agent_risk\\\": 0.53\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00007\\\",\\n      \\\"type\\\": \\\"hardcoded_localhost\\\",\\n      \\\"severity\\\": \\\"medium\\\",\\n      \\\"file\\\": \\\"src/api/files.ts\\\",\\n      \\\"agent_risk\\\": 0.53\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00008\\\",\\n      \\\"type\\\": \\\"hardcoded_local_path\\\",\\n      \\\"severity\\\": \\\"medium\\\",\\n      \\\"file\\\": \\\"src/api/files.ts\\\",\\n      \\\"agent_risk\\\": 0.53\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00009\\\",\\n      \\\"type\\\": \\\"timezone_unsafe_parse\\\",\\n      \\\"severity\\\": \\\"medium\\\",\\n      \\\"file\\\": \\\"src/date.ts\\\",\\n      \\\"agent_risk\\\": 0.53\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00010\\\",\\n      \\\"type\\\": \\\"magic_domain_literal_scatter\\\",\\n      \\\"severity\\\": \\\"medium\\\",\\n      \\\"file\\\": \\\"src/api/plan.ts\\\",\\n      \\\"agent_risk\\\": 0.52\\n    }\\n  ]\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'test -f /Users/andrew/dev/crimes/packages/cli/dist/index.js && node /Users/andrew/dev/crimes/packages/cli/dist/index.js verdict /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.2.0\\\",\\n  \\\"report_type\\\": \\\"verdict\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"runner\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/evals/runner\\\"\\n  },\\n  \\\"base\\\": \\\"origin/main\\\",\\n  \\\"head\\\": \\\"HEAD\\\",\\n  \\\"verdict\\\": \\\"unchanged\\\",\\n  \\\"summary\\\": {\\n    \\\"new\\\": 0,\\n    \\\"fixed\\\": 0,\\n    \\\"unchanged\\\": 21,\\n    \\\"new_by_severity\\\": {\\n      \\\"high\\\": 0,\\n      \\\"medium\\\": 0,\\n      \\\"low\\\": 0\\n    },\\n    \\\"fixed_by_severity\\\": {\\n      \\\"high\\\": 0,\\n      \\\"medium\\\": 0,\\n      \\\"low\\\": 0\\n    },\\n    \\\"new_weighted\\\": 0,\\n    \\\"fixed_weighted\\\": 0\\n  },\\n  \\\"reasons\\\": [\\n    \\\"no new findings and no fixed findings\\\"\\n  ],\\n  \\\"recommended_actions\\\": [\\n    \\\"no maintainability change vs. base — verdict is advisory only.\\\"\\n  ],\\n  \\\"new_findings\\\": [],\\n  \\\"fixed_findings\\\": []\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"agent_message\",\"text\":\"Both local commands are running. I’m using the built CLI from `packages/cli/dist/index.js` so the recommendation reflects the same JSON contract instead of relying only on the pasted fixture.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_8\",\"type\":\"agent_message\",\"text\":\"The scan matches the prompt’s top 10. The first verdict invocation used the current runner repo as root, so I’m rerunning it from the fixture directory to avoid mixing the eval harness with the target app.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_9\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node /Users/andrew/dev/crimes/packages/cli/dist/index.js verdict --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_9\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node /Users/andrew/dev/crimes/packages/cli/dist/index.js verdict --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.2.0\\\",\\n  \\\"report_type\\\": \\\"verdict\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"messy-ts-app\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/examples/messy-ts-app\\\"\\n  },\\n  \\\"base\\\": \\\"origin/main\\\",\\n  \\\"head\\\": \\\"HEAD\\\",\\n  \\\"verdict\\\": \\\"unchanged\\\",\\n  \\\"summary\\\": {\\n    \\\"new\\\": 0,\\n    \\\"fixed\\\": 0,\\n    \\\"unchanged\\\": 37,\\n    \\\"new_by_severity\\\": {\\n      \\\"high\\\": 0,\\n      \\\"medium\\\": 0,\\n      \\\"low\\\": 0\\n    },\\n    \\\"fixed_by_severity\\\": {\\n      \\\"high\\\": 0,\\n      \\\"medium\\\": 0,\\n      \\\"low\\\": 0\\n    },\\n    \\\"new_weighted\\\": 0,\\n    \\\"fixed_weighted\\\": 0\\n  },\\n  \\\"reasons\\\": [\\n    \\\"no new findings and no fixed findings\\\"\\n  ],\\n  \\\"recommended_actions\\\": [\\n    \\\"no maintainability change vs. base — verdict is advisory only.\\\"\\n  ],\\n  \\\"new_findings\\\": [],\\n  \\\"fixed_findings\\\": []\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_10\",\"type\":\"agent_message\",\"text\":\"I ran the local JSON commands. `crimes verdict --format json` reports `verdict: \\\"unchanged\\\"` with `new: 0`, `fixed: 0`, and `unchanged: 37`, so none of these are branch-regression blockers. Triage should still follow scan order by `scores.agent_risk`, with high-severity clusters first.\\n\\n**Triage Order**\\n\\n| Order | Category | Finding | File | Response | Why |\\n|---:|---|---|---|---|---|\\n| 1 | frontend | `crime_00001` `svg_with_embedded_raster` | `src/assets/partner-logo.svg` | fix now | Highest agent risk, high severity, small asset fix. |\\n| 2 | structural | `crime_00002` `direct_date` | `src/date.ts` | fix now | Determinism issue; pair with the other date fixes. |\\n| 3 | structural | `crime_00003` `mixed_utc_local_methods` | `src/date.ts` | fix now | Same file as `crime_00002`; timezone correctness risk. |\\n| 4 | structural | `crime_00009` `timezone_unsafe_parse` | `src/date.ts` | fix now | Same date cluster; cheap to resolve while touching the file. |\\n| 5 | structural | `crime_00005` `large_function` | `src/billing.ts` | defer | High severity, but refactor risk is broader; schedule after tests/behavior are clearer. |\\n| 6 | IA | `crime_00006` `missing_agent_context` | repo context | fix now | Small, directly reduces future agent edit risk. |\\n| 7 | structural | `crime_00007` `hardcoded_localhost` | `src/api/files.ts` | fix now | Quick config/env fix; current code is environment-bound. |\\n| 8 | structural | `crime_00008` `hardcoded_local_path` | `src/api/files.ts` | fix now | Quick portability fix; likely breaks outside one machine. |\\n| 9 | IA | `crime_00004` `concept_alias_drift` | `docs/billing.md` | defer | Needs product vocabulary decision across tenant/account/team/workspace. |\\n| 10 | duplication | `crime_00010` `magic_domain_literal_scatter` | `src/api/plan.ts` | defer | Worth centralizing, but lower urgency than correctness/config issues. |\\n\\n**By Category**\\n\\n**Structural:** fix the `src/date.ts` cluster first, then the two `src/api/files.ts` portability findings. Defer the `generateInvoice` extraction until there are stronger billing tests or a scoped refactor plan.\\n\\n**Frontend:** fix `partner-logo.svg` now; it is the top risk and has a contained asset-level remediation.\\n\\n**IA:** add agent context now. Defer the tenant/account/team/workspace naming drift until someone can choose the canonical term.\\n\\n**Duplication:** defer the scattered `\\\"enterprise\\\"` literal unless new plan-policy work is about to touch those files.\\n\\n**Git-History:** no top-10 git-history findings, and verdict is `unchanged`, so there is no branch-level regression to gate on.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":195399,\"cached_input_tokens\":178432,\"output_tokens\":2226,\"reasoning_output_tokens\":600}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

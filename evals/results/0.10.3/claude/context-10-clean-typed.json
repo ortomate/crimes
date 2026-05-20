@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.10.3",
+  "timestamp": "2026-05-20T17:15:29.041Z",
+  "run_id": "f4eb9fc7-9900-4abd-8c58-6542a5dccd7b",
+  "response": "## Results for `src/billing.ts`\n\n**Findings:** None (0 findings — risk level `none`).\n\n**Likely tests:** `src/billing.test.ts`\n\n**Why this module is low risk to edit:**\n\n- **Zero findings across all detectors** — no structural issues (function/file size, nesting, params), no duplication, no testability concerns (`Date.now()`, `Math.random()`, `process.env` in domain code), no churn or layer violations.\n- **Co-located test exists** — `src/billing.test.ts` sits next to the source, so behavior is exercised by a discoverable test. Edits can be verified by running that file.\n- **No neighbourhood entanglement** — `related_files` is empty: no inverse-import findings, no shared domain tokens, no domain-prefix filenames, no same-directory siblings. Changes here don't ripple outward through implicit coupling.\n- **No agent guidance needed** — the report explicitly states \"no findings on this file and no deterministic related files,\" meaning there are no traps (mixed pure/side-effect functions, hidden globals, misleading names) that would mislead an agent making changes.\n\nIn short: clean code, tested in isolation, no architectural pull on neighbours — safe blast radius.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

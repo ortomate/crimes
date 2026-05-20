@@ -1,8 +1,13 @@
 import { readFile, realpath } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 import { discoverFiles, parseFile } from "@crimes/language-js";
-import type { FailOn } from "./baseline.js";
-import { severityAtLeast } from "./baseline.js";
+import type { BaselineEntry, FailOn } from "./baseline.js";
+import {
+  BASELINE_RELATIVE_PATH,
+  BaselineNotFoundError,
+  loadBaseline,
+  severityAtLeast,
+} from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import type { AssetDetector, Detector } from "./detector.js";
@@ -17,7 +22,13 @@ import {
 import { runAssetDetectorsForRoot } from "./scan-assets.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
-import { getChangedFiles } from "./git/changed-files.js";
+import {
+  getChangedFiles,
+  NotAGitRepoError,
+  UnknownGitRefError,
+} from "./git/changed-files.js";
+import { collectResurfaced } from "./resurface.js";
+import { loadTriage, resolveTriagePath } from "./triage.js";
 import { DEFAULT_ALIAS_GROUPS } from "./ia/aliases.js";
 import { buildIaIndex } from "./ia/build.js";
 import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
@@ -74,6 +85,15 @@ export interface ScanOptions {
    * sort by agent_risk alone. Default true.
    */
   recencyEnabled?: boolean;
+  /**
+   * Internal flag — when true, the scan does NOT attempt to resurface
+   * triaged/baselined findings on touched files. Used by the resurface
+   * pipeline itself to make a single inner scan call without recursing.
+   * Not meant for external callers.
+   *
+   * @internal
+   */
+  __skipResurface?: boolean;
 }
 
 export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
@@ -133,7 +153,112 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   if (inputs.changedAll !== undefined) {
     report.changed_files = inputs.changedAll;
   }
+
+  if (!options.__skipResurface) {
+    const resurfaced = await collectResurfaceForScan({ root, config, options });
+    if (resurfaced.length > 0) {
+      const merged = [...resurfaced, ...report.findings];
+      const next: ScanReport = {
+        ...report,
+        findings: merged,
+        summary: summarise(merged),
+      };
+      return next;
+    }
+  }
   return report;
+}
+
+/**
+ * Resurface stage: re-run detectors on files in the diff against
+ * `config.triage.resurfaceBase`, then keep only the findings whose
+ * fingerprint matches a triage or baseline entry. Returns the annotated
+ * resurfaced list. Empty when git is unavailable, the diff is empty, or
+ * there's nothing to resurface — resurfacing is a quality-of-life feature
+ * and must never make `scan()` fail.
+ */
+async function collectResurfaceForScan(args: {
+  root: string;
+  config: CrimesConfig;
+  options: ScanOptions;
+}): Promise<Finding[]> {
+  const resurfaceBase = args.config.triage?.resurfaceBase ?? "main";
+  if (resurfaceBase === "") return [];
+
+  // Compute diff files. Any git failure (no repo, unknown ref) short-
+  // circuits to "no resurfacing this run" — resurfacing is a quality-
+  // of-life feature, never a fatal error.
+  let diffPaths: string[];
+  try {
+    diffPaths = await getChangedFiles({ root: args.root, base: resurfaceBase });
+  } catch (err) {
+    if (err instanceof NotAGitRepoError || err instanceof UnknownGitRefError) {
+      return [];
+    }
+    throw err;
+  }
+  if (diffPaths.length === 0) return [];
+
+  // Convert absolute paths to repo-relative POSIX (matching Finding.file shape).
+  // git emits canonical paths (`/private/var/...` on macOS); `args.root` may
+  // still be the `/var/...` symlink the caller passed. realpath both sides
+  // so the relative path comes out as `src/foo.ts`, not `../../private/var/.../src/foo.ts`.
+  const rootReal = await safeRealpath(args.root);
+  const diffFiles = new Set<string>(
+    await Promise.all(
+      diffPaths.map(async (abs) =>
+        relative(rootReal, await safeRealpath(abs)).split(sep).join("/"),
+      ),
+    ),
+  );
+
+  // Load triage + baseline. Both files are optional — empty when absent.
+  const [triageResult, baselineEntries] = await Promise.all([
+    loadTriage(resolveTriagePath(args.root)),
+    loadBaselineEntriesIfPresent(args.root),
+  ]);
+
+  if (triageResult.entries.length === 0 && baselineEntries.length === 0) {
+    return [];
+  }
+
+  // Run one inner scan against the diff'd files (with __skipResurface to
+  // avoid recursion). Then index findings by file and use that to
+  // satisfy the reDetect callback. One scan instead of N — cheap.
+  const innerReport = await scan({
+    root: args.root,
+    config: args.config,
+    changed: true,
+    base: resurfaceBase,
+    __skipResurface: true,
+  });
+  const findingsByFile = new Map<string, Finding[]>();
+  for (const f of innerReport.findings) {
+    const list = findingsByFile.get(f.file);
+    if (list) list.push(f);
+    else findingsByFile.set(f.file, [f]);
+  }
+  const reDetect = async (file: string): Promise<Finding[]> =>
+    findingsByFile.get(file) ?? [];
+
+  return collectResurfaced({
+    diffFiles,
+    triageEntries: triageResult.entries,
+    baselineEntries,
+    reDetect,
+  });
+}
+
+async function loadBaselineEntriesIfPresent(
+  root: string,
+): Promise<BaselineEntry[]> {
+  try {
+    const baseline = await loadBaseline(resolve(root, BASELINE_RELATIVE_PATH));
+    return baseline.findings;
+  } catch (err) {
+    if (err instanceof BaselineNotFoundError) return [];
+    throw err;
+  }
 }
 
 interface ScanInputs {
