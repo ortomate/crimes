@@ -17,10 +17,11 @@ Core principles:
 - Evidence before judgement. Every finding cites concrete AST or git
   evidence (line ranges, churn counts, import patterns).
 - JSON output is the product contract. Every report carries a
-  `schema_version` and a `report_type` discriminator
-  (`"scan"`, `"context"`, `"hotspots"`, `"diff"`, `"baseline"`,
-  `"baseline_check"`, `"verdict"`). Breaking changes bump
-  `schema_version`.
+  `schema_version` (currently `"0.2.0"`) and a `report_type`
+  discriminator (`"scan"`, `"context"`, `"hotspots"`, `"diff"`,
+  `"baseline"`, `"baseline_check"`, `"verdict"`, `"explain"`,
+  `"suppressions"`, `"audit_suppressions"`, `"triage"`). Breaking
+  changes bump `schema_version`.
 - Built for AI agents. Ships a Claude Code skill and AGENTS.md so any
   agent (Claude Code, Codex CLI, Cursor, Aider, Continue, Copilot
   Workspace) can use it without per-prompt setup.
@@ -31,7 +32,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.9.2)
+## Commands (latest published v0.11.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -147,10 +148,14 @@ elevate a finding even when local severity is low.
 
 Recommended loop for any agent:
 1. Before editing a file:   `crimes context <file> --format json`
-2. After editing:           `crimes scan --changed --format json`
-3. Before opening the PR:   `crimes verdict --base origin/main --fail-on new-high`
-4. Triaging the repo:       `crimes hotspots --format json`
-5. Any new `severity: "high"` finding introduced by the edit is a blocker.
+   (fires automatically under Claude Code when the `0.11.0` PreToolUse
+   hook is installed by `crimes init --agents`).
+2. Triage existing findings:`crimes triage` — per-finding interactive
+   walk; records disposition + reason + owner to `.crimes/triage.json`.
+3. After editing:           `crimes scan --changed --format json`
+4. Before opening the PR:   `crimes verdict --base origin/main --fail-on new-high`
+5. Triaging the repo:       `crimes hotspots --format json`
+6. Any new `severity: "high"` finding introduced by the edit is a blocker.
 
 ## Shipped in v0.3.0 — information architecture crimes
 
@@ -333,7 +338,82 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.9.2 — emoji severity glyphs + ortomate move (current release)
+## 0.11.0 — triage as the front door (Release B, current release)
+
+Minor bump. New `crimes triage` command and triage / baseline
+resurfacing. Schema bumps `"0.1.0"` → `"0.2.0"` to add two required
+`Finding` fields: `effort` (`quick` / `small` / `medium` / `large`) and
+`fix_shape` (one-line ≤120-char description of the shape of the fix).
+Existing field shapes, names, and semantics unchanged.
+
+- `crimes triage` — per-finding interactive walk. Each prompt asks for
+  a disposition (`fix-now` / `fix-this-PR` / `needs-design` /
+  `wont-fix` / `scaffolding`), one-line reason, and owner. Persisted
+  to `.crimes/triage.json` (intended to be committed, hand-reviewable
+  in `git diff`). Supports `--apply <file>` for non-interactive bulk
+  application, `--list`, `--clear <fingerprint>`, `--retriage
+  <target>`, `--owner <handle>`, `--all`, `--format human|json`.
+  Refuses to start interactively in CI / non-TTY (exit 2; hint to use
+  `--apply`).
+- Triage + baseline resurfacing — `crimes scan` re-runs the relevant
+  detector on files referenced by `.crimes/triage.json` or
+  `.crimes/baseline.json` when those files appear in the branch diff
+  against `config.triage.resurfaceBase` (default `"main"`). Matching
+  findings are surfaced with `previously_triaged` /
+  `previously_baselined: true` + the original disposition.
+- New `crimes scan` flags: `--show-triaged` (include silenced
+  dispositions in output), `--gate-needs-design` (count `needs-design`
+  toward `--fail-on`), `--gate-resurfaced` (count resurfaced findings
+  toward `--fail-on`). Default gate semantics: `wont-fix`,
+  `scaffolding`, and `needs-design` are excluded from `--fail-on`;
+  resurfaced findings surface as a reminder, not a block.
+- PreToolUse hook in `crimes init --agents` — writes
+  `.claude/settings.local.json` with a Claude Code PreToolUse Edit
+  hook that runs `crimes context "$CLAUDE_TOOL_INPUT_file_path"
+  --format json` before every Edit / Write / NotebookEdit. Merge-safe
+  (idempotent on the crimes-context substring); `--no-hooks` opts out.
+  `.agents/settings.local.json` is a forward-looking stub for Codex.
+- Schema bump — `Finding.effort` and `Finding.fix_shape` are required
+  on every `Finding` in `0.2.0`. Detector defaults live in
+  `packages/core/src/detector-defaults.ts`; consumers that ignored
+  unknown fields under `0.1.0` see the two new fields appear for free.
+- Loader tolerance — `.crimes/baseline.json` and
+  `.crimes/suppressions.json` files committed under `0.10.x` still
+  load. The first `crimes ignore` / `crimes baseline save` after the
+  upgrade rewrites the file with `"0.2.0"`.
+- Human renderer secondary scores read as prose (`blast top-quartile
+  (11 importers)` instead of `0.72`). JSON numerics in `Finding.scores`
+  are unchanged — `blast_radius`, `churn`, `test_gap`, `recency`,
+  `agent_risk` still ship as `0–1` floats rounded to two decimals.
+
+No new detectors. Detector count unchanged at 48. `crimes baseline
+save` stays in place as the escape hatch.
+
+Release notes:
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.11.0.md
+
+## 0.10.0 — front-door redesign (Release A)
+
+Minor bump. `crimes scan`'s default human output is now
+**file-grouped, not severity-grouped**: files sorted by aggregate risk
+(churn × test-gap quartile × blast × recency), top findings inline,
+the rest behind `--all`. Use `--flat` to get the previous
+severity-grouped layout back.
+
+- `crimes context` leads every entry point (banner, `--help`, README,
+  agent docs).
+- `scores.test_gap` is now a **repo-relative quartile** (`0 / 0.25 /
+  0.5 / 0.75 / 1.0`), not the prior fixed three-step `{0, 0.5, 1.0}`
+  mapping. Agents that compared `test_gap === 1` must switch to
+  `>= 0.75`.
+- New optional fields (`Finding.tier`, `Finding.scores.recency`,
+  `ContextReport.clues`) are additive. Schema unchanged
+  (`schema_version: "0.1.0"` at the time of release).
+
+Release notes:
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.10.0.md
+
+## 0.9.2 — emoji severity glyphs + ortomate move
 
 UX-only patch. No new detectors, no schema change.
 

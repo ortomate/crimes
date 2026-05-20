@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.9.1",
+            "softwareVersion": "0.11.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/ortomate/crimes",
             "programmingLanguage": "TypeScript",
@@ -93,7 +93,10 @@
             },
             "featureList": [
               "Scan a repository for change risk and agent risk",
+              "Interactive per-finding triage with disposition, reason, owner",
+              "Triage + baseline resurfacing on touched files",
               "Pre-edit context briefing for a single file",
+              "Claude Code PreToolUse Edit hook installed by `crimes init --agents`",
               "Working-tree-only diff-aware scanning",
               "Changed-files CI gate with --fail-on",
               "Branch-level new / fixed / unchanged crimes diff",
@@ -102,6 +105,7 @@
               "Churn × findings hotspots",
               "Information architecture detectors: Missing Agent Context, Route Metadata Drift, Duplicated Navigation Source, Concept Alias Drift, Docs-Code Drift",
               "Cross-file related_files for IA findings",
+              "Per-finding effort + fix_shape on every Finding",
               "Stable, versioned JSON output for AI agents",
               "Claude Code skill and AGENTS.md integration",
               "GitHub Actions example for PR gating"
@@ -200,7 +204,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.9.2 · emoji severity glyphs (🚨 ⚠️ 🔎) · <a href="/docs/">docs live</a></span>
+          <span class="pill">v0.11.0 · Triage as the front door · <a href="/docs/releases/v0.11.0/">release notes</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -265,7 +269,7 @@ crimes scan .</code></pre>
 
       <section id="quickstart">
         <h2>Quick start</h2>
-        <p>Eight commands cover everything <code>crimes</code> does today:</p>
+        <p>Nine commands cover everything <code>crimes</code> does today:</p>
 
         <div class="qs">
           <div class="qs-row">
@@ -282,10 +286,12 @@ crimes scan .</code></pre>
             <h3>JSON output (the product contract)</h3>
             <pre><code>crimes scan . --format json</code></pre>
             <p class="note">
-              Versioned via <code>schema_version</code>. Stable while it
-              reads <code>"0.1.0"</code>. Every report carries a
+              Versioned via <code>schema_version</code> (currently
+              <code>"0.2.0"</code>). Every report carries a
               <code>report_type</code> discriminator so consumers can route
-              on one field.
+              on one field. Every <code>Finding</code> ships
+              <code>effort</code> + <code>fix_shape</code> alongside the
+              existing scores.
             </p>
           </div>
 
@@ -357,6 +363,27 @@ crimes verdict --base origin/main --fail-on new-high</code></pre>
           </div>
 
           <div class="qs-row">
+            <h3>Triage — the front door for existing findings</h3>
+            <pre><code>crimes triage
+crimes triage --list
+crimes triage --retriage src/billing.ts</code></pre>
+            <p class="note">
+              Interactive per-finding walk, top-of-rank first. Each
+              prompt records a <strong>disposition</strong>
+              (<code>fix-now</code>, <code>fix-this-PR</code>,
+              <code>needs-design</code>, <code>wont-fix</code>,
+              <code>scaffolding</code>), a one-line reason, and an
+              owner. Silenced dispositions and baseline entries
+              <strong>resurface</strong> in <code>crimes scan</code>
+              when the file is in the branch diff against
+              <code>main</code> — a one-time decision doesn't become
+              permanent amnesia. Persisted to
+              <code>.crimes/triage.json</code>, intended to be
+              committed.
+            </p>
+          </div>
+
+          <div class="qs-row">
             <h3>Churn × findings hotspots</h3>
             <pre><code>crimes hotspots --since 90d --format json</code></pre>
             <p class="note">
@@ -389,10 +416,16 @@ crimes verdict --base origin/main --fail-on new-high</code></pre>
               command to use, and <em>how</em> to read the JSON.
               Auto-discovered by Claude Code in any repo with a
               <code>SKILL.md</code> under
-              <code>.claude/skills/&lt;name&gt;/</code>.
+              <code>.claude/skills/&lt;name&gt;/</code>. As of
+              <strong>0.11.0</strong>, <code>crimes init --agents</code>
+              also installs a Claude Code
+              <strong>PreToolUse Edit hook</strong> in
+              <code>.claude/settings.local.json</code> so the pre-edit
+              briefing runs automatically — no prompt required.
             </p>
             <ul class="card-list">
-              <li>Pre-edit: <code>crimes context &lt;file&gt; --format json</code></li>
+              <li>Pre-edit (automatic via PreToolUse): <code>crimes context &lt;file&gt; --format json</code></li>
+              <li>Triage existing findings: <code>crimes triage</code></li>
               <li>Post-edit: <code>crimes scan --changed --format json</code></li>
               <li>New <code>severity: "high"</code> after your edit → blocker</li>
             </ul>
@@ -423,7 +456,21 @@ crimes verdict --base origin/main --fail-on new-high</code></pre>
           <li>
             <strong>Before editing</strong> a specific file —
             <code>crimes context &lt;file&gt; --format json</code>.
-            Read every <code>high</code> severity finding first.
+            Read every <code>high</code> severity finding first. Under
+            Claude Code with the <code>0.11.0</code> PreToolUse hook
+            installed, this fires automatically on every
+            <code>Edit</code> / <code>Write</code> /
+            <code>NotebookEdit</code>.
+          </li>
+          <li>
+            <strong>Triage findings interactively</strong> —
+            <code>crimes triage</code> walks each finding top-of-rank
+            first, asking for a disposition
+            (<code>fix-now</code> / <code>fix-this-PR</code> /
+            <code>needs-design</code> / <code>wont-fix</code> /
+            <code>scaffolding</code>), one-line reason, and owner.
+            Silenced entries resurface in <code>scan</code> when the
+            file is touched on the branch.
           </li>
           <li>
             <strong>After editing</strong> — re-scan only what you touched:
@@ -562,7 +609,7 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
 
         <h3 class="sub">JSON report (the contract)</h3>
         <pre><code>{
-  <span class="json-key">"schema_version"</span>: <span class="json-str">"0.1.0"</span>,
+  <span class="json-key">"schema_version"</span>: <span class="json-str">"0.2.0"</span>,
   <span class="json-key">"report_type"</span>: <span class="json-str">"scan"</span>,
   <span class="json-key">"repo"</span>: { <span class="json-key">"name"</span>: <span class="json-str">"messy-ts-app"</span>, <span class="json-key">"root"</span>: <span class="json-str">"/..."</span> },
   <span class="json-key">"summary"</span>: { <span class="json-key">"total"</span>: 5, <span class="json-key">"high"</span>: 1, <span class="json-key">"medium"</span>: 3, <span class="json-key">"low"</span>: 1 },
@@ -582,6 +629,8 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
         <span class="json-str">"3.4× the configured 60-line threshold"</span>,
         <span class="json-str">"function declaration"</span>
       ],
+      <span class="json-key">"effort"</span>: <span class="json-str">"medium"</span>,
+      <span class="json-key">"fix_shape"</span>: <span class="json-str">"extract orchestration; move pure helpers to a sibling module"</span>,
       <span class="json-key">"scores"</span>: {
         <span class="json-key">"severity"</span>: 0.9,
         <span class="json-key">"confidence"</span>: 0.95,
@@ -599,8 +648,13 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
 }</code></pre>
         <p>
           <code>schema_version</code> is bumped on breaking changes, so
-          agents can refuse to consume an unfamiliar shape. Three docs back
-          this contract up:
+          agents can refuse to consume an unfamiliar shape. The
+          <code>"0.1.0"</code> → <code>"0.2.0"</code> bump in
+          <strong>0.11.0</strong> added two required <code>Finding</code>
+          fields: <code>effort</code>
+          (<code>quick</code>/<code>small</code>/<code>medium</code>/<code>large</code>)
+          and <code>fix_shape</code> (a one-line description of the shape
+          of the fix). Three docs back this contract up:
         </p>
         <ul>
           <li>
@@ -1218,6 +1272,71 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             <a
               href="https://github.com/ortomate/crimes/blob/main/docs/releases/v0.9.2.md"
               ><code>docs/releases/v0.9.2.md</code></a
+            >.
+          </li>
+          <li class="done">
+            <strong>v0.10.0 — front-door redesign (Release A).</strong>
+            Minor bump. <code>crimes scan</code>'s default human output
+            is now <strong>file-grouped, not severity-grouped</strong>:
+            files sorted by aggregate risk (churn × test-gap quartile ×
+            blast × recency), top findings inline, the rest behind
+            <code>--all</code>. Use <code>--flat</code> for the previous
+            severity-grouped layout. <code>crimes context</code> now
+            leads every entry point — banner, <code>--help</code>,
+            README, agent docs. <code>scores.test_gap</code> is now a
+            <strong>repo-relative quartile</strong>
+            (<code>0 / 0.25 / 0.5 / 0.75 / 1.0</code>), not the prior
+            fixed three-step mapping; agents that compared
+            <code>test_gap === 1</code> must switch to
+            <code>&gt;= 0.75</code>. New optional fields
+            (<code>Finding.tier</code>,
+            <code>Finding.scores.recency</code>,
+            <code>ContextReport.clues</code>) are additive — schema
+            unchanged (<code>schema_version: "0.1.0"</code>). Release
+            notes:
+            <a
+              href="https://github.com/ortomate/crimes/blob/main/docs/releases/v0.10.0.md"
+              ><code>docs/releases/v0.10.0.md</code></a
+            >.
+          </li>
+          <li class="done">
+            <strong>v0.11.0 — triage as the front door (Release B).</strong>
+            Minor bump. New <code>crimes triage</code> command: a
+            per-finding interactive walk that captures
+            <strong>disposition</strong>
+            (<code>fix-now</code> / <code>fix-this-PR</code> /
+            <code>needs-design</code> / <code>wont-fix</code> /
+            <code>scaffolding</code>), reason, and owner into
+            <code>.crimes/triage.json</code> (intended to be
+            committed). Silenced triage entries and baseline entries
+            <strong>resurface automatically</strong> in
+            <code>crimes scan</code> when the file appears in the
+            branch diff against <code>config.triage.resurfaceBase</code>
+            (default <code>"main"</code>) — annotated with
+            <code>previously_triaged</code> /
+            <code>previously_baselined</code> + the original
+            disposition. <code>crimes init --agents</code> now installs
+            a Claude Code <strong>PreToolUse Edit hook</strong> in
+            <code>.claude/settings.local.json</code> so
+            <code>crimes context</code> fires automatically before
+            every <code>Edit</code> / <code>Write</code> /
+            <code>NotebookEdit</code>. <strong>Schema bumps
+            <code>"0.1.0"</code> → <code>"0.2.0"</code></strong>: two
+            new required <code>Finding</code> fields,
+            <code>effort</code> (<code>quick</code> /
+            <code>small</code> / <code>medium</code> / <code>large</code>)
+            and <code>fix_shape</code> (≤120-char one-line description
+            of the shape of the fix). Existing field shapes, names,
+            and semantics are unchanged; older
+            <code>.crimes/baseline.json</code> and
+            <code>.crimes/suppressions.json</code> still load. The
+            human renderer's secondary scores now read as prose
+            (<code>blast top-quartile (11 importers)</code> instead
+            of <code>0.72</code>) — JSON numerics unchanged. No new
+            detectors. Release notes:
+            <a
+              href="https://github.com/ortomate/crimes/blob/main/docs/releases/v0.11.0.md"
+              ><code>docs/releases/v0.11.0.md</code></a
             >.
           </li>
           <li>
