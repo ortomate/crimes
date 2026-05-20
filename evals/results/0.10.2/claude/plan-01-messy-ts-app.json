@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:29:05.819Z",
+  "run_id": "001b6bd3-06bf-4e0c-a5d5-eb7aed690617",
+  "response": "# Triage Plan — Top 10 Findings\n\nFindings are ordered by `agent_risk` (the scan's default sort). I've kept the scan's order and added category + recommended response. Suggested execution order follows at the end.\n\n## Grouped by category\n\n### Structural (testability, magic config, oversized code)\n| ID | Charge | File | Sev | Response | Rationale |\n|---|---|---|---|---|---|\n| 00005 | God Function (`generateInvoice`, 204 LoC) | `src/billing.ts:50` | high | **Fix now** | High severity, \"small\" effort, and it unblocks tests on the same file — extract pure helpers first so the temporal/test fixes can land cleanly. |\n| 00002 | Temporal Recklessness (8× clock reads) | `src/date.ts:4–40` | high | **Fix now** | This is the clock-utility module; injecting a `now()` here is the keystone for every other temporal finding (00003, 00009, 00011, 00019, 00023). |\n| 00003 | Half-UTC, Half-Local | `src/date.ts:9,41` | high | **Fix now** | Same file as 00002 — pick one time domain in the same PR; mixing families is a latent off-by-N-hours bug. |\n| 00009 | Timezone Roulette (`new Date(\"2026-12-25T07:00:00\")`) | `src/date.ts:29,33` | med | **Fix now** | Cheap fix (append `Z` or `±HH:MM`), and the literals are calendar-sensitive (Dec 25 / Dec 20) — risk of off-by-a-day in user-visible dates. |\n| 00007 | Hardcoded `localhost:3000` | `src/api/files.ts:8` | med | **Fix now** | \"quick\" effort. Code only works on one dev's box — basically broken everywhere else. |\n| 00008 | Hardcoded `/Users/andrew/...` path | `src/api/files.ts:9` | med | **Fix now** | Same file, same edit window as 00007. Definitely broken in CI / other machines. |\n\n### Frontend (assets)\n| ID | Charge | File | Sev | Response | Rationale |\n|---|---|---|---|---|---|\n| 00001 | SVG With Embedded Raster | `src/assets/partner-logo.svg` | high | **Defer** | Tops the list on agent_risk, but resolving it needs design-tool access (re-export with flattened vector) — not an in-code fix. Park as a design-side ticket. |\n\n### IA (information architecture, agent context)\n| ID | Charge | File | Sev | Response | Rationale |\n|---|---|---|---|---|---|\n| 00006 | Missing Agent Context (no AGENTS.md / CLAUDE.md / SKILL.md) | repo root | med | **Fix now** | Cheapest high-leverage fix on the list. A 30-line `AGENTS.md` shrinks `agent_risk` across every future scan and is a prerequisite for safely letting an agent touch any of the other findings. |\n| 00004 | Concept Alias Drift (tenant/account/org/team/workspace) | `docs/billing.md` + 4 files | med | **Defer** | The fix is a *product naming decision*, not a mechanical rename — and the action's own `risk: medium` flags it. Needs a human owner, not an agent edit. |\n\n### Duplication\n| ID | Charge | File | Sev | Response | Rationale |\n|---|---|---|---|---|---|\n| 00010 | String Sprinkles (`\"enterprise\"` in 4 files) | `src/api/plan.ts:2` + 3 others | med | **Defer** | Worth doing, but only after the concept-alias question (00004) is settled — otherwise you centralise the wrong token. Pair them in the same follow-up. |\n\n### Git-history\n*None in the top 10 — this fixture has zero churn signal (`churn: 0` across all findings).*\n\n---\n\n## Suggested execution order\n\nOrder is chosen so each fix unblocks or de-risks the next.\n\n1. **00006 — `AGENTS.md` / SKILL.md** *(IA, fix now)* — write before any agent touches code.\n2. **00007 + 00008 — config-ify `localhost:3000` and `/Users/andrew/...`** *(structural, fix now)* — same file, one PR.\n3. **00005 — extract helpers from `generateInvoice`** *(structural, fix now)* — makes `src/billing.ts` editable; surface area for everything else in that file.\n4. **00002 + 00003 + 00009 — clock injection + UTC unification + tz-explicit literals** *(structural, fix now)* — one PR scoped to `src/date.ts`; do them together because they touch overlapping lines.\n5. **00001 — SVG raster** *(frontend, defer)* — ticket for design.\n6. **00004 — concept naming decision** *(IA, defer)* — product call.\n7. **00010 — centralise `\"enterprise\"`** *(duplication, defer)* — blocked on 00004.\n\n## Nothing in \"ignore\"\n\nAll ten findings are real. The temporal cluster (00002/00003/00009) and the hardcoded-config cluster (00007/00008) are textbook crimes — and 00006 is the rare finding where doing it cheap unlocks the rest.\n\n> Note: I answered from the provided `crimes scan --format json` output; the prompt also mentioned `crimes verdict --format json` but no verdict payload was supplied. If you want me to incorporate the verdict's aggregate-risk ranking instead of the scan's own ordering, paste it in and I'll re-sort.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

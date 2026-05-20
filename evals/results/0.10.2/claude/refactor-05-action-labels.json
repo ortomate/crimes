@@ -1,0 +1,77 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:32:38.076Z",
+  "run_id": "874888f3-32fc-4c60-b780-2225d6d881b5",
+  "response": "## Drift confirmed\n\n`crimes scan --format json` returns two findings on the same evidence:\n\n- **`crime_00011` action_label_drift** (`src/components/SeatList.tsx`, severity low, confidence 0.6)\n- **`crime_00012` copy_ia_drift** (same file, identical evidence)\n\nDistribution across the three components (from the evidence array):\n\n| Component | Verbs used |\n|---|---|\n| `UserList.tsx` | delete, remove |\n| `TeamList.tsx` | archive, delete |\n| `SeatList.tsx` | archive, remove |\n\nEach component picks two of the three verbs and no two agree. Worse, `TeamList.tsx` mixes **archive** (typically non-destructive / soft) with **delete** (permanent) — an agent extending it could plausibly implement either semantic.\n\n## Canonical label set\n\nPick one verb per actual operation, not one verb for \"all three\":\n\n- **Remove** — sever a relationship (user from a list, member from a team, seat from a plan). This is what all three components are doing in the fixture; their list rows operate on *memberships*, not the underlying entity.\n- **Delete** — reserved for permanent destruction of the entity itself (admin-only, with confirm dialog).\n- **Archive** — reserved for soft-delete with a restore path. Do not use it as a synonym for Remove.\n\nIf you're forced to collapse to one verb because the fixture treats them as the same action, **Remove** is the canonical choice: it's the standard SaaS verb for list-row destructive actions and it's the only one of the three that doesn't carry a separate, conflicting semantic load.\n\n## Refactor `TeamList.tsx` first\n\nOrder:\n\n1. **`TeamList.tsx`** — it's the only file that pairs **archive + delete**, the two verbs with genuinely different semantics. Highest risk of an agent picking the wrong one. Align both labels to **Remove**.\n2. **`SeatList.tsx`** — archive + remove. Lower semantic risk (both non-destructive-ish), but still drifting from the canon. Rename `archive` → `remove`.\n3. **`UserList.tsx`** — delete + remove. Rename `delete` → `remove`; if any of them is genuinely permanent destruction, keep `Delete` there and document why.\n\nThen write the choice down — `docs/copy.md` or a design-system entry — so the next agent has a source of truth.\n\n## How the two detectors differ on this fixture\n\nOn *this* fixture they fire on identical evidence, which is the interesting bit:\n\n- **`action_label_drift`** is the **narrow** detector: it watches a known action-verb group (`delete | remove | archive`) inside UI component files and flags when the same group has multiple aliases scattered across components. It exists specifically for button/menu labels.\n- **`copy_ia_drift`** is the **umbrella** detector for any UI copy / information-architecture mismatch — different terms for the same concept across surfaces (nav vs page title vs button vs doc). Action labels are one slice of that surface area; section headings, empty states, and confirmation strings would also trip it.\n\nBecause the only copy drift in this fixture *is* the action verbs, both detectors land on the same evidence. In a richer fixture (e.g., nav says \"Members\", page title says \"Users\", button says \"Invite teammate\"), `copy_ia_drift` would fire while `action_label_drift` would stay silent. Conversely, drift in a verb that isn't part of an IA-level concept (e.g., a button labelled \"Save\" in one place and \"Apply\" in another) would trip `action_label_drift` but not necessarily `copy_ia_drift`.\n\nTreat `action_label_drift` as the actionable signal here — it tells you *exactly* what to rename — and read `copy_ia_drift` as the second witness confirming this is not just verb churn but a copy-system gap that wants a canonical label registry.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "permission_ia_drift",
+      "crime_00002": "missing_agent_context",
+      "crime_00003": "docs_code_drift",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "command_drift_docs_code_drift",
+      "crime_00006": "parallel_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Permission IA Drift": "permission_ia_drift",
+      "Missing Agent Context": "missing_agent_context",
+      "Docs-Code Drift": "docs_code_drift",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Parallel Destination": "parallel_destination",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": "src/components/SeatList.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

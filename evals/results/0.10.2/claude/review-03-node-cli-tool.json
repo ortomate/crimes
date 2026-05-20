@@ -1,0 +1,113 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:36:38.461Z",
+  "run_id": "2ce79079-5786-41f5-a8e3-7c0165486c37",
+  "response": "## Top-level call: **BLOCK**, with one observation\n\nThe scan is correct but reading the file list — `lib/command.js`, `lib/help.js`, `lib/option.js`, `typings/index.d.ts`, `tests/command.exitOverride.test.js` — this PR is dropping Commander.js wholesale onto an empty baseline. The block-worthy findings are the structural ones; many of the rest are either consequences of that single decision (public API names, oversize declaration file) or false positives against well-known third-party idioms. If the intent is \"vendor Commander.js,\" depend on `commander` from npm or scope crimes out of `lib/` and `typings/` — don't burn cycles renaming `required`/`variadic` in a published library's public API.\n\nWith that caveat, treating it as a real PR:\n\n### BLOCK\n\n- **crime_00001** `lib/command.js` 2179 LOC, sev high, agent_risk **0.63**. 7.3× threshold, 150 top-level functions. Worst offender — any future agent edit collides with code outside its context window. Split before merge.\n- **crime_00003** `_executeSubCommand` 120 LOC, sev high, agent_risk **0.62**. The orchestrator that routes every subcommand; also flagged for sync I/O (crime_00036). Extract helpers.\n\n### WARN (must address but not blocking)\n\n- **crime_00002** `typings/index.d.ts` 891 LOC, high, 0.63. Declaration files run large by convention — but if hand-maintained, split. If generated, configure crimes to skip.\n- **crime_00007** `localhost:1234` @ `lib/command.js:2152`, med, 0.53. Likely an example string in help text, but verify; if real, lift to env.\n- **crime_00005, crime_00006** `choices` duplicated between `lib/argument.js` and `lib/option.js`, med, 0.54. Real domain duplication — extract a shared helper. (crime_00004 myParseInt across two `examples/` files is the intentional kind — ignore.)\n- **crime_00008, crime_00010, crime_00011** `parseOptions` (115), `_parseCommand` (80), `addOption` (69), med, 0.52–0.53. Follow-up extraction.\n- **crime_00014, crime_00015, crime_00018** `typings/index.test-d.ts` 480, `lib/help.js` 461, `lib/option.js` 326, med, 0.50–0.51. Borderline; address opportunistically.\n- **crime_00019–crime_00026** 8 weak-signal tests in `tests/command.exitOverride.test.js`, med, 0.46. Either they rely on `expect.assertions(n)` elsewhere or they're genuinely empty — auditor needs 5 minutes to confirm. If pattern checks out, allowlist the file; if not, fix.\n- **crime_00016, crime_00017** Six broken local links in `Readme_zh-CN.md` and `docs/zh-CN/可变参数的选项.md`, low, 0.51. Trivial fix — sync docs or remove links.\n\n### IGNORE\n\n- **crime_00004** `myParseInt` duplicated across two `examples/` files, med, 0.54 but `tier: nonDomain`. Examples are intentionally standalone for copy-paste.\n- **crime_00009** `\"PORT\"` literal across 5 example + tsd files, med, 0.52. Same reasoning.\n- **crime_00012, crime_00013, crime_00037** Boolean naming drift in `lib/command.js`, `typings/index.d.ts`, `lib/option.js`, med 0.52 / low 0.42. `required`/`variadic`/`mandatory`/`optional`/`hide` are Commander's public API — every downstream consumer reads these names. Renaming is a breaking change. Add to `detectors.options.boolean_naming_drift.allowedNames`.\n- **crime_00027–crime_00034** 8 `tests/ts-imports.test.ts` weak-signal flags, med, 0.46. These are tsd-style type-only smoke tests; assertions happen at compile time. False positive — allowlist the file.\n- **crime_00035, crime_00039–crime_00042** Large `describe` callbacks (200–349 LOC) in test files, low/med, 0.34–0.45. Cosmetic; reading tests top-to-bottom is fine.\n- **crime_00036** `fs.existsSync` / `fs.realpathSync` in subcommand resolution, low, 0.44. CLI startup path, not a server hot path. Sync at bootstrap is correct.\n- **crime_00038** One commented-out line in an executableSubcommand test, low, 0.36. Cleanup later.\n- **crime_00043–crime_00051** Weak-matcher tests in `command.copySettings.test.js` / `options.variadic.test.js`, low, 0.34. The copy-settings tests assert truthy passthrough of stateless config — observably weak but proportional to the surface. Not worth blocking.\n- **crime_00052** Sinon-history comment in `command.executableSubcommand.signals.test.js`, low, 0.31. Rationale comment, not a rule.\n\n### One thing crimes won't tell you\n\nThe signal pattern here — `tier: nonDomain` for all 16 weak-test findings, public-API boolean names flagged as drift — is what happens when crimes runs against a mature library that's been added in one go. For this scenario the actionable list is really just crime_00001, 00003, 00005/00006, 00007, and 00019–00026; the other 40+ findings disappear once `lib/`, `typings/`, `examples/`, and `tests/ts-imports.test.ts` are configured appropriately.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "large_function",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "exact_duplicate_block",
+      "crime_00006": "exact_duplicate_block",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "large_function",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "large_function",
+      "crime_00011": "large_function",
+      "crime_00012": "boolean_naming_drift",
+      "crime_00013": "boolean_naming_drift",
+      "crime_00014": "large_file",
+      "crime_00015": "large_file",
+      "crime_00016": "docs_code_drift",
+      "crime_00017": "docs_code_drift",
+      "crime_00018": "large_file",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "weak_test_signal",
+      "crime_00032": "weak_test_signal",
+      "crime_00033": "weak_test_signal",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_function",
+      "crime_00036": "sync_io_in_hotpath",
+      "crime_00037": "boolean_naming_drift",
+      "crime_00038": "commented_out_code",
+      "crime_00039": "large_function",
+      "crime_00040": "large_function",
+      "crime_00041": "large_function",
+      "crime_00042": "large_function",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "logic_in_comments"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "God Function": "large_function",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Commented-Out Corpse": "commented_out_code",
+      "Logic in the Alibi": "logic_in_comments"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  }
+}

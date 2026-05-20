@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:27:14.147Z",
+  "run_id": "55d58e16-086e-42ac-bf9c-70992bdc77ce",
+  "response": "`crimes context src/add.ts` returned a clean report — zero findings across all severities (high/medium/low all 0).\n\n**Verdict: safe to extend.**\n\nNo structural risk (large function, deep nesting, param bloat), no dependency hazards (circular deps, layer violations, deep imports), no duplication signals, no testability concerns (unmocked time/random/env), and no churn hotspot flags on `src/add.ts`. Crimes found nothing worth flagging before the edit.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

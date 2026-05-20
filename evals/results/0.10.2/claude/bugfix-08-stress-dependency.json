@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:24:51.225Z",
+  "run_id": "95dd1c1f-97d4-4ea5-9652-bea00ce60f5f",
+  "response": "**Cycle:** `application/billing-flow.ts → domain/billing.ts → presentation/invoice-view.ts → application/billing-flow.ts` (3 files, finding `crime_00001`).\n\n**Break this edge: `src/domain/billing.ts → src/presentation/invoice-view.ts`.**\n\nWhy this one and not the other two:\n\n1. **It's the architecturally wrong edge.** `crime_00002` flags the same import as a layer violation — `domain cannotImport presentation`. Domain is supposed to be the innermost layer; presentation depends on domain, never the reverse. Removing this edge fixes the cycle *and* the layer violation in one move.\n2. **The other edges are likely legitimate.** `application → domain` and `presentation → application` both point in the conventional direction (outer layers depending on inner). Breaking either of those would just push the architectural debt elsewhere.\n3. **Cycles usually exist because of exactly one wrong-direction back-edge.** That's what's happening here — domain reaching into presentation is the back-edge that closes the ring.\n\n**How to break it (in order of preference):**\n\n1. **If `invoice-view` is only used for its types in `domain/billing.ts`:** change the import to `import type { … } from '../presentation/invoice-view'`. Type-only imports get erased at compile time and don't contribute a runtime edge — cycle gone, zero refactor.\n2. **If domain genuinely needs a value/function from invoice-view:** that value belongs in domain (or a shared leaf module), not presentation. Move it down to `src/domain/` (or a new `src/shared/`) and have `invoice-view` import it from there. This is what `fix_shape: \"extract shared types to a leaf module\"` is pointing at.\n3. **If domain needs behavior that's inherently presentational** (rendering, formatting for display): invert the dependency — define an interface in domain, have presentation implement it, and inject the implementation from the application layer. This is the heaviest option; only reach for it if (1) and (2) don't fit.\n\nStart with (1) — it's a one-line change and resolves both findings. Fall back to (2) if the import isn't type-only.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      }
+    ]
+  }
+}

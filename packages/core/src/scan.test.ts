@@ -8,8 +8,10 @@ import type { Finding, ScanReport } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { NotAGitRepoError } from "./git/changed-files.js";
 import { loadConfig } from "./config.js";
-import { applyScanFailOn, scan } from "./scan.js";
+import { applyScanFailOn, applyTriageToScan, scan } from "./scan.js";
 import { tagTierAndSortByRankScore } from "./context-helpers.js";
+import { fingerprintFinding } from "./fingerprint.js";
+import type { TriageEntry } from "./triage.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -526,5 +528,76 @@ describe("tagTierAndSortByRankScore — recencyEnabled: false", () => {
     // Equal rank_score; tiebreaker is file asc → cold.ts < hot.ts
     expect(findings[0]!.file).toBe("cold.ts");
     expect(findings[1]!.file).toBe("hot.ts");
+  });
+});
+
+describe("applyTriageToScan", () => {
+  function triageEntryFor(
+    finding: Finding,
+    disposition: TriageEntry["disposition"],
+  ): TriageEntry {
+    const entry: TriageEntry = {
+      fingerprint: fingerprintFinding(finding),
+      type: finding.type,
+      file: finding.file,
+      disposition,
+      reason: "legacy",
+      owner: "@me",
+      date: "2026-05-20",
+    };
+    if (finding.symbol) entry.symbol = finding.symbol;
+    return entry;
+  }
+
+  it(
+    "removes findings matched by a silencing disposition and decrements summary",
+    { timeout: 30_000 },
+    async () => {
+      const root = await makeRepo({
+        "src/big.ts": longFunctionFixture("doStuff"),
+      });
+      const report = await scan({ root });
+      expect(report.findings.length).toBeGreaterThan(0);
+
+      const target = report.findings[0]!;
+      const triage: TriageEntry[] = [triageEntryFor(target, "wont-fix")];
+
+      const filtered = applyTriageToScan(report, triage, { showTriaged: false });
+      const stillThere = filtered.findings.find(
+        (f) => fingerprintFinding(f) === fingerprintFinding(target),
+      );
+      expect(stillThere).toBeUndefined();
+      expect(filtered.summary.total).toBe(report.summary.total - 1);
+    },
+  );
+
+  it(
+    "keeps fix-now findings visible with the triaged annotation",
+    { timeout: 30_000 },
+    async () => {
+      const root = await makeRepo({
+        "src/big.ts": longFunctionFixture("doStuff"),
+      });
+      const report = await scan({ root });
+      expect(report.findings.length).toBeGreaterThan(0);
+
+      const target = report.findings[0]!;
+      const triage: TriageEntry[] = [triageEntryFor(target, "fix-now")];
+
+      const filtered = applyTriageToScan(report, triage, { showTriaged: false });
+      const annotated = filtered.findings.find(
+        (f) => fingerprintFinding(f) === fingerprintFinding(target),
+      );
+      expect(annotated).toBeDefined();
+      expect(annotated!.triaged?.disposition).toBe("fix-now");
+      expect(filtered.summary.total).toBe(report.summary.total);
+    },
+  );
+
+  it("does not mutate the input report", () => {
+    const report = makeReport([makeFinding("high")]);
+    const snapshot = JSON.parse(JSON.stringify(report));
+    applyTriageToScan(report, [], { showTriaged: false });
+    expect(report).toEqual(snapshot);
   });
 });

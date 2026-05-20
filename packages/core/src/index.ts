@@ -293,10 +293,16 @@ export {
 export {
   applyScanFailOn,
   applySuppressionsToScan,
+  applyTriageToScan,
   resolveAliasGroups,
   scan,
 } from "./scan.js";
 export type { ScanOptions } from "./scan.js";
+export { applyTriageFilter } from "./triage-filter.js";
+export type {
+  ApplyTriageFilterOptions,
+  TriageFilterResult,
+} from "./triage-filter.js";
 export {
   appendSuppression,
   compareMinor,

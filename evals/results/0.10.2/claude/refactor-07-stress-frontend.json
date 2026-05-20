@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:31:32.911Z",
+  "run_id": "022a6533-cec3-4637-aac1-2bb63866ae97",
+  "response": "Here's a refactor of `src/Card.tsx` that clears all three findings. I'll show the proposed file, then map each change back to the finding it addresses.\n\n## Proposed refactor\n\n```tsx\n// src/Card.tsx\nimport styles from \"./Card.module.css\";\n\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate?: () => void;\n  label: string; // accessible name for the activation surface\n};\n\nexport function Card({ children, onActivate, label }: CardProps) {\n  return (\n    <div className={styles.card}>\n      <button\n        type=\"button\"\n        className={styles.activate}\n        onClick={onActivate}\n        aria-label={label}\n      >\n        <div className={styles.body}>{children}</div>\n        <aside className={styles.sidebar}>sidebar</aside>\n      </button>\n    </div>\n  );\n}\n```\n\n```css\n/* src/Card.module.css */\n.card {\n  width: 100%;\n  max-width: var(--card-max-width, 50rem); /* ~800px at 16px root */\n  background: var(--color-surface-accent);\n  color: var(--color-text-primary);\n  border: 1px solid var(--color-border-muted);\n  border-radius: var(--radius-md);\n  box-shadow: var(--shadow-sm);\n  padding: var(--space-6);\n}\n\n.activate {\n  all: unset;\n  display: grid;\n  grid-template-columns: 1fr; /* mobile: stacked */\n  gap: var(--space-4);\n  width: 100%;\n  cursor: pointer;\n  outline-color: var(--color-focus-ring);\n}\n.activate:focus-visible {\n  outline: 2px solid var(--color-focus-ring);\n  outline-offset: 2px;\n}\n\n.body {\n  width: 100%;\n  font-size: clamp(0.9375rem, 0.85rem + 0.4vw, 1.125rem);\n  color: var(--color-text-primary);\n}\n\n.sidebar {\n  width: 100%;\n  font-size: var(--font-size-sm);\n  color: var(--color-text-muted);\n}\n\n@media (min-width: 48rem) {\n  .activate {\n    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);\n  }\n}\n```\n\n## Changes tied to findings\n\n| Finding | Change |\n|---|---|\n| `accessible_interaction_risk` (crime_00001, line 10 — `<div onClick>` w/o role/tabIndex) | Replaced the outer click-target `<div>` with a real `<button type=\"button\">` that takes an explicit `aria-label`. Keyboard, focus ring, Space/Enter activation, and screen-reader semantics now come for free — no need for `role=\"button\"` + `tabIndex={0}` + `onKeyDown` polyfill. |\n| `design_token_escape` (crime_00002, 9 raw literals across color/px/rgb/shadow) | All 9 raw values (`#ff00aa`, `#0a0a0a`, `#cccccc`, `#1a73e8`, `#333333`, `#666666`, `rgb(0, 0, 0)`, `0 2px 4px`, plus padding `24` → `var(--space-6)`) move into a CSS module that references design-system custom properties (`--color-*`, `--space-*`, `--radius-*`, `--shadow-*`). Agents extending the file can no longer copy a hex forward unknowingly — the values aren't in JSX. |\n| `responsive_fragility` (crime_00003, `width: 800/720` and `fontSize: 18` with no `@media`) | Fixed widths replaced with `width: 100%` + `max-width: var(--card-max-width, 50rem)`. Pixel `fontSize: 18` replaced with `clamp(0.9375rem, 0.85rem + 0.4vw, 1.125rem)` so type scales fluidly. A single `@media (min-width: 48rem)` breakpoint flips the body+sidebar from stacked to a 3:1 grid. The viewport-busting 800px lower bound is gone. |\n\n## Notes / trade-offs\n\n- The fixture has no design system yet, so the CSS module references CSS custom properties that the consuming app would define in a root theme. If the project uses Tailwind / styled-components / vanilla-extract, swap the CSS module for the equivalent — the point is to stop expressing colors and spacing as inline literals in JSX, which is what `design_token_escape` is measuring.\n- I added a `label` prop because an interactive surface needs an accessible name; the previous component had no way to communicate what clicking the card did. If the card isn't actually interactive in real usage, the cleaner fix is to **delete the `onClick`** entirely and ship a non-interactive `<article>` — which clears crime_00001 even more directly.\n- `effort` for all three was tagged `quick`/`small`; the full refactor is still one file plus a sibling stylesheet. Want me to apply it?",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

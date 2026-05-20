@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:29:02.203Z",
+  "run_id": "e68ddb06-6860-4ca9-abb5-7cb4636a7aff",
+  "response": "# Refactor plan — consolidate sanitise helpers + role checks\n\nThe scan flags two related duplications (`crime_00002` near-dup sanitise, `crime_00003` duplicated `role === \"admin\"` check). They're entangled: the sanitise bodies themselves contain the admin check, so the order of operations matters.\n\n**Sequence the work as: policy helper first, sanitise helper second.** After step 1 the three sanitise bodies become byte-identical, so step 2 collapses cleanly with no \"which variant wins?\" judgement calls.\n\n---\n\n## Step 1 — Extract `isAdmin` policy helper (addresses `crime_00003`)\n\n**Goal:** one source of truth for the `\"admin\"` role rule. Six+ call sites across `policy.ts`, `sanitize-{a,b,c}.ts`, and the related files collapse to one function call.\n\n**Changes**\n- Add `src/policy.ts` export (or a new `src/auth/policy.ts` if `policy.ts` is itself a call site) :\n  ```ts\n  export function isAdmin(role: string): boolean {\n    return role === \"admin\";\n  }\n  ```\n- Replace every `role === \"admin\"` occurrence (the 4 in `policy.ts` plus the 3 in `sanitize-{a,b,c}.ts`, plus the `+2 more` the scan truncated) with `isAdmin(role)`.\n- Don't change semantics: keep the comparison strict, keep the parameter named `role` so call sites read identically.\n\n**Verification before moving on**\n- `crimes scan --format json` should drop `crime_00003`.\n- Diff should be mechanical — only the expression shape changed; control flow untouched.\n- Run the test suite if one exists for these modules; otherwise add a one-liner test for `isAdmin(\"admin\")` / `isAdmin(\"user\")` so the new seam is pinned.\n\n**Why first:** doing this step *before* sanitise consolidation means the three sanitise bodies stop diverging on expression shape (the scan already shows \"2 distinct expression shapes\" for the admin check — that drift is exactly what blocks a clean merge in step 2).\n\n---\n\n## Step 2 — Consolidate three sanitise helpers into one (addresses `crime_00002`)\n\n**Goal:** `sanitizeUserInput` / `sanitizeText` / `cleanMessage` collapse into a single function. The three names diverged but the bodies are near-identical (lines 10-36, 9-35, 9-35).\n\n**Changes**\n- Create `src/sanitize.ts` with a single canonical export. Pick one name — `sanitizeText(input, { role })` is the most neutral; `cleanMessage` is too domain-specific and `sanitizeUserInput` implies a particular caller.\n- The function signature should expose whatever genuinely differs between the three call sites as parameters (the scan's `fix_shape` flags this: *\"consolidate into one helper; pass the differing values as args\"*). Diff the three bodies first to identify those values — likely a max length, a replacement string, or a flag — and lift them to options with sensible defaults.\n- Internally, the consolidated function calls `isAdmin(role)` (already extracted in step 1) wherever the admin branch is needed.\n- Delete `sanitize-a.ts`, `sanitize-b.ts`, `sanitize-c.ts` once all imports are repointed. Use a grep for each old name to confirm no stragglers.\n\n**Verification**\n- `crimes scan --format json` should drop `crime_00002`.\n- Run the test suite. If sanitise behaviour wasn't tested before, add table-driven tests covering: empty string, admin role short-circuit (if applicable), the length/replacement options.\n- Spot-check `telemetry-{a,b}.ts` — they're flagged as exact duplicates (`crime_00001`) and likely call the sanitise helpers; merging the sanitise layer often simplifies the telemetry layer too, but that's out of scope for this two-step set.\n\n---\n\n## What this plan does *not* address (deliberately)\n\n- `crime_00001` (telemetry-a/b exact duplicate) and `crime_00004`/`crime_00005` (`Date.now()` in telemetry) are left for a follow-up. They're a separate concern (telemetry layer + clock injection) and bundling them here would blur the change set.\n- No renaming of `policy.ts` or restructuring of the auth module — minimum-viable extraction only.\n\n## Risk + rollback\n\nBoth steps are mechanical refactors with `risk: medium` per the scan. Each step is one commit; if step 2's behavioural diff is non-trivial (e.g., the three sanitise bodies *did* diverge in subtle ways), revert step 2 only — step 1 stands on its own.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

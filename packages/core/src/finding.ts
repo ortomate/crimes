@@ -125,6 +125,19 @@ export interface Finding {
     reason: string;
   };
   /**
+   * Set when this finding matches an entry in `.crimes/triage.json` with a
+   * non-silencing disposition (`fix-now` or `fix-this-PR`). Silencing
+   * dispositions (`needs-design`, `wont-fix`, `scaffolding`) hide the
+   * finding by default and surface only via resurfacing or
+   * `--show-triaged` — see `previous_triage` on resurfaced findings.
+   */
+  triaged?: {
+    disposition: "fix-now" | "fix-this-PR";
+    reason: string;
+    owner: string;
+    date: string;
+  };
+  /**
    * Scope tier of the finding's file, computed from
    * `config.scopeTiers.nonDomain`. Optional and additive — readers that
    * don't care can ignore it. Absent only on findings produced by tests

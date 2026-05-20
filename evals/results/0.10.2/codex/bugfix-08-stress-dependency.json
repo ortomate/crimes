@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:24:37.723Z",
+  "run_id": "57523f9d-fab4-4568-a960-cfc78fb0dd83",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e4633-d7c0-7b90-82db-6864a3d08c7f\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Break the import from `src/domain/billing.ts` to `src/presentation/invoice-view.ts`.\\n\\nWhy: it is the cycle edge that is independently flagged as a layer violation:\\n\\n```text\\ndomain/billing.ts -> presentation/invoice-view.ts\\nrule: domain cannotImport presentation\\n```\\n\\nThe likely cycle is:\\n\\n```text\\nsrc/application/billing-flow.ts\\n  -> src/domain/billing.ts\\n  -> src/presentation/invoice-view.ts\\n  -> src/application/billing-flow.ts\\n```\\n\\nThe domain layer should not depend on presentation. Presentation can render domain data, and application can orchestrate both, but domain should stay a leaf of business concepts. Breaking the domain-to-presentation import removes the runtime cycle and restores the intended dependency direction.\\n\\nBest fix shape: move whatever `billing.ts` imports from `invoice-view.ts` into a lower-level module, preferably a domain-owned type/helper module, or convert it to `import type` if it is only used for TypeScript typing. For example:\\n\\n```text\\nsrc/domain/billing.ts\\n  -> src/domain/invoice-types.ts\\n\\nsrc/presentation/invoice-view.ts\\n  -> src/domain/invoice-types.ts\\n```\\n\\nDo not start with the deep import in `billing-flow.ts`; that is a separate low-severity package-boundary issue and does not explain the architectural cycle as directly.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19471,\"cached_input_tokens\":12160,\"output_tokens\":368,\"reasoning_output_tokens\":85}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

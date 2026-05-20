@@ -39,6 +39,8 @@ import type {
   SuppressionEntry,
 } from "./suppressions.js";
 import { partitionFindings } from "./suppressions.js";
+import type { TriageEntry } from "./triage.js";
+import { applyTriageFilter, type ApplyTriageFilterOptions } from "./triage-filter.js";
 import {
   assignIds as assignIdsHelper,
   tagTierAndSortByRankScore,
@@ -259,6 +261,29 @@ export function applySuppressionsToScan(
   };
   if (suppressedCount > 0) next.suppressed_count = suppressedCount;
   return next;
+}
+
+/**
+ * Filter a {@link ScanReport} through the triage list. Mirrors
+ * {@link applySuppressionsToScan}: returns a new report with `findings`
+ * partitioned and `summary` recomputed. Pure — does not mutate the
+ * input.
+ *
+ * Apply this **before** suppressions in the CLI pipeline so the renderer
+ * can distinguish "user triaged this" (`Finding.triaged` /
+ * `_hiddenTriage`) from "suppression hit".
+ */
+export function applyTriageToScan(
+  report: ScanReport,
+  triage: TriageEntry[],
+  options: ApplyTriageFilterOptions,
+): ScanReport {
+  const { findings } = applyTriageFilter(report.findings, triage, options);
+  return {
+    ...report,
+    summary: summariseVisible(findings),
+    findings,
+  };
 }
 
 function summariseVisible(findings: Finding[]): ScanSummary {

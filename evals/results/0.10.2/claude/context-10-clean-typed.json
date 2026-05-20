@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:27:39.516Z",
+  "run_id": "ea407683-fa00-4886-990b-a0fc38a42920",
+  "response": "**No findings.** `risk.level: \"none\"` with `total: 0` (0 high, 0 medium, 0 low) and `findings: []`.\n\n**Likely test:** `src/billing.test.ts`\n\n**Why it's low risk to edit:**\n- **Zero detector hits** — none of the structural, dependency, duplication, testability, or history detectors fired on this file.\n- **No agent_guidance entries** — there are no charges to read up on before touching it (`agent_guidance_reason: \"no findings on this file and no deterministic related files\"`).\n- **No neighbourhood coupling** — `related_files: []` with the reason: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings. Changes here are unlikely to leak into other modules.\n- **Sibling test exists** — `src/billing.test.ts` gives you a direct verification path post-edit; run it after any change.\n\nTranslation: this is a clean, well-isolated, well-tested module. Edit it, run `src/billing.test.ts`, and you're done. Re-run `crimes context src/billing.ts --format json` after the edit if you want to confirm the change didn't introduce new findings.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

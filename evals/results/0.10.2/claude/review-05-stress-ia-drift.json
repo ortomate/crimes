@@ -1,0 +1,71 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:34:41.943Z",
+  "run_id": "839f7b4e-2dd1-4aa7-b0fc-73bf9346e544",
+  "response": "## IA drift review — `05-stress-ia-drift`\n\nTwelve findings, but they collapse into **three real issues** plus some hygiene noise. The cluster pattern matters more than the per-finding scores: orphans + parallel destinations + concept aliases are almost certainly the same unfinished refactor.\n\n### Blocking-quality (fix before merge)\n\n**1. Permission IA Drift on `/admin`** — `crime_00001`\nThree different role tokens (`admin`, `manager`, `owner`) gate the same destination across nav + route guard + docs. This is access-control correctness, not style. The route guard alone mixes `admin`/`manager`/`owner` literals (`src/routes/admin.ts:2,4,9`) — whichever one is wrong is a real bug. Centralise the check, pick the canonical token.\n\n**2. Parallel `/billing-plans` destinations** — `crime_00006` + `crime_00007` + `crime_00008`\n`/admin/billing-plans` and `/billing-plans` both exist, share tokens, and **both are orphaned** (no nav, no doc, no import). A user / agent updating one will silently skip the other. Decide which is canonical, redirect or delete the other. Treat 6/7/8 as one ticket.\n\n### Follow-ups (track, don't block)\n\n**3. Tenant concept alias drift** — `crime_00004` + orphans `crime_00009`, `crime_00010`\n`organisation`, `team`, `workspace` all coexist as tenant-ish concepts, and two of the three route files (`/organisation`, `/workspace`) are orphaned. Same smell as the billing-plans issue — looks like a half-finished rename. Worth a dedicated cleanup pass, but not blocking unless you're shipping a tenant-facing change in this PR.\n\n**4. Missing agent context** — `crime_00002`\nNo `AGENTS.md` / `CLAUDE.md` / skill files. Real product gap for an agent-targeted repo, but it's net-new work, not a merge blocker.\n\n**5. Docs drift** — `crime_00003` + `crime_00005`\nBroken `/admin` doc link and three references to retired CLI subcommands (`iaq teams`, `iaq workspace`, `iaq refresh`). Low-risk, fix opportunistically — or codify in CI if it keeps recurring.\n\n**6. Action label drift** — `crime_00011` + `crime_00012`\n`archive` / `delete` / `remove` used interchangeably across `SeatList`, `TeamList`, `UserList`. Note these two findings are the same evidence under two detectors — count it as one issue. Copy-system work, not blocking.\n\n### Summary\n\n| Block merge | Follow-up |\n|---|---|\n| Permission drift on `/admin` (1) | Tenant concept + orphans (4, 9, 10) |\n| Parallel `/billing-plans` + its orphans (6, 7, 8) | Missing agent context (2) |\n| | Docs drift (3, 5) |\n| | Action label drift (11, 12 — dedupe) |\n\nThe 0-`high` summary undersells the risk: the permission finding deserves to be treated as high-severity in practice because role-token inconsistency is correctness, not hygiene.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "permission_ia_drift",
+      "crime_00002": "missing_agent_context",
+      "crime_00003": "docs_code_drift",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "command_drift_docs_code_drift",
+      "crime_00006": "parallel_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Permission IA Drift": "permission_ia_drift",
+      "Missing Agent Context": "missing_agent_context",
+      "Docs-Code Drift": "docs_code_drift",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Parallel Destination": "parallel_destination",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

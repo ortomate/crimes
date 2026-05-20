@@ -1,0 +1,111 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:30:35.124Z",
+  "run_id": "5bc8f107-9409-4cec-abb9-7c17ecd0b949",
+  "response": "# Top 3 changes to `src/billing.ts`\n\n## 1. Break up `generateInvoice` — extract pure helpers (crime_00005)\n\n`generateInvoice` is 204 lines (lines 50–253), 3.4× the 60-line domain threshold. It's the single highest-severity finding in the report (severity 0.9). A function this size almost certainly bundles several responsibilities — tax math, line-item assembly, discount application, totals, persistence — into one body, which is exactly the shape where an agent edits one section without spotting interactions in another.\n\nExtract cohesive sections (tax calc, line-item rendering, totalling) into named, pure helpers and keep `generateInvoice` as a thin orchestrator. This also chips directly at crime_00026 (God File — 310 lines, threshold 300), since `generateInvoice` is most of the file.\n\n## 2. Inject a clock — kill the 7 direct `Date` calls (crime_00019)\n\nBilling is the *worst* place to read the wall clock implicitly: invoice dates, due dates, refund windows, and prorations all depend on \"now,\" but each of the 7 `Date.now()` / `new Date()` calls (lines 57, 63, 92, 198, 238, 250, 273) observes the host clock at runtime. Tests can't pin a fixed moment without monkey-patching, and any temporal logic is impossible to verify deterministically.\n\nTake a `now: () => Date` (or `Clock`) at the module/function boundary and route every timestamp through it. This is a small, mechanical change with an outsized payoff for testability — and it's prerequisite work for trustworthy assertions in `src/billing.test.ts`, which crime_00020 and crime_00037 already flag as weak.\n\n## 3. Disclose the side effects in `calculateRefundPreview` *and* encode the comment rule (crime_00021 + crime_00027)\n\n`calculateRefundPreview` (lines 40–44) has a name that promises a pure preview, but the body calls `saveRefundAudit` and `sendRefundEmail` — an agent treating this as cheap/idempotent could fire real refund emails from a \"preview.\" Either rename to disclose the effect (`processRefundPreview`, `previewAndAuditRefund`) or split the pure calculation from the audit/notify side effects.\n\nWhile editing this region, lift the prose rule on line 39 — *\"Only owners can refund enterprise plans unless billing support approves\"* (crime_00027) — into an actual guard. Right now the policy lives only as a comment, with no nearby code referencing `owner` / `plan` / `billing`. That's a load-bearing invariant hiding from both the type system and the tests. Encode it as a typed predicate (e.g. `assertCanRefund(actor, plan)`) so the rule fails closed instead of relying on a maintainer reading the comment.\n\n---\n\n**Why these three:** they cluster around the highest agent-risk surface in the file. (1) shrinks the per-edit reasoning surface, (2) makes the file testable at all, and (3) closes a quietly dangerous gap where a misleading name and a comment-only rule could let an agent ship a refund bug with full confidence.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

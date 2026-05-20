@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:31:03.188Z",
+  "run_id": "e2d32c89-392e-42e7-bacf-38afb3c2ccae",
+  "response": "## Confirming the duplication\n\nRead on all three files: the bodies are byte-identical apart from the local variable name (`working` / `cleaned` / `normalised`). The scan's `near_duplicate_block` (`crime_00002`, confidence 0.85) is correct — and on inspection the three are actually exact duplicates with renamed locals, not behaviourally divergent variants. There is no per-call configuration to thread through; one helper covers all three call sites.\n\nThe admin guards next to them (`assertAdminA/B/C`) are *deliberately* divergent (`role === \"admin\"`, `… || role === \"owner\"`, `role !== \"admin\"`) and feed `crime_00003` — they should **not** be folded into the sanitiser refactor.\n\n## Refactor proposal\n\n**Files that would change**\n\n- `src/sanitize-a.ts` — delete `sanitizeUserInput`, keep `assertAdminA`, re-export `sanitize` as `sanitizeUserInput` for callers still using that name (or migrate them in the same PR).\n- `src/sanitize-b.ts` — delete `sanitizeText`, keep `assertAdminB`, same re-export pattern.\n- `src/sanitize-c.ts` — delete `cleanMessage`, keep `assertAdminC`, same re-export pattern.\n- **New:** `src/sanitize.ts` — the single helper plus an exported options/limits type.\n\n**Untouched:** `telemetry-a.ts`, `telemetry-b.ts`, `policy.ts`, the three `assertAdmin*` guards (separate finding — handle in a follow-up).\n\n**Public API of the consolidated helper**\n\n```ts\n// src/sanitize.ts\n\nexport interface SanitizeLimits {\n  /** Max length after whitespace collapse. Default: 1000. */\n  maxLength?: number;\n  /** Reject if 3+ consecutive !/? sequences appear more than this. Default: 5. */\n  maxPunctuationBursts?: number;\n  /**\n   * Force lowercase when the uppercase ratio exceeds this AND the\n   * string is at least `shoutMinLength` chars. Default: 0.9.\n   */\n  shoutUpperRatio?: number;\n  /** Default: 30. */\n  shoutMinLength?: number;\n}\n\nexport function sanitize(\n  input: string | null | undefined,\n  limits?: SanitizeLimits,\n): string;\n```\n\nSemantics match the existing body exactly: `null`/`undefined` → `\"\"`, trim, strip space-hyphen, collapse whitespace, truncate at `maxLength`, reject leading `<`/`>`, reject `\\x`, reject excess punctuation bursts, lowercase shouty inputs. Limits are optional with the current constants as defaults, so all three existing call sites can switch over with a one-token rename.\n\n**Migration shape** (per old file):\n\n```ts\n// src/sanitize-a.ts\nexport { sanitize as sanitizeUserInput } from \"./sanitize\";\nexport function assertAdminA(role: string): boolean { return role === \"admin\"; }\n```\n\nThat keeps the import surface for each old name stable for one release, after which the re-exports can be removed and callers updated to import `sanitize` directly.\n\nWant me to apply this?",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

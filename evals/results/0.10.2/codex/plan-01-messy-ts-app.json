@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:28:31.160Z",
+  "run_id": "a1d6eda3-3a83-4390-a50e-3db6770d8218",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e4637-0c8a-7251-9ef3-4a2ff08115d2\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll use the local crimes workflow guidance, then I’ll check the fixture verdict so the triage reflects both the scan findings and branch-level direction.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes/.agents/skills/crimes/SKILL.md && node /Users/andrew/dev/crimes/packages/cli/dist/index.js verdict /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app --format json\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes/.agents/skills/crimes/SKILL.md && node /Users/andrew/dev/crimes/packages/cli/dist/index.js verdict /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app --format json\\\"\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.2.0\\\",\\n  \\\"report_type\\\": \\\"verdict\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"runner\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/evals/runner\\\"\\n  },\\n  \\\"base\\\": \\\"origin/main\\\",\\n  \\\"head\\\": \\\"HEAD\\\",\\n  \\\"verdict\\\": \\\"unchanged\\\",\\n  \\\"summary\\\": {\\n    \\\"new\\\": 0,\\n    \\\"fixed\\\": 0,\\n    \\\"unchanged\\\": 21,\\n    \\\"new_by_severity\\\": {\\n      \\\"high\\\": 0,\\n      \\\"medium\\\": 0,\\n      \\\"low\\\": 0\\n    },\\n    \\\"fixed_by_severity\\\": {\\n      \\\"high\\\": 0,\\n      \\\"medium\\\": 0,\\n      \\\"low\\\": 0\\n    },\\n    \\\"new_weighted\\\": 0,\\n    \\\"fixed_weighted\\\": 0\\n  },\\n  \\\"reasons\\\": [\\n    \\\"no new findings and no fixed findings\\\"\\n  ],\\n  \\\"recommended_actions\\\": [\\n    \\\"no maintainability change vs. base — verdict is advisory only.\\\"\\n  ],\\n  \\\"new_findings\\\": [],\\n  \\\"fixed_findings\\\": []\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"The skill confirms the right prioritization axis here: use `evidence[]` for the facts and `scores.agent_risk` for ordering human attention. I’m waiting on the verdict command now; if the fixture is not a git checkout, I’ll call that out and base the ordering on the supplied scan JSON.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"Using `crimes verdict --format json`, the branch verdict is `unchanged`: no new or fixed findings vs `origin/main`. So this is not an urgent regression gate; triage should still start with the high-severity / high-agent-risk findings from `crimes scan`.\\n\\n**Triage Order**\\n\\n| Order | Category | Finding | File | Response | Why |\\n|---:|---|---|---|---|---|\\n| 1 | Structural | `crime_00002` `direct_date` | `src/date.ts` | fix now | High severity, small fix, blocks deterministic date tests. |\\n| 2 | Structural | `crime_00003` `mixed_utc_local_methods` | `src/date.ts` | fix now | Same file as above; fix together by choosing UTC/local boundary. |\\n| 3 | Structural | `crime_00009` `timezone_unsafe_parse` | `src/date.ts` | fix now | Same date cluster; explicit timezone literals are cheap and reduce ambiguity. |\\n| 4 | Structural | `crime_00005` `large_function` | `src/billing.ts` | fix now | Highest structural edit risk: 204-line domain function. Extract tested helpers. |\\n| 5 | IA | `crime_00006` `missing_agent_context` | repo context | fix now | Small, high leverage. Add `AGENTS.md`/skill context before more agent edits. |\\n| 6 | Structural | `crime_00007` `hardcoded_localhost` | `src/api/files.ts` | fix now | Quick config/env fix; current code only works on one dev setup. |\\n| 7 | Structural | `crime_00008` `hardcoded_local_path` | `src/api/files.ts` | fix now | Quick portability fix; current path is machine-specific. |\\n| 8 | Frontend | `crime_00001` `svg_with_embedded_raster` | `src/assets/partner-logo.svg` | defer | High severity, but asset-only. Fix after code determinism/config issues unless page weight is current priority. |\\n| 9 | Duplication | `crime_00010` `magic_domain_literal_scatter` | `src/api/plan.ts` | defer | Centralize `\\\"enterprise\\\"` before adding plan logic; not first unless touching billing/plans now. |\\n| 10 | IA | `crime_00004` `concept_alias_drift` | `docs/billing.md` | defer | Pick canonical tenant/account/team/workspace language, but do it with product agreement. |\\n\\n**Git-History**\\n\\nNo top-10 git-history findings appeared in the scan, and the verdict is `unchanged`, so there is no “new finding” cleanup required before merge.\\n\\n**Ignore**\\n\\nI would not ignore any of the top 10 from this scan. None reads like an obvious false positive from the supplied evidence.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":94359,\"cached_input_tokens\":73856,\"output_tokens\":1486,\"reasoning_output_tokens\":617}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

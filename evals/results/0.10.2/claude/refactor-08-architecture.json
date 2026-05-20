@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.10.2",
+  "timestamp": "2026-05-20T16:32:55.074Z",
+  "run_id": "2b06709b-43e4-4248-aca3-b077b78d9ac3",
+  "response": "## Refactor proposal\n\n### Edge 1 — `domain/billing.ts → presentation/invoice-view.ts`\nTies to **`crime_00002` (layer_violation)** and is also one of the three legs of **`crime_00001` (circular_dependency)**.\n\n**Break this import outright; do not redirect it.** Domain has no business calling a renderer — the configured rule (`domain cannotImport presentation`) encodes the intended direction of change: presentation depends on domain, never the reverse. `chargeCustomer` should return the data the invoice needs (an amount, plus whatever else `renderInvoice` was going to consume) and let the caller render. Concretely:\n\n- Delete the `renderInvoice` import from `domain/billing.ts`.\n- Make `chargeCustomer` return a plain `Charge` value (e.g. `{ amount }`) defined in `domain/`.\n- Move the `renderInvoice(charge)` call up to `application/billing-flow.ts`, which is allowed to touch both layers... except `application` also `cannotImport` `presentation` per the config. So the right shape is: `application` orchestrates `chargeCustomer`, returns the `Charge`, and presentation calls `application` to get it. That's the intended direction (presentation → application → domain) and resolves the cycle automatically.\n\n### Edge 2 — `presentation/invoice-view.ts → application/billing-flow.ts`\nThe remaining leg of **`crime_00001`** once Edge 1 is cut. Keep this edge but invert its shape: `renderInvoice(charge: Charge)` should take data as a parameter rather than re-invoking `runBillingFlow()` to fetch it. The current `renderInvoice` calls `runBillingFlow()` purely as a side effect, which is why the cycle exists at all — presentation is acting as a controller. Once `renderInvoice` is a pure formatter of `Charge`, the back-edge to `application` disappears and the cycle is gone without needing a leaf-types module.\n\n### Edge 3 — `application/billing-flow.ts → some-pkg/dist/internal/private/helper.js`\nTies to **`crime_00003` (deep_import)**. Redirect, don't break: switch to `import { ... } from \"some-pkg\"` (the package's published entry). If `internalHelper` isn't exported from the public surface, the suggested action stands — file an upstream issue rather than coding around it; do not wrap the deep path in a local re-export, which just hides the same coupling behind a friendlier name.\n\n### How `layer_violation` and `deep_import` differ in agent risk\n\nThe scores (`0.56` vs `0.45`) reflect a real qualitative gap:\n\n- **`layer_violation` is higher-agent-risk because the rule is local and invisible at the call site.** Nothing about `import { renderInvoice } from \"../presentation/invoice-view.js\"` tells a future agent it's forbidden — the constraint lives in `crimes.config.json`, not in TypeScript's type system or the import itself. An agent editing `domain/billing.ts` will happily add more presentation imports unless it reads the config. The violation also encodes a *direction* of change the team chose, so getting it wrong inverts dependency flow and tends to spawn more violations of the same kind (cycles, untestable domain code).\n\n- **`deep_import` is lower-agent-risk because the danger is external and time-delayed, not architectural.** The specifier `some-pkg/dist/internal/private/helper.js` is self-describing: `dist`, `internal`, `private` are all loud signals an agent can read off the string. The blast radius is also bounded — the file breaks only when the upstream package reorganizes, not when teammates edit nearby code. It's a quick fix (`effort: quick`) with one local action.\n\nPut differently: layer violations corrupt the *model* the agent uses to reason about the codebase; deep imports just create a fragile coupling to a third party. The first misleads, the second merely bets wrong.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}
