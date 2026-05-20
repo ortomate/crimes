@@ -49,6 +49,20 @@ export function applyTriageFilter(
   const out: Finding[] = [];
 
   for (const finding of findings) {
+    // Resurfaced findings carry their own `previous_triage` /
+    // `previous_baseline` block from the resurface pipeline and are
+    // surfaced precisely so the user can re-confirm them. Silencing them
+    // here by fingerprint match would defeat the resurface UX. Pass
+    // through unchanged; the renderer's resurface block keys off
+    // `previously_triaged` / `previously_baselined`.
+    if (
+      finding.previously_triaged === true ||
+      finding.previously_baselined === true
+    ) {
+      out.push(finding);
+      continue;
+    }
+
     const entry = byFingerprint.get(fingerprintFinding(finding));
     if (!entry) {
       out.push(finding);

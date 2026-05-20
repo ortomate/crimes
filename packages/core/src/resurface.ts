@@ -1,7 +1,7 @@
 import type { BaselineEntry } from "./baseline.js";
 import { fingerprintFinding } from "./fingerprint.js";
 import type { Finding } from "./finding.js";
-import type { TriageEntry } from "./triage.js";
+import type { TriageDisposition, TriageEntry } from "./triage.js";
 
 export interface ResurfaceInput {
   /**
@@ -19,13 +19,25 @@ export interface ResurfaceInput {
   reDetect: (file: string) => Promise<Finding[]>;
 }
 
+// Spec §5.3: only the silencing dispositions resurface. fix-now and
+// fix-this-PR remain in the regular findings list with a `triaged`
+// annotation; resurfacing them too would double-render them.
+const RESURFACING_DISPOSITIONS: ReadonlySet<TriageDisposition> = new Set([
+  "needs-design",
+  "wont-fix",
+  "scaffolding",
+]);
+
 /**
- * Build the resurfaced findings list: for every triage or baseline
- * entry whose `file` is in `diffFiles`, re-run its detector and emit
- * any matching finding annotated with the prior disposition.
+ * Build the resurfaced findings list: for every silenced triage or
+ * baseline entry whose `file` is in `diffFiles`, re-run its detector and
+ * emit any matching finding annotated with the prior disposition.
  *
  * Triage entries win over baseline entries when both match the same
- * fingerprint.
+ * fingerprint **and** the triage entry has a silencing disposition. A
+ * non-silencing triage entry (fix-now / fix-this-PR) is ignored for
+ * resurfacing — if a baseline entry exists for the same fingerprint, it
+ * still resurfaces under the baseline branch.
  *
  * Resurfaced findings whose re-detect yields no match for the stored
  * fingerprint are silently dropped — they're already fixed.
@@ -42,9 +54,11 @@ export async function collectResurfaced(
   if (input.diffFiles.size === 0) return [];
 
   // Last-wins on duplicate fingerprints within each source list (matches
-  // the convention in suppressions.ts / triage-filter.ts).
+  // the convention in suppressions.ts / triage-filter.ts). Only silenced
+  // triage entries enter the resurface map.
   const triageByPrint = new Map<string, TriageEntry>();
   for (const e of input.triageEntries) {
+    if (!RESURFACING_DISPOSITIONS.has(e.disposition)) continue;
     triageByPrint.set(e.fingerprint, e);
   }
   const baselineByPrint = new Map<string, BaselineEntry>();
@@ -52,15 +66,18 @@ export async function collectResurfaced(
     baselineByPrint.set(e.fingerprint, e);
   }
 
-  // Files to re-detect = union of triage and baseline files that are
-  // also in the diff.
+  // Files to re-detect = union of resurfacing-eligible triage and
+  // baseline files that are also in the diff. Skipping non-silencing
+  // triage entries here avoids a re-detect call for files whose only
+  // triage entries are fix-now / fix-this-PR.
   const filesToReDetect = new Set<string>();
-  for (const e of input.triageEntries) {
+  for (const e of triageByPrint.values()) {
     if (input.diffFiles.has(e.file)) filesToReDetect.add(e.file);
   }
   for (const e of input.baselineEntries) {
     if (input.diffFiles.has(e.file)) filesToReDetect.add(e.file);
   }
+  if (filesToReDetect.size === 0) return [];
 
   const resurfaced: Finding[] = [];
 

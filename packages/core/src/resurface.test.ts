@@ -187,4 +187,61 @@ describe("collectResurfaced", () => {
     expect(result[0]!.symbol).toBe("second");
     expect(result[1]!.symbol).toBe("first");
   });
+
+  // Spec §5.3: only silenced dispositions (needs-design / wont-fix /
+  // scaffolding) resurface. fix-now / fix-this-PR stay visible in the
+  // regular findings list via applyTriageFilter's `triaged` annotation,
+  // so resurfacing them too would produce a duplicate row in the output.
+  it("does not resurface fix-now triage entries", async () => {
+    const input: ResurfaceInput = {
+      diffFiles: new Set(["src/foo.ts"]),
+      triageEntries: [makeTriage({ disposition: "fix-now" })],
+      baselineEntries: [],
+      reDetect: vi.fn().mockResolvedValue([makeFinding()]),
+    };
+    const result = await collectResurfaced(input);
+    expect(result).toHaveLength(0);
+    expect(input.reDetect).not.toHaveBeenCalled();
+  });
+
+  it("does not resurface fix-this-PR triage entries", async () => {
+    const input: ResurfaceInput = {
+      diffFiles: new Set(["src/foo.ts"]),
+      triageEntries: [makeTriage({ disposition: "fix-this-PR" })],
+      baselineEntries: [],
+      reDetect: vi.fn().mockResolvedValue([makeFinding()]),
+    };
+    const result = await collectResurfaced(input);
+    expect(result).toHaveLength(0);
+  });
+
+  it("resurfaces needs-design / wont-fix / scaffolding dispositions", async () => {
+    for (const disposition of ["needs-design", "wont-fix", "scaffolding"] as const) {
+      const input: ResurfaceInput = {
+        diffFiles: new Set(["src/foo.ts"]),
+        triageEntries: [makeTriage({ disposition })],
+        baselineEntries: [],
+        reDetect: vi.fn().mockResolvedValue([makeFinding()]),
+      };
+      const result = await collectResurfaced(input);
+      expect(result, `disposition ${disposition} should resurface`).toHaveLength(1);
+      expect(result[0]!.previous_triage?.disposition).toBe(disposition);
+    }
+  });
+
+  it("falls back to baseline annotation when triage entry is non-silencing and a baseline match exists", async () => {
+    // Edge case: same fingerprint has a fix-now triage entry AND a baseline
+    // entry. fix-now doesn't resurface, but the baseline entry should still
+    // surface — otherwise editing the file would skip the baseline reminder.
+    const input: ResurfaceInput = {
+      diffFiles: new Set(["src/foo.ts"]),
+      triageEntries: [makeTriage({ disposition: "fix-now" })],
+      baselineEntries: [makeBaseline()],
+      reDetect: vi.fn().mockResolvedValue([makeFinding()]),
+    };
+    const result = await collectResurfaced(input);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.previously_baselined).toBe(true);
+    expect(result[0]!.previously_triaged).toBeUndefined();
+  });
 });

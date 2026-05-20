@@ -115,6 +115,18 @@ export function formatHumanReport(
     });
     // Trailing summary line.
     lines.push(summaryLine(report, colour));
+  } else if (domain.length === 0 && nonDomain.length === 0) {
+    // Only resurfaced findings reached this report — every fresh finding
+    // got silenced by suppressions or triage. Skip the empty "Top files"
+    // / "All non-domain" blocks; the resurface block above is the entire
+    // signal. Anchor the action-close on the highest-risk resurfaced file.
+    if (resurfaced.length > 0) {
+      lines.push("");
+      const topResurfacedFile = resurfaced[0]!.file;
+      lines.push(
+        `→ Start with \`crimes context ${topResurfacedFile}\` — every fresh finding is silenced; only previously-triaged or baselined findings remain.`,
+      );
+    }
   } else if (domain.length === 0) {
     // All-non-domain edge case.
     const groupedNon = groupByFile(nonDomain);

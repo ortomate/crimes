@@ -274,3 +274,114 @@ describe("crimes scan --show-triaged", () => {
     expect(parsed.triage_hidden_count).toBeUndefined();
   });
 });
+
+describe("crimes scan — resurfacing end-to-end", () => {
+  // Regression for the "resurfaced findings get silenced by the triage
+  // filter" bug. Sets up a git repo with a wont-fix triage entry on a
+  // file, branches off main, touches that file, runs `crimes scan`, and
+  // asserts the resurfaced finding reaches both the JSON and the human
+  // renderer's "You're editing files you previously triaged" block.
+  async function makeRepoWithResurfacingCase(): Promise<{
+    root: string;
+    fingerprint: string;
+  }> {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-resurface-"));
+    await writeFile(join(root, "src.ts"), largeFunctionSource(), "utf8");
+    await git(root, "init", "--initial-branch=main", "--quiet");
+    await git(root, "add", "-A");
+    await git(root, "commit", "-m", "init", "--quiet");
+
+    const probe = await runCli(["scan", ".", "--format", "json", "--no-color"], root);
+    const probeReport = JSON.parse(probe.stdout) as {
+      findings: Array<{ type: string; file: string; symbol?: string }>;
+    };
+    const target = probeReport.findings.find(
+      (f) => f.type === "large_function" && f.file === "src.ts",
+    );
+    if (!target) throw new Error("expected large_function on src.ts in fixture");
+    const fingerprint = `${target.type}::${target.file}::${target.symbol ?? ""}`;
+
+    await mkdir(join(root, ".crimes"), { recursive: true });
+    await writeFile(
+      join(root, ".crimes/triage.json"),
+      JSON.stringify({
+        schema_version: "0.2.0",
+        report_type: "triage",
+        created_at: "2026-05-20T14:00:00Z",
+        updated_at: "2026-05-20T14:00:00Z",
+        entries: [
+          {
+            fingerprint,
+            type: target.type,
+            file: target.file,
+            ...(target.symbol ? { symbol: target.symbol } : {}),
+            disposition: "wont-fix",
+            reason: "legacy billing, rewrite Q3",
+            owner: "@amayfield",
+            date: "2026-04-12",
+          },
+        ],
+      }),
+      { encoding: "utf8" },
+    );
+    await git(root, "add", "-A");
+    await git(root, "commit", "-m", "triage", "--quiet");
+
+    // Switch to a feature branch and touch the file so it shows up in the
+    // diff against resurfaceBase (default "main").
+    await git(root, "checkout", "-b", "feature", "--quiet");
+    await writeFile(
+      join(root, "src.ts"),
+      largeFunctionSource() + "\n// touched\n",
+      "utf8",
+    );
+
+    return { root, fingerprint };
+  }
+
+  it(
+    "resurfaces a wont-fix finding on a touched file in JSON output",
+    { timeout: 30_000 },
+    async () => {
+      const { root, fingerprint } = await makeRepoWithResurfacingCase();
+      const result = await runCli(["scan", ".", "--format", "json", "--no-color"], root);
+      expect(result.exitCode).toBe(0);
+      const parsed = JSON.parse(result.stdout);
+      const resurfaced = parsed.findings.find(
+        (f: {
+          previously_triaged?: boolean;
+          previous_triage?: { disposition: string };
+        }) => f.previously_triaged === true,
+      );
+      expect(resurfaced, JSON.stringify(parsed, null, 2)).toBeDefined();
+      expect(resurfaced.previous_triage.disposition).toBe("wont-fix");
+      expect(resurfaced.previous_triage.reason).toBe(
+        "legacy billing, rewrite Q3",
+      );
+      expect(resurfaced.previous_triage.owner).toBe("@amayfield");
+      // The outer scan also discovered the same fingerprint as a fresh
+      // finding; the triage filter silences that fresh copy, leaving the
+      // resurfaced annotation as the sole representative in findings[].
+      expect(parsed.triage_hidden_count).toBe(1);
+      // Sanity: fingerprint matches the triage entry we wrote.
+      expect(fingerprint).toContain("large_function::src.ts");
+    },
+  );
+
+  it(
+    "renders the 'previously triaged' resurface block in human output",
+    { timeout: 30_000 },
+    async () => {
+      const { root } = await makeRepoWithResurfacingCase();
+      const result = await runCli(["scan", ".", "--no-color"], root);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain(
+        "You're editing files you previously triaged",
+      );
+      expect(result.stdout).toContain("wont-fix");
+      expect(result.stdout).toContain("legacy billing, rewrite Q3");
+      expect(result.stdout).toContain("@amayfield");
+      expect(result.stdout).toContain("crimes triage --retriage src.ts");
+    },
+  );
+});

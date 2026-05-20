@@ -108,4 +108,50 @@ describe("applyTriageFilter", () => {
     expect(result.findings).toHaveLength(0);
     expect(result.hiddenCount).toBe(2);
   });
+
+  // Regression: resurfaced findings must survive the triage filter so the
+  // "you previously triaged this, was it still intentional?" UX actually
+  // reaches the renderer. The default `showTriaged: false` would otherwise
+  // strip them by fingerprint match and the resurface block would never
+  // render in the CLI flow (scan → applyTriageToScan → renderer).
+  it("preserves resurfaced (previously_triaged) findings without silencing them", () => {
+    const findings = [
+      makeFinding({
+        previously_triaged: true,
+        previous_triage: {
+          disposition: "wont-fix",
+          reason: "legacy",
+          owner: "@a",
+          date: "2026-05-20",
+        },
+      }),
+    ];
+    const result = applyTriageFilter(findings, [makeEntry()], {
+      showTriaged: false,
+    });
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.previously_triaged).toBe(true);
+    expect(result.findings[0]!.previous_triage?.disposition).toBe("wont-fix");
+    // Not counted as hidden — it's surfaced for re-confirmation.
+    expect(result.hiddenCount).toBe(0);
+    // Triage filter does not re-annotate it with a fresh `triaged` or
+    // `hidden_triage` block; the `previous_triage` carries the disposition.
+    expect(result.findings[0]!.triaged).toBeUndefined();
+    expect(result.findings[0]!.hidden_triage).toBeUndefined();
+  });
+
+  it("preserves previously_baselined findings without silencing them", () => {
+    const findings = [
+      makeFinding({
+        previously_baselined: true,
+        previous_baseline: {},
+      }),
+    ];
+    const result = applyTriageFilter(findings, [makeEntry()], {
+      showTriaged: false,
+    });
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.previously_baselined).toBe(true);
+    expect(result.hiddenCount).toBe(0);
+  });
 });
