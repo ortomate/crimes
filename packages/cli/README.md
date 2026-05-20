@@ -15,18 +15,25 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
-**`0.9.2` headline:** a single emoji severity glyph
-(🚨 high · ⚠️ medium · 🔎 low) now prefixes every finding and
-severity heading in the human report, with ✅ / ❌ on the
-`--fail-on` gate line — suppressed when stdout isn't a TTY, when
-`NO_COLOR` is set, or when `--no-color` is passed, so JSON output
-and CI logs stay emoji-free. Plus metadata housekeeping after the
-repo moved to `ortomate/crimes`. `crimes@0.9.1` shipped the bare-
-`crimes` welcome banner; `crimes@0.9.0` shipped Codex agent
-discovery, the `finder_duplicate_filename` petty-crime detector,
-and a `crimes explain` rewrite with a **Likely remedies** block.
-Still deterministic, still no LLM / API key / network required.
-See the [root README](https://github.com/ortomate/crimes#status--crimes092)
+**`0.11.0` headline:** `crimes triage` is the new recommended
+front door for handling existing findings — interactive per-finding
+walk over the current scan, persisting dispositions (`fix-now`,
+`fix-this-PR`, `needs-design`, `wont-fix`, `scaffolding`) to
+`.crimes/triage.json`. Silenced triage entries and baseline entries
+now **resurface automatically** in `crimes scan` when their file is
+in the branch diff against `main`, so a one-time decision doesn't
+become permanent amnesia. `crimes init --agents` ships a Claude
+Code `PreToolUse` Edit hook so the pre-edit briefing happens
+without the agent having to remember to call `crimes context`. Two
+new required `Finding` fields — `effort` and `fix_shape` — bump
+`schema_version` to `"0.2.0"`; the loader still accepts `"0.1.0"`
+on committed `.crimes/` state files. Secondary scores read as prose
+(`blast top-quartile (11 importers)` instead of `0.72`); JSON
+numerics are unchanged. Still deterministic, still no LLM / API
+key / network required. `crimes@0.10.0` shipped the front-door
+redesign (auto-init, lead-with-`context`); `crimes@0.9.2` shipped
+emoji severity glyphs and the move to `ortomate/crimes`. See the
+[root README](https://github.com/ortomate/crimes#status--crimes0110)
 for the full version history.
 
 - Website: **[crimes.sh](https://crimes.sh)**
@@ -74,7 +81,7 @@ crimes baseline check --fail-on medium          # fail CI only on new debt
 crimes verdict --base origin/main --fail-on new-high  # branch-level gate
 ```
 
-The JSON output is the **stable product API** (`schema_version: "0.1.0"`).
+The JSON output is the **stable product API** (`schema_version: "0.2.0"`).
 Every report carries a `report_type` discriminator (`"scan"`, `"context"`,
 `"hotspots"`, `"diff"`, `"baseline"`, `"baseline_check"`, `"verdict"`).
 Agents should consume it directly.
