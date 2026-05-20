@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.10.5",
+  "timestamp": "2026-05-20T19:53:51.848Z",
+  "run_id": "903fdb10-4109-4350-8faf-13d22ec926ed",
+  "response": "## The three findings and how they relate\n\nAll three live on the same triangle of files. The `domain→presentation` edge in `crime_00002` is also the closing edge of the cycle in `crime_00001`, so one change fixes both. `crime_00003` is independent.\n\n## Proposed changes\n\n**Change 1 — break `domain → presentation` (fixes crime_00002, collapses crime_00001)**\n\n`src/domain/billing.ts:2` imports `renderInvoice` from presentation and calls it inside `chargeCustomer`. A domain operation should not render UI — that's the inverted dependency the rule is meant to catch.\n\nRedirect: make `chargeCustomer` return a value (the amount, or a small domain DTO) and let the caller in `application/billing-flow.ts` invoke `renderInvoice` on the result. After this, `domain/billing.ts` has no imports from the other two files, the cycle dissolves, and the configured `domain cannotImport presentation` rule is satisfied. No new interface needed in this case — the domain function just stops doing presentation work.\n\n**Change 2 — pull the deep import back to the package boundary (fixes crime_00003)**\n\n`src/application/billing-flow.ts:4` reaches into `some-pkg/dist/internal/private/helper.js`. Replace with `import { internalHelper } from \"some-pkg\"`. Per the finding's own guidance: if `some-pkg` doesn't re-export `internalHelper`, file an upstream issue rather than continuing to depend on the internal path.\n\n## How layer_violation and deep_import differ in agent risk\n\nThe two findings have similar `severity` but different `agent_risk` (0.56 vs 0.45), and the gap reflects *which kind of confusion they plant in the next contributor*:\n\n- **`layer_violation` (higher agent risk)** corrupts the *mental model*. An agent reading `domain/billing.ts` reasonably assumes domain sits at the bottom of the stack and is free of UI concerns. Finding a presentation import there normalizes the inversion — the next change is more likely to add another cross-layer call, because \"we already do this here.\" The damage compounds with every edit that takes the wrong shape as precedent.\n\n- **`deep_import` (lower agent risk)** is a *brittleness coupling*, not a model corruption. The symbol exists exactly where the import says it does, so an agent editing the file isn't misled about how the code works — it just inherits a fragile edge that a package upgrade can sever silently. The harm is bounded to upgrade time and to this one specifier; it doesn't tempt further bad imports the way a layer crossing does.\n\nSame \"you imported something you shouldn't have,\" but one rewires how readers think about the architecture and the other just stores up a future upgrade break.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

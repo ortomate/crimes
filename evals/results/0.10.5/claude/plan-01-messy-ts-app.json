@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.10.5",
+  "timestamp": "2026-05-20T19:48:03.223Z",
+  "run_id": "05f6d6fa-de1a-4617-9bee-cb8209ddc277",
+  "response": "## Triage plan — top 10 findings\n\nOrdered by `agent_risk` (default ranking), grouped by category. Top 10 spans 0.70 → 0.52.\n\n### Frontend (1)\n\n| # | ID | Charge | File | agent_risk | Effort | Action |\n|---|----|----|----|----|----|----|\n| 1 | `crime_00001` | SVG With Embedded Raster | `src/assets/partner-logo.svg` | 0.70 | small | **fix now** |\n\nRe-export from the design tool with rasters flattened, or split the embedded image to a separate URL-referenced asset. Cheap, eliminates a misleading \"vector\" promise.\n\n### Structural (5)\n\n| # | ID | Charge | File | agent_risk | Effort | Action |\n|---|----|----|----|----|----|----|\n| 2 | `crime_00002` | Temporal Recklessness | `src/date.ts` (8 sites) | 0.62 | small | **fix now** |\n| 3 | `crime_00003` | Half-UTC, Half-Local | `src/date.ts:9,41` | 0.61 | medium | **fix now** |\n| 5 | `crime_00005` | God Function `generateInvoice` | `src/billing.ts:50–253` | 0.55 | small | **fix now** |\n| 7 | `crime_00007` | Hardcoded `localhost:3000` | `src/api/files.ts:8` | 0.53 | quick | **fix now** |\n| 8 | `crime_00008` | Hardcoded `/Users/andrew/...` path | `src/api/files.ts:9` | 0.53 | quick | **fix now** |\n| 9 | `crime_00009` | Timezone Roulette | `src/date.ts:29,33` | 0.53 | small | **fix now** |\n\nBundle 2/3/9 into one `date.ts` PR — inject a clock, pick UTC at the boundary, annotate string literals with `Z`. 7 and 8 are 2-line fixes that unblock every non-Andrew machine and should land immediately. 5 is the biggest cognitive win — extract pure helpers from `generateInvoice` before touching anything else in `billing.ts` (and before adding any new detector to this file later).\n\n### IA / agent context (2)\n\n| # | ID | Charge | File | agent_risk | Effort | Action |\n|---|----|----|----|----|----|----|\n| 4 | `crime_00004` | Concept Alias Drift (`tenant`) | `docs/billing.md` + 4 files | 0.58 | small | **defer** |\n| 6 | `crime_00006` | Missing Agent Context | repo root | 0.53 | small | **fix now** |\n\n6 is a 10-minute fix that pays back every future agent edit — write `AGENTS.md` listing entrypoints and conventions. 4 needs a product call (\"are 'account' / 'organisation' / 'team' / 'workspace' actually the same concept?\") before mass-renaming, so defer until someone owns the vocabulary decision; risk of a sloppy fix is higher than the cost of waiting.\n\n### Duplication (1)\n\n| # | ID | Charge | File | agent_risk | Effort | Action |\n|---|----|----|----|----|----|----|\n| 10 | `crime_00010` | \"enterprise\" literal scattered | 4 files | 0.52 | small | **defer** |\n\nHoist to a constant when next touching `billing.ts` (after 5). Don't make it its own PR — the win is preventing the *next* duplicate, not chasing the four that exist.\n\n### Git-history\n\nNone in the top 10 — fixture has no git history, so `churn` and `recency` are 0 across the board. Skipping the category.\n\n---\n\n### Suggested commit sequence\n\n1. **Quick wins (one PR)**: 7, 8, 6 — config-ify the dev URL, swap the hardcoded path for `os.homedir()`, drop in `AGENTS.md`. Unblocks other contributors today.\n2. **Date hygiene (one PR)**: 2, 3, 9 — clock injection + UTC discipline in `src/date.ts`. Touches one file, deterministic to review.\n3. **Invoice refactor (one PR)**: 5, then opportunistically 10 — extract helpers from `generateInvoice`, lift `\"enterprise\"` to a constant on the way through.\n4. **Asset cleanup (one PR)**: 1 — re-export the SVG. Trivially reviewable.\n5. **Hold for product input**: 4 — needs canonical-term decision first.\n\nNothing in the top 10 is **ignore**-worthy; all 10 are real and actionable.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "svg_with_embedded_raster",
+        "passed": false
+      }
+    ]
+  }
+}

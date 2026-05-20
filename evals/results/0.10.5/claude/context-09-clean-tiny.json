@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.10.5",
+  "timestamp": "2026-05-20T19:46:10.823Z",
+  "run_id": "eaa33c8e-7d76-4bf3-840b-2206069b6227",
+  "response": "## Crimes context report for `src/add.ts`\n\n**Risk level:** `none` — 0 findings (high/medium/low all zero).\n\n**What crimes surfaced:**\n- **Likely test file:** `src/add.test.ts` — there's an adjacent test file that should be kept in sync with any changes.\n- **Related files:** none. No import neighborhood, shared domain tokens, or same-directory siblings.\n- **Agent guidance:** none. Crimes explicitly notes \"no findings on this file and no deterministic related files.\"\n\n**Safe to extend?** Yes. The file is clean by every crimes detector — no structural smells, no churn hotspot, no testability hazards, no duplication, no agent-risk signals. The only thing to remember is to update `src/add.test.ts` alongside any behavior change so the test gap stays at zero.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

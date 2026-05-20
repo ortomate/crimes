@@ -1,0 +1,129 @@
+{
+  "scenario": "review-01-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.10.5",
+  "timestamp": "2026-05-20T19:58:09.461Z",
+  "run_id": "c1e5b4d6-2bfe-43a7-b800-39925dadb1a6",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e46f7-16e1-7bd1-8f90-0e0db3244147\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’m using the `crimes-codebase-risk` skill because this is a review of `crimes` scan output and the repo’s own risk taxonomy matters for the recommendation.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes/.agents/skills/crimes/SKILL.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes/.agents/skills/crimes/SKILL.md\\\"\",\"aggregated_output\":\"---\\nname: crimes-codebase-risk\\ndescription: Use when editing, reviewing, or investigating a TypeScript / JavaScript codebase that ships with the crimes CLI. Helps agents run pre-edit context checks, post-edit scans, and interpret findings before risky changes.\\n---\\n\\n# crimes — codebase risk workflow\\n\\n`crimes` is a deterministic CLI (no LLM) that reports change risk and\\nagent risk. JSON output is the stable contract; prefer it when planning.\\n\\n## When to run it\\n\\n- Before editing an unfamiliar file: `crimes context <file> --format json`\\n- Before a broad refactor: `crimes scan <path> --format json`\\n- After edits: `crimes scan --changed --format json`\\n- Before merging a branch: `crimes verdict --format json`\\n\\n## Decision rules\\n\\n- Treat any new `severity: \\\"high\\\"` finding introduced by your edit as a blocker unless the user explicitly accepts it.\\n- Read `evidence[]` before acting; it contains deterministic facts, not LLM opinion.\\n- Use `scores.agent_risk` to decide which findings need human attention first.\\n- If a finding is a false positive, record feedback with `crimes feedback <fingerprint> --verdict fp --note \\\"<why>\\\"` rather than silently ignoring it.\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n- **`crime_00017` / `route_metadata_drift` / medium / confidence 0.65**\\n  Recommendation: **block merge**.\\n  This is the root IA inconsistency: `/settings/billing` is represented as `billing`, `PricingPage`, `Plans`, `Subscription`, and `Billing` across the route file, component, metadata, document title, and nav. Because it affects the user-facing route identity and overlaps with the duplicated nav finding, merging as-is would preserve a confusing source of truth.\\n\\n- **`crime_00015` / `duplicated_navigation_source` / medium / confidence 0.7**\\n  Recommendation: **block merge if this branch touches settings, billing, pricing, routes, or nav; otherwise warn**.\\n  `/settings/billing` appears in both `src/nav/registry.ts` and `src/nav/sidebar.ts` with different labels: `Plans` vs `Billing`. On its own this might be a warning, but combined with `crime_00017` it confirms there is no canonical nav metadata source.\\n\\n- **`crime_00013` / `docs_code_drift` / low / confidence 0.9**\\n  Recommendation: **warn**.\\n  `docs/teams.md:5` links to `./setup.md`, which does not exist. This is stale documentation, not runtime breakage, so I would not block merge unless the PR is specifically changing onboarding/docs IA. It should be fixed before relying on the docs for agent or contributor workflows.\\n\\n**Overall recommendation:** block on the route/nav drift pair, warn on the stale docs link. None of these should be ignored, because all three are high-confidence IA maintenance risks with concrete evidence.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":62131,\"cached_input_tokens\":28928,\"output_tokens\":546,\"reasoning_output_tokens\":68}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_navigation_source",
+        "observed": "duplicated_navigation_source",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "docs_code_drift",
+        "observed": "docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav/registry.ts",
+        "observed": "src/nav/registry.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/settings/billing.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/teams.md",
+        "observed": "docs/teams.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "route_metadata_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

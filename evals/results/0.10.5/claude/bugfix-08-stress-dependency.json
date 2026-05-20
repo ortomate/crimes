@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.10.5",
+  "timestamp": "2026-05-20T19:44:37.794Z",
+  "run_id": "0f3a5a5e-dddd-48ed-912d-d9515eb160ea",
+  "response": "## The Cycle\n\nThree files form a runtime import ring:\n\n```\nsrc/application/billing-flow.ts\n  → src/domain/billing.ts\n    → src/presentation/invoice-view.ts\n      → src/application/billing-flow.ts\n```\n\n## Which import to break — and why\n\n**Break `src/domain/billing.ts → src/presentation/invoice-view.ts`.**\n\nTwo reasons line up on the same edge:\n\n1. **It's also a layer violation** (finding `crime_00002`). The configured rule is `domain cannotImport presentation` — domain should never depend on how things get rendered. This edge is wrong on architecture grounds independent of the cycle, so removing it fixes both findings at once.\n2. **Direction of change.** Presentation naturally depends on domain (views render domain data); domain depending on presentation inverts the intended flow. Cutting the inverted edge restores a clean `presentation → domain` direction and leaves `application → domain` and `application` consumed by `presentation` (or wherever the view is composed) intact.\n\nThe other two edges are defensible:\n- `application → domain`: application orchestrating domain logic is the standard direction.\n- `presentation → application`: a view pulling from an application/use-case module is normal.\n\nBreaking either of those would just paper over the cycle without fixing the underlying layering mistake.\n\n## How to break it\n\nIn rough order of preference:\n\n1. **Relocate what `domain/billing.ts` is reaching for.** If it's pulling a type or formatter from `invoice-view.ts`, that symbol belongs in domain (or a leaf module both can import). Move it down, then delete the import.\n2. **`import type` only**, if and only if the usage is purely type-level. That removes the runtime edge and breaks the cycle, but it does **not** fix the layer violation — domain still conceptually depends on presentation. Use this as a stopgap, not a resolution.\n3. **Invert via an interface owned by domain.** Domain defines the contract; presentation implements it. Domain imports the interface (its own file), not the view.\n\nThe `deep_import` finding (`crime_00003`, `some-pkg/dist/internal/private/helper.js`) is unrelated to the cycle — worth fixing in the same pass since it's quick, but it's not what's causing the runtime error.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

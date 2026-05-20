@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.10.5",
+  "timestamp": "2026-05-20T19:46:49.228Z",
+  "run_id": "f0b2a3cf-516f-4e33-a672-df651a85ab4e",
+  "response": "**No findings.** The scan returns `total: 0` with empty `findings[]` — `src/billing.ts` carries no structural, dependency, duplication, testability, or churn risk flags.\n\n**likely_tests:** the closest test by convention is `src/billing.test.ts` (Vitest co-located pattern used in this repo). If that file doesn't exist, `tests/billing.test.ts` is the fallback. The exact path is reported in the `crimes context` output's `likely_tests` field — the JSON you pasted is from `crimes scan`, which doesn't carry that field.\n\n**Why low risk to edit:**\n- **No detector hits** — function/file size, nesting, params, and React-component thresholds all clear; no circular or deep-import flags; no duplication, churn, or testability smells.\n- **Clean-typed module** — fixture name implies fully-typed surface, so refactors get compiler-checked.\n- **Low blast radius signal** — absence of fan-in/fan-out findings means few transitive importers; changes are unlikely to ripple.\n- **No agent-risk markers** — no `Date.now()`/`Math.random()`/`process.env` side effects in domain code, no misleading names, no multiple sources of truth.\n\nNet: a contained, well-typed, well-tested module — safe to edit with normal test-driven changes.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.10.5",
+  "timestamp": "2026-05-20T19:44:26.124Z",
+  "run_id": "5c19919e-671b-4bc2-870b-2e00362f54d2",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e46ea-d4cf-7d42-b2bb-c62ade53e68d\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Break the import from `src/domain/billing.ts` to `src/presentation/invoice-view.ts`.\\n\\nWhy: that edge is doing two bad things at once:\\n\\n1. It completes the 3-file cycle:\\n   `application/billing-flow.ts -> domain/billing.ts -> presentation/invoice-view.ts -> application/billing-flow.ts`\\n\\n2. It violates the intended architecture:\\n   `domain` imports `presentation`, but the rule says `domain cannotImport presentation`.\\n\\nThe domain layer should not know how invoices are rendered. Move the shared shape or helper that `billing.ts` needs into a leaf module, likely something like:\\n\\n```text\\nsrc/domain/invoice-types.ts\\n```\\n\\nor\\n\\n```text\\nsrc/shared/invoice-types.ts\\n```\\n\\nThen both `src/domain/billing.ts` and `src/presentation/invoice-view.ts` can import that leaf module without depending on each other.\\n\\nIf the import is only used for TypeScript types, the quick fix is to convert it to `import type`, but the better structural fix is still to extract the shared type/interface out of `presentation`. That breaks the runtime cycle and restores the layer boundary.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19501,\"cached_input_tokens\":12160,\"output_tokens\":267,\"reasoning_output_tokens\":27}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

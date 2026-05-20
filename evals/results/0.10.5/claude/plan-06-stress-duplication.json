@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.5",
+  "timestamp": "2026-05-20T19:48:12.090Z",
+  "run_id": "1e48296a-b2ce-458e-9c37-d877862be152",
+  "response": "# Refactor Plan: Consolidate Sanitise Helpers + Role Checks\n\nTwo coherent steps, ordered so the role-check extraction lands first (smaller blast radius, unblocks step 2).\n\n## Step 1 — Centralise the `\"admin\"` role check\n\n**Evidence (crime_00003):** literal `\"admin\"` compared in 4 files across 2 expression shapes — `src/policy.ts` (×4), `src/sanitize-a.ts:7`, plus occurrences in `sanitize-b.ts` and `sanitize-c.ts`.\n\n**Change:**\n1. Create `src/auth/is-admin.ts`:\n   ```ts\n   export function isAdmin(role: string): boolean {\n     return role === \"admin\";\n   }\n   ```\n2. Replace every `role === \"admin\"` (and any equivalent shape, e.g. `\"admin\" === role`) in `policy.ts`, `sanitize-a.ts`, `sanitize-b.ts`, `sanitize-c.ts` with `isAdmin(role)`.\n3. Add one unit test covering `isAdmin(\"admin\")` → true and a non-admin → false.\n\n**Why first:** the sanitise files each contain a role check inline. If we consolidate the sanitise helpers before this, we'd either (a) carry the duplicated check into the consolidated helper or (b) end up doing the role-check refactor twice. Doing it first means step 2 starts from files that already delegate to `isAdmin`.\n\n**Risk:** low. Pure literal-to-call substitution, no behaviour change. Grep for `\"admin\"` post-change to confirm no stragglers.\n\n---\n\n## Step 2 — Collapse the three sanitise helpers into one\n\n**Evidence (crime_00002):** near-duplicate bodies across `sanitize-a.ts:10-36 (sanitizeUserInput)`, `sanitize-b.ts:9-35 (sanitizeText)`, `sanitize-c.ts:9-35 (cleanMessage)`. Confidence 0.85 — bodies differ slightly, so the diff between the three needs to be parameterised, not erased.\n\nAlso folds in **crime_00001** (`recordSanitiseEvent` duplicated verbatim across `telemetry-a.ts` and `telemetry-b.ts`) since the telemetry helper is the thing the sanitisers call — easier to consolidate both in one PR than to leave the telemetry copies behind.\n\n**Change:**\n1. Diff the three sanitise functions to identify the varying values (likely: event name, allowed-tag list, or trim character set). Promote each difference to a parameter or an options object.\n2. Create `src/sanitize/sanitize.ts` exporting a single `sanitize(input, opts)` (name TBD — `sanitize` is the umbrella; the three call sites can keep their old names as thin wrappers if any external caller depends on them, otherwise delete).\n3. Create `src/telemetry/record-sanitise-event.ts` with the shared body from `telemetry-a.ts:6-19` / `telemetry-b.ts:6-19`. Both former call sites import it.\n4. Update call sites; delete the three `sanitize-*.ts` files (and `telemetry-b.ts` if it now only re-exports) once nothing imports them.\n5. Add tests that exercise each former variant via the new parameters — this is where the near-duplicate becomes auditable (you can see exactly what each old copy was doing differently).\n\n**Risk:** medium. Behavioural — if the three sanitisers diverged subtly (e.g. one trims whitespace, another doesn't), the parameterisation must preserve that. Mitigation: tests-first, one test per pre-existing call site reproducing its current input/output.\n\n---\n\n## Out of scope for this plan\n\nThe two `Temporal Recklessness` findings (`crime_00004`, `crime_00005`) inside `recordSanitiseEvent` — once telemetry is consolidated in step 2, the `Date.now()` call lives in exactly one place and is trivial to clock-inject as a follow-up. Worth a separate small PR rather than bundling.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      }
+    ]
+  }
+}

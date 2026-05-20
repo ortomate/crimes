@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.5",
+  "timestamp": "2026-05-20T19:51:07.645Z",
+  "run_id": "7adcb6e2-37f5-47e0-be62-d23094c32222",
+  "response": "## Confirmation\n\nThe scan flags one near-duplicate cluster (`crime_00002`, confidence 0.85) covering three files. Reading the sources confirms the three functions are byte-identical apart from identifier renames — same null guards, same `trim` + char-strip + whitespace-collapse, same 1000-char cap, same `<`/`>` and `\\x` rejects, same `!?{3,}` punctuation gate, same 0.9 upper-ratio rule on strings >30 chars. There are no differing constants to parameterise, so this is a clean consolidation, not a \"pass differing values as args\" case.\n\n## Refactor proposal\n\n**New module** — `src/sanitize.ts`:\n\n```ts\nexport interface SanitizeOptions {\n  maxLength?: number;            // default 1000\n  maxShoutingRuns?: number;      // default 5  (runs of !!! or ???)\n  shoutingLowercaseThreshold?: number; // default 0.9 upper-letter ratio\n  shoutingMinLength?: number;    // default 30\n}\n\nexport function sanitize(input: unknown, options?: SanitizeOptions): string;\n```\n\nRationale:\n- One canonical name (`sanitize`) — the three existing names (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) are synonyms with no behavioural distinction, so collapse them.\n- `input: unknown` because every copy starts with `String(raw)` and a null/undefined guard — make that contract explicit instead of lying with `string`.\n- Magic numbers (1000, 5, 0.9, 30) lifted into `SanitizeOptions` with the current values as defaults, so callers that *did* want a different cap aren't forced to fork again. Optional; defaults preserve today's behaviour exactly.\n- Returns `\"\"` for the same reject cases as today.\n\n## Files that would change\n\n| File | Change |\n| --- | --- |\n| `src/sanitize.ts` | **New** — the consolidated implementation |\n| `src/sanitize-a.ts` | Delete `sanitizeUserInput`; either remove the file or keep it as a thin re-export shim if the call sites can't all be moved in one pass |\n| `src/sanitize-b.ts` | Same — delete `sanitizeText` |\n| `src/sanitize-c.ts` | Same — delete `cleanMessage` |\n| Any importers | Update imports to `sanitize` from `./sanitize` (none in this fixture, but real call sites would need a codemod or grep-and-replace) |\n\nPreferred path: delete the three files outright and migrate call sites in the same commit. Re-export shims are only worth it when external consumers depend on the old names — internal-only code shouldn't carry that scar tissue.\n\n## What this refactor does *not* fix\n\nThe `assertAdminA / B / C` functions flagged separately by `crime_00003` look like duplicates but **aren't** — they have three different semantics (`role === \"admin\"`, `role === \"admin\" || role === \"owner\"`, `role !== \"admin\"`). Consolidating them naively would change behaviour. That finding wants a `policy.ts` with named predicates (`isAdmin`, `isAdminOrOwner`, `isNonAdmin` or, better, inverting the third call site) and is a separate change from the sanitiser consolidation. The two `direct_date` findings in `telemetry-{a,b}.ts` are also untouched by this refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}
