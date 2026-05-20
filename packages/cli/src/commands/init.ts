@@ -1,6 +1,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { Command } from "commander";
+import {
+  CODEX_HOOK_DOCUMENT,
+  mergeClaudeHook,
+  serializeClaudeSettings,
+  type ClaudeSettings,
+  type MergeResult,
+} from "../hook-templates.js";
 import { generateConfig } from "../init-detect.js";
 
 interface InitCommandOptions {
@@ -130,21 +137,13 @@ export function registerInitCommand(program: Command): void {
       }
 
       if (writeAgentSkills && options.hooks !== false) {
-        const {
-          CODEX_HOOK_DOCUMENT,
-          mergeClaudeHook,
-          serializeClaudeSettings,
-        } = await import("../hook-templates.js");
-
         // Claude hook
         if (writeClaudeSkill) {
           const settingsPath = resolve(
             process.cwd(),
             ".claude/settings.local.json",
           );
-          let existing:
-            | import("../hook-templates.js").ClaudeSettings
-            | undefined;
+          let existing: ClaudeSettings | undefined;
           if (existsSync(settingsPath)) {
             try {
               existing = JSON.parse(readFileSync(settingsPath, "utf8"));
@@ -159,7 +158,7 @@ export function registerInitCommand(program: Command): void {
               existing = undefined;
             }
           }
-          let merge: import("../hook-templates.js").MergeResult;
+          let merge: MergeResult;
           try {
             merge = mergeClaudeHook(existing);
           } catch (err) {
