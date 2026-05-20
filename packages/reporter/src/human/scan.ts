@@ -552,6 +552,7 @@ function compactEvidence(f: Finding): string {
 function fileRiskSummary(group: FileGroup): string | undefined {
   let maxChurn: number | undefined;
   let maxBlast: number | undefined;
+  let maxImporters: number | undefined;
   const testGapBuckets: Record<TestGapBucket, number> = {
     "top-quartile": 0,
     "~median": 0,
@@ -566,6 +567,12 @@ function fileRiskSummary(group: FileGroup): string | undefined {
     if (f.scores.blast_radius !== undefined) {
       maxBlast = maxBlast === undefined ? f.scores.blast_radius : Math.max(maxBlast, f.scores.blast_radius);
     }
+    if (f.scores.blast_radius_importers !== undefined) {
+      maxImporters =
+        maxImporters === undefined
+          ? f.scores.blast_radius_importers
+          : Math.max(maxImporters, f.scores.blast_radius_importers);
+    }
     if (f.scores.test_gap !== undefined) {
       anyTestGap = true;
       testGapBuckets[testGapBucket(f.scores.test_gap)] += 1;
@@ -578,7 +585,7 @@ function fileRiskSummary(group: FileGroup): string | undefined {
   if (maxChurn !== undefined) parts.push(`churn ${formatChurn(maxChurn)}`);
   if (anyTestGap) parts.push(`test gap ${dominantTestGap(testGapBuckets)}`);
   if (maxBlast !== undefined) {
-    parts.push(`blast ${formatBlastRadius(maxBlast)}`);
+    parts.push(`blast ${formatBlastRadius(maxBlast, maxImporters)}`);
   }
   return parts.join(" · ");
 }

@@ -66,6 +66,12 @@ export interface BlastRadiusIndex {
    * of the file.
    */
   forFile(repoPath: string): number;
+  /**
+   * Raw transitive importer count (pre-normalisation). Exposed so the
+   * reporter can render "blast top-quartile (11 importers)" without the
+   * renderer having to invert the normalisation.
+   */
+  countForFile(repoPath: string): number;
 }
 
 const RECENCY_FULL_DAYS = 7;
@@ -252,17 +258,25 @@ function buildTestGapIndex(args: {
 function buildBlastRadiusIndex(args: {
   imports: ImportGraph | undefined;
 }): BlastRadiusIndex {
-  const memo = new Map<string, number>();
+  const countMemo = new Map<string, number>();
   const { imports } = args;
+
+  const countFor = (repoPath: string): number => {
+    if (!imports) return 0;
+    const cached = countMemo.get(repoPath);
+    if (cached !== undefined) return cached;
+    const count = transitiveImporterCount(imports, repoPath);
+    countMemo.set(repoPath, count);
+    return count;
+  };
 
   return {
     forFile(repoPath) {
-      if (!imports) return 0;
-      if (memo.has(repoPath)) return memo.get(repoPath)!;
-      const count = transitiveImporterCount(imports, repoPath);
-      const score = Math.min(count / BLAST_RADIUS_CAP, 1);
-      memo.set(repoPath, score);
-      return score;
+      const count = countFor(repoPath);
+      return Math.min(count / BLAST_RADIUS_CAP, 1);
+    },
+    countForFile(repoPath) {
+      return countFor(repoPath);
     },
   };
 }
@@ -365,6 +379,9 @@ export function finaliseFindingScores(
     finding.scores.churn = churn;
     finding.scores.test_gap = test_gap;
     finding.scores.blast_radius = blast_radius;
+    finding.scores.blast_radius_importers = scoring.blastRadius.countForFile(
+      finding.file,
+    );
     finding.scores.recency = recency;
   }
   finding.scores.agent_risk = computeAgentRisk({

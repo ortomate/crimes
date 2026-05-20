@@ -33,6 +33,14 @@ export interface FindingScores {
    */
   blast_radius?: number;
   /**
+   * Raw transitive-importer count for the finding's file (the integer
+   * source of `blast_radius`). Optional and additive; populated when the
+   * scoring context resolves an import graph. The renderer uses it to
+   * print "blast top-quartile (11 importers)"; the normalised
+   * `blast_radius` stays the canonical ordinal score.
+   */
+  blast_radius_importers?: number;
+  /**
    * Normalised commits-in-window count (0-1). Populated by the scoring
    * context; absent in stubs. Ordinal.
    */

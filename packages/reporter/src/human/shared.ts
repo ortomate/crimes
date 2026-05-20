@@ -1,6 +1,7 @@
 import type { Finding, Severity } from "@crimes/core";
 import { fingerprintFinding } from "@crimes/core";
 import pc from "picocolors";
+import { formatBlastRadius, formatChurn } from "./score-format.js";
 
 /**
  * Cross-report visual primitives shared by every human formatter. Lives
@@ -173,7 +174,8 @@ export function renderRiskProfileLine(
   colour: ColourFns,
   options: { alwaysShowRiskProfile?: boolean },
 ): string | undefined {
-  const { churn, test_gap, blast_radius } = finding.scores;
+  const { churn, test_gap, blast_radius, blast_radius_importers } =
+    finding.scores;
   if (churn === undefined && test_gap === undefined && blast_radius === undefined) {
     return undefined;
   }
@@ -183,9 +185,9 @@ export function renderRiskProfileLine(
     (blast_radius ?? 0) > 0.5;
   if (!notable && !options.alwaysShowRiskProfile) return undefined;
   const parts = [
-    `churn ${(churn ?? 0).toFixed(2)}`,
+    `churn ${formatChurn(churn ?? 0)}`,
     `test gap ${testGapLabel(test_gap)}`,
-    `blast radius ${(blast_radius ?? 0).toFixed(2)}`,
+    `blast ${formatBlastRadius(blast_radius ?? 0, blast_radius_importers)}`,
   ];
   return `     ${colour.bold("Risk profile:")} ${colour.dim(parts.join(" · "))}`;
 }

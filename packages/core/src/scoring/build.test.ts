@@ -180,6 +180,11 @@ describe("buildScoringContext > blast_radius", () => {
     expect(ctx.blastRadius.forFile("src/leaf.ts")).toBe(0.06);
     expect(ctx.blastRadius.forFile("src/mid.ts")).toBe(0.04);
     expect(ctx.blastRadius.forFile("src/a.ts")).toBe(0);
+    // countForFile exposes the same raw count the renderer uses to print
+    // "blast top-quartile (3 importers)".
+    expect(ctx.blastRadius.countForFile("src/leaf.ts")).toBe(3);
+    expect(ctx.blastRadius.countForFile("src/mid.ts")).toBe(2);
+    expect(ctx.blastRadius.countForFile("src/a.ts")).toBe(0);
   });
 
   it("returns 0 when no import graph is available", async () => {
@@ -187,6 +192,7 @@ describe("buildScoringContext > blast_radius", () => {
     const files = await discover(root);
     const ctx = await buildScoringContext({ root, files, imports: undefined });
     expect(ctx.blastRadius.forFile("src/a.ts")).toBe(0);
+    expect(ctx.blastRadius.countForFile("src/a.ts")).toBe(0);
   });
 });
 
@@ -393,7 +399,7 @@ describe("finaliseFindingScores — recency", () => {
     const scoring = {
       churn: { forFile: () => 0, limited: false },
       testGap: { forFile: () => 1, rawForFile: () => 1 },
-      blastRadius: { forFile: () => 0 },
+      blastRadius: { forFile: () => 0, countForFile: () => 0 },
       recency: { forFile: () => 0.6, limited: false },
     } as import("./build.js").ScoringContext;
     finaliseFindingScores(finding, scoring);

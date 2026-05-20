@@ -218,6 +218,45 @@ describe("formatHumanReport", () => {
     const out = formatHumanReport(sampleReport, { noColor: true });
     expect(out).not.toContain("previously triaged");
   });
+
+  it("renders the transitive importer count next to blast in file Risk: lines", () => {
+    const report: ScanReport = {
+      ...sampleReport,
+      findings: [
+        domainFinding({
+          file: "src/foo.ts",
+          symbol: "a",
+          agent_risk: 0.9,
+          severity: "high",
+          blast_radius: 0.82,
+          churn: 0.5,
+          test_gap: 0.5,
+        }),
+      ],
+    };
+    // blast_radius_importers is on scores; set it directly post-construction.
+    report.findings[0]!.scores.blast_radius_importers = 11;
+    const out = formatHumanReport(report, { noColor: true });
+    expect(out).toContain("blast top-quartile (11 importers)");
+  });
+
+  it("singularises 'importer' for a count of 1 in the file Risk: line", () => {
+    const report: ScanReport = {
+      ...sampleReport,
+      findings: [
+        domainFinding({
+          file: "src/foo.ts",
+          symbol: "a",
+          agent_risk: 0.9,
+          severity: "high",
+          blast_radius: 0.05,
+        }),
+      ],
+    };
+    report.findings[0]!.scores.blast_radius_importers = 1;
+    const out = formatHumanReport(report, { noColor: true });
+    expect(out).toContain("blast bottom-quartile (1 importer)");
+  });
 });
 
 describe("formatJsonReport", () => {
