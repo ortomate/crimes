@@ -266,24 +266,30 @@ export function applySuppressionsToScan(
 /**
  * Filter a {@link ScanReport} through the triage list. Mirrors
  * {@link applySuppressionsToScan}: returns a new report with `findings`
- * partitioned and `summary` recomputed. Pure — does not mutate the
- * input.
+ * partitioned, `summary` recomputed, and `triage_hidden_count` set when
+ * ≥1 silencing entry matched. Pure — does not mutate the input.
  *
  * Apply this **before** suppressions in the CLI pipeline so the renderer
  * can distinguish "user triaged this" (`Finding.triaged` /
- * `_hiddenTriage`) from "suppression hit".
+ * `Finding.hidden_triage`) from "suppression hit".
  */
 export function applyTriageToScan(
   report: ScanReport,
   triage: TriageEntry[],
   options: ApplyTriageFilterOptions,
 ): ScanReport {
-  const { findings } = applyTriageFilter(report.findings, triage, options);
-  return {
+  const { findings, hiddenCount } = applyTriageFilter(
+    report.findings,
+    triage,
+    options,
+  );
+  const next: ScanReport = {
     ...report,
     summary: summariseVisible(findings),
     findings,
   };
+  if (hiddenCount > 0) next.triage_hidden_count = hiddenCount;
+  return next;
 }
 
 function summariseVisible(findings: Finding[]): ScanSummary {

@@ -568,6 +568,33 @@ describe("applyTriageToScan", () => {
       );
       expect(stillThere).toBeUndefined();
       expect(filtered.summary.total).toBe(report.summary.total - 1);
+      expect(filtered.triage_hidden_count).toBe(1);
+    },
+  );
+
+  it(
+    "showTriaged: true keeps silenced findings visible with hidden_triage and no count",
+    { timeout: 30_000 },
+    async () => {
+      const root = await makeRepo({
+        "src/big.ts": longFunctionFixture("doStuff"),
+      });
+      const report = await scan({ root });
+      expect(report.findings.length).toBeGreaterThan(0);
+
+      const target = report.findings[0]!;
+      const triage: TriageEntry[] = [triageEntryFor(target, "needs-design")];
+
+      const filtered = applyTriageToScan(report, triage, { showTriaged: true });
+      const stillThere = filtered.findings.find(
+        (f) => fingerprintFinding(f) === fingerprintFinding(target),
+      );
+      expect(stillThere).toBeDefined();
+      expect(stillThere!.hidden_triage?.disposition).toBe("needs-design");
+      expect(filtered.summary.total).toBe(report.summary.total);
+      // triage_hidden_count only set when entries were actually hidden;
+      // showTriaged: true preserves them so the count stays absent.
+      expect(filtered.triage_hidden_count).toBeUndefined();
     },
   );
 

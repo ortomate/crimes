@@ -129,10 +129,25 @@ export interface Finding {
    * non-silencing disposition (`fix-now` or `fix-this-PR`). Silencing
    * dispositions (`needs-design`, `wont-fix`, `scaffolding`) hide the
    * finding by default and surface only via resurfacing or
-   * `--show-triaged` — see `previous_triage` on resurfaced findings.
+   * `--show-triaged` — see `hidden_triage` below and `previous_triage`
+   * on resurfaced findings.
    */
   triaged?: {
     disposition: "fix-now" | "fix-this-PR";
+    reason: string;
+    owner: string;
+    date: string;
+  };
+  /**
+   * Set when the consumer requested `--show-triaged` (or
+   * `showTriaged: true` programmatically) AND this finding matched a
+   * silencing triage entry. Mirrors the `suppressed` / `suppression_reason`
+   * pattern: gate evaluation always ignores findings with
+   * `hidden_triage !== undefined`. Absent in the default `crimes scan`
+   * output.
+   */
+  hidden_triage?: {
+    disposition: "needs-design" | "wont-fix" | "scaffolding";
     reason: string;
     owner: string;
     date: string;
@@ -191,4 +206,11 @@ export interface ScanReport {
    * for downstream consumers.
    */
   suppressed_count?: number;
+  /**
+   * Number of findings hidden because of a silencing `.crimes/triage.json`
+   * entry (`needs-design`, `wont-fix`, or `scaffolding`). Only present
+   * when ≥1 silencing entry matched and `showTriaged` was false —
+   * absent otherwise.
+   */
+  triage_hidden_count?: number;
 }

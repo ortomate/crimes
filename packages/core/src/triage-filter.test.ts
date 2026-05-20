@@ -68,13 +68,13 @@ describe("applyTriageFilter", () => {
     expect(result.findings[0]!.triaged?.disposition).toBe("fix-this-PR");
   });
 
-  it("keeps silenced findings when showTriaged is true with a _hiddenTriage marker", () => {
+  it("keeps silenced findings when showTriaged is true with a hidden_triage annotation", () => {
     const findings = [makeFinding()];
     const result = applyTriageFilter(findings, [makeEntry()], { showTriaged: true });
     expect(result.findings).toHaveLength(1);
     expect(result.hiddenCount).toBe(0);
-    const annotated = result.findings[0] as Finding & { _hiddenTriage?: TriageEntry };
-    expect(annotated._hiddenTriage?.disposition).toBe("wont-fix");
+    expect(result.findings[0]!.hidden_triage?.disposition).toBe("wont-fix");
+    expect(result.findings[0]!.hidden_triage?.reason).toBe("legacy");
   });
 
   it("ignores triage entries whose fingerprint matches nothing", () => {

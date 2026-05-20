@@ -124,8 +124,8 @@ describe("triage", () => {
       { now: () => new Date("2026-05-21T00:00:00Z") },
     );
     expect(next.entries).toHaveLength(1);
-    expect(next.entries[0].disposition).toBe("wont-fix");
-    expect(next.entries[0].reason).toBe("new");
+    expect(next.entries[0]!.disposition).toBe("wont-fix");
+    expect(next.entries[0]!.reason).toBe("new");
   });
 
   it("allows owner to be the empty string", async () => {
@@ -140,7 +140,7 @@ describe("triage", () => {
     };
     await saveTriage(path, triage);
     const loaded = await loadTriage(path);
-    expect(loaded.entries[0].owner).toBe("");
+    expect(loaded.entries[0]!.owner).toBe("");
   });
 
   it("rejects an invalid date format", async () => {
