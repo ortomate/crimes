@@ -435,3 +435,31 @@ describe("scan.topFiles", () => {
     expect(() => loadConfig(root)).toThrowError(ConfigParseError);
   });
 });
+
+describe("loadConfig — triage.resurfaceBase", () => {
+  it("defaults to 'main'", async () => {
+    const root = await makeTempDir();
+    const config = loadConfig(root);
+    expect(config.triage?.resurfaceBase).toBe("main");
+  });
+
+  it("honours an explicit resurfaceBase", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { triage: { resurfaceBase: "develop" } });
+    const config = loadConfig(root);
+    expect(config.triage?.resurfaceBase).toBe("develop");
+  });
+
+  it("accepts empty string as 'resurfacing disabled'", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { triage: { resurfaceBase: "" } });
+    const config = loadConfig(root);
+    expect(config.triage?.resurfaceBase).toBe("");
+  });
+
+  it("rejects non-string resurfaceBase", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { triage: { resurfaceBase: 42 } });
+    expect(() => loadConfig(root)).toThrowError(/resurfaceBase/);
+  });
+});

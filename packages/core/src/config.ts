@@ -31,6 +31,15 @@ export const DEFAULT_NON_DOMAIN_PATTERNS: string[] = [
 export const DEFAULT_TOP_FILES = 5;
 
 /**
+ * Default Git ref used by the resurfacing pipeline. `crimes scan`
+ * compares the current branch against this ref to find triaged or
+ * baselined findings whose files have been touched. Override per repo
+ * via `crimes.config.json` `triage.resurfaceBase`; empty string opts
+ * out of resurfacing entirely.
+ */
+export const DEFAULT_RESURFACE_BASE = "main";
+
+/**
  * `crimes.config.json` shape. All fields are optional and back-compat —
  * a config from `crimes@0.4.0` keeps loading unchanged, and a config that
  * sets only the new fields keeps the existing defaults for the rest.
@@ -161,6 +170,16 @@ export interface CrimesConfig {
     layers?: Array<{ name: string; pattern: string }>;
     rules?: Array<{ from: string; cannotImport: string[] }>;
   };
+  /**
+   * Triage workflow knobs.
+   *
+   * - `resurfaceBase`: Git ref used to detect "touched files" for the
+   *   triage- and baseline-aware resurfacing pipeline introduced in
+   *   Release B. Empty string disables resurfacing entirely.
+   */
+  triage?: {
+    resurfaceBase: string;
+  };
 }
 
 export const DEFAULT_CONFIG: CrimesConfig = {
@@ -208,6 +227,7 @@ export const DEFAULT_CONFIG: CrimesConfig = {
   },
   scopeTiers: { nonDomain: DEFAULT_NON_DOMAIN_PATTERNS },
   scan: { topFiles: DEFAULT_TOP_FILES },
+  triage: { resurfaceBase: DEFAULT_RESURFACE_BASE },
 };
 
 /**
@@ -362,6 +382,12 @@ const scanSchema = z
   })
   .strict();
 
+const triageSchema = z
+  .object({
+    resurfaceBase: z.string(),
+  })
+  .strict();
+
 /**
  * Top-level schema. Unknown keys are stripped (and ignored) so future
  * config releases can extend the file without breaking old CLI builds.
@@ -377,6 +403,7 @@ export const CrimesConfigSchema = z
     detectors: detectorsSchema.optional(),
     scopeTiers: scopeTiersSchema.optional(),
     scan: scanSchema.optional(),
+    triage: triageSchema.optional(),
     ia: iaSchema.optional(),
     suppressions: suppressionsConfigSchema.optional(),
     architecture: architectureSchema.optional(),
@@ -522,6 +549,13 @@ function mergeConfig(base: CrimesConfig, override: CrimesConfig): CrimesConfig {
         override.scan !== undefined
           ? override.scan.topFiles
           : (base.scan.topFiles ?? DEFAULT_TOP_FILES),
+    },
+    // triage.resurfaceBase replaces the default wholesale when set.
+    triage: {
+      resurfaceBase:
+        override.triage !== undefined
+          ? override.triage.resurfaceBase
+          : (base.triage?.resurfaceBase ?? DEFAULT_RESURFACE_BASE),
     },
   };
   if (override.$schema !== undefined) merged.$schema = override.$schema;
