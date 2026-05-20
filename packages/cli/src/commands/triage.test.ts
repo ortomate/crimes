@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { Finding, TriageEntry } from "@crimes/core";
-import { buildRetriageMatcher, todayYmd } from "./triage.js";
+import { buildRetriageMatcher, isCiEnv, todayYmd } from "./triage.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CLI = resolve(here, "..", "..", "dist", "index.js");
@@ -126,6 +126,27 @@ describe("todayYmd", () => {
   });
 });
 
+describe("isCiEnv", () => {
+  it("returns false when CI is unset", () => {
+    expect(isCiEnv({})).toBe(false);
+  });
+  it("returns false for the explicit-not-CI overrides", () => {
+    expect(isCiEnv({ CI: "" })).toBe(false);
+    expect(isCiEnv({ CI: "false" })).toBe(false);
+    expect(isCiEnv({ CI: "False" })).toBe(false);
+    expect(isCiEnv({ CI: "0" })).toBe(false);
+    expect(isCiEnv({ CI: "  false  " })).toBe(false);
+  });
+  it("returns true for typical CI markers", () => {
+    expect(isCiEnv({ CI: "true" })).toBe(true);
+    expect(isCiEnv({ CI: "1" })).toBe(true);
+    // GitHub Actions / GitLab / Jenkins / Buildkite all set CI=true,
+    // but some hosts set non-empty arbitrary strings — treat any
+    // non-override value as CI.
+    expect(isCiEnv({ CI: "github-actions" })).toBe(true);
+  });
+});
+
 describe("crimes triage --list", () => {
   it("prints 'No triage entries.' when the file is absent", async () => {
     const tmp = await mkdtemp(join(tmpdir(), "crimes-triage-list-"));
@@ -223,7 +244,9 @@ describe("crimes triage --apply", () => {
     writeFileSync(applyFile, "{ not json");
     const result = await runCli(["triage", "--apply", applyFile], tmp);
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("not valid JSON");
+    // parseTriage surfaces both the source label and the parse error.
+    expect(result.stderr).toContain("malformed");
+    expect(result.stderr).toContain("invalid JSON");
   });
 
   it("rejects missing --apply file with exit 2", async () => {

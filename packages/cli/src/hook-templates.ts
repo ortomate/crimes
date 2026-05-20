@@ -97,13 +97,33 @@ export function mergeClaudeHook(
   if (entries.some(isCrimesEntry)) {
     return { action: "skipped", document: existing };
   }
+  // Prefer merging into an existing entry with the exact same matcher
+  // string. Two entries with the same matcher both fire on every Edit,
+  // so collapsing them into one entry with two hook commands is the
+  // cleaner shape (and what a user who already manages PreToolUse hooks
+  // would expect).
+  const matchedIdx = entries.findIndex(
+    (e) => typeof e?.matcher === "string" && e.matcher === CLAUDE_HOOK_ENTRY.matcher,
+  );
+  let nextEntries: ClaudeHookEntry[];
+  if (matchedIdx >= 0) {
+    const target = entries[matchedIdx]!;
+    const targetHooks = Array.isArray(target.hooks) ? target.hooks : [];
+    nextEntries = entries.map((entry, idx) =>
+      idx === matchedIdx
+        ? { ...entry, hooks: [...targetHooks, ...CLAUDE_HOOK_ENTRY.hooks] }
+        : entry,
+    );
+  } else {
+    nextEntries = [...entries, CLAUDE_HOOK_ENTRY];
+  }
   return {
     action: "merged",
     document: {
       ...existing,
       hooks: {
         ...((existing.hooks as Record<string, unknown>) ?? {}),
-        PreToolUse: [...entries, CLAUDE_HOOK_ENTRY],
+        PreToolUse: nextEntries,
       },
     },
   };

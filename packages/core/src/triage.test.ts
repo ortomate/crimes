@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   emptyTriage,
   loadTriage,
+  parseTriage,
   resolveTriagePath,
   saveTriage,
   upsertTriageEntry,
@@ -215,5 +216,40 @@ describe("triage", () => {
     await expect(loadTriage(path)).rejects.toMatchObject({
       message: expect.stringMatching(/entries\.0\.reason/),
     });
+  });
+
+  it("parseTriage round-trips a valid document with no filesystem touch", () => {
+    const raw = JSON.stringify({
+      schema_version: "0.2.0",
+      report_type: "triage",
+      created_at: "2026-05-20T14:00:00Z",
+      updated_at: "2026-05-20T14:00:00Z",
+      entries: [sampleEntry()],
+    });
+    const doc = parseTriage(raw);
+    expect(doc.entries).toHaveLength(1);
+    expect(doc.entries[0]!.fingerprint).toBe(
+      "large_function::src/foo.ts::doStuff",
+    );
+  });
+
+  it("parseTriage throws MalformedTriageError on invalid JSON", () => {
+    expect(() => parseTriage("{ not json", "my-file.json")).toThrow(
+      MalformedTriageError,
+    );
+    expect(() => parseTriage("{ not json", "my-file.json")).toThrow(
+      /my-file\.json/,
+    );
+  });
+
+  it("parseTriage throws MalformedTriageError on shape mismatch", () => {
+    const raw = JSON.stringify({
+      schema_version: "0.2.0",
+      report_type: "triage",
+      created_at: "2026-05-20T14:00:00Z",
+      updated_at: "2026-05-20T14:00:00Z",
+      entries: [{ fingerprint: "x::y::" }],
+    });
+    expect(() => parseTriage(raw)).toThrow(MalformedTriageError);
   });
 });

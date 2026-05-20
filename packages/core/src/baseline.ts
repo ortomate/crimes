@@ -53,8 +53,23 @@ export interface BaselineEntry {
   symbol?: string;
 }
 
+/**
+ * On-disk schema versions the baseline loader accepts. Mirrors the same
+ * convention used in `triage.ts` and `suppressions.ts`: the loader
+ * tolerates any value in this list, the writer always emits the current
+ * `SCHEMA_VERSION`. Extend whenever `SCHEMA_VERSION` bumps.
+ */
+const ACCEPTED_BASELINE_SCHEMA_VERSIONS = ["0.1.0", "0.2.0"] as const;
+export type AcceptedBaselineSchemaVersion =
+  (typeof ACCEPTED_BASELINE_SCHEMA_VERSIONS)[number];
+
 export interface Baseline {
-  schema_version: typeof SCHEMA_VERSION;
+  /**
+   * On-disk schema version. The loader accepts any value in
+   * `ACCEPTED_BASELINE_SCHEMA_VERSIONS` (currently `"0.1.0"` or
+   * `"0.2.0"`); the writer always emits the current `SCHEMA_VERSION`.
+   */
+  schema_version: AcceptedBaselineSchemaVersion;
   /** Discriminator. Always the literal `"baseline"`. */
   report_type: "baseline";
   /** ISO-8601 timestamp at which the baseline was written. */
@@ -332,16 +347,19 @@ export async function loadBaseline(path: string): Promise<Baseline> {
   // Accept any schema_version still in the active migration window. The
   // loader tolerates prior values so users upgrading crimes don't have to
   // hand-edit baseline.json; the writer always emits the current
-  // SCHEMA_VERSION on the next `crimes baseline save`. Extend this list
-  // whenever SCHEMA_VERSION bumps.
+  // SCHEMA_VERSION on the next `crimes baseline save`. Extend
+  // ACCEPTED_BASELINE_SCHEMA_VERSIONS whenever SCHEMA_VERSION bumps.
   if (
-    parsed["schema_version"] !== SCHEMA_VERSION &&
-    parsed["schema_version"] !== "0.1.0"
+    !ACCEPTED_BASELINE_SCHEMA_VERSIONS.includes(
+      parsed["schema_version"] as AcceptedBaselineSchemaVersion,
+    )
   ) {
     throw new MalformedBaselineError(
       path,
       `unsupported schema_version ${JSON.stringify(parsed["schema_version"])}, ` +
-        `this build of crimes understands "${SCHEMA_VERSION}" or "0.1.0"`,
+        `this build of crimes understands ${ACCEPTED_BASELINE_SCHEMA_VERSIONS.map(
+          (v) => `"${v}"`,
+        ).join(" or ")}`,
     );
   }
   if (!Array.isArray(parsed["findings"])) {

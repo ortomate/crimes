@@ -210,9 +210,40 @@ export function registerInitCommand(program: Command): void {
       }
       const agentFiles = written.filter((file) => file !== CONFIG_FILENAME);
       if (agentFiles.length > 0) {
-        process.stdout.write(`Wrote ${agentFiles}. Commit them so future agents auto-discover crimes.\n`);
+        const list = agentFiles.join(", ");
+        // SKILL.md files live in shared paths (`.claude/skills/...`,
+        // `.agents/skills/...`) and are meant to be committed so
+        // teammates / future agents pick them up. `settings.local.json`
+        // is per-user by Claude Code convention (typically gitignored);
+        // call that out so users don't naively commit it expecting
+        // teammates to inherit the hook.
+        const partitioned = partitionAgentFiles(agentFiles);
+        process.stdout.write(`Wrote ${list}.\n`);
+        if (partitioned.shared.length > 0) {
+          process.stdout.write(
+            `  Commit ${partitioned.shared.join(", ")} so teammates and future agents discover crimes.\n`,
+          );
+        }
+        if (partitioned.local.length > 0) {
+          process.stdout.write(
+            `  ${partitioned.local.join(", ")} is per-user by Claude Code convention — keep it gitignored or commit it under your shared settings if your team wants the hook everywhere.\n`,
+          );
+        }
       }
     });
+}
+
+function partitionAgentFiles(files: string[]): {
+  shared: string[];
+  local: string[];
+} {
+  const shared: string[] = [];
+  const local: string[] = [];
+  for (const file of files) {
+    if (file.endsWith("settings.local.json")) local.push(file);
+    else shared.push(file);
+  }
+  return { shared, local };
 }
 
 /**

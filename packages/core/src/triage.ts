@@ -116,24 +116,42 @@ export async function loadTriage(path: string): Promise<LoadTriageResult> {
     throw err;
   }
 
+  const document = parseTriage(raw, path);
+  return {
+    entries: document.entries,
+    path,
+    loaded: true,
+    document,
+  };
+}
+
+/**
+ * Validate a triage document supplied as a raw JSON string and return
+ * the parsed shape. Throws {@link MalformedTriageError} on bad JSON or
+ * shape mismatch. Pure — no filesystem access. Used by `crimes triage
+ * --apply` so the CLI doesn't have to round-trip the payload through a
+ * temp file just to reuse the loader's validation.
+ *
+ * @param raw - The JSON text to parse and validate.
+ * @param sourceLabel - Optional label (typically the source file path)
+ *   surfaced in error messages. Defaults to `<inline>`.
+ */
+export function parseTriage(raw: string, sourceLabel = "<inline>"): Triage {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    throw new MalformedTriageError(path, `invalid JSON — ${message}`);
+    throw new MalformedTriageError(sourceLabel, `invalid JSON — ${message}`);
   }
-
   const result = TriageSchema.safeParse(parsed);
   if (!result.success) {
-    throw new MalformedTriageError(path, formatZodIssues(result.error.issues));
+    throw new MalformedTriageError(
+      sourceLabel,
+      formatZodIssues(result.error.issues),
+    );
   }
-  return {
-    entries: result.data.entries,
-    path,
-    loaded: true,
-    document: result.data,
-  };
+  return result.data;
 }
 
 export interface SaveTriageOptions {

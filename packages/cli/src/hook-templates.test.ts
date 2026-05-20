@@ -102,6 +102,53 @@ describe("hook-templates", () => {
     expect(result.document.hooks?.PreToolUse?.[0]!.matcher).toBe("Bash");
   });
 
+  it("mergeClaudeHook merges into a same-matcher entry instead of creating a duplicate", () => {
+    // A user who already manages an `Edit|Write|NotebookEdit` hook for
+    // something else should see crimes' command added to that same entry,
+    // not see a second entry with the identical matcher (both would fire
+    // on every Edit — duplicate output, messy settings.json).
+    const existing = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Edit|Write|NotebookEdit",
+            hooks: [{ type: "command" as const, command: "echo user-hook" }],
+          },
+        ],
+      },
+    };
+    const result = mergeClaudeHook(existing);
+    expect(result.action).toBe("merged");
+    expect(result.document.hooks?.PreToolUse).toHaveLength(1);
+    const entry = result.document.hooks?.PreToolUse?.[0]!;
+    expect(entry.matcher).toBe("Edit|Write|NotebookEdit");
+    expect(entry.hooks).toHaveLength(2);
+    expect(entry.hooks[0]!.command).toBe("echo user-hook");
+    expect(entry.hooks[1]!.command).toContain("crimes hook");
+  });
+
+  it("mergeClaudeHook leaves entries with different matchers alone", () => {
+    const existing = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Edit",
+            hooks: [{ type: "command" as const, command: "echo narrow" }],
+          },
+        ],
+      },
+    };
+    const result = mergeClaudeHook(existing);
+    expect(result.action).toBe("merged");
+    // Different matcher string — crimes lands as a new entry; the narrow
+    // user matcher is preserved verbatim.
+    expect(result.document.hooks?.PreToolUse).toHaveLength(2);
+    expect(result.document.hooks?.PreToolUse?.[0]!.matcher).toBe("Edit");
+    expect(result.document.hooks?.PreToolUse?.[1]!.matcher).toBe(
+      "Edit|Write|NotebookEdit",
+    );
+  });
+
   it("mergeClaudeHook preserves unrelated top-level keys", () => {
     const existing = { permissions: { allow: ["bash"] }, hooks: {} };
     const result = mergeClaudeHook(existing);

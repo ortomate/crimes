@@ -1,11 +1,5 @@
 import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import {
@@ -13,6 +7,7 @@ import {
   fingerprintFinding,
   loadConfig,
   loadTriage,
+  parseTriage,
   resolveTriagePath,
   saveTriage,
   scan,
@@ -23,6 +18,18 @@ import {
   type TriageEntry,
 } from "@crimes/core";
 import type { Command } from "commander";
+// picomatch is a CommonJS module; the bundled CLI dist resolves it via
+// tsup's noExternal. Static import (not require()) keeps the source
+// ESM-pure so anything that consumes packages/cli/src directly — tests,
+// future consumers — doesn't depend on tsup's bundling.
+//
+// Hand-declared shape — picomatch ships no .d.ts and we don't carry
+// @types/picomatch as a direct dep. The runtime returns a matcher
+// function; that's all we use.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore -- no shipped types
+import picomatch from "picomatch";
+type PicomatchFactory = (pattern: string) => (str: string) => boolean;
 
 // Injected at build time by tsup from the CLI package's package.json. Shared
 // with `index.ts` via the same `define` block — re-declared here because each
@@ -93,8 +100,11 @@ export function registerTriageCommand(program: Command): void {
         return;
       }
 
-      // Interactive walk requires a TTY.
-      if (!process.stdout.isTTY || process.env.CI) {
+      // Interactive walk requires a TTY. The CI heuristic mirrors npm's
+      // `is-ci` shape but accepts the standard "I'm not in CI" override
+      // strings — `CI=`, `CI=false`, `CI=0` — so a developer who clears
+      // the var locally still gets the prompt.
+      if (!process.stdout.isTTY || isCiEnv(process.env)) {
         process.stderr.write(
           "crimes: refusing to start interactive triage in a non-TTY/CI environment. " +
             "Use --apply <file>.\n",
@@ -105,6 +115,22 @@ export function registerTriageCommand(program: Command): void {
 
       await runInteractive(root, options);
     });
+}
+
+/**
+ * Return true when the environment looks like CI. Treats common
+ * "explicitly not CI" overrides (empty / "false" / "0") as not-CI so a
+ * developer who clears CI in their shell still gets the interactive
+ * prompt locally.
+ */
+export function isCiEnv(env: NodeJS.ProcessEnv): boolean {
+  const raw = env.CI;
+  if (typeof raw !== "string") return false;
+  const normalised = raw.trim().toLowerCase();
+  if (normalised === "" || normalised === "false" || normalised === "0") {
+    return false;
+  }
+  return true;
 }
 
 async function runList(root: string, options: TriageOptions): Promise<void> {
@@ -167,44 +193,15 @@ async function runApply(
   }
 
   const raw = readFileSync(absoluteApply, "utf8");
-  try {
-    JSON.parse(raw);
-  } catch (err) {
-    process.stderr.write(
-      `crimes: --apply file is not valid JSON: ${String(err)}\n`,
-    );
-    process.exit(2);
-    return;
-  }
-
-  // Reuse the triage zod schema by loading via the standard path — gives
-  // a proper MalformedTriageError on bad shape.
-  mkdirSync(resolve(root, ".crimes"), { recursive: true });
-  const tempPath = resolve(root, ".crimes", ".__apply_tmp.json");
-  writeFileSync(tempPath, raw, "utf8");
   let appliedDoc: Triage;
   try {
-    const loaded = await loadTriage(tempPath);
-    if (!loaded.document) {
-      process.stderr.write(
-        `crimes: --apply file did not parse as a Triage document.\n`,
-      );
-      process.exit(2);
-      return;
-    }
-    appliedDoc = loaded.document;
+    appliedDoc = parseTriage(raw, applyPath);
   } catch (err) {
     process.stderr.write(
       `crimes: --apply file is malformed: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     process.exit(2);
     return;
-  } finally {
-    try {
-      unlinkSync(tempPath);
-    } catch {
-      // ignore — best-effort cleanup
-    }
   }
 
   const triagePath = resolveTriagePath(root);
@@ -340,13 +337,8 @@ export function buildRetriageMatcher(
   if (entries.some((e) => e.fingerprint === target)) {
     return (_f, e) => e?.fingerprint === target;
   }
-  // picomatch ships transitively via fast-glob and is also bundled directly
-  // into the CLI dist via tsup's noExternal list.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const picomatch = require("picomatch") as (
-    pattern: string,
-  ) => (str: string) => boolean;
-  const isMatch = picomatch(target);
+  const factory = picomatch as unknown as PicomatchFactory;
+  const isMatch = factory(target);
   return (f, _e) => f.file === target || isMatch(f.file);
 }
 

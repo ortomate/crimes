@@ -347,6 +347,7 @@ export {
   emptyTriage,
   loadTriage,
   MalformedTriageError,
+  parseTriage,
   resolveTriagePath,
   saveTriage,
   upsertTriageEntry,
