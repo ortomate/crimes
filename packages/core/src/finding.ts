@@ -152,6 +152,23 @@ export interface Finding {
     owner: string;
     date: string;
   };
+  /** True when this finding matches an entry in `.crimes/triage.json`. */
+  previously_triaged?: true;
+  previous_triage?: {
+    disposition: "fix-now" | "fix-this-PR" | "needs-design" | "wont-fix" | "scaffolding";
+    reason: string;
+    owner: string;
+    date: string;
+  };
+
+  /** True when this finding matches an entry in `.crimes/baseline.json`. */
+  previously_baselined?: true;
+  previous_baseline?: {
+    /** ISO-8601 date the baseline was last written; best-effort. */
+    date?: string;
+    /** Baselines don't store per-entry reasons today; absent for now. */
+    reason?: string;
+  };
   /**
    * Scope tier of the finding's file, computed from
    * `config.scopeTiers.nonDomain`. Optional and additive — readers that

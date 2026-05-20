@@ -358,6 +358,8 @@ export type {
   TriageDisposition,
   LoadTriageResult,
 } from "./triage.js";
+export { collectResurfaced } from "./resurface.js";
+export type { ResurfaceInput } from "./resurface.js";
 export {
   judgeVerdict,
   NoDefaultBaseError,
