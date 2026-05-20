@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { Command } from "commander";
 import { generateConfig } from "../init-detect.js";
@@ -9,6 +9,7 @@ interface InitCommandOptions {
   codexSkill: boolean;
   force: boolean;
   detect: boolean;
+  hooks: boolean;
 }
 
 const CONFIG_FILENAME = "crimes.config.json";
@@ -70,6 +71,10 @@ export function registerInitCommand(program: Command): void {
       "--no-detect",
       "skip repo detection and write the static template",
     )
+    .option(
+      "--no-hooks",
+      "skip writing PreToolUse hook config with --agents",
+    )
     .action(async (options: InitCommandOptions) => {
       const path = resolve(process.cwd(), CONFIG_FILENAME);
       const writeClaudeSkill = options.agents || options.agentSkill;
@@ -122,6 +127,78 @@ export function registerInitCommand(program: Command): void {
         mkdirSync(dirname(codexSkillPath), { recursive: true });
         writeFileSync(codexSkillPath, AGENT_SKILL, "utf8");
         written.push(CODEX_SKILL_PATH);
+      }
+
+      if (writeAgentSkills && options.hooks !== false) {
+        const {
+          CODEX_HOOK_DOCUMENT,
+          mergeClaudeHook,
+          serializeClaudeSettings,
+        } = await import("../hook-templates.js");
+
+        // Claude hook
+        if (writeClaudeSkill) {
+          const settingsPath = resolve(
+            process.cwd(),
+            ".claude/settings.local.json",
+          );
+          let existing:
+            | import("../hook-templates.js").ClaudeSettings
+            | undefined;
+          if (existsSync(settingsPath)) {
+            try {
+              existing = JSON.parse(readFileSync(settingsPath, "utf8"));
+            } catch {
+              if (!options.force) {
+                process.stderr.write(
+                  "crimes: .claude/settings.local.json is malformed — refusing to modify. Pass --force to overwrite.\n",
+                );
+                process.exit(2);
+                return;
+              }
+              existing = undefined;
+            }
+          }
+          let merge: import("../hook-templates.js").MergeResult;
+          try {
+            merge = mergeClaudeHook(existing);
+          } catch (err) {
+            if (!options.force) {
+              process.stderr.write(
+                `crimes: .claude/settings.local.json has an unexpected shape — refusing to modify. Pass --force to overwrite. (${err instanceof Error ? err.message : String(err)})\n`,
+              );
+              process.exit(2);
+              return;
+            }
+            merge = mergeClaudeHook(undefined);
+          }
+          if (merge.action !== "skipped") {
+            mkdirSync(dirname(settingsPath), { recursive: true });
+            writeFileSync(
+              settingsPath,
+              serializeClaudeSettings(merge.document),
+              "utf8",
+            );
+            written.push(".claude/settings.local.json");
+          }
+        }
+
+        // Codex placeholder
+        if (writeCodexSkill) {
+          const codexSettingsPath = resolve(
+            process.cwd(),
+            ".agents/settings.local.json",
+          );
+          if (!existsSync(codexSettingsPath) || options.force) {
+            mkdirSync(dirname(codexSettingsPath), { recursive: true });
+            writeFileSync(
+              codexSettingsPath,
+              CODEX_HOOK_DOCUMENT + "\n",
+              "utf8",
+            );
+            written.push(".agents/settings.local.json");
+          }
+        }
       }
 
       if (written.includes(CONFIG_FILENAME)) {

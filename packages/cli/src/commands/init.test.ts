@@ -192,4 +192,140 @@ describe("crimes init", () => {
     expect(result.exitCode).toBe(0);
     expect(readFileSync(skillPath, "utf8")).toContain("codebase risk workflow");
   });
+
+  it("--agents writes .claude/settings.local.json with a crimes PreToolUse hook", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const result = await runCli(["init", "--agents"], root);
+
+    expect(result.exitCode).toBe(0);
+    const settingsPath = join(root, ".claude", "settings.local.json");
+    expect(existsSync(settingsPath)).toBe(true);
+    const parsed = JSON.parse(readFileSync(settingsPath, "utf8"));
+    expect(parsed.hooks.PreToolUse).toHaveLength(1);
+    expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write|NotebookEdit");
+    expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain(
+      "crimes context",
+    );
+  });
+
+  it("--agents writes the Codex placeholder at .agents/settings.local.json", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const result = await runCli(["init", "--agents"], root);
+
+    expect(result.exitCode).toBe(0);
+    const settingsPath = join(root, ".agents", "settings.local.json");
+    expect(existsSync(settingsPath)).toBe(true);
+    const parsed = JSON.parse(readFileSync(settingsPath, "utf8"));
+    expect(parsed._note).toMatch(/Codex/);
+    expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write|NotebookEdit");
+  });
+
+  it("--no-hooks skips both settings.local.json writes", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const result = await runCli(["init", "--agents", "--no-hooks"], root);
+
+    expect(result.exitCode).toBe(0);
+    expect(existsSync(join(root, ".claude", "settings.local.json"))).toBe(
+      false,
+    );
+    expect(existsSync(join(root, ".agents", "settings.local.json"))).toBe(
+      false,
+    );
+    // SKILL.md files should still be written.
+    expect(
+      existsSync(join(root, ".claude", "skills", "crimes", "SKILL.md")),
+    ).toBe(true);
+    expect(
+      existsSync(join(root, ".agents", "skills", "crimes", "SKILL.md")),
+    ).toBe(true);
+  });
+
+  it("--agents merges into existing .claude/settings.local.json without losing other hooks", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const settingsPath = join(root, ".claude", "settings.local.json");
+    mkdirSync(dirname(settingsPath), { recursive: true });
+    writeFileSync(
+      settingsPath,
+      JSON.stringify(
+        {
+          permissions: { allow: ["bash"] },
+          hooks: {
+            PreToolUse: [
+              {
+                matcher: "Bash",
+                hooks: [{ type: "command", command: "echo hello" }],
+              },
+            ],
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const result = await runCli(["init", "--agents"], root);
+    expect(result.exitCode).toBe(0);
+
+    const parsed = JSON.parse(readFileSync(settingsPath, "utf8"));
+    expect(parsed.permissions).toEqual({ allow: ["bash"] });
+    expect(parsed.hooks.PreToolUse).toHaveLength(2);
+    expect(parsed.hooks.PreToolUse[0].matcher).toBe("Bash");
+    expect(parsed.hooks.PreToolUse[1].matcher).toBe("Edit|Write|NotebookEdit");
+  });
+
+  it("--agents is idempotent — second run does not duplicate the crimes hook", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const first = await runCli(["init", "--agents"], root);
+    expect(first.exitCode).toBe(0);
+
+    const second = await runCli(["init", "--agents", "--force"], root);
+    expect(second.exitCode).toBe(0);
+
+    const settingsPath = join(root, ".claude", "settings.local.json");
+    const parsed = JSON.parse(readFileSync(settingsPath, "utf8"));
+    const crimesEntries = parsed.hooks.PreToolUse.filter(
+      (entry: { hooks: Array<{ command: string }> }) =>
+        entry.hooks.some((h) => h.command.includes("crimes context")),
+    );
+    expect(crimesEntries).toHaveLength(1);
+  });
+
+  it("--agents refuses to modify a malformed .claude/settings.local.json without --force", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const settingsPath = join(root, ".claude", "settings.local.json");
+    mkdirSync(dirname(settingsPath), { recursive: true });
+    writeFileSync(settingsPath, "{ not valid json", "utf8");
+
+    const result = await runCli(["init", "--agents"], root);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("malformed");
+    // File untouched.
+    expect(readFileSync(settingsPath, "utf8")).toBe("{ not valid json");
+  });
+
+  it("--agents --force overwrites a malformed .claude/settings.local.json", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const settingsPath = join(root, ".claude", "settings.local.json");
+    mkdirSync(dirname(settingsPath), { recursive: true });
+    writeFileSync(settingsPath, "{ not valid json", "utf8");
+
+    const result = await runCli(["init", "--agents", "--force"], root);
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(readFileSync(settingsPath, "utf8"));
+    expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write|NotebookEdit");
+  });
+
+  it("--codex-skill writes only the Codex placeholder (no Claude settings)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const result = await runCli(["init", "--codex-skill"], root);
+
+    expect(result.exitCode).toBe(0);
+    expect(existsSync(join(root, ".agents", "settings.local.json"))).toBe(
+      true,
+    );
+    expect(existsSync(join(root, ".claude", "settings.local.json"))).toBe(
+      false,
+    );
+  });
 });
