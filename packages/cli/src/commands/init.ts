@@ -231,8 +231,9 @@ export function registerInitCommand(program: Command): void {
           );
         }
         if (partitioned.local.length > 0) {
+          const verb = partitioned.local.length === 1 ? "is" : "are";
           process.stdout.write(
-            `  ${partitioned.local.join(", ")} is per-user by Claude Code convention — keep it gitignored or commit it under your shared settings if your team wants the hook everywhere.\n`,
+            `  ${partitioned.local.join(", ")} ${verb} per-user local agent settings — keep ${partitioned.local.length === 1 ? "it" : "them"} gitignored or commit ${partitioned.local.length === 1 ? "it" : "them"} under your shared settings if your team wants the hook everywhere.\n`,
           );
         }
       }

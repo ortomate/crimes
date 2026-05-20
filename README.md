@@ -129,14 +129,19 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.11.0`
+## Status — `crimes@0.11.1`
 
-`crimes@0.11.0` is the latest published version on npm — **Release B,
-"Triage as the front door"**. It ships the new `crimes triage` command,
+`crimes@0.11.1` is the latest published version on npm. It is the first
+calibration patch on **Release B, "Triage as the front door"**: the
+major `0.11.0` surfaces stay the same, with tighter agent-facing output
+for hooks, hotspots, and scan summaries. `0.11.0` shipped the new
+`crimes triage` command,
 triage- and baseline-aware resurfacing on touched files, a PreToolUse
 hook in `init --agents`, human-readable secondary scores in the
 renderer, and a schema bump (`0.1.0` → `0.2.0`) that adds `effort` +
-`fix_shape` to every finding. Release notes:
+`fix_shape` to every finding. Patch release notes:
+[`docs/releases/v0.11.1.md`](./docs/releases/v0.11.1.md). Release B
+notes:
 [`docs/releases/v0.11.0.md`](./docs/releases/v0.11.0.md).
 
 What's in `0.11.0`:
@@ -869,11 +874,14 @@ JSON output is the stable contract:
 
 ```jsonc
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "report_type": "hotspots",
   "repo": { "name": "messy-ts-app", "root": "/path/to/repo" },
   "since": "90d",
   "git_available": true,
+  "total_files": 42,
+  "shown_count": 20,
+  "hidden_count": 22,
   "hotspots": [
     {
       "file": "src/billing.ts",
@@ -886,6 +894,10 @@ JSON output is the stable contract:
   ]
 }
 ```
+
+`crimes hotspots --format json` is capped to the top 20 rows by
+default, matching the human report. Pass `--all --format json` when
+you need every file.
 
 ### `crimes diff <base...head>`
 

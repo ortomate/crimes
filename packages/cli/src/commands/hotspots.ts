@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { hotspots } from "@crimes/core";
+import { hotspots, type HotspotsReport } from "@crimes/core";
 import {
   formatHotspotsJsonReport,
   formatHotspotsReport,
@@ -12,6 +12,8 @@ interface HotspotsCommandOptions {
   all: boolean;
   noColor: boolean;
 }
+
+const DEFAULT_JSON_TOP_N = 20;
 
 export function registerHotspotsCommand(program: Command): void {
   program
@@ -43,7 +45,10 @@ export function registerHotspotsCommand(program: Command): void {
       const report = await hotspots({ root, since: options.since });
 
       if (format === "json") {
-        process.stdout.write(formatHotspotsJsonReport(report) + "\n");
+        process.stdout.write(
+          formatHotspotsJsonReport(capHotspotsReport(report, options.all)) +
+            "\n",
+        );
         return;
       }
 
@@ -54,4 +59,26 @@ export function registerHotspotsCommand(program: Command): void {
         }) + "\n",
       );
     });
+}
+
+function capHotspotsReport(
+  report: HotspotsReport,
+  isShowingAll: boolean,
+): HotspotsReport {
+  if (isShowingAll) {
+    return {
+      ...report,
+      total_files: report.hotspots.length,
+      shown_count: report.hotspots.length,
+      hidden_count: 0,
+    };
+  }
+  const shown = report.hotspots.slice(0, DEFAULT_JSON_TOP_N);
+  return {
+    ...report,
+    total_files: report.hotspots.length,
+    shown_count: shown.length,
+    hidden_count: Math.max(0, report.hotspots.length - shown.length),
+    hotspots: shown,
+  };
 }

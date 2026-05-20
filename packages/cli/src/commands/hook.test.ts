@@ -15,9 +15,13 @@ interface CliResult {
   exitCode: number;
 }
 
-function runHookCli(stdinPayload: string, cwd: string): Promise<CliResult> {
+function runHookCli(
+  stdinPayload: string,
+  cwd: string,
+  args: string[] = [],
+): Promise<CliResult> {
   return new Promise((resolvePromise) => {
-    const child = spawn(process.execPath, [CLI, "hook"], {
+    const child = spawn(process.execPath, [CLI, "hook", ...args], {
       cwd,
       env: process.env,
       stdio: ["pipe", "pipe", "pipe"],
@@ -49,7 +53,7 @@ function largeFunctionSource(): string {
 
 describe("crimes hook", () => {
   it(
-    "reads PreToolUse JSON from stdin and runs context on tool_input.file_path",
+    "reads PreToolUse JSON from stdin and prints compact context for tool_input.file_path",
     { timeout: 30_000 },
     async () => {
       const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-"));
@@ -67,9 +71,25 @@ describe("crimes hook", () => {
 
       const result = await runHookCli(payload, root);
       expect(result.exitCode).toBe(0);
-      // crimes context emits a JSON ContextReport with a top-level
-      // `report_type: "context"` discriminator. If the hook ran context
-      // for real, that's the signal we're looking for.
+      expect(result.stdout).toContain("crimes context src.ts:");
+      expect(result.stdout).toContain("Top findings:");
+      expect(result.stdout).toContain("God Function");
+    },
+  );
+
+  it(
+    "keeps full context JSON available behind --format json",
+    { timeout: 30_000 },
+    async () => {
+      const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-json-"));
+      await writeFile(join(root, "src.ts"), largeFunctionSource(), "utf8");
+
+      const payload = JSON.stringify({
+        tool_input: { file_path: "src.ts" },
+      });
+
+      const result = await runHookCli(payload, root, ["--format", "json"]);
+      expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('"report_type": "context"');
       expect(result.stdout).toContain('"file": "src.ts"');
     },

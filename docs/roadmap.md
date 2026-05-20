@@ -4,12 +4,16 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.11.0` (npm) ✅ shipped —
-  _triage as the front door_ (Release B). New `crimes triage` command,
+- **Last published version:** `crimes@0.11.1` (npm) ✅ shipped —
+  first calibration patch on _triage as the front door_ (Release B).
+  Compact hook output, capped hotspots JSON with hidden counts, scan
+  header severity counts, and clearer `init --agents`/help text. Patch
+  notes: [`docs/releases/v0.11.1.md`](./docs/releases/v0.11.1.md).
+  `0.11.0` shipped the new `crimes triage` command,
   triage- + baseline-aware resurfacing, PreToolUse hook in
   `init --agents`, human-readable secondary scores in the renderer,
   schema bump `0.1.0` → `0.2.0` adding required `effort` + `fix_shape`.
-  `packages/cli/package.json` tracks the latest shipped version. Release
+  `packages/cli/package.json` tracks the latest shipped version. Release B
   notes: [`docs/releases/v0.11.0.md`](./docs/releases/v0.11.0.md).
 - **Previously shipped milestones:** `crimes@0.10.0` — _front-door
   redesign_ (Release A): file-grouped `scan` layout, repo-relative

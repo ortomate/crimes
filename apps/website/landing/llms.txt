@@ -32,7 +32,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.11.0)
+## Commands (latest published v0.11.1)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -338,7 +338,19 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.11.0 — triage as the front door (Release B, current release)
+## 0.11.1 — agent-output calibration (current release)
+
+Patch on Release B. `crimes hook` now defaults to compact output for
+PreToolUse briefings while keeping `--format json` available. `crimes
+hotspots --format json` now shows the top 20 rows by default with
+`total_files`, `shown_count`, and `hidden_count`; pass `--all` for the
+full list. `crimes scan` headers include severity counts. `crimes
+--help` points at `crimes init --agents` again.
+
+Release notes:
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.11.1.md
+
+## 0.11.0 — triage as the front door (Release B)
 
 Minor bump. New `crimes triage` command and triage / baseline
 resurfacing. Schema bumps `"0.1.0"` → `"0.2.0"` to add two required
@@ -369,9 +381,8 @@ Existing field shapes, names, and semantics unchanged.
   resurfaced findings surface as a reminder, not a block.
 - PreToolUse hook in `crimes init --agents` — writes
   `.claude/settings.local.json` with a Claude Code PreToolUse Edit
-  hook that runs `crimes context "$CLAUDE_TOOL_INPUT_file_path"
-  --format json` before every Edit / Write / NotebookEdit. Merge-safe
-  (idempotent on the crimes-context substring); `--no-hooks` opts out.
+  hook that runs `crimes hook --format compact` before every Edit /
+  Write / NotebookEdit. Merge-safe; `--no-hooks` opts out.
   `.agents/settings.local.json` is a forward-looking stub for Codex.
 - Schema bump — `Finding.effort` and `Finding.fix_shape` are required
   on every `Finding` in `0.2.0`. Detector defaults live in

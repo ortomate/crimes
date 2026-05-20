@@ -15,7 +15,10 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
-**`0.11.0` headline:** `crimes triage` is the new recommended
+**`0.11.1` headline:** first calibration patch on `0.11.0`: compact
+hook output for pre-edit briefings, capped `hotspots --format json`
+with hidden counts, scan headers that show severity buckets up front,
+and clearer agent-discovery help. **`0.11.0` headline:** `crimes triage` is the new recommended
 front door for handling existing findings — interactive per-finding
 walk over the current scan, persisting dispositions (`fix-now`,
 `fix-this-PR`, `needs-design`, `wont-fix`, `scaffolding`) to
@@ -33,7 +36,7 @@ numerics are unchanged. Still deterministic, still no LLM / API
 key / network required. `crimes@0.10.0` shipped the front-door
 redesign (auto-init, lead-with-`context`); `crimes@0.9.2` shipped
 emoji severity glyphs and the move to `ortomate/crimes`. See the
-[root README](https://github.com/ortomate/crimes#status--crimes0110)
+[root README](https://github.com/ortomate/crimes#status--crimes0111)
 for the full version history.
 
 - Website: **[crimes.sh](https://crimes.sh)**

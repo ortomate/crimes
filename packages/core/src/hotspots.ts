@@ -47,6 +47,13 @@ export interface HotspotsReport {
   history_limited?: boolean;
   /** Short reason string. Only set when `history_limited` is true. */
   history_limited_reason?: string;
+  /**
+   * Optional presentation metadata. Commands that cap the returned list
+   * populate these fields so agents can tell whether more rows exist.
+   */
+  total_files?: number;
+  shown_count?: number;
+  hidden_count?: number;
   hotspots: Hotspot[];
 }
 
@@ -122,64 +129,14 @@ export async function hotspots(
     collectChurn({ root, since }),
   ]);
 
-  // Findings → per-file aggregates.
-  const findingsByFile = new Map<string, Finding[]>();
-  for (const f of scanReport.findings) {
-    const list = findingsByFile.get(f.file);
-    if (list) list.push(f);
-    else findingsByFile.set(f.file, [f]);
-  }
-
-  // Churn → per-file aggregates.
-  const churnByFile = new Map<string, { count: number; latest: string }>();
-  for (const c of churn.files) {
-    churnByFile.set(c.file, { count: c.changeCount, latest: c.latestChange });
-  }
-
-  // Union: any file with either churn or findings becomes a hotspot row.
-  const allFiles = new Set<string>([
-    ...churnByFile.keys(),
-    ...findingsByFile.keys(),
-  ]);
-
-  const result: Hotspot[] = [];
-  for (const file of allFiles) {
-    const findings = findingsByFile.get(file) ?? [];
-    const churnInfo = churnByFile.get(file);
-    const changeCount = churnInfo?.count ?? 0;
-    const highest = highestOf(findings);
-
-    const hotspot: Hotspot = {
-      file,
-      change_count: changeCount,
-      finding_count: findings.length,
-      highest_severity: highest,
-      risk: computeRisk({ changeCount, highestSeverity: highest }),
-    };
-    if (churnInfo) hotspot.latest_change = churnInfo.latest;
-    result.push(hotspot);
-  }
-
-  // Drop rows that contribute no signal at all (no churn, no findings).
-  // This only happens when the caller passes a custom union set; with the
-  // current logic it's already a no-op, but the filter keeps the contract
-  // simple for downstream consumers.
-  const filtered = result.filter(
-    (h) => h.change_count > 0 || h.finding_count > 0,
+  const filtered = buildHotspotRows(
+    scanReport.findings,
+    churn.files.map((file) => ({
+      file: file.file,
+      count: file.changeCount,
+      latest: file.latestChange,
+    })),
   );
-
-  filtered.sort((a, b) => {
-    if (b.risk !== a.risk) return b.risk - a.risk;
-    if (b.change_count !== a.change_count) return b.change_count - a.change_count;
-    if (
-      SEVERITY_RANK[b.highest_severity] !== SEVERITY_RANK[a.highest_severity]
-    ) {
-      return (
-        SEVERITY_RANK[b.highest_severity] - SEVERITY_RANK[a.highest_severity]
-      );
-    }
-    return a.file.localeCompare(b.file);
-  });
 
   const report: HotspotsReport = {
     schema_version: SCHEMA_VERSION,
@@ -196,4 +153,66 @@ export async function hotspots(
     }
   }
   return report;
+}
+
+interface ChurnRow {
+  file: string;
+  count: number;
+  latest: string;
+}
+
+function buildHotspotRows(findings: Finding[], churnRows: ChurnRow[]): Hotspot[] {
+  const findingsByFile = groupFindingsByFile(findings);
+  const churnByFile = groupChurnByFile(churnRows);
+  const rows = Array.from(unionFiles(findingsByFile, churnByFile), (file) =>
+    buildHotspotRow(file, findingsByFile.get(file) ?? [], churnByFile.get(file)),
+  );
+  return rows
+    .filter((h) => h.change_count > 0 || h.finding_count > 0)
+    .sort(compareHotspots);
+}
+
+function groupFindingsByFile(findings: Finding[]): Map<string, Finding[]> {
+  const grouped = new Map<string, Finding[]>();
+  for (const finding of findings) {
+    grouped.set(finding.file, [...(grouped.get(finding.file) ?? []), finding]);
+  }
+  return grouped;
+}
+
+function groupChurnByFile(churnRows: ChurnRow[]): Map<string, ChurnRow> {
+  return new Map(churnRows.map((row) => [row.file, row]));
+}
+
+function unionFiles(
+  findingsByFile: Map<string, Finding[]>,
+  churnByFile: Map<string, ChurnRow>,
+): Set<string> {
+  return new Set([...churnByFile.keys(), ...findingsByFile.keys()]);
+}
+
+function buildHotspotRow(
+  file: string,
+  findings: Finding[],
+  churnInfo: ChurnRow | undefined,
+): Hotspot {
+  const changeCount = churnInfo?.count ?? 0;
+  const highest = highestOf(findings);
+  return {
+    file,
+    change_count: changeCount,
+    ...(churnInfo ? { latest_change: churnInfo.latest } : {}),
+    finding_count: findings.length,
+    highest_severity: highest,
+    risk: computeRisk({ changeCount, highestSeverity: highest }),
+  };
+}
+
+function compareHotspots(a: Hotspot, b: Hotspot): number {
+  if (b.risk !== a.risk) return b.risk - a.risk;
+  if (b.change_count !== a.change_count) return b.change_count - a.change_count;
+  const severityDelta =
+    SEVERITY_RANK[b.highest_severity] - SEVERITY_RANK[a.highest_severity];
+  if (severityDelta !== 0) return severityDelta;
+  return a.file.localeCompare(b.file);
 }

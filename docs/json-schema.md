@@ -794,6 +794,12 @@ interface HotspotsReport {
   history_limited?: boolean;
   /** Short reason string. Only set when `history_limited` is true. */
   history_limited_reason?: string;
+  /** Total rows available before the CLI's default top-20 cap. */
+  total_files?: number;
+  /** Rows included in this payload. Equals `hotspots.length`. */
+  shown_count?: number;
+  /** Rows omitted by the default cap. Zero when `--all` is passed. */
+  hidden_count?: number;
   hotspots: Hotspot[];
 }
 
@@ -812,6 +818,12 @@ interface Hotspot {
   risk: number;
 }
 ```
+
+By default, `crimes hotspots --format json` returns the same top 20
+rows as the human report and includes `total_files`, `shown_count`,
+and `hidden_count` when the CLI applies that presentation cap. Pass
+`--all --format json` to return every hotspot; `hidden_count` is then
+`0`.
 
 ### Sorting
 

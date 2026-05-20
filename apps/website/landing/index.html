@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.11.0",
+            "softwareVersion": "0.11.1",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/ortomate/crimes",
             "programmingLanguage": "TypeScript",
@@ -204,7 +204,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.11.0 · Triage as the front door · <a href="/docs/releases/v0.11.0/">release notes</a></span>
+          <span class="pill">v0.11.1 · Agent-output calibration · <a href="/docs/releases/v0.11.1/">release notes</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -457,7 +457,7 @@ crimes triage --retriage src/billing.ts</code></pre>
             <strong>Before editing</strong> a specific file —
             <code>crimes context &lt;file&gt; --format json</code>.
             Read every <code>high</code> severity finding first. Under
-            Claude Code with the <code>0.11.0</code> PreToolUse hook
+            Claude Code with the <code>0.11.1</code> PreToolUse hook
             installed, this fires automatically on every
             <code>Edit</code> / <code>Write</code> /
             <code>NotebookEdit</code>.
@@ -1297,6 +1297,22 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             <a
               href="https://github.com/ortomate/crimes/blob/main/docs/releases/v0.10.0.md"
               ><code>docs/releases/v0.10.0.md</code></a
+            >.
+          </li>
+          <li class="done">
+            <strong>v0.11.1 — agent-output calibration.</strong>
+            Patch on Release B. <code>crimes hook</code> now defaults to
+            compact output for pre-edit briefings while keeping
+            <code>--format json</code> available. <code>crimes hotspots
+            --format json</code> mirrors the human report with a top-20
+            default plus <code>total_files</code>,
+            <code>shown_count</code>, and <code>hidden_count</code>.
+            <code>crimes scan</code> headers include severity counts,
+            and top-level help points agents back at
+            <code>crimes init --agents</code>. Release notes:
+            <a
+              href="https://github.com/ortomate/crimes/blob/main/docs/releases/v0.11.1.md"
+              ><code>docs/releases/v0.11.1.md</code></a
             >.
           </li>
           <li class="done">

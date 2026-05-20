@@ -10,6 +10,8 @@ describe("hook-templates", () => {
   it("CLAUDE_HOOK_ENTRY is a single PreToolUse hook entry invoking crimes hook", () => {
     expect(CLAUDE_HOOK_ENTRY.matcher).toBe("Edit|Write|NotebookEdit");
     expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).toContain("crimes hook");
+    expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).toContain("--format compact");
+    expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).not.toContain("2>/dev/null");
     expect(CLAUDE_HOOK_ENTRY.hooks[0]!.timeout).toBe(8000);
   });
 
@@ -32,6 +34,9 @@ describe("hook-templates", () => {
     expect(parsed._note).toMatch(/Codex/);
     expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write|NotebookEdit");
     expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain("crimes hook");
+    expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain(
+      "--format compact",
+    );
   });
 
   it("mergeClaudeHook creates a new document when input is undefined", () => {
@@ -49,7 +54,7 @@ describe("hook-templates", () => {
             hooks: [
               {
                 type: "command" as const,
-                command: "npx -y crimes hook 2>/dev/null || true",
+                command: "npx -y crimes hook --format compact || true",
               },
             ],
           },

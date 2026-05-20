@@ -1,18 +1,28 @@
-import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
+import {
+  applySuppressionsToContext,
+  context,
+  findNearestPackageRoot,
+  loadConfig,
+  loadSuppressionsForRoot,
+  type ContextReport,
+  type Finding,
+} from "@crimes/core";
+import { formatContextJsonReport } from "@crimes/reporter";
 import type { Command } from "commander";
+
+declare const __CRIMES_VERSION__: string;
 
 /**
  * Read Claude Code / Codex PreToolUse hook JSON from stdin, extract the
- * file path the agent is about to edit, and re-invoke `crimes context`
- * on it so the agent sees a pre-edit briefing.
+ * file path the agent is about to edit, and run `crimes context` on it
+ * so the agent sees a pre-edit briefing.
  *
  * The hook is registered by `crimes init --agents` (see
- * `hook-templates.ts`). The actual command in `.claude/settings.local.json`
- * is literally `npx -y crimes hook 2>/dev/null || true` — every error
- * path here must therefore exit quietly so the user never sees a hook
- * stack trace while editing.
+ * `hook-templates.ts`). Generated hook commands append `|| true`, so
+ * failures must never block editing. We still write a short warning to
+ * stderr on unexpected failures so hook problems are discoverable.
  *
  * Claude Code hook input format
  * (https://code.claude.com/docs/en/hooks):
@@ -42,8 +52,17 @@ export function registerHookCommand(program: Command): void {
       "--from-env <name>",
       "fall back to the named env var if stdin yields no file path",
     )
-    .action(async (options: { fromEnv?: string }) => {
+    .option("--format <format>", "output format: compact | json", "compact")
+    .action(async (options: { fromEnv?: string; format: "compact" | "json" }) => {
       try {
+        const format = options.format;
+        if (format !== "compact" && format !== "json") {
+          process.stderr.write(
+            `crimes hook: unknown --format "${String(format)}". Expected "compact" or "json".\n`,
+          );
+          process.exit(0);
+          return;
+        }
         const filePath = await resolveFilePath(options.fromEnv);
         if (!filePath) {
           // Nothing to brief on — exit quietly. This is the common case
@@ -61,12 +80,15 @@ export function registerHookCommand(program: Command): void {
           process.exit(0);
           return;
         }
-        await runContextChild(absolute);
-      } catch {
-        // Hook failures must never block the user. Per the install
-        // template `2>/dev/null || true` would swallow this anyway, but
-        // exit 0 here so even shell variants that ignore the swallow
-        // pattern don't surface anything.
+        const report = await buildHookContext(absolute);
+        if (format === "json") {
+          process.stdout.write(formatContextJsonReport(report) + "\n");
+        } else {
+          const output = formatCompactHookReport(report);
+          if (output !== "") process.stdout.write(output + "\n");
+        }
+      } catch (error) {
+        process.stderr.write(`crimes hook: skipped (${errorMessage(error)})\n`);
         process.exit(0);
       }
     });
@@ -128,24 +150,64 @@ async function readStdinIfAvailable(): Promise<string | undefined> {
   });
 }
 
-/**
- * Re-invoke this same CLI binary with `context <file> --format json`.
- * We exec via `process.argv[1]` so the hook always uses the same crimes
- * version it was registered against, rather than re-resolving via npx.
- */
-async function runContextChild(absolute: string): Promise<void> {
-  const cliEntry = process.argv[1];
-  if (typeof cliEntry !== "string") {
-    process.exit(0);
-    return;
-  }
-  await new Promise<void>((resolvePromise) => {
-    const child = spawn(
-      process.execPath,
-      [cliEntry, "context", absolute, "--format", "json"],
-      { stdio: ["ignore", "inherit", "ignore"] },
-    );
-    child.on("close", () => resolvePromise());
-    child.on("error", () => resolvePromise());
+async function buildHookContext(absolute: string): Promise<ContextReport> {
+  const scanRoot =
+    (await findNearestPackageRoot(dirname(absolute))) ?? process.cwd();
+  const config = loadConfig(scanRoot);
+  const suppressions = loadSuppressionsForRoot(scanRoot, config);
+  const report = await context({
+    file: absolute,
+    suppressionsEntries: suppressions.entries,
   });
+  return applySuppressionsToContext(report, suppressions.entries, {
+    showSuppressed: false,
+    crimesVersion: __CRIMES_VERSION__,
+  });
+}
+
+function formatCompactHookReport(report: ContextReport): string {
+  const lines: string[] = [];
+  const counts = `${report.risk.high} high, ${report.risk.medium} medium, ${report.risk.low} low`;
+  lines.push(
+    `crimes context ${report.file}: ${report.risk.level} risk (${counts})`,
+  );
+
+  if (report.findings.length > 0) {
+    lines.push("Top findings:");
+    for (const finding of report.findings.slice(0, 3)) {
+      lines.push(`- ${formatCompactFinding(finding)}`);
+    }
+    if (report.findings.length > 3) {
+      lines.push(`- plus ${report.findings.length - 3} more`);
+    }
+  } else {
+    lines.push("No findings for this file.");
+  }
+
+  const guidance = report.agent_guidance.slice(0, 2);
+  if (guidance.length > 0) {
+    lines.push(`Agent notes: ${guidance.join(" ")}`);
+  }
+
+  if (report.likely_tests.length > 0) {
+    lines.push(`Likely tests: ${report.likely_tests.slice(0, 3).join(", ")}`);
+  } else if (report.likely_tests_reason) {
+    lines.push(`Likely tests: ${report.likely_tests_reason}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatCompactFinding(finding: Finding): string {
+  const location = finding.lines
+    ? `:${finding.lines[0]}-${finding.lines[1]}`
+    : "";
+  return `${finding.severity.toUpperCase()} ${finding.charge} ${finding.file}${location} (${finding.id})`;
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim() !== "") {
+    return error.message;
+  }
+  return "unexpected error";
 }

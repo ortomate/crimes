@@ -42,7 +42,7 @@ program
   })
   .addHelpText(
     "after",
-    "\nTip: run `crimes context <file>` before editing — it concentrates findings + likely tests + agent notes for one file.",
+    "\nTips:\n  run `crimes init --agents` once so coding agents auto-discover crimes.\n  run `crimes context <file>` before editing — it concentrates findings + likely tests + agent notes for one file.",
   )
   .action(() => {
     // Bare `crimes` (no subcommand) prints a welcome banner pointing at

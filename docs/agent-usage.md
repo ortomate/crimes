@@ -128,7 +128,7 @@ overwritten wholesale):
         "hooks": [
           {
             "type": "command",
-            "command": "npx -y crimes context \"$CLAUDE_TOOL_INPUT_file_path\" --format json 2>/dev/null || true",
+            "command": "npx -y crimes hook --format compact || true",
             "timeout": 8000
           }
         ]
@@ -142,28 +142,28 @@ Contract details:
 
 - **Matcher** is `Edit|Write|NotebookEdit` — the hook fires on every
   Claude Code tool invocation that mutates a file.
-- **Command** runs `crimes context` on the target path with
-  `--format json`, suppressing stderr and falling back to a no-op on
-  any non-zero exit. The agent sees the JSON briefing in its hook
-  output buffer; failures (no git repo, file outside any package, etc.)
-  never block the edit.
+- **Command** runs `crimes hook --format compact`, which reads the
+  hook JSON from stdin and prints a short pre-edit `crimes context`
+  briefing for the target path. The generated shell command appends
+  `|| true`, so failures never block the edit; unexpected hook errors
+  still emit a short stderr warning so setup problems are discoverable.
 - **Timeout** is 8 seconds.
 - **Merge semantics.** `crimes init --agents` reads the existing
   `.claude/settings.local.json`, parses it, appends the entry to
   `hooks.PreToolUse[]`, and writes back (2-space indent, trailing
   newline). If the file already contains a crimes hook (detected by
-  the `crimes context` substring in `command`), the write is a no-op.
+  the `crimes hook` or legacy `crimes context` substring in `command`),
+  the write is a no-op.
   A malformed existing file exits `2`; pass `--force` to overwrite.
 - **`--no-hooks`** opts out of writing either settings file. The
   SKILL.md files still ship.
 
 **Codex stub.** `.agents/settings.local.json` carries the same JSON
-shape as the Claude file (`$CODEX_TOOL_INPUT_file_path` substituted
-for the Claude env var). Codex does **not** honour `PreToolUse` hooks
-as of `crimes@0.11.0`; the file is a forward-looking placeholder so
-the schema is ready when the Codex hook surface lands. A top-of-file
-`_note` key (or sibling README, depending on the Codex tolerance for
-unknown keys at the time of writing) documents this. Safe to delete.
+shape as the Claude file and uses the same stdin-reading `crimes hook`
+command. Codex does **not** honour `PreToolUse` hooks as of
+`crimes@0.11.1`; the file is a forward-looking placeholder so the
+schema is ready when the Codex hook surface lands. A top-level `_note`
+key documents this. Safe to delete.
 
 The hook is **non-optional by default** because the briefing is the
 load-bearing piece — an agent that never calls `crimes context` before
@@ -621,6 +621,10 @@ crimes hotspots --format json
 crimes hotspots --since 90d --format json
 crimes hotspots --all --format json
 ```
+
+JSON output is capped to the top 20 rows by default, matching the
+human report. Check `hidden_count` before assuming the payload is
+complete; pass `--all --format json` when you need every file.
 
 ### `crimes diff` — new / fixed / unchanged findings between two refs
 
