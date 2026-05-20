@@ -79,8 +79,25 @@ export function formatHumanReport(
     ),
   );
 
-  const domain = report.findings.filter((f) => f.tier !== "nonDomain");
-  const nonDomain = report.findings.filter((f) => f.tier === "nonDomain");
+  // Partition resurfaced findings out of both tiers so they appear only
+  // in the resurface block above, not duplicated below in the top-files
+  // list. Resurface flag is set by the scan pipeline (Task 9).
+  const isResurfaced = (f: Finding): boolean =>
+    f.previously_triaged === true || f.previously_baselined === true;
+  const resurfaced = report.findings.filter(isResurfaced);
+  const fresh = report.findings.filter((f) => !isResurfaced(f));
+  const domain = fresh.filter((f) => f.tier !== "nonDomain");
+  const nonDomain = fresh.filter((f) => f.tier === "nonDomain");
+
+  if (resurfaced.length > 0) {
+    lines.push("");
+    lines.push(
+      colour.bold(
+        "You're editing files you previously triaged — was this still intentional?",
+      ),
+    );
+    renderResurfaceBlock(lines, resurfaced, colour, noColor);
+  }
 
   if (showAll) {
     // Flat rank-ordered list of every finding.
@@ -391,6 +408,88 @@ function renderFileGroups(
   });
 }
 
+/**
+ * Renders the "you previously triaged" pre-block. Each resurfaced
+ * finding gets the `▼` glyph (or prose marker in --no-color) plus a
+ * one-liner with its prior disposition / reason / owner / date. Files
+ * are listed in finding order; per-file "Touch this disposition" hint
+ * points the user back to `crimes triage --retriage <file>`.
+ */
+function renderResurfaceBlock(
+  lines: string[],
+  resurfaced: Finding[],
+  colour: ColourFns,
+  noColor: boolean,
+): void {
+  const byFile = new Map<string, Finding[]>();
+  for (const f of resurfaced) {
+    const existing = byFile.get(f.file);
+    if (existing) existing.push(f);
+    else byFile.set(f.file, [f]);
+  }
+  let first = true;
+  for (const [file, findings] of byFile) {
+    lines.push("");
+    if (first) first = false;
+    const tally = fileTally(toFileGroup(file, findings));
+    const glyph = severityGlyph(maxSeverityOf(findings), noColor);
+    lines.push(`${glyph}${colour.bold(file)}  ${colour.dim(tally)}`);
+    findings.forEach((f, idx) => {
+      const marker = noColor ? "*" : "▼";
+      const symbol = f.symbol ? ` · ${colour.cyan(`${f.symbol}()`)}` : "";
+      lines.push(
+        `   ${colour.bold(`${idx + 1}.`)} ${colour.bold(marker)} ${f.charge}${symbol}`,
+      );
+      const prev = f.previous_triage;
+      if (prev) {
+        const ownerSegment = prev.owner ? ` · ${prev.owner}` : "";
+        lines.push(
+          `      ${colour.dim(`${prev.disposition} · "${prev.reason}"${ownerSegment} (${prev.date})`)}`,
+        );
+      } else if (f.previously_baselined) {
+        const dateSegment = f.previous_baseline?.date
+          ? ` (${f.previous_baseline.date})`
+          : "";
+        lines.push(
+          `      ${colour.dim(`previously baselined${dateSegment}`)}`,
+        );
+      }
+    });
+    lines.push(
+      `     ${colour.dim(`Touch this disposition: crimes triage --retriage ${file}`)}`,
+    );
+  }
+}
+
+function toFileGroup(file: string, findings: Finding[]): FileGroup {
+  let high = 0;
+  let medium = 0;
+  let low = 0;
+  let totalRankScore = 0;
+  for (const f of findings) {
+    if (f.severity === "high") high += 1;
+    else if (f.severity === "medium") medium += 1;
+    else low += 1;
+    totalRankScore += rankScore(f);
+  }
+  return {
+    file,
+    findings,
+    severityCounts: { high, medium, low },
+    maxSeverity: high > 0 ? "high" : medium > 0 ? "medium" : "low",
+    totalRankScore,
+  };
+}
+
+function maxSeverityOf(findings: Finding[]): "low" | "medium" | "high" {
+  let best: "low" | "medium" | "high" = "low";
+  for (const f of findings) {
+    if (f.severity === "high") return "high";
+    if (f.severity === "medium") best = "medium";
+  }
+  return best;
+}
+
 function fileTally(group: FileGroup): string {
   const total = group.findings.length;
   const parts: string[] = [];
@@ -416,7 +515,10 @@ function formatFindingCompactLine(
   const symbol = f.symbol ? ` · ${colour.cyan(`${f.symbol}()`)}` : "";
   const evidence = compactEvidence(f);
   const evidenceSegment = evidence ? `   ${colour.dim(evidence)}` : "";
-  return `   ${colour.bold(`${n}.`)} ${f.charge}${symbol}${evidenceSegment}`;
+  const triagedPrefix = f.triaged
+    ? `${colour.bold(`▶ ${f.triaged.disposition}`)} · `
+    : "";
+  return `   ${colour.bold(`${n}.`)} ${triagedPrefix}${f.charge}${symbol}${evidenceSegment}`;
 }
 
 function compactEvidence(f: Finding): string {

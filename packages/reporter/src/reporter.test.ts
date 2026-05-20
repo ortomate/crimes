@@ -32,7 +32,7 @@ import {
 } from "./json.js";
 
 const sampleReport: ScanReport = {
-  schema_version: "0.1.0",
+  schema_version: "0.2.0",
   report_type: "scan",
   repo: { name: "demo", root: "/tmp/demo" },
   summary: { total: 2, high: 1, medium: 1, low: 0 },
@@ -48,6 +48,8 @@ const sampleReport: ScanReport = {
       lines: [10, 250],
       summary: "Function is 241 lines long.",
       evidence: ["241 lines", "4× threshold"],
+      effort: "medium",
+      fix_shape: "stub",
       scores: { severity: 0.9, confidence: 0.9 },
     },
     {
@@ -59,6 +61,8 @@ const sampleReport: ScanReport = {
       file: "src/todo.ts",
       summary: "12 markers (387 per 1k LOC).",
       evidence: ["8× TODO", "4× FIXME"],
+      effort: "medium",
+      fix_shape: "stub",
       scores: { severity: 0.5, confidence: 0.95 },
     },
   ],
@@ -154,13 +158,73 @@ describe("formatHumanReport", () => {
     expect(out).not.toContain("src/g.ts");
     expect(out).toContain("and 2 more (see JSON output)");
   });
+
+  it("renders the resurface block above 'Top files by risk' for previously_triaged findings", () => {
+    const report: ScanReport = {
+      ...sampleReport,
+      findings: [
+        {
+          ...sampleReport.findings[0]!,
+          previously_triaged: true,
+          previous_triage: {
+            disposition: "wont-fix",
+            reason: "legacy billing, rewrite Q3",
+            owner: "@amayfield",
+            date: "2026-04-12",
+          },
+        },
+        sampleReport.findings[1]!,
+      ],
+    };
+    const out = formatHumanReport(report, { noColor: true });
+    const resurfaceHeader = out.indexOf(
+      "You're editing files you previously triaged",
+    );
+    const topFiles = out.indexOf("Top files by risk");
+    expect(resurfaceHeader).toBeGreaterThan(-1);
+    expect(topFiles).toBeGreaterThan(-1);
+    expect(resurfaceHeader).toBeLessThan(topFiles);
+    expect(out).toContain("wont-fix");
+    expect(out).toContain("legacy billing, rewrite Q3");
+    expect(out).toContain("@amayfield");
+    expect(out).toContain("2026-04-12");
+    expect(out).toContain("crimes triage --retriage src/billing.ts");
+  });
+
+  it("renders a ▶ <disposition> prefix on findings with a triaged annotation", () => {
+    const report: ScanReport = {
+      ...sampleReport,
+      findings: [
+        {
+          ...sampleReport.findings[0]!,
+          triaged: {
+            disposition: "fix-now",
+            reason: "this PR",
+            owner: "@me",
+            date: "2026-05-20",
+          },
+        },
+        sampleReport.findings[1]!,
+      ],
+    };
+    const out = formatHumanReport(report, { noColor: true });
+    expect(out).toContain("▶ fix-now");
+    // The plain `God Function` row should still be there — the prefix
+    // appears before the charge name.
+    expect(out).toMatch(/▶ fix-now · God Function/);
+  });
+
+  it("omits the resurface block when no findings are resurfaced", () => {
+    const out = formatHumanReport(sampleReport, { noColor: true });
+    expect(out).not.toContain("previously triaged");
+  });
 });
 
 describe("formatJsonReport", () => {
   it("round-trips through JSON.parse", () => {
     const out = formatJsonReport(sampleReport);
     const parsed = JSON.parse(out) as ScanReport;
-    expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.schema_version).toBe("0.2.0");
     expect(parsed.report_type).toBe("scan");
     expect(parsed.findings).toHaveLength(2);
     expect(parsed.findings[0]!.id).toBe("crime_00001");
@@ -204,7 +268,7 @@ describe("formatJsonReport", () => {
 });
 
 const sampleContext: ContextReport = {
-  schema_version: "0.1.0",
+  schema_version: "0.2.0",
   report_type: "context",
   repo: { name: "demo", root: "/tmp/demo" },
   file: "src/billing.ts",
@@ -227,6 +291,8 @@ const sampleContext: ContextReport = {
       lines: [37, 240],
       summary: "generateInvoice spans 204 lines.",
       evidence: ["lines 37–240 (204 lines)"],
+      effort: "medium",
+      fix_shape: "stub",
       scores: { severity: 0.9, confidence: 0.95 },
     },
     {
@@ -239,6 +305,8 @@ const sampleContext: ContextReport = {
       lines: [5, 200],
       summary: "10 TODO/FIXME markers.",
       evidence: ["10× TODO"],
+      effort: "medium",
+      fix_shape: "stub",
       scores: { severity: 0.4, confidence: 0.7 },
     },
   ],
@@ -263,7 +331,7 @@ describe("formatContextJsonReport", () => {
       expect(parsed).toHaveProperty(key);
     }
 
-    expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.schema_version).toBe("0.2.0");
     expect(parsed.report_type).toBe("context");
     expect(parsed.file).toBe("src/billing.ts");
   });
@@ -437,7 +505,7 @@ describe("formatContextHumanReport", () => {
 });
 
 const sampleDiff: DiffReport = {
-  schema_version: "0.1.0",
+  schema_version: "0.2.0",
   report_type: "diff",
   repo: { name: "demo", root: "/tmp/demo" },
   base: "main",
@@ -455,6 +523,8 @@ const sampleDiff: DiffReport = {
       lines: [1, 90],
       summary: "...",
       evidence: ["90 lines"],
+      effort: "medium",
+      fix_shape: "stub",
       scores: { severity: 0.9, confidence: 0.9 },
     },
     {
@@ -467,6 +537,8 @@ const sampleDiff: DiffReport = {
       lines: [1, 30],
       summary: "...",
       evidence: ["6× TODO"],
+      effort: "medium",
+      fix_shape: "stub",
       scores: { severity: 0.5, confidence: 0.8 },
     },
   ],
@@ -482,6 +554,8 @@ const sampleDiff: DiffReport = {
       lines: [1, 90],
       summary: "...",
       evidence: ["90 lines"],
+      effort: "medium",
+      fix_shape: "stub",
       scores: { severity: 0.9, confidence: 0.95 },
     },
   ],
@@ -532,7 +606,7 @@ describe("formatDiffJsonReport", () => {
     ]) {
       expect(parsed).toHaveProperty(key);
     }
-    expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.schema_version).toBe("0.2.0");
     expect(parsed.report_type).toBe("diff");
   });
 
@@ -546,7 +620,7 @@ describe("formatDiffJsonReport", () => {
 });
 
 const sampleVerdict: VerdictReport = {
-  schema_version: "0.1.0",
+  schema_version: "0.2.0",
   report_type: "verdict",
   repo: { name: "demo", root: "/tmp/demo" },
   base: "origin/main",
@@ -614,7 +688,7 @@ describe("formatVerdictJsonReport", () => {
     ]) {
       expect(parsed).toHaveProperty(key);
     }
-    expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.schema_version).toBe("0.2.0");
     expect(parsed.report_type).toBe("verdict");
     expect(parsed.verdict).toBe("worse");
   });
@@ -704,7 +778,7 @@ describe("severity glyphs in human report", () => {
 });
 
 const sampleHotspots: HotspotsReport = {
-  schema_version: "0.1.0",
+  schema_version: "0.2.0",
   report_type: "hotspots",
   repo: { name: "demo", root: "/tmp/demo" },
   since: "90d",
@@ -790,7 +864,7 @@ describe("formatHotspotsJsonReport", () => {
     ]) {
       expect(parsed).toHaveProperty(key);
     }
-    expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.schema_version).toBe("0.2.0");
     expect(parsed.report_type).toBe("hotspots");
   });
 
@@ -807,7 +881,7 @@ describe("formatHotspotsJsonReport", () => {
 });
 
 const sampleBaseline: Baseline = {
-  schema_version: "0.1.0",
+  schema_version: "0.2.0",
   report_type: "baseline",
   created_at: "2026-05-16T12:00:00.000Z",
   crimes_version: "0.2.0",
@@ -866,7 +940,7 @@ describe("formatBaselineJsonReport", () => {
 });
 
 const sampleBaselineCheck: BaselineCheckReport = {
-  schema_version: "0.1.0",
+  schema_version: "0.2.0",
   report_type: "baseline_check",
   repo: { name: "demo", root: "/tmp/demo" },
   baseline_path: "/abs/path/to/.crimes/baseline.json",
@@ -892,6 +966,8 @@ const sampleBaselineCheck: BaselineCheckReport = {
       lines: [1, 90],
       summary: "huge spans 90 lines.",
       evidence: ["90 lines"],
+      effort: "medium",
+      fix_shape: "stub",
       scores: { severity: 0.9, confidence: 0.9 },
     },
   ],
@@ -961,7 +1037,7 @@ function stubContextReport(
   overrides: Partial<ContextReport>,
 ): ContextReport {
   return {
-    schema_version: "0.1.0",
+    schema_version: "0.2.0",
     report_type: "context",
     repo: { name: "demo", root: "/tmp/demo" },
     file: "src/billing.ts",
@@ -1169,6 +1245,8 @@ function buildStubFinding(
     symbol: opts.symbol,
     summary: `Stub finding in ${opts.file}.`,
     evidence: opts.evidence ?? [],
+    effort: "medium",
+    fix_shape: "stub",
     scores: {
       severity: severityToScore(severity),
       confidence: 0.9,
@@ -1203,7 +1281,7 @@ function stubReport({ findings }: { findings: Finding[] }): ScanReport {
     { total: 0, high: 0, medium: 0, low: 0 },
   );
   return {
-    schema_version: "0.1.0",
+    schema_version: "0.2.0",
     report_type: "scan",
     repo: { name: "acme-app", root: "/tmp/acme-app" },
     summary,
@@ -1242,6 +1320,8 @@ function stubFinding(scores: Partial<FindingScores>): Finding {
     file: "a.ts",
     summary: "",
     evidence: [],
+    effort: "medium",
+    fix_shape: "stub",
     scores: { severity: 0.5, confidence: 0.5, ...scores },
   };
 }
