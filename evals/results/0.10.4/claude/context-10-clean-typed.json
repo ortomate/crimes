@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.10.4",
+  "timestamp": "2026-05-20T17:41:17.493Z",
+  "run_id": "d73d7401-62d4-4ea4-b56d-a60eca62e650",
+  "response": "## Result\n\n**No findings** — `risk.level: \"none\"`, totals all zero, `findings: []`.\n\n**Likely tests:** `src/billing.test.ts`\n\n**Why it's low risk to edit:**\n- Zero findings of any severity — no structural, dependency, duplication, testability, or churn signals.\n- A colocated test file (`src/billing.test.ts`) exists, so behavior is covered and regressions will surface.\n- No related files surfaced — no shared domain tokens, no IA neighbourhood, no same-directory siblings — meaning the module is self-contained and edits won't ripple through hidden dependencies.\n- No agent guidance was emitted (`agent_guidance_reason: \"no findings on this file and no deterministic related files\"`), confirming there are no special hazards to flag before editing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.4",
+  "timestamp": "2026-05-20T17:42:36.624Z",
+  "run_id": "d73c9cd6-7ca1-45d8-be5a-92dc2a41c5f4",
+  "response": "## Refactor plan: two steps, in this order\n\nThe duplication findings cluster into two related crimes:\n\n- **crime_00002** — `sanitizeUserInput` / `sanitizeText` / `cleanMessage` are near-duplicates across `src/sanitize-{a,b,c}.ts`.\n- **crime_00003** — `role === \"admin\"` is checked in 4 files using 2 expression shapes, including inside all three sanitise files (which is why the two crimes are entangled).\n\nDo policy first, sanitise second. If you flip the order you'll inline one of the two `\"admin\"` expression shapes into the consolidated helper and have to revisit it on step 2.\n\n### Step 1 — Centralise the role check (crime_00003)\n\n**Goal:** one function, one source of truth, zero string literals at call sites.\n\n1. Add `src/policy.ts` export `isAdmin(role: string): boolean` returning `role === \"admin\"`. (The file already exists per the evidence — replace its ad-hoc checks with this single helper.)\n2. Replace all 6+ occurrences across `src/policy.ts`, `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts` with `isAdmin(role)`. This collapses the 2 expression shapes into 1.\n3. Grep for the literal `\"admin\"` to confirm no stragglers outside `policy.ts`.\n4. Add a test that pins `isAdmin(\"admin\") === true` and a couple of negatives (`\"Admin\"`, `\"administrator\"`, `\"\"`) so the canonical shape is locked.\n\n**Why first:** step 2 will fold three functions into one, and we want that one function to call `isAdmin` — not carry forward a hand-inlined string compare.\n\n### Step 2 — Consolidate the three sanitise helpers (crime_00002)\n\n**Goal:** one `sanitize()` function, three thin re-exports (or zero, if call sites can be migrated cheaply).\n\n1. Diff `sanitizeUserInput` / `sanitizeText` / `cleanMessage` (`sanitize-a.ts:10-36`, `sanitize-b.ts:9-35`, `sanitize-c.ts:9-35`). The crime is flagged as *near*-duplicate, so identify the parameters that differ (likely max length, allowed-tag list, or trim behaviour) and lift them into arguments with sensible defaults.\n2. Create `src/sanitize.ts` exporting a single `sanitize(input: string, opts?: SanitizeOptions): string`. It calls `isAdmin(opts.role)` from step 1 wherever the old bodies branched on role.\n3. Migrate call sites:\n   - If the three old names had distinct semantics worth preserving, keep `sanitize-{a,b,c}.ts` as one-liner re-exports that pre-bind the relevant options (`export const sanitizeUserInput = (s) => sanitize(s, {…})`). This avoids a churn-y rename.\n   - Otherwise delete the three files and point importers at `sanitize`.\n4. Add table-driven tests against `sanitize` covering each of the three original behaviours so regressions surface at the consolidated layer.\n\n### Out of scope for this plan\n\n- **crime_00001** (`recordSanitiseEvent` duplicated across `telemetry-a.ts` / `telemetry-b.ts`) is a separate extraction in the telemetry layer — easy follow-up, but folding it into this two-step plan muddles the boundary.\n- **crime_00004 / 00005** (`Date.now()` in telemetry) should be addressed when you touch telemetry for crime_00001, not here — injecting a clock through sanitise would be incidental scope.\n\n### Verification\n\nAfter both steps: re-run `crimes scan --format json` and confirm crime_00002 and crime_00003 are gone and no new findings appeared (e.g., a barrel/kitchen-sink charge on the new `policy.ts` / `sanitize.ts`). Total finding count should drop from 5 to 3.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -186,7 +186,7 @@ describe("crimes scan --changed --fail-on", () => {
 });
 
 describe("crimes scan — new flags", () => {
-  it("declares --top, --flat, --no-recency", () => {
+  it("declares --top, --flat, --no-recency, --show-triaged, --gate-needs-design, --gate-resurfaced", () => {
     const program = new Command();
     registerScanCommand(program);
     const scan = program.commands.find((c) => c.name() === "scan");
@@ -195,5 +195,82 @@ describe("crimes scan — new flags", () => {
     expect(opts).toContain("--top");
     expect(opts).toContain("--flat");
     expect(opts).toContain("--no-recency");
+    expect(opts).toContain("--show-triaged");
+    expect(opts).toContain("--gate-needs-design");
+    expect(opts).toContain("--gate-resurfaced");
+  });
+});
+
+describe("crimes scan --show-triaged", () => {
+  async function makeRepoWithTriagedFinding(): Promise<{ root: string }> {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-show-triaged-"));
+    await writeFile(join(root, "src.ts"), largeFunctionSource(), "utf8");
+    // Locate the finding fingerprint via a quick scan-as-tool.
+    const probe = await runCli(["scan", ".", "--format", "json", "--no-color"], root);
+    const probeReport = JSON.parse(probe.stdout) as {
+      findings: Array<{ type: string; file: string; symbol?: string }>;
+    };
+    const target = probeReport.findings.find(
+      (f) => f.type === "large_function" && f.file === "src.ts",
+    );
+    if (!target) throw new Error("expected large_function on src.ts in fixture");
+    const print = `${target.type}::${target.file}::${target.symbol ?? ""}`;
+
+    await mkdir(join(root, ".crimes"), { recursive: true });
+    await writeFile(
+      join(root, ".crimes/triage.json"),
+      JSON.stringify({
+        schema_version: "0.2.0",
+        report_type: "triage",
+        created_at: "2026-05-20T14:00:00Z",
+        updated_at: "2026-05-20T14:00:00Z",
+        entries: [
+          {
+            fingerprint: print,
+            type: target.type,
+            file: target.file,
+            ...(target.symbol ? { symbol: target.symbol } : {}),
+            disposition: "wont-fix",
+            reason: "legacy",
+            owner: "@me",
+            date: "2026-05-20",
+          },
+        ],
+      }),
+      { encoding: "utf8" },
+    );
+    return { root };
+  }
+
+  it("hides silenced findings by default and sets triage_hidden_count", async () => {
+    const { root } = await makeRepoWithTriagedFinding();
+    await mkdtemp(join(tmpdir(), "noop-")); // keep the lint happy
+    const result = await runCli(["scan", ".", "--format", "json", "--no-color"], root);
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout);
+    expect(
+      parsed.findings.find(
+        (f: { type: string; file: string }) =>
+          f.type === "large_function" && f.file === "src.ts",
+      ),
+    ).toBeUndefined();
+    expect(parsed.triage_hidden_count).toBe(1);
+  });
+
+  it("--show-triaged keeps the finding visible with a hidden_triage annotation", async () => {
+    const { root } = await makeRepoWithTriagedFinding();
+    const result = await runCli(
+      ["scan", ".", "--show-triaged", "--format", "json", "--no-color"],
+      root,
+    );
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout);
+    const hit = parsed.findings.find(
+      (f: { type: string; file: string }) =>
+        f.type === "large_function" && f.file === "src.ts",
+    );
+    expect(hit).toBeDefined();
+    expect(hit.hidden_triage?.disposition).toBe("wont-fix");
+    expect(parsed.triage_hidden_count).toBeUndefined();
   });
 });

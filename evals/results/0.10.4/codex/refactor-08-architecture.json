@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.10.4",
+  "timestamp": "2026-05-20T17:46:33.210Z",
+  "run_id": "fd697206-e71c-432c-8505-3badf5951cca",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e467e-bf5c-7c13-a623-53f1bf13d917\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"The relevant findings are:\\n\\n- `crime_00002` `layer_violation`: [src/domain/billing.ts]( /Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/src/domain/billing.ts ) imports [src/presentation/invoice-view.ts]( /Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/src/presentation/invoice-view.ts )\\n- `crime_00003` `deep_import`: [src/application/billing-flow.ts]( /Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/src/application/billing-flow.ts ) imports `some-pkg/dist/internal/private/helper.js`\\n\\nProposed refactor:\\n\\n1. Break `src/domain/billing.ts -> src/presentation/invoice-view.ts`\\n\\n   This is the architecture violation. The domain layer should not know about presentation rendering. If domain code needs invoice formatting, labels, view models, or callbacks, define a domain-owned interface or pure domain type instead.\\n\\n   Example shape:\\n\\n   ```ts\\n   // src/domain/billing.ts\\n   export interface InvoicePresenter {\\n     presentInvoice(invoice: Invoice): InvoiceSummary;\\n   }\\n   ```\\n\\n   Then `src/presentation/invoice-view.ts` can implement or adapt that interface, while `src/domain/billing.ts` only depends on domain-owned contracts.\\n\\n   Tied finding: `crime_00002`, because the configured rule says `domain cannotImport presentation`.\\n\\n2. Redirect `some-pkg/dist/internal/private/helper.js` through a public package boundary\\n\\n   `src/application/billing-flow.ts` should import from `some-pkg` or another documented public entry point, not from `dist/internal/private`.\\n\\n   If the needed helper is not public, the better fix is to wrap the behavior locally behind an application/infrastructure adapter, or request/export the capability upstream. Do not preserve the deep path with an alias; that keeps the same private dependency hidden under a nicer name.\\n\\n   Tied finding: `crime_00003`, because the file reaches past the package’s published surface into private internals.\\n\\n3. Also break the cycle exposed by `crime_00001`\\n\\n   The cycle is:\\n\\n   ```text\\n   src/application/billing-flow.ts\\n   -> src/domain/billing.ts\\n   -> src/presentation/invoice-view.ts\\n   -> src/application/billing-flow.ts\\n   ```\\n\\n   Fixing the domain-to-presentation import likely removes the main inverted edge. If presentation still imports application flow directly, consider moving shared invoice types to a leaf module such as `src/domain/invoice-types.ts`, or making the presentation layer receive data/functions from application composition instead of importing the flow.\\n\\n**Agent Risk Difference**\\n\\n`layer_violation` is architectural risk: it tells an agent the dependency direction is wrong for the declared system design. The danger is that future edits will follow the bad edge and keep pushing UI/application concerns into domain code.\\n\\n`deep_import` is package-boundary risk: it may not violate local layering, but it depends on private external internals. The danger is upgrade fragility: an agent may treat the private helper as stable API, but the package author can move or remove it without a breaking-change signal.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19524,\"cached_input_tokens\":17792,\"output_tokens\":698,\"reasoning_output_tokens\":35}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

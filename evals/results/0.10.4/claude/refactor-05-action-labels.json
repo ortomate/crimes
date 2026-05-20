@@ -1,0 +1,77 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.10.4",
+  "timestamp": "2026-05-20T17:46:11.981Z",
+  "run_id": "6245c679-45e7-4a66-9c8a-968db56519be",
+  "response": "## Drift confirmed\n\nFrom `crime_00011` evidence, each component carries **two** different verbs for the same destructive action:\n\n| File | Verbs present |\n|---|---|\n| `UserList.tsx` | `delete`, `remove` |\n| `TeamList.tsx` | `delete`, `archive` |\n| `SeatList.tsx` | `archive`, `remove` |\n\nNo two components agree, and every verb shows up in exactly two of the three files — the worst possible distribution for an agent doing a global rename.\n\n## Canonical label set\n\nTreat these as three semantically distinct verbs, not synonyms, then pick one per surface:\n\n- **Remove** — detach from a collection; the underlying entity persists (revoking membership/assignment).\n- **Delete** — permanent destruction of the entity itself.\n- **Archive** — soft-delete with a restore path; only valid if a restore UI actually exists.\n\nMapping to the fixture:\n\n- `UserList.tsx` → **Remove** (removing a user *from* an org, not destroying the account).\n- `SeatList.tsx` → **Remove** (revoking a seat assignment — same shape as UserList).\n- `TeamList.tsx` → **Delete** (the team entity is being destroyed). Switch to \"Archive\" only if/when soft-delete ships.\n\nIf you need a single verb for v0, pick **Remove** — it's the least destructive read, matches the SaaS convention (Stripe/Linear/GitHub use \"Remove\" for member detachment), and is the safest default when an agent picks it up out of context.\n\n## Refactor `UserList.tsx` first\n\nTwo reasons:\n\n1. It's the highest-traffic surface for agent edits in a SaaS repo (members > seats > teams in change frequency), so codifying the verb here yanks the rest into line via copy-paste pressure.\n2. Its current pair (`delete` + `remove`) is the most semantically dangerous — agents and reviewers will read those as different actions, not different labels for the same action. `archive` at least *looks* different at a glance.\n\nOrder: `UserList` → `SeatList` (same canonical verb, mechanical change) → `TeamList` (decide Delete vs Archive based on whether restore exists).\n\n## How `action_label_drift` and `copy_ia_drift` differ on this fixture\n\nOn this fixture they're **redundant** — same files, same aliases, same `agent_risk` 0.38, same `pick_canonical_label` action. That's not a bug, it's the detectors observing the same drift from two angles:\n\n- **`action_label_drift`** (`crime_00011`) is scoped to **interactive action verbs** — buttons, menu items, confirm dialogs. Its concern is behavioral: \"does clicking the same action read the same way?\" It fires when the *verb on an interactive element* drifts.\n- **`copy_ia_drift`** (`crime_00012`) is broader: it watches **any user-facing label across the IA** — headings, empty states, microcopy, *and* action labels. Its concern is the information architecture as a whole reading consistently.\n\nThey overlap here because the only copy drift in this fixture happens to live on action buttons. They'd diverge if:\n\n- A heading drifted (\"Members\" / \"Users\" / \"People\") with no button change → only `copy_ia_drift` fires.\n- A button verb drifted but the surrounding microcopy stayed identical (e.g., button says \"Delete\" but the confirm dialog still says \"remove this user\") → `action_label_drift` fires on the verb mismatch even though the page copy is uniform.\n\nTreat `action_label_drift` as the narrower, higher-precision signal for button copy and `copy_ia_drift` as the wider net. On a button-only drift like this, dedupe to the action finding when triaging.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "permission_ia_drift",
+      "crime_00002": "missing_agent_context",
+      "crime_00003": "docs_code_drift",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "command_drift_docs_code_drift",
+      "crime_00006": "parallel_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Permission IA Drift": "permission_ia_drift",
+      "Missing Agent Context": "missing_agent_context",
+      "Docs-Code Drift": "docs_code_drift",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Parallel Destination": "parallel_destination",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.10.4",
+  "timestamp": "2026-05-20T17:42:30.942Z",
+  "run_id": "29a443e5-3986-4b2c-b702-30b06a0f4d38",
+  "response": "# Top-10 triage plan — `01-messy-ts-app`\n\nOrdered within each bucket by what unblocks the most agent/human edits per minute of work. Top-10 = the 10 highest-`agent_risk` findings from the scan (crime_00001 → crime_00010).\n\n## Structural / correctness (6 findings)\n\n| # | ID | Charge | File | Action | Why |\n|---|----|--------|------|--------|-----|\n| 1 | crime_00007 | Dev-Server URL | `src/api/files.ts:8` | **Fix now** | One-line lift to env var. Literal silently breaks every non-dev env. |\n| 2 | crime_00008 | Localhost-on-Disk | `src/api/files.ts:9` | **Fix now** | `/Users/andrew/...` — fails on every other machine + CI. Quick swap to `os.homedir()`/config. |\n| 3 | crime_00009 | Timezone Roulette | `src/date.ts:29,33` | **Fix now** | Two unmarked date literals — real correctness bug, append `Z`. |\n| 4 | crime_00003 | Half-UTC, Half-Local | `src/date.ts:9,41` | **Fix now** | Same file as #3 and #6 — batch the date.ts pass. Pick UTC, convert at boundary. |\n| 5 | crime_00002 | Temporal Recklessness | `src/date.ts:4-40` | **Fix now** | 8 direct `Date.now()`/`new Date()` in the same `date.ts` already being touched — inject a clock in the same PR. |\n| 6 | crime_00005 | God Function `generateInvoice` | `src/billing.ts:50-253` | **Defer** | 204-line orchestrator. High-confidence finding but the safe refactor wants the duplication/literal cleanup (#9) landed first, plus tests. Fold in next time billing is touched. |\n\n## IA / agent-readability (2 findings)\n\n| # | ID | Charge | File | Action | Why |\n|---|----|--------|------|--------|-----|\n| 7 | crime_00006 | Missing Agent Context | repo root | **Fix now** | Cheap meta-fix. Writing `AGENTS.md` (or `CLAUDE.md`) costs minutes and de-risks every subsequent agent edit, including the rest of this triage. Do this first if a coding agent will execute the plan. |\n| 8 | crime_00004 | Concept Alias Drift (tenant/account/org/team/workspace) | `docs/billing.md` +4 files | **Defer** | Needs a glossary decision before renames — not safe for an agent to unilaterally collapse. Park behind a \"canonical term = ?\" question for the humans. |\n\n## Duplication (1 finding)\n\n| # | ID | Charge | File | Action | Why |\n|---|----|--------|------|--------|-----|\n| 9 | crime_00010 | String Sprinkles `\"enterprise\"` | `src/api/plan.ts` +3 files | **Defer** | Real signal (4 areas, becomes duplicated policy) but cross-cutting. Promote to a `PLANS.ENTERPRISE` constant the next time billing/plan code is touched — ideally in the same PR as the God Function split (#6). |\n\n## Frontend / asset (1 finding)\n\n| # | ID | Charge | File | Action | Why |\n|---|----|--------|------|--------|-----|\n| 10 | crime_00001 | SVG With Embedded Raster | `src/assets/partner-logo.svg` | **Fix now** | Highest `agent_risk` (0.70) and isolated — re-export from design tool or split the raster out. No code dependencies, parallelizable with the date.ts work. |\n\n## Git-history (0 findings)\n\nNo churn data in this scan (every `churn`/`recency` score is 0 — looks like the fixture has no git history). Nothing to triage here; revisit after `crimes hotspots` runs against a real history.\n\n---\n\n## Recommended execution order\n\n1. **crime_00006** (write `AGENTS.md`) — 10 min, unblocks the rest.\n2. **crime_00007 + crime_00008** (one PR, `src/api/files.ts` env/path) — 15 min.\n3. **crime_00001** (SVG re-export) — designer task, fire in parallel.\n4. **crime_00002 + crime_00003 + crime_00009** (one PR — full `src/date.ts` cleanup: clock injection + UTC unification + explicit-zone parses) — half-day.\n5. **Defer #6, #8, #9** to the next billing/IA touch; capture #8 as a glossary question before any rename lands.\n\nNothing in the top 10 is **ignore**-worthy — every finding has concrete evidence and a low-risk fix shape.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "svg_with_embedded_raster",
+        "passed": false
+      }
+    ]
+  }
+}

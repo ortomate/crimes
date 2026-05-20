@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.10.4",
+  "timestamp": "2026-05-20T17:38:59.497Z",
+  "run_id": "e0c17ae9-6fba-41a9-a027-8106714d0b7b",
+  "response": "**Cycle**: `application/billing-flow.ts` → `domain/billing.ts` → `presentation/invoice-view.ts` → back to `application/billing-flow.ts`.\n\n**Break the edge from `domain/billing.ts` → `presentation/invoice-view.ts`.**\n\nWhy that one, and not either of the other two:\n\n1. **It's the only edge that's also a layer violation.** Finding `crime_00002` flags `domain cannotImport presentation`. Domain is the innermost layer — it must not know about presentation. The other two edges (`application → domain`, `presentation → application`) point in architecturally legal directions, so removing them would just relocate the smell.\n2. **One cut fixes two findings.** Breaking this edge resolves both the `circular_dependency` (high) and the `layer_violation` (medium) in a single move. No other edge in the ring does that.\n3. **It's the inverted dependency.** Cycles almost always have one \"wrong-way\" edge; here it's labelled for you. Domain should expose what presentation needs, not consume from it.\n\n**How to break it** (in order of preference):\n\n- **Invert the direction.** Whatever `domain/billing.ts` is reaching into `invoice-view.ts` for is almost certainly a *type* or *contract* that belongs in domain anyway. Move that definition into `domain/` and have `presentation/invoice-view.ts` import it from there. The cycle disappears and the layer rule is satisfied.\n- **If it's purely a type**, convert the import to `import type { ... }` — TS erases it at runtime so it stops contributing a runtime edge, which is enough to break the cycle. This is the cheap fix, but it leaves the layer violation in place; the linter will still flag it. Prefer inversion unless you're firefighting.\n- **Don't** extract to a new shared leaf module just to satisfy the cycle — that's the generic fix the tool suggests, but here you have a more specific signal (the layer rule) telling you the dependency is genuinely backwards.\n\nThe deep-import finding (`crime_00003`) is unrelated to the runtime error and can be handled separately.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

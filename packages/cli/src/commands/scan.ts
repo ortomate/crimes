@@ -2,13 +2,16 @@ import { resolve } from "node:path";
 import {
   applyScanFailOn,
   applySuppressionsToScan,
+  applyTriageToScan,
   countEntriesByDetector,
   countResurfacedByPinnedMinor,
   loadConfig,
   loadSuppressionsForRoot,
+  loadTriage,
   NotAGitRepoError,
   readFeedback,
   resolveFeedbackPath,
+  resolveTriagePath,
   scan,
   UnknownGitRefError,
 } from "@crimes/core";
@@ -37,6 +40,9 @@ interface ScanCommandOptions {
   base?: string;
   failOn?: string;
   showSuppressed: boolean;
+  showTriaged: boolean;
+  gateNeedsDesign: boolean;
+  gateResurfaced: boolean;
   top?: number;
   flat: boolean;
   recency: boolean; // Commander gives this as `true` by default with --no-recency
@@ -72,6 +78,21 @@ export function registerScanCommand(program: Command): void {
     .option(
       "--show-suppressed",
       "include findings filtered by .crimes/suppressions.json, annotated as suppressed",
+      false,
+    )
+    .option(
+      "--show-triaged",
+      "include silenced triage dispositions in output, annotated with disposition + reason + owner + date",
+      false,
+    )
+    .option(
+      "--gate-needs-design",
+      "with --fail-on, count needs-design dispositions toward the gate (requires --show-triaged)",
+      false,
+    )
+    .option(
+      "--gate-resurfaced",
+      "with --fail-on, count resurfaced findings (previously_triaged / previously_baselined) toward the gate",
       false,
     )
     .option("--top <n>", "show only the top N files (default 5)", (v) => Number.parseInt(v, 10))
@@ -134,6 +155,12 @@ export function registerScanCommand(program: Command): void {
           __CRIMES_VERSION__,
           { noColor },
         );
+        // Triage filter applies BEFORE suppressions so the renderer can
+        // distinguish "user triaged this" from "suppression hit".
+        const triage = await loadTriage(resolveTriagePath(root));
+        report = applyTriageToScan(report, triage.entries, {
+          showTriaged: options.showTriaged,
+        });
         report = applySuppressionsToScan(report, suppressions.entries, {
           showSuppressed: options.showSuppressed,
           crimesVersion: __CRIMES_VERSION__,
@@ -163,7 +190,12 @@ export function registerScanCommand(program: Command): void {
           ? (options.failOn as FailOn)
           : undefined;
       const gatedReport =
-        failOn !== undefined ? applyScanFailOn(report, failOn) : report;
+        failOn !== undefined
+          ? applyScanFailOn(report, failOn, {
+              gateNeedsDesign: options.gateNeedsDesign,
+              gateResurfaced: options.gateResurfaced,
+            })
+          : report;
 
       if (format === "json") {
         process.stdout.write(formatJsonReport(gatedReport) + "\n");

@@ -608,14 +608,49 @@ function summarise(findings: Finding[]): ScanSummary {
  * Pure — does not mutate the input. Reuses {@link severityAtLeast} so the
  * threshold semantics match `crimes baseline check`.
  */
+export interface ApplyScanFailOnOptions {
+  /**
+   * When true, `needs-design` triage entries (visible via
+   * `--show-triaged`) participate in the gate. Off by default —
+   * silenced triage entries normally never trip the gate.
+   */
+  gateNeedsDesign?: boolean;
+  /**
+   * When true, resurfaced findings (`previously_triaged` /
+   * `previously_baselined`) participate in the gate. Off by default —
+   * resurface surfaces a reminder, not a block.
+   */
+  gateResurfaced?: boolean;
+}
+
 export function applyScanFailOn(
   report: ScanReport,
   failOn: FailOn,
+  options: ApplyScanFailOnOptions = {},
 ): ScanReport {
   // Suppressed findings (only present when --show-suppressed was set)
   // never trip the gate — gate semantics are independent of display.
-  const failed = report.findings.some(
-    (f) => f.suppressed !== true && severityAtLeast(f.severity, failOn),
-  );
+  // hidden_triage findings (only present when --show-triaged was set)
+  // are similarly excluded unless --gate-needs-design opts in.
+  const failed = report.findings.some((f) => {
+    if (f.suppressed === true) return false;
+    if (
+      (f.previously_triaged === true || f.previously_baselined === true) &&
+      !options.gateResurfaced
+    ) {
+      return false;
+    }
+    if (f.hidden_triage !== undefined) {
+      if (
+        f.hidden_triage.disposition === "needs-design" &&
+        options.gateNeedsDesign
+      ) {
+        // fall through to severity check
+      } else {
+        return false;
+      }
+    }
+    return severityAtLeast(f.severity, failOn);
+  });
   return { ...report, fail_on: failOn, failed };
 }

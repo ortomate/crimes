@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.4",
+  "timestamp": "2026-05-20T17:44:37.653Z",
+  "run_id": "9e6801cc-2c44-42c1-af23-71e6ec5ca68c",
+  "response": "## Duplication confirmed\n\n`crimes scan` flags `crime_00002` (Near-Duplicate Block, confidence 0.85) across three files:\n\n- `src/sanitize-a.ts:10-36` — `sanitizeUserInput(raw: string)`\n- `src/sanitize-b.ts:9-35` — `sanitizeText(input: string)`\n- `src/sanitize-c.ts:9-35` — `cleanMessage(value: string)`\n\nAll three bodies are byte-identical modulo renamed locals (`working` / `cleaned` / `normalised`) and the input parameter name. Every call site applies the same pipeline: null/undefined guard → coerce + trim → strip control chars → collapse whitespace → 1000-char cap → reject leading angle brackets → reject `\\x` escapes → reject >5 runs of `!!!`/`???` → lowercase shouty text. No arguments differ — this is a true single-helper extraction, not a parameterised family.\n\n## Proposed consolidation\n\n**New file:** `src/sanitize.ts` (single source of truth).\n\n**Files that change:**\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **New.** Holds the consolidated function + exported constants. |\n| `src/sanitize-a.ts` | Delete `sanitizeUserInput`; re-export from `./sanitize` under the old name for one release, or update callers and delete the file. |\n| `src/sanitize-b.ts` | Same — delete `sanitizeText`, re-export or migrate callers. |\n| `src/sanitize-c.ts` | Same — delete `cleanMessage`, re-export or migrate callers. |\n| Any caller of the three old names | Import `sanitize` from `./sanitize` instead. |\n\nThe `assertAdminA/B/C` helpers in those files are a *separate* crime (`crime_00003`, three distinct admin-check shapes) and should be unified independently via a `isAdmin(role)` policy helper — don't fold them into the sanitiser; they have nothing to do with sanitisation.\n\n## Public API of the consolidated function\n\n```ts\n// src/sanitize.ts\n\nexport const SANITIZE_MAX_LENGTH = 1000;\nexport const SANITIZE_MAX_PUNCTUATION_RUNS = 5;\nexport const SANITIZE_SHOUT_RATIO = 0.9;\nexport const SANITIZE_SHOUT_MIN_LENGTH = 30;\n\n/**\n * Normalises free-text user input for storage/display.\n * Returns \"\" for null/undefined, empty input, or input that trips a reject rule\n * (leading angle bracket, `\\x` escape, excessive `!!!`/`???` runs).\n * Truncates to SANITIZE_MAX_LENGTH and lowercases obviously-shouty text.\n */\nexport function sanitize(input: string | null | undefined): string;\n```\n\nRationale for the shape:\n\n- **One name, one signature.** Three names (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) were synonyms with no semantic distinction; a single verb (`sanitize`) is enough.\n- **No options bag yet.** The bodies are identical — there is no observed axis of variation to parameterise. Adding `SanitizeOptions` now would be speculative; the magic numbers are exported as named constants so callers that genuinely need a different cap can be addressed when that need actually appears.\n- **Accepts `string | null | undefined`** because all three originals defensively guarded against nullish input. Preserving that keeps the migration mechanical.\n- **No role/admin parameter.** The `assertAdmin*` checks were hoisted out of the sanitiser body in the fixture precisely because they're orthogonal — pulling them back in would re-couple the two crimes.\n\nDrop-in shims during migration (optional, one release):\n\n```ts\n// sanitize-a.ts\nexport { sanitize as sanitizeUserInput } from \"./sanitize\";\n// sanitize-b.ts\nexport { sanitize as sanitizeText } from \"./sanitize\";\n// sanitize-c.ts\nexport { sanitize as cleanMessage } from \"./sanitize\";\n```\n\nThen delete each shim once callers are updated.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

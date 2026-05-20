@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.10.4",
+  "timestamp": "2026-05-20T17:45:00.710Z",
+  "run_id": "909c7e65-9e63-40bb-9666-678c6a0b702f",
+  "response": "## Refactor proposal for `src/Card.tsx`\n\nCurrent shape: a single `<div>` with inline styles, raw hex/rgb literals, fixed pixel widths, and a click handler with no a11y affordances. All three findings trace back to the inline-style block plus the click on a non-semantic element.\n\n### Proposed code\n\n```tsx\n// src/Card.tsx\nimport styles from \"./Card.module.css\";\n\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate?: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  const Root = onActivate ? \"button\" : \"div\";\n  return (\n    <Root\n      type={onActivate ? \"button\" : undefined}\n      onClick={onActivate}\n      className={styles.card}\n    >\n      <div className={styles.body}>{children}</div>\n      <aside className={styles.sidebar}>sidebar</aside>\n    </Root>\n  );\n}\n```\n\n```css\n/* src/Card.module.css */\n.card {\n  width: 100%;\n  max-width: 50rem;            /* was width: 800px */\n  padding: var(--space-3);     /* was padding: 24 */\n  background: var(--color-surface-accent);  /* was #ff00aa */\n  color: var(--color-text);                 /* was #0a0a0a */\n  border: 1px solid var(--color-border);    /* was #cccccc */\n  box-shadow: var(--shadow-sm);             /* was 0 2px 4px rgb(0,0,0) */\n  outline-color: var(--color-focus);        /* was #1a73e8 */\n  container-type: inline-size;\n}\n\n.body { font-size: clamp(0.95rem, 1.2vw, 1.125rem); }   /* was 18px fixed */\n.sidebar { font-size: 0.875rem; color: var(--color-text-muted); }\n\n@container (min-width: 40rem) {\n  .card { display: grid; grid-template-columns: 1fr 15rem; gap: var(--space-3); }\n}\n```\n\n### How each change maps to a finding\n\n| Finding | Change |\n|---|---|\n| **`design_token_escape`** (crime_00002) | All nine raw color/shadow/px literals move out of inline `style={}` into a CSS module that consumes design tokens (`--color-*`, `--space-*`, `--shadow-*`). Agents editing the file can no longer copy a hex forward — there are no hexes to copy. |\n| **`accessible_interaction_risk`** (crime_00001) | The clickable outer element becomes a real `<button>` when `onActivate` is provided. That gives keyboard focus, Enter/Space activation, and the right role for free — no `role=\"button\"` + `tabIndex={0}` + `onKeyDown` patchwork needed. If the wrapper is non-interactive, it renders as `<div>` with no click handler. |\n| **`responsive_fragility`** (crime_00003) | Fixed `width: 800px` / `720px` become `width: 100%; max-width: 50rem` so the card collapses below the breakpoint. The `18px` font scales via `clamp()`. The inner two-column layout is driven by a **container query** instead of a viewport media query, so a Card placed in a narrow column also collapses correctly. |\n\n### Trade-offs worth flagging\n\n- **Token names are illustrative.** This fixture has no design system; in a real repo I'd grep for the existing token source (Tailwind config, CSS vars, a `theme.ts`) before naming variables. If there's no system yet, that's a separate finding worth raising before the inline styles get fixed.\n- **`onActivate` rename.** Renaming `onClick` → `onActivate` at the API surface is a small breaking change for callers but signals \"this fires on click *and* keyboard activation,\" which is what a button actually does. If you'd rather preserve the prop name, keep `onClick` — the semantics still come out right because it's wired to a real `<button>`.\n- **Container queries** need a fairly modern target (Safari 16+, baseline 2023). If the project still supports older browsers, fall back to a `@media (min-width: 40rem)` query on the parent.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

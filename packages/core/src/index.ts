@@ -297,7 +297,7 @@ export {
   resolveAliasGroups,
   scan,
 } from "./scan.js";
-export type { ScanOptions } from "./scan.js";
+export type { ApplyScanFailOnOptions, ScanOptions } from "./scan.js";
 export { applyTriageFilter } from "./triage-filter.js";
 export type {
   ApplyTriageFilterOptions,
