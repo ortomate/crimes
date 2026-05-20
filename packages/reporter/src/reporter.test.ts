@@ -1064,7 +1064,8 @@ describe("formatContextHumanReport — clues block", () => {
     });
     const out = formatContextHumanReport(report, { noColor: true });
     expect(out).toContain("Clues");
-    expect(out).toContain("churn: 14 commits / 3 authors (last 2026-05-18)");
+    // Output now reads "churn: 14 commits over 90d · last touched <relative> · 3 authors"
+    expect(out).toMatch(/churn: 14 commits over 90d.*3 authors/);
     expect(out).toContain("test gap: top-quartile");
     expect(out).toContain("known suppressions: 1");
   });

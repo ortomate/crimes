@@ -1,4 +1,5 @@
 import type { ContextReport, ContextRisk } from "@crimes/core";
+import { formatChurn, formatTestGap } from "./score-format.js";
 import type { ColourFns, FeedbackHintOptions } from "./shared.js";
 import { pc, plainColour, renderFinding } from "./shared.js";
 
@@ -78,11 +79,19 @@ export function formatContextHumanReport(
     lines.push(colour.bold("Clues"));
     if (report.clues.churn) {
       const { commits_90d, last_commit_at, unique_authors_90d } = report.clues.churn;
-      const dateOnly = last_commit_at.slice(0, 10);
-      lines.push(`  · churn: ${commits_90d} commits / ${unique_authors_90d} author${unique_authors_90d === 1 ? "" : "s"} (last ${dateOnly})`);
+      const churnLabel = formatChurn(
+        Math.min(commits_90d / 30, 1), // approximate score from the count
+        commits_90d,
+        last_commit_at,
+      );
+      lines.push(
+        `  · churn: ${churnLabel} · ${unique_authors_90d} author${unique_authors_90d === 1 ? "" : "s"}`,
+      );
     }
     if (report.clues.test_gap) {
-      lines.push(`  · test gap: ${report.clues.test_gap.label}`);
+      lines.push(
+        `  · test gap: ${formatTestGap(report.clues.test_gap.raw, report.clues.test_gap.label)}`,
+      );
     }
     if (report.clues.suppressions && report.clues.suppressions.length > 0) {
       const n = report.clues.suppressions.length;

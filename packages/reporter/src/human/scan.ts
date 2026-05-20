@@ -1,4 +1,5 @@
 import type { Finding, ScanReport, Severity } from "@crimes/core";
+import { formatBlastRadius, formatChurn } from "./score-format.js";
 import type { ColourFns, FeedbackHintOptions } from "./shared.js";
 import { pc, plainColour, renderFinding, severityGlyph } from "./shared.js";
 
@@ -562,9 +563,11 @@ function fileRiskSummary(group: FileGroup): string | undefined {
     return undefined;
   }
   const parts: string[] = [];
-  if (maxChurn !== undefined) parts.push(`max churn ${maxChurn.toFixed(2)}`);
+  if (maxChurn !== undefined) parts.push(`churn ${formatChurn(maxChurn)}`);
   if (anyTestGap) parts.push(`test gap ${dominantTestGap(testGapBuckets)}`);
-  if (maxBlast !== undefined) parts.push(`max blast radius ${maxBlast.toFixed(2)}`);
+  if (maxBlast !== undefined) {
+    parts.push(`blast ${formatBlastRadius(maxBlast)}`);
+  }
   return parts.join(" · ");
 }
 
