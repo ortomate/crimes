@@ -9,6 +9,7 @@ This document covers:
 
 - Pre-edit briefing with `crimes context` — the recommended first step
 - Scan and post-edit gates — `crimes scan` and `crimes scan --changed`
+- Triage — `crimes triage` for per-finding disposition + reason + owner
 - Verdict — one-line branch summary
 - Supporting commands — `crimes hotspots`, `crimes diff`, `crimes baseline`
 - How to interpret findings as an agent
@@ -73,6 +74,78 @@ without further configuration. For agents that read neither, point them at
 this document or copy the [Pre-edit briefing](#1-pre-edit-briefing-crimes-context) and
 [Post-edit gate](#2-scan-and-post-edit-gates) sections into your project's agent-rules file.
 
+### PreToolUse hook contract
+
+`crimes init --agents` (since `0.11.0`) writes a Claude Code
+`PreToolUse` Edit hook in addition to the SKILL.md files. The hook
+runs `crimes context --format json` on the file being edited so the
+agent gets a structured pre-edit briefing without having to remember
+to invoke the command.
+
+**Files written:**
+
+| Path                             | Behaviour                                                                          |
+| -------------------------------- | ---------------------------------------------------------------------------------- |
+| `.claude/skills/crimes/SKILL.md` | Unchanged (since `0.9.0`).                                                         |
+| `.agents/skills/crimes/SKILL.md` | Unchanged (since `0.9.0`).                                                         |
+| `.claude/settings.local.json`    | **New.** Merge-write of a PreToolUse Edit hook (see below).                        |
+| `.agents/settings.local.json`    | **New (placeholder).** Same JSON shape; Codex does not honour PreToolUse yet.      |
+
+**The hook itself** (merged into `.claude/settings.local.json`, never
+overwritten wholesale):
+
+```jsonc
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx -y crimes context \"$CLAUDE_TOOL_INPUT_file_path\" --format json 2>/dev/null || true",
+            "timeout": 8000
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Contract details:
+
+- **Matcher** is `Edit|Write|NotebookEdit` — the hook fires on every
+  Claude Code tool invocation that mutates a file.
+- **Command** runs `crimes context` on the target path with
+  `--format json`, suppressing stderr and falling back to a no-op on
+  any non-zero exit. The agent sees the JSON briefing in its hook
+  output buffer; failures (no git repo, file outside any package, etc.)
+  never block the edit.
+- **Timeout** is 8 seconds.
+- **Merge semantics.** `crimes init --agents` reads the existing
+  `.claude/settings.local.json`, parses it, appends the entry to
+  `hooks.PreToolUse[]`, and writes back (2-space indent, trailing
+  newline). If the file already contains a crimes hook (detected by
+  the `crimes context` substring in `command`), the write is a no-op.
+  A malformed existing file exits `2`; pass `--force` to overwrite.
+- **`--no-hooks`** opts out of writing either settings file. The
+  SKILL.md files still ship.
+
+**Codex stub.** `.agents/settings.local.json` carries the same JSON
+shape as the Claude file (`$CODEX_TOOL_INPUT_file_path` substituted
+for the Claude env var). Codex does **not** honour `PreToolUse` hooks
+as of `crimes@0.11.0`; the file is a forward-looking placeholder so
+the schema is ready when the Codex hook surface lands. A top-of-file
+`_note` key (or sibling README, depending on the Codex tolerance for
+unknown keys at the time of writing) documents this. Safe to delete.
+
+The hook is **non-optional by default** because the briefing is the
+load-bearing piece — an agent that never calls `crimes context` before
+editing gets none of the value. If your team prefers to opt out, run
+`crimes init --agents --no-hooks` or delete the settings file
+manually.
+
 ---
 
 ## When to run which command
@@ -83,6 +156,7 @@ this document or copy the [Pre-edit briefing](#1-pre-edit-briefing-crimes-contex
 | About to refactor across a directory                            | `crimes scan <path> --format json`               |
 | Mid-task, want to re-check only the files you have touched      | `crimes scan --changed --format json`            |
 | Reviewing a feature branch before merge                         | `crimes scan --changed --base main --format json`|
+| Bulk-handling a backlog of findings on a legacy repo            | `crimes triage` (or `crimes triage --apply <file>` in CI) |
 | One-line "did this branch help or hurt?" summary                | `crimes verdict --format json`                   |
 | Comparing two committed refs (e.g. main vs HEAD)                | `crimes diff main...HEAD --format json`          |
 | Gating CI on "no new debt vs the saved baseline"                | `crimes baseline check --format json`            |
@@ -334,7 +408,75 @@ Decision rule (same for all scan commands):
 
 ---
 
-### 3. Verdict (`crimes verdict`)
+### 3. Triage (`crimes triage`)
+
+When a scan turns up more findings than you intend to address in one
+edit, the recommended path is **`crimes triage`**, not
+`crimes baseline save`. Triage is per-finding: each entry carries a
+disposition + reason + owner + date instead of bulk amnesia.
+
+```bash
+crimes triage                              # interactive walk over current findings
+crimes triage --apply dispositions.json    # non-interactive (scripted use)
+crimes triage --list                       # show current entries; no scan, no prompts
+crimes triage --retriage src/billing.ts    # re-open the prompt for matching entries
+crimes triage --clear <fingerprint>        # remove one entry
+```
+
+Five dispositions:
+
+| Disposition    | Default `crimes scan` | Resurfaces on touched files? |
+| -------------- | --------------------- | ---------------------------- |
+| `fix-now`      | shown (`▶` prefix)    | n/a                          |
+| `fix-this-PR`  | shown (`▶` prefix)    | n/a                          |
+| `needs-design` | hidden                | yes — "still intentional?"   |
+| `wont-fix`     | hidden                | yes — "still intentional?"   |
+| `scaffolding`  | hidden                | yes — "still intentional?"   |
+
+Entries persist to `.crimes/triage.json`, intended to be committed.
+The schema is the same `<type>::<file>::<symbol-or-empty>` fingerprint
+as baseline + suppressions; small line shifts don't invalidate an
+entry. `reason`, `owner`, and `date` are required at the schema level.
+
+**Resurfacing.** `needs-design`, `wont-fix`, and `scaffolding` are
+silenced by default but **resurface automatically** when the file
+appears in the branch diff against `config.triage.resurfaceBase`
+(default `"main"`). The resurfaced finding carries
+`previously_triaged: true` plus a `previous_triage` block (the
+original disposition + reason + owner + date) and renders with a
+`▼ was previously triaged` annotation in the human report. Baseline
+entries get the same treatment with `previously_baselined` /
+`previous_baseline`. Set `triage.resurfaceBase: ""` in
+`crimes.config.json` to disable resurfacing.
+
+New `crimes scan` flags introduced for triage / resurface:
+
+| Flag                  | Default | Effect                                                                                          |
+| --------------------- | ------- | ----------------------------------------------------------------------------------------------- |
+| `--show-triaged`      | off     | Include silenced dispositions in output (annotated with `hidden_triage`).                       |
+| `--gate-needs-design` | off     | When `--fail-on` is set, count `needs-design` findings toward the gate.                         |
+| `--gate-resurfaced`   | off     | When `--fail-on` is set, count resurfaced findings on touched files toward the gate.            |
+
+Default gate semantics: `wont-fix`, `scaffolding`, and `needs-design`
+are excluded from `--fail-on` (the user already triaged them).
+Resurfaced findings are surfaced as a reminder, not a block. Opt in
+with the flags above when your team wants stricter gating.
+
+Decision rule for agents:
+
+- When `crimes scan` shows a resurface block (`previously_triaged` or
+  `previously_baselined` findings), read each entry and decide
+  whether the original disposition still holds. If it does, leave
+  the entry; if it doesn't, run
+  `crimes triage --retriage <file>` to re-open the prompt.
+- Don't reach for `crimes baseline save` to silence a noisy first
+  scan. Run `crimes triage` and walk the list — the receipts
+  (`reason` / `owner` / `date`) are the audit trail the team will
+  need when the file changes again.
+
+---
+
+### 4. Verdict (`crimes verdict`)
 
 When the agent finishes a task and wants a one-line "did this branch
 help or hurt the repo?" answer, run `crimes verdict`. It is built on top
@@ -421,7 +563,7 @@ trade-off rather than silently merging.
 
 ---
 
-### 4. Communicate trade-offs explicitly
+### 5. Communicate trade-offs explicitly
 
 If you are leaving findings in the code on purpose, **say so in your PR
 description or chat reply**, citing the finding `id` and `charge`. Do not
@@ -812,6 +954,13 @@ rely on them in agent instructions yet:
 | `scopeTiers.nonDomain` config key | ✅ shipped (`0.10.0`) |
 | `scan.topFiles` config key | ✅ shipped (`0.10.0`) |
 | Two-prompt auto-init with agent detection | ✅ shipped (`0.10.0`) |
+| `crimes triage` (interactive walk + `--apply` / `--list` / `--clear` / `--retriage`) | ✅ shipped (`0.11.0`) |
+| `Finding.effort` + `Finding.fix_shape` (schema `0.2.0`) | ✅ shipped (`0.11.0`) |
+| `previously_triaged` / `previous_triage` / `previously_baselined` / `previous_baseline` on findings | ✅ shipped (`0.11.0`) |
+| `triage.resurfaceBase` config key + automatic resurfacing on touched files | ✅ shipped (`0.11.0`) |
+| `crimes scan --show-triaged` / `--gate-needs-design` / `--gate-resurfaced` | ✅ shipped (`0.11.0`) |
+| `crimes init --agents` writes `.claude/settings.local.json` PreToolUse hook (`--no-hooks` opts out) | ✅ shipped (`0.11.0`) |
+| Human-readable secondary scores in scan + context (JSON numerics unchanged) | ✅ shipped (`0.11.0`) |
 | `crimes ask` / LLM-assisted modes      | 🚧 deferred to `v1+`    |
 
 The pre/post-edit workflow works as `crimes context <file> --format json`
@@ -866,9 +1015,12 @@ workflow.
 
 ## Stability and schema versioning
 
-- `schema_version` at the top of the report is the source of truth. While
-  `schema_version === "0.1.0"`, the shape documented in
-  [`json-schema.md`](./json-schema.md) is stable.
+- `schema_version` at the top of the report is the source of truth.
+  `crimes@0.11.0` bumps it from `"0.1.0"` to `"0.2.0"` to add the
+  required `effort` and `fix_shape` fields on every `Finding`. The
+  shape documented in [`json-schema.md`](./json-schema.md) is stable
+  within a `schema_version`; consumers that hard-checked `=== "0.1.0"`
+  must accept `"0.2.0"` as well.
 - Optional score fields (`scores.blast_radius`, `scores.churn`,
   `scores.test_gap`) are **populated by every scan from `0.6.0`
   onward** from the import graph, 90-day git churn, and the test-file

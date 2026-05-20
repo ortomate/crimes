@@ -87,6 +87,10 @@ That writes `.claude/skills/crimes/SKILL.md` and
     "topFiles": 5
   },
 
+  "triage": {
+    "resurfaceBase": "main"
+  },
+
   "ia": {
     "aliasGroups": []
   },
@@ -314,6 +318,47 @@ legacy severity-grouped layout.
 
 Defaults to `5`. JSON output is unaffected — the `topFiles` knob only
 shapes the human renderer.
+
+### `triage.resurfaceBase` (since 0.11.0)
+
+Git ref used to detect "touched files" for the resurfacing pipeline.
+On every `crimes scan` invocation, files in the diff against
+`<resurfaceBase>...HEAD` (plus working-tree changes) are checked
+against `.crimes/triage.json` and `.crimes/baseline.json`; any
+silenced or baselined finding whose file is in that set resurfaces
+with `previously_triaged` / `previous_triage` (or
+`previously_baselined` / `previous_baseline`) annotations.
+
+| Key                     | Type   | Default  | Description                                                                                          |
+| ----------------------- | ------ | -------- | ---------------------------------------------------------------------------------------------------- |
+| `triage.resurfaceBase`  | string | `"main"` | Git ref used to detect "touched files" for resurfacing. Empty string disables resurfacing entirely.  |
+
+```jsonc
+{
+  "triage": {
+    "resurfaceBase": "develop"
+  }
+}
+```
+
+Resurfacing is skipped silently when:
+
+- `triage.resurfaceBase` is `""`.
+- The directory is not a git repository.
+- `HEAD` resolves to the same ref as `<resurfaceBase>` — you're on the
+  base, there's no diff to compute.
+
+**Interaction with `scopeTiers.nonDomain`.** Resurfacing crosses
+tiers — a triaged finding in a non-domain file (e.g. under
+`scripts/**` or `**/__tests__/**`) **still resurfaces** when that file
+is in the branch diff. The non-domain footer is a *display* tier, not
+a "we don't care about it" tier; once you've explicitly triaged the
+finding the resurface contract honours that decision regardless of
+where the file lives.
+
+The default `crimes triage` interactive walk visits domain-tier
+findings only. Pass `crimes triage --all` to include non-domain
+findings in the walk.
 
 ### `ia.aliasGroups`
 

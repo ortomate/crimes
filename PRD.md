@@ -452,6 +452,8 @@ Example:
         "test_gap": 0.58,
         "agent_risk": 0.91
       },
+      "effort": "medium",
+      "fix_shape": "extract orchestration; move pure helpers to a sibling module",
       "suggested_actions": [
         {
           "kind": "extract_function",
@@ -1017,6 +1019,9 @@ crimes.config.json example:
     "largeFunctionLines": 80,
     "largeFileLines": 500,
     "maxParams": 5
+  },
+  "triage": {
+    "resurfaceBase": "main"
   }
 }
 
@@ -1324,6 +1329,24 @@ Deliverables:
 * macOS/Linux/Windows binaries if feasible
 * Homebrew tap
 * Install docs updated
+
+⸻
+
+Versioned milestones (post-launch)
+
+crimes@0.11.0 — Triage as the front door (Release B)
+
+Theme: explicit per-finding triage replaces reflexive baseline.
+
+Deliverables:
+
+* crimes triage command — top-of-rank interactive walk with five dispositions (fix-now, fix-this-PR, needs-design, wont-fix, scaffolding)
+* .crimes/triage.json on-disk schema with required reason + owner + date per entry
+* Triage- and baseline-aware resurfacing on touched files (config.triage.resurfaceBase, default "main")
+* New Finding fields effort + fix_shape; schema_version bump 0.1.0 → 0.2.0
+* PreToolUse Edit hook in crimes init --agents (.claude/settings.local.json), with --no-hooks opt-out and a forward-looking Codex stub
+* Human-readable secondary scores in scan + context renderers (JSON numerics unchanged)
+* New scan flags: --show-triaged, --gate-needs-design, --gate-resurfaced
 
 ⸻
 

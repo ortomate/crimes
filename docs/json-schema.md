@@ -9,11 +9,43 @@ This page is the **stable product API**. Treat it as a public contract:
 any breaking change to a field name, type, or required-ness will bump
 `schema_version`.
 
-Documented as of `schema_version: "0.1.0"`. The source of truth in code
+Documented as of `schema_version: "0.2.0"`. The source of truth in code
 is [`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
 
 For how an agent should _use_ this output, see
 [`agent-usage.md`](./agent-usage.md).
+
+## Migration note: schema_version 0.1.0 → 0.2.0
+
+`crimes@0.11.0` bumps the finding schema. Every `Finding` now carries
+two new required fields:
+
+| Field      | Type                                        | Description                                |
+| ---------- | ------------------------------------------- | ------------------------------------------ |
+| `effort`   | `"quick" \| "small" \| "medium" \| "large"` | Estimated effort to address.               |
+| `fix_shape`| `string` (≤120 chars, single line)          | The shape of the fix, not the fix itself.  |
+
+Consumers that hard-checked `schema_version === "0.1.0"` must accept
+`"0.2.0"` as well. No existing field changed shape, name, or semantics.
+
+Effort ladder:
+
+- `quick` — ≤1-line change.
+- `small` — under one hour of work.
+- `medium` — fits within one PR.
+- `large` — needs design.
+
+`fix_shape` is a one-line description of the *shape* of the fix
+(e.g. `"extract orchestration; move pure helpers to a sibling module"`),
+not a complete patch. Detector-supplied; per-detector defaults live in
+[`packages/core/src/detector-defaults.ts`](../packages/core/src/detector-defaults.ts).
+The fallback for detectors that supply neither is `medium` +
+`"refactor to remove this signal; add a test that pins the fix"`.
+
+This release also adds several **optional** annotation fields on
+`Finding` for the `crimes triage` workflow and the resurfacing pipeline.
+See [Triage fields](#triage-and-resurface-fields) and
+[`.crimes/triage.json`](#triage-on-disk-shape-of-crimestriagejson).
 
 ## Contents
 
@@ -29,11 +61,12 @@ For how an agent should _use_ this output, see
 | [`VerdictReport`](#verdictreport-output-of-crimes-verdict)        | `"verdict"`       | `crimes verdict`                                      |
 | [`ExplainReport`](#explainreport-output-of-crimes-explain)        | `"explain"`       | `crimes explain <id-or-fingerprint>`                  |
 | [`Suppressions`](#suppressions-on-disk-shape-of-crimessuppressionsjson) | `"suppressions"` | `crimes ignore` / `crimes unignore` (on-disk file)   |
+| [`Triage`](#triage-on-disk-shape-of-crimestriagejson)             | `"triage"`        | `crimes triage` (on-disk file, since `0.11.0`)        |
 | [`AuditSuppressionsReport`](#auditsuppressionsreport-output-of-crimes-audit-suppressions) | `"audit_suppressions"` | `crimes audit-suppressions`            |
 | [`FeedbackReport`](#feedbackreport-output-of-crimes-feedback-list--summary--export)       | `"feedback"`           | `crimes feedback list / summary / export`             |
 | [Gate fields](#scan---changed---fail-on-gate-fields)              | _(optional)_      | `crimes scan --changed --fail-on …`                   |
 | [Suppression fields](#suppression-fields)                         | _(optional)_      | every report that lists findings                      |
-| [Resurface fields](#resurface-fields)                             | _(optional)_      | every report that lists findings (0.7.0+)             |
+| [Triage and resurface fields](#triage-and-resurface-fields)       | _(optional)_      | every report that lists findings (0.7.0+ resurface, 0.11.0+ triage) |
 | [Stability guarantees](#stability-guarantees)                     |                   |                                                       |
 
 ---
@@ -46,7 +79,7 @@ two extra top-level fields documented below).
 
 ```ts
 interface ScanReport {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /** Discriminator. Always the literal `"scan"`. */
   report_type: "scan";
   repo: RepoInfo;
@@ -58,6 +91,15 @@ interface ScanReport {
   failed?: boolean;
   /** Set only when `crimes scan --changed` was used. See below. */
   changed_files?: string[];
+  /**
+   * Number of findings hidden because of a silencing `.crimes/triage.json`
+   * entry (`needs-design`, `wont-fix`, or `scaffolding`). Only present
+   * when ≥1 silencing entry matched and `--show-triaged` was off —
+   * absent otherwise, which downstream consumers should treat as "no
+   * triaged findings hidden in this invocation". Mirrors the
+   * `suppressed_count` convention.
+   */
+  triage_hidden_count?: number;
 }
 ```
 
@@ -243,6 +285,74 @@ interface Finding {
     pinned_version: string;
     reason: string;
   };
+  /**
+   * Estimated effort to address. Detector-supplied; defaults vary per
+   * detector type and fall back to `"medium"`. Required since 0.2.0.
+   */
+  effort: "quick" | "small" | "medium" | "large";
+  /**
+   * One-line description of the *shape* of the fix, not the fix itself.
+   * Detector-supplied; ≤120 chars, single line, non-empty. Defaults vary
+   * per detector type — see `packages/core/src/detector-defaults.ts`.
+   * Required since 0.2.0.
+   */
+  fix_shape: string;
+  /**
+   * Set when this finding matches an entry in `.crimes/triage.json` with
+   * a non-silencing disposition (`fix-now` or `fix-this-PR`). Silencing
+   * dispositions hide the finding by default and only surface via the
+   * resurfacing pipeline or `--show-triaged` (see `hidden_triage`).
+   */
+  triaged?: {
+    disposition: "fix-now" | "fix-this-PR";
+    reason: string;
+    owner: string;
+    /** YYYY-MM-DD */
+    date: string;
+  };
+  /**
+   * Set only when the consumer requested `--show-triaged` AND this
+   * finding matched a silencing triage disposition. Gate evaluation
+   * always ignores findings with `hidden_triage !== undefined`,
+   * regardless of `--show-triaged`.
+   */
+  hidden_triage?: {
+    disposition: "needs-design" | "wont-fix" | "scaffolding";
+    reason: string;
+    owner: string;
+    date: string;
+  };
+  /**
+   * Set when this finding resurfaced because it matched an entry in
+   * `.crimes/triage.json` and its file is in the branch diff against
+   * `config.triage.resurfaceBase`. The finding is kept in `findings[]`
+   * with this annotation; consumers can detect resurfaced entries by
+   * filtering on `previously_triaged === true`.
+   */
+  previously_triaged?: true;
+  /** Paired with `previously_triaged`. The original disposition + receipts. */
+  previous_triage?: {
+    disposition: "fix-now" | "fix-this-PR" | "needs-design" | "wont-fix" | "scaffolding";
+    reason: string;
+    owner: string;
+    /** YYYY-MM-DD */
+    date: string;
+  };
+  /**
+   * Set when this finding resurfaced because it matched an entry in
+   * `.crimes/baseline.json` and its file is in the branch diff against
+   * `config.triage.resurfaceBase`. Mutually exclusive with
+   * `previously_triaged` in practice — a finding with both possible
+   * matches gets `previously_triaged` (triage wins, more specific).
+   */
+  previously_baselined?: true;
+  /** Paired with `previously_baselined`. Best-effort metadata from the baseline file. */
+  previous_baseline?: {
+    /** ISO-8601 date the baseline was last written; absent if unknown. */
+    date?: string;
+    /** Baselines don't store per-entry reasons today; absent. */
+    reason?: string;
+  };
 }
 ```
 
@@ -252,6 +362,9 @@ Always present on every finding:
 
 - `id`, `type`, `charge`, `severity`, `confidence`, `file`, `summary`,
   `evidence`, `scores`
+- `effort` and `fix_shape` since `schema_version: "0.2.0"`
+  (`crimes@0.11.0`). Detector-supplied with defaults — see
+  [Migration note](#migration-note-schema_version-010--020).
 
 Populated when the detector has the data:
 
@@ -496,7 +609,7 @@ absence as "no cross-file context for this finding".
 
 ```ts
 interface ContextReport {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /** Discriminator. Always the literal `"context"`. */
   report_type: "context";
   repo: { name: string; root: string; git_ref?: string };
@@ -669,7 +782,7 @@ match on.
 
 ```ts
 interface HotspotsReport {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /** Discriminator. Always the literal `"hotspots"`. */
   report_type: "hotspots";
   repo: RepoInfo;
@@ -768,7 +881,7 @@ rather than listed flat.
 
 ```ts
 interface DiffReport {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /** Discriminator. Always the literal "diff". */
   report_type: "diff";
   repo: { name: string; root: string };
@@ -906,7 +1019,7 @@ runs should ignore. The schema is versioned by the same `schema_version` as
 
 ```ts
 interface Baseline {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /** Discriminator. Always the literal "baseline". */
   report_type: "baseline";
   /** ISO-8601 timestamp at which the baseline was written. */
@@ -956,7 +1069,7 @@ with identical `(type, file, symbol)` collide on one fingerprint.
 
 ```ts
 interface BaselineCheckReport {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /** Discriminator. Always the literal "baseline_check". */
   report_type: "baseline_check";
   repo: { name: string; root: string };
@@ -1028,7 +1141,7 @@ machinery, same fingerprint-based matching) and adds a single headline
 
 ```ts
 interface VerdictReport {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /** Discriminator. Always the literal "verdict". */
   report_type: "verdict";
   repo: { name: string; root: string };
@@ -1141,7 +1254,7 @@ detector type, no LLM, no per-finding tailoring.
 
 ```ts
 interface ExplainReport {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /** Discriminator. Always the literal `"explain"`. */
   report_type: "explain";
   /** The matched finding, verbatim from the scan it came from. */
@@ -1181,7 +1294,7 @@ annotated.
 
 ```ts
 interface Suppressions {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /** Discriminator. Always the literal `"suppressions"`. */
   report_type: "suppressions";
   /** ISO-8601 timestamp at which the file was first written. */
@@ -1239,6 +1352,80 @@ visible).
 
 ---
 
+## `Triage` (on-disk shape of `.crimes/triage.json`)
+
+Hand-reviewable list of per-finding dispositions. Written by `crimes
+triage` (interactive or `--apply`), intended to be committed.
+Dispositions other than `fix-now` / `fix-this-PR` hide the finding from
+the default `crimes scan` view; silenced findings resurface
+automatically when the file appears in the branch diff against
+`config.triage.resurfaceBase` (default `"main"`). New in `0.11.0`.
+
+```ts
+interface Triage {
+  schema_version: "0.2.0";
+  /** Discriminator. Always the literal `"triage"`. */
+  report_type: "triage";
+  /** ISO-8601 timestamp at which the file was first written. */
+  created_at: string;
+  /** ISO-8601 timestamp at which the file was last modified. */
+  updated_at: string;
+  /** Version of `crimes` that wrote the file last. Informational. */
+  crimes_version?: string;
+  entries: TriageEntry[];
+}
+
+interface TriageEntry {
+  /** Stable `<type>::<file>::<symbol-or-empty>` identity. Required. */
+  fingerprint: string;
+  /** Denormalised — same as the type segment of `fingerprint`. */
+  type: string;
+  /** Denormalised — same as the file segment of `fingerprint`. */
+  file: string;
+  /** Denormalised — same as the symbol segment; empty string when absent. */
+  symbol?: string;
+  /**
+   * Headline disposition. `fix-now` and `fix-this-PR` keep the finding
+   * visible in `crimes scan` (annotated with a `▶` prefix); the other
+   * three hide it by default and resurface on touched files.
+   */
+  disposition: "fix-now" | "fix-this-PR" | "needs-design" | "wont-fix" | "scaffolding";
+  /** Required, non-empty. The team's justification. */
+  reason: string;
+  /**
+   * Required at the schema level — present on every entry. May be the
+   * empty string when the user declined to set one during the
+   * interactive walk.
+   */
+  owner: string;
+  /** YYYY-MM-DD when the disposition was recorded. Required. */
+  date: string;
+}
+```
+
+`reason`, `owner`, and `date` are **required at the zod level** so the
+on-disk file always carries the receipts. `owner` may be the empty
+string when the user explicitly declined to set one, but the field
+must be present. `reason` and `date` are non-empty. `fingerprint`
+follows the same `<type>::<file>::<symbol-or-empty>` scheme as
+`Baseline` and `Suppressions`.
+
+The denormalised `type` / `file` / `symbol` fields are redundant for
+matching (only `fingerprint` drives it) but are load-bearing for human
+review of `git diff .crimes/triage.json`.
+
+The file is rewritten in full by `crimes triage` — pretty-printed with
+2-space indent and a trailing newline. Each disposition write is
+incremental: a SIGINT or terminal crash mid-walk does not lose
+progress. `crimes triage --apply <file>` merges by fingerprint —
+entries in the applied file overwrite existing entries with matching
+fingerprints; unmentioned fingerprints stay untouched.
+
+Malformed files raise `MalformedTriageError` and exit `2`, mirroring
+`MalformedSuppressionsError`.
+
+---
+
 ## `AuditSuppressionsReport` (output of `crimes audit-suppressions`)
 
 Lists every entry in `.crimes/suppressions.json` with per-entry age
@@ -1248,7 +1435,7 @@ malformed file exits `2` from the CLI with no JSON output.
 
 ```ts
 interface AuditSuppressionsReport {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /** Discriminator. Always the literal `"audit_suppressions"`. */
   report_type: "audit_suppressions";
   /** Absolute path of the suppressions file (read or not). */
@@ -1320,7 +1507,7 @@ shape (`feedback_recheck`) listed below.
 
 ```ts
 interface FeedbackReport {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   report_type: "feedback";
   scope: "repo" | "global";
   /** Absolute path of the JSONL file read. */
@@ -1365,7 +1552,7 @@ interface FeedbackSummary {
 
 ```ts
 interface FeedbackRecheckReport {
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   report_type: "feedback_recheck";
   current_version: string;          // e.g. "0.7.0"
   current_minor: string;            // e.g. "0.7"
@@ -1389,27 +1576,60 @@ interface FeedbackRecheckReport {
 
 ---
 
-## Resurface fields
+## Triage and resurface fields
 
 Every report that lists findings (`ScanReport`, `ContextReport`,
-`DiffReport`, `BaselineCheckReport`) can carry per-finding resurface
-annotations in 0.7.0+ when a feedback-sourced suppression's pinned
-minor differs from the current crimes minor:
+`DiffReport`, `BaselineCheckReport`) can carry one of two families of
+per-finding annotations:
 
-- `Finding.previously_suppressed?: true` — set on every resurfaced
-  finding. The finding is kept in `findings[]` (unlike `suppressed`,
-  which is only kept when `--show-suppressed` is on), and is **not**
-  counted in `suppressed_count`.
-- `Finding.previous_suppression?: { pinned_version, reason }` — paired
-  with `previously_suppressed`. Carries the prior pin + the original
-  feedback note.
+**Triage annotations** (since `0.11.0`) — set when the finding
+matched an entry in `.crimes/triage.json`:
+
+- `Finding.triaged?: { disposition, reason, owner, date }` — set for
+  visible dispositions (`fix-now`, `fix-this-PR`). The finding is kept
+  in `findings[]`; gate evaluation treats it like any other visible
+  finding.
+- `Finding.hidden_triage?: { disposition, reason, owner, date }` —
+  set only when `--show-triaged` is on AND the finding matched a
+  silencing disposition (`needs-design`, `wont-fix`, `scaffolding`).
+  Gate evaluation always ignores findings with `hidden_triage !==
+  undefined`, regardless of `--show-triaged`. Mirrors the
+  `suppressed` / `suppression_reason` pattern.
+- `ScanReport.triage_hidden_count?: number` — count of findings
+  hidden because of a silencing triage entry; only present when ≥1
+  silencing entry matched and `--show-triaged` was off.
+
+**Resurface annotations** (feedback-sourced since `0.7.0`; triage
+and baseline resurfacing since `0.11.0`) — set when a finding
+matched an entry in `.crimes/feedback*.jsonl`, `.crimes/triage.json`,
+or `.crimes/baseline.json` and is being re-surfaced for review:
+
+- `Finding.previously_suppressed?: true` — set when a feedback-sourced
+  suppression's pinned minor differs from the current crimes minor.
+  Paired with `Finding.previous_suppression?: { pinned_version, reason }`.
+- `Finding.previously_triaged?: true` (new in `0.11.0`) — set when the
+  finding matched a `.crimes/triage.json` entry and the file is in the
+  branch diff against `config.triage.resurfaceBase`. Paired with
+  `Finding.previous_triage?: { disposition, reason, owner, date }`.
+- `Finding.previously_baselined?: true` (new in `0.11.0`) — set when
+  the finding matched a `.crimes/baseline.json` entry and the file is
+  in the branch diff. Paired with
+  `Finding.previous_baseline?: { date?, reason? }` (best-effort
+  metadata; baselines don't store per-entry reasons today).
+- `previously_triaged` and `previously_baselined` are mutually
+  exclusive in practice. When a finding matches both, triage wins
+  (more specific).
 
 Consumers can detect resurfaced findings without reading the
-suppressions file by walking `findings[]` and filtering on
-`previously_suppressed === true`. Counting them is what powers the
-"5 feedback-sourced suppressions resurface because they were pinned
-to 0.6" stderr breadcrumb the CLI prints on every scan after a minor
-bump.
+on-disk files by walking `findings[]` and filtering on
+`previously_suppressed === true || previously_triaged === true ||
+previously_baselined === true`. Counting them powers the resurface
+block in the human renderer ("You're editing files you previously
+triaged — was this still intentional?").
+
+Resurfaced findings are emitted at the **start** of `findings[]`
+(before non-resurfaced findings), in `rank_score` order within the
+resurfaced subset.
 
 ---
 

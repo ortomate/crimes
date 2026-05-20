@@ -4,12 +4,19 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.9.2` (npm) ✅ shipped —
-  _emoji severity glyphs in human output + repository moved to
-  ortomate_.
+- **Last published version:** `crimes@0.11.0` (npm) ✅ shipped —
+  _triage as the front door_ (Release B). New `crimes triage` command,
+  triage- + baseline-aware resurfacing, PreToolUse hook in
+  `init --agents`, human-readable secondary scores in the renderer,
+  schema bump `0.1.0` → `0.2.0` adding required `effort` + `fix_shape`.
   `packages/cli/package.json` tracks the latest shipped version. Release
-  notes: [`docs/releases/v0.9.2.md`](./docs/releases/v0.9.2.md).
-- **Previously shipped milestones:** `crimes@0.9.1` — _visible
+  notes: [`docs/releases/v0.11.0.md`](./docs/releases/v0.11.0.md).
+- **Previously shipped milestones:** `crimes@0.10.0` — _front-door
+  redesign_ (Release A): file-grouped `scan` layout, repo-relative
+  `test_gap` quartile, recency-weighted ranking, `scopeTiers.nonDomain`,
+  `clues` block on `context --json`, two-prompt auto-init —
+  `crimes@0.9.2` — _emoji severity glyphs + ortomate move_ —
+  `crimes@0.9.1` — _visible
   welcome banner on bare `crimes`_ — `crimes@0.9.0` — _Codex agent
   discovery + Finder-duplicate petty crime_ — `crimes@0.8.1` —
   _calibration patch on 0.8.0_ — `crimes@0.8.0` — _extended lens:
@@ -38,6 +45,106 @@ mirror, not a planning doc.
 | M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
 | M5 — Public launch            | ✅ completed in `0.6.0` — full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/) via Astro + Starlight; landing page unchanged. |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
+
+---
+
+## ✅ Shipped in `crimes@0.11.0`
+
+> **Theme: Triage as the front door** (Release B). Minor release.
+> Schema bump (`0.1.0` → `0.2.0`) adding required `effort` +
+> `fix_shape`. No new detectors.
+>
+> Release notes: [`docs/releases/v0.11.0.md`](./docs/releases/v0.11.0.md).
+> Design rationale:
+> [`docs/superpowers/specs/2026-05-20-release-b-triage-design.md`](./superpowers/specs/2026-05-20-release-b-triage-design.md).
+
+- **`crimes triage` command.** Top-of-rank-first interactive walk over
+  findings with five dispositions (`fix-now`, `fix-this-PR`,
+  `needs-design`, `wont-fix`, `scaffolding`). Each disposition writes
+  to `.crimes/triage.json` immediately (incremental persistence). The
+  on-disk schema enforces `reason`, `owner`, and `date` per entry.
+  Subcommands: `--apply <file>` (non-interactive), `--list`,
+  `--clear <fingerprint>`, `--retriage <target>`, `--owner <handle>`,
+  `--all`.
+- **Triage- and baseline-aware resurfacing.** Silenced triage entries
+  and baseline entries automatically resurface in `crimes scan` when
+  their file is in the branch diff against
+  `config.triage.resurfaceBase` (default `"main"`). Resurfaced
+  findings carry `previously_triaged` / `previous_triage` (or
+  `previously_baselined` / `previous_baseline`) annotations and render
+  with a `▼` glyph in the human report. The re-detect pass drops
+  resurfaced entries silently when the underlying finding is already
+  fixed.
+- **`effort` + `fix_shape` on every `Finding`.** Schema bump
+  `schema_version: "0.1.0"` → `"0.2.0"`. Detector-supplied with
+  defaults in `packages/core/src/detector-defaults.ts`; generic
+  fallback is `medium` + a one-line "refactor … add a test" string.
+  No existing field changed shape, name, or semantics.
+- **New `crimes scan` flags.** `--show-triaged` reveals silenced
+  triage dispositions in the output. `--gate-needs-design` opts in to
+  counting `needs-design` findings toward `--fail-on`.
+  `--gate-resurfaced` opts in to gating on resurfaced findings on
+  touched files. All three default off.
+- **PreToolUse hook in `init --agents`.** `crimes init --agents` now
+  merge-writes a Claude Code `PreToolUse` Edit hook into
+  `.claude/settings.local.json` and a forward-looking stub into
+  `.agents/settings.local.json`. Matcher is `Edit|Write|NotebookEdit`;
+  command runs `crimes context --format json` on the file being
+  edited. `--no-hooks` opts out; `--force` overwrites the crimes hook
+  entry only.
+- **Human-readable secondary scores.** Scan + context renderers now
+  print `blast top-quartile (11 importers)` / `churn 24 commits over
+  90d · last touched 2 days ago` instead of bare decimals.
+  `FindingScores` numerics in JSON are **unchanged** — renderer-only
+  change.
+- **New config key.** `triage.resurfaceBase` (string, default
+  `"main"`) — empty string disables resurfacing entirely. See
+  [`docs/configuration.md`](./configuration.md).
+
+Schema bumps from `"0.1.0"` to `"0.2.0"`. Consumers that hard-checked
+`schema_version === "0.1.0"` must accept the new string.
+
+---
+
+## ✅ Shipped in `crimes@0.10.0`
+
+> **Theme: front-door redesign** (Release A). Minor release.
+> Default `crimes scan` becomes file-grouped; `crimes context` leads
+> in every entry-point. Detector taxonomy frozen; schema unchanged.
+>
+> Release notes: [`docs/releases/v0.10.0.md`](./docs/releases/v0.10.0.md).
+
+- **File-grouped `crimes scan` layout.** Default human output groups
+  findings by file, sorted by aggregate risk (churn × test-gap
+  quartile × blast radius × recency). Top 5 files shown by default;
+  `--top N` overrides, `--all` shows every finding, `--flat` reverts
+  to the legacy severity-grouped list.
+- **Repo-relative `test_gap` quartile.** `Finding.scores.test_gap` is
+  now a quartile-ranked value (`0 / 0.25 / 0.5 / 0.75 / 1.0`)
+  computed against the distribution of test-file proximity across the
+  repo, not the prior fixed `{0, 0.5, 1.0}` mapping.
+- **Recency-weighted ranking.** New optional `Finding.scores.recency`
+  (0–1 decay over a 7- to 14-day window). The default rank score
+  multiplies recency in; `--no-recency` collapses the multiplier.
+- **`Finding.tier` + `scopeTiers.nonDomain` config.** Each finding is
+  tagged `tier: "domain" | "nonDomain"`; non-domain findings appear
+  in a separate "Also flagged elsewhere" footer. Defaults cover
+  `scripts/**`, `examples/**`, `fixtures/**`, `public/**`, and the
+  standard test globs.
+- **`clues` object on `crimes context --json`.** Frozen contract for
+  PreToolUse consumers: `clues.churn` (`commits_90d`,
+  `last_commit_at`, `unique_authors_90d`), `clues.suppressions`
+  (per-file inventory), `clues.test_gap` (`raw`, `percentile`,
+  `label`), and `clues.related_signals` (reserved).
+- **Two-prompt auto-init with agent detection.** On any subcommand
+  other than `init` / `feedback` / `ignore` / `unignore` / `baseline`,
+  if `crimes.config.json` is missing and stdout is a TTY (CI / piped
+  invocations skipped), `crimes` prompts to generate the config and
+  (when an agent is detected) the agent skill.
+- **`context`-first messaging.** Welcome banner, `--help`, README,
+  agent docs all lead with `crimes context <file>`.
+
+Schema unchanged. `schema_version` stays at `"0.1.0"` for 0.10.0.
 
 ---
 

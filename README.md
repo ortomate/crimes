@@ -48,6 +48,9 @@ npx crimes scan .
 # Pre-edit briefing for one file (findings + likely tests + agent notes)
 crimes context src/billing/tax.ts --format json
 
+# Triage findings — set a disposition + reason + owner per finding
+crimes triage
+
 # Scan the current directory (file-grouped, top 5 files)
 crimes scan .
 
@@ -69,16 +72,108 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.10.0`
+## Triage workflow
 
-`crimes@0.10.0` is the latest published version on npm — the
-**Release A front-door redesign**. The default `crimes scan` now
-groups findings by file instead of severity, showing the top-risk
-files first so the first screen tells you what to fix rather than
-listing everything at once. `crimes context` leads in every
-entry-point — the welcome banner, `--help`, this README, and the
-agent docs — because it is the single most useful command before
-an edit. Release notes:
+`crimes triage` is the front door for handling existing findings — the
+escape hatch is still `crimes baseline save`, but triage is the
+recommended path because it captures *why* each finding was set aside
+and resurfaces silenced dispositions the moment you touch the same file
+again.
+
+`crimes triage` walks findings top-of-rank first and prompts for a
+**disposition**, **reason**, **owner**, and stamps the **date**. The
+five dispositions and how they affect later `crimes scan` runs:
+
+| Disposition    | Shown in scan? | Resurfaces on touched files? |
+| -------------- | -------------- | ---------------------------- |
+| `fix-now`      | yes (▶ prefix) | n/a                          |
+| `fix-this-PR`  | yes (▶ prefix) | n/a                          |
+| `needs-design` | hidden         | yes — "still intentional?"   |
+| `wont-fix`     | hidden         | yes — "still intentional?"   |
+| `scaffolding`  | hidden         | yes — "still intentional?"   |
+
+Entries persist to `.crimes/triage.json` — a sibling of
+`.crimes/baseline.json` and `.crimes/suppressions.json` — and the file
+is **intended to be committed**. Every entry carries `disposition`,
+`reason`, `owner`, and `date` (`reason`, `owner`, and `date` are
+required at the schema level so the receipts are always there). The
+fingerprint scheme is the same `<type>::<file>::<symbol-or-empty>` used
+by baseline and suppressions, so an entry survives line shifts and
+unrelated edits to the same file.
+
+`needs-design`, `wont-fix`, and `scaffolding` are silenced by default
+and **resurface automatically** when the file appears in the branch
+diff against `config.triage.resurfaceBase` (default `"main"`). The
+resurfaced finding renders with a `▼ was previously triaged` annotation
+asking whether the disposition is still intentional. Set
+`triage.resurfaceBase` to `""` in `crimes.config.json` to disable
+resurfacing entirely. Baseline entries get the same treatment on
+touched files (`▼ was previously baselined`).
+
+`crimes triage` flags:
+
+| Flag                     | What it does                                                                |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `--apply <file>`         | Non-interactive — read dispositions from a JSON file (same shape as on disk). |
+| `--list`                 | Show the current triage entries and exit; no scan, no prompts.              |
+| `--clear <fingerprint>`  | Remove a single entry by fingerprint.                                       |
+| `--retriage <target>`    | Re-open the disposition prompt for matching entries (fingerprint, file path, or glob). |
+| `--owner <handle>`       | Default owner for new dispositions written this run.                        |
+| `--all`                  | Include non-domain tier findings in the interactive walk.                   |
+
+Non-interactive flow with `--apply` is the scripted equivalent — pass a
+JSON document with the same shape as `.crimes/triage.json` and entries
+merge by fingerprint (applied entries overwrite existing fingerprints;
+unmentioned fingerprints stay untouched). `crimes triage` refuses to
+start the interactive walk in CI or a non-TTY; use `--apply` there.
+
+---
+
+## Status — `crimes@0.11.0`
+
+`crimes@0.11.0` is the latest published version on npm — **Release B,
+"Triage as the front door"**. It ships the new `crimes triage` command,
+triage- and baseline-aware resurfacing on touched files, a PreToolUse
+hook in `init --agents`, human-readable secondary scores in the
+renderer, and a schema bump (`0.1.0` → `0.2.0`) that adds `effort` +
+`fix_shape` to every finding. Release notes:
+[`docs/releases/v0.11.0.md`](./docs/releases/v0.11.0.md).
+
+What's in `0.11.0`:
+
+- **`crimes triage` command.** Interactive walk over current findings
+  with five dispositions (`fix-now` / `fix-this-PR` / `needs-design`
+  / `wont-fix` / `scaffolding`). Each entry persists to
+  `.crimes/triage.json` with the required `reason` + `owner` + `date`.
+  `--apply <file>` runs non-interactively; `--list`, `--clear`,
+  `--retriage`, and `--all` round out the surface. See the
+  [Triage workflow](#triage-workflow) section.
+- **Triage- and baseline-aware resurfacing.** Silenced triage entries
+  (`needs-design`, `wont-fix`, `scaffolding`) and baseline entries
+  resurface automatically when their file is in the branch diff
+  against `config.triage.resurfaceBase` (default `"main"`). The
+  resurfaced finding carries `previously_triaged` / `previous_triage`
+  (or `previously_baselined` / `previous_baseline`) and renders with
+  a `▼` glyph in the human report. New scan flags: `--show-triaged`,
+  `--gate-needs-design`, `--gate-resurfaced`.
+- **`effort` + `fix_shape` on every finding** (schema bump). Every
+  `Finding` now carries `effort: "quick" | "small" | "medium" | "large"`
+  and `fix_shape: string` (one-line description of the shape of the
+  fix, ≤120 chars). `schema_version` bumps to `"0.2.0"`; JSON
+  consumers that pinned to `"0.1.0"` must accept the new string.
+- **PreToolUse hook in `init --agents`.** `crimes init --agents`
+  now writes `.claude/settings.local.json` with a PreToolUse Edit
+  hook that runs `crimes context --format json` on the file being
+  edited (matcher: `Edit|Write|NotebookEdit`). `.agents/settings.local.json`
+  is a forward-looking stub for Codex. `--no-hooks` opts out.
+- **Human-readable secondary scores.** Scan and context renderers
+  now print `blast top-quartile (11 importers)` and
+  `churn 24 commits over 90d · last touched 2 days ago` instead of
+  bare decimals. **JSON numerics are unchanged** — `Finding.scores`
+  still carries the raw `0–1` floats.
+
+Earlier `0.10.0` work (_Release A front-door redesign_) remains
+shipped. Release notes:
 [`docs/releases/v0.10.0.md`](./docs/releases/v0.10.0.md).
 
 What's in `0.10.0`:
