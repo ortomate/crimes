@@ -1134,6 +1134,52 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
 ## 🚧 Planned for later versions
 
+### Wider codebase support — `0.12.0` → `0.14.0`
+
+> **Design spec:**
+> [`docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md`](./superpowers/specs/2026-05-22-wider-codebase-support-design.md).
+> Three-release arc to extend `crimes` beyond TypeScript / JavaScript.
+> Schema bumps once (`0.2.0` → `0.3.0`, in 0.12.0); subsequent releases
+> stay additive.
+
+- **`crimes@0.12.0` — universal tier.** Extract a tier-1 detector pass
+  that runs on any repo without AST parsing (file size, raster assets,
+  localhost / local-path leaks, duplicate filenames, docs link
+  checking, missing agent context, churn-based hotspots). Refactor
+  `DetectorContext` into a discriminated union (`universal` /
+  `language-js` / future packs). Move file discovery from `language-js`
+  into `core`. Add required `Finding.tier` and optional
+  `ScanReport.coverage` block. New `--explain-coverage` flag plus a
+  coverage banner in human output when >50% of files have no language
+  pack. `crimes context <unsupported.rs>` returns universal-tier
+  findings + git/IA context instead of going blank. No JS-side
+  behaviour change.
+- **`crimes@0.13.0` — Python language pack.** New
+  `packages/language-py/` using `tree-sitter-python` (no Python
+  runtime required at install / scan time). Ports eight detectors as
+  the seam-proving slate: `large_function.py`, `direct_date.py`,
+  `sync_io_in_hotpath.py`, `circular_dependency.py`, `deep_import.py`,
+  `weak_test_signal.py`, `mixed_utc_local_methods.py`,
+  `boolean_naming_drift.py`. Eval harness gains 6 Python scenarios +
+  2 fixtures. `Finding.detector_id` carries the qualified form
+  (`large_function.py`); `Finding.type` stays abstract.
+- **`crimes@0.14.0` — polyglot IA + monorepo tier.** Three new
+  cross-language (tier-3) detectors: `cross_language_concept_alias_drift`,
+  `cross_language_route_drift` (FastAPI / Django / Flask routes
+  matched against TS fetch sites + nav labels),
+  `cross_language_type_drift` (Python enum / Pydantic class
+  referenced as string literals in TS, and the reverse).
+  `ScanReport.coverage.by_package` populates per-package in
+  monorepos with mixed `package.json` + `pyproject.toml`. This is the
+  release where the wedge gets unique vs. just-another-multi-lang
+  linter — no single-language tool produces these findings.
+
+Explicitly **not** in this arc: other language packs (Go / Rust /
+Java each get their own future minor releases on the 0.13.0
+template), cross-language import graph (deferred to 0.15.0+), LLM-
+assisted modes (PRD §26, still deferred), Homebrew / standalone
+binaries (M6, independent track).
+
 ### `0.4.0+` candidates
 
 - **Dependency graph detectors:** circular dependencies, deep imports,
