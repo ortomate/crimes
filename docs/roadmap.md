@@ -1142,18 +1142,19 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
 > Schema bumps once (`0.2.0` → `0.3.0`, in 0.12.0); subsequent releases
 > stay additive.
 
-- **`crimes@0.12.0` — universal tier.** Extract a tier-1 detector pass
-  that runs on any repo without AST parsing (file size, raster assets,
-  localhost / local-path leaks, duplicate filenames, docs link
-  checking, missing agent context, churn-based hotspots). Refactor
-  `DetectorContext` into a discriminated union (`universal` /
-  `language-js` / future packs). Move file discovery from `language-js`
-  into `core`. Add required `Finding.tier` and optional
-  `ScanReport.coverage` block. New `--explain-coverage` flag plus a
-  coverage banner in human output when >50% of files have no language
-  pack. `crimes context <unsupported.rs>` returns universal-tier
-  findings + git/IA context instead of going blank. No JS-side
-  behaviour change.
+- **`crimes@0.12.0` — universal pack.** Extract a universal-pack
+  detector pass that runs on any repo without AST parsing (file size,
+  raster assets, localhost / local-path leaks, duplicate filenames,
+  docs link checking, missing agent context, churn-based hotspots).
+  Refactor `DetectorContext` into a discriminated union (`universal`
+  / `language-js` / future packs). Move file discovery from
+  `language-js` into `core`. Add required `Finding.pack` (new field,
+  distinct from the existing `Finding.tier` scope-tier field) and
+  optional `ScanReport.coverage` block. New `--explain-coverage`
+  flag plus a coverage banner in human output when >50% of files
+  have no language pack. `crimes context <unsupported.rs>` returns
+  universal-pack findings + git/IA context instead of going blank.
+  No JS-side behaviour change.
 - **`crimes@0.13.0` — Python language pack.** New
   `packages/language-py/` using `tree-sitter-python` (no Python
   runtime required at install / scan time). Ports eight detectors as
@@ -1163,8 +1164,8 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
   `boolean_naming_drift.py`. Eval harness gains 6 Python scenarios +
   2 fixtures. `Finding.detector_id` carries the qualified form
   (`large_function.py`); `Finding.type` stays abstract.
-- **`crimes@0.14.0` — polyglot IA + monorepo tier.** Three new
-  cross-language (tier-3) detectors: `cross_language_concept_alias_drift`,
+- **`crimes@0.14.0` — polyglot IA + monorepo coverage.** Three new
+  cross-language detectors: `cross_language_concept_alias_drift`,
   `cross_language_route_drift` (FastAPI / Django / Flask routes
   matched against TS fetch sites + nav labels),
   `cross_language_type_drift` (Python enum / Pydantic class
