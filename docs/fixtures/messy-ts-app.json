@@ -288,8 +288,8 @@
           "risk": "low"
         }
       ],
-      "pack": "language-js",
-      "detector_id": "missing_agent_context.js",
+      "pack": "universal",
+      "detector_id": "missing_agent_context",
       "tier": "domain"
     },
     {
@@ -328,8 +328,8 @@
           "risk": "low"
         }
       ],
-      "pack": "language-js",
-      "detector_id": "hardcoded_localhost.js",
+      "pack": "universal",
+      "detector_id": "hardcoded_localhost",
       "tier": "domain"
     },
     {
@@ -368,8 +368,8 @@
           "risk": "low"
         }
       ],
-      "pack": "language-js",
-      "detector_id": "hardcoded_local_path.js",
+      "pack": "universal",
+      "detector_id": "hardcoded_local_path",
       "tier": "domain"
     },
     {
@@ -512,7 +512,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.84
+        "recency": 0.83
       },
       "suggested_actions": [
         {
@@ -560,8 +560,8 @@
           "risk": "low"
         }
       ],
-      "pack": "language-js",
-      "detector_id": "docs_code_drift.js",
+      "pack": "universal",
+      "detector_id": "docs_code_drift",
       "tier": "domain"
     },
     {
@@ -645,45 +645,6 @@
     },
     {
       "id": "crime_00018",
-      "type": "todo_density",
-      "charge": "Unfinished Business",
-      "severity": "medium",
-      "confidence": 0.7,
-      "file": "src/todo.ts",
-      "lines": [
-        1,
-        32
-      ],
-      "summary": "14 TODO/FIXME markers (424.2 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.",
-      "evidence": [
-        "6× TODO, 4× FIXME, 2× HACK, 2× XXX",
-        "424.2 markers per 1k LOC (threshold 10)"
-      ],
-      "effort": "small",
-      "fix_shape": "convert TODOs to tickets or delete; comments are not tracking",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.7,
-        "agent_risk": 0.5,
-        "churn": 0.05,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_importers": 0,
-        "recency": 0.7
-      },
-      "suggested_actions": [
-        {
-          "kind": "triage_todos",
-          "description": "Convert each marker into a tracked issue or remove it. Lingering TODOs mislead humans and agents about which behaviour is intentional.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "todo_density.js",
-      "tier": "domain"
-    },
-    {
-      "id": "crime_00019",
       "type": "date_string_concat",
       "charge": "Date String Sewing",
       "severity": "low",
@@ -723,7 +684,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00020",
+      "id": "crime_00019",
       "type": "locale_drift",
       "charge": "Host-Locale Drift",
       "severity": "low",
@@ -763,7 +724,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00021",
+      "id": "crime_00020",
       "type": "route_metadata_drift",
       "charge": "Route Metadata Drift",
       "severity": "medium",
@@ -804,6 +765,45 @@
       ],
       "pack": "language-js",
       "detector_id": "route_metadata_drift.js",
+      "tier": "domain"
+    },
+    {
+      "id": "crime_00021",
+      "type": "todo_density",
+      "charge": "Unfinished Business",
+      "severity": "medium",
+      "confidence": 0.7,
+      "file": "src/todo.ts",
+      "lines": [
+        1,
+        32
+      ],
+      "summary": "14 TODO/FIXME markers (411.8 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.",
+      "evidence": [
+        "6× TODO, 4× FIXME, 2× HACK, 2× XXX",
+        "411.8 markers per 1k LOC (threshold 10)"
+      ],
+      "effort": "small",
+      "fix_shape": "convert TODOs to tickets or delete; comments are not tracking",
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.7,
+        "agent_risk": 0.5,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_importers": 0,
+        "recency": 0.69
+      },
+      "suggested_actions": [
+        {
+          "kind": "triage_todos",
+          "description": "Convert each marker into a tracked issue or remove it. Lingering TODOs mislead humans and agents about which behaviour is intentional.",
+          "risk": "low"
+        }
+      ],
+      "pack": "universal",
+      "detector_id": "todo_density",
       "tier": "domain"
     },
     {
@@ -956,7 +956,7 @@
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.84
+        "recency": 0.83
       },
       "suggested_actions": [
         {
@@ -1158,7 +1158,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.84
+        "recency": 0.83
       },
       "suggested_actions": [
         {
@@ -1198,7 +1198,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.84
+        "recency": 0.83
       },
       "suggested_actions": [
         {
@@ -1239,7 +1239,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.84
+        "recency": 0.83
       },
       "suggested_actions": [
         {
@@ -1278,7 +1278,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.84
+        "recency": 0.83
       },
       "suggested_actions": [
         {
@@ -1440,8 +1440,8 @@
           "risk": "low"
         }
       ],
-      "pack": "language-js",
-      "detector_id": "todo_density.js",
+      "pack": "universal",
+      "detector_id": "todo_density",
       "tier": "domain"
     },
     {
@@ -1471,7 +1471,7 @@
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.84
+        "recency": 0.83
       },
       "suggested_actions": [
         {
