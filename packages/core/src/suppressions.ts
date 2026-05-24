@@ -47,7 +47,7 @@ export interface SuppressionEntry {
  * the writer always emits the current `SCHEMA_VERSION`. Update this union
  * each time `SCHEMA_VERSION` bumps to add the previous value.
  */
-const ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS = ["0.1.0", "0.2.0"] as const;
+const ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS = ["0.1.0", "0.2.0", "0.3.0"] as const;
 
 /**
  * On-disk suppressions document. Shipped as `.crimes/suppressions.json`
@@ -56,8 +56,8 @@ const ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS = ["0.1.0", "0.2.0"] as const;
 export interface Suppressions {
   /**
    * On-disk schema version. The loader accepts any value in
-   * `ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS` (currently `"0.1.0"` or
-   * `"0.2.0"`); the writer always emits the current `SCHEMA_VERSION`.
+   * `ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS` (currently `"0.1.0"`, `"0.2.0"`, or
+   * `"0.3.0"`); the writer always emits the current `SCHEMA_VERSION`.
    */
   schema_version: (typeof ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS)[number];
   report_type: "suppressions";

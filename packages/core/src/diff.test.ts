@@ -265,7 +265,7 @@ describe("diff (end-to-end against a real git repo)", () => {
     });
 
     expect(report.report_type).toBe("diff");
-    expect(report.schema_version).toBe("0.2.0");
+    expect(report.schema_version).toBe("0.3.0");
     expect(report.base).toBe("HEAD~1");
     expect(report.head).toBe("HEAD");
 

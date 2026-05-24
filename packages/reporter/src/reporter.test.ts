@@ -32,7 +32,7 @@ import {
 } from "./json.js";
 
 const sampleReport: ScanReport = {
-  schema_version: "0.2.0",
+  schema_version: "0.3.0",
   report_type: "scan",
   repo: { name: "demo", root: "/tmp/demo" },
   summary: { total: 2, high: 1, medium: 1, low: 0 },
@@ -263,7 +263,7 @@ describe("formatJsonReport", () => {
   it("round-trips through JSON.parse", () => {
     const out = formatJsonReport(sampleReport);
     const parsed = JSON.parse(out) as ScanReport;
-    expect(parsed.schema_version).toBe("0.2.0");
+    expect(parsed.schema_version).toBe("0.3.0");
     expect(parsed.report_type).toBe("scan");
     expect(parsed.findings).toHaveLength(2);
     expect(parsed.findings[0]!.id).toBe("crime_00001");
@@ -307,7 +307,7 @@ describe("formatJsonReport", () => {
 });
 
 const sampleContext: ContextReport = {
-  schema_version: "0.2.0",
+  schema_version: "0.3.0",
   report_type: "context",
   repo: { name: "demo", root: "/tmp/demo" },
   file: "src/billing.ts",
@@ -370,7 +370,7 @@ describe("formatContextJsonReport", () => {
       expect(parsed).toHaveProperty(key);
     }
 
-    expect(parsed.schema_version).toBe("0.2.0");
+    expect(parsed.schema_version).toBe("0.3.0");
     expect(parsed.report_type).toBe("context");
     expect(parsed.file).toBe("src/billing.ts");
   });
@@ -544,7 +544,7 @@ describe("formatContextHumanReport", () => {
 });
 
 const sampleDiff: DiffReport = {
-  schema_version: "0.2.0",
+  schema_version: "0.3.0",
   report_type: "diff",
   repo: { name: "demo", root: "/tmp/demo" },
   base: "main",
@@ -645,7 +645,7 @@ describe("formatDiffJsonReport", () => {
     ]) {
       expect(parsed).toHaveProperty(key);
     }
-    expect(parsed.schema_version).toBe("0.2.0");
+    expect(parsed.schema_version).toBe("0.3.0");
     expect(parsed.report_type).toBe("diff");
   });
 
@@ -659,7 +659,7 @@ describe("formatDiffJsonReport", () => {
 });
 
 const sampleVerdict: VerdictReport = {
-  schema_version: "0.2.0",
+  schema_version: "0.3.0",
   report_type: "verdict",
   repo: { name: "demo", root: "/tmp/demo" },
   base: "origin/main",
@@ -727,7 +727,7 @@ describe("formatVerdictJsonReport", () => {
     ]) {
       expect(parsed).toHaveProperty(key);
     }
-    expect(parsed.schema_version).toBe("0.2.0");
+    expect(parsed.schema_version).toBe("0.3.0");
     expect(parsed.report_type).toBe("verdict");
     expect(parsed.verdict).toBe("worse");
   });
@@ -817,7 +817,7 @@ describe("severity glyphs in human report", () => {
 });
 
 const sampleHotspots: HotspotsReport = {
-  schema_version: "0.2.0",
+  schema_version: "0.3.0",
   report_type: "hotspots",
   repo: { name: "demo", root: "/tmp/demo" },
   since: "90d",
@@ -903,7 +903,7 @@ describe("formatHotspotsJsonReport", () => {
     ]) {
       expect(parsed).toHaveProperty(key);
     }
-    expect(parsed.schema_version).toBe("0.2.0");
+    expect(parsed.schema_version).toBe("0.3.0");
     expect(parsed.report_type).toBe("hotspots");
   });
 
@@ -920,7 +920,7 @@ describe("formatHotspotsJsonReport", () => {
 });
 
 const sampleBaseline: Baseline = {
-  schema_version: "0.2.0",
+  schema_version: "0.3.0",
   report_type: "baseline",
   created_at: "2026-05-16T12:00:00.000Z",
   crimes_version: "0.2.0",
@@ -979,7 +979,7 @@ describe("formatBaselineJsonReport", () => {
 });
 
 const sampleBaselineCheck: BaselineCheckReport = {
-  schema_version: "0.2.0",
+  schema_version: "0.3.0",
   report_type: "baseline_check",
   repo: { name: "demo", root: "/tmp/demo" },
   baseline_path: "/abs/path/to/.crimes/baseline.json",
@@ -1076,7 +1076,7 @@ function stubContextReport(
   overrides: Partial<ContextReport>,
 ): ContextReport {
   return {
-    schema_version: "0.2.0",
+    schema_version: "0.3.0",
     report_type: "context",
     repo: { name: "demo", root: "/tmp/demo" },
     file: "src/billing.ts",
@@ -1321,7 +1321,7 @@ function stubReport({ findings }: { findings: Finding[] }): ScanReport {
     { total: 0, high: 0, medium: 0, low: 0 },
   );
   return {
-    schema_version: "0.2.0",
+    schema_version: "0.3.0",
     report_type: "scan",
     repo: { name: "acme-app", root: "/tmp/acme-app" },
     summary,

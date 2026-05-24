@@ -72,7 +72,7 @@ describe("hotspots", () => {
 
     const report = await hotspots({ root });
     expect(report.git_available).toBe(false);
-    expect(report.schema_version).toBe("0.2.0");
+    expect(report.schema_version).toBe("0.3.0");
     expect(report.report_type).toBe("hotspots");
     expect(report.since).toBe("90d");
     // The huge file should still surface from scan findings.

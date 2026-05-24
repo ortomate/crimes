@@ -57,7 +57,7 @@ async function seedSuppressions(
     path,
     JSON.stringify(
       {
-        schema_version: "0.2.0",
+        schema_version: "0.3.0",
         report_type: "suppressions",
         created_at: "2026-01-01T00:00:00.000Z",
         updated_at: "2026-05-17T12:00:00.000Z",
@@ -110,7 +110,7 @@ describe("crimes audit-suppressions", () => {
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout);
     expect(parsed.report_type).toBe("audit_suppressions");
-    expect(parsed.schema_version).toBe("0.2.0");
+    expect(parsed.schema_version).toBe("0.3.0");
     expect(parsed.loaded).toBe(true);
     expect(parsed.total).toBe(1);
     expect(parsed.entries[0].fingerprint).toBe("large_function::a.ts::a");

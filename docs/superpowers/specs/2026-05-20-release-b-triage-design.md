@@ -165,7 +165,7 @@ the `Suppressions` shape):
 
 ```jsonc
 {
-  "schema_version": "0.2.0",
+  "schema_version": "0.3.0",
   "report_type": "triage",
   "created_at": "2026-05-20T14:00:00Z",
   "updated_at": "2026-05-20T14:00:00Z",

@@ -59,15 +59,15 @@ export interface BaselineEntry {
  * tolerates any value in this list, the writer always emits the current
  * `SCHEMA_VERSION`. Extend whenever `SCHEMA_VERSION` bumps.
  */
-const ACCEPTED_BASELINE_SCHEMA_VERSIONS = ["0.1.0", "0.2.0"] as const;
+const ACCEPTED_BASELINE_SCHEMA_VERSIONS = ["0.1.0", "0.2.0", "0.3.0"] as const;
 export type AcceptedBaselineSchemaVersion =
   (typeof ACCEPTED_BASELINE_SCHEMA_VERSIONS)[number];
 
 export interface Baseline {
   /**
    * On-disk schema version. The loader accepts any value in
-   * `ACCEPTED_BASELINE_SCHEMA_VERSIONS` (currently `"0.1.0"` or
-   * `"0.2.0"`); the writer always emits the current `SCHEMA_VERSION`.
+   * `ACCEPTED_BASELINE_SCHEMA_VERSIONS` (currently `"0.1.0"`, `"0.2.0"`, or
+   * `"0.3.0"`); the writer always emits the current `SCHEMA_VERSION`.
    */
   schema_version: AcceptedBaselineSchemaVersion;
   /** Discriminator. Always the literal `"baseline"`. */

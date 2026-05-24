@@ -3,7 +3,7 @@
  *
  * Bumping `schema_version` is a breaking change.
  */
-export const SCHEMA_VERSION = "0.2.0" as const;
+export const SCHEMA_VERSION = "0.3.0" as const;
 
 import type { Tier } from "./scoring/tier.js";
 

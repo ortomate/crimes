@@ -79,7 +79,7 @@ function makeEntry(fingerprint: string, file: string): TriageEntry {
 
 const SAMPLE_DOC = (entries: TriageEntry[]): string =>
   JSON.stringify({
-    schema_version: "0.2.0",
+    schema_version: "0.3.0",
     report_type: "triage",
     created_at: "2026-05-20T14:00:00Z",
     updated_at: "2026-05-20T14:00:00Z",
