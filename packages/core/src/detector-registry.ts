@@ -12,6 +12,7 @@ import { booleanNamingDriftDetector } from "./detectors/boolean-naming-drift.js"
 import { circularDependencyDetector } from "./detectors/circular-dependency.js";
 import { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
 import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
+import { commentedOutCodeUniversalDetector } from "./detectors/commented-out-code-universal.js";
 import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
 import { copyIaDriftDetector } from "./detectors/copy-ia-drift.js";
 import { dateStringConcatDetector } from "./detectors/date-string-concat.js";
@@ -84,7 +85,8 @@ export const builtInDetectors: Detector[] = [
   hardcodedLocalhostDetector,
   finderDuplicateFilenameDetector,
   // Petty crimes (small local patterns that increase agent confusion).
-  commentedOutCodeDetector,
+  commentedOutCodeDetector,                // language-js variant (AST)
+  commentedOutCodeUniversalDetector,       // universal variant (regex, non-JS only)
   logicInCommentsDetector,
   nameBehaviorMismatchDetector,
   magicDomainLiteralScatterDetector,
