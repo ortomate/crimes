@@ -5,6 +5,7 @@
  */
 export const SCHEMA_VERSION = "0.3.0" as const;
 
+import type { Pack } from "./pack.js";
 import type { Tier } from "./scoring/tier.js";
 
 export type Severity = "low" | "medium" | "high";
@@ -78,6 +79,21 @@ export interface Finding {
   id: string;
   /** Machine-readable type, e.g. `large_function`. */
   type: string;
+  /**
+   * Detector pack that produced this finding. Optional in Phase 0 (any
+   * stub test that constructs a `Finding` by hand may omit it); the
+   * scan / context finalisation pass guarantees it's always set on
+   * findings produced by `core/src/scan.ts` and `core/src/context.ts`.
+   * Required form lands in Task 3.3.
+   */
+  pack?: Pack;
+  /**
+   * Qualified detector id — `<abstract-type>.<pack-suffix>` for language-
+   * pack detectors (`large_function.js`), bare `<abstract-type>` for
+   * universal-pack detectors. `type` keeps the abstract form for
+   * grouping across packs. Optional in Phase 0; required in Task 3.3.
+   */
+  detector_id?: string;
   /** Human-readable charge, e.g. `God Function`. */
   charge: string;
   severity: Severity;
