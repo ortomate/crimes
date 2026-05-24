@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import type { ImportEdge, ImportGraph } from "../imports/types.js";
 
@@ -13,7 +13,7 @@ import type { ImportEdge, ImportGraph } from "../imports/types.js";
  * resolution for) are not considered deep — those are project-internal,
  * not third-party reach-in.
  */
-export const deepImportDetector: Detector = {
+export const deepImportDetector: LanguageJsDetector = {
   id: "deep_import",
   name: "Deep Import Abuse",
   description:

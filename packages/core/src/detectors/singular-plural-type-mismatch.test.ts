@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { TypedDeclaration } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { singularPluralTypeMismatchDetector as _singularPluralTypeMismatchDetector } from "./singular-plural-type-mismatch.js";
-const singularPluralTypeMismatchDetector = _singularPluralTypeMismatchDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { singularPluralTypeMismatchDetector } from "./singular-plural-type-mismatch.js";
 
 function makeCtx(
   decls: TypedDeclaration[] | undefined,

@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -13,7 +13,7 @@ const LOCALE_METHODS = new Set([
  * varies by the host's default locale, which is rarely what the
  * developer intended for any persisted or user-facing string.
  */
-export const localeDriftDetector: Detector = {
+export const localeDriftDetector: LanguageJsDetector = {
   id: "locale_drift",
   name: "Host-Locale Drift",
   description:

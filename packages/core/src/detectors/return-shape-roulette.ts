@@ -1,8 +1,8 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
-export const returnShapeRouletteDetector: Detector = {
+export const returnShapeRouletteDetector: LanguageJsDetector = {
   id: "return_shape_roulette",
   name: "Return Shape Roulette",
   description: "Flags functions that return substantially different object shapes across branches.",

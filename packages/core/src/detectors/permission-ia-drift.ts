@@ -1,4 +1,4 @@
-import type { Detector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, DetectorContext } from "../detector.js";
 import type { Finding } from "../finding.js";
 import type { IaIndex, IaPermissionSignal } from "../ia/types.js";
 
@@ -14,7 +14,7 @@ import type { IaIndex, IaPermissionSignal } from "../ia/types.js";
  * lex-first contributing file so the per-file detector loop emits each
  * finding exactly once.
  */
-export const permissionIaDriftDetector: Detector = {
+export const permissionIaDriftDetector: LanguageJsDetector = {
   id: "permission_ia_drift",
   name: "Permission IA Drift",
   description:

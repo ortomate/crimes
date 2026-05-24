@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import { tokenise, tokenisePath } from "../ia/tokenise.js";
 import type {
@@ -15,7 +15,7 @@ import type {
  * The detector emits per route file, anchored on the route file's own
  * path -- so the finding shows up alongside the route in `crimes context`.
  */
-export const routeMetadataDriftDetector: Detector = {
+export const routeMetadataDriftDetector: LanguageJsDetector = {
   id: "route_metadata_drift",
   name: "Route Metadata Drift",
   description:

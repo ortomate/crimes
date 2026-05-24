@@ -1,4 +1,4 @@
-import type { Detector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, DetectorContext } from "../detector.js";
 import type { Finding } from "../finding.js";
 import { tokenise } from "../ia/tokenise.js";
 import type { IaConceptAliasGroup, IaIndex } from "../ia/types.js";
@@ -13,7 +13,7 @@ import type { IaConceptAliasGroup, IaIndex } from "../ia/types.js";
  * signal like a route, label, nav entry, or doc heading -- not just a
  * file path or comment).
  */
-export const conceptAliasDriftDetector: Detector = {
+export const conceptAliasDriftDetector: LanguageJsDetector = {
   id: "concept_alias_drift",
   name: "Concept Alias Drift",
   description:

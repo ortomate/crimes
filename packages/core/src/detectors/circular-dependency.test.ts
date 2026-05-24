@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type { ImportEdge, ImportGraph } from "../imports/types.js";
-import { circularDependencyDetector as _circularDependencyDetector } from "./circular-dependency.js";
-const circularDependencyDetector = _circularDependencyDetector as LanguageJsDetector;
+import { circularDependencyDetector } from "./circular-dependency.js";
 
 interface EdgeInput {
   from: string;

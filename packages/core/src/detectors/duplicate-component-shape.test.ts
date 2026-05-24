@@ -4,10 +4,9 @@ import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { discoverFiles } from "../discovery/index.js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import { buildJsxShapeIndex } from "../jsx/shape-index.js";
-import { duplicateComponentShapeDetector as _duplicateComponentShapeDetector } from "./duplicate-component-shape.js";
-const duplicateComponentShapeDetector = _duplicateComponentShapeDetector as LanguageJsDetector;
+import { duplicateComponentShapeDetector } from "./duplicate-component-shape.js";
 
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-dcs-"));

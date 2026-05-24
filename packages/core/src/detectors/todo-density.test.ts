@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { todoDensityDetector as _todoDensityDetector } from "./todo-density.js";
-const todoDensityDetector = _todoDensityDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { todoDensityDetector } from "./todo-density.js";
 
 function makeCtx(source: string, padLines = 0): LanguageJsDetectorContext {
   // Pad the lineCount so the source represents a file of the requested size.

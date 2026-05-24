@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -11,7 +11,7 @@ const SENSITIVE_PATH_RE =
  * always thinks "add 1 day", but daylight-saving transitions, leap
  * seconds, and timezone changes mean a day isn't always 86,400,000ms.
  */
-export const dstNaiveArithmeticDetector: Detector = {
+export const dstNaiveArithmeticDetector: LanguageJsDetector = {
   id: "dst_naive_arithmetic",
   name: "DST-Naive Day Math",
   description:

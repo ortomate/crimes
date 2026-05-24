@@ -1,5 +1,5 @@
 import type { CrimesConfig } from "../config.js";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -58,7 +58,7 @@ export function shapeForFile(file: string): LargeFileShape {
   return isTestFile(file) ? "test_file" : "domain";
 }
 
-export const largeFileDetector: Detector = {
+export const largeFileDetector: LanguageJsDetector = {
   id: "large_file",
   name: "Large File",
   description:

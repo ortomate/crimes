@@ -1,4 +1,4 @@
-import type { Detector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, DetectorContext } from "../detector.js";
 import type { Finding } from "../finding.js";
 import type { IaIndex } from "../ia/types.js";
 
@@ -12,7 +12,7 @@ import type { IaIndex } from "../ia/types.js";
  * implement) is intentionally deferred to a later release -- it requires
  * deterministic command-registration scanning we do not have yet.
  */
-export const docsCodeDriftDetector: Detector = {
+export const docsCodeDriftDetector: LanguageJsDetector = {
   id: "docs_code_drift",
   name: "Docs-Code Drift",
   description:

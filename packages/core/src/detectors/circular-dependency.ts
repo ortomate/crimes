@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import type { ImportEdge, ImportGraph } from "../imports/types.js";
 
@@ -10,7 +10,7 @@ import type { ImportEdge, ImportGraph } from "../imports/types.js";
  * Each cycle is anchored on the lexicographically first file in the SCC
  * so the per-file detector loop emits each finding exactly once.
  */
-export const circularDependencyDetector: Detector = {
+export const circularDependencyDetector: LanguageJsDetector = {
   id: "circular_dependency",
   name: "Circular Dependency",
   description:

@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type {
   IaFileSignals,
   IaIndex,
   IaLabelSignal,
 } from "../ia/types.js";
-import { actionLabelDriftDetector as _actionLabelDriftDetector } from "./action-label-drift.js";
-const actionLabelDriftDetector = _actionLabelDriftDetector as LanguageJsDetector;
+import { actionLabelDriftDetector } from "./action-label-drift.js";
 
 function buildIndex(
   fileLabels: Record<string, IaLabelSignal[]>,

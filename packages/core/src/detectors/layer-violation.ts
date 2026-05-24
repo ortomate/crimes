@@ -1,5 +1,5 @@
 import type { CrimesConfig } from "../config.js";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import type { ImportEdge, ImportGraph } from "../imports/types.js";
 
@@ -15,7 +15,7 @@ import type { ImportEdge, ImportGraph } from "../imports/types.js";
  * one finding with extra evidence rows so the report doesn't spam the
  * same anchor.
  */
-export const layerViolationDetector: Detector = {
+export const layerViolationDetector: LanguageJsDetector = {
   id: "layer_violation",
   name: "Layer Violation",
   description:

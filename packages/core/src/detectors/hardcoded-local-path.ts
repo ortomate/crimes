@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -59,7 +59,7 @@ interface PathHit {
  * (CI, teammates, deploy targets). `os.homedir()`,
  * `process.env.HOME`, or a relative path fixes the surface.
  */
-export const hardcodedLocalPathDetector: Detector = {
+export const hardcodedLocalPathDetector: LanguageJsDetector = {
   id: "hardcoded_local_path",
   name: "Localhost-on-Disk",
   description:

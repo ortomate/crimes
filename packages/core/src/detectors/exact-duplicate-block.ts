@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import type { FunctionHit } from "../ast-hash/function-index.js";
 
@@ -12,7 +12,7 @@ import type { FunctionHit } from "../ast-hash/function-index.js";
  * helpers — three duplicate one-liners is noise, three duplicate
  * 30-line bodies is signal.
  */
-export const exactDuplicateBlockDetector: Detector = {
+export const exactDuplicateBlockDetector: LanguageJsDetector = {
   id: "exact_duplicate_block",
   name: "Exact Duplicate Block",
   description:

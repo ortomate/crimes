@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -25,7 +25,7 @@ type TimezoneUnsafeParseOptions = z.infer<typeof optionsSchema>;
  * offset) — and the developer's mental model rarely matches whichever
  * branch the spec picks. Adding `Z` or `±HH:MM` removes the ambiguity.
  */
-export const timezoneUnsafeParseDetector: Detector = {
+export const timezoneUnsafeParseDetector: LanguageJsDetector = {
   id: "timezone_unsafe_parse",
   name: "Timezone Roulette",
   description:

@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import { findJsxElements, walkJsx } from "../jsx/walk.js";
 import type { JsxElementInfo } from "../jsx/walk.js";
@@ -9,7 +9,7 @@ import type { JsxElementInfo } from "../jsx/walk.js";
  * media-query handling — heuristics that flag UI likely to break on
  * narrow viewports.
  */
-export const responsiveFragilityDetector: Detector = {
+export const responsiveFragilityDetector: LanguageJsDetector = {
   id: "responsive_fragility",
   name: "Responsive Fragility",
   description:

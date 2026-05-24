@@ -1,11 +1,11 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 const TEST_CALL = /\b(?:it|test)\s*\(\s*(["'`])([^"'`]+)\1/g;
 const ASSERTION = /\b(?:expect|assert(?:\.[A-Za-z_$][\w$]*)?)\s*\(/g;
 const WEAK_ASSERTION = /\.(?:toBeDefined|toBeTruthy|toBeFalsy|toMatchSnapshot|toMatchInlineSnapshot)\s*\(/g;
 
-export const weakTestSignalDetector: Detector = {
+export const weakTestSignalDetector: LanguageJsDetector = {
   id: "weak_test_signal",
   name: "Weak Test Signal",
   description: "Flags tests that contain no meaningful assertion signal.",

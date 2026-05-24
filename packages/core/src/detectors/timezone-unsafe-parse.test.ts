@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { DateUse } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { timezoneUnsafeParseDetector as _timezoneUnsafeParseDetector } from "./timezone-unsafe-parse.js";
-const timezoneUnsafeParseDetector = _timezoneUnsafeParseDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { timezoneUnsafeParseDetector } from "./timezone-unsafe-parse.js";
 
 function makeCtx(
   uses: DateUse[],

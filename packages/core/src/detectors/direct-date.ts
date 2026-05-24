@@ -1,9 +1,9 @@
 import type { DateUse } from "@crimes/language-js";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
-export const directDateDetector: Detector = {
+export const directDateDetector: LanguageJsDetector = {
   id: "direct_date",
   name: "Direct Date.now() / new Date()",
   description:

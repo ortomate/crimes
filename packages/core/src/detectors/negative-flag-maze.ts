@@ -1,10 +1,10 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
 const NEGATIVE_NAME = /^(?:no|not|disable|disabled|skip|without)[A-Z_]/;
 
-export const negativeFlagMazeDetector: Detector = {
+export const negativeFlagMazeDetector: LanguageJsDetector = {
   id: "negative_flag_maze",
   name: "Negative Flag Maze",
   description: "Flags conditionals that combine multiple negative flags.",

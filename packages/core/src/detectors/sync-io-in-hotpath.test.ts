@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { EnclosingFunction, FunctionShape, SyncIoCall } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { syncIoInHotpathDetector as _syncIoInHotpathDetector } from "./sync-io-in-hotpath.js";
-const syncIoInHotpathDetector = _syncIoInHotpathDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { syncIoInHotpathDetector } from "./sync-io-in-hotpath.js";
 
 function encl(
   shape: FunctionShape,

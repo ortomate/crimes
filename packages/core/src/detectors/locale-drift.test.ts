@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { DateMethodCall } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { localeDriftDetector as _localeDriftDetector } from "./locale-drift.js";
-const localeDriftDetector = _localeDriftDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { localeDriftDetector } from "./locale-drift.js";
 
 function makeCtx(
   calls: DateMethodCall[] | undefined,

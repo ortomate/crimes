@@ -1,10 +1,10 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
 const BAG_NAMES = ["options", "config", "payload", "data", "params", "meta"];
 
-export const optionBagJunkDrawerDetector: Detector = {
+export const optionBagJunkDrawerDetector: LanguageJsDetector = {
   id: "option_bag_junk_drawer",
   name: "Option Bag Junk Drawer",
   description: "Flags broad object bags whose implicit shape is large or passed through helpers.",

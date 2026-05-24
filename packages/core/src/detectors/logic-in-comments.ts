@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { extractComments } from "../petty/comments.js";
 
@@ -44,7 +44,7 @@ const TODO_MARKER_PATTERN = new RegExp(
   "i",
 );
 
-export const logicInCommentsDetector: Detector = {
+export const logicInCommentsDetector: LanguageJsDetector = {
   id: "logic_in_comments",
   name: "Logic in Comments",
   description: "Flags comments that appear to carry business rules or safety constraints.",

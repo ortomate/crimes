@@ -1,9 +1,8 @@
 import { parseFile } from "@crimes/language-js";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { logicInCommentsDetector as _logicInCommentsDetector } from "./logic-in-comments.js";
-const logicInCommentsDetector = _logicInCommentsDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { logicInCommentsDetector } from "./logic-in-comments.js";
 
 function makeCtx(source: string, file = "src/billing.ts"): LanguageJsDetectorContext {
   return {

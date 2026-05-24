@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type { IaDocLink, IaFileSignals, IaIndex } from "../ia/types.js";
-import { docsCodeDriftDetector as _docsCodeDriftDetector } from "./docs-code-drift.js";
-const docsCodeDriftDetector = _docsCodeDriftDetector as LanguageJsDetector;
+import { docsCodeDriftDetector } from "./docs-code-drift.js";
 
 function buildIndex(opts: {
   files?: string[];

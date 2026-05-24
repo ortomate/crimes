@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { findJsxElements, walkJsx } from "../jsx/walk.js";
 import type { JsxAttributeValue, JsxElementInfo } from "../jsx/walk.js";
@@ -11,7 +11,7 @@ import type { JsxAttributeValue, JsxElementInfo } from "../jsx/walk.js";
  * loading the project's design system. Instead it surfaces "this file
  * has unusually many raw style literals" as an agent-edit-risk signal.
  */
-export const designTokenEscapeDetector: Detector = {
+export const designTokenEscapeDetector: LanguageJsDetector = {
   id: "design_token_escape",
   name: "Design Token Escape",
   description:

@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type { ImportEdge, ImportGraph } from "../imports/types.js";
-import { deepImportDetector as _deepImportDetector } from "./deep-import.js";
-const deepImportDetector = _deepImportDetector as LanguageJsDetector;
+import { deepImportDetector } from "./deep-import.js";
 
 interface EdgeInput {
   from: string;

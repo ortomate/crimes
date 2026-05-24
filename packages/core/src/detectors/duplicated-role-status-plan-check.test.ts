@@ -3,10 +3,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type { IaFileSignals, IaIndex } from "../ia/types.js";
-import { duplicatedRoleStatusPlanCheckDetector as _duplicatedRoleStatusPlanCheckDetector } from "./duplicated-role-status-plan-check.js";
-const duplicatedRoleStatusPlanCheckDetector = _duplicatedRoleStatusPlanCheckDetector as LanguageJsDetector;
+import { duplicatedRoleStatusPlanCheckDetector } from "./duplicated-role-status-plan-check.js";
 
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-drspc-"));

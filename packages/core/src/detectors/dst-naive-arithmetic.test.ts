@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { DateArithmetic } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { dstNaiveArithmeticDetector as _dstNaiveArithmeticDetector } from "./dst-naive-arithmetic.js";
-const dstNaiveArithmeticDetector = _dstNaiveArithmeticDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { dstNaiveArithmeticDetector } from "./dst-naive-arithmetic.js";
 
 function makeCtx(
   hits: DateArithmetic[] | undefined,

@@ -4,9 +4,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseFile } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { accessibleInteractionRiskDetector as _accessibleInteractionRiskDetector } from "./accessible-interaction-risk.js";
-const accessibleInteractionRiskDetector = _accessibleInteractionRiskDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { accessibleInteractionRiskDetector } from "./accessible-interaction-risk.js";
 
 async function ctxFromSource(source: string): Promise<LanguageJsDetectorContext> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-air-"));

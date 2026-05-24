@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { directDateDetector as _directDateDetector } from "./direct-date.js";
-const directDateDetector = _directDateDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { directDateDetector } from "./direct-date.js";
 
 function makeCtx(
   uses: Array<{ kind: "now" | "new"; line: number }>,

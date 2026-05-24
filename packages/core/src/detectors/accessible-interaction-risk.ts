@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import { findJsxElements, walkJsx } from "../jsx/walk.js";
 import type { JsxElementInfo } from "../jsx/walk.js";
@@ -13,7 +13,7 @@ import type { JsxElementInfo } from "../jsx/walk.js";
  * too much rework on the surrounding layout) and surfaces it before
  * the next reviewer has to.
  */
-export const accessibleInteractionRiskDetector: Detector = {
+export const accessibleInteractionRiskDetector: LanguageJsDetector = {
   id: "accessible_interaction_risk",
   name: "Accessible Interaction Risk",
   description:

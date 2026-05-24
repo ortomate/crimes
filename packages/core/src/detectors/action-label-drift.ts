@@ -1,4 +1,4 @@
-import type { Detector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, DetectorContext } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import type { IaIndex } from "../ia/types.js";
 
@@ -18,7 +18,7 @@ import type { IaIndex } from "../ia/types.js";
  * variant is broader and runs across the whole code surface the IA
  * index already touches.
  */
-export const actionLabelDriftDetector: Detector = {
+export const actionLabelDriftDetector: LanguageJsDetector = {
   id: "action_label_drift",
   name: "Action Label Drift",
   description:

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { TypedDeclaration } from "@crimes/language-js";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -64,7 +64,7 @@ const REACT_STATE_ALLOWLIST = new Set([
 const BOOLEAN_PREFIX_RE =
   /^(is|has|should|can|will|did|was|were|are|needs|wants|allows|supports|owns|knows|expects|requires|enables|prevents|blocks|denies)[A-Z_]/;
 
-export const booleanNamingDriftDetector: Detector = {
+export const booleanNamingDriftDetector: LanguageJsDetector = {
   id: "boolean_naming_drift",
   name: "Unprefixed Boolean",
   description:

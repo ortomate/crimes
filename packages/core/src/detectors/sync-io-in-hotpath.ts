@@ -1,5 +1,5 @@
 import type { EnclosingFunction, FunctionShape, SyncIoCall } from "@crimes/language-js";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -42,7 +42,7 @@ const SUPPRESSING_SHAPES: ReadonlySet<FunctionShape> = new Set([
  *     the call ultimately runs per request / render even when wrapped
  *     in `.forEach(...)` or `useEffect(...)`.
  */
-export const syncIoInHotpathDetector: Detector = {
+export const syncIoInHotpathDetector: LanguageJsDetector = {
   id: "sync_io_in_hotpath",
   name: "Sync I/O in Hot Path",
   description:

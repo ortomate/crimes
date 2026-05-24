@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import { tokenise, tokenisePath } from "../ia/tokenise.js";
 import type { IaIndex, IaRouteSignal } from "../ia/types.js";
@@ -21,7 +21,7 @@ import type { IaIndex, IaRouteSignal } from "../ia/types.js";
  * Anchored on the lexicographically first file in the pair so the
  * per-file loop emits each pair exactly once.
  */
-export const parallelDestinationDetector: Detector = {
+export const parallelDestinationDetector: LanguageJsDetector = {
   id: "parallel_destination",
   name: "Parallel Destination",
   description:

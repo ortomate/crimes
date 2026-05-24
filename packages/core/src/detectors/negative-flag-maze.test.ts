@@ -1,9 +1,8 @@
 import { parseFile } from "@crimes/language-js";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { negativeFlagMazeDetector as _negativeFlagMazeDetector } from "./negative-flag-maze.js";
-const negativeFlagMazeDetector = _negativeFlagMazeDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { negativeFlagMazeDetector } from "./negative-flag-maze.js";
 
 function makeCtx(source: string): LanguageJsDetectorContext {
   return {

@@ -1,5 +1,5 @@
 import { readFileSync as fsReadFileSync } from "node:fs";
-import type { Detector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, DetectorContext } from "../detector.js";
 import type { Finding } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -20,7 +20,7 @@ import { isTestFile } from "../util/test-files.js";
  * itself scans every source file under the scan root) so the per-file
  * detector loop emits each finding exactly once.
  */
-export const duplicatedRoleStatusPlanCheckDetector: Detector = {
+export const duplicatedRoleStatusPlanCheckDetector: LanguageJsDetector = {
   id: "duplicated_role_status_plan_check",
   name: "Duplicated Role / Status / Plan Check",
   description:

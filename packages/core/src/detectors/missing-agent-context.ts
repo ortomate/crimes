@@ -1,4 +1,4 @@
-import type { Detector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, DetectorContext } from "../detector.js";
 import type { Finding } from "../finding.js";
 import type { IaAgentInventory } from "../ia/types.js";
 
@@ -12,7 +12,7 @@ import type { IaAgentInventory } from "../ia/types.js";
  * `ctx.file` is the lexicographically first source file in the IA index --
  * a deterministic, repo-stable anchor.
  */
-export const missingAgentContextDetector: Detector = {
+export const missingAgentContextDetector: LanguageJsDetector = {
   id: "missing_agent_context",
   name: "Missing Agent Context",
   description:

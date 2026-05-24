@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import type { IaIndex, IaRouteSignal } from "../ia/types.js";
 
@@ -12,7 +12,7 @@ import type { IaIndex, IaRouteSignal } from "../ia/types.js";
  * Anchored on the route file itself so the per-file detector loop emits
  * each finding exactly once.
  */
-export const orphanedDestinationDetector: Detector = {
+export const orphanedDestinationDetector: LanguageJsDetector = {
   id: "orphaned_destination",
   name: "Orphaned Destination",
   description:

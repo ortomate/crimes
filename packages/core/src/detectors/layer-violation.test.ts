@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, type CrimesConfig } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type { ImportEdge, ImportGraph } from "../imports/types.js";
-import { layerViolationDetector as _layerViolationDetector } from "./layer-violation.js";
-const layerViolationDetector = _layerViolationDetector as LanguageJsDetector;
+import { layerViolationDetector } from "./layer-violation.js";
 
 function makeGraph(edges: Omit<ImportEdge, "external" | "typeOnly" | "dynamic">[]): ImportGraph {
   const out = new Map<string, ImportEdge[]>();

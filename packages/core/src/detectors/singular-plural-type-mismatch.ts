@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { TypedDeclaration } from "@crimes/language-js";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import {
   isUncountable,
@@ -32,7 +32,7 @@ const optionsSchema = z
  * Aliased types (`type UserId = string`) and generic types are skipped
  * — the FN rate is accepted (documented under finding-types/structural.md).
  */
-export const singularPluralTypeMismatchDetector: Detector = {
+export const singularPluralTypeMismatchDetector: LanguageJsDetector = {
   id: "singular_plural_type_mismatch",
   name: "Plural Mismatch",
   description:

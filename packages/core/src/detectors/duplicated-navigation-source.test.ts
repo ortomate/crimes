@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type { IaIndex, IaNavSignal } from "../ia/types.js";
-import { duplicatedNavigationSourceDetector as _duplicatedNavigationSourceDetector } from "./duplicated-navigation-source.js";
-const duplicatedNavigationSourceDetector = _duplicatedNavigationSourceDetector as LanguageJsDetector;
+import { duplicatedNavigationSourceDetector } from "./duplicated-navigation-source.js";
 
 function buildIndex(
   sources: { file: string; entries: { destination?: string; label?: string }[] }[],

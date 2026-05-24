@@ -3,15 +3,14 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type {
   IaAgentInventory,
   IaDocSignal,
   IaFileSignals,
   IaIndex,
 } from "../ia/types.js";
-import { commandDriftDocsCodeDriftDetector as _commandDriftDocsCodeDriftDetector } from "./command-drift-docs-code-drift.js";
-const commandDriftDocsCodeDriftDetector = _commandDriftDocsCodeDriftDetector as LanguageJsDetector;
+import { commandDriftDocsCodeDriftDetector } from "./command-drift-docs-code-drift.js";
 
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-cmd-drift-"));

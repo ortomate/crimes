@@ -1,9 +1,8 @@
 import { parseFile } from "@crimes/language-js";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { returnShapeRouletteDetector as _returnShapeRouletteDetector } from "./return-shape-roulette.js";
-const returnShapeRouletteDetector = _returnShapeRouletteDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { returnShapeRouletteDetector } from "./return-shape-roulette.js";
 
 function makeCtx(source: string): LanguageJsDetectorContext {
   return {

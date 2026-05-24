@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import type { IaIndex } from "../ia/types.js";
 
@@ -12,7 +12,7 @@ import type { IaIndex } from "../ia/types.js";
  * the lexicographically first nav source file declaring that destination.
  * The other nav sources land in `related_files`.
  */
-export const duplicatedNavigationSourceDetector: Detector = {
+export const duplicatedNavigationSourceDetector: LanguageJsDetector = {
   id: "duplicated_navigation_source",
   name: "Duplicated Navigation Source",
   description:

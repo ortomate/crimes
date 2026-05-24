@@ -1,6 +1,6 @@
 import type { FunctionShape, ParsedFunction } from "@crimes/language-js";
 import type { CrimesConfig } from "../config.js";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 
 /**
@@ -107,7 +107,7 @@ export function policyFor(
   return { ...base, threshold: override };
 }
 
-export const largeFunctionDetector: Detector = {
+export const largeFunctionDetector: LanguageJsDetector = {
   id: "large_function",
   name: "Large Function",
   description:

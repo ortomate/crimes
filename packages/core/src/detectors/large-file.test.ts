@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type CrimesConfig, DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { largeFileDetector as _largeFileDetector } from "./large-file.js";
-const largeFileDetector = _largeFileDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { largeFileDetector } from "./large-file.js";
 
 function makeCtx(
   lineCount: number,

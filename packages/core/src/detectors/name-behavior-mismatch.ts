@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 
 const PURE_PREFIXES = [
@@ -24,7 +24,7 @@ const STRONG_SIDE_EFFECT = /\b(?:charge|refund|delete|remove|sendEmail|sendInvoi
 const API_SIDE_EFFECT = /\b(?:fetch|localStorage\.setItem|sessionStorage\.setItem|writeFile|appendFile|unlink|mkdir|rm|rmdir)\s*\(/g;
 const ASSIGNMENT = /(?:^|[^=!<>])=(?!=)|\+\+|--/g;
 
-export const nameBehaviorMismatchDetector: Detector = {
+export const nameBehaviorMismatchDetector: LanguageJsDetector = {
   id: "name_behavior_mismatch",
   name: "Name / Behaviour Mismatch",
   description: "Flags functions whose names imply safe reads or calculations while their bodies perform side effects.",

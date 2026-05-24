@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import type { Detector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, DetectorContext } from "../detector.js";
 import type { Finding } from "../finding.js";
 import type { IaIndex } from "../ia/types.js";
 
@@ -17,7 +17,7 @@ import type { IaIndex } from "../ia/types.js";
  *
  * One finding per docs file with at least one missing reference.
  */
-export const commandDriftDocsCodeDriftDetector: Detector = {
+export const commandDriftDocsCodeDriftDetector: LanguageJsDetector = {
   id: "command_drift_docs_code_drift",
   name: "Docs Reference Missing Command",
   description:

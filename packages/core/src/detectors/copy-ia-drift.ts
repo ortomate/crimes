@@ -1,4 +1,4 @@
-import type { Detector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, DetectorContext } from "../detector.js";
 import { ACTION_GROUPS, analyse } from "./action-label-drift.js";
 
 /**
@@ -12,7 +12,7 @@ import { ACTION_GROUPS, analyse } from "./action-label-drift.js";
  * variant is broader (label + nav signals) while this one targets the
  * pure UI-copy surface.
  */
-export const copyIaDriftDetector: Detector = {
+export const copyIaDriftDetector: LanguageJsDetector = {
   id: "copy_ia_drift",
   name: "Copy / IA Drift",
   description:

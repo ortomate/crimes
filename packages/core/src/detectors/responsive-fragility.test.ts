@@ -4,9 +4,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseFile } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { responsiveFragilityDetector as _responsiveFragilityDetector } from "./responsive-fragility.js";
-const responsiveFragilityDetector = _responsiveFragilityDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { responsiveFragilityDetector } from "./responsive-fragility.js";
 
 async function ctxFromSource(source: string): Promise<LanguageJsDetectorContext> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-rf-"));

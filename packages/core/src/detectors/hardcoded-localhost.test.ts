@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
 import type { CrimesConfig } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { hardcodedLocalhostDetector as _hardcodedLocalhostDetector } from "./hardcoded-localhost.js";
-const hardcodedLocalhostDetector = _hardcodedLocalhostDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { hardcodedLocalhostDetector } from "./hardcoded-localhost.js";
 
 function makeCtx(
   source: string,

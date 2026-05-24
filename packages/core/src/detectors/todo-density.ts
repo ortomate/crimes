@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 
 const TODO_PATTERN = /\b(TODO|FIXME|XXX|HACK)\b/g;
@@ -10,7 +10,7 @@ const TODO_PATTERN = /\b(TODO|FIXME|XXX|HACK)\b/g;
 // NOT match prose that merely mentions one marker name in passing.
 const SELF_REFERENCE_PATTERN = /TODO\s*\|\s*FIXME\s*\|\s*XXX\s*\|\s*HACK/;
 
-export const todoDensityDetector: Detector = {
+export const todoDensityDetector: LanguageJsDetector = {
   id: "todo_density",
   name: "TODO/FIXME Density",
   description: "Flags files with a high concentration of TODO, FIXME, XXX, or HACK markers.",

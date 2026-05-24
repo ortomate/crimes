@@ -1,9 +1,8 @@
 import { parseFile } from "@crimes/language-js";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { optionBagJunkDrawerDetector as _optionBagJunkDrawerDetector } from "./option-bag-junk-drawer.js";
-const optionBagJunkDrawerDetector = _optionBagJunkDrawerDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { optionBagJunkDrawerDetector } from "./option-bag-junk-drawer.js";
 
 function makeCtx(source: string): LanguageJsDetectorContext {
   return {

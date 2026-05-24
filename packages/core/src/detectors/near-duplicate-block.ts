@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 import { buildFinding } from "./exact-duplicate-block.js";
 
@@ -13,7 +13,7 @@ import { buildFinding } from "./exact-duplicate-block.js";
  * more easily on smaller bodies — the index builder enforces a ≥40
  * token floor to keep collisions in check.
  */
-export const nearDuplicateBlockDetector: Detector = {
+export const nearDuplicateBlockDetector: LanguageJsDetector = {
   id: "near_duplicate_block",
   name: "Near-Duplicate Block",
   description:

@@ -1,11 +1,11 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import type { PettyLiteralHit } from "../petty/types.js";
 
 const MIN_FILES = 3;
 const MAX_FINDINGS_PER_ANCHOR = 5;
 
-export const magicDomainLiteralScatterDetector: Detector = {
+export const magicDomainLiteralScatterDetector: LanguageJsDetector = {
   id: "magic_domain_literal_scatter",
   name: "Magic Domain Literal Scatter",
   description: "Flags repeated domain-looking literals spread across production files.",

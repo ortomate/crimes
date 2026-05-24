@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { extractComments, type SourceComment } from "../petty/comments.js";
 
@@ -23,7 +23,7 @@ const CODE_TOKENS = [
   "return",
 ];
 
-export const commentedOutCodeDetector: Detector = {
+export const commentedOutCodeDetector: LanguageJsDetector = {
   id: "commented_out_code",
   name: "Commented-Out Code",
   description: "Flags disabled code left behind in comments.",

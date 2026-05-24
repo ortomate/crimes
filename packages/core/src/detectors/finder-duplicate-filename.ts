@@ -1,9 +1,9 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding } from "../finding.js";
 
 const FINDER_DUPLICATE_RE = /(?:^|\/)([^/]+) ([2-9])(\.[^/.]+)$/;
 
-export const finderDuplicateFilenameDetector: Detector = {
+export const finderDuplicateFilenameDetector: LanguageJsDetector = {
   id: "finder_duplicate_filename",
   name: "Finder Duplicate Filename",
   description:

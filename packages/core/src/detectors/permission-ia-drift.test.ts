@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type {
   IaDocSignal,
   IaFileSignals,
@@ -8,8 +8,7 @@ import type {
   IaPermissionSignal,
   IaRouteSignal,
 } from "../ia/types.js";
-import { permissionIaDriftDetector as _permissionIaDriftDetector } from "./permission-ia-drift.js";
-const permissionIaDriftDetector = _permissionIaDriftDetector as LanguageJsDetector;
+import { permissionIaDriftDetector } from "./permission-ia-drift.js";
 
 interface BuildOptions {
   routes: IaRouteSignal[];

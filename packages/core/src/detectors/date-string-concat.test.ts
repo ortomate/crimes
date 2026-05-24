@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { DateStringConcat } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { dateStringConcatDetector as _dateStringConcatDetector } from "./date-string-concat.js";
-const dateStringConcatDetector = _dateStringConcatDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { dateStringConcatDetector } from "./date-string-concat.js";
 
 function makeCtx(
   hits: DateStringConcat[] | undefined,

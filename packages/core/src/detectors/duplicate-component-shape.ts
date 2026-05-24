@@ -1,4 +1,4 @@
-import type { Detector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, DetectorContext } from "../detector.js";
 import type { Finding } from "../finding.js";
 import type { JsxShapeHit } from "../jsx/shape-index.js";
 
@@ -13,7 +13,7 @@ import type { JsxShapeHit } from "../jsx/shape-index.js";
  * `<Card name={a}/>` and `<Card name={b}/>` collide on shape but
  * different element trees do not.
  */
-export const duplicateComponentShapeDetector: Detector = {
+export const duplicateComponentShapeDetector: LanguageJsDetector = {
   id: "duplicate_component_shape",
   name: "Duplicate Component Shape",
   description:

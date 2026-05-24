@@ -5,9 +5,8 @@ import { describe, expect, it } from "vitest";
 import { discoverFiles } from "../discovery/index.js";
 import { buildFunctionHashIndex } from "../ast-hash/function-index.js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
-import { exactDuplicateBlockDetector as _exactDuplicateBlockDetector } from "./exact-duplicate-block.js";
-const exactDuplicateBlockDetector = _exactDuplicateBlockDetector as LanguageJsDetector;
+import type { LanguageJsDetectorContext } from "../detector.js";
+import { exactDuplicateBlockDetector } from "./exact-duplicate-block.js";
 
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-edb-"));

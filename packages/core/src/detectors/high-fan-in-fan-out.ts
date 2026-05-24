@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import type { ImportGraph } from "../imports/types.js";
 
@@ -12,7 +12,7 @@ import type { ImportGraph } from "../imports/types.js";
  * surfacing these files as "rippling" so an agent making a small change
  * understands how many other files will need a re-read.
  */
-export const highFanInFanOutDetector: Detector = {
+export const highFanInFanOutDetector: LanguageJsDetector = {
   id: "high_fan_in_fan_out",
   name: "High Fan-In / Fan-Out",
   description:

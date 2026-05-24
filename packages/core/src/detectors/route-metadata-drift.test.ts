@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type {
   IaFileSignals,
   IaIndex,
@@ -8,8 +8,7 @@ import type {
   IaNavSignal,
   IaRouteSignal,
 } from "../ia/types.js";
-import { routeMetadataDriftDetector as _routeMetadataDriftDetector } from "./route-metadata-drift.js";
-const routeMetadataDriftDetector = _routeMetadataDriftDetector as LanguageJsDetector;
+import { routeMetadataDriftDetector } from "./route-metadata-drift.js";
 
 interface BuildOptions {
   routes: IaRouteSignal[];

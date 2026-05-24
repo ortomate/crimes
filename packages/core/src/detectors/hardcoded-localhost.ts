@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -70,7 +70,7 @@ interface UrlHit {
  * environment (CI, staging, prod, teammate machines). A
  * configuration value (env var, settings module) is the fix.
  */
-export const hardcodedLocalhostDetector: Detector = {
+export const hardcodedLocalhostDetector: LanguageJsDetector = {
   id: "hardcoded_localhost",
   name: "Dev-Server URL",
   description:

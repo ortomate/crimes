@@ -1,5 +1,5 @@
 import type { DateMethodCall } from "@crimes/language-js";
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -9,7 +9,7 @@ import { isTestFile } from "../util/test-files.js";
  * cross a DST or international-date-line boundary, so the value
  * differs from what the developer expects only in production.
  */
-export const mixedUtcLocalMethodsDetector: Detector = {
+export const mixedUtcLocalMethodsDetector: LanguageJsDetector = {
   id: "mixed_utc_local_methods",
   name: "Half-UTC, Half-Local",
   description:

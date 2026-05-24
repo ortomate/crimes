@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import type {
   IaDocSignal,
   IaFileSignals,
@@ -8,8 +8,7 @@ import type {
   IaNavSignal,
   IaRouteSignal,
 } from "../ia/types.js";
-import { orphanedDestinationDetector as _orphanedDestinationDetector } from "./orphaned-destination.js";
-const orphanedDestinationDetector = _orphanedDestinationDetector as LanguageJsDetector;
+import { orphanedDestinationDetector } from "./orphaned-destination.js";
 
 interface BuildOptions {
   routes: IaRouteSignal[];

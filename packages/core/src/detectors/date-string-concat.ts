@@ -1,4 +1,4 @@
-import type { Detector } from "../detector.js";
+import type { LanguageJsDetector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -7,7 +7,7 @@ import { isTestFile } from "../util/test-files.js";
  * strings by hand. Almost always reinvents (badly) something
  * `toISOString()` or `Intl.DateTimeFormat` would do correctly.
  */
-export const dateStringConcatDetector: Detector = {
+export const dateStringConcatDetector: LanguageJsDetector = {
   id: "date_string_concat",
   name: "Date String Sewing",
   description:

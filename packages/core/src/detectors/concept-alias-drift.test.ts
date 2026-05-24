@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import type { LanguageJsDetectorContext } from "../detector.js";
 import { DEFAULT_ALIAS_GROUPS } from "../ia/aliases.js";
 import type {
   IaConceptAliasGroup,
   IaFileSignals,
   IaIndex,
 } from "../ia/types.js";
-import { conceptAliasDriftDetector as _conceptAliasDriftDetector } from "./concept-alias-drift.js";
-const conceptAliasDriftDetector = _conceptAliasDriftDetector as LanguageJsDetector;
+import { conceptAliasDriftDetector } from "./concept-alias-drift.js";
 
 interface BuildOptions {
   files: Record<
