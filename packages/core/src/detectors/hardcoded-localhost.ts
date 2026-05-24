@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { LanguageJsDetector } from "../detector.js";
+import type { UniversalDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -70,7 +70,7 @@ interface UrlHit {
  * environment (CI, staging, prod, teammate machines). A
  * configuration value (env var, settings module) is the fix.
  */
-export const hardcodedLocalhostDetector: LanguageJsDetector = {
+export const hardcodedLocalhostDetector: UniversalDetector = {
   id: "hardcoded_localhost",
   name: "Dev-Server URL",
   description:
@@ -89,14 +89,15 @@ export const hardcodedLocalhostDetector: LanguageJsDetector = {
     "environment value explicit.",
   optionsSchema,
 
-  pack: "language-js",
-  run(ctx) {
+  pack: "universal",
+  async run(ctx) {
     if (isTestFile(ctx.file)) return [];
     if (SKIPPED_DIR_RE.test(ctx.file)) return [];
     if (isConfigBasename(ctx.file)) return [];
 
+    const source = await ctx.readSource();
     const allowed = readAllowedUrls(ctx.config.detectors?.options);
-    const hits = scanSource(ctx.source, allowed);
+    const hits = scanSource(source, allowed);
     if (hits.length === 0) return [];
 
     const severity: Severity = hits.length >= 3 ? "high" : "medium";

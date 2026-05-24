@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
 import type { CrimesConfig } from "../config.js";
-import type { LanguageJsDetectorContext } from "../detector.js";
+import type { UniversalDetectorContext } from "../detector.js";
 import { hardcodedLocalhostDetector } from "./hardcoded-localhost.js";
 
 function makeCtx(
   source: string,
   overrides: { file?: string; config?: CrimesConfig } = {},
-): LanguageJsDetectorContext {
+): UniversalDetectorContext {
+  const file = overrides.file ?? "src/api.ts";
   return {
-    kind: "language-js",
-    file: overrides.file ?? "src/api.ts",
-    absolutePath: "/tmp/api.ts",
-    source,
-    parsed: {
-      lineCount: source.split("\n").length,
-      functions: [],
-      dateNowOrNewDateUses: [],
+    kind: "universal",
+    file,
+    absolutePath: `/tmp/${file}`,
+    extension: file.match(/\.[^./]+$/)?.[0] ?? "",
+    byteSize: source.length,
+    readSource: async () => source,
+    get lineCount() {
+      return source.split("\n").length;
     },
     config: overrides.config ?? DEFAULT_CONFIG,
   };
@@ -169,5 +170,14 @@ describe("hardcodedLocalhostDetector", () => {
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]!.lines).toEqual([1, 2]);
+  });
+
+  it("fires on a Python file containing localhost:NNNN", async () => {
+    const findings = await hardcodedLocalhostDetector.run(
+      makeCtx('api_url = "http://localhost:3000/api"\n', { file: "src/config.py" }),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.type).toBe("hardcoded_localhost");
+    expect(findings[0]!.evidence.join(" ")).toContain("localhost:3000");
   });
 });
