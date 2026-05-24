@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetectorContext } from "../detector.js";
+import type { UniversalDetectorContext } from "../detector.js";
 import { finderDuplicateFilenameDetector } from "./finder-duplicate-filename.js";
 
-function makeCtx(file: string): LanguageJsDetectorContext {
+function makeCtx(file: string): UniversalDetectorContext {
   return {
-    kind: "language-js",
+    kind: "universal",
     file,
     absolutePath: `/tmp/${file}`,
-    source: "",
-    parsed: { lineCount: 0, functions: [], dateNowOrNewDateUses: [] },
+    extension: file.match(/\.[^./]+$/)?.[0] ?? "",
+    byteSize: 0,
+    readSource: async () => "",
+    get lineCount() {
+      return 1;
+    },
     config: DEFAULT_CONFIG,
   };
 }
@@ -36,5 +40,24 @@ describe("finderDuplicateFilenameDetector", () => {
     ]) {
       expect(await finderDuplicateFilenameDetector.run(makeCtx(file))).toEqual([]);
     }
+  });
+});
+
+describe("finderDuplicateFilenameDetector — universal pack", () => {
+  it("fires on `Button 2.rs` (non-JS)", async () => {
+    const findings = await finderDuplicateFilenameDetector.run(
+      makeCtx("src/Button 2.rs"),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.evidence.some((e) => e.includes("Button 2.rs"))).toBe(
+      true,
+    );
+  });
+
+  it("fires on `notes 3.md`", async () => {
+    const findings = await finderDuplicateFilenameDetector.run(
+      makeCtx("docs/notes 3.md"),
+    );
+    expect(findings).toHaveLength(1);
   });
 });

@@ -1,9 +1,9 @@
-import type { LanguageJsDetector } from "../detector.js";
+import type { UniversalDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 
 const FINDER_DUPLICATE_RE = /(?:^|\/)([^/]+) ([2-9])(\.[^/.]+)$/;
 
-export const finderDuplicateFilenameDetector: LanguageJsDetector = {
+export const finderDuplicateFilenameDetector: UniversalDetector = {
   id: "finder_duplicate_filename",
   name: "Finder Duplicate Filename",
   description:
@@ -14,7 +14,7 @@ export const finderDuplicateFilenameDetector: LanguageJsDetector = {
     "agents and humans have to guess which file is canonical. The fix is " +
     "usually unambiguous: compare the copy, keep the real file, delete the duplicate.",
 
-  pack: "language-js",
+  pack: "universal",
   run(ctx) {
     const match = FINDER_DUPLICATE_RE.exec(ctx.file);
     if (!match) return [];
