@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetectorContext } from "../detector.js";
+import type { UniversalDetectorContext } from "../detector.js";
 import type { IaDocLink, IaFileSignals, IaIndex } from "../ia/types.js";
 import { docsCodeDriftDetector } from "./docs-code-drift.js";
 
@@ -42,13 +42,18 @@ function buildIndex(opts: {
   };
 }
 
-function ctxFor(file: string, ia: IaIndex): LanguageJsDetectorContext {
+function ctxFor(file: string, ia: IaIndex): UniversalDetectorContext {
+  const source = "";
   return {
-    kind: "language-js",
+    kind: "universal",
     file,
     absolutePath: `/tmp/${file}`,
-    source: "",
-    parsed: { lineCount: 1, functions: [], dateNowOrNewDateUses: [] },
+    extension: file.match(/\.[^./]+$/)?.[0] ?? "",
+    byteSize: source.length,
+    readSource: async () => source,
+    get lineCount() {
+      return source.split("\n").length;
+    },
     config: DEFAULT_CONFIG,
     ia,
   };
@@ -56,12 +61,15 @@ function ctxFor(file: string, ia: IaIndex): LanguageJsDetectorContext {
 
 describe("docsCodeDriftDetector", () => {
   it("returns nothing when ctx.ia is missing", async () => {
+    const source = "";
     const findings = await docsCodeDriftDetector.run({
-      kind: "language-js",
+      kind: "universal",
       file: "src/a.ts",
       absolutePath: "/tmp/x",
-      source: "",
-      parsed: { lineCount: 1, functions: [], dateNowOrNewDateUses: [] },
+      extension: ".ts",
+      byteSize: source.length,
+      readSource: async () => source,
+      lineCount: source.split("\n").length,
       config: DEFAULT_CONFIG,
     });
     expect(findings).toEqual([]);

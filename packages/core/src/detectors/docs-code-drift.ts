@@ -1,4 +1,4 @@
-import type { LanguageJsDetector, DetectorContext } from "../detector.js";
+import type { UniversalDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import type { IaIndex } from "../ia/types.js";
 
@@ -12,7 +12,7 @@ import type { IaIndex } from "../ia/types.js";
  * implement) is intentionally deferred to a later release -- it requires
  * deterministic command-registration scanning we do not have yet.
  */
-export const docsCodeDriftDetector: LanguageJsDetector = {
+export const docsCodeDriftDetector: UniversalDetector = {
   id: "docs_code_drift",
   name: "Docs-Code Drift",
   description:
@@ -24,7 +24,7 @@ export const docsCodeDriftDetector: LanguageJsDetector = {
     "PR as the code change is the only durable fix; orphaned references " +
     "compound silently over time.",
 
-  pack: "language-js",
+  pack: "universal",
   run(ctx) {
     if (!ctx.ia) return [];
     if (!isPrimaryAnchor(ctx)) return [];
@@ -90,7 +90,7 @@ function analyse(ia: IaIndex): Finding[] {
   return findings;
 }
 
-function isPrimaryAnchor(ctx: DetectorContext): boolean {
+function isPrimaryAnchor(ctx: { file: string; ia?: IaIndex }): boolean {
   if (!ctx.ia) return false;
   const files = Object.keys(ctx.ia.files).sort();
   return files.length > 0 && files[0] === ctx.file;
