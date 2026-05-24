@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
-import { discoverFiles } from "@crimes/language-js";
+import { discoverFiles } from "../discovery/index.js";
 import { DEFAULT_CONFIG } from "../config.js";
 import { buildImportGraph } from "../imports/build.js";
 import { buildScoringContext, computeAgentRisk, finaliseFindingScores, recencyForDate } from "./build.js";

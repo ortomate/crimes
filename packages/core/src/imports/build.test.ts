@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { discoverFiles } from "@crimes/language-js";
+import { discoverFiles } from "../discovery/index.js";
 import { DEFAULT_CONFIG } from "../config.js";
 import { buildImportGraph } from "./build.js";
 

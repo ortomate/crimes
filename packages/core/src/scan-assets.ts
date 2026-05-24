@@ -1,6 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { extname, relative } from "node:path";
-import { discoverFiles } from "@crimes/language-js";
+import { discoverFiles } from "./discovery/index.js";
 import type { CrimesConfig } from "./config.js";
 import type { AssetDetector, AssetDetectorContext } from "./detector.js";
 import type { Finding } from "./finding.js";

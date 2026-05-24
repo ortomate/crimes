@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { realpath } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, parse, resolve } from "node:path";
-import { discoverFiles } from "@crimes/language-js";
+import { discoverFiles } from "./discovery/index.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import {

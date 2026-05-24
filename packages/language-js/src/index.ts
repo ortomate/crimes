@@ -1,5 +1,3 @@
-export { discoverFiles } from "./file-discovery.js";
-export type { DiscoverOptions } from "./file-discovery.js";
 export { parseFile } from "./parse/index.js";
 export type {
   DateArithmetic,

@@ -1,6 +1,7 @@
 import { readFile, realpath } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
-import { discoverFiles, parseFile } from "@crimes/language-js";
+import { discoverFiles } from "./discovery/index.js";
+import { parseFile } from "@crimes/language-js";
 import type { BaselineEntry, FailOn } from "./baseline.js";
 import {
   BASELINE_RELATIVE_PATH,
