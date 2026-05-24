@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
 import type { CrimesConfig } from "../config.js";
-import type { LanguageJsDetectorContext } from "../detector.js";
+import type { UniversalDetectorContext } from "../detector.js";
 import { hardcodedLocalPathDetector } from "./hardcoded-local-path.js";
 
 function makeCtx(
   source: string,
   overrides: { file?: string; config?: CrimesConfig } = {},
-): LanguageJsDetectorContext {
+): UniversalDetectorContext {
+  const file = overrides.file ?? "src/loader.ts";
   return {
-    kind: "language-js",
-    file: overrides.file ?? "src/loader.ts",
-    absolutePath: "/tmp/loader.ts",
-    source,
-    parsed: {
-      lineCount: source.split("\n").length,
-      functions: [],
-      dateNowOrNewDateUses: [],
+    kind: "universal",
+    file,
+    absolutePath: `/tmp/${file}`,
+    extension: file.match(/\.[^./]+$/)?.[0] ?? "",
+    byteSize: source.length,
+    readSource: async () => source,
+    get lineCount() {
+      return source.split("\n").length;
     },
     config: overrides.config ?? DEFAULT_CONFIG,
   };
@@ -159,5 +160,14 @@ describe("hardcodedLocalPathDetector", () => {
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]!.lines).toEqual([1, 2]);
+  });
+
+  it("fires on a Python file containing /Users/alice/...", async () => {
+    const findings = await hardcodedLocalPathDetector.run(
+      makeCtx('PATH = "/Users/alice/secret.py"\n', { file: "src/config.py" }),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.type).toBe("hardcoded_local_path");
+    expect(findings[0]!.evidence.join(" ")).toContain("/Users/alice/secret.py");
   });
 });

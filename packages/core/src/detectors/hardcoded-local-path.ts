@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { LanguageJsDetector } from "../detector.js";
+import type { UniversalDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -59,7 +59,7 @@ interface PathHit {
  * (CI, teammates, deploy targets). `os.homedir()`,
  * `process.env.HOME`, or a relative path fixes the surface.
  */
-export const hardcodedLocalPathDetector: LanguageJsDetector = {
+export const hardcodedLocalPathDetector: UniversalDetector = {
   id: "hardcoded_local_path",
   name: "Localhost-on-Disk",
   description:
@@ -76,13 +76,14 @@ export const hardcodedLocalPathDetector: LanguageJsDetector = {
     "config-driven base path eliminates the surface.",
   optionsSchema,
 
-  pack: "language-js",
-  run(ctx) {
+  pack: "universal",
+  async run(ctx) {
     if (isTestFile(ctx.file)) return [];
     if (NON_PRODUCTION_DIR_RE.test(ctx.file)) return [];
 
+    const source = await ctx.readSource();
     const allowed = readAllowedPaths(ctx.config.detectors?.options);
-    const hits = scanSource(ctx.source, allowed);
+    const hits = scanSource(source, allowed);
     if (hits.length === 0) return [];
 
     const severity: Severity = hits.length >= 3 ? "high" : "medium";
