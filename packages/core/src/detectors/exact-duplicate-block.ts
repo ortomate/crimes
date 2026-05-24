@@ -24,6 +24,7 @@ export const exactDuplicateBlockDetector: Detector = {
     "can't tell which one is the source of truth, and the next agent " +
     "edits one and forgets the other.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.functionHashIndex) return [];
     const findings: Finding[] = [];

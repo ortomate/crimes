@@ -25,6 +25,7 @@ export const conceptAliasDriftDetector: Detector = {
     "logic that already exists under another name. Reviewers reading " +
     "later struggle to tell which alias is canonical.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
     if (!isPrimaryAnchor(ctx)) return [];

@@ -15,6 +15,7 @@ export const directDateDetector: Detector = {
     "Injecting a clock keeps domain code reproducible and lets tests assert " +
     "exact timing without freezing the whole process.",
 
+  pack: "language-js",
   run(ctx) {
     // Test files intentionally inject dates as `now: () => new Date(NOW_ISO)`
     // — flagging that pattern is a false positive. Domain code is where

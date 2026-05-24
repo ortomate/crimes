@@ -23,6 +23,7 @@ export const copyIaDriftDetector: Detector = {
     "three different labels for the same intent. Agents extending one " +
     "view pick whichever word fits locally and quietly add a fourth.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
     if (!isPrimaryAnchor(ctx)) return [];

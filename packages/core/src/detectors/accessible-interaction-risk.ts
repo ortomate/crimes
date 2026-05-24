@@ -27,6 +27,7 @@ export const accessibleInteractionRiskDetector: Detector = {
     "before review lets the team decide whether to fix the markup or " +
     "accept the trade-off explicitly.",
 
+  pack: "language-js",
   run(ctx) {
     const elements = walkJsx({ source: ctx.source, ast: ctx.parsed });
     if (elements.length === 0) return [];

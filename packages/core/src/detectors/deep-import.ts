@@ -25,6 +25,7 @@ export const deepImportDetector: Detector = {
     "upgrade, and agents copy them forward without realising the " +
     "import path is private API.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.imports) return [];
     const outEdges = ctx.imports.out.get(ctx.file) ?? [];

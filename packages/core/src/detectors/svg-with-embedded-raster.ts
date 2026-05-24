@@ -57,6 +57,7 @@ export const svgWithEmbeddedRasterDetector: AssetDetector = {
     "this pattern silently; coding agents copy the file verbatim " +
     "and never notice. The fix is to re-author the offending region " +
     "as vector paths, or to split the raster out to its own asset.",
+  pack: "universal",
   extensions: [".svg"],
   optionsSchema,
 

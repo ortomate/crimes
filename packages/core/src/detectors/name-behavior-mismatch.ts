@@ -34,6 +34,7 @@ export const nameBehaviorMismatchDetector: Detector = {
     "code by names — a safe-sounding name often makes them call something " +
     "dangerous from a hot loop.",
 
+  pack: "language-js",
   run(ctx) {
     const lines = ctx.source.split(/\r?\n/);
     const findings: Finding[] = [];

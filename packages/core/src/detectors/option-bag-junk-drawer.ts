@@ -14,6 +14,7 @@ export const optionBagJunkDrawerDetector: Detector = {
     "add or rename a key without understanding what depends on it; " +
     "downstream consumers silently break.",
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
 

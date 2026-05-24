@@ -20,6 +20,7 @@ export const todoDensityDetector: Detector = {
     "weighing the unbuilt promises around it, and reviewers skim past " +
     "warnings that have become wallpaper.",
 
+  pack: "language-js",
   run(ctx) {
     // Skip files that *define* the marker set rather than carry markers.
     if (SELF_REFERENCE_PATTERN.test(ctx.source)) return [];

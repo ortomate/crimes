@@ -41,6 +41,7 @@ export const timezoneUnsafeParseDetector: Detector = {
     "(or parsing through a library that requires it) removes the guess.",
   optionsSchema,
 
+  pack: "language-js",
   run(ctx) {
     // Tests routinely pin fixed date strings in assertions; flagging
     // them is noise. Domain code is where parse-time ambiguity bites.

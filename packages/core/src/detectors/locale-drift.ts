@@ -28,6 +28,7 @@ export const localeDriftDetector: Detector = {
     "the implicit locale is rarely the right contract either — pick one " +
     "explicitly.",
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
     const calls = ctx.parsed.dateMethodCalls;

@@ -30,6 +30,7 @@ export const actionLabelDriftDetector: Detector = {
     "rest. Reviewers struggle to tell whether two buttons do the same " +
     "thing or not.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
     if (!isPrimaryAnchor(ctx)) return [];

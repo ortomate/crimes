@@ -14,6 +14,7 @@ export const finderDuplicateFilenameDetector: Detector = {
     "agents and humans have to guess which file is canonical. The fix is " +
     "usually unambiguous: compare the copy, keep the real file, delete the duplicate.",
 
+  pack: "language-js",
   run(ctx) {
     const match = FINDER_DUPLICATE_RE.exec(ctx.file);
     if (!match) return [];

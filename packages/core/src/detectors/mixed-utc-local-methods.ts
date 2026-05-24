@@ -23,6 +23,7 @@ export const mixedUtcLocalMethodsDetector: Detector = {
     "Pick one family per variable and stick to it — usually UTC for " +
     "storage and computation, local only at the user-display boundary.",
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
     const calls = ctx.parsed.dateMethodCalls;

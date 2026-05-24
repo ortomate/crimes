@@ -121,6 +121,7 @@ export const largeFunctionDetector: Detector = {
     "named helpers give every editor — human or AI — a smaller surface " +
     "to reason about per edit.",
 
+  pack: "language-js",
   run(ctx) {
     const findings: Finding[] = [];
 

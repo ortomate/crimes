@@ -26,6 +26,7 @@ export const permissionIaDriftDetector: Detector = {
     "access policy — has no single source of truth. The hidden mismatch " +
     "is exactly where access bugs slip in unnoticed.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
     if (!isPrimaryAnchor(ctx)) return [];

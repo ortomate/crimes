@@ -25,6 +25,7 @@ export const dstNaiveArithmeticDetector: Detector = {
     "October. For day-level math, use a timezone-aware library that " +
     "knows about the calendar — Luxon, Temporal, date-fns-tz, etc.",
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
     const hits = ctx.parsed.dateArithmetic;

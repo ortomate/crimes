@@ -25,6 +25,7 @@ export const missingAgentContextDetector: Detector = {
     "Without AGENTS.md / CLAUDE.md / skill files, the agent invents its " +
     "own conventions — usually badly.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
     const anchor = primaryAnchor(ctx);

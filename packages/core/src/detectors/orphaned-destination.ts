@@ -24,6 +24,7 @@ export const orphanedDestinationDetector: Detector = {
     "agents updating the live flows miss them entirely, and reviewers " +
     "rediscover them months later via grep.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
     const route = ctx.ia.routes.find((r) => r.file === ctx.file);

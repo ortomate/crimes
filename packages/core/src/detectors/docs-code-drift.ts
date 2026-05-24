@@ -24,6 +24,7 @@ export const docsCodeDriftDetector: Detector = {
     "PR as the code change is the only durable fix; orphaned references " +
     "compound silently over time.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
     if (!isPrimaryAnchor(ctx)) return [];

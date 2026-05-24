@@ -89,6 +89,7 @@ export const hardcodedLocalhostDetector: Detector = {
     "environment value explicit.",
   optionsSchema,
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
     if (SKIPPED_DIR_RE.test(ctx.file)) return [];

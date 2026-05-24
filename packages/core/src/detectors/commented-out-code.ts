@@ -33,6 +33,7 @@ export const commentedOutCodeDetector: Detector = {
     "comment without checking whether it was abandoned for a reason, and " +
     "reviewers cannot tell which is canonical.",
 
+  pack: "language-js",
   run(ctx) {
     const findings: Finding[] = [];
     for (const comment of extractComments(ctx.source)) {

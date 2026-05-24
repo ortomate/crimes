@@ -25,6 +25,7 @@ export const nearDuplicateBlockDetector: Detector = {
     "as exact duplication, but harder for reviewers to spot — the bodies " +
     "look superficially different, only the shape is identical.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.functionHashIndex) return [];
     const findings: Finding[] = [];

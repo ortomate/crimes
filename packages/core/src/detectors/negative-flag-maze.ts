@@ -14,6 +14,7 @@ export const negativeFlagMazeDetector: Detector = {
     "flip the meaning, especially when the flag name and the surrounding " +
     "logic disagree.",
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
 

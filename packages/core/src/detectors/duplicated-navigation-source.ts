@@ -24,6 +24,7 @@ export const duplicatedNavigationSourceDetector: Detector = {
     "tests. Updating one source leaves the others stale; eventually the " +
     "team forgets which one is real.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
 

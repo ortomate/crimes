@@ -6,6 +6,7 @@ import type { Finding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
 import type { ImportGraph } from "./imports/types.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
+import type { Pack } from "./pack.js";
 import type { PettyIndex } from "./petty/types.js";
 import type { ScoringContext } from "./scoring/build.js";
 
@@ -40,6 +41,11 @@ export interface Detector {
    * detectors. See `0.8.0-extended-lens.md` §6 for the shape.
    */
   optionsSchema?: z.ZodType<unknown>;
+  /**
+   * The pack this detector belongs to — determines which DetectorContext
+   * kind the registry will feed it. See `src/pack.ts`.
+   */
+  pack: Pack;
   run(ctx: DetectorContext): Promise<Finding[]> | Finding[];
 }
 
@@ -64,6 +70,12 @@ export interface AssetDetector {
   description: string;
   /** Paragraph rationale shown by `crimes explain`. */
   whyItMatters: string;
+  /**
+   * Asset detectors always belong to the universal pack — their evidence
+   * is file bytes + extensions, never AST. Declared explicitly so the
+   * detector registry can route uniformly.
+   */
+  pack: "universal";
   /**
    * Lowercase file extensions (including the leading dot) this detector
    * applies to. The orchestrator skips the detector entirely for files

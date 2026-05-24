@@ -24,6 +24,7 @@ export const highFanInFanOutDetector: Detector = {
     "agent should treat them as load-bearing — read the importers before " +
     "renaming or restructuring.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.imports) return [];
     const stats = buildOrLoadStats(ctx.imports);

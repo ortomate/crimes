@@ -23,6 +23,7 @@ export const circularDependencyDetector: Detector = {
     "often introduce subtle re-entry bugs because the runtime ordering " +
     "is no longer obvious from the code.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.imports) return [];
     const sccs = collectValueCycles(ctx.imports);

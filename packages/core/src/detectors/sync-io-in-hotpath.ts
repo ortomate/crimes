@@ -60,6 +60,7 @@ export const syncIoInHotpathDetector: Detector = {
     "is a mechanical change with no behaviour difference outside the " +
     "performance envelope.",
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
     const calls = ctx.parsed.syncIoCalls;

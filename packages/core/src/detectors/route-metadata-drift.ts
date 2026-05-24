@@ -27,6 +27,7 @@ export const routeMetadataDriftDetector: Detector = {
     "reviewers another. Agents updating labels rely on whichever source " +
     "they happen to see first, which is rarely the canonical one.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
 

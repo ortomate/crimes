@@ -42,6 +42,7 @@ export const oversizedRasterDetector: AssetDetector = {
     "rarely affects how the image renders. Tooling that runs as part " +
     "of a build pipeline is the long-term fix, but flagging the asset " +
     "at scan time gets the size into the conversation before merge.",
+  pack: "universal",
   extensions: [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif"],
   optionsSchema,
 

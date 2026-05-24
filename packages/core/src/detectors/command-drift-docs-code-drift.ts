@@ -29,6 +29,7 @@ export const commandDriftDocsCodeDriftDetector: Detector = {
     "fall through to a half-implemented surface. The fix is mechanical " +
     "but only if someone notices.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
     if (!isPrimaryAnchor(ctx)) return [];

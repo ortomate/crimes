@@ -80,6 +80,7 @@ export const booleanNamingDriftDetector: Detector = {
     "already established.",
   optionsSchema,
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
     const decls = ctx.parsed.typedDeclarations;

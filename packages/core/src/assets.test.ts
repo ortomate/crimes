@@ -38,6 +38,7 @@ function stubAsset(
     name: overrides.name ?? "Stub Asset",
     description: overrides.description ?? "Stub for testing the asset pass.",
     whyItMatters: overrides.whyItMatters ?? "Tests the orchestrator.",
+    pack: "universal",
     extensions: overrides.extensions ?? [".png"],
     calls,
     async run(ctx) {
@@ -132,6 +133,7 @@ describe("scan asset pass", () => {
       name: "Reader",
       description: "Reads bytes.",
       whyItMatters: "Tests caching.",
+      pack: "universal",
       extensions: [".png"],
       async run(ctx) {
         // Two reads — the second must hit the cache without re-opening.
@@ -217,6 +219,7 @@ describe("scan asset pass", () => {
       name: "Thrower",
       description: "Always throws.",
       whyItMatters: "Tests isolation.",
+      pack: "universal",
       extensions: [".png"],
       run() {
         throw new Error("boom");

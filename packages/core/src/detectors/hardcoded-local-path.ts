@@ -76,6 +76,7 @@ export const hardcodedLocalPathDetector: Detector = {
     "config-driven base path eliminates the surface.",
   optionsSchema,
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
     if (NON_PRODUCTION_DIR_RE.test(ctx.file)) return [];

@@ -15,6 +15,7 @@ export const weakTestSignalDetector: Detector = {
     "checkmarks and assume the surrounding code is protected; small " +
     "regressions ship without warning.",
 
+  pack: "language-js",
   run(ctx) {
     if (!isTestFile(ctx.file) || looksTypeOnlyTest(ctx.file, ctx.source)) return [];
 

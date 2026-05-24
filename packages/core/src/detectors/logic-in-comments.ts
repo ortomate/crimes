@@ -54,6 +54,7 @@ export const logicInCommentsDetector: Detector = {
     "system, tests, or runtime guards catching the change. Encoding the " +
     "rule in code is the only way to make it survive.",
 
+  pack: "language-js",
   run(ctx) {
     const sourceLines = ctx.source.split(/\r?\n/);
     const findings: Finding[] = [];

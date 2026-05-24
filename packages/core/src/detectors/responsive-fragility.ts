@@ -22,6 +22,7 @@ export const responsiveFragilityDetector: Detector = {
     "and the regression only shows up when a customer screenshots a " +
     "broken layout.",
 
+  pack: "language-js",
   run(ctx) {
     const elements = walkJsx({ source: ctx.source, ast: ctx.parsed });
     if (elements.length === 0) return [];

@@ -70,6 +70,7 @@ export const largeFileDetector: Detector = {
     "so every PR's diff is harder to review and easier to break. Splitting " +
     "by responsibility keeps each module independently understandable.",
 
+  pack: "language-js",
   run(ctx) {
     const shape = shapeForFile(ctx.file);
     const policy = policyForFile(shape, ctx.config);

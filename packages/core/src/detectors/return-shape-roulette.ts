@@ -12,6 +12,7 @@ export const returnShapeRouletteDetector: Detector = {
     "one shape risks invalidating every consumer; agents tend to test only " +
     "the path they were debugging.",
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
 

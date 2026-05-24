@@ -15,6 +15,7 @@ export const magicDomainLiteralScatterDetector: Detector = {
     "site quietly duplicates policy; renaming or retiring the value " +
     "requires finding every copy.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.petty) return [];
 

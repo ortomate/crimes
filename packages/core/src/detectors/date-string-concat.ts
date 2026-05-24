@@ -20,6 +20,7 @@ export const dateStringConcatDetector: Detector = {
     "January in production. `toISOString()` or `Intl.DateTimeFormat` give " +
     "you the correctness for free.",
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
     const hits = ctx.parsed.dateStringConcats;

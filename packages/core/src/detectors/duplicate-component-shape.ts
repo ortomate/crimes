@@ -26,6 +26,7 @@ export const duplicateComponentShapeDetector: Detector = {
     "accessibility fix the same. Agents extending one copy quietly " +
     "drift the others further apart.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.jsxShapeIndex) return [];
 

@@ -46,6 +46,7 @@ export const singularPluralTypeMismatchDetector: Detector = {
     "that match the shape they hold remove the guesswork.",
   optionsSchema,
 
+  pack: "language-js",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
     const decls = ctx.parsed.typedDeclarations;

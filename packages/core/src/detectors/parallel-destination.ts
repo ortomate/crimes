@@ -34,6 +34,7 @@ export const parallelDestinationDetector: Detector = {
     "document which one is canonical — but only after surfacing the " +
     "drift.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
     const route = ctx.ia.routes.find((r) => r.file === ctx.file);

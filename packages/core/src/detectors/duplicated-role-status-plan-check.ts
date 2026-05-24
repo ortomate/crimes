@@ -32,6 +32,7 @@ export const duplicatedRoleStatusPlanCheckDetector: Detector = {
     "no longer has one source of truth. Agents extending one site rarely " +
     "notice the others have a subtly different rule.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.ia) return [];
     if (!isPrimaryAnchor(ctx)) return [];

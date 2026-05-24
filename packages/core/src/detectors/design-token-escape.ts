@@ -25,6 +25,7 @@ export const designTokenEscapeDetector: Detector = {
     "and which are drift; reviewers can't audit the palette from the " +
     "diff alone.",
 
+  pack: "language-js",
   run(ctx) {
     const elements = walkJsx({ source: ctx.source, ast: ctx.parsed });
     if (elements.length === 0) return [];

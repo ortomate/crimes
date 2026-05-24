@@ -27,6 +27,7 @@ export const layerViolationDetector: Detector = {
     "the next refactor in either layer becomes risky for both — and agents " +
     "editing one file rarely notice they have just widened the coupling.",
 
+  pack: "language-js",
   run(ctx) {
     if (!ctx.imports) return [];
     const layers = ctx.config.architecture?.layers ?? [];

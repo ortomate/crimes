@@ -49,6 +49,7 @@ export const rasterShouldBeVectorDetector: AssetDetector = {
     "treat icons like screenshots — bring the literal pixels, paste " +
     "them in. The detector flags the asset so the conversation " +
     "starts at 'is this really raster on purpose?'",
+  pack: "universal",
   extensions: [".png", ".jpg", ".jpeg", ".gif"],
   optionsSchema,
 
