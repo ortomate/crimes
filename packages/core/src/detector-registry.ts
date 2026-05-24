@@ -1,5 +1,6 @@
 import type { CrimesConfig, DetectorRegistry } from "./config.js";
 import type { AssetDetector, Detector } from "./detector.js";
+import type { Pack } from "./pack.js";
 import { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
 import { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
 import { booleanNamingDriftDetector } from "./detectors/boolean-naming-drift.js";
@@ -238,4 +239,26 @@ export class UnknownDetectorError extends Error {
     this.name = "UnknownDetectorError";
     this.id = id;
   }
+}
+
+/**
+ * Group a detector list by pack so the scan orchestrator can hand each
+ * pack only the detectors it should run. Returned record has one entry
+ * per pack that has at least one detector — empty packs are omitted so
+ * callers can `for (const pack of Object.keys(grouped))` cleanly.
+ *
+ * Asset detectors are NOT included — they live in a separate
+ * `AssetDetector` list and are grouped via the existing
+ * `builtInAssetDetectors` export.
+ */
+export function groupDetectorsByPack(
+  detectors: readonly Detector[],
+): Partial<Record<Pack, Detector[]>> {
+  const grouped: Partial<Record<Pack, Detector[]>> = {};
+  for (const d of detectors) {
+    const bucket = grouped[d.pack] ?? [];
+    bucket.push(d);
+    grouped[d.pack] = bucket;
+  }
+  return grouped;
 }
