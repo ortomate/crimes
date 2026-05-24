@@ -1,4 +1,4 @@
-import type { LanguageJsDetector, DetectorContext } from "../detector.js";
+import type { UniversalDetector, DetectorContext } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import type { IaAgentInventory } from "../ia/types.js";
 
@@ -12,7 +12,7 @@ import type { IaAgentInventory } from "../ia/types.js";
  * `ctx.file` is the lexicographically first source file in the IA index --
  * a deterministic, repo-stable anchor.
  */
-export const missingAgentContextDetector: LanguageJsDetector = {
+export const missingAgentContextDetector: UniversalDetector = {
   id: "missing_agent_context",
   name: "Missing Agent Context",
   description:
@@ -25,7 +25,7 @@ export const missingAgentContextDetector: LanguageJsDetector = {
     "Without AGENTS.md / CLAUDE.md / skill files, the agent invents its " +
     "own conventions — usually badly.",
 
-  pack: "language-js",
+  pack: "universal",
   run(ctx) {
     if (!ctx.ia) return [];
     const anchor = primaryAnchor(ctx);

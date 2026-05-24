@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetectorContext } from "../detector.js";
+import type { UniversalDetectorContext } from "../detector.js";
 import type {
   IaAgentInventory,
   IaFileSignals,
@@ -42,13 +42,17 @@ function makeIndex(args: {
   };
 }
 
-function makeCtx(file: string, ia?: IaIndex): LanguageJsDetectorContext {
+function makeCtx(file: string, ia?: IaIndex): UniversalDetectorContext {
   return {
-    kind: "language-js",
+    kind: "universal",
     file,
     absolutePath: `/tmp/${file}`,
-    source: "",
-    parsed: { lineCount: 1, functions: [], dateNowOrNewDateUses: [] },
+    extension: file.match(/\.[^./]+$/)?.[0] ?? "",
+    byteSize: 0,
+    readSource: async () => "",
+    get lineCount() {
+      return 1;
+    },
     config: DEFAULT_CONFIG,
     ia,
   };
