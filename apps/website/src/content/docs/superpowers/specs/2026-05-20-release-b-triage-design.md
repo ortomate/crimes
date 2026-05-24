@@ -1,4 +1,6 @@
-# Release B — Triage as the front door (design spec)
+---
+title: "Release B — Triage as the front door (design spec)"
+---
 
 **Status:** approved design, pre-plan. Next step is the implementation plan
 written by `superpowers:writing-plans`.
