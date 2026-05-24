@@ -102,8 +102,7 @@ async function runDetectorsForAssetFile(args: {
   for (const detector of applicable) {
     try {
       const detectorFindings = await detector.run(ctx);
-      for (const f of detectorFindings) assignPackAndDetectorId(f, detector);
-      findings.push(...detectorFindings);
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
     } catch {
       // Per-detector failure on one file should not abort the scan.
       // Skip and continue — same posture as the IA / scoring

@@ -1,5 +1,5 @@
 import type { LanguageJsDetector } from "../detector.js";
-import type { Finding } from "../finding.js";
+import type { PreFinding as Finding } from "../finding.js";
 import { findJsxElements, walkJsx } from "../jsx/walk.js";
 import type { JsxElementInfo } from "../jsx/walk.js";
 

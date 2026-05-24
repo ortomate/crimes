@@ -26,6 +26,8 @@ function makeFinding(overrides: Partial<Finding>): Finding {
   return {
     id: "crime_00001",
     type: "large_function",
+    pack: "language-js",
+    detector_id: "large_function.js",
     charge: "God Function",
     severity: "high",
     confidence: 0.9,

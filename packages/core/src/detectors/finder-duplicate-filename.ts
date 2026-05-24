@@ -1,5 +1,5 @@
 import type { LanguageJsDetector } from "../detector.js";
-import type { Finding } from "../finding.js";
+import type { PreFinding as Finding } from "../finding.js";
 
 const FINDER_DUPLICATE_RE = /(?:^|\/)([^/]+) ([2-9])(\.[^/.]+)$/;
 

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import type { LanguageJsDetector, DetectorContext } from "../detector.js";
-import type { Finding } from "../finding.js";
+import type { PreFinding as Finding } from "../finding.js";
 import type { IaIndex } from "../ia/types.js";
 
 /**

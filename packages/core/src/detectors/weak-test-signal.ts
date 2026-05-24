@@ -1,5 +1,5 @@
 import type { LanguageJsDetector } from "../detector.js";
-import type { Finding, Severity } from "../finding.js";
+import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 const TEST_CALL = /\b(?:it|test)\s*\(\s*(["'`])([^"'`]+)\1/g;
 const ASSERTION = /\b(?:expect|assert(?:\.[A-Za-z_$][\w$]*)?)\s*\(/g;

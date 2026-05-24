@@ -410,8 +410,7 @@ async function runDetectorsForFile(args: {
     });
     for (const detector of universalDetectors) {
       const detectorFindings = await detector.run(universalCtx);
-      for (const f of detectorFindings) assignPackAndDetectorId(f, detector);
-      findings.push(...detectorFindings);
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
     }
   }
 
@@ -434,8 +433,7 @@ async function runDetectorsForFile(args: {
     };
     for (const detector of jsDetectors) {
       const detectorFindings = await detector.run(jsCtx);
-      for (const f of detectorFindings) assignPackAndDetectorId(f, detector);
-      findings.push(...detectorFindings);
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
     }
   }
 

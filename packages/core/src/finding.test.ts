@@ -29,12 +29,13 @@ describe("Finding shape", () => {
     expect(f.detector_id).toBe("large_file");
   });
 
-  it("accepts a finding that omits pack + detector_id (back-compat for stubs)", () => {
-    // Optional during Phase 0 — Task 3.3 makes them required after the
-    // central finalisation pass guarantees they're always populated.
+  it("accepts a language-js finding with pack + detector_id", () => {
+    // Task 3.3: pack and detector_id are now required on every Finding.
     const f: Finding = {
       id: "crime_00002",
       type: "large_file",
+      pack: "language-js",
+      detector_id: "large_file.js",
       charge: "God File",
       severity: "low",
       confidence: 0.5,
@@ -45,6 +46,7 @@ describe("Finding shape", () => {
       fix_shape: "split by responsibility",
       scores: { severity: 0.4, confidence: 0.5 },
     };
-    expect(f.pack).toBeUndefined();
+    expect(f.pack).toBe("language-js");
+    expect(f.detector_id).toBe("large_file.js");
   });
 });

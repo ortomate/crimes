@@ -1,5 +1,5 @@
 import type { LanguageJsDetector } from "../detector.js";
-import type { Finding } from "../finding.js";
+import type { PreFinding as Finding } from "../finding.js";
 import type { FunctionHit } from "../ast-hash/function-index.js";
 
 /**

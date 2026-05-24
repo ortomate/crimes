@@ -1,6 +1,6 @@
 import { readFileSync as fsReadFileSync } from "node:fs";
 import type { LanguageJsDetector, DetectorContext } from "../detector.js";
-import type { Finding } from "../finding.js";
+import type { PreFinding as Finding } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
 /**

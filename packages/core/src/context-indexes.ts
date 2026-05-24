@@ -161,8 +161,7 @@ export async function runDetectorsOnTarget(args: {
       functionHashIndex,
       scoring,
     });
-    for (const f of detectorFindings) assignPackAndDetectorId(f, detector);
-    findings.push(...detectorFindings);
+    findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
   }
 
   // Backfill per-finding scores (churn / test_gap / blast_radius) and

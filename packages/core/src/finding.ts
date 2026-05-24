@@ -80,20 +80,18 @@ export interface Finding {
   /** Machine-readable type, e.g. `large_function`. */
   type: string;
   /**
-   * Detector pack that produced this finding. Optional in Phase 0 (any
-   * stub test that constructs a `Finding` by hand may omit it); the
-   * scan / context finalisation pass guarantees it's always set on
-   * findings produced by `core/src/scan.ts` and `core/src/context.ts`.
-   * Required form lands in Task 3.3.
+   * Detector pack that produced this finding. Populated by the scan /
+   * context finalisation pass (`assignPackAndDetectorId`) on every
+   * finding emitted via the public APIs.
    */
-  pack?: Pack;
+  pack: Pack;
   /**
    * Qualified detector id — `<abstract-type>.<pack-suffix>` for language-
    * pack detectors (`large_function.js`), bare `<abstract-type>` for
    * universal-pack detectors. `type` keeps the abstract form for
-   * grouping across packs. Optional in Phase 0; required in Task 3.3.
+   * grouping across packs.
    */
-  detector_id?: string;
+  detector_id: string;
   /** Human-readable charge, e.g. `God Function`. */
   charge: string;
   severity: Severity;
@@ -201,6 +199,16 @@ export interface Finding {
    */
   tier?: Tier;
 }
+
+/**
+ * A finding as constructed by a detector — before the scan / context
+ * finalisation pass (`assignPackAndDetectorId`) populates `pack` and
+ * `detector_id`. The finaliser mutates the object in place and widens
+ * the type to `Finding`. Detectors return `PreFinding[]` from their
+ * `run()` methods; callers outside the finaliser always work with the
+ * fully-formed `Finding`.
+ */
+export type PreFinding = Omit<Finding, "pack" | "detector_id">;
 
 export interface ScanSummary {
   total: number;

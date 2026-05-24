@@ -2,7 +2,7 @@ import type { ParsedFile } from "@crimes/language-js";
 import type { z } from "zod";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
 import type { CrimesConfig } from "./config.js";
-import type { Finding } from "./finding.js";
+import type { Finding, PreFinding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
 import type { ImportGraph } from "./imports/types.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
@@ -51,11 +51,11 @@ interface BaseDetector {
 export type Detector =
   | (BaseDetector & {
       pack: "universal";
-      run(ctx: UniversalDetectorContext): Promise<Finding[]> | Finding[];
+      run(ctx: UniversalDetectorContext): Promise<PreFinding[]> | PreFinding[];
     })
   | (BaseDetector & {
       pack: "language-js";
-      run(ctx: LanguageJsDetectorContext): Promise<Finding[]> | Finding[];
+      run(ctx: LanguageJsDetectorContext): Promise<PreFinding[]> | PreFinding[];
     });
 
 /**
@@ -111,7 +111,7 @@ export interface AssetDetector {
    * `detectors.options.<id>`. Same contract as {@link Detector.optionsSchema}.
    */
   optionsSchema?: z.ZodType<unknown>;
-  run(ctx: AssetDetectorContext): Promise<Finding[]> | Finding[];
+  run(ctx: AssetDetectorContext): Promise<PreFinding[]> | PreFinding[];
 }
 
 export interface AssetDetectorContext {

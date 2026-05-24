@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AssetDetector } from "../detector.js";
-import type { Finding } from "../finding.js";
+import type { PreFinding as Finding } from "../finding.js";
 
 const optionsSchema = z
   .object({

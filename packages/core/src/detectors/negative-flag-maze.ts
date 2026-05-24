@@ -1,5 +1,5 @@
 import type { LanguageJsDetector } from "../detector.js";
-import type { Finding } from "../finding.js";
+import type { PreFinding as Finding } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
 const NEGATIVE_NAME = /^(?:no|not|disable|disabled|skip|without)[A-Z_]/;

@@ -7,6 +7,8 @@ function makeFinding(type: string, overrides: Partial<Finding> = {}): Finding {
   return {
     id: "",
     type,
+    pack: "language-js",
+    detector_id: `${type}.js`,
     charge: "Test",
     severity: "low",
     confidence: 0.5,

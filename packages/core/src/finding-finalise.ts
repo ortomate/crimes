@@ -1,4 +1,4 @@
-import type { Finding } from "./finding.js";
+import type { Finding, PreFinding } from "./finding.js";
 import type { Pack } from "./pack.js";
 
 const PACK_SUFFIX: Record<Pack, string | null> = {
@@ -23,15 +23,22 @@ const PACK_SUFFIX: Record<Pack, string | null> = {
  * Mutates the finding in place — the scan / context finalisation pass
  * calls this once per emitted finding before fingerprints are computed.
  */
+/**
+ * Populate `Finding.pack` and `Finding.detector_id` on a pre-finding,
+ * returning the now-complete `Finding`. The mutation is in place; the
+ * return type narrows the caller's view from `PreFinding` to `Finding`.
+ */
 export function assignPackAndDetectorId(
-  finding: Finding,
+  finding: PreFinding,
   detector: { id: string; pack: Pack },
-): void {
-  finding.pack = detector.pack;
+): Finding {
+  const f = finding as Finding;
+  f.pack = detector.pack;
   const suffix = PACK_SUFFIX[detector.pack];
   if (suffix === null || detector.id.endsWith(`.${suffix}`)) {
-    finding.detector_id = detector.id;
-    return;
+    f.detector_id = detector.id;
+  } else {
+    f.detector_id = `${detector.id}.${suffix}`;
   }
-  finding.detector_id = `${detector.id}.${suffix}`;
+  return f;
 }

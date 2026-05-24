@@ -29,6 +29,8 @@ function makeFinding(overrides: Partial<Finding> = {}): Finding {
   return {
     id: "crime_00001",
     type: "large_function",
+    pack: "language-js",
+    detector_id: "large_function.js",
     charge: "God Function",
     severity: "high",
     confidence: 0.9,
@@ -865,6 +867,8 @@ describe("suppressionsForFile", () => {
   const findingOnFile: Finding = {
     id: "crime_00001",
     type: "large_function",
+    pack: "language-js",
+    detector_id: "large_function.js",
     charge: "God Function",
     severity: "high",
     confidence: 0.9,
@@ -881,6 +885,8 @@ describe("suppressionsForFile", () => {
   const findingDateOnFile: Finding = {
     id: "crime_00002",
     type: "direct_date",
+    pack: "language-js",
+    detector_id: "direct_date.js",
     charge: "Temporal Recklessness",
     severity: "low",
     confidence: 0.8,

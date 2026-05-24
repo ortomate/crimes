@@ -1,7 +1,7 @@
 import type { FunctionShape, ParsedFunction } from "@crimes/language-js";
 import type { CrimesConfig } from "../config.js";
 import type { LanguageJsDetector } from "../detector.js";
-import type { Finding, Severity } from "../finding.js";
+import type { PreFinding as Finding, Severity } from "../finding.js";
 
 /**
  * Per-shape size policy. `domain` reads the configured threshold so

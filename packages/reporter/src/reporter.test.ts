@@ -40,6 +40,8 @@ const sampleReport: ScanReport = {
     {
       id: "crime_00001",
       type: "large_function",
+      pack: "language-js",
+      detector_id: "large_function.js",
       charge: "God Function",
       severity: "high",
       confidence: 0.9,
@@ -55,6 +57,8 @@ const sampleReport: ScanReport = {
     {
       id: "crime_00002",
       type: "todo_density",
+      pack: "language-js",
+      detector_id: "todo_density.js",
       charge: "Unfinished Business",
       severity: "medium",
       confidence: 0.95,
@@ -322,6 +326,8 @@ const sampleContext: ContextReport = {
     {
       id: "crime_00001",
       type: "large_function",
+      pack: "language-js",
+      detector_id: "large_function.js",
       charge: "God Function",
       severity: "high",
       confidence: 0.95,
@@ -337,6 +343,8 @@ const sampleContext: ContextReport = {
     {
       id: "crime_00002",
       type: "todo_density",
+      pack: "language-js",
+      detector_id: "todo_density.js",
       charge: "Unfinished Business",
       severity: "medium",
       confidence: 0.7,
@@ -554,6 +562,8 @@ const sampleDiff: DiffReport = {
     {
       id: "crime_00001",
       type: "large_function",
+      pack: "language-js",
+      detector_id: "large_function.js",
       charge: "God Function",
       severity: "high",
       confidence: 0.9,
@@ -569,6 +579,8 @@ const sampleDiff: DiffReport = {
     {
       id: "crime_00002",
       type: "todo_density",
+      pack: "language-js",
+      detector_id: "todo_density.js",
       charge: "Unfinished Business",
       severity: "medium",
       confidence: 0.8,
@@ -585,6 +597,8 @@ const sampleDiff: DiffReport = {
     {
       id: "crime_00003",
       type: "large_function",
+      pack: "language-js",
+      detector_id: "large_function.js",
       charge: "God Function",
       severity: "high",
       confidence: 0.95,
@@ -997,6 +1011,8 @@ const sampleBaselineCheck: BaselineCheckReport = {
     {
       id: "crime_00001",
       type: "large_function",
+      pack: "language-js",
+      detector_id: "large_function.js",
       charge: "God Function",
       severity: "high",
       confidence: 0.9,
@@ -1275,9 +1291,12 @@ function buildStubFinding(
   tier: "domain" | "nonDomain",
 ): Finding {
   const severity = opts.severity ?? "medium";
+  const type = opts.type ?? "large_function";
   return {
     id: nextStubFindingId(),
-    type: opts.type ?? "large_function",
+    type,
+    pack: "language-js",
+    detector_id: `${type}.js`,
     charge: opts.charge ?? "God Function",
     severity,
     confidence: 0.9,
@@ -1354,6 +1373,8 @@ function stubFinding(scores: Partial<FindingScores>): Finding {
   return {
     id: "x",
     type: "t",
+    pack: "language-js",
+    detector_id: "t.js",
     charge: "C",
     severity: "low",
     confidence: 0.5,

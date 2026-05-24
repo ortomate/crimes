@@ -1,5 +1,5 @@
 import type { LanguageJsDetector } from "../detector.js";
-import type { Finding, Severity } from "../finding.js";
+import type { PreFinding as Finding, Severity } from "../finding.js";
 import { extractComments, type SourceComment } from "../petty/comments.js";
 
 const CODE_TOKENS = [
