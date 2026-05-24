@@ -262,4 +262,26 @@ export interface ScanReport {
    * absent otherwise.
    */
   triage_hidden_count?: number;
+  /**
+   * Per-pack coverage breakdown. Computed once per scan; absent when
+   * the scan target has zero discovered files. The shape gains a
+   * `by_package` field in 0.14.0 for polyglot monorepo support; until
+   * then, only the file-level rollup is populated.
+   */
+  coverage?: {
+    /** Total files the scan touched (universal pack ran on each). */
+    files_total: number;
+    /**
+     * Files counted by each loaded language pack. Keyed by short pack
+     * id (`"js"`, `"py"`). Sum of values ≤ files_total — a file claimed
+     * by no language pack appears in `files_universal_only`.
+     */
+    files_by_language: Record<string, number>;
+    /** Files no language pack claimed (universal pack ran on them). */
+    files_universal_only: number;
+    /** Files explicitly excluded by config + .gitignore. Always 0 here. */
+    files_skipped: number;
+    /** Pack ids loaded at scan time, e.g. `["language-js"]` in 0.12.0. */
+    packs_loaded: string[];
+  };
 }

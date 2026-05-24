@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Finding } from "./finding.js";
+import type { Finding, ScanReport } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 
 describe("SCHEMA_VERSION", () => {
@@ -48,5 +48,36 @@ describe("Finding shape", () => {
     };
     expect(f.pack).toBe("language-js");
     expect(f.detector_id).toBe("large_file.js");
+  });
+});
+
+describe("ScanReport.coverage", () => {
+  it("accepts a coverage block", () => {
+    const report: ScanReport = {
+      schema_version: "0.3.0",
+      report_type: "scan",
+      repo: { name: "x", root: "/x" },
+      summary: { total: 0, high: 0, medium: 0, low: 0 },
+      findings: [],
+      coverage: {
+        files_total: 100,
+        files_by_language: { js: 80 },
+        files_universal_only: 20,
+        files_skipped: 0,
+        packs_loaded: ["language-js"],
+      },
+    };
+    expect(report.coverage?.files_total).toBe(100);
+  });
+
+  it("makes coverage optional (back-compat)", () => {
+    const report: ScanReport = {
+      schema_version: "0.3.0",
+      report_type: "scan",
+      repo: { name: "x", root: "/x" },
+      summary: { total: 0, high: 0, medium: 0, low: 0 },
+      findings: [],
+    };
+    expect(report.coverage).toBeUndefined();
   });
 });

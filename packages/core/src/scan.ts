@@ -30,6 +30,7 @@ import {
   resolveLanguagePackRouter,
   type LanguagePackRouter,
 } from "./discovery/language-pack-router.js";
+import { buildCoverage } from "./discovery/coverage.js";
 import { runAssetDetectorsForRoot } from "./scan-assets.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
@@ -132,6 +133,11 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   });
   findings.push(...assetFindings);
 
+  const coverage = buildCoverage({
+    files: inputs.allFiles,
+    packsLoaded: ["language-js"], // 0.13.0 will add "language-py" conditionally.
+  });
+
   // Backfill the per-finding scoring fields (churn / test_gap /
   // blast_radius) and recompute `agent_risk` from the unified 0.6.0
   // formula. Done once after all detectors have emitted so the
@@ -158,6 +164,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   if (inputs.changedAll !== undefined) {
     report.changed_files = inputs.changedAll;
   }
+  report.coverage = coverage;
 
   const resurfaced = await collectResurfaceForScan({
     root,
