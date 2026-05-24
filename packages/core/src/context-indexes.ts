@@ -19,6 +19,7 @@ import {
   finaliseFindingScores,
 } from "./scoring/build.js";
 import type { ScoringContext } from "./scoring/build.js";
+import { assignPackAndDetectorId } from "./finding-finalise.js";
 
 /**
  * Cross-file index builders used by `context()`. Each is a thin
@@ -160,6 +161,7 @@ export async function runDetectorsOnTarget(args: {
       functionHashIndex,
       scoring,
     });
+    for (const f of detectorFindings) assignPackAndDetectorId(f, detector);
     findings.push(...detectorFindings);
   }
 

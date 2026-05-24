@@ -67,6 +67,7 @@ import {
   assignIds as assignIdsHelper,
   tagTierAndSortByRankScore,
 } from "./context-helpers.js";
+import { assignPackAndDetectorId } from "./finding-finalise.js";
 
 export interface ScanOptions {
   /** Absolute or relative path to scan. Defaults to cwd. */
@@ -408,7 +409,9 @@ async function runDetectorsForFile(args: {
       indexes: args.indexes,
     });
     for (const detector of universalDetectors) {
-      findings.push(...(await detector.run(universalCtx)));
+      const detectorFindings = await detector.run(universalCtx);
+      for (const f of detectorFindings) assignPackAndDetectorId(f, detector);
+      findings.push(...detectorFindings);
     }
   }
 
@@ -430,7 +433,9 @@ async function runDetectorsForFile(args: {
       ...args.indexes,
     };
     for (const detector of jsDetectors) {
-      findings.push(...(await detector.run(jsCtx)));
+      const detectorFindings = await detector.run(jsCtx);
+      for (const f of detectorFindings) assignPackAndDetectorId(f, detector);
+      findings.push(...detectorFindings);
     }
   }
 

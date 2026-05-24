@@ -4,6 +4,7 @@ import { discoverFiles } from "./discovery/index.js";
 import type { CrimesConfig } from "./config.js";
 import type { AssetDetector, AssetDetectorContext } from "./detector.js";
 import type { Finding } from "./finding.js";
+import { assignPackAndDetectorId } from "./finding-finalise.js";
 
 /**
  * Run every asset detector against every discovered asset file. Each
@@ -100,7 +101,9 @@ async function runDetectorsForAssetFile(args: {
   const findings: Finding[] = [];
   for (const detector of applicable) {
     try {
-      findings.push(...(await detector.run(ctx)));
+      const detectorFindings = await detector.run(ctx);
+      for (const f of detectorFindings) assignPackAndDetectorId(f, detector);
+      findings.push(...detectorFindings);
     } catch {
       // Per-detector failure on one file should not abort the scan.
       // Skip and continue — same posture as the IA / scoring
