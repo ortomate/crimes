@@ -59,6 +59,13 @@ export type Detector =
     });
 
 /**
+ * Convenience alias for the universal branch of the `Detector` union.
+ * Use this type when you know you have a universal detector, e.g., in
+ * unit tests and the universal scan branch inside the orchestrator.
+ */
+export type UniversalDetector = Extract<Detector, { pack: "universal" }>;
+
+/**
  * Convenience alias for the language-js branch of the `Detector` union.
  * Use this type when you know you have a language-js detector, e.g., in
  * unit tests and in the language-js scan pipeline.

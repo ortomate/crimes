@@ -11,7 +11,11 @@ import {
 } from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
-import type { AssetDetector, Detector } from "./detector.js";
+import type {
+  AssetDetector,
+  Detector,
+  LanguageJsDetectorContext,
+} from "./detector.js";
 import {
   builtInAssetDetectors,
   builtInDetectors,
@@ -19,7 +23,13 @@ import {
   collectKnownIds,
   filterAssetDetectors,
   filterDetectors,
+  groupDetectorsByPack,
 } from "./detector-registry.js";
+import { buildUniversalContext } from "./discovery/universal-context.js";
+import {
+  resolveLanguagePackRouter,
+  type LanguagePackRouter,
+} from "./discovery/language-pack-router.js";
 import { runAssetDetectorsForRoot } from "./scan-assets.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
@@ -105,12 +115,14 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     filterAssetDetectors(builtInAssetDetectors, config, allKnownIds);
   const inputs = await resolveScanInputs({ root, config, options });
   const indexes = await buildScanIndexes({ root, config, allFiles: inputs.allFiles });
+  const langPack = resolveLanguagePackRouter();
   const findings = await runDetectorsForFiles({
     root,
     files: inputs.files,
     detectors,
     config,
     indexes,
+    langPack,
   });
   const assetFindings = await runAssetDetectorsForRoot({
     root,
@@ -245,6 +257,7 @@ async function collectResurfaceForScan(args: {
 
   // Per-file detector cache so multiple resurfaced fingerprints on the
   // same file only pay one detector pass.
+  const langPack = resolveLanguagePackRouter();
   const detectionCache = new Map<string, Promise<Finding[]>>();
   const reDetect = async (file: string): Promise<Finding[]> => {
     const cached = detectionCache.get(file);
@@ -262,6 +275,7 @@ async function collectResurfaceForScan(args: {
         detectors: args.detectors,
         config: args.config,
         indexes: args.indexes,
+        langPack,
       });
       // Finalise scores so resurfaced findings carry the same shape as
       // findings from the outer scan (agent_risk, churn, etc.).
@@ -361,6 +375,7 @@ async function runDetectorsForFiles(args: {
   detectors: Detector[];
   config: CrimesConfig;
   indexes: ScanIndexes;
+  langPack: LanguagePackRouter;
 }): Promise<Finding[]> {
   const findings: Finding[] = [];
   for (const absolutePath of args.files) {
@@ -375,26 +390,50 @@ async function runDetectorsForFile(args: {
   detectors: Detector[];
   config: CrimesConfig;
   indexes: ScanIndexes;
+  langPack: LanguagePackRouter;
 }): Promise<Finding[]> {
   const file = toRepoPath(relative(args.root, args.absolutePath));
-  const source = await readFile(args.absolutePath, "utf8");
-  const parsed = parseFile({ absolutePath: args.absolutePath, source });
+  const grouped = groupDetectorsByPack(args.detectors);
+
   const findings: Finding[] = [];
 
-  for (const detector of args.detectors) {
-    if (detector.pack !== "language-js") continue;
-    findings.push(
-      ...(await detector.run({
-        kind: "language-js",
-        file,
-        absolutePath: args.absolutePath,
-        source,
-        parsed,
-        config: args.config,
-        ...args.indexes,
-      })),
-    );
+  // Universal pack: always runs, no language-pack dependency.
+  const universalDetectors = grouped.universal ?? [];
+  if (universalDetectors.length > 0) {
+    const universalCtx = await buildUniversalContext({
+      root: args.root,
+      absolutePath: args.absolutePath,
+      file,
+      config: args.config,
+      indexes: args.indexes,
+    });
+    for (const detector of universalDetectors) {
+      findings.push(...(await detector.run(universalCtx)));
+    }
   }
+
+  // Language-js pack: runs only when the JS pack claims the file's extension.
+  const jsDetectors = grouped["language-js"] ?? [];
+  if (
+    jsDetectors.length > 0 &&
+    args.langPack.claims("language-js", args.absolutePath)
+  ) {
+    const source = await readFile(args.absolutePath, "utf8");
+    const parsed = parseFile({ absolutePath: args.absolutePath, source });
+    const jsCtx: LanguageJsDetectorContext = {
+      kind: "language-js",
+      file,
+      absolutePath: args.absolutePath,
+      source,
+      parsed,
+      config: args.config,
+      ...args.indexes,
+    };
+    for (const detector of jsDetectors) {
+      findings.push(...(await detector.run(jsCtx)));
+    }
+  }
+
   return findings;
 }
 

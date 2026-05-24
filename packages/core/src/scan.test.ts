@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { Finding, ScanReport } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { NotAGitRepoError } from "./git/changed-files.js";
-import { loadConfig } from "./config.js";
+import { DEFAULT_CONFIG, loadConfig } from "./config.js";
 import { applyScanFailOn, applyTriageToScan, scan } from "./scan.js";
 import { tagTierAndSortByRankScore } from "./context-helpers.js";
 import { fingerprintFinding } from "./fingerprint.js";
@@ -824,5 +824,24 @@ describe("applyTriageToScan", () => {
     const snapshot = JSON.parse(JSON.stringify(report));
     applyTriageToScan(report, [], { showTriaged: false });
     expect(report).toEqual(snapshot);
+  });
+});
+
+describe("scan — universal pack execution", () => {
+  it("runs without error on a Rust-only repo (no findings yet)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-uni-"));
+    try {
+      const big = Array.from({ length: 600 }, (_, i) => `// line ${i}`).join("\n");
+      await writeFile(join(root, "main.rs"), big);
+      const report = await scan({
+        root,
+        config: { ...DEFAULT_CONFIG, include: ["**/*.rs"] },
+      });
+      // No detector is promoted to universal yet — findings should be
+      // empty but the scan must complete cleanly.
+      expect(report.findings).toEqual([]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

@@ -1,5 +1,10 @@
 import type { CrimesConfig, DetectorRegistry } from "./config.js";
-import type { AssetDetector, Detector } from "./detector.js";
+import type {
+  AssetDetector,
+  Detector,
+  LanguageJsDetector,
+  UniversalDetector,
+} from "./detector.js";
 import type { Pack } from "./pack.js";
 import { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
 import { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
@@ -242,6 +247,15 @@ export class UnknownDetectorError extends Error {
 }
 
 /**
+ * Typed grouping result — each pack key maps to a narrowed detector array
+ * so the scan orchestrator can call `detector.run(ctx)` without type casts.
+ */
+export interface GroupedDetectors {
+  universal?: UniversalDetector[];
+  "language-js"?: LanguageJsDetector[];
+}
+
+/**
  * Group a detector list by pack so the scan orchestrator can hand each
  * pack only the detectors it should run. Returned record has one entry
  * per pack that has at least one detector — empty packs are omitted so
@@ -250,15 +264,24 @@ export class UnknownDetectorError extends Error {
  * Asset detectors are NOT included — they live in a separate
  * `AssetDetector` list and are grouped via the existing
  * `builtInAssetDetectors` export.
+ *
+ * The return type is a {@link GroupedDetectors} with narrowed arrays per
+ * pack, so the orchestrator can call `detector.run(ctx)` without casts.
  */
 export function groupDetectorsByPack(
   detectors: readonly Detector[],
-): Partial<Record<Pack, Detector[]>> {
-  const grouped: Partial<Record<Pack, Detector[]>> = {};
+): GroupedDetectors {
+  const grouped: GroupedDetectors = {};
   for (const d of detectors) {
-    const bucket = grouped[d.pack] ?? [];
-    bucket.push(d);
-    grouped[d.pack] = bucket;
+    if (d.pack === "universal") {
+      const bucket = grouped.universal ?? [];
+      bucket.push(d as UniversalDetector);
+      grouped.universal = bucket;
+    } else if (d.pack === "language-js") {
+      const bucket = grouped["language-js"] ?? [];
+      bucket.push(d as LanguageJsDetector);
+      grouped["language-js"] = bucket;
+    }
   }
   return grouped;
 }
