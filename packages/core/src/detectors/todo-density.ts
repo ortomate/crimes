@@ -1,4 +1,4 @@
-import type { LanguageJsDetector } from "../detector.js";
+import type { UniversalDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 
 const TODO_PATTERN = /\b(TODO|FIXME|XXX|HACK)\b/g;
@@ -10,7 +10,7 @@ const TODO_PATTERN = /\b(TODO|FIXME|XXX|HACK)\b/g;
 // NOT match prose that merely mentions one marker name in passing.
 const SELF_REFERENCE_PATTERN = /TODO\s*\|\s*FIXME\s*\|\s*XXX\s*\|\s*HACK/;
 
-export const todoDensityDetector: LanguageJsDetector = {
+export const todoDensityDetector: UniversalDetector = {
   id: "todo_density",
   name: "TODO/FIXME Density",
   description: "Flags files with a high concentration of TODO, FIXME, XXX, or HACK markers.",
@@ -20,15 +20,16 @@ export const todoDensityDetector: LanguageJsDetector = {
     "weighing the unbuilt promises around it, and reviewers skim past " +
     "warnings that have become wallpaper.",
 
-  pack: "language-js",
-  run(ctx) {
+  pack: "universal",
+  async run(ctx) {
     // Skip files that *define* the marker set rather than carry markers.
-    if (SELF_REFERENCE_PATTERN.test(ctx.source)) return [];
+    const source = await ctx.readSource();
+    if (SELF_REFERENCE_PATTERN.test(source)) return [];
 
-    const matches = [...ctx.source.matchAll(TODO_PATTERN)];
+    const matches = [...source.matchAll(TODO_PATTERN)];
     if (matches.length === 0) return [];
 
-    const lines = ctx.parsed.lineCount;
+    const lines = ctx.lineCount;
     const kloc = Math.max(lines / 1000, 0.001);
     const density = matches.length / kloc;
     const threshold = ctx.config.thresholds.todoDensityPerKLoc;
@@ -40,7 +41,7 @@ export const todoDensityDetector: LanguageJsDetector = {
     const ratio = density / threshold;
     const severity = pickSeverity(matches.length, ratio);
     const breakdown = countByMarker(matches);
-    const matchLines = matches.map((m) => lineOfOffset(ctx.source, m.index ?? 0));
+    const matchLines = matches.map((m) => lineOfOffset(source, m.index ?? 0));
     const firstLine = matchLines[0]!;
     const lastLine = matchLines[matchLines.length - 1]!;
 
