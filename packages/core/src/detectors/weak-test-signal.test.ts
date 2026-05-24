@@ -1,11 +1,13 @@
 import { parseFile } from "@crimes/language-js";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { weakTestSignalDetector } from "./weak-test-signal.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { weakTestSignalDetector as _weakTestSignalDetector } from "./weak-test-signal.js";
+const weakTestSignalDetector = _weakTestSignalDetector as LanguageJsDetector;
 
-function makeCtx(source: string, file = "src/example.test.ts"): DetectorContext {
+function makeCtx(source: string, file = "src/example.test.ts"): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/${file}`,
     source,

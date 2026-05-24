@@ -6,17 +6,16 @@ import type { Finding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
 import type { ImportGraph } from "./imports/types.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
-import type { Pack } from "./pack.js";
 import type { PettyIndex } from "./petty/types.js";
 import type { ScoringContext } from "./scoring/build.js";
 
 /**
- * A detector inspects parsed files and emits zero or more findings.
- *
- * Detectors are stateless and safe to call in parallel. They must not
- * write to disk or perform network I/O.
+ * Common fields shared by every detector variant. The narrowed `Detector`
+ * union below pairs the `pack` tag with the matching `run` signature so
+ * a detector that declares `pack: "language-js"` cannot accidentally
+ * receive a universal context (and vice versa).
  */
-export interface Detector {
+interface BaseDetector {
   /** Stable machine id, e.g. `large_function`. */
   id: string;
   /** Short human-friendly name shown in `--list-detectors` later. */
@@ -38,16 +37,33 @@ export interface Detector {
    * load time — typos surface immediately rather than at scan time.
    * Detectors that do not accept options leave this undefined; the
    * loader rejects any `detectors.options.<id>` block for such
-   * detectors. See `0.8.0-extended-lens.md` §6 for the shape.
+   * detectors.
    */
   optionsSchema?: z.ZodType<unknown>;
-  /**
-   * The pack this detector belongs to — determines which DetectorContext
-   * kind the registry will feed it. See `src/pack.ts`.
-   */
-  pack: Pack;
-  run(ctx: DetectorContext): Promise<Finding[]> | Finding[];
 }
+
+/**
+ * A detector inspects parsed files and emits zero or more findings.
+ *
+ * Detectors are stateless and safe to call in parallel. They must not
+ * write to disk or perform network I/O.
+ */
+export type Detector =
+  | (BaseDetector & {
+      pack: "universal";
+      run(ctx: UniversalDetectorContext): Promise<Finding[]> | Finding[];
+    })
+  | (BaseDetector & {
+      pack: "language-js";
+      run(ctx: LanguageJsDetectorContext): Promise<Finding[]> | Finding[];
+    });
+
+/**
+ * Convenience alias for the language-js branch of the `Detector` union.
+ * Use this type when you know you have a language-js detector, e.g., in
+ * unit tests and in the language-js scan pipeline.
+ */
+export type LanguageJsDetector = Extract<Detector, { pack: "language-js" }>;
 
 /**
  * An asset detector inspects files that aren't TS/JS source — images,
@@ -112,7 +128,74 @@ export interface AssetDetectorContext {
   config: CrimesConfig;
 }
 
-export interface DetectorContext {
+/**
+ * Per-file context the registry hands to a detector. The `kind` tag
+ * matches the detector's declared `pack`:
+ *
+ *  - `kind: "universal"` → fed to detectors with `pack: "universal"`
+ *  - `kind: "language-js"` → fed to detectors with `pack: "language-js"`
+ *  - (future) `kind: "language-py"` → 0.13.0
+ *  - (future) `kind: "cross-language"` → 0.14.0
+ *
+ * Detectors declare the kind they expect via their `pack` field;
+ * the registry only feeds them the matching context.
+ */
+export type DetectorContext = UniversalDetectorContext | LanguageJsDetectorContext;
+
+export interface UniversalDetectorContext {
+  kind: "universal";
+  /** Repo-relative path with forward slashes. */
+  file: string;
+  /** Absolute path on disk. */
+  absolutePath: string;
+  /** Lowercase extension including the leading dot. */
+  extension: string;
+  /** Lazy source bytes; first call reads from disk, subsequent calls return cached. */
+  readSource(): Promise<string>;
+  /** Byte size from `fs.stat()`. */
+  byteSize: number;
+  /**
+   * Number of newline-delimited lines in the source. The orchestrator
+   * pre-reads `readSource()` so this is safe to read directly in
+   * detector bodies.
+   */
+  readonly lineCount: number;
+  /** Resolved config (already merged with defaults). */
+  config: CrimesConfig;
+  /**
+   * Optional repo-level IA signal index. Populated by `scan` and `context`
+   * for every detector context; absent only in direct unit-test stubs that
+   * don't need cross-file analysis. IA detectors read from this; existing
+   * file-local detectors ignore it.
+   */
+  ia?: IaIndex;
+  /**
+   * Optional repo-level petty-crimes signal index. Populated by `scan` and
+   * `context`; absent only in direct unit-test stubs or when the index build
+   * fails. Cross-file petty detectors read from this.
+   */
+  petty?: PettyIndex;
+  /**
+   * Optional per-file scoring context. Populated by `scan` and `context`;
+   * absent in direct unit-test stubs. Core uses this to backfill
+   * `scores.churn` / `scores.test_gap` / `scores.blast_radius` and to
+   * recompute `scores.agent_risk` on every finding via the unified
+   * 0.6.0 formula. Detectors do not need to read it themselves —
+   * finalisation happens after `run()` returns — but it is exposed
+   * here for advanced detectors that want to gate behaviour on the
+   * scoring signal.
+   */
+  scoring?: ScoringContext;
+}
+
+/**
+ * Language-js context — the historical `DetectorContext` shape. Carries
+ * the `ParsedFile` from `@crimes/language-js` plus all cross-file
+ * indexes that depend on TS/JS parsing (JSX shape, function hashes,
+ * import graph).
+ */
+export interface LanguageJsDetectorContext {
+  kind: "language-js";
   /** Repo-relative path with forward slashes. */
   file: string;
   /** Absolute path on disk. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type {
   IaFileSignals,
   IaIndex,
@@ -8,7 +8,8 @@ import type {
   IaNavSignal,
   IaRouteSignal,
 } from "../ia/types.js";
-import { routeMetadataDriftDetector } from "./route-metadata-drift.js";
+import { routeMetadataDriftDetector as _routeMetadataDriftDetector } from "./route-metadata-drift.js";
+const routeMetadataDriftDetector = _routeMetadataDriftDetector as LanguageJsDetector;
 
 interface BuildOptions {
   routes: IaRouteSignal[];
@@ -47,8 +48,9 @@ function buildIndex(opts: BuildOptions): IaIndex {
   };
 }
 
-function ctxFor(file: string, ia: IaIndex): DetectorContext {
+function ctxFor(file: string, ia: IaIndex): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/${file}`,
     source: "",
@@ -61,6 +63,7 @@ function ctxFor(file: string, ia: IaIndex): DetectorContext {
 describe("routeMetadataDriftDetector", () => {
   it("returns nothing when ctx.ia is missing", async () => {
     const findings = await routeMetadataDriftDetector.run({
+      kind: "language-js",
       file: "src/pages/settings/billing.tsx",
       absolutePath: "/tmp/x",
       source: "",

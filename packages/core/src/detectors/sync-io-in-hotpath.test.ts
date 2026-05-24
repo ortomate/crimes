@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { EnclosingFunction, FunctionShape, SyncIoCall } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { syncIoInHotpathDetector } from "./sync-io-in-hotpath.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { syncIoInHotpathDetector as _syncIoInHotpathDetector } from "./sync-io-in-hotpath.js";
+const syncIoInHotpathDetector = _syncIoInHotpathDetector as LanguageJsDetector;
 
 function encl(
   shape: FunctionShape,
@@ -32,8 +33,9 @@ function call(
 function makeCtx(
   syncIoCalls: SyncIoCall[],
   overrides: { file?: string } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: overrides.file ?? "src/handler.ts",
     absolutePath: "/tmp/handler.ts",
     source: "",

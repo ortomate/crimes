@@ -382,8 +382,10 @@ async function runDetectorsForFile(args: {
   const findings: Finding[] = [];
 
   for (const detector of args.detectors) {
+    if (detector.pack !== "language-js") continue;
     findings.push(
       ...(await detector.run({
+        kind: "language-js",
         file,
         absolutePath: args.absolutePath,
         source,

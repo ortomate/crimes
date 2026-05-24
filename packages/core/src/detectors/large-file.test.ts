@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { type CrimesConfig, DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { largeFileDetector } from "./large-file.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { largeFileDetector as _largeFileDetector } from "./large-file.js";
+const largeFileDetector = _largeFileDetector as LanguageJsDetector;
 
 function makeCtx(
   lineCount: number,
   opts: { file?: string; config?: CrimesConfig } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   const file = opts.file ?? "src/big.ts";
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/${file}`,
     source: "",

@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { DateUse } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { timezoneUnsafeParseDetector } from "./timezone-unsafe-parse.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { timezoneUnsafeParseDetector as _timezoneUnsafeParseDetector } from "./timezone-unsafe-parse.js";
+const timezoneUnsafeParseDetector = _timezoneUnsafeParseDetector as LanguageJsDetector;
 
 function makeCtx(
   uses: DateUse[],
   overrides: { file?: string } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: overrides.file ?? "src/billing.ts",
     absolutePath: "/tmp/billing.ts",
     source: "",

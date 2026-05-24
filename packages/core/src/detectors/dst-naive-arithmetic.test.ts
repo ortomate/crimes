@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { DateArithmetic } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { dstNaiveArithmeticDetector } from "./dst-naive-arithmetic.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { dstNaiveArithmeticDetector as _dstNaiveArithmeticDetector } from "./dst-naive-arithmetic.js";
+const dstNaiveArithmeticDetector = _dstNaiveArithmeticDetector as LanguageJsDetector;
 
 function makeCtx(
   hits: DateArithmetic[] | undefined,
   overrides: { file?: string } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: overrides.file ?? "src/util.ts",
     absolutePath: "/tmp/util.ts",
     source: "",

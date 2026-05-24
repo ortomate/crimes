@@ -3,9 +3,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type { IaFileSignals, IaIndex } from "../ia/types.js";
-import { duplicatedRoleStatusPlanCheckDetector } from "./duplicated-role-status-plan-check.js";
+import { duplicatedRoleStatusPlanCheckDetector as _duplicatedRoleStatusPlanCheckDetector } from "./duplicated-role-status-plan-check.js";
+const duplicatedRoleStatusPlanCheckDetector = _duplicatedRoleStatusPlanCheckDetector as LanguageJsDetector;
 
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-drspc-"));
@@ -48,8 +49,9 @@ function buildIndex(root: string, files: string[]): IaIndex {
   };
 }
 
-function ctxFor(file: string, ia: IaIndex): DetectorContext {
+function ctxFor(file: string, ia: IaIndex): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `${ia.root}/${file}`,
     source: "",
@@ -100,6 +102,7 @@ describe("duplicatedRoleStatusPlanCheckDetector", () => {
 
   it("emits nothing when ctx.ia is absent", async () => {
     const findings = await duplicatedRoleStatusPlanCheckDetector.run({
+      kind: "language-js",
       file: "src/a.ts",
       absolutePath: "/tmp/src/a.ts",
       source: "",

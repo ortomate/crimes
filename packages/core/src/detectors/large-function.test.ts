@@ -2,8 +2,9 @@ import type { FunctionShape, ParsedFunction } from "@crimes/language-js";
 import { parseFile } from "@crimes/language-js";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { largeFunctionDetector } from "./large-function.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { largeFunctionDetector as _largeFunctionDetector } from "./large-function.js";
+const largeFunctionDetector = _largeFunctionDetector as LanguageJsDetector;
 
 /**
  * Build a stub ParsedFile with a single function at the given line
@@ -19,8 +20,9 @@ function makeCtx(
     shapeEvidence?: string[];
   }>,
   overrides: { file?: string; absolutePath?: string } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: overrides.file ?? "src/billing.ts",
     absolutePath: overrides.absolutePath ?? "/tmp/billing.ts",
     source: "",
@@ -45,12 +47,13 @@ function parsedCtx(args: {
   source: string;
   file: string;
   absolutePath: string;
-}): DetectorContext {
+}): LanguageJsDetectorContext {
   const parsed = parseFile({
     absolutePath: args.absolutePath,
     source: args.source,
   });
   return {
+    kind: "language-js",
     file: args.file,
     absolutePath: args.absolutePath,
     source: args.source,

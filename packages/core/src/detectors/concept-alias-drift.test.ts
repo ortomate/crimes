@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import { DEFAULT_ALIAS_GROUPS } from "../ia/aliases.js";
 import type {
   IaConceptAliasGroup,
   IaFileSignals,
   IaIndex,
 } from "../ia/types.js";
-import { conceptAliasDriftDetector } from "./concept-alias-drift.js";
+import { conceptAliasDriftDetector as _conceptAliasDriftDetector } from "./concept-alias-drift.js";
+const conceptAliasDriftDetector = _conceptAliasDriftDetector as LanguageJsDetector;
 
 interface BuildOptions {
   files: Record<
@@ -74,8 +75,9 @@ function buildIndex(opts: BuildOptions): IaIndex {
   };
 }
 
-function ctxFor(file: string, ia: IaIndex): DetectorContext {
+function ctxFor(file: string, ia: IaIndex): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/${file}`,
     source: "",
@@ -88,6 +90,7 @@ function ctxFor(file: string, ia: IaIndex): DetectorContext {
 describe("conceptAliasDriftDetector", () => {
   it("returns nothing when ctx.ia is missing", async () => {
     const findings = await conceptAliasDriftDetector.run({
+      kind: "language-js",
       file: "src/a.ts",
       absolutePath: "/tmp/x",
       source: "",

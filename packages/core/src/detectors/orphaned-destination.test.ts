@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type {
   IaDocSignal,
   IaFileSignals,
@@ -8,7 +8,8 @@ import type {
   IaNavSignal,
   IaRouteSignal,
 } from "../ia/types.js";
-import { orphanedDestinationDetector } from "./orphaned-destination.js";
+import { orphanedDestinationDetector as _orphanedDestinationDetector } from "./orphaned-destination.js";
+const orphanedDestinationDetector = _orphanedDestinationDetector as LanguageJsDetector;
 
 interface BuildOptions {
   routes: IaRouteSignal[];
@@ -47,8 +48,9 @@ function buildIndex(opts: BuildOptions): IaIndex {
   };
 }
 
-function ctxFor(file: string, ia: IaIndex): DetectorContext {
+function ctxFor(file: string, ia: IaIndex): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/repo/${file}`,
     source: "",
@@ -155,6 +157,7 @@ describe("orphanedDestinationDetector", () => {
 
   it("emits nothing when ctx.ia is absent", async () => {
     const findings = await orphanedDestinationDetector.run({
+      kind: "language-js",
       file: "src/pages/admin/legacy.tsx",
       absolutePath: "/tmp/repo/src/pages/admin/legacy.tsx",
       source: "",

@@ -1,11 +1,13 @@
 import { parseFile } from "@crimes/language-js";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { commentedOutCodeDetector } from "./commented-out-code.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { commentedOutCodeDetector as _commentedOutCodeDetector } from "./commented-out-code.js";
+const commentedOutCodeDetector = _commentedOutCodeDetector as LanguageJsDetector;
 
-function makeCtx(source: string): DetectorContext {
+function makeCtx(source: string): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: "src/example.ts",
     absolutePath: "/tmp/example.ts",
     source,

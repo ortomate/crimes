@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { directDateDetector } from "./direct-date.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { directDateDetector as _directDateDetector } from "./direct-date.js";
+const directDateDetector = _directDateDetector as LanguageJsDetector;
 
 function makeCtx(
   uses: Array<{ kind: "now" | "new"; line: number }>,
   overrides: { file?: string } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: overrides.file ?? "src/date.ts",
     absolutePath: "/tmp/date.ts",
     source: "",

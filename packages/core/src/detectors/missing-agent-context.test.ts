@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type {
   IaAgentInventory,
   IaFileSignals,
   IaIndex,
 } from "../ia/types.js";
-import { missingAgentContextDetector } from "./missing-agent-context.js";
+import { missingAgentContextDetector as _missingAgentContextDetector } from "./missing-agent-context.js";
+const missingAgentContextDetector = _missingAgentContextDetector as LanguageJsDetector;
 
 function makeIndex(args: {
   agent?: Partial<IaAgentInventory>;
@@ -42,8 +43,9 @@ function makeIndex(args: {
   };
 }
 
-function makeCtx(file: string, ia?: IaIndex): DetectorContext {
+function makeCtx(file: string, ia?: IaIndex): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/${file}`,
     source: "",

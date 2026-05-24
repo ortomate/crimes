@@ -5,8 +5,9 @@ import { describe, expect, it } from "vitest";
 import { discoverFiles } from "../discovery/index.js";
 import { buildFunctionHashIndex } from "../ast-hash/function-index.js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { nearDuplicateBlockDetector } from "./near-duplicate-block.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { nearDuplicateBlockDetector as _nearDuplicateBlockDetector } from "./near-duplicate-block.js";
+const nearDuplicateBlockDetector = _nearDuplicateBlockDetector as LanguageJsDetector;
 
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-ndb-"));
@@ -18,7 +19,7 @@ async function makeRepo(files: Record<string, string>): Promise<string> {
   return dir;
 }
 
-async function ctxFor(file: string, root: string): Promise<DetectorContext> {
+async function ctxFor(file: string, root: string): Promise<LanguageJsDetectorContext> {
   const all = await discoverFiles({
     root,
     include: DEFAULT_CONFIG.include,
@@ -26,6 +27,7 @@ async function ctxFor(file: string, root: string): Promise<DetectorContext> {
   });
   const functionHashIndex = await buildFunctionHashIndex({ root, files: all });
   return {
+    kind: "language-js",
     file,
     absolutePath: join(root, file),
     source: "",
@@ -92,6 +94,7 @@ describe("nearDuplicateBlockDetector", () => {
 
   it("emits nothing when ctx.functionHashIndex is absent", async () => {
     const findings = await nearDuplicateBlockDetector.run({
+      kind: "language-js",
       file: "src/a.ts",
       absolutePath: "/tmp/src/a.ts",
       source: "",

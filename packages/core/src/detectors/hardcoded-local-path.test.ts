@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
 import type { CrimesConfig } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { hardcodedLocalPathDetector } from "./hardcoded-local-path.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { hardcodedLocalPathDetector as _hardcodedLocalPathDetector } from "./hardcoded-local-path.js";
+const hardcodedLocalPathDetector = _hardcodedLocalPathDetector as LanguageJsDetector;
 
 function makeCtx(
   source: string,
   overrides: { file?: string; config?: CrimesConfig } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: overrides.file ?? "src/loader.ts",
     absolutePath: "/tmp/loader.ts",
     source,

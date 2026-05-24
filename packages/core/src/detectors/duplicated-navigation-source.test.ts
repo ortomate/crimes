@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type { IaIndex, IaNavSignal } from "../ia/types.js";
-import { duplicatedNavigationSourceDetector } from "./duplicated-navigation-source.js";
+import { duplicatedNavigationSourceDetector as _duplicatedNavigationSourceDetector } from "./duplicated-navigation-source.js";
+const duplicatedNavigationSourceDetector = _duplicatedNavigationSourceDetector as LanguageJsDetector;
 
 function buildIndex(
   sources: { file: string; entries: { destination?: string; label?: string }[] }[],
@@ -37,8 +38,9 @@ function buildIndex(
   };
 }
 
-function ctxFor(file: string, ia: IaIndex): DetectorContext {
+function ctxFor(file: string, ia: IaIndex): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/${file}`,
     source: "",
@@ -51,6 +53,7 @@ function ctxFor(file: string, ia: IaIndex): DetectorContext {
 describe("duplicatedNavigationSourceDetector", () => {
   it("returns nothing when ctx.ia is missing", async () => {
     const findings = await duplicatedNavigationSourceDetector.run({
+      kind: "language-js",
       file: "src/nav/sidebar.ts",
       absolutePath: "/tmp/x",
       source: "",

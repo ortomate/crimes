@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type { ImportEdge, ImportGraph } from "../imports/types.js";
-import { circularDependencyDetector } from "./circular-dependency.js";
+import { circularDependencyDetector as _circularDependencyDetector } from "./circular-dependency.js";
+const circularDependencyDetector = _circularDependencyDetector as LanguageJsDetector;
 
 interface EdgeInput {
   from: string;
@@ -38,8 +39,9 @@ function makeGraph(edges: EdgeInput[]): ImportGraph {
   return { edges: fullEdges, out, in: inMap, files };
 }
 
-function makeCtx(file: string, graph: ImportGraph): DetectorContext {
+function makeCtx(file: string, graph: ImportGraph): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/repo/${file}`,
     source: "",
@@ -96,6 +98,7 @@ describe("circularDependencyDetector", () => {
 
   it("emits nothing when ctx.imports is absent", async () => {
     const findings = await circularDependencyDetector.run({
+      kind: "language-js",
       file: "src/a.ts",
       absolutePath: "/repo/src/a.ts",
       source: "",

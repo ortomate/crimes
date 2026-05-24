@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type { IaDocLink, IaFileSignals, IaIndex } from "../ia/types.js";
-import { docsCodeDriftDetector } from "./docs-code-drift.js";
+import { docsCodeDriftDetector as _docsCodeDriftDetector } from "./docs-code-drift.js";
+const docsCodeDriftDetector = _docsCodeDriftDetector as LanguageJsDetector;
 
 function buildIndex(opts: {
   files?: string[];
@@ -42,8 +43,9 @@ function buildIndex(opts: {
   };
 }
 
-function ctxFor(file: string, ia: IaIndex): DetectorContext {
+function ctxFor(file: string, ia: IaIndex): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/${file}`,
     source: "",
@@ -56,6 +58,7 @@ function ctxFor(file: string, ia: IaIndex): DetectorContext {
 describe("docsCodeDriftDetector", () => {
   it("returns nothing when ctx.ia is missing", async () => {
     const findings = await docsCodeDriftDetector.run({
+      kind: "language-js",
       file: "src/a.ts",
       absolutePath: "/tmp/x",
       source: "",

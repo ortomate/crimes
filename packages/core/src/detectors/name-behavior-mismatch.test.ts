@@ -1,11 +1,13 @@
 import { parseFile } from "@crimes/language-js";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { nameBehaviorMismatchDetector } from "./name-behavior-mismatch.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { nameBehaviorMismatchDetector as _nameBehaviorMismatchDetector } from "./name-behavior-mismatch.js";
+const nameBehaviorMismatchDetector = _nameBehaviorMismatchDetector as LanguageJsDetector;
 
-function makeCtx(source: string, file = "src/billing.ts"): DetectorContext {
+function makeCtx(source: string, file = "src/billing.ts"): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/${file}`,
     source,

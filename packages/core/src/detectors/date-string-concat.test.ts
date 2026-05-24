@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { DateStringConcat } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { dateStringConcatDetector } from "./date-string-concat.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { dateStringConcatDetector as _dateStringConcatDetector } from "./date-string-concat.js";
+const dateStringConcatDetector = _dateStringConcatDetector as LanguageJsDetector;
 
 function makeCtx(
   hits: DateStringConcat[] | undefined,
   overrides: { file?: string } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: overrides.file ?? "src/util.ts",
     absolutePath: "/tmp/util.ts",
     source: "",

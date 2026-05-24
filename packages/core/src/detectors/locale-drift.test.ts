@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { DateMethodCall } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { localeDriftDetector } from "./locale-drift.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { localeDriftDetector as _localeDriftDetector } from "./locale-drift.js";
+const localeDriftDetector = _localeDriftDetector as LanguageJsDetector;
 
 function makeCtx(
   calls: DateMethodCall[] | undefined,
   overrides: { file?: string } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: overrides.file ?? "src/billing.ts",
     absolutePath: "/tmp/billing.ts",
     source: "",

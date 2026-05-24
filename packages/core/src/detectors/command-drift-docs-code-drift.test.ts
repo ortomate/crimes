@@ -3,14 +3,15 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type {
   IaAgentInventory,
   IaDocSignal,
   IaFileSignals,
   IaIndex,
 } from "../ia/types.js";
-import { commandDriftDocsCodeDriftDetector } from "./command-drift-docs-code-drift.js";
+import { commandDriftDocsCodeDriftDetector as _commandDriftDocsCodeDriftDetector } from "./command-drift-docs-code-drift.js";
+const commandDriftDocsCodeDriftDetector = _commandDriftDocsCodeDriftDetector as LanguageJsDetector;
 
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-cmd-drift-"));
@@ -51,8 +52,9 @@ function buildIndex(args: {
   };
 }
 
-function ctxFor(file: string, ia: IaIndex): DetectorContext {
+function ctxFor(file: string, ia: IaIndex): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `${ia.root}/${file}`,
     source: "",
@@ -204,6 +206,7 @@ describe("commandDriftDocsCodeDriftDetector", () => {
 
   it("emits nothing when ctx.ia is absent", async () => {
     const findings = await commandDriftDocsCodeDriftDetector.run({
+      kind: "language-js",
       file: "docs/agent-usage.md",
       absolutePath: "/tmp/docs/agent-usage.md",
       source: "",

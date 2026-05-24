@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { finderDuplicateFilenameDetector } from "./finder-duplicate-filename.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { finderDuplicateFilenameDetector as _finderDuplicateFilenameDetector } from "./finder-duplicate-filename.js";
+const finderDuplicateFilenameDetector = _finderDuplicateFilenameDetector as LanguageJsDetector;
 
-function makeCtx(file: string): DetectorContext {
+function makeCtx(file: string): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/${file}`,
     source: "",

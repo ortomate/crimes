@@ -4,9 +4,10 @@ import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { discoverFiles } from "../discovery/index.js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import { buildJsxShapeIndex } from "../jsx/shape-index.js";
-import { duplicateComponentShapeDetector } from "./duplicate-component-shape.js";
+import { duplicateComponentShapeDetector as _duplicateComponentShapeDetector } from "./duplicate-component-shape.js";
+const duplicateComponentShapeDetector = _duplicateComponentShapeDetector as LanguageJsDetector;
 
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-dcs-"));
@@ -18,7 +19,7 @@ async function makeRepo(files: Record<string, string>): Promise<string> {
   return dir;
 }
 
-async function ctxFor(file: string, root: string): Promise<DetectorContext> {
+async function ctxFor(file: string, root: string): Promise<LanguageJsDetectorContext> {
   const allFiles = await discoverFiles({
     root,
     include: DEFAULT_CONFIG.include,
@@ -26,6 +27,7 @@ async function ctxFor(file: string, root: string): Promise<DetectorContext> {
   });
   const jsxShapeIndex = await buildJsxShapeIndex({ root, files: allFiles });
   return {
+    kind: "language-js",
     file,
     absolutePath: join(root, file),
     source: "",
@@ -87,6 +89,7 @@ describe("duplicateComponentShapeDetector", () => {
 
   it("emits nothing when jsxShapeIndex is absent", async () => {
     const findings = await duplicateComponentShapeDetector.run({
+      kind: "language-js",
       file: "src/a/Card.tsx",
       absolutePath: "/tmp/src/a/Card.tsx",
       source: "",

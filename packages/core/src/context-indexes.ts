@@ -145,7 +145,9 @@ export async function runDetectorsOnTarget(args: {
 
   const findings: Finding[] = [];
   for (const detector of detectors) {
+    if (detector.pack !== "language-js") continue;
     const detectorFindings = await detector.run({
+      kind: "language-js",
       file,
       absolutePath: targetAbs,
       source,

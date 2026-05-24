@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { todoDensityDetector } from "./todo-density.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { todoDensityDetector as _todoDensityDetector } from "./todo-density.js";
+const todoDensityDetector = _todoDensityDetector as LanguageJsDetector;
 
-function makeCtx(source: string, padLines = 0): DetectorContext {
+function makeCtx(source: string, padLines = 0): LanguageJsDetectorContext {
   // Pad the lineCount so the source represents a file of the requested size.
   // padLines is the additional non-marker lines we want to claim the file has.
   const sourceLines = source.split(/\r?\n/).length;
   const lineCount = Math.max(sourceLines + padLines, sourceLines);
   return {
+    kind: "language-js",
     file: "src/todo.ts",
     absolutePath: "/tmp/todo.ts",
     source,

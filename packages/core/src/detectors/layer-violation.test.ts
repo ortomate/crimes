@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, type CrimesConfig } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type { ImportEdge, ImportGraph } from "../imports/types.js";
-import { layerViolationDetector } from "./layer-violation.js";
+import { layerViolationDetector as _layerViolationDetector } from "./layer-violation.js";
+const layerViolationDetector = _layerViolationDetector as LanguageJsDetector;
 
 function makeGraph(edges: Omit<ImportEdge, "external" | "typeOnly" | "dynamic">[]): ImportGraph {
   const out = new Map<string, ImportEdge[]>();
@@ -35,8 +36,9 @@ function makeCtx(args: {
   file: string;
   imports: ImportGraph;
   config: CrimesConfig;
-}): DetectorContext {
+}): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: args.file,
     absolutePath: `/repo/${args.file}`,
     source: "",
@@ -180,6 +182,7 @@ describe("layerViolationDetector", () => {
 
   it("emits nothing when ctx.imports is absent", async () => {
     const findings = await layerViolationDetector.run({
+      kind: "language-js",
       file: "src/domain/billing.ts",
       absolutePath: "/repo/src/domain/billing.ts",
       source: "",

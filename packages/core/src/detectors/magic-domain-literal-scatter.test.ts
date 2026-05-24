@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type { PettyIndex } from "../petty/types.js";
-import { magicDomainLiteralScatterDetector } from "./magic-domain-literal-scatter.js";
+import { magicDomainLiteralScatterDetector as _magicDomainLiteralScatterDetector } from "./magic-domain-literal-scatter.js";
+const magicDomainLiteralScatterDetector = _magicDomainLiteralScatterDetector as LanguageJsDetector;
 
-function makeCtx(file: string, petty?: PettyIndex): DetectorContext {
+function makeCtx(file: string, petty?: PettyIndex): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/repo/${file}`,
     source: "",

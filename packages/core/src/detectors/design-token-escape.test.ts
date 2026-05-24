@@ -4,15 +4,17 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseFile } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { designTokenEscapeDetector } from "./design-token-escape.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { designTokenEscapeDetector as _designTokenEscapeDetector } from "./design-token-escape.js";
+const designTokenEscapeDetector = _designTokenEscapeDetector as LanguageJsDetector;
 
-async function ctxFromSource(source: string): Promise<DetectorContext> {
+async function ctxFromSource(source: string): Promise<LanguageJsDetectorContext> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-dte-"));
   const abs = join(dir, "Component.tsx");
   await writeFile(abs, source, "utf8");
   const parsed = parseFile({ absolutePath: abs, source });
   return {
+    kind: "language-js",
     file: "Component.tsx",
     absolutePath: abs,
     source,

@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { TypedDeclaration } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { singularPluralTypeMismatchDetector } from "./singular-plural-type-mismatch.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { singularPluralTypeMismatchDetector as _singularPluralTypeMismatchDetector } from "./singular-plural-type-mismatch.js";
+const singularPluralTypeMismatchDetector = _singularPluralTypeMismatchDetector as LanguageJsDetector;
 
 function makeCtx(
   decls: TypedDeclaration[] | undefined,
   overrides: { file?: string } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: overrides.file ?? "src/data.ts",
     absolutePath: "/tmp/data.ts",
     source: "",

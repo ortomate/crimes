@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { TypedDeclaration } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
-import { booleanNamingDriftDetector } from "./boolean-naming-drift.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
+import { booleanNamingDriftDetector as _booleanNamingDriftDetector } from "./boolean-naming-drift.js";
+const booleanNamingDriftDetector = _booleanNamingDriftDetector as LanguageJsDetector;
 
 function makeCtx(
   decls: TypedDeclaration[] | undefined,
   overrides: { file?: string } = {},
-): DetectorContext {
+): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file: overrides.file ?? "src/state.ts",
     absolutePath: "/tmp/state.ts",
     source: "",

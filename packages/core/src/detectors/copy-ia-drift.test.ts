@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
-import type { DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, LanguageJsDetectorContext } from "../detector.js";
 import type {
   IaFileSignals,
   IaIndex,
   IaLabelSignal,
 } from "../ia/types.js";
-import { copyIaDriftDetector } from "./copy-ia-drift.js";
+import { copyIaDriftDetector as _copyIaDriftDetector } from "./copy-ia-drift.js";
+const copyIaDriftDetector = _copyIaDriftDetector as LanguageJsDetector;
 
 function buildIndex(
   fileLabels: Record<string, IaLabelSignal[]>,
@@ -41,8 +42,9 @@ function buildIndex(
   };
 }
 
-function ctxFor(file: string, ia: IaIndex): DetectorContext {
+function ctxFor(file: string, ia: IaIndex): LanguageJsDetectorContext {
   return {
+    kind: "language-js",
     file,
     absolutePath: `/tmp/repo/${file}`,
     source: "",
@@ -90,6 +92,7 @@ describe("copyIaDriftDetector", () => {
 
   it("emits nothing when ctx.ia is absent", async () => {
     const findings = await copyIaDriftDetector.run({
+      kind: "language-js",
       file: "src/a.tsx",
       absolutePath: "/tmp/src/a.tsx",
       source: "",
