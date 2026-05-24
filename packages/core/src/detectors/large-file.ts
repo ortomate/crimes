@@ -1,5 +1,5 @@
 import type { CrimesConfig } from "../config.js";
-import type { LanguageJsDetector } from "../detector.js";
+import type { UniversalDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -58,7 +58,7 @@ export function shapeForFile(file: string): LargeFileShape {
   return isTestFile(file) ? "test_file" : "domain";
 }
 
-export const largeFileDetector: LanguageJsDetector = {
+export const largeFileDetector: UniversalDetector = {
   id: "large_file",
   name: "Large File",
   description:
@@ -70,11 +70,16 @@ export const largeFileDetector: LanguageJsDetector = {
     "so every PR's diff is harder to review and easier to break. Splitting " +
     "by responsibility keeps each module independently understandable.",
 
-  pack: "language-js",
-  run(ctx) {
+  pack: "universal",
+  async run(ctx) {
+    // Universal pack: no AST. lineCount comes from newline-split source.
+    // The "N top-level functions" evidence line the language-js variant
+    // emitted is intentionally dropped — we don't have a parser. Severity
+    // policy is unchanged.
+    await ctx.readSource();
     const shape = shapeForFile(ctx.file);
     const policy = policyForFile(shape, ctx.config);
-    const lines = ctx.parsed.lineCount;
+    const lines = ctx.lineCount;
 
     if (lines <= policy.threshold) return [];
 
@@ -82,7 +87,6 @@ export const largeFileDetector: LanguageJsDetector = {
     const severity =
       ratio >= 2 ? policy.severityAtTwoX : policy.severityAtThreshold;
     const confidence = Math.min(0.7 + (ratio - 1) * 0.15, 0.95);
-    const fnCount = ctx.parsed.functions.length;
 
     const isDomain = shape === "domain";
     const summary = isDomain
@@ -104,7 +108,6 @@ export const largeFileDetector: LanguageJsDetector = {
       evidence: [
         `${lines} non-empty lines`,
         thresholdEvidence,
-        `${fnCount} top-level function${fnCount === 1 ? "" : "s"} declared in this file`,
         ...(shape === "test_file"
           ? ["shape: test file (matches **/*.{test,spec}.[jt]sx? or __tests__/)"]
           : []),

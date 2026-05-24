@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { relative, sep } from "node:path";
+import { readFile, stat } from "node:fs/promises";
+import { extname, relative, sep } from "node:path";
 import { parseFile } from "@crimes/language-js";
 import type { CrimesConfig } from "./config.js";
 import type { Detector } from "./detector.js";
@@ -143,25 +143,43 @@ export async function runDetectorsOnTarget(args: {
   const file = toRepoPath(relative(root, targetAbs));
   const source = await readFile(targetAbs, "utf8");
   const parsed = parseFile({ absolutePath: targetAbs, source });
+  const byteSize = (await stat(targetAbs)).size;
 
   const findings: Finding[] = [];
   for (const detector of detectors) {
-    if (detector.pack !== "language-js") continue;
-    const detectorFindings = await detector.run({
-      kind: "language-js",
-      file,
-      absolutePath: targetAbs,
-      source,
-      parsed,
-      config,
-      ia,
-      petty,
-      imports,
-      jsxShapeIndex,
-      functionHashIndex,
-      scoring,
-    });
-    findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
+    if (detector.pack === "universal") {
+      const lineCount = source.split("\n").length;
+      const detectorFindings = await detector.run({
+        kind: "universal",
+        file,
+        absolutePath: targetAbs,
+        extension: extname(targetAbs).toLowerCase(),
+        byteSize,
+        readSource: async () => source,
+        get lineCount() { return lineCount; },
+        config,
+        ia,
+        petty,
+        scoring,
+      });
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
+    } else if (detector.pack === "language-js") {
+      const detectorFindings = await detector.run({
+        kind: "language-js",
+        file,
+        absolutePath: targetAbs,
+        source,
+        parsed,
+        config,
+        ia,
+        petty,
+        imports,
+        jsxShapeIndex,
+        functionHashIndex,
+        scoring,
+      });
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
+    }
   }
 
   // Backfill per-finding scores (churn / test_gap / blast_radius) and

@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { type CrimesConfig, DEFAULT_CONFIG } from "../config.js";
-import type { LanguageJsDetectorContext } from "../detector.js";
+import type { UniversalDetectorContext } from "../detector.js";
 import { largeFileDetector } from "./large-file.js";
 
 function makeCtx(
   lineCount: number,
   opts: { file?: string; config?: CrimesConfig } = {},
-): LanguageJsDetectorContext {
+): UniversalDetectorContext {
   const file = opts.file ?? "src/big.ts";
+  const source = Array.from({ length: lineCount }, () => "x").join("\n");
   return {
-    kind: "language-js",
+    kind: "universal",
     file,
     absolutePath: `/tmp/${file}`,
-    source: "",
-    parsed: {
-      lineCount,
-      functions: [],
-      dateNowOrNewDateUses: [],
+    extension: file.match(/\.[^./]+$/)?.[0] ?? "",
+    byteSize: source.length,
+    readSource: async () => source,
+    get lineCount() {
+      return lineCount;
     },
     config: opts.config ?? DEFAULT_CONFIG,
   };
@@ -129,6 +130,27 @@ describe("largeFileDetector — test_file shape", () => {
     const findings = await largeFileDetector.run(
       makeCtx(500, { file: "src/big.ts", config }),
     );
+    expect(findings).toEqual([]);
+  });
+});
+
+describe("largeFileDetector — universal pack", () => {
+  it("fires on a 1200-line .rs file", async () => {
+    const source = Array.from({ length: 1200 }, () => "x").join("\n");
+    const findings = await largeFileDetector.run(
+      makeCtx(1200, { file: "src/main.rs" }),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.severity).toBe("high");
+    expect(findings[0]!.file).toBe("src/main.rs");
+  });
+
+  it("uses the test_file shape on a foo_test.py path", async () => {
+    const source = Array.from({ length: 900 }, () => "x").join("\n");
+    const findings = await largeFileDetector.run(
+      makeCtx(900, { file: "tests/foo_test.py" }),
+    );
+    // 900 < 1500 default test_file threshold → no finding.
     expect(findings).toEqual([]);
   });
 });

@@ -832,7 +832,7 @@ describe("applyTriageToScan", () => {
 });
 
 describe("scan — universal pack execution", () => {
-  it("runs without error on a Rust-only repo (no findings yet)", async () => {
+  it("runs large_file on a Rust-only repo and fires on a 600-line file", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-uni-"));
     try {
       const big = Array.from({ length: 600 }, (_, i) => `// line ${i}`).join("\n");
@@ -841,9 +841,13 @@ describe("scan — universal pack execution", () => {
         root,
         config: { ...DEFAULT_CONFIG, include: ["**/*.rs"] },
       });
-      // No detector is promoted to universal yet — findings should be
-      // empty but the scan must complete cleanly.
-      expect(report.findings).toEqual([]);
+      // large_file is now universal — a 600-line .rs file (2× the 300-line
+      // default threshold) should produce exactly one high-severity finding.
+      expect(report.findings).toHaveLength(1);
+      expect(report.findings[0]!.type).toBe("large_file");
+      expect(report.findings[0]!.severity).toBe("high");
+      expect(report.findings[0]!.pack).toBe("universal");
+      expect(report.findings[0]!.detector_id).toBe("large_file");
     } finally {
       await rm(root, { recursive: true, force: true });
     }
