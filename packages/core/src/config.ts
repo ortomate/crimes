@@ -182,8 +182,29 @@ export interface CrimesConfig {
   };
 }
 
+/**
+ * Default source-file include patterns. Broader than just TS/JS so
+ * universal-pack detectors (`large_file`, `todo_density`,
+ * `hardcoded_localhost`, `hardcoded_local_path`, `commented_out_code`,
+ * `finder_duplicate_filename`, `missing_agent_context`,
+ * `docs_code_drift`) fire on every common source language. Language
+ * packs still only run on files their pack claims by extension
+ * (`language-js` claims the `*.{ts,tsx,js,jsx,mjs,cjs,cts,mts}`
+ * subset). Asset detectors use `assets.include` instead, not this list.
+ */
+export const DEFAULT_SOURCE_INCLUDES: string[] = [
+  // JavaScript / TypeScript (language-js pack)
+  "**/*.{ts,tsx,js,jsx,mjs,cjs,cts,mts}",
+  // Python (universal pack today; language-py pack ships in 0.13.0)
+  "**/*.{py,pyi}",
+  // Other popular source languages — universal pack only for now
+  "**/*.{rs,go,rb,java,kt,scala,swift,c,h,cpp,hpp,cs,php,ex,exs,lua,sh,bash,zsh}",
+  // Documentation (docs_code_drift detects broken links here)
+  "**/*.{md,mdx}",
+];
+
 export const DEFAULT_CONFIG: CrimesConfig = {
-  include: ["**/*.{ts,tsx,js,jsx,mjs,cjs}"],
+  include: DEFAULT_SOURCE_INCLUDES,
   exclude: [
     "**/node_modules/**",
     "**/dist/**",
