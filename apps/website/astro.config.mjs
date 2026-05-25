@@ -68,6 +68,7 @@ export default defineConfig({
             { label: "Suppressions", slug: "suppressions" },
             { label: "Explain", slug: "explain" },
             { label: "JSON schema", slug: "json-schema" },
+            { label: "Packs", slug: "packs" },
             { label: "Skills", slug: "skills" },
             { label: "Releasing", slug: "releasing" },
           ],

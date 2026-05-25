@@ -161,7 +161,7 @@ Contract details:
 **Codex stub.** `.agents/settings.local.json` carries the same JSON
 shape as the Claude file and uses the same stdin-reading `crimes hook`
 command. Codex does **not** honour `PreToolUse` hooks as of
-`crimes@0.11.1`; the file is a forward-looking placeholder so the
+`crimes@0.12.0`; the file is a forward-looking placeholder so the
 schema is ready when the Codex hook surface lands. A top-level `_note`
 key documents this. Safe to delete.
 

@@ -129,53 +129,41 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.11.1`
+## Status — `crimes@0.12.0`
 
-`crimes@0.11.1` is the latest published version on npm. It is the first
-calibration patch on **Release B, "Triage as the front door"**: the
-major `0.11.0` surfaces stay the same, with tighter agent-facing output
-for hooks, hotspots, and scan summaries. `0.11.0` shipped the new
-`crimes triage` command,
-triage- and baseline-aware resurfacing on touched files, a PreToolUse
-hook in `init --agents`, human-readable secondary scores in the
-renderer, and a schema bump (`0.1.0` → `0.2.0`) that adds `effort` +
-`fix_shape` to every finding. Patch release notes:
-[`docs/releases/v0.11.1.md`](./docs/releases/v0.11.1.md). Release B
-notes:
-[`docs/releases/v0.11.0.md`](./docs/releases/v0.11.0.md).
+`crimes@0.12.0` is the latest published version on npm. It introduces
+the **universal pack**: detectors that run on every file in every repo
+without an AST. `crimes scan` on a Python, Go, Rust, or any non-JS
+repo now produces real findings (large files, raster assets, localhost
+leaks, docs drift, missing agent context, TODO density, commented-out
+code) plus a coverage banner explaining the gap, instead of an empty
+report. Schema bumps `0.2.0` → `0.3.0` adding required `Finding.pack`
++ `Finding.detector_id` and optional `ScanReport.coverage`. Release
+notes: [`docs/releases/v0.12.0.md`](./docs/releases/v0.12.0.md).
+Previous release:
+[`docs/releases/v0.11.1.md`](./docs/releases/v0.11.1.md).
 
-What's in `0.11.0`:
+What's in `0.12.0`:
 
-- **`crimes triage` command.** Interactive walk over current findings
-  with five dispositions (`fix-now` / `fix-this-PR` / `needs-design`
-  / `wont-fix` / `scaffolding`). Each entry persists to
-  `.crimes/triage.json` with the required `reason` + `owner` + `date`.
-  `--apply <file>` runs non-interactively; `--list`, `--clear`,
-  `--retriage`, and `--all` round out the surface. See the
-  [Triage workflow](#triage-workflow) section.
-- **Triage- and baseline-aware resurfacing.** Silenced triage entries
-  (`needs-design`, `wont-fix`, `scaffolding`) and baseline entries
-  resurface automatically when their file is in the branch diff
-  against `config.triage.resurfaceBase` (default `"main"`). The
-  resurfaced finding carries `previously_triaged` / `previous_triage`
-  (or `previously_baselined` / `previous_baseline`) and renders with
-  a `▼` glyph in the human report. New scan flags: `--show-triaged`,
-  `--gate-needs-design`, `--gate-resurfaced`.
-- **`effort` + `fix_shape` on every finding** (schema bump). Every
-  `Finding` now carries `effort: "quick" | "small" | "medium" | "large"`
-  and `fix_shape: string` (one-line description of the shape of the
-  fix, ≤120 chars). `schema_version` bumps to `"0.2.0"`; JSON
-  consumers that pinned to `"0.1.0"` must accept the new string.
-- **PreToolUse hook in `init --agents`.** `crimes init --agents`
-  now writes `.claude/settings.local.json` with a PreToolUse Edit
-  hook that runs `crimes context --format json` on the file being
-  edited (matcher: `Edit|Write|NotebookEdit`). `.agents/settings.local.json`
-  is a forward-looking stub for Codex. `--no-hooks` opts out.
-- **Human-readable secondary scores.** Scan and context renderers
-  now print `blast top-quartile (11 importers)` and
-  `churn 24 commits over 90d · last touched 2 days ago` instead of
-  bare decimals. **JSON numerics are unchanged** — `Finding.scores`
-  still carries the raw `0–1` floats.
+- **Universal pack.** `crimes scan` on a Python, Go, Rust, or any
+  non-JS repo now produces real findings. Universal-pack detectors
+  (large files, raster assets, localhost/local-path leaks, duplicate
+  filenames, docs-code drift, missing agent context, TODO density,
+  commented-out code) run on every file without an AST. JS/TS
+  behaviour is byte-identical to 0.11.1.
+- **Coverage banner + `--explain-coverage`.** Human output prints a
+  one-line banner when >50% of discovered files are universal-only.
+  `--explain-coverage` prints the full per-pack file-count breakdown
+  and explains what universal-only files lose (no `large_function`,
+  `circular_dependency`, etc.).
+- **`crimes context <unsupported.rs>`.** Returns universal-pack
+  findings + git/IA context with a guidance note about the language
+  gap, instead of an empty report.
+- **Schema bump `0.2.0` → `0.3.0`.** `Finding.pack` and
+  `Finding.detector_id` are now required on every finding.
+  `ScanReport.coverage` is optional and present when ≥1 file was
+  discovered. JSON consumers that pinned to `"0.2.0"` must accept
+  `"0.3.0"`. Fingerprints and baselines are unchanged.
 
 Earlier `0.10.0` work (_Release A front-door redesign_) remains
 shipped. Release notes:

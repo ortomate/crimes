@@ -4,17 +4,17 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.11.1` (npm) ✅ shipped —
-  first calibration patch on _triage as the front door_ (Release B).
-  Compact hook output, capped hotspots JSON with hidden counts, scan
-  header severity counts, and clearer `init --agents`/help text. Patch
-  notes: [`docs/releases/v0.11.1.md`](./docs/releases/v0.11.1.md).
-  `0.11.0` shipped the new `crimes triage` command,
-  triage- + baseline-aware resurfacing, PreToolUse hook in
-  `init --agents`, human-readable secondary scores in the renderer,
-  schema bump `0.1.0` → `0.2.0` adding required `effort` + `fix_shape`.
-  `packages/cli/package.json` tracks the latest shipped version. Release B
-  notes: [`docs/releases/v0.11.0.md`](./docs/releases/v0.11.0.md).
+- **Last published version:** `crimes@0.12.0` (npm) ✅ shipped —
+  universal pack: first release of the wider-codebase-support arc.
+  `crimes scan` now works on any repo; universal-pack findings carry the
+  same confidence as language-pack ones, just from less evidence.
+  Schema bump `0.2.0` → `0.3.0` adding required `Finding.pack` +
+  `Finding.detector_id` and optional `ScanReport.coverage`.
+  `packages/cli/package.json` tracks the latest shipped version. Release
+  notes: [`docs/releases/v0.12.0.md`](./docs/releases/v0.12.0.md).
+  Previous: `crimes@0.11.1` — first calibration patch on _triage as the
+  front door_ (Release B). Patch notes:
+  [`docs/releases/v0.11.1.md`](./docs/releases/v0.11.1.md).
 - **Previously shipped milestones:** `crimes@0.10.0` — _front-door
   redesign_ (Release A): file-grouped `scan` layout, repo-relative
   `test_gap` quartile, recency-weighted ranking, `scopeTiers.nonDomain`,
@@ -49,6 +49,24 @@ mirror, not a planning doc.
 | M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
 | M5 — Public launch            | ✅ completed in `0.6.0` — full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/) via Astro + Starlight; landing page unchanged. |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
+
+---
+
+## ✅ Shipped in `crimes@0.12.0`
+
+> **Theme: universal pack** — first release of the three-release
+> wider-codebase-support arc. `crimes scan` now works on any repo;
+> universal-pack findings carry the same confidence as language-pack
+> ones, just from less evidence.
+>
+> Release notes: [`docs/releases/v0.12.0.md`](./releases/v0.12.0.md).
+> Design spec:
+> [`docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md`](./superpowers/specs/2026-05-22-wider-codebase-support-design.md).
+> Implementation plan:
+> [`docs/superpowers/plans/2026-05-23-0.12.0-universal-pack.md`](./superpowers/plans/2026-05-23-0.12.0-universal-pack.md).
+
+Schema bump `0.2.0` → `0.3.0`. (See the release notes for the
+detailed change list.)
 
 ---
 
@@ -1134,27 +1152,13 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
 ## 🚧 Planned for later versions
 
-### Wider codebase support — `0.12.0` → `0.14.0`
+### Wider codebase support — `0.13.0` → `0.14.0`
 
 > **Design spec:**
 > [`docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md`](./superpowers/specs/2026-05-22-wider-codebase-support-design.md).
-> Three-release arc to extend `crimes` beyond TypeScript / JavaScript.
-> Schema bumps once (`0.2.0` → `0.3.0`, in 0.12.0); subsequent releases
-> stay additive.
+> The universal-pack arc shipped in `0.12.0`. Two releases remain.
+> Schema stays at `0.3.0`; subsequent releases are additive.
 
-- **`crimes@0.12.0` — universal pack.** Extract a universal-pack
-  detector pass that runs on any repo without AST parsing (file size,
-  raster assets, localhost / local-path leaks, duplicate filenames,
-  docs link checking, missing agent context, churn-based hotspots).
-  Refactor `DetectorContext` into a discriminated union (`universal`
-  / `language-js` / future packs). Move file discovery from
-  `language-js` into `core`. Add required `Finding.pack` (new field,
-  distinct from the existing `Finding.tier` scope-tier field) and
-  optional `ScanReport.coverage` block. New `--explain-coverage`
-  flag plus a coverage banner in human output when >50% of files
-  have no language pack. `crimes context <unsupported.rs>` returns
-  universal-pack findings + git/IA context instead of going blank.
-  No JS-side behaviour change.
 - **`crimes@0.13.0` — Python language pack.** New
   `packages/language-py/` using `tree-sitter-python` (no Python
   runtime required at install / scan time). Ports eight detectors as

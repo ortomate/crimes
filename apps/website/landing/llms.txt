@@ -32,7 +32,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.11.1)
+## Commands (latest published v0.12.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -338,7 +338,23 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.11.1 — agent-output calibration (current release)
+## 0.12.0 — universal pack (current release)
+
+Universal-pack detectors now run on every file in every repo without
+needing an AST. `crimes scan` on Python, Go, Rust, or any non-JS repo
+produces real findings (large files, raster assets, localhost/local-path
+leaks, duplicate filenames, docs-code drift, missing agent context, TODO
+density, commented-out code) plus a coverage banner explaining the gap.
+Schema bumps `0.2.0` → `0.3.0`: `Finding.pack` and `Finding.detector_id`
+are now required; `ScanReport.coverage` is optional. New CLI flag
+`--explain-coverage`. `crimes context <unsupported.rs>` returns
+universal-pack findings instead of an empty report. JS/TS behaviour
+unchanged.
+
+Release notes:
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.12.0.md
+
+## 0.11.1 — agent-output calibration
 
 Patch on Release B. `crimes hook` now defaults to compact output for
 PreToolUse briefings while keeping `--format json` available. `crimes

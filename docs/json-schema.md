@@ -9,11 +9,21 @@ This page is the **stable product API**. Treat it as a public contract:
 any breaking change to a field name, type, or required-ness will bump
 `schema_version`.
 
-Documented as of `schema_version: "0.2.0"`. The source of truth in code
+Documented as of `schema_version: "0.3.0"`. The source of truth in code
 is [`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
 
 For how an agent should _use_ this output, see
 [`agent-usage.md`](./agent-usage.md).
+
+## Migrating from `0.2.0` to `0.3.0`
+
+`crimes@0.12.0` bumps the schema:
+
+- **New required field on `Finding`:** `pack: "universal" | "language-js" | "language-py" | "cross-language"`. Tells you which detector pack produced the finding. The existing `tier?` field (scope tier — `domain`/`nonDomain`) is unrelated and unchanged.
+- **New required field on `Finding`:** `detector_id`. Qualified detector id (`large_function.js`, `large_function.py`); the bare `type` field is unchanged and stays the canonical grouping key.
+- **New optional field on `ScanReport`:** `coverage`. Per-pack file-count breakdown. Absent when scanning a path with zero discovered files.
+
+Consumers that hard-checked `schema_version === "0.2.0"` must accept `"0.3.0"`. Grouping by `type` keeps working — `detector_id` only matters when you need to disambiguate "JS large_function" from "Python large_function" (lands in 0.13.0).
 
 ## Migration note: schema_version 0.1.0 → 0.2.0
 
@@ -79,7 +89,7 @@ two extra top-level fields documented below).
 
 ```ts
 interface ScanReport {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal `"scan"`. */
   report_type: "scan";
   repo: RepoInfo;
@@ -100,6 +110,11 @@ interface ScanReport {
    * `suppressed_count` convention.
    */
   triage_hidden_count?: number;
+  /**
+   * Per-pack file-count breakdown. Absent when scanning a path with zero
+   * discovered files. Added in `schema_version: "0.3.0"`.
+   */
+  coverage?: ScanCoverage;
 }
 ```
 
@@ -150,6 +165,31 @@ interface ScanSummary {
 ```
 
 Counts by severity. `total` equals the sum of the three buckets.
+
+### `coverage`
+
+Optional. Present when the scan discovered at least one file. Documents how
+many files each pack claimed, so consumers can understand what evidence was
+available. See [`docs/packs.md`](./packs.md) for the pack model.
+
+```ts
+interface ScanCoverage {
+  /** Total source files discovered (after exclude rules). */
+  files_total: number;
+  /** Count by file extension group. Keys are short language tags ("js", "py", etc.). */
+  files_by_language: Record<string, number>;
+  /** Files that no language pack claimed (universal-pack coverage only). */
+  files_universal_only: number;
+  /** Files excluded from the scan by config or default rules. */
+  files_skipped: number;
+  /** Pack IDs loaded this run, e.g. `["language-js"]`. */
+  packs_loaded: string[];
+}
+```
+
+The human reporter prints a one-line coverage banner when >50% of discovered
+files were universal-only. Pass `--explain-coverage` to print the full
+breakdown after scan output.
 
 ### `scan --changed --fail-on` gate fields
 
@@ -238,6 +278,18 @@ interface Finding {
   id: string;
   /** Machine-readable detector type, e.g. "large_function". */
   type: string;
+  /**
+   * Qualified detector id including language suffix, e.g. "large_function.js".
+   * Use `type` for grouping across packs; use `detector_id` to disambiguate
+   * "JS large_function" from "Python large_function" (0.13.0+).
+   * Required since `schema_version: "0.3.0"`.
+   */
+  detector_id: string;
+  /**
+   * The pack that produced this finding. Distinct from `tier` (scope tier).
+   * Required since `schema_version: "0.3.0"`.
+   */
+  pack: "universal" | "language-js" | "language-py" | "cross-language";
   /** Human-readable charge, e.g. "God Function". */
   charge: string;
   severity: "low" | "medium" | "high";
@@ -365,6 +417,8 @@ Always present on every finding:
 - `effort` and `fix_shape` since `schema_version: "0.2.0"`
   (`crimes@0.11.0`). Detector-supplied with defaults — see
   [Migration note](#migration-note-schema_version-010--020).
+- `pack` and `detector_id` since `schema_version: "0.3.0"`
+  (`crimes@0.12.0`). See [Migrating from 0.2.0 to 0.3.0](#migrating-from-020-to-030).
 
 Populated when the detector has the data:
 
@@ -448,6 +502,35 @@ path, and `related_files` lists the other files involved.
 `magic_domain_literal_scatter`, the duplication detectors, the
 dependency-graph detectors, and the frontend duplicate-component
 detector follow the same cross-file pattern.
+
+### `detector_id`
+
+Qualified detector identifier including a language suffix, e.g.
+`"large_function.js"`. Stable for a given detector × language pair. The
+language suffix is `".js"` for `language-js` pack findings and `""` (the
+bare `type`) for `universal` pack findings. Required since
+`schema_version: "0.3.0"`.
+
+Use `type` for grouping — `type === "large_function"` matches every
+large-function finding regardless of language. Use `detector_id` only when
+you need to distinguish "JS large_function" from "Python large_function",
+which is relevant starting with the `language-py` pack in 0.13.0.
+
+### `pack`
+
+Which detector pack produced this finding. One of:
+
+- `"universal"` — file-level evidence only (bytes, git, IA index); no AST
+  required. Runs on every discovered file.
+- `"language-js"` — AST evidence via `@crimes/language-js`. Runs only on
+  `.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts` files.
+- `"language-py"` — AST evidence via `@crimes/language-py` (0.13.0+).
+- `"cross-language"` — aligns artefacts from ≥2 language packs (0.14.0+).
+
+Required since `schema_version: "0.3.0"`. Distinct from `tier` (the
+scope-tier `"domain" | "nonDomain"` field): `pack` answers "what kind of
+evidence produced this finding"; `tier` answers "was the file in the
+domain-code scope or the non-domain scope".
 
 ### `charge`
 
@@ -609,7 +692,7 @@ absence as "no cross-file context for this finding".
 
 ```ts
 interface ContextReport {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal `"context"`. */
   report_type: "context";
   repo: { name: string; root: string; git_ref?: string };
@@ -782,7 +865,7 @@ match on.
 
 ```ts
 interface HotspotsReport {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal `"hotspots"`. */
   report_type: "hotspots";
   repo: RepoInfo;
@@ -893,7 +976,7 @@ rather than listed flat.
 
 ```ts
 interface DiffReport {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal "diff". */
   report_type: "diff";
   repo: { name: string; root: string };
@@ -1031,7 +1114,7 @@ runs should ignore. The schema is versioned by the same `schema_version` as
 
 ```ts
 interface Baseline {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal "baseline". */
   report_type: "baseline";
   /** ISO-8601 timestamp at which the baseline was written. */
@@ -1081,7 +1164,7 @@ with identical `(type, file, symbol)` collide on one fingerprint.
 
 ```ts
 interface BaselineCheckReport {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal "baseline_check". */
   report_type: "baseline_check";
   repo: { name: string; root: string };
@@ -1153,7 +1236,7 @@ machinery, same fingerprint-based matching) and adds a single headline
 
 ```ts
 interface VerdictReport {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal "verdict". */
   report_type: "verdict";
   repo: { name: string; root: string };
@@ -1266,7 +1349,7 @@ detector type, no LLM, no per-finding tailoring.
 
 ```ts
 interface ExplainReport {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal `"explain"`. */
   report_type: "explain";
   /** The matched finding, verbatim from the scan it came from. */
@@ -1306,7 +1389,7 @@ annotated.
 
 ```ts
 interface Suppressions {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal `"suppressions"`. */
   report_type: "suppressions";
   /** ISO-8601 timestamp at which the file was first written. */
@@ -1375,7 +1458,7 @@ automatically when the file appears in the branch diff against
 
 ```ts
 interface Triage {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal `"triage"`. */
   report_type: "triage";
   /** ISO-8601 timestamp at which the file was first written. */
@@ -1447,7 +1530,7 @@ malformed file exits `2` from the CLI with no JSON output.
 
 ```ts
 interface AuditSuppressionsReport {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   /** Discriminator. Always the literal `"audit_suppressions"`. */
   report_type: "audit_suppressions";
   /** Absolute path of the suppressions file (read or not). */
@@ -1519,7 +1602,7 @@ shape (`feedback_recheck`) listed below.
 
 ```ts
 interface FeedbackReport {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   report_type: "feedback";
   scope: "repo" | "global";
   /** Absolute path of the JSONL file read. */
@@ -1564,7 +1647,7 @@ interface FeedbackSummary {
 
 ```ts
 interface FeedbackRecheckReport {
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
   report_type: "feedback_recheck";
   current_version: string;          // e.g. "0.7.0"
   current_minor: string;            // e.g. "0.7"
