@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
 import { realpath } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, parse, resolve } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, parse, resolve } from "node:path";
 import { discoverFiles } from "./discovery/index.js";
+import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import {
@@ -326,6 +327,20 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
       findings.length === 0 && related_files.length === 0
         ? "no findings on this file and no deterministic related files"
         : "findings on this file did not match any keyed guidance line";
+  }
+
+  // Override the generic reason with a more specific message when no language
+  // pack claims the target file's extension — universal detectors still ran,
+  // but JS/TS-specific detectors were skipped because no pack owns this type.
+  const langPackRouter = resolveLanguagePackRouter();
+  const noPackClaim = !langPackRouter.claimingPack(targetAbs);
+  if (noPackClaim) {
+    const ext = extname(targetAbs).toLowerCase() || "(no extension)";
+    const suffix =
+      findings.length === 0
+        ? "Universal checks ran (no findings)."
+        : "Showing universal-pack findings only.";
+    report.agent_guidance_reason = `no language pack claims ${ext} files; install or wait for one. ${suffix}`;
   }
   if (related_files.length === 0) {
     report.related_files_reason =

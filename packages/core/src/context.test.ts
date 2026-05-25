@@ -695,3 +695,22 @@ describe("context — clues", () => {
     expect(result.clues!.related_signals).toEqual([]);
   });
 });
+
+describe("context — universal pack on unsupported extensions", () => {
+  it("notes the language-pack gap when no pack claims the extension", async () => {
+    const root = await makeRepo({ "main.rs": "// hello\n" });
+    const report = await context({ root, file: "main.rs" });
+    expect(report.file).toBe("main.rs");
+    expect(report.agent_guidance_reason).toMatch(/no language pack claims \.rs files/);
+  });
+
+  it("notes 'universal-pack findings only' when a universal detector fires", async () => {
+    const root = await makeRepo({ "Button 2.rs": "// dup\n" });
+    const report = await context({ root, file: "Button 2.rs" });
+    expect(
+      report.findings.some((f) => f.type === "finder_duplicate_filename"),
+    ).toBe(true);
+    expect(report.agent_guidance_reason).toMatch(/no language pack claims \.rs files/);
+    expect(report.agent_guidance_reason).toMatch(/universal-pack findings only/i);
+  });
+});
