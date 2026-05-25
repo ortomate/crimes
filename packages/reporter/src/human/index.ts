@@ -30,3 +30,4 @@ export { formatExplainReport } from "./explain.js";
 export type { ExplainHumanReportOptions } from "./explain.js";
 export { formatAuditSuppressionsReport } from "./audit.js";
 export type { AuditSuppressionsHumanReportOptions } from "./audit.js";
+export { buildCoverageBanner, renderCoverageExplain } from "./coverage.js";

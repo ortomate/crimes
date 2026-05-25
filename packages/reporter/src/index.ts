@@ -1,4 +1,5 @@
 export {
+  buildCoverageBanner,
   formatAuditSuppressionsReport,
   formatBaselineCheckReport,
   formatBaselineSaveReport,
@@ -9,6 +10,7 @@ export {
   formatHumanReport,
   formatScanFailOnLine,
   formatVerdictReport,
+  renderCoverageExplain,
 } from "./human/index.js";
 export type {
   AuditSuppressionsHumanReportOptions,

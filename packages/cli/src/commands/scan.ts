@@ -17,9 +17,11 @@ import {
 } from "@crimes/core";
 import type { FailOn } from "@crimes/core";
 import {
+  buildCoverageBanner,
   formatHumanReport,
   formatJsonReport,
   formatScanFailOnLine,
+  renderCoverageExplain,
 } from "@crimes/reporter";
 import type { Command } from "commander";
 import {
@@ -46,6 +48,7 @@ interface ScanCommandOptions {
   top?: number;
   flat: boolean;
   recency: boolean; // Commander gives this as `true` by default with --no-recency
+  explainCoverage: boolean;
 }
 
 const VALID_FAIL_ON = new Set<FailOn>(["low", "medium", "high"]);
@@ -98,6 +101,7 @@ export function registerScanCommand(program: Command): void {
     .option("--top <n>", "show only the top N files (default 5)", (v) => Number.parseInt(v, 10))
     .option("--flat", "use the legacy flat-by-severity layout", false)
     .option("--no-recency", "disable the recency multiplier on rank_score")
+    .option("--explain-coverage", "print a per-language coverage breakdown after the scan", false)
     .action(async (path: string | undefined, options: ScanCommandOptions) => {
       const root = resolve(path ?? process.cwd());
       const format = options.format;
@@ -204,6 +208,10 @@ export function registerScanCommand(program: Command): void {
         const feedbackEntries = effectiveNoColor
           ? []
           : (await readFeedback(resolveFeedbackPath(root))).entries;
+        const banner = buildCoverageBanner(gatedReport.coverage);
+        if (banner && !effectiveNoColor) {
+          process.stdout.write(banner + "\n\n");
+        }
         process.stdout.write(
           formatHumanReport(gatedReport, {
             showAll: options.all,
@@ -221,6 +229,9 @@ export function registerScanCommand(program: Command): void {
               noColor: effectiveNoColor,
             }) + "\n",
           );
+        }
+        if (options.explainCoverage) {
+          renderCoverageExplain(gatedReport.coverage, process.stdout);
         }
       }
 
