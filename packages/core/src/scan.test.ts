@@ -853,3 +853,46 @@ describe("scan — universal pack execution", () => {
     }
   });
 });
+
+describe("scan — ScanReport.coverage", () => {
+  it("counts JS files under language-js and non-JS under universal-only", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cov-"));
+    try {
+      await writeFile(join(root, "a.ts"), "const x = 1;\n");
+      await writeFile(join(root, "b.tsx"), "const y = 2;\n");
+      await writeFile(join(root, "c.py"), "x = 1\n");
+      await writeFile(join(root, "d.rs"), "fn main() {}\n");
+      await writeFile(join(root, "README.md"), "# hello\n");
+      const report = await scan({
+        root,
+        config: {
+          ...DEFAULT_CONFIG,
+          include: ["**/*.{ts,tsx,py,rs,md}"],
+        },
+      });
+      expect(report.coverage).toBeDefined();
+      expect(report.coverage?.files_total).toBe(5);
+      expect(report.coverage?.files_by_language).toEqual({ js: 2 });
+      expect(report.coverage?.files_universal_only).toBe(3);
+      expect(report.coverage?.files_skipped).toBe(0);
+      expect(report.coverage?.packs_loaded).toEqual(["language-js"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("emits an empty coverage shape when no files are discovered", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cov-empty-"));
+    try {
+      const report = await scan({
+        root,
+        config: { ...DEFAULT_CONFIG, include: ["**/*.nonexistent"] },
+      });
+      expect(report.coverage?.files_total).toBe(0);
+      expect(report.coverage?.files_by_language).toEqual({});
+      expect(report.coverage?.files_universal_only).toBe(0);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});

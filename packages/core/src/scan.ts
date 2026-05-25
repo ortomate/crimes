@@ -266,6 +266,7 @@ async function collectResurfaceForScan(args: {
   // Per-file detector cache so multiple resurfaced fingerprints on the
   // same file only pay one detector pass.
   const langPack = resolveLanguagePackRouter();
+  const grouped = groupDetectorsByPack(args.detectors);
   const detectionCache = new Map<string, Promise<Finding[]>>();
   const reDetect = async (file: string): Promise<Finding[]> => {
     const cached = detectionCache.get(file);
@@ -280,10 +281,10 @@ async function collectResurfaceForScan(args: {
       const findings = await runDetectorsForFile({
         root: args.root,
         absolutePath,
-        detectors: args.detectors,
         config: args.config,
         indexes: args.indexes,
         langPack,
+        grouped,
       });
       // Finalise scores so resurfaced findings carry the same shape as
       // findings from the outer scan (agent_risk, churn, etc.).
@@ -385,9 +386,22 @@ async function runDetectorsForFiles(args: {
   indexes: ScanIndexes;
   langPack: LanguagePackRouter;
 }): Promise<Finding[]> {
+  // Group detectors by pack once per scan rather than per file — the
+  // detector list is invariant across the file loop, so re-grouping
+  // for every file is wasted work proportional to repo size.
+  const grouped = groupDetectorsByPack(args.detectors);
   const findings: Finding[] = [];
   for (const absolutePath of args.files) {
-    findings.push(...(await runDetectorsForFile({ ...args, absolutePath })));
+    findings.push(
+      ...(await runDetectorsForFile({
+        root: args.root,
+        absolutePath,
+        config: args.config,
+        indexes: args.indexes,
+        langPack: args.langPack,
+        grouped,
+      })),
+    );
   }
   return findings;
 }
@@ -395,18 +409,17 @@ async function runDetectorsForFiles(args: {
 async function runDetectorsForFile(args: {
   root: string;
   absolutePath: string;
-  detectors: Detector[];
   config: CrimesConfig;
   indexes: ScanIndexes;
   langPack: LanguagePackRouter;
+  grouped: ReturnType<typeof groupDetectorsByPack>;
 }): Promise<Finding[]> {
   const file = toRepoPath(relative(args.root, args.absolutePath));
-  const grouped = groupDetectorsByPack(args.detectors);
 
   const findings: Finding[] = [];
 
   // Universal pack: always runs, no language-pack dependency.
-  const universalDetectors = grouped.universal ?? [];
+  const universalDetectors = args.grouped.universal ?? [];
   if (universalDetectors.length > 0) {
     const universalCtx = await buildUniversalContext({
       root: args.root,
@@ -422,7 +435,7 @@ async function runDetectorsForFile(args: {
   }
 
   // Language-js pack: runs only when the JS pack claims the file's extension.
-  const jsDetectors = grouped["language-js"] ?? [];
+  const jsDetectors = args.grouped["language-js"] ?? [];
   if (
     jsDetectors.length > 0 &&
     args.langPack.claims("language-js", args.absolutePath)

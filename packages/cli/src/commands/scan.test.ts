@@ -186,7 +186,7 @@ describe("crimes scan --changed --fail-on", () => {
 });
 
 describe("crimes scan — new flags", () => {
-  it("declares --top, --flat, --no-recency, --show-triaged, --gate-needs-design, --gate-resurfaced", () => {
+  it("declares --top, --flat, --no-recency, --show-triaged, --gate-needs-design, --gate-resurfaced, --explain-coverage", () => {
     const program = new Command();
     registerScanCommand(program);
     const scan = program.commands.find((c) => c.name() === "scan");
@@ -198,6 +198,29 @@ describe("crimes scan — new flags", () => {
     expect(opts).toContain("--show-triaged");
     expect(opts).toContain("--gate-needs-design");
     expect(opts).toContain("--gate-resurfaced");
+    expect(opts).toContain("--explain-coverage");
+  });
+});
+
+describe("crimes scan --explain-coverage", () => {
+  it("prints a per-language coverage breakdown after the scan output", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-coverage-"));
+    await writeFile(join(root, "x.ts"), "const x = 1;\n", "utf8");
+    await writeFile(join(root, "y.py"), "x = 1\n", "utf8");
+    const result = await runCli(["scan", ".", "--explain-coverage", "--no-color"], root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("coverage breakdown");
+    expect(result.stdout).toContain("files discovered: 2");
+    expect(result.stdout).toContain("language-js");
+    expect(result.stdout).toContain("files with only universal coverage: 1");
+  });
+
+  it("omits the breakdown when the flag is not set", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-no-coverage-"));
+    await writeFile(join(root, "x.ts"), "const x = 1;\n", "utf8");
+    const result = await runCli(["scan", ".", "--no-color"], root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).not.toContain("coverage breakdown");
   });
 });
 

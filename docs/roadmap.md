@@ -59,11 +59,11 @@ mirror, not a planning doc.
 > universal-pack findings carry the same confidence as language-pack
 > ones, just from less evidence.
 >
-> Release notes: [`docs/releases/v0.12.0.md`](./releases/v0.12.0.md).
+> Release notes: [`docs/releases/v0.12.0.md`](./docs/releases/v0.12.0.md).
 > Design spec:
-> [`docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md`](./superpowers/specs/2026-05-22-wider-codebase-support-design.md).
+> [`docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md`](./docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md).
 > Implementation plan:
-> [`docs/superpowers/plans/2026-05-23-0.12.0-universal-pack.md`](./superpowers/plans/2026-05-23-0.12.0-universal-pack.md).
+> [`docs/superpowers/plans/2026-05-23-0.12.0-universal-pack.md`](./docs/superpowers/plans/2026-05-23-0.12.0-universal-pack.md).
 
 Schema bump `0.2.0` → `0.3.0`. (See the release notes for the
 detailed change list.)

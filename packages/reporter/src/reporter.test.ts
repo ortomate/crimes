@@ -57,8 +57,8 @@ const sampleReport: ScanReport = {
     {
       id: "crime_00002",
       type: "todo_density",
-      pack: "language-js",
-      detector_id: "todo_density.js",
+      pack: "universal",
+      detector_id: "todo_density",
       charge: "Unfinished Business",
       severity: "medium",
       confidence: 0.95,
@@ -343,8 +343,8 @@ const sampleContext: ContextReport = {
     {
       id: "crime_00002",
       type: "todo_density",
-      pack: "language-js",
-      detector_id: "todo_density.js",
+      pack: "universal",
+      detector_id: "todo_density",
       charge: "Unfinished Business",
       severity: "medium",
       confidence: 0.7,
@@ -579,8 +579,8 @@ const sampleDiff: DiffReport = {
     {
       id: "crime_00002",
       type: "todo_density",
-      pack: "language-js",
-      detector_id: "todo_density.js",
+      pack: "universal",
+      detector_id: "todo_density",
       charge: "Unfinished Business",
       severity: "medium",
       confidence: 0.8,

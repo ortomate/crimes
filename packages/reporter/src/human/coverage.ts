@@ -29,11 +29,15 @@ export function renderCoverageExplain(
   }
   out.write(`  files with only universal coverage: ${coverage.files_universal_only}\n`);
   if (coverage.files_universal_only > 0) {
+    const tail =
+      coverage.packs_loaded.length === 0
+        ? "Install a language pack to expand coverage."
+        : "Install or wait for a language pack that covers these extensions.";
     out.write(
       `\n  These files were not claimed by any loaded language pack.\n` +
         `  They received universal-pack checks only (file size, raster\n` +
         `  assets, duplicate filenames, hardcoded localhost/local paths,\n` +
-        `  docs link checking). Install a language pack to expand coverage.\n`,
+        `  docs link checking). ${tail}\n`,
     );
   }
 }
