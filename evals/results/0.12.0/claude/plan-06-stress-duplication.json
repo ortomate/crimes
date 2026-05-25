@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.12.0",
+  "timestamp": "2026-05-25T02:37:04.526Z",
+  "run_id": "8d4dedd2-5a19-4742-91de-ba51eb3b038c",
+  "response": "Here's the refactor plan, organized as two sequential change sets that address all five findings.\n\n---\n\n## Refactor Plan: Consolidate Duplication in `06-stress-duplication`\n\n### Change Set 1 — Centralise policy + sanitise helpers (addresses crimes 00002, 00003)\n\n**Step 1a: Extract `isAdmin` into `src/policy.ts`**\n\nReplace the three `assertAdmin{A,B,C}` variants and the three `canXxx` functions with a single `isAdmin` predicate. The existing functions have subtly different semantics:\n\n- `assertAdminA`: `role === \"admin\"` (strict equality)\n- `assertAdminB`: `role === \"admin\" || role === \"owner\"` (widens to owner)\n- `assertAdminC`: `role !== \"admin\"` (inverted — returns true for non-admins)\n\nThese need a product decision before blindly collapsing. The safest consolidation:\n\n```ts\n// src/policy.ts\nexport function isAdmin(role: string): boolean {\n  return role === \"admin\";\n}\n\nexport function isPrivileged(role: string): boolean {\n  return role === \"admin\" || role === \"owner\";\n}\n\nexport const canEditBilling = isAdmin;\nexport const canSeeAuditLog = isAdmin;\nexport const canImpersonate = isAdmin;\n```\n\n- `sanitize-a.ts` and `sanitize-c.ts` call sites switch to `isAdmin` (or `!isAdmin` for C's inverted check).\n- `sanitize-b.ts` switches to `isPrivileged` since it was the only one that also accepted `\"owner\"`.\n- The three `canXxx` functions become aliases of `isAdmin` — callers don't change, but the check logic lives in one place.\n\n**Step 1b: Extract `sanitizeText` into `src/sanitize.ts`**\n\nThe three functions (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) have identical bodies — only the parameter name and local variable name differ. Consolidate into one canonical function:\n\n```ts\n// src/sanitize.ts\nexport function sanitizeText(input: string): string {\n  // ... single copy of the 26-line body\n}\n```\n\nThen in each original file, replace the local implementation with a re-export or direct import:\n\n```ts\n// src/sanitize-a.ts\nexport { sanitizeText as sanitizeUserInput } from \"./sanitize.js\";\n// src/sanitize-b.ts\nexport { sanitizeText } from \"./sanitize.js\";\n// src/sanitize-c.ts\nexport { sanitizeText as cleanMessage } from \"./sanitize.js\";\n```\n\nThis preserves every call site's import name while collapsing the logic to one location. If no external consumers depend on the old names, the re-exports can be dropped entirely.\n\n---\n\n### Change Set 2 — Collapse telemetry duplicate + inject clock (addresses crimes 00001, 00004, 00005)\n\n**Step 2a: Delete `src/telemetry-b.ts`, keep `src/telemetry-a.ts` as the single copy**\n\nThe two files are byte-identical. Pick one as the canonical `src/telemetry.ts` (rename from `telemetry-a.ts`), update all imports that pointed at `telemetry-b.ts`.\n\n**Step 2b: Inject a clock into `recordSanitiseEvent`**\n\nThis fixes both `direct_date` findings (crimes 00004, 00005) at the source — the duplicate is already gone after 2a, so the fix lands once:\n\n```ts\n// src/telemetry.ts\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: () => number = Date.now,\n): void {\n  const reductionRatio = sanitisedLength / Math.max(1, originalLength);\n  const payload = {\n    originalLength,\n    sanitisedLength,\n    reductionRatio,\n    timestamp: now(),\n  };\n  console.log(JSON.stringify({ type: \"sanitise.complete\", payload, source: \"sanitiser\" }));\n}\n```\n\nProduction callers pass nothing (default `Date.now`). Tests pass a stub `() => 1700000000000`.\n\n---\n\n### Why this ordering\n\nChange Set 1 first because it touches more files and has the product-decision dependency (the `assertAdminB` / `isPrivileged` divergence). Getting that reviewed and merged before touching telemetry keeps the diffs small and independently reviewable. Change Set 2 is mechanical — no semantic ambiguity — and can land immediately after.\n\n### Expected outcome after both sets\n\n| Finding | Status |\n|---|---|\n| crime_00001 (exact duplicate telemetry) | Eliminated — single `telemetry.ts` |\n| crime_00002 (near-duplicate sanitise) | Eliminated — single `sanitize.ts` |\n| crime_00003 (duplicated role checks) | Eliminated — `isAdmin` / `isPrivileged` in `policy.ts` |\n| crime_00004 (Date.now in telemetry-a) | Eliminated — clock injected |\n| crime_00005 (Date.now in telemetry-b) | Eliminated — file deleted |",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.12.0",
+  "timestamp": "2026-05-25T02:39:23.871Z",
+  "run_id": "3650ffc8-ac1e-4cb2-bcc5-44bd6e091c40",
+  "response": "Here's the refactor proposal, tied finding-by-finding to the `crimes` output:\n\n---\n\n## Refactor: `src/Card.tsx`\n\n### 1. Accessible Interaction Risk (`crime_00001`)\n\n**Problem:** The outer `<div onClick>` has no `role`, `aria-label`, or `tabIndex`. Keyboard and screen-reader users can't reach or activate it.\n\n**Fix:** Replace the `<div>` with a `<button>` since it handles a click interaction. If `<button>` styling is undesirable, at minimum add `role=\"button\"`, `tabIndex={0}`, `aria-label`, and an `onKeyDown` handler for Enter/Space. A semantic `<button>` is strongly preferred — it gets keyboard focus, activation, and screen-reader announcement for free.\n\n```tsx\n<button\n  style={{ /* ... */ border: \"none\", cursor: \"pointer\", textAlign: \"left\" }}\n  onClick={() => console.log(\"clicked\")}\n  aria-label=\"Card action\"\n>\n```\n\n### 2. Design Token Escape (`crime_00002`)\n\n**Problem:** 9 hard-coded style values (`#ff00aa`, `#0a0a0a`, `#cccccc`, `#1a73e8`, `rgb(0,0,0)`, `#333333`, `#666666`, plus px values) are inline. An agent extending this component will copy these raw values forward, silently bypassing any design system.\n\n**Fix:** Extract all color, shadow, and spacing literals into a tokens object (or CSS custom properties / theme context if the project has one). This centralizes the values so agents and humans reference tokens, not hex codes.\n\n```tsx\nconst tokens = {\n  color: {\n    accent: \"#ff00aa\",\n    text: \"#0a0a0a\",\n    textSecondary: \"#333333\",\n    textMuted: \"#666666\",\n    border: \"#cccccc\",\n    focus: \"#1a73e8\",\n  },\n  shadow: {\n    card: \"0 2px 4px rgba(0, 0, 0, 0.2)\",\n  },\n  space: {\n    cardPadding: 24,\n  },\n};\n```\n\nThen reference `tokens.color.accent` etc. in the style object. Even a local `tokens` const is a major improvement — raw hex values disappear from JSX and become greppable, renameable names.\n\n### 3. Responsive Fragility (`crime_00003`)\n\n**Problem:** `width: 800`, `width: 720`, and `fontSize: 18` are fixed pixel values with no `@media` queries anywhere in the file. The card overflows or gets clipped on viewports narrower than 800px.\n\n**Fix:** Switch fixed widths to fluid constraints and use `clamp()` or `rem` for typography:\n\n```tsx\n// Outer container: fluid with a max\nstyle={{\n  width: \"100%\",\n  maxWidth: 800,\n  // ...\n}}\n\n// Content area: percentage-based or flex\nstyle={{\n  width: \"100%\",\n  maxWidth: 720,\n  fontSize: \"clamp(1rem, 2.5vw, 1.125rem)\",\n  // ...\n}}\n```\n\nFor the two-column layout (content + sidebar), a flex or grid parent with `flex-wrap: wrap` would let the sidebar stack below on narrow screens without a media query.\n\n---\n\n### Combined result\n\n```tsx\nconst tokens = {\n  color: {\n    accent: \"#ff00aa\",\n    text: \"#0a0a0a\",\n    textSecondary: \"#333333\",\n    textMuted: \"#666666\",\n    border: \"#cccccc\",\n    focus: \"#1a73e8\",\n  },\n  shadow: { card: \"0 2px 4px rgba(0, 0, 0, 0.2)\" },\n  space: { cardPadding: 24 },\n};\n\nexport function Card({ children }: { children: React.ReactNode }) {\n  return (\n    <button\n      type=\"button\"\n      style={{\n        width: \"100%\",\n        maxWidth: 800,\n        minHeight: 600,\n        padding: tokens.space.cardPadding,\n        background: tokens.color.accent,\n        color: tokens.color.text,\n        borderColor: tokens.color.border,\n        border: \"none\",\n        boxShadow: tokens.shadow.card,\n        outlineColor: tokens.color.focus,\n        cursor: \"pointer\",\n        textAlign: \"left\",\n        display: \"flex\",\n        flexWrap: \"wrap\",\n        gap: 16,\n      }}\n      onClick={() => console.log(\"clicked\")}\n      aria-label=\"Card\"\n    >\n      <div style={{ flex: \"1 1 480px\", fontSize: \"clamp(1rem, 2.5vw, 1.125rem)\", color: tokens.color.textSecondary }}>\n        {children}\n      </div>\n      <div style={{ flex: \"0 1 240px\", fontSize: \"0.875rem\", color: tokens.color.textMuted }}>\n        sidebar\n      </div>\n    </button>\n  );\n}\n```\n\n**Summary of mapping:**\n\n| Finding | Change | Why it matters for agents |\n|---|---|---|\n| `accessible_interaction_risk` | `<div onClick>` → `<button>` with `aria-label` | Semantic element gives keyboard/SR access without manual ARIA wiring |\n| `design_token_escape` | 9 raw hex/rgb/px values → `tokens.*` references | Agents copy-pasting from this file will propagate token names, not magic values |\n| `responsive_fragility` | Fixed `width` → `width: 100%` + `maxWidth`; fixed `fontSize` → `clamp()`/`rem`; flex-wrap layout | Card reflows on narrow viewports instead of overflowing |",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

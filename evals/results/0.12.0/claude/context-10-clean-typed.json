@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.12.0",
+  "timestamp": "2026-05-25T02:35:46.908Z",
+  "run_id": "5b55c465-acc1-4485-96e4-f7c7c09c6039",
+  "response": "**Results:**\n\n- **Zero findings** — `src/billing.ts` has no structural, dependency, duplication, or testability issues. The risk level is `\"none\"` (0 high, 0 medium, 0 low).\n\n- **Likely tests path:** `src/billing.test.ts` — crimes inferred the co-located test file from the standard `.test.ts` naming convention.\n\n- **Why this module is low risk to edit:**\n  1. **No detector triggers.** None of the structural detectors (large function, deep nesting, too many params), dependency detectors (circular deps, high fan-in/out), duplication detectors, or testability detectors found anything. The code is clean and well-typed.\n  2. **Low churn.** Only 1 commit in the last 90 days by a single author — this file isn't a hotspot that multiple people are contending over.\n  3. **No agent risk signals.** No misleading names, hidden side effects, or multiple sources of truth that would trip up an AI agent editing it.\n  4. **Isolated neighbourhood.** No related files or shared domain tokens were detected, meaning changes here are unlikely to have unexpected ripple effects elsewhere in the codebase.\n\nIn short: clean code, stable history, no coupling signals — about as safe an edit target as you'll find.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

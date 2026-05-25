@@ -1,0 +1,111 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.12.0",
+  "timestamp": "2026-05-25T02:38:36.006Z",
+  "run_id": "4d68ea8f-717e-48b5-8074-ec35465778f0",
+  "response": "Here are the **top 3 changes** I'd make to `src/billing.ts`, ranked by combined risk reduction:\n\n---\n\n**1. Extract `generateInvoice` into focused helpers** (crime_00004 — God Function, 204 lines)\n\nThis function owns at least 6 distinct responsibilities: pricing/discounts, promo resolution, fraud scoring, tax calculation, email composition, and retry logic. Each is a separate policy that changes for different reasons. Extracting them as pure helpers (e.g. `applyPlanDiscount(lines, plan)`, `scoreFraudRisk(...)`, `composeFraudDecision(score)`, `composeInvoiceEmail(invoice)`) makes each one independently testable and editable without re-reading 200 lines of context. The tax logic already has a standalone `tax()` function — `generateInvoice` should call it instead of duplicating it inline (lines 146–154 vs 257–267).\n\n**2. Inject a clock instead of bare `Date.now()` / `new Date()`** (crime_00018 — Temporal Recklessness, 7 calls)\n\nLines 57, 63, 92, 198, 238, 250, 273 all read the system clock directly. This makes the function non-deterministic — you can't test loyalty-discount thresholds or email-latency metadata without monkey-patching globals. Fix: accept a `now?: () => number` parameter (defaulting to `Date.now`) and thread it through. The helpers extracted in step 1 would each take `now` as an argument, making time-dependent logic trivially testable.\n\n**3. Rename or split `calculateRefundPreview`** (crime_00020 — False Identity)\n\nThe name says \"calculate\" and \"preview\" — both signal a pure, side-effect-free read. The body calls `saveRefundAudit` and `sendRefundEmail`, which are irreversible mutations. A caller (human or agent) treating this as safe-to-call-twice will trigger duplicate audit rows and emails. Either:\n- Extract the pure calculation (`return invoice.totalCents`) and rename the orchestrator to `processRefund` / `issueRefund`, or\n- Move the side effects out and let the caller compose them explicitly.\n\nThis also addresses crime_00027 (the comment on line 39 encodes a rule — \"only owners can refund enterprise plans\" — that the code doesn't enforce). When you split the function, that rule becomes a guard clause in the real implementation rather than prose above an unrelated body.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

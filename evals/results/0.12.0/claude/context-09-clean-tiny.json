@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.12.0",
+  "timestamp": "2026-05-25T02:35:17.191Z",
+  "run_id": "d97824b3-9694-40de-a5d3-1175d1f58d91",
+  "response": "**crimes context result for `src/add.ts`:** zero findings, risk level `none`.\n\nHere's the summary:\n\n- **Risk level:** `none` — no high, medium, or low findings.\n- **Findings:** empty — no structural issues, no duplication, no testability concerns, no dependency problems.\n- **Agent guidance:** none needed — crimes has no warnings about misread risk or hidden complexity.\n- **Likely tests:** `src/add.test.ts` exists as a companion test file.\n- **Churn:** 1 commit in the last 90 days, single author — stable, low-traffic file.\n- **Test gap:** `unknown` (crimes can't determine coverage, but the test file exists).\n\n**The file is safe to extend.** It's a clean, tiny module with no crimes findings, no agent risk, and an existing test file. The only thing to keep in mind: after editing, run the tests in `src/add.test.ts` and add coverage for any new behavior.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

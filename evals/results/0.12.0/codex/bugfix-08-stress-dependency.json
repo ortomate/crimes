@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.12.0",
+  "timestamp": "2026-05-25T02:32:50.681Z",
+  "run_id": "260266a2-bd7f-4055-a9c1-04cb87b8c55a",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e5cfa-1ec3-7062-9776-768124884437\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’m using the `crimes-codebase-risk` skill since this is a crimes finding triage task, and I’ll keep this to the scan evidence you provided rather than changing files.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes/.agents/skills/crimes/SKILL.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes/.agents/skills/crimes/SKILL.md\\\"\",\"aggregated_output\":\"---\\nname: crimes-codebase-risk\\ndescription: Use when editing, reviewing, or investigating a TypeScript / JavaScript codebase that ships with the crimes CLI. Helps agents run pre-edit context checks, post-edit scans, and interpret findings before risky changes.\\n---\\n\\n# crimes — codebase risk workflow\\n\\n`crimes` is a deterministic CLI (no LLM) that reports change risk and\\nagent risk. JSON output is the stable contract for agent decisions;\\nprefer it when planning. For user-facing readbacks, use the default\\nhuman output instead of rebuilding the report in your own prose.\\n\\n## When to run it\\n\\n- Before editing an unfamiliar file: `crimes context <file> --format json`\\n- Before a broad refactor: `crimes scan <path> --format json`\\n- After edits: `crimes scan --changed --format json`\\n- Before merging a branch: `crimes verdict --format json`\\n\\n## Decision rules\\n\\n- Treat any new `severity: \\\"high\\\"` finding introduced by your edit as a blocker unless the user explicitly accepts it.\\n- Read `evidence[]` before acting; it contains deterministic facts, not LLM opinion.\\n- Use `scores.agent_risk` to decide which findings need human attention first.\\n- If a finding is a false positive, record feedback with `crimes feedback <fingerprint> --verdict fp --note \\\"<why>\\\"` rather than silently ignoring it.\\n\\n## Reporting findings back to humans\\n\\nUse `--format json` when you need to plan, gate, compare, or make\\ndecisions. When the user wants to see the results, or when you are\\nsummarising findings back in chat, prefer running the same command\\nwithout `--format json` and quote or paste the relevant human-readable\\nreadout. The human report is intentionally designed for people:\\nseverity glyphs, grouped findings, evidence, feedback commands,\\nsuppressions, and gate status are already rendered there.\\n\\nDo not paraphrase the whole JSON payload in your own voice unless you\\nneed a short executive summary. Use the human readout as the canonical\\nuser-facing presentation, and add your own interpretation only around\\nthe parts that matter for the task.\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"Break the import from `src/domain/billing.ts` to `src/presentation/invoice-view.ts`.\\n\\nWhy: it is both part of the 3-file cycle and the explicit architecture violation:\\n\\n`billing-flow.ts -> billing.ts -> invoice-view.ts -> billing-flow.ts`\\n\\nThe domain layer should not depend on presentation. That edge points the wrong direction, so removing it fixes the cycle at the most structurally suspicious point instead of papering over the runtime symptom elsewhere.\\n\\nBest fix shape: move whatever `billing.ts` needs from `invoice-view.ts` into a leaf module, likely a shared type/formatter/interface module that has no imports back into application or presentation. Then both `billing.ts` and `invoice-view.ts` can import from that leaf. If the dependency is only used for TypeScript types, convert it to `import type`, but only if there is genuinely no runtime value needed.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":39801,\"cached_input_tokens\":22784,\"output_tokens\":390,\"reasoning_output_tokens\":84}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

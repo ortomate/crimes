@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.12.0",
+  "timestamp": "2026-05-25T02:33:07.842Z",
+  "run_id": "dce87049-d6eb-4879-88aa-1f0818d4c78e",
+  "response": "## The Cycle\n\n```\nbilling-flow.ts ──imports──▶ billing.ts ──imports──▶ invoice-view.ts ──imports──▶ billing-flow.ts\n (application)                (domain)                (presentation)               (application)\n```\n\n## Which import to break: `src/domain/billing.ts` → `src/presentation/invoice-view.ts`\n\n**Line 2 of `src/domain/billing.ts`:**\n```ts\nimport { renderInvoice } from \"../presentation/invoice-view.js\";\n```\n\n## Why this edge\n\n1. **It's also a layer violation.** Domain must never depend on presentation — that's a fundamental architectural rule (`domain cannotImport presentation`). Breaking this one edge fixes *both* findings simultaneously.\n\n2. **Domain should be a leaf.** Domain modules define business logic and types. Other layers depend on domain, not the other way around. A domain function (`chargeCustomer`) calling a presentation function (`renderInvoice`) inverts the dependency direction.\n\n3. **The call doesn't make semantic sense.** `chargeCustomer` is a business operation; rendering an invoice is a side-effect that belongs in the application or presentation layer. The caller (`runBillingFlow`) should orchestrate both — charge the customer *then* render the invoice — rather than domain code reaching up to do presentation work.\n\n## Proposed fix\n\n```ts\n// src/domain/billing.ts — pure business logic, no presentation import\nexport function chargeCustomer(amount: number): string {\n  return `charged:${amount}`;\n}\n```\n\n```ts\n// src/application/billing-flow.ts — orchestrates both layers\nimport { chargeCustomer } from \"../domain/billing.js\";\nimport { renderInvoice } from \"../presentation/invoice-view.js\";\n\nexport function runBillingFlow(): void {\n  chargeCustomer(100);\n  renderInvoice(100);\n}\n```\n\n```ts\n// src/presentation/invoice-view.ts — no longer needs to call back into application\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${amount}`;\n}\n```\n\nThis eliminates the cycle, resolves the layer violation, and restores the intended dependency flow: `application → domain` and `application → presentation`, with no upward or circular edges.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

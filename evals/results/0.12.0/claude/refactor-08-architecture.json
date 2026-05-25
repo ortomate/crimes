@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.12.0",
+  "timestamp": "2026-05-25T02:41:48.534Z",
+  "run_id": "1fcdef0b-7bd1-4565-952b-54967d6788c8",
+  "response": "Now I have the full picture. Here's the analysis.\n\n---\n\n## Three findings, three different problems\n\nThe fixture declares a strict four-layer architecture in `crimes.config.json`: **presentation → application → domain → infrastructure**, with rules that domain cannot import anything above or beside it, and application cannot import presentation.\n\n### The dependency graph today\n\n```\npresentation/invoice-view.ts ──imports──▶ application/billing-flow.ts\n         ▲                                         │\n         │                                         ▼\n         └──────────── domain/billing.ts ◀─────────┘\n                            │\n                            └──imports──▶ presentation/invoice-view.ts  ← VIOLATION\n\nbilling-flow.ts ──imports──▶ some-pkg/dist/internal/private/helper.js   ← DEEP IMPORT\n```\n\n---\n\n### crime_00001 — Circular Dependency (high)\n\n**Cycle:** `billing-flow.ts → billing.ts → invoice-view.ts → billing-flow.ts`\n\nThe cycle exists because:\n1. `billing-flow.ts:1` imports `chargeCustomer` from `domain/billing.ts`\n2. `billing.ts:2` imports `renderInvoice` from `presentation/invoice-view.ts`\n3. `invoice-view.ts:3` imports `runBillingFlow` from `application/billing-flow.ts`\n\n**Break:** The cycle's weakest link is step 3 — `invoice-view.ts` calling `runBillingFlow()` inside `renderInvoice`. A view function shouldn't trigger an application workflow. Remove that import and the call:\n\n```diff\n // invoice-view.ts\n-import { runBillingFlow } from \"../application/billing-flow.js\";\n\n export function renderInvoice(amount: number): string {\n-  runBillingFlow();\n   return `Invoice: ${amount}`;\n }\n```\n\nThis alone kills the cycle. If `renderInvoice` genuinely needs side effects, the application layer should call them *after* getting the rendered string — not have the view call back up into the application.\n\n---\n\n### crime_00002 — Layer Violation (medium)\n\n**Rule broken:** `domain cannotImport presentation` (config line 10)\n\n`billing.ts:2` imports `renderInvoice` from `presentation/invoice-view.ts`. Domain code is calling presentation code — the dependency arrow points the wrong way.\n\n**Fix:** Domain should not know how invoices are rendered. Extract the shared type (the `amount → string` contract) into domain, then let presentation implement it:\n\n```diff\n // domain/billing.ts\n-import { renderInvoice } from \"../presentation/invoice-view.js\";\n+export type InvoiceFormatter = (amount: number) => string;\n\n-export function chargeCustomer(amount: number): string {\n-  return renderInvoice(amount);\n+export function chargeCustomer(amount: number, format: InvoiceFormatter): string {\n+  return format(amount);\n }\n```\n\nThe application layer becomes the composition root that wires them together:\n\n```diff\n // application/billing-flow.ts\n import { chargeCustomer } from \"../domain/billing.js\";\n+import { renderInvoice } from \"../presentation/invoice-view.js\";\n\n export function runBillingFlow(): void {\n-  chargeCustomer(100);\n+  chargeCustomer(100, renderInvoice);\n }\n```\n\nWait — the config also says `application cannotImport presentation`. So the application layer can't import the view either. The correct wiring point is **presentation itself** (top of the stack) or an entrypoint:\n\n```ts\n// presentation/invoice-view.ts  (or a top-level entrypoint)\nimport { chargeCustomer } from \"../domain/billing.js\";\n\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${amount}`;\n}\n\n// presentation drives the flow:\nexport function handleBilling(amount: number): string {\n  return chargeCustomer(amount, renderInvoice);\n}\n```\n\nThis respects the layer ordering: presentation calls down into application/domain, never the reverse.\n\n---\n\n### crime_00003 — Deep Import (low)\n\n**Import:** `some-pkg/dist/internal/private/helper.js` in `billing-flow.ts:4`\n\n**Fix:** Replace with the package's public export:\n\n```diff\n-import { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n+import { internalHelper } from \"some-pkg\";\n```\n\nIf `some-pkg` doesn't export `internalHelper` from its public surface, the right move is to file an upstream issue or vendor the needed logic — not reach into `dist/internal/private/`.\n\n---\n\n## How layer_violation and deep_import differ in agent risk\n\nBoth are dependency-direction problems, but they threaten AI agents in different ways:\n\n| | **layer_violation** (agent_risk: 0.56) | **deep_import** (agent_risk: 0.45) |\n|---|---|---|\n| **What it guards** | Team-declared architectural boundaries *within* the repo | Package API contracts *across* repo boundaries |\n| **Why agents trip on it** | An agent asked to modify `domain/billing.ts` will follow the import to `presentation/invoice-view.ts`, assume it's a dependency, and make coordinated changes that *widen* the violation. The agent's edit propagates in the wrong direction through the architecture. | An agent sees `some-pkg/dist/internal/private/helper.js` and treats that path as stable API. When the package upgrades and moves the file, the agent can't self-correct — it has no visibility into upstream internals and will either hallucinate a fix or silently break the build. |\n| **Blast shape** | **Lateral** — the violation couples layers that should be independent, so a change in one layer forces changes in another. The blast is proportional to how many files are in the wrongly-coupled layers. | **Temporal** — things work fine *today*. The risk materializes on the next `npm update` when the private path disappears. An agent doing a dependency upgrade will not know to check this path. |\n| **Why layer_violation scores higher** | It's an *active* architectural inversion visible in every edit session. An agent that respects the import graph will systematically make worse decisions because the graph itself is wrong. | It's a *latent* fragility. The import works until it doesn't. Agents are less likely to spontaneously edit a working third-party import path. |\n\nThe key insight: **layer_violation corrupts an agent's reasoning model** (it follows the wrong dependency direction), while **deep_import creates a hidden landmine** (it works until an upgrade). Both matter, but the layer violation is more dangerous day-to-day because it actively misleads every tool that reads the import graph.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "circular_dependency",
+        "passed": false
+      }
+    ]
+  }
+}

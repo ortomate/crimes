@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.12.0",
+  "timestamp": "2026-05-25T02:39:03.004Z",
+  "run_id": "09be6a13-718c-4619-a251-92889a5432b1",
+  "response": "## Duplication analysis\n\nThe scan confirms three overlapping duplication groups across 6 files:\n\n### 1. Near-duplicate sanitisation (crime_00002)\n\nThree functions with **identical logic**, only differing in parameter/variable names:\n\n| File | Function | Param | Local var |\n|------|----------|-------|-----------|\n| `src/sanitize-a.ts` | `sanitizeUserInput` | `raw` | `working` |\n| `src/sanitize-b.ts` | `sanitizeText` | `input` | `cleaned` |\n| `src/sanitize-c.ts` | `cleanMessage` | `value` | `normalised` |\n\nThe body is the same 26-line pipeline: null guard → trim → strip control chars → collapse whitespace → length cap → reject HTML-like prefixes → reject hex escapes → reject excessive punctuation → normalize shouting caps.\n\n### 2. Exact-duplicate telemetry (crime_00001)\n\n`recordSanitiseEvent` in `telemetry-a.ts` and `telemetry-b.ts` are byte-for-byte identical.\n\n### 3. Duplicated admin checks (crime_00003)\n\n`role === \"admin\"` appears in:\n- `policy.ts` — three functions (`canEditBilling`, `canSeeAuditLog`, `canImpersonate`) all doing `if (role === \"admin\") return true; return false;`\n- `sanitize-a.ts` — `assertAdminA` (strict `=== \"admin\"`)\n- `sanitize-b.ts` — `assertAdminB` (broader: `\"admin\" || \"owner\"`)\n- `sanitize-c.ts` — `assertAdminC` (inverted: `!== \"admin\"`)\n\n---\n\n## Proposed refactor\n\n### Files that would change\n\n| File | Action |\n|------|--------|\n| **`src/sanitize.ts`** | **New** — single sanitisation function |\n| **`src/telemetry.ts`** | **New** — single `recordSanitiseEvent` with injected clock |\n| **`src/policy.ts`** | **Rewrite** — one `isAdmin` predicate, three thin policy wrappers |\n| `src/sanitize-a.ts` | Delete (re-export from `sanitize.ts` if callers need the old name) |\n| `src/sanitize-b.ts` | Delete |\n| `src/sanitize-c.ts` | Delete |\n| `src/telemetry-a.ts` | Delete |\n| `src/telemetry-b.ts` | Delete |\n\n### Consolidated public API\n\n**`src/sanitize.ts`**\n```ts\nexport function sanitize(input: string): string;\n```\nOne function, one name. Callers that imported `sanitizeUserInput`, `sanitizeText`, or `cleanMessage` switch to `sanitize`. If backwards compat is needed short-term, the old modules can re-export: `export { sanitize as sanitizeUserInput } from \"./sanitize\"`.\n\n**`src/telemetry.ts`**\n```ts\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now?: () => number,       // injectable clock, defaults to Date.now\n): void;\n```\nAddresses both the duplication (crime_00001) and the Temporal Recklessness findings (crimes 00004/00005) in one move.\n\n**`src/policy.ts`**\n```ts\nexport function isAdmin(role: string): boolean;   // single source of truth\nexport function canEditBilling(role: string): boolean;\nexport function canSeeAuditLog(role: string): boolean;\nexport function canImpersonate(role: string): boolean;\n```\nThe three policy functions delegate to `isAdmin(role)` instead of inlining the check. The divergent variants (`assertAdminB` which also checks `\"owner\"`, `assertAdminC` which inverts) get their own named predicates if callers actually need different semantics — otherwise they collapse into `isAdmin`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.12.0",
+  "timestamp": "2026-05-25T02:44:08.655Z",
+  "run_id": "6b3dd4e1-2503-46f0-9751-6ba43829a4af",
+  "response": "## PR Review: 01-messy-ts-app\n\n**37 findings** — 4 high, 15 medium, 18 low. My triage:\n\n---\n\n### Block Merge (5)\n\n| ID | Charge | File | Sev | Agent Risk | Justification |\n|----|--------|------|-----|-----------|---------------|\n| 00004 | God Function | `src/billing.ts` | 0.9 | 0.55 | 204-line `generateInvoice` in brand-new code. 3.4x threshold — untestable, unreadable, unmergeable. |\n| 00002 | Temporal Recklessness | `src/date.ts` | 0.8 | 0.62 | 8 raw `Date.now()`/`new Date()` calls in a *date utility* file. The whole point of this module is time logic — if it can't be tested deterministically, it's broken by design. |\n| 00003 | Half-UTC, Half-Local | `src/date.ts` | 0.8 | 0.61 | Same variable reads `getUTCFullYear()` and `getMonth()`. This is a correctness bug — results silently diverge by UTC offset. |\n| 00007 | Localhost-on-Disk | `src/api/files.ts` | 0.6 | 0.53 | Hardcoded `/Users/andrew/dev/crimes/schema.json`. Works on exactly one machine — CI, staging, and every other dev will get ENOENT. |\n| 00006 | Dev-Server URL | `src/api/files.ts` | 0.6 | 0.53 | Hardcoded `localhost:3000`. Fails silently in every deployed environment. |\n\n---\n\n### Warn (12)\n\n| ID | Charge | File | Sev | Agent Risk | Justification |\n|----|--------|------|-----|-----------|---------------|\n| 00001 | SVG With Embedded Raster | `src/assets/partner-logo.svg` | 0.75 | 0.70 | Deceptive: promises vector scalability, delivers fixed-resolution rasters. High agent_risk because tooling trusts the mime type. Not a runtime crash. |\n| 00005 | Missing Agent Context | `src/api/files.ts` | 0.6 | 0.53 | No AGENTS.md / CLAUDE.md. Agents will guess conventions. Low urgency but real cost. |\n| 00008 | Timezone Roulette | `src/date.ts` | 0.6 | 0.53 | `new Date(\"2026-12-25T07:00:00\")` — no timezone marker. Parsed differently per host. |\n| 00010 | DST-Naive Day Math | `src/date.ts` | 0.6 | 0.52 | `+ 86400000` breaks on DST transition days. Real bug, low blast radius. |\n| 00009 | String Sprinkles | `src/api/plan.ts` + 3 files | 0.5 | 0.52 | `\"enterprise\"` repeated in 4 areas — duplicated policy risk. |\n| 00012 | Concept Alias Drift | 5 files | 0.55 | 0.51 | account/organisation/team/workspace all mean \"tenant.\" Agents will duplicate logic under different names. |\n| 00014 | Duplicated Nav Source | `src/nav/registry.ts` | 0.6 | 0.49 | Same route, two labels (\"Plans\" vs \"Billing\"). One will go stale. |\n| 00016 | Route Metadata Drift | `src/routes/settings/billing.tsx` | 0.6 | 0.49 | 4 competing labels for one route. Not broken, but a maintenance trap. |\n| 00018 | Temporal Recklessness | `src/billing.ts` | 0.6 | 0.46 | 7 more raw clock reads. Same pattern as 00002, lower density. |\n| 00019 | Test That Proves Nothing | `src/billing.test.ts` | 0.45 | 0.46 | \"renders the enterprise plan\" has zero assertions — false safety net. |\n| 00020 | False Identity | `src/billing.ts` | 0.55 | 0.44 | `calculateRefundPreview` saves audit logs and sends emails. Callers will treat it as side-effect-free. |\n| 00027 | Logic in the Alibi | `src/billing.ts` | 0.5 | 0.42 | Auth rule \"only owners can refund enterprise plans unless billing support approves\" exists only as a comment — no code enforces it. |\n\n---\n\n### Ignore (20)\n\n| ID | Charge | File | Sev | Agent Risk | Reason to defer |\n|----|--------|------|-----|-----------|-----------------|\n| 00011 | Oversized Raster | `hero-banner.png` | 0.4 | 0.52 | 254KB is borderline; optimize post-merge. |\n| 00013 | Icon-Sized Raster | `check-icon.png` | 0.35 | 0.50 | 32x32 PNG — nice to have SVG, not blocking. |\n| 00015 | Unfinished Business | `src/todo.ts` | 0.4 | 0.49 | High density but it's a fixture file. |\n| 00021 | Docs-Code Drift | `docs/teams.md` | 0.35 | 0.44 | Broken link — fix later, no runtime impact. |\n| 00022 | Sync I/O in Hot Path | `src/api/files.ts` | 0.4 | 0.44 | Performance concern, not correctness. |\n| 00023 | Temporal Recklessness | `src/api/state.ts` | 0.35 | 0.44 | Single occurrence, low severity. |\n| 00024 | Date String Sewing | `src/date.ts` | 0.3 | 0.43 | Minor formatting fragility. |\n| 00025 | Host-Locale Drift | `src/date.ts` | 0.3 | 0.43 | Display-only concern. |\n| 00026 | God File | `src/billing.ts` | 0.6 | 0.42 | 311 lines (barely over 300). Already blocked by 00004. |\n| 00028 | Unprefixed Boolean | `src/api/state.ts` | 0.3 | 0.42 | Style preference. |\n| 00029 | Unprefixed Boolean | `src/petty.ts` | 0.3 | 0.42 | Style preference. |\n| 00030 | Option Bag Junk Drawer | `src/petty.ts` | 0.3 | 0.40 | Mild API ergonomics. |\n| 00031 | Return Shape Roulette | `src/petty.ts` | 0.3 | 0.40 | Would be caught by TypeScript strict mode. |\n| 00032 | Negative Flag Maze | `src/petty.ts` | 0.25 | 0.40 | Readability, not correctness. |\n| 00033 | Plural Mismatch | `src/api/state.ts` | 0.3 | 0.40 | Naming convention. |\n| 00034 | Orphaned Destination | `subscription.tsx` | 0.4 | 0.39 | Dead route — clean up, don't block. |\n| 00035 | Orphaned Destination | `team/index.tsx` | 0.4 | 0.39 | Same. |\n| 00036 | Orphaned Destination | `workspace/members.tsx` | 0.4 | 0.39 | Same. |\n| 00037 | Weak Test Signal | `src/billing.test.ts` | 0.25 | 0.34 | Weak assertion — tracked by 00019. |\n| 00038 | Unfinished Business | `src/billing.ts` | 0.2 | 0.32 | 4 TODOs in 311 lines, barely above threshold. |\n\n---\n\n### Summary\n\n**Verdict: Do not merge.**\n\nThe 5 blockers fall into two clusters:\n1. **`src/date.ts` is unsound** — mixing UTC/local methods is a correctness bug, and 8 untestable clock reads make the entire module a liability.\n2. **`src/api/files.ts` is machine-locked** — a hardcoded `/Users/andrew/...` path and `localhost:3000` make this code non-portable by construction.\n3. **`src/billing.ts:generateInvoice`** at 204 lines needs decomposition before review is even meaningful.\n\nFix those 5, file tickets for the 12 warns, and the rest can land as-is.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}
