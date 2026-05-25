@@ -332,4 +332,28 @@ describe("crimes init", () => {
       false,
     );
   });
+
+  it("--agents writes SKILL.md with pack coverage explanation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const result = await runCli(["init", "--agents"], root);
+
+    expect(result.exitCode).toBe(0);
+    const claudeSkill = readFileSync(
+      join(root, ".claude", "skills", "crimes", "SKILL.md"),
+      "utf8",
+    );
+    expect(claudeSkill).toContain("Pack coverage");
+    expect(claudeSkill).toContain("Universal pack");
+    expect(claudeSkill).toContain("Language-js pack");
+    expect(claudeSkill).toContain("full confidence");
+
+    const codexSkill = readFileSync(
+      join(root, ".agents", "skills", "crimes", "SKILL.md"),
+      "utf8",
+    );
+    expect(codexSkill).toContain("Pack coverage");
+    expect(codexSkill).toContain("Universal pack");
+    expect(codexSkill).toContain("Language-js pack");
+    expect(codexSkill).toContain("full confidence");
+  });
 });

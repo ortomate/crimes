@@ -33,6 +33,24 @@ description: Use when editing, reviewing, or investigating a TypeScript / JavaSc
 
 \`crimes\` is a deterministic CLI (no LLM) that reports change risk and agent risk. JSON output is the stable contract for agent decisions; prefer it when planning. For user-facing readbacks, use the default human output instead of rebuilding the report in your own prose.
 
+## Pack coverage
+
+\`crimes\` ships findings under two packs:
+
+- **Universal pack** runs on every file. Detectors: large files, raster
+  asset weight, duplicate filenames, hardcoded localhost / local paths,
+  docs link checking, missing agent context, TODO/FIXME density,
+  commented-out code (non-JS only).
+- **Language-js pack** runs on \`.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts\`
+  files only. Most detectors live here.
+
+Findings on files no language pack claims have **full confidence** on
+the things universal detectors can see, and are **silent** on things
+they can't (function shape, imports, JSX, types). When a file's
+\`Finding.pack\` is \`"universal"\`, treat its absence of other findings
+as "we couldn't parse this; no opinion" rather than "this file is
+clean".
+
 ## When to run it
 
 - Before editing an unfamiliar file: \`crimes context <file> --format json\`
