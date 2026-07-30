@@ -136,8 +136,36 @@ pnpm run evals -- --judge
 # Sanity-check that every scenario's expected findings actually fire
 # on its fixture. Fails on any scenario↔fixture drift. Same gate the
 # evals-pr.yml workflow runs.
-pnpm --filter evals-runner evals:verify-scenarios
+pnpm run evals:verify-scenarios
 ```
+
+## Measuring run-to-run noise
+
+Agents are stochastic, so a single run cannot tell you whether a
+5-point move is a real change or jitter. `evals:variance` answers that
+by comparing repeat samples of the *same* crimes version:
+
+```bash
+# Canonical sample lands in evals/results/<version>/.
+pnpm run evals
+
+# Repeat samples. Any directory named <version> or <version>-* counts.
+pnpm run evals -- --label r2
+pnpm run evals -- --label r3
+
+# Per-scenario mean ± stddev across all samples for the current version.
+pnpm run evals:variance
+```
+
+It needs at least two samples and exits 2 with a clear message
+otherwise. Run it before concluding that a baseline moved: the 0.12.0
+"regression" that prompted this section was a 5-point drop that turned
+out to be entirely measurement error, and with one sample per version
+there was no way to see that from the numbers alone.
+
+Record the observed noise band in the release notes alongside the
+baseline, so the next person comparing two versions knows how big a
+move has to be before it means anything.
 
 ## Scenario↔fixture coverage discipline
 
