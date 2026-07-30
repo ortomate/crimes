@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:33:02.100Z",
+  "run_id": "16b32261-2e2a-48b2-b3ff-ee389febe99b",
+  "response": "## The cycle\n\nThree files, one ring (crime_00001, confidence 0.95):\n\n```\napplication/billing-flow.ts ──▶ domain/billing.ts ──▶ presentation/invoice-view.ts\n            ▲                                                      │\n            └──────────────────────────────────────────────────────┘\n```\n\nConcretely: `runBillingFlow()` → `chargeCustomer()` → `renderInvoice()` → `runBillingFlow()`.\n\n## Break this edge\n\n**`src/domain/billing.ts:2` → `../presentation/invoice-view.js`**\n\nThree reasons it's the right cut, not just *a* cut:\n\n1. **It's the only edge that's independently wrong.** Crimes flags it twice — once as a cycle member, once as `layer_violation` (crime_00002: `domain cannotImport presentation`, confidence 0.95). The other two edges are architecturally normal: application→domain is the intended direction of dependency, and presentation→application is how a view kicks off a use case. Cutting either of those would fight the architecture to fix a symptom.\n2. **Deleting it kills the cycle outright.** Removing one edge from a 3-node ring is sufficient; no third module or indirection layer is needed. `fix_shape: \"extract shared types to a leaf module\"` is the generic advice, but it's overkill here — nothing shared is actually being passed, the domain is just reaching downward to format a string.\n3. **The suggested `import type` escape hatch doesn't apply.** `renderInvoice` is *called* at line 5, not used as a type, so it's a real runtime edge. It has to be inverted, not annotated away.\n\n## The fix\n\nDomain returns data; presentation formats it.\n\n```ts\n// src/domain/billing.ts — no presentation import\nexport interface Charge {\n  amount: number;\n}\n\nexport function chargeCustomer(amount: number): Charge {\n  return { amount };\n}\n```\n\n```ts\n// src/presentation/invoice-view.ts\nimport { chargeCustomer } from \"../domain/billing.js\";\n\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${chargeCustomer(amount).amount}`;\n}\n```\n\n`invoice-view.ts` then no longer needs `runBillingFlow` either, and `billing-flow.ts` keeps its one legitimate downward import.\n\n## One thing the scan can't tell you\n\nThe suspected runtime error is probably **not** a TDZ/`undefined is not a function` on module init — with ESM and these three files, the bindings resolve. It's a `RangeError: Maximum call stack size exceeded`: `chargeCustomer` → `renderInvoice` → `runBillingFlow` → `chargeCustomer` is unbounded mutual recursion at *call* level, and every entry point into the ring hits it. The import cycle is what makes that call cycle possible, so the fix above resolves both — but verify by running the entry point, since a cycle-only fix that preserved the call chain would leave the crash in place.\n\n`deep_import` (crime_00003, `some-pkg/dist/internal/private/helper.js`) is unrelated to the cycle — separate quick fix, no bearing on this bug.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      }
+    ]
+  }
+}

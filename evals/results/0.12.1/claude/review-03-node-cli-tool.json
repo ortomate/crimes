@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:52:51.379Z",
+  "run_id": "e972d728-e43e-462d-afc3-f8f2d7853390",
+  "response": "## Verdict: no blocks, 4 warns, the rest ignore\n\nI spot-checked the highest-stakes clusters against the fixture rather than ruling from the JSON alone. That changed most of the answer: **24 of 55 findings (~44%) are false positives**, including 16 of the 30 mediums and 3 of the 6 highs.\n\n| Cluster | # | severity | agent_risk | Call |\n|---|---|---|---|---|\n| Duplicate `choices()` in `argument.js` / `option.js` | 2 | medium | 0.54 | **warn** |\n| God File / God Function in `lib/command.js` | 2 | high | 0.63 / 0.62 | **warn** (tech debt, not a gate) |\n| Broken links in zh-CN docs | 2 | low | 0.44 | **warn** |\n| Weak matchers (`toBeTruthy`/`toBeFalsy` on booleans) | 9 | low–med | 0.34 | **warn** (nit) |\n| \"0 expect/assert calls\" tests | 16 | medium | 0.46 | **ignore — false positive** |\n| `large_file` on CHANGELOG / Readme / Readme_zh-CN | 3 | high | 0.63 | **ignore — false positive** |\n| Hardcoded `localhost:1234` | 1 | medium | 0.53 | **ignore — false positive** |\n| `PORT` literal scatter, `myParseInt` dupe | 2 | medium | 0.52 / 0.54 | **ignore** (examples/) |\n| Commented-out corpse, logic-in-comments | 2 | low | 0.36 / 0.31 | **ignore — false positive** |\n| Unprefixed booleans (`required`, `variadic`, `mandatory`) | 3 | low–med | 0.42–0.52 | **ignore** (public API) |\n| `existsSync` in `findFile` | 1 | low | 0.44 | **ignore** (correct there) |\n| Large `describe` callbacks, large `.d.ts` / test-d | 6 | low–med | 0.34–0.63 | **ignore** |\n\n---\n\n## Warns\n\n**Duplicate `choices()` — `crime_00008`/`00009`, severity medium, agent_risk 0.54.** The single most valuable true finding in the report. `lib/argument.js:99-111` and `lib/option.js:176-188` carry byte-identical validation bodies, each throwing `InvalidArgumentError` with the same message template. This is exactly the agent-risk shape the product is built to catch: two sources of truth for one policy, so an agent asked to \"add case-insensitive choice matching\" fixes one and silently leaves the other. Warn, don't block — the fix (extract a shared `createChoicesParser`) touches two public classes and deserves its own PR.\n\n**`lib/command.js` — `crime_00002` (2180 lines, agent_risk 0.63) and `crime_00006` (`_executeSubCommand`, 120 lines, agent_risk 0.62).** Real, and the scores are honest. But this is the accumulated core of a mature CLI parser, not something authored in this diff — the God File and God Function are the same file, so it's one architectural fact reported twice. Warn as a standing hazard for agent edits; blocking a library import on it would be theater. *If this genuinely were greenfield code written in one PR, `crime_00002` would be my block.*\n\n**Broken zh-CN doc links — `crime_00037`/`00039`, severity low, agent_risk 0.44.** Six percent-encoded links to Chinese-named files that don't exist on disk. Low severity but the agent_risk framing is right: an agent reading `Readme_zh-CN.md:57` follows a dead pointer and invents the missing content. Cheap to fix, so warn rather than ignore.\n\n**Weak matchers — `crime_00046`–`00054`, severity low, agent_risk 0.34.** Detector is correct, and I'd normally discount `toBeTruthy` complaints as pedantry, but here they're on boolean-typed fields: `expect(cmd._hasHelpOption).toBeFalsy()` (`tests/command.copySettings.test.js:38`) passes if the field regresses to `undefined`, which is precisely the failure `copyInheritedSettings` could cause. Same at `tests/options.variadic.test.js:159`. They also assert a private `_`-prefixed field. Nit-level warn: swap to `toBe(false)`.\n\n---\n\n## The false positives worth naming\n\n**All 16 \"0 expect/assert calls\" findings are wrong, and 8 of them are refutable from line 9 of the file itself.** Both flagged files route assertions through a helper:\n\n- `tests/command.exitOverride.test.js:11` defines `expectCommanderError()`, which makes four `expect` calls. The file declares this to tooling on line 9: `/* eslint jest/expect-expect: [\"error\", { \"assertFunctionNames\": [\"expect\", \"expectCommanderError\"] }] */`\n- `tests/ts-imports.test.ts:9` defines `checkClass()`, which makes two.\n\nThese are well-asserted tests. Reporting them as \"gives agents false confidence\" inverts the truth, and at 16 findings it's the largest single bloc in the report.\n\n**Three of six highs are prose.** `CHANGELOG.md` (1244 lines), `Readme.md`, `Readme_zh-CN.md` flagged as \"God File\" with fix_shape *\"split by responsibility; one concern per module\"* and a `split_file` action. A changelog is append-only by design; the advice is not just noise, it's wrong. `typings/index.d.ts` is the same story — a published flat declaration file, split by convention only at package boundaries.\n\n**`crime_00010` is a comment.** `lib/command.js:2152` reads `// e.g. --inspect=localhost:1234` — an inline example annotating the regex that rewrites Node's `--inspect` port for spawned subcommands. There is no dev-server URL here; suggesting `process.env.API_URL` in a CLI arg parser is a category error.\n\n**`crime_00041` and `crime_00055` are keyword matches, not findings.** The \"commented-out corpse\" at `tests/command.executableSubcommand.search.test.js:13` documents the two platform-specific spawn signatures the helper unpacks — it explains the active code rather than replacing it. The \"logic in comments\" at `signals.test.js:11` is a historical note about a removed sinon test; the detector matched on the words \"required\" and \"before\" appearing in prose, and its own confidence (0.65, lowest in the report) reflects that.\n\n**`crime_00012`/`00007` are `examples/`.** The `PORT` literal is `.env('PORT')` across four example scripts — the correct, idiomatic usage being demonstrated. Examples are deliberately standalone and copy-pasteable, so `myParseInt` appearing twice is a feature. The evidence line calls these \"5 production files across examples, typings,\" which is a tier misclassification, not a real scatter.\n\n**`crime_00015`/`00016`/`00040` are the public API.** `required`, `variadic`, `mandatory`, `hide` are documented properties on `Option` and `Argument`. Renaming to `isRequired` is a breaking change to a package with tens of millions of weekly downloads, and the adjectives read unambiguously as-is.\n\n---\n\n## Two detector fixes this run argues for\n\n1. **`weak_test_signal` should follow custom assertion helpers** — resolve calls to in-file functions whose bodies contain `expect`, and read `jest/expect-expect`'s `assertFunctionNames` when present. That directive is machine-readable and sitting right there. This one change removes 16 of the 30 mediums.\n2. **`large_file` should exclude `.md` (and treat `.d.ts` separately)** — three of six highs are prose documents, and the attached `split_file` action makes the report actively misleading at the top of the ranking.\n\nBoth are calibration changes under the versioning policy in `CLAUDE.md` — patch bump plus a re-run of `pnpm run evals` in the same commit, no release. Want me to make either change?",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "large_file",
+      "crime_00004": "large_file",
+      "crime_00005": "large_file",
+      "crime_00006": "large_function",
+      "crime_00007": "exact_duplicate_block",
+      "crime_00008": "exact_duplicate_block",
+      "crime_00009": "exact_duplicate_block",
+      "crime_00010": "hardcoded_localhost",
+      "crime_00011": "large_function",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "large_function",
+      "crime_00014": "large_function",
+      "crime_00015": "boolean_naming_drift",
+      "crime_00016": "boolean_naming_drift",
+      "crime_00017": "large_file",
+      "crime_00018": "large_file",
+      "crime_00019": "large_file",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "weak_test_signal",
+      "crime_00032": "weak_test_signal",
+      "crime_00033": "weak_test_signal",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "weak_test_signal",
+      "crime_00036": "large_function",
+      "crime_00037": "docs_code_drift",
+      "crime_00038": "sync_io_in_hotpath",
+      "crime_00039": "docs_code_drift",
+      "crime_00040": "boolean_naming_drift",
+      "crime_00041": "commented_out_code",
+      "crime_00042": "large_function",
+      "crime_00043": "large_function",
+      "crime_00044": "large_function",
+      "crime_00045": "large_function",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "weak_test_signal",
+      "crime_00053": "weak_test_signal",
+      "crime_00054": "weak_test_signal",
+      "crime_00055": "logic_in_comments"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "God Function": "large_function",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Commented-Out Corpse": "commented_out_code",
+      "Logic in the Alibi": "logic_in_comments"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  }
+}

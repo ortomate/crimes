@@ -1,0 +1,112 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:42:16.219Z",
+  "run_id": "6ebb882f-2649-435b-976c-0c83e77d1eb0",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a TypeScript risk investigation. I’ll run the requested file context against the fixture, then rank three changes by the concrete findings and their interactions.\n\nThe fixture resolves to the repository’s bundled `examples/messy-ts-app`, but there’s no globally installed `crimes` binary in this shell. I’m switching to the locally built CLI, which is the repository-prescribed equivalent for an unpublished checkout.\n\n`crimes context` rates `src/billing.ts` as **high risk**: 6 findings, led by one high-severity finding.\n\n1. **Decompose `generateInvoice` into pure policy helpers.**  \n   `large_function` reports 204 lines—3.4× the 60-line threshold—and `large_file` reports 311 non-empty lines. Extract pricing, discounts, fraud scoring, tax, currency selection, and email rendering into separately testable functions. Keep `generateInvoice` as a thin orchestrator, and move delivery/audit concerns into separate modules. This reduces the chance that changing one rule accidentally alters another.\n\n2. **Inject time instead of reading the system clock.**  \n   `direct_date` found seven clock reads at lines 57, 63, 92, 198, 238, 250, and 273. Introduce a `Clock`/`now()` dependency and use it in `generateInvoice` and `recommendUpgrade`. Tests can then pin invoice timestamps, customer age, audit time, and retry latency without monkey-patching global `Date`.\n\n3. **Make refund calculation pure and encode authorization explicitly.**  \n   `calculateRefundPreview` sounds pure but calls `saveRefundAudit` and `sendRefundEmail`, triggering `name_behavior_mismatch`. Meanwhile, the enterprise-refund authorization rule exists only in the line-39 comment, triggering `logic_in_comments`. Split this into a pure preview calculation plus an explicitly named refund command, and implement a named authorization guard covering owner and billing-support approval.\n\nBefore moving code, I’d add characterization tests for these seams. The supplied scan shows the likely test file currently has one test with no assertions and another with only a truthiness assertion, so it does not safely protect the refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:38:49.906Z",
+  "run_id": "08452948-0c75-41f8-a8d2-68c45d7295b1",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to ground the triage in the actual scan and branch verdict. I’ll keep this read-only and focus on the requested top ten.\n\nThe global `crimes` binary isn’t installed in this environment, so I’m locating the repository-built CLI and the fixture’s git state before interpreting the verdict.\n\nThe verdict is **unchanged** versus `origin/main`: 0 new, 0 fixed, 37 unchanged. These are legacy risks, not branch regressions, so triage should favor correctness and portability over broad refactoring.\n\n| Order | Category | Finding | Response | Recommendation |\n|---:|---|---|---|---|\n| 1 | Structural | `crime_00003` — mixed UTC/local methods | **fix now** | Choose one time domain—prefer UTC internally—and add timezone-boundary tests. |\n| 2 | Structural | `crime_00008` — timezone-unsafe parsing | **fix now** | Require explicit `Z`/offsets. Address alongside `crime_00003`. |\n| 3 | Structural | `crime_00010` — DST-naive arithmetic | **fix now** | Replace `+ 86400000` with calendar-aware day arithmetic and test a DST transition. |\n| 4 | Structural | `crime_00002` — direct system-clock access | **fix now** | Introduce an injectable clock while consolidating the other `src/date.ts` fixes. |\n| 5 | Structural | `crime_00007` — hardcoded local path | **fix now** | This breaks on every other machine; resolve from configuration or a portable base directory. |\n| 6 | Structural | `crime_00006` — hardcoded localhost | **fix now** | Move the API URL to environment/configuration, retaining localhost only as a development default. |\n| 7 | IA | `crime_00005` — missing agent context | **fix now** | Add a concise root `AGENTS.md` covering commands, architecture, and safety rules. Small effort with repo-wide benefit. |\n| 8 | Structural | `crime_00004` — 204-line `generateInvoice` | **defer** | High structural risk, but avoid a blind extraction. First strengthen billing characterization tests, then extract cohesive pure helpers. |\n| 9 | Duplication | `crime_00009` — scattered `\"enterprise\"` literal | **defer** | Centralize only after confirming all four occurrences represent the same policy concept; otherwise a shared constant could create false coupling. |\n| 10 | Frontend | `crime_00001` — raster embedded in SVG | **defer** | Re-export when design source is available. Despite high severity, the asset is only 592 bytes and is less urgent than runtime correctness. |\n\n### Category summary\n\n- **Structural:** seven findings; fix the `src/date.ts` cluster first, then the two portability literals. Defer the invoice refactor until tests are trustworthy.\n- **Git-history:** none in the top ten. The supplied scores show no churn signal, and the verdict reports no branch-level change.\n- **IA:** add agent instructions now.\n- **Frontend:** defer the SVG re-export.\n- **Duplication:** defer until the domain meaning of `\"enterprise\"` is verified.\n- **Ignore:** none recommended. All ten have concrete evidence; “unchanged” means pre-existing, not false positive.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "mixed_utc_local_methods",
+        "passed": false
+      }
+    ]
+  }
+}

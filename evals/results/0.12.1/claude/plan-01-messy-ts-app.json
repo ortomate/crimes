@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:38:55.482Z",
+  "run_id": "fec1f427-04fb-413c-9249-22c4ce27c4a9",
+  "response": "Ran `crimes verdict --format json` in the fixture: **`unchanged` — 0 new, 0 fixed, 37 unchanged**, `\"verdict is advisory only\"`. So nothing here is gating a merge; this is voluntary cleanup, which is what makes deferring the expensive items cheap.\n\nOne caveat on the ranking before the plan: every finding in the report has `churn: 0`, `recency: 0`, `blast_radius: 0`, `blast_radius_importers: 0`. The fixture has no usable git history, so **the git-history category is empty** and the scan's ordering is driven almost entirely by `severity × confidence × agent_risk`. That means \"position in the list\" is a weak proxy for \"fix first\" — I've re-ordered on breakage-certainty and effort instead.\n\n## Triage order — top 10\n\n| # | ID | Finding | Category | Response |\n|---|----|---------|----------|----------|\n| 1 | `crime_00007` | Localhost-on-Disk — `/Users/andrew/…` @ `src/api/files.ts:9` | structural (config) | **fix now** |\n| 2 | `crime_00006` | Dev-Server URL — `localhost:3000` @ `src/api/files.ts:8` | structural (config) | **fix now** |\n| 3 | `crime_00005` | Missing Agent Context | IA | **fix now** |\n| 4 | `crime_00002` | Temporal Recklessness — 8× in `src/date.ts` | structural | **fix now** |\n| 5 | `crime_00003` | Half-UTC, Half-Local — `src/date.ts:9,41` | structural | **fix now** |\n| 6 | `crime_00008` | Timezone Roulette — `src/date.ts:29,33` | structural | **fix now** |\n| 7 | `crime_00010` | DST-Naive Day Math — `src/date.ts:52` | structural | defer |\n| 8 | `crime_00004` | God Function — `generateInvoice`, 204 lines | structural | defer |\n| 9 | `crime_00009` | String Sprinkles — `\"enterprise\"` × 4 areas | duplication | defer |\n| 10 | `crime_00001` | SVG With Embedded Raster | frontend | ignore |\n\n**git-history: no findings.** Not a clean bill of health — the detector had no signal to work with. Re-run against a repo with real history before trusting the ordering above as risk-ranked.\n\n## Why this order\n\n**1–2 — the two config literals, one PR, ~10 minutes.** These are the only findings in the top 10 that are *already broken* rather than *risky*. `/Users/andrew/dev/crimes/schema.json` resolves on exactly one machine; `localhost:3000` resolves in exactly one process. Both are `effort: quick`, both live in `src/api/files.ts`, and neither needs a design decision. The scan ranks them 6th and 7th because severity is medium — that undersells them. Certainty of breakage beats severity score.\n\n**3 — agent context, before the rest.** `effort: small`, and it's the one fix that makes every later fix safer: an AGENTS.md pinning the clock convention and the config-vs-literal rule stops the next agent re-introducing #1, #2, and #4. Compounding, so it goes early despite ranking 5th.\n\n**4–6 — the `src/date.ts` cluster, one sitting.** Four separate charges (`00002`, `00003`, `00008`, plus lower-ranked `00024` Date String Sewing and `00025` Host-Locale Drift) all land in one 50-line file and all share one fix: inject a clock, pick UTC as the storage domain, convert at the display boundary. Fixing them individually means touching the file five times. Do the injection first (`00002`) — it forces the seam that makes the other four mechanical.\n\n**7 — DST math, deferred on purpose.** Same file, but this one isn't a cleanup, it's a dependency decision: Temporal vs Luxon vs date-fns-tz. Don't smuggle a new runtime dependency into a hygiene PR. Ticket it, decide it separately, then it's a two-line change.\n\n**8 — `generateInvoice`, blocked on tests, not on effort.** The scan calls it `effort: small`, and 204 lines → extracted helpers genuinely is mechanical. The problem is the safety net: `crime_00019` says `billing.test.ts` has a test with **zero** `expect` calls, and `crime_00037` says the other one uses only weak matchers. Refactoring the highest-agent-risk function in the repo against tests that assert nothing is how you ship a silent regression. **Real sequencing: fix `00019`/`00037` first, then this is fix-now.** As it stands, deferred.\n\n**9 — `\"enterprise\"` scatter, deferred as cross-cutting.** Four files across `src`, `src/api`, `src/jobs`, `src/ui`, and the suggested action is itself tagged `risk: medium`. Centralising it is the right call, but it belongs in whatever change next touches plan policy — not in a standalone PR that edits four areas to move a string.\n\n**10 — SVG embedded raster: ignore, and the ranking is wrong here.** The scan puts this at #1 on `severity: high` + `agent_risk: 0.7`. But read its own evidence: **the entire SVG is 592 bytes.** The stated harm — \"usually larger than a plain PNG\" — cannot hold at that size; the embedded rasters are a handful of pixels. There's no page-weight cost to recover and no correctness risk. Suppress it. Worth flagging as a likely detector calibration gap: `svg_with_embedded_raster` doesn't appear to gate severity on byte size the way `oversized_raster` (`crime_00011`) does with its explicit 200/500/1000 KB ladder.\n\n## Net\n\nSix fix-now items, all `quick`/`small`, all in `src/api/files.ts` and `src/date.ts` — one afternoon, two PRs. Three deferred items each blocked on a real prerequisite (a dependency decision, real test assertions, a policy refactor) rather than on appetite. One suppression. The two highest-leverage moves aren't in the fix-now list at all: writing the missing assertions in `billing.test.ts`, which unblocks #8, and the AGENTS.md at #3, which stops the list regrowing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "hardcoded_local_path",
+        "passed": false
+      }
+    ]
+  }
+}

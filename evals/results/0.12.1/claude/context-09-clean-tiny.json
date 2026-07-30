@@ -1,0 +1,34 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:36:06.111Z",
+  "run_id": "fb9f484c-2def-4505-9979-5c8d9fd0305c",
+  "response": "## What I ran\n\n```\ncrimes context src/add.ts --format json\n```\n\n## What crimes found: nothing\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"findings\": [],\n\"agent_guidance\": [],\n\"related_files\": []\n```\n\nThe repo-wide scan agrees — `summary.total: 0` across all 2 files, with both the `universal` and `language-js` packs loaded. So this is a genuine zero-finding result, not a \"crimes couldn't parse it\" result: the TS/JS pack ran and had nothing to say.\n\ncrimes was explicit about *why* each section was empty rather than leaving it ambiguous:\n\n- `agent_guidance_reason`: \"no findings on this file and no deterministic related files\"\n- `related_files_reason`: \"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"\n\n## Supporting clues\n\n| Signal | Value |\n|---|---|\n| Commits (90d) | 1 |\n| Last commit | 2026-05-18 |\n| Unique authors (90d) | 1 |\n| Likely tests | `src/add.test.ts` |\n| test_gap | raw 0, label **`unknown`** |\n\nConfirmed by reading the file — it's a 3-line pure function, `add(a: number, b: number): number`, no imports, no side effects, no callers in the repo.\n\n## Verdict: safe to extend\n\nNothing blocks the edit. No blast radius (zero importers), no churn contention (one commit, one author), no coupled files to keep in sync, and a colocated test file already exists.\n\nTwo caveats worth stating rather than glossing over:\n\n1. **`test_gap` is `unknown`, not `covered`.** crimes located a likely test by naming convention; it did not verify that `add.test.ts` actually exercises what you're about to add. If you add a branch, add the case — the existing file gives you somewhere to put it, not proof you're covered.\n2. **This is a 2-file fixture.** \"No related files\" is trivially true here in a way it wouldn't be in a real repo. Don't read the empty `related_files` as a strong architectural signal; there's simply no neighbourhood to have signal about.\n\nAbsence of findings here means absence of *risk*, not absence of *analysis* — which is the distinction that matters when deciding whether to trust an empty report.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

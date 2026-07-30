@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:39:26.380Z",
+  "run_id": "8ea71070-4159-4f4e-82df-aeb961d7c18b",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to ground the plan in the reported findings and keep the two changes independently verifiable.\n\nThe scan contains three duplication findings:\n\n- `crime_00001` — exact duplicate telemetry helper in `telemetry-a.ts` and `telemetry-b.ts`.\n- `crime_00002` — near-identical sanitizers: `sanitizeUserInput`, `sanitizeText`, and `cleanMessage`.\n- `crime_00003` — repeated `\"admin\"` policy checks across `policy.ts` and the three sanitizer modules.\n\nThe telemetry finding is independent and should remain outside this change set.\n\n## Change 1: Centralize role policy\n\nCreate one policy primitive, such as `isAdmin(role)`, in `policy.ts` or a dedicated `role-policy.ts`.\n\nMigrate every direct `\"admin\"` comparison to that primitive while preserving current semantics:\n\n- `canEditBilling`, `canSeeAuditLog`, and `canImpersonate` delegate to `isAdmin`.\n- `assertAdminA` becomes `isAdmin(role)`.\n- `assertAdminB` remains admin-or-owner: `isAdmin(role) || role === \"owner\"`.\n- `assertAdminC` retains its inverted behavior: `!isAdmin(role)`.\n\nDo not collapse these functions into a single permission decision: `assertAdminB` admits owners and `assertAdminC` currently returns true for non-admins. Add a truth-table test covering `admin`, `owner`, and an ordinary role before replacing the expressions.\n\nCommit this separately. A rescan should remove `crime_00003` without changing sanitizer behavior.\n\n## Change 2: Extract the canonical sanitizer\n\nMove the shared body into one module, for example:\n\n```ts\nsanitizeTextValue(value: unknown): string\n```\n\nThen preserve the three existing public names and import paths using thin re-exports or delegating wrappers:\n\n- `sanitizeUserInput` → `sanitizeTextValue`\n- `sanitizeText` → `sanitizeTextValue`\n- `cleanMessage` → `sanitizeTextValue`\n\nThe implementations are behaviorally identical despite renamed local variables, so no options are presently needed. Add characterization tests for nullish input, trimming/control characters, whitespace collapsing, length truncation, angle-bracket and `\\\\x` rejection, punctuation rejection, and uppercase normalization. Run the same cases through all three exported names to prove compatibility.\n\nCommit this independently. The final scan should remove `crime_00002` and `crime_00003`. The expected remaining findings are the telemetry duplication (`crime_00001`) and its two associated direct-clock findings (`crime_00004` and `crime_00005`), assuming no new findings are introduced.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "exact_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

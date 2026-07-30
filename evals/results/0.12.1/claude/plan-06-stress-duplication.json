@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:39:59.410Z",
+  "run_id": "0605da60-473d-43bb-beaf-507ef7eacddb",
+  "response": "## What the scan actually shows\n\nFive findings, but only **three real problems** — and one of them is a trap:\n\n| Finding | Real problem | Nature |\n|---|---|---|\n| `crime_00002` (near-dup, 0.85) | `sanitizeUserInput` / `sanitizeText` / `cleanMessage` | Purely mechanical |\n| `crime_00003` (role check, 0.70) | `assertAdminA/B/C` + `policy.ts`'s three capability functions | **Semantic — not a rename** |\n| `crime_00001` + `00004`/`00005` | `telemetry-a.ts` ≡ `telemetry-b.ts`, each with a `Date.now()` | Out of the two-step scope; see follow-up |\n\nTwo things the JSON doesn't tell you that change the plan:\n\n1. **`blast_radius_importers: 0` on every finding.** Nothing in this repo imports anything else — all six files are leaves. So there are no in-repo call sites to update; the entire risk of this refactor lives at the package's export boundary, not inside it. That makes step 1 nearly free and lets me skip a shim phase.\n2. **`crime_00003`'s \"2 distinct expression shapes\" undercounts.** There are three semantics:\n   - `assertAdminA` → `role === \"admin\"`\n   - `assertAdminB` → `role === \"admin\" || role === \"owner\"` — **a wider grant**\n   - `assertAdminC` → `role !== \"admin\"` — **inverted**\n\n   Collapsing all three into one `isAdmin()` would silently revoke `owner`'s access and flip C's guard. That's the whole reason this step is `effort: medium` while the sanitisers are `small`. (Minor: the evidence cites `policy.ts:1`, which is a comment line quoting the pattern — 6 real occurrences, not 7.)\n\n**Assumption I'm proceeding under:** this change set is strictly behaviour-preserving. Whether B's `owner` grant and C's negation are intentional is a product question, flagged at the end rather than answered here.\n\n---\n\n## Step 1 — Consolidate the sanitisers (mechanical, zero behaviour change)\n\nThe three bodies are **character-identical after α-renaming** (`working` / `cleaned` / `normalised`). There are no differing values, so `crime_00002`'s `fix_shape` (\"pass the differing values as args\") overshoots — a straight extraction is enough. Don't invent parameters you don't need.\n\n**New file `src/sanitize.ts`:**\n\n```ts\nexport function sanitizeText(input: string): string {\n  // exact body of sanitize-a.ts:11-35, unchanged\n}\n```\n\n**Then:**\n- `src/sanitize-a.ts` → delete `sanitizeUserInput`, `export { sanitizeText as sanitizeUserInput } from \"./sanitize.js\"`.\n- `src/sanitize-b.ts` → same, re-exporting under `sanitizeText`.\n- `src/sanitize-c.ts` → same, re-exporting under `cleanMessage`.\n- **Leave `assertAdminA/B/C` exactly where they are.** They are step 2's problem; touching them here mixes a no-op diff with a semantic one.\n\n**Verification:** the diff should contain zero net logic. Confirm with `git diff --stat` (three files shrink, one appears) and re-run `crimes scan --format json` — `crime_00002` should disappear and nothing new should fire. There are currently **no tests in this fixture**; if that's not acceptable, write a characterisation test over the ~8 branches (null/undefined, control-char strip, 1000-char truncation, `<`/`>` prefix, `\\x`, `!?{3,}` count, upper-ratio lowering) against `sanitize-a` *before* this step, so it's a true safety net.\n\n**Rollback:** single revert; nothing else depends on it.\n\n---\n\n## Step 2 — Centralise the role checks (semantic, needs a named decision)\n\nOne base predicate, and the divergences kept **explicit and named** rather than collapsed:\n\n**`src/policy.ts`:**\n\n```ts\n/** The single source of truth for the admin role. */\nexport function isAdmin(role: string): boolean {\n  return role === \"admin\";\n}\n\n/**\n * Elevated-write role set. Wider than isAdmin: also admits \"owner\".\n * Preserved from the former assertAdminB — see BILLING-owner question below.\n */\nexport function isAdminOrOwner(role: string): boolean {\n  return isAdmin(role) || role === \"owner\";\n}\n\nexport function canEditBilling(role: string): boolean {\n  return isAdmin(role);\n}\nexport function canSeeAuditLog(role: string): boolean {\n  return isAdmin(role);\n}\nexport function canImpersonate(role: string): boolean {\n  return isAdmin(role);\n}\n```\n\nThe three capability functions stay as named wrappers rather than aliases of `isAdmin` — they're the seams where the rules are *allowed* to diverge later, and keeping them named means a future divergence is a one-line change in one file instead of a hunt.\n\n**Then, in the sanitize files:**\n- `assertAdminA` → delete; call sites use `isAdmin`.\n- `assertAdminB` → delete; call sites use `isAdminOrOwner`.\n- `assertAdminC` → delete; call sites use `!isAdmin(role)`.\n\n`assertAdminC` deserves its own callout: it is named as an *assertion of admin-ness* but returns `true` when the role is **not** admin. That's a misleading-name hazard, not just duplication — an agent (or a human skimming) reading `if (assertAdminC(role))` will read it exactly backwards. Deleting the name is most of the value of this step.\n\n**Verification:** re-run `crimes scan --format json`; `crime_00003` should clear. Grep for any surviving `\"admin\"` string literal outside `policy.ts` — that grep returning empty *is* the acceptance criterion, and it's the check worth wiring into CI so the pattern can't re-seed.\n\n**Rollback:** revert independently of step 1. Step 2 depends on step 1 only for tidiness (the sanitize files are already small by then), not correctness — but do them in this order so the semantic diff isn't buried in the mechanical one.\n\n---\n\n## Two questions for a human before step 2 lands\n\nBoth are preserved-as-is above, so the change set is safe either way — but they should be answered, not inherited:\n\n1. **Is `owner` supposed to pass the B guard?** If the three checks were meant to be one rule, B is a live privilege escalation relative to A. If they were meant to differ, `isAdminOrOwner` is correct and should be documented.\n2. **Is C's negation intentional?** `role !== \"admin\"` as a guard is either a deliberate \"non-admins take this path\" or an inverted-condition bug that the misleading name has been hiding.\n\n## Follow-up (deliberately outside the two steps)\n\n`telemetry-a.ts` and `telemetry-b.ts` are byte-identical (`crime_00001`, confidence 0.95 — the highest-confidence finding in the report). Collapsing them to one module also collapses `crime_00004` and `crime_00005` into one, at which point injecting a `now: () => number` parameter is a single-site change rather than a triplicated one. I've left it out because you asked for the sanitisers and role checks; it's a clean third commit and the cheapest remaining win in the repo.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:42:29.403Z",
+  "run_id": "c4836dd5-60da-40c0-98db-15280f6ed6c5",
+  "response": "Ran `crimes context src/billing.ts` and read the file. Context reports **risk: HIGH** — 6 findings (1 high, 4 medium, 1 low), test gap bottom-quartile, churn low (4 commits/90d), **0 importers**. That last number matters: nothing imports this module, so restructuring it is cheap right now.\n\n## 1. Split `calculateRefundPreview` and encode the refund rule in code\n\nFindings: `crime_00004` False Identity (L40–44) + `crime_00006` Logic in the Alibi (L39).\n\nThese two are one bug wearing two hats. The name promises a pure calculation; the body is `saveRefundAudit()` + `sendRefundEmail()` and then returns `invoice.totalCents` unchanged — it computes nothing. Directly above it, L39 states the actual policy in prose: *\"Only owners can refund enterprise plans unless billing support approves.\"* The detector's evidence is the tell — the rule terms `only`/`unless` are there, but the domain terms `owner`, `plan`, `billing` appear nowhere in the surrounding code. Nothing enforces it.\n\nThat combination is the highest-consequence thing in the file. An agent (or a human) wiring a \"show refund preview\" button calls a `calculate*` function, and customers get refund emails and audit rows. Meanwhile a non-owner refunding an enterprise plan passes silently.\n\n- `previewRefundCents(invoice): number` — pure, no awaits.\n- `requestRefund(user, invoice)` — the audit write and email, named for what it does.\n- `assertCanRefund(user, invoice)` — a guard that takes the L39 rule (owner role, enterprise plan, support-approval override) and makes it a throwing check with tests. Delete the comment once the code says it.\n\n## 2. Inject the clock (and the ID source) through the boundary\n\nFinding: `crime_00003` Temporal Recklessness — 7 clock reads at L57, 63, 92, 198, 238, 250, 273. Add `Math.random()` at L56, which the same argument covers.\n\nThis is second not because it's the worst smell but because it's the precondition for #3. The loyalty tiers at L95–101 (`daysSince > 365 / 180 / 90`) and every branch of `recommendUpgrade` (L273–304) are pure functions of elapsed time — and today there is no way to test any of them without monkey-patching wall time. Context flags test gap as bottom-quartile, and the two tests that exist are hollow: `crime_00019` (\"renders the enterprise plan\" — zero assertions) and `crime_00037` (\"creates an invoice\" — one weak matcher). So the discount ladder is currently unprotected by anything.\n\nTake `now: number` and an `newId: () => string` as parameters (or a small `{ clock, ids }` deps object). Cheap, mechanical, no behaviour change — and it converts the tiering rules from untestable to table-testable, which is what makes step 3 safe rather than hopeful.\n\n## 3. Carve `generateInvoice` into pure helpers with a thin orchestrator\n\nFinding: `crime_00001` God Function — L50–253, 204 lines, 3.4× the 60-line domain threshold. `crime_00005` God File (311 lines, 1.0× threshold) resolves as a by-product; it isn't worth chasing on its own.\n\nThe function's own comment banners map the seams for you. Each is independently testable and currently isn't:\n\n`priceLines(user, items)` (L69–89, including the hidden `addon_` rule at L79 that silently ignores plan discounts) · `loyaltyDiscount(daysSince, plan, subtotal)` (L92–102) · `applyPromo(code, afterDiscount, plan)` (L106–126) · `scoreRisk(...)` (L129–143) · `taxRateFor(country)` and `currencyFor(country)` (L146–165) · `renderInvoiceEmail(invoice, user)` (L214–233).\n\nTwo things the extraction fixes that the finding list doesn't call out directly:\n\n- **The tax table exists twice** — L147–154 inside the function and L259–266 in the exported `tax()`, identical rules. Extracting `taxRateFor(country)` and having `tax()` call it collapses them to one place. The same is true of the `daysSince` computation, duplicated verbatim at L92 and L273.\n- **The retry loop at L239–248 can't fail.** The only `throw` is `body.length === 0`, which is unreachable — `body` always has content by L233 — and the `catch` at L246 is empty, so a real mail failure would report `emailAttempts: 1` and look like success. Pull the send out of `generateInvoice` entirely; an invoice generator shouldn't be sending mail, and the caller should be able to see the failure.\n\nAlso worth doing while you're in there: the L184–199 `console.log` writes `user.email` and country to stdout (its own `FIXME` at L183 says so). Once email composition moves out, that log has no reason to carry PII.\n\n**Sequencing:** 1 → 2 → 3. Each step is safe on its own, and #2 gives you real tests before #3 moves the arithmetic around. With zero importers, none of this needs a deprecation path.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

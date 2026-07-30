@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:42:46.853Z",
+  "run_id": "e3b36847-5091-4879-983b-f289fea7fc7b",
+  "response": "## Confirmed: the duplication is real\n\n`crimes scan --format json` returns 5 findings, three of which are the duplication story:\n\n| id | charge | files | confidence |\n|---|---|---|---|\n| `crime_00002` | Near-Duplicate Block | `sanitize-a.ts:10-36`, `sanitize-b.ts:9-35`, `sanitize-c.ts:9-35` | 0.85 |\n| `crime_00001` | Exact Duplicate Block | `telemetry-a.ts:6-19`, `telemetry-b.ts:6-19` | 0.95 |\n| `crime_00003` | Duplicated Role/Status/Plan Check | `policy.ts` + all three `sanitize-*.ts` | 0.70 |\n\nI read the three files to check the detector wasn't over-reporting. It isn't — and it's actually *understating* the case. The three sanitise bodies are **token-identical apart from identifier names**:\n\n- `sanitizeUserInput(raw)` / `working` (a)\n- `sanitizeText(input)` / `cleaned` (b)\n- `cleanMessage(value)` / `normalised` (c)\n\nSame trim, same `[\\x00-\\x1f]` strip (written as raw control bytes in source — see below), same `\\s+`→space collapse, same 1000-char truncation, same `<`/`>` prefix reject, same `\\\\x` reject, same `[!?]{3,}` > 5 reject, same 0.9-upper-ratio-over-30-chars lowercasing. No behavioural difference to preserve. `near_duplicate` rather than `exact_duplicate` is purely the renaming.\n\n**The one place the copies genuinely diverge is the admin guard**, and this is the trap:\n\n```ts\nassertAdminA(role) → role === \"admin\"          // a\nassertAdminB(role) → role === \"admin\" || role === \"owner\"   // b — wider\nassertAdminC(role) → role !== \"admin\"          // c — INVERTED\n```\n\nThese are three different predicates wearing near-identical names. `assertAdminC` returns `true` for non-admins. Any refactor that \"consolidates the admin checks\" by picking one implementation silently flips authorisation for whoever calls `assertAdminC`. That's the `agent_risk` 0.50 on `crime_00003` earning its keep — and it's why this finding gets `effort: medium` while the sanitiser gets `small`.\n\n## Proposed refactor\n\n**Three independent moves, in this order** (each is separately revertible):\n\n**1. Extract the sanitiser** — `src/sanitize.ts` holds one implementation. The three old files become thin re-export shims so callers don't break in the same commit. Since the bodies are identical, this is a pure behaviour-preserving move; the magic numbers become named options rather than staying inline.\n\n**2. Extract telemetry** — `src/telemetry.ts` holds one `recordSanitiseEvent`. While the block is being touched anyway, take the `direct_date` findings (`crime_00004`/`crime_00005`, `Date.now()` at line 16 of both copies) with it by accepting an injected clock. Fixing it once post-consolidation is the cheap moment; fixing it twice pre-consolidation is not.\n\n**3. Centralise the policy check — carefully.** Add `isAdmin` to `src/policy.ts` and rewrite the three guards *in terms of it* rather than collapsing them together:\n\n```ts\nassertAdminA → isAdmin(role)\nassertAdminB → isAdmin(role) || isOwner(role)\nassertAdminC → !isAdmin(role)          // and rename: it is not an admin assert\n```\n\nSame call-site semantics, one literal `\"admin\"`. `assertAdminC` should be renamed (`isNonAdmin` / `requiresElevation`) — the misleading name is the actual hazard, not the duplication.\n\n## Files that would change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **new** — the consolidated sanitiser |\n| `src/telemetry.ts` | **new** — the consolidated telemetry emitter |\n| `src/sanitize-a.ts` | body deleted; re-exports `sanitizeUserInput` as a wrapper over `sanitize`; guard delegates to `isAdmin` |\n| `src/sanitize-b.ts` | same, for `sanitizeText`; guard becomes `isAdmin \\|\\| isOwner` |\n| `src/sanitize-c.ts` | same, for `cleanMessage`; guard becomes `!isAdmin`, renamed |\n| `src/policy.ts` | adds `isAdmin` (+ `isOwner`); the three `can*` functions delegate to it |\n| `src/telemetry-a.ts` | deleted (or shim) |\n| `src/telemetry-b.ts` | deleted (or shim) |\n\nBoth duplication findings report `blast_radius_importers: 0` — nothing in this fixture imports these modules, so the shims are optional here. In a real repo they're what makes this landable in one commit; drop them in a follow-up once call sites migrate.\n\n## Public API of the consolidated function\n\n```ts\n// src/sanitize.ts\n\nexport interface SanitizeOptions {\n  /** Truncate to this many chars after whitespace collapse. Default 1000. */\n  maxLength?: number;\n  /** Reject if more than this many runs of 3+ `!`/`?`. Default 5. */\n  maxPunctuationRuns?: number;\n  /** Lowercase when the uppercase ratio exceeds this. Default 0.9. */\n  shoutRatio?: number;\n  /** ...but only for strings longer than this. Default 30. */\n  shoutMinLength?: number;\n}\n\n/**\n * Normalise untrusted text. Returns \"\" for input judged unusable\n * (empty, markup-leading, escape-sequence-bearing, punctuation-spammy).\n */\nexport function sanitize(input: string, options?: SanitizeOptions): string;\n```\n\nDesign notes on that signature:\n\n- **Rejection stays as `\"\"`, not `null` or a thrown error.** All three copies return `\"\"` on every failure path; changing the sentinel is a behaviour change disguised as a cleanup. If callers need to distinguish \"empty input\" from \"rejected input\", add a separate `sanitizeWithReason(): { text: string; rejected?: Reason }` alongside — don't reshape the existing return.\n- **Options are optional and defaulted to today's constants**, so every existing call site is a drop-in with zero arguments. The parameterisation exists so the next tuning request edits one default instead of three literals.\n- **Keep the `null`/`undefined` guard and the `String(...)` coercion** even though the parameter is typed `string`. The type says these are unreachable; the three authors independently disagreed. Removing them is a runtime behaviour change at any un-typechecked boundary — do it separately, if at all.\n- **Write the control-char class explicitly as `/[\\x00-\\x1f]/g`.** In the current source it's raw `\\0`–`\\037` bytes inside the literal (verified with `od -c`), which renders as an innocuous-looking `[ -]` in most diffs and review tools. That's a genuine agent-risk footgun: an LLM reading the file sees a space-to-hyphen range and will \"correct\" it.\n- **Telemetry stays out of `sanitize`.** `recordSanitiseEvent(originalLength, sanitisedLength, now?)` remains a separate call, so the sanitiser stays pure and testable without stubbing `console.log`.\n\n**One caveat worth stating:** steps 1 and 2 are mechanical and safe. Step 3 is not — `assertAdminC`'s inversion means the \"obvious\" consolidation is a security regression. If these guards have real call sites in your codebase, verify each one before landing step 3; it's fine to ship 1 and 2 and leave 3 for a reviewed commit of its own.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

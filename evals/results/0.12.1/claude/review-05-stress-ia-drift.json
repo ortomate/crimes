@@ -1,0 +1,72 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T21:51:01.669Z",
+  "run_id": "11b37859-f25d-43cd-8275-a4a2b4962042",
+  "response": "Read the three surfaces plus the route files to verify the scan's claims. The report is directionally right but under-calls its most important finding.\n\n## The drift, grouped by what's actually wrong\n\n**1. One destination, three role tokens — and the guard leaks (`crime_00002`)**\n\nThe scan calls this medium/0.7 naming drift. It's more than that. `src/routes/admin.ts:4` exports `requiredRole = \"owner\"`, but the function below it doesn't honor its own contract:\n\n```ts\n// src/routes/admin.ts:9\nif (currentUser.role === \"manager\") return { ok: true, legacy: true };\nif (currentUser.role !== \"owner\") return null;\n```\n\nA manager gets `{ok: true}` before the owner check ever runs. Meanwhile `src/nav.ts:10` renders the Admin Console link for `role: \"admin\"`, and `docs/routes.md:14` tells readers it's \"reachable only by a manager\" — which is the one claim that accidentally describes the *actual* behaviour of the stale branch. Three tokens isn't a vocabulary problem here; it's an access-control bypass with a paper trail explaining why nobody noticed.\n\n**2. Every nav link except /admin points at a route that doesn't exist**\n\ncrimes surfaces this from one side only — `/organisation` and `/workspace` reported as orphans (`crime_00009`, `crime_00010`). The other side is worse: `src/nav.ts` links `/workspaces` and `/organisations` (plural), and the route modules are `workspace.ts` and `organisation.ts` (singular). Only `/teams` lines up. So three of four nav entries are dead links, and the scan has no finding that says so directly — you have to invert the orphan findings to see it.\n\n**3. Docs describe a fourth naming convention**\n\n`docs/routes.md` uses `/team`, `/workspace`, `/organisation`, `/billing-plan` — singular throughout, matching neither nav (plural) nor the files consistently, and `/billing-plan` matches nothing at all. crimes flagged only the `/admin` link (`crime_00005`) because the others are in backticks rather than markdown links. Not a false negative in the detector's terms, but don't read \"1 broken link\" as \"1 wrong path.\"\n\n**4. Tenant concept has five surface forms (`crime_00003`)** — `teams`/`workspace`/`organisation` as routes, `Teams`/`Workspaces`/`Organisations` as nav labels, singular everything in docs. Accurate finding, correctly medium.\n\n**5. Both billing-plans routes are dead (`crime_00004`, `crime_00007`, `crime_00008`)** — the parallel-destination finding is real but its stated risk (\"an agent updating one flow will miss the parallel one\") doesn't apply, because *neither* is reachable. This is duplicated dead code, not a live split journey. Downgrade it.\n\n**6. `crime_00011` and `crime_00012` are the same finding twice** — `action_label_drift.js` and `copy_ia_drift.js` emit identical summary, evidence, and scores for the archive/delete/remove group. The report says 12 findings; there are 11 distinct issues.\n\n## Blocking vs follow-up\n\n| | Finding | Why |\n|---|---|---|\n| **Blocking** | `crime_00002` /admin permission drift | Verified privilege bypass at `admin.ts:9`, not just drift. Delete the legacy `manager` branch, make `requiredRole` the single read, drive nav's `role` attr from it. |\n| **Blocking** | Nav → route mismatch (`crime_00009`, `crime_00010`) | Three of four nav links 404 for real users. Pick singular or plural, apply to filenames and hrefs in one commit. |\n| **Blocking** | `crime_00005` + docs role claim | `docs/routes.md:14` asserts manager-only, which is wrong the moment you fix #1. Fix it in the same change or you've documented the bug. |\n| Follow-up | `crime_00003` concept alias drift | Needs a naming *decision* before a rename; cross-cutting, medium-risk, doesn't belong in the same PR as an authz fix. |\n| Follow-up | `crime_00004`/`00007`/`00008` billing-plans | Decide delete-vs-wire. All three collapse into one call: is `/billing-plans` a live surface or not? |\n| Follow-up | `crime_00006` phantom `iaq` subcommands | Cheap. `iaq teams`/`workspace`/`refresh` don't exist (`bin/iaq.ts` ships `list` and `get`). Ride along with the docs pass above since you're already in the file. |\n| Follow-up | `crime_00011`/`00012` label drift | Real but cosmetic relative to the rest. |\n| Follow-up | `crime_00001` missing agent context | Orthogonal to this review, but it's the right home for the canonical-vocabulary decision once #3 is settled — otherwise the drift regrows. |\n\n## One caveat on the report itself\n\n`blast_radius`, `churn`, and `recency` are 0 across all 12 findings, and `test_gap` is a flat 0.5 — there's no git history or importer graph feeding this scan, so ranking collapses to `severity × confidence`. \"0 high findings\" here means the risk model had nothing to escalate with, not that nothing is serious. The one genuinely serious issue in this repo ranks second.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "permission_ia_drift",
+      "crime_00003": "concept_alias_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Permission IA Drift": "permission_ia_drift",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      }
+    ]
+  }
+}
