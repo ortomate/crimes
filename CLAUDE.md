@@ -10,7 +10,7 @@ from `main` via Vercel. See `docs/roadmap.md` for the per-milestone
 status mirror, and `docs/releases/` for in-repo draft release notes.
 
 Workspace layout, test runners, and the per-release procedure are
-canonical in `docs/releasing.md`. `pnpm ci` runs build + typecheck + test
+canonical in `docs/releasing.md`. `pnpm verify` runs build + typecheck + test
 across every workspace package; `pnpm --filter crimes smoke` packs the
 tarball and exercises every CLI command from a clean install.
 

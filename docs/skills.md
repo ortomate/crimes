@@ -22,7 +22,7 @@ Covers:
 
 - Install commands (`npm install -g crimes`, plus the contributor
   `pnpm install` / `pnpm build` flow for working on the monorepo itself)
-- Build / typecheck / test (`pnpm ci`, per-package filters)
+- Build / typecheck / test (`pnpm verify`, per-package filters)
 - The shipped `crimes` commands (`scan` with `--changed [--base <ref>]
   [--fail-on …]`, `context`, `hotspots`, `diff`, `baseline save` /
   `baseline check`, `verdict`) and their JSON flags

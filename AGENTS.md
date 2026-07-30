@@ -52,8 +52,13 @@ workspace healthy" check — run them after any non-trivial change.
 pnpm build       # tsup across every package
 pnpm typecheck   # tsc --noEmit across every package
 pnpm test        # vitest run across every package
-pnpm ci          # all three, sequentially (matches CI)
+pnpm verify      # all three, sequentially (matches CI)
 ```
+
+Note: it is `pnpm verify`, not `pnpm ci`. pnpm reserves `ci` as a
+built-in command, so `pnpm ci` fails with
+`ERR_PNPM_CI_NOT_IMPLEMENTED` and never reaches the workspace script.
+`pnpm run ci` still works as an alias.
 
 Per-package work:
 
@@ -258,8 +263,9 @@ These are non-negotiable inside this repo:
 7. **Treat the JSON schema as a public API.** New optional fields are OK;
    removing or repurposing existing ones is a breaking change requiring a
    `schema_version` bump.
-8. **Run `pnpm ci` before declaring work complete.** Build + typecheck +
-   test must all pass.
+8. **Run `pnpm verify` before declaring work complete.** Build +
+   typecheck + test must all pass. (Not `pnpm ci` — pnpm reserves that
+   name.)
 9. **Commit when work is ready** (per the user's global preference in
    `CLAUDE.md`). Don't wait for explicit permission on every logical unit.
    Hold off if changes are mid-refactor, contain secrets, or the user has
