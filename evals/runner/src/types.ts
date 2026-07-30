@@ -62,6 +62,13 @@ export interface ScoreDetail {
   expected: unknown;
   observed: unknown;
   passed: boolean;
+  /**
+   * Set when the check was recorded for transparency but deliberately
+   * excluded from the pass/fail counts — currently only
+   * `referenced_files` entries whose path the scenario prompt already
+   * handed the agent. Carries the reason. Absent on scored details.
+   */
+  skipped?: string;
 }
 
 export interface JudgeQuestionScore {

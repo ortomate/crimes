@@ -36,17 +36,19 @@ export function scoreStructural(
   response: string,
   expected: ExpectedArtifacts,
   scanContext?: ScanContext,
+  prompt?: string,
 ): StructuralScoreResult {
   const details: ScoreDetail[] = [];
   const referenced = extractReferencedDetectorIds(response, scanContext);
 
   pushReferencedFindingsChecks(details, expected, referenced);
-  pushReferencedFilesChecks(details, expected, response);
+  pushReferencedFilesChecks(details, expected, response, prompt);
   pushForbiddenActionsCheck(details, expected, response);
   pushPriorityCheck(details, expected, response, scanContext);
 
-  const passed = details.filter((d) => d.passed).length;
-  const failed = details.length - passed;
+  const scored = details.filter((d) => d.skipped === undefined);
+  const passed = scored.filter((d) => d.passed).length;
+  const failed = scored.length - passed;
   return { passed, failed, details };
 }
 
@@ -69,21 +71,37 @@ function pushReferencedFindingsChecks(
   }
 }
 
+/**
+ * Credit the agent for naming the files a reader should open next.
+ *
+ * Files the scenario prompt already names are recorded but NOT scored.
+ * Restating a path handed to you in the question is evidence about
+ * phrasing, not about whether crimes surfaced the right location — and
+ * over half the expected files across the scenario set are of that
+ * kind ("Use `crimes context src/date.ts`... which helper should you
+ * not copy?"). Scoring them punished correct answers that named the
+ * *function* the prompt actually asked for.
+ */
 function pushReferencedFilesChecks(
   details: ScoreDetail[],
   expected: ExpectedArtifacts,
   response: string,
+  prompt: string | undefined,
 ): void {
   if (!expected.referenced_files || expected.referenced_files.length === 0) return;
   const matched = extractFilePaths(response);
   for (const expectedFile of expected.referenced_files) {
     const passed = matched.has(expectedFile);
-    details.push({
+    const detail: ScoreDetail = {
       check: "referenced_files",
       expected: expectedFile,
       observed: passed ? expectedFile : null,
       passed,
-    });
+    };
+    if (prompt?.includes(expectedFile)) {
+      detail.skipped = "path supplied by the scenario prompt";
+    }
+    details.push(detail);
   }
 }
 

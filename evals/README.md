@@ -158,6 +158,39 @@ fails the build on drift. When you add or change a scenario:
    intent), or shrink the scenario's `expected_artifacts` to match
    what the fixture can legitimately stress.
 
+## What the structural rubric does and does not measure
+
+Two rules exist because violating them produced large, believable,
+wrong numbers. Both were found while investigating an apparent 5-point
+regression in the 0.12.0 baseline that turned out to be measurement
+error in both directions.
+
+**Only the agent's own words are scored.** `codex exec --json` streams
+JSONL — tool invocations, captured tool output, and agent messages all
+interleaved. Scoring raw stdout meant 82–84% of the scored text was
+transcript rather than answer: detector slugs got credited because the
+agent `cat`ed `SKILL.md`, file paths got credited from `rg` output, and
+the `expected_priority` leading-window read the JSONL preamble instead
+of the response. `agents/codex-transcript.ts` reduces the stream to
+`agent_message` events before scoring. The `claude` runner was never
+affected (`--output-format json` yields one envelope), so agent-vs-agent
+comparisons before this fix were not like-for-like.
+
+**Paths the prompt supplies are not scored.** Over half the
+`referenced_files` expectations name a file the scenario prompt already
+gave the agent ("Use `crimes context src/date.ts` … which helper should
+you not copy?"). Crediting the agent for restating its own input
+measures phrasing, not whether crimes surfaced the right location — and
+it actively punished correct answers that named the *function* the
+prompt asked for. Those checks are still recorded in `details` with a
+`skipped` reason, but excluded from `passed`/`failed`. Only files the
+agent had to discover count.
+
+When adding a scenario, prefer `referenced_files` entries the agent must
+find. If the prompt names the file, the check will be recorded and
+skipped — that is not a failure, but it does mean the scenario is
+resting entirely on its other checks.
+
 ## What's in the runner
 
 The runner is a private pnpm workspace package (`evals-runner`); it's

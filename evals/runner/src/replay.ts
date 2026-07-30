@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { extractCodexResponse } from "./agents/codex-transcript.js";
 import { buildScanContext, runScan } from "./scan-helpers.js";
 import { scoreStructural } from "./score.js";
 import type {
@@ -79,10 +80,16 @@ async function main(): Promise<void> {
       const scanContext =
         stored.scan_context ??
         (await deriveScanContext(scenario, fixtureDirById, scanContextCache));
+      // Result files written before the codex JSONL fix stored the raw
+      // transcript as `response`. Normalise on read so replays score
+      // the agent's answer, not the tool output it happened to print.
+      // No-op for already-clean responses.
+      const scoredResponse = extractCodexResponse(stored.response);
       const structural = scoreStructural(
-        stored.response,
+        scoredResponse,
         scenario.expected_artifacts,
         scanContext ?? undefined,
+        scenario.prompt,
       );
       const replayed: ScoreResult = {
         scenario: stored.scenario,

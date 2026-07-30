@@ -1,5 +1,6 @@
 import { AgentInvocationError, runProcess } from "./claude.js";
 import type { AgentRunResult, InvokeClaudeOptions } from "./claude.js";
+import { extractCodexResponse } from "./codex-transcript.js";
 
 export type InvokeCodexOptions = InvokeClaudeOptions;
 
@@ -7,9 +8,13 @@ export type InvokeCodexOptions = InvokeClaudeOptions;
  * Shell out to the locally-installed `codex` CLI in non-interactive
  * mode. Authenticates against the user's existing Codex subscription.
  *
- * Wire format: `codex exec --json <prompt>`. The CLI's JSON output is
- * tolerant about field shape; we extract `result` / `output` /
- * `response` and fall back to raw stdout when no envelope is detected.
+ * Wire format: `codex exec --json <prompt>` streams JSONL, one event
+ * per line — not a single envelope. `response` is reduced to the
+ * agent's own messages via {@link extractCodexResponse}; the full
+ * stream is preserved in `transcript` for debugging.
+ *
+ * A single-envelope form (`result` / `output` / `response`) is still
+ * accepted for older CLI versions.
  */
 export async function invokeCodex(
   options: InvokeCodexOptions,
@@ -37,7 +42,10 @@ export async function invokeCodex(
     };
     response = parsed.result ?? parsed.output ?? parsed.response ?? stdout;
   } catch {
-    response = stdout;
+    // Expected on current CLI versions: JSONL is not parseable as one
+    // object. Reduce the stream to the agent's messages rather than
+    // scoring tool output and file dumps as if the agent wrote them.
+    response = extractCodexResponse(stdout);
   }
   return { response, transcript: stdout, stderr, exitCode };
 }

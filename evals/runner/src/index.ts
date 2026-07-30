@@ -213,6 +213,7 @@ async function processOne(args: ProcessOneArgs): Promise<void> {
     agentResult.response,
     item.scenario.expected_artifacts,
     scanContext,
+    item.scenario.prompt,
   );
 
   const result: ScoreResult = {
