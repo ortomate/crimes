@@ -1,0 +1,50 @@
+name: Missed finding
+description: crimes should have flagged something and didn't
+title: "[MISS] one-line summary"
+labels: ["missed-finding", "calibration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: run `crimes scan --explain-coverage`. If the file
+        shows up under "files with only universal coverage", no language
+        pack claimed it — the miss is a coverage gap, not a detector bug.
+        Say so below and we'll treat it as language-pack demand.
+
+  - type: textarea
+    id: code
+    attributes:
+      label: The code that should have been flagged
+      description: Smallest snippet that reproduces the miss.
+      render: typescript
+    validations:
+      required: true
+
+  - type: textarea
+    id: risk
+    attributes:
+      label: What could go wrong when this changes
+      description: |
+        crimes reports change risk and agent risk, not style. What would
+        a human or coding agent get wrong when editing this?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: coverage
+    attributes:
+      label: Did --explain-coverage claim this file?
+      options:
+        - "Yes — a language pack claimed it"
+        - "No — universal coverage only"
+        - "Haven't checked"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: crimes version
+      placeholder: 0.12.1
+    validations:
+      required: true

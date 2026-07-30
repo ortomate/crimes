@@ -1,0 +1,47 @@
+name: Bug report
+description: A crash, wrong output, or broken command
+title: "one-line summary"
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include the exact command and its output.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: crimes version
+      description: Output of `crimes --version`.
+      placeholder: 0.12.1
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      description: Output of `node --version`.
+      placeholder: v22.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: crimes.config.json
+      description: If you have one, and it's relevant.
+      render: json
+    validations:
+      required: false
