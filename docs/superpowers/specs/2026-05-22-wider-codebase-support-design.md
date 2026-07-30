@@ -328,8 +328,12 @@ type ScanReport = {
     files_total: number;
     files_by_language: Record<string, number>;
     files_universal_only: number;
-    files_skipped: number;
-    packs_loaded: string[];
+    // `files_skipped` was specified here but cut before 0.12.0 shipped:
+    // computing it faithfully ("files excluded by config or default
+    // rules") means globbing without the ignore list, i.e. walking
+    // node_modules on every scan. It was never implemented — the field
+    // was hardcoded to 0. Do not reintroduce it without a cheap source.
+    packs_loaded: string[];     // always led by "universal"
     by_package?: Array<{        // 0.14.0
       path: string;
       files_total: number;

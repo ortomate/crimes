@@ -26,6 +26,13 @@ export const JS_EXTENSIONS = [
 export interface LanguagePackRouter {
   claims(pack: Pack, absolutePath: string): boolean;
   claimingPack(absolutePath: string): Pack | undefined;
+  /**
+   * Language packs registered for this scan, in registration order.
+   * Excludes `universal` — the universal pack claims every file and
+   * never registers extensions. Callers that report which packs *ran*
+   * (e.g. `ScanReport.coverage.packs_loaded`) must add it back.
+   */
+  registeredPacks(): readonly Pack[];
 }
 
 const packExtensions = new Map<Pack, Set<string>>();
@@ -61,6 +68,9 @@ export function resolveLanguagePackRouter(): LanguagePackRouter {
         if (exts.has(ext)) return pack;
       }
       return undefined;
+    },
+    registeredPacks() {
+      return [...snapshot.keys()];
     },
   };
 }

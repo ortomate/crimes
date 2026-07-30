@@ -874,8 +874,7 @@ describe("scan — ScanReport.coverage", () => {
       expect(report.coverage?.files_total).toBe(5);
       expect(report.coverage?.files_by_language).toEqual({ js: 2 });
       expect(report.coverage?.files_universal_only).toBe(3);
-      expect(report.coverage?.files_skipped).toBe(0);
-      expect(report.coverage?.packs_loaded).toEqual(["language-js"]);
+      expect(report.coverage?.packs_loaded).toEqual(["universal", "language-js"]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

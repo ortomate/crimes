@@ -180,9 +180,13 @@ interface ScanCoverage {
   files_by_language: Record<string, number>;
   /** Files that no language pack claimed (universal-pack coverage only). */
   files_universal_only: number;
-  /** Files excluded from the scan by config or default rules. */
-  files_skipped: number;
-  /** Pack IDs loaded this run, e.g. `["language-js"]`. */
+  /**
+   * Pack IDs that ran this scan, always led by `"universal"` — e.g.
+   * `["universal", "language-js"]`. Derived from the language-pack
+   * router, so it reflects what actually executed rather than what was
+   * configured. The universal pack claims every file, so a repo with no
+   * matching language pack still reports `["universal"]`.
+   */
   packs_loaded: string[];
 }
 ```

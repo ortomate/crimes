@@ -279,9 +279,11 @@ export interface ScanReport {
     files_by_language: Record<string, number>;
     /** Files no language pack claimed (universal pack ran on them). */
     files_universal_only: number;
-    /** Files explicitly excluded by config + .gitignore. Always 0 here. */
-    files_skipped: number;
-    /** Pack ids loaded at scan time, e.g. `["language-js"]` in 0.12.0. */
+    /**
+     * Pack ids that ran, always led by `"universal"` — e.g.
+     * `["universal", "language-js"]`. Derived from the language-pack
+     * router, so this reflects what actually executed.
+     */
     packs_loaded: string[];
   };
 }

@@ -36,7 +36,7 @@
         "test_gap": 1,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -76,7 +76,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -115,7 +115,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -130,46 +130,6 @@
     },
     {
       "id": "crime_00004",
-      "type": "timezone_unsafe_parse",
-      "charge": "Timezone Roulette",
-      "severity": "medium",
-      "confidence": 0.9,
-      "file": "src/date.ts",
-      "lines": [
-        29,
-        33
-      ],
-      "summary": "2 `new Date(\"…\")` calls parsing a string with no timezone marker. The runtime applies its own timezone, which is rarely the one the literal author had in mind.",
-      "evidence": [
-        "unsafe literals: \"2026-12-25T07:00:00\", \"2026-12-20\"",
-        "lines: 29, 33",
-        "add `Z` for UTC, `±HH:MM` for an offset, or parse through a timezone-aware library"
-      ],
-      "effort": "small",
-      "fix_shape": "parse with explicit timezone; reject ambiguous inputs",
-      "scores": {
-        "severity": 0.6,
-        "confidence": 0.9,
-        "agent_risk": 0.56,
-        "churn": 0.15,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_importers": 0,
-        "recency": 1
-      },
-      "suggested_actions": [
-        {
-          "kind": "fix_timezone_parse",
-          "description": "Append `Z` (UTC) or `±HH:MM` to the literal, or parse through a library that mandates an explicit zone.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "timezone_unsafe_parse.js",
-      "tier": "domain"
-    },
-    {
-      "id": "crime_00005",
       "type": "large_function",
       "charge": "God Function",
       "severity": "high",
@@ -196,7 +156,7 @@
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.83
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -210,52 +170,47 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00006",
-      "type": "concept_alias_drift",
-      "charge": "Concept Alias Drift",
+      "id": "crime_00005",
+      "type": "timezone_unsafe_parse",
+      "charge": "Timezone Roulette",
       "severity": "medium",
-      "confidence": 0.75,
-      "file": "docs/billing.md",
-      "summary": "4 aliases from the \"tenant\" concept group appear across 5 files. An agent extending one vocabulary may duplicate logic that already exists under another name.",
+      "confidence": 0.9,
+      "file": "src/date.ts",
+      "lines": [
+        29,
+        33
+      ],
+      "summary": "2 `new Date(\"…\")` calls parsing a string with no timezone marker. The runtime applies its own timezone, which is rarely the one the literal author had in mind.",
       "evidence": [
-        "alias group: tenant",
-        "aliases found: account, organisation, team, workspace",
-        "\"account\" in 2 file(s): docs/billing.md, src/routes/account/subscription.tsx",
-        "\"organisation\" in 2 file(s): docs/teams.md, src/routes/team/index.tsx",
-        "\"team\" in 2 file(s): docs/teams.md, src/routes/team/index.tsx",
-        "\"workspace\" in 2 file(s): docs/teams.md, src/routes/workspace/members.tsx"
+        "unsafe literals: \"2026-12-25T07:00:00\", \"2026-12-20\"",
+        "lines: 29, 33",
+        "add `Z` for UTC, `±HH:MM` for an offset, or parse through a timezone-aware library"
       ],
       "effort": "small",
-      "fix_shape": "rename the alias to match the canonical term; one term per concept",
+      "fix_shape": "parse with explicit timezone; reject ambiguous inputs",
       "scores": {
-        "severity": 0.55,
-        "confidence": 0.75,
-        "agent_risk": 0.59,
-        "churn": 0.05,
-        "test_gap": 1,
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.56,
+        "churn": 0.15,
+        "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.75
+        "recency": 0
       },
       "suggested_actions": [
         {
-          "kind": "consolidate_concept",
-          "description": "Pick or document the canonical term, and use aliases deliberately rather than accidentally.",
-          "risk": "medium"
+          "kind": "fix_timezone_parse",
+          "description": "Append `Z` (UTC) or `±HH:MM` to the literal, or parse through a library that mandates an explicit zone.",
+          "risk": "low"
         }
       ],
-      "related_files": [
-        "docs/teams.md",
-        "src/routes/account/subscription.tsx",
-        "src/routes/team/index.tsx",
-        "src/routes/workspace/members.tsx"
-      ],
       "pack": "language-js",
-      "detector_id": "concept_alias_drift.js",
+      "detector_id": "timezone_unsafe_parse.js",
       "tier": "domain"
     },
     {
-      "id": "crime_00007",
+      "id": "crime_00006",
       "type": "missing_agent_context",
       "charge": "Missing Agent Context",
       "severity": "medium",
@@ -279,7 +234,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -293,7 +248,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00008",
+      "id": "crime_00007",
       "type": "hardcoded_localhost",
       "charge": "Dev-Server URL",
       "severity": "medium",
@@ -319,7 +274,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -333,7 +288,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00009",
+      "id": "crime_00008",
       "type": "hardcoded_local_path",
       "charge": "Localhost-on-Disk",
       "severity": "medium",
@@ -359,7 +314,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -373,7 +328,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00010",
+      "id": "crime_00009",
       "type": "dst_naive_arithmetic",
       "charge": "DST-Naive Day Math",
       "severity": "medium",
@@ -399,7 +354,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -410,6 +365,51 @@
       ],
       "pack": "language-js",
       "detector_id": "dst_naive_arithmetic.js",
+      "tier": "domain"
+    },
+    {
+      "id": "crime_00010",
+      "type": "magic_domain_literal_scatter",
+      "charge": "String Sprinkles",
+      "severity": "medium",
+      "confidence": 0.85,
+      "file": "src/api/plan.ts",
+      "lines": [
+        2,
+        2
+      ],
+      "summary": "Domain literal \"enterprise\" appears in 4 production files across 4 areas. Repeated literals often become duplicated policy.",
+      "evidence": [
+        "literal: \"enterprise\"",
+        "appears in 4 production files across src, src/api, src/jobs, src/ui",
+        "representative files: src/api/plan.ts:2, src/billing.ts:7, src/jobs/plan-sync.ts:2, src/ui/pricing.ts:2"
+      ],
+      "effort": "small",
+      "fix_shape": "promote the literal to a named constant in one module",
+      "scores": {
+        "severity": 0.5,
+        "confidence": 0.85,
+        "agent_risk": 0.53,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "centralise_domain_literal",
+          "description": "Move the literal to a named constant, enum, schema, registry, or policy module before adding another copy.",
+          "risk": "medium"
+        }
+      ],
+      "related_files": [
+        "src/billing.ts",
+        "src/jobs/plan-sync.ts",
+        "src/ui/pricing.ts"
+      ],
+      "pack": "language-js",
+      "detector_id": "magic_domain_literal_scatter.js",
       "tier": "domain"
     },
     {
@@ -436,7 +436,7 @@
         "test_gap": 1,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -451,6 +451,51 @@
     },
     {
       "id": "crime_00012",
+      "type": "concept_alias_drift",
+      "charge": "Concept Alias Drift",
+      "severity": "medium",
+      "confidence": 0.75,
+      "file": "docs/billing.md",
+      "summary": "4 aliases from the \"tenant\" concept group appear across 5 files. An agent extending one vocabulary may duplicate logic that already exists under another name.",
+      "evidence": [
+        "alias group: tenant",
+        "aliases found: account, organisation, team, workspace",
+        "\"account\" in 2 file(s): docs/billing.md, src/routes/account/subscription.tsx",
+        "\"organisation\" in 2 file(s): docs/teams.md, src/routes/team/index.tsx",
+        "\"team\" in 2 file(s): docs/teams.md, src/routes/team/index.tsx",
+        "\"workspace\" in 2 file(s): docs/teams.md, src/routes/workspace/members.tsx"
+      ],
+      "effort": "small",
+      "fix_shape": "rename the alias to match the canonical term; one term per concept",
+      "scores": {
+        "severity": 0.55,
+        "confidence": 0.75,
+        "agent_risk": 0.51,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "consolidate_concept",
+          "description": "Pick or document the canonical term, and use aliases deliberately rather than accidentally.",
+          "risk": "medium"
+        }
+      ],
+      "related_files": [
+        "docs/teams.md",
+        "src/routes/account/subscription.tsx",
+        "src/routes/team/index.tsx",
+        "src/routes/workspace/members.tsx"
+      ],
+      "pack": "language-js",
+      "detector_id": "concept_alias_drift.js",
+      "tier": "domain"
+    },
+    {
+      "id": "crime_00013",
       "type": "raster_should_be_vector",
       "charge": "Icon-Sized Raster",
       "severity": "low",
@@ -472,7 +517,7 @@
         "test_gap": 1,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -486,86 +531,85 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00013",
-      "type": "magic_domain_literal_scatter",
-      "charge": "String Sprinkles",
+      "id": "crime_00014",
+      "type": "duplicated_navigation_source",
+      "charge": "Duplicated Navigation Source",
       "severity": "medium",
-      "confidence": 0.85,
-      "file": "src/api/plan.ts",
-      "lines": [
-        2,
-        2
-      ],
-      "summary": "Domain literal \"enterprise\" appears in 4 production files across 4 areas. Repeated literals often become duplicated policy.",
+      "confidence": 0.7,
+      "file": "src/nav/registry.ts",
+      "summary": "Destination /settings/billing appears in 2 nav source files with 2 different labels. An agent updating one source will leave the others stale.",
       "evidence": [
-        "literal: \"enterprise\"",
-        "appears in 4 production files across src, src/api, src/jobs, src/ui",
-        "representative files: src/api/plan.ts:2, src/billing.ts:7, src/jobs/plan-sync.ts:2, src/ui/pricing.ts:2"
+        "destination: /settings/billing",
+        "src/nav/registry.ts label: Plans",
+        "src/nav/sidebar.ts label: Billing"
       ],
       "effort": "small",
-      "fix_shape": "promote the literal to a named constant in one module",
+      "fix_shape": "single source of truth for nav; routes derive from it",
       "scores": {
-        "severity": 0.5,
-        "confidence": 0.85,
-        "agent_risk": 0.53,
+        "severity": 0.6,
+        "confidence": 0.7,
+        "agent_risk": 0.5,
         "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.83
+        "recency": 0
       },
       "suggested_actions": [
         {
-          "kind": "centralise_domain_literal",
-          "description": "Move the literal to a named constant, enum, schema, registry, or policy module before adding another copy.",
+          "kind": "consolidate_nav_source",
+          "description": "Move destination metadata into one source of truth or document which nav file is canonical.",
           "risk": "medium"
         }
       ],
       "related_files": [
-        "src/billing.ts",
-        "src/jobs/plan-sync.ts",
-        "src/ui/pricing.ts"
+        "src/nav/sidebar.ts"
       ],
       "pack": "language-js",
-      "detector_id": "magic_domain_literal_scatter.js",
+      "detector_id": "duplicated_navigation_source.js",
       "tier": "domain"
     },
     {
-      "id": "crime_00014",
-      "type": "docs_code_drift",
-      "charge": "Docs-Code Drift",
-      "severity": "low",
-      "confidence": 0.9,
-      "file": "docs/teams.md",
-      "summary": "1 local link in docs/teams.md point at file(s) that do not exist on disk. Agents reading this doc may follow stale instructions.",
+      "id": "crime_00015",
+      "type": "todo_density",
+      "charge": "Unfinished Business",
+      "severity": "medium",
+      "confidence": 0.7,
+      "file": "src/todo.ts",
+      "lines": [
+        1,
+        32
+      ],
+      "summary": "14 TODO/FIXME markers (411.8 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.",
       "evidence": [
-        "docs/teams.md:5 → ./setup.md (not found)"
+        "6× TODO, 4× FIXME, 2× HACK, 2× XXX",
+        "411.8 markers per 1k LOC (threshold 10)"
       ],
       "effort": "small",
-      "fix_shape": "sync the doc to the code, or move the assertion into a test",
+      "fix_shape": "convert TODOs to tickets or delete; comments are not tracking",
       "scores": {
-        "severity": 0.35,
-        "confidence": 0.9,
-        "agent_risk": 0.52,
+        "severity": 0.4,
+        "confidence": 0.7,
+        "agent_risk": 0.5,
         "churn": 0.05,
-        "test_gap": 1,
+        "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.75
+        "recency": 0
       },
       "suggested_actions": [
         {
-          "kind": "fix_doc_link",
-          "description": "Update the docs or restore the referenced file so agents do not follow stale instructions.",
+          "kind": "triage_todos",
+          "description": "Convert each marker into a tracked issue or remove it. Lingering TODOs mislead humans and agents about which behaviour is intentional.",
           "risk": "low"
         }
       ],
       "pack": "universal",
-      "detector_id": "docs_code_drift",
+      "detector_id": "todo_density",
       "tier": "domain"
     },
     {
-      "id": "crime_00016",
+      "id": "crime_00017",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "medium",
@@ -591,7 +635,7 @@
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.83
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -605,126 +649,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00017",
-      "type": "duplicated_navigation_source",
-      "charge": "Duplicated Navigation Source",
-      "severity": "medium",
-      "confidence": 0.7,
-      "file": "src/nav/registry.ts",
-      "summary": "Destination /settings/billing appears in 2 nav source files with 2 different labels. An agent updating one source will leave the others stale.",
-      "evidence": [
-        "destination: /settings/billing",
-        "src/nav/registry.ts label: Plans",
-        "src/nav/sidebar.ts label: Billing"
-      ],
-      "effort": "small",
-      "fix_shape": "single source of truth for nav; routes derive from it",
-      "scores": {
-        "severity": 0.6,
-        "confidence": 0.7,
-        "agent_risk": 0.5,
-        "churn": 0.05,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_importers": 0,
-        "recency": 0.75
-      },
-      "suggested_actions": [
-        {
-          "kind": "consolidate_nav_source",
-          "description": "Move destination metadata into one source of truth or document which nav file is canonical.",
-          "risk": "medium"
-        }
-      ],
-      "related_files": [
-        "src/nav/sidebar.ts"
-      ],
-      "pack": "language-js",
-      "detector_id": "duplicated_navigation_source.js",
-      "tier": "domain"
-    },
-    {
       "id": "crime_00018",
-      "type": "date_string_concat",
-      "charge": "Date String Sewing",
-      "severity": "low",
-      "confidence": 0.85,
-      "file": "src/date.ts",
-      "lines": [
-        41,
-        41
-      ],
-      "summary": "1 hand-rolled string concatenation using Date methods. Manual formatting routinely drops zero-padding, timezone, or zero-indexed month handling.",
-      "evidence": [
-        "`\"…\" + .getUTCFullYear()` @L41",
-        "lines: 41",
-        "use `toISOString()` or `Intl.DateTimeFormat` instead of `+`-concatenation"
-      ],
-      "effort": "small",
-      "fix_shape": "format dates via a single helper; never concatenate fragments",
-      "scores": {
-        "severity": 0.3,
-        "confidence": 0.85,
-        "agent_risk": 0.45,
-        "churn": 0.15,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_importers": 0,
-        "recency": 1
-      },
-      "suggested_actions": [
-        {
-          "kind": "use_iso_or_intl",
-          "description": "Replace the concatenation with `d.toISOString()`, `Intl.DateTimeFormat(locale, opts).format(d)`, or a timezone-aware library's formatter.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "date_string_concat.js",
-      "tier": "domain"
-    },
-    {
-      "id": "crime_00019",
-      "type": "locale_drift",
-      "charge": "Host-Locale Drift",
-      "severity": "low",
-      "confidence": 0.85,
-      "file": "src/date.ts",
-      "lines": [
-        46,
-        46
-      ],
-      "summary": "1 `toLocale*()` call with no locale argument. Output varies by the runtime's default locale, not by anything the code controls.",
-      "evidence": [
-        "due.toLocaleDateString() @L46",
-        "lines: 46",
-        "pass an explicit locale (e.g. `'en-US'`) or use Intl.DateTimeFormat"
-      ],
-      "effort": "small",
-      "fix_shape": "centralise locale; one provider for all formatters",
-      "scores": {
-        "severity": 0.3,
-        "confidence": 0.85,
-        "agent_risk": 0.45,
-        "churn": 0.15,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_importers": 0,
-        "recency": 1
-      },
-      "suggested_actions": [
-        {
-          "kind": "fix_locale_arg",
-          "description": "Pass an explicit BCP-47 locale string, or move to `Intl.DateTimeFormat` with locale + options.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "locale_drift.js",
-      "tier": "domain"
-    },
-    {
-      "id": "crime_00020",
       "type": "route_metadata_drift",
       "charge": "Route Metadata Drift",
       "severity": "medium",
@@ -750,7 +675,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.75
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -768,46 +693,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00021",
-      "type": "todo_density",
-      "charge": "Unfinished Business",
-      "severity": "medium",
-      "confidence": 0.7,
-      "file": "src/todo.ts",
-      "lines": [
-        1,
-        32
-      ],
-      "summary": "14 TODO/FIXME markers (411.8 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.",
-      "evidence": [
-        "6× TODO, 4× FIXME, 2× HACK, 2× XXX",
-        "411.8 markers per 1k LOC (threshold 10)"
-      ],
-      "effort": "small",
-      "fix_shape": "convert TODOs to tickets or delete; comments are not tracking",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.7,
-        "agent_risk": 0.5,
-        "churn": 0.05,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_importers": 0,
-        "recency": 0.69
-      },
-      "suggested_actions": [
-        {
-          "kind": "triage_todos",
-          "description": "Convert each marker into a tracked issue or remove it. Lingering TODOs mislead humans and agents about which behaviour is intentional.",
-          "risk": "low"
-        }
-      ],
-      "pack": "universal",
-      "detector_id": "todo_density",
-      "tier": "domain"
-    },
-    {
-      "id": "crime_00022",
+      "id": "crime_00019",
       "type": "name_behavior_mismatch",
       "charge": "False Identity",
       "severity": "medium",
@@ -834,7 +720,7 @@
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.83
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -848,7 +734,240 @@
       "tier": "domain"
     },
     {
+      "id": "crime_00020",
+      "type": "weak_test_signal",
+      "charge": "Test That Proves Nothing",
+      "severity": "medium",
+      "confidence": 0.88,
+      "file": "src/billing.test.ts",
+      "lines": [
+        4,
+        6
+      ],
+      "summary": "Test \"renders the enterprise plan\" contains no expect/assert calls. A test that only runs setup gives agents false confidence.",
+      "evidence": [
+        "test: \"renders the enterprise plan\"",
+        "0 expect/assert calls",
+        "lines 4-6"
+      ],
+      "effort": "small",
+      "fix_shape": "assert behaviour, not implementation; remove no-op assertions",
+      "scores": {
+        "severity": 0.45,
+        "confidence": 0.88,
+        "agent_risk": 0.46,
+        "churn": 0.05,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "assert_observable_behaviour",
+          "description": "Assert the observable behaviour this test is meant to protect, or delete the test if it only exercises setup.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "weak_test_signal.js",
+      "tier": "nonDomain"
+    },
+    {
+      "id": "crime_00021",
+      "type": "large_file",
+      "charge": "God File",
+      "severity": "medium",
+      "confidence": 0.71,
+      "file": "src/billing.ts",
+      "lines": [
+        1,
+        311
+      ],
+      "summary": "File is 311 lines (threshold 300). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.",
+      "evidence": [
+        "311 non-empty lines",
+        "1.0× the configured 300-line threshold"
+      ],
+      "effort": "medium",
+      "fix_shape": "split by responsibility; one concern per module",
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.71,
+        "agent_risk": 0.45,
+        "churn": 0.2,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "split_file",
+          "description": "Split along clear responsibility boundaries. Smaller modules give humans and agents a smaller surface to reason about per edit.",
+          "risk": "medium"
+        }
+      ],
+      "pack": "universal",
+      "detector_id": "large_file",
+      "tier": "domain"
+    },
+    {
+      "id": "crime_00022",
+      "type": "logic_in_comments",
+      "charge": "Logic in the Alibi",
+      "severity": "medium",
+      "confidence": 0.71,
+      "file": "src/billing.ts",
+      "lines": [
+        39,
+        39
+      ],
+      "summary": "Comment appears to carry a rule that nearby code does not obviously encode. Hidden prose rules are easy for agents and new maintainers to miss.",
+      "evidence": [
+        "comment says: \"Only owners can refund enterprise plans unless billing support approves.\"",
+        "rule terms: only, unless",
+        "domain terms not found nearby: owner, plan, billing"
+      ],
+      "effort": "small",
+      "fix_shape": "lift the prose rule to an assert / type / test / config check",
+      "scores": {
+        "severity": 0.5,
+        "confidence": 0.71,
+        "agent_risk": 0.45,
+        "churn": 0.2,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "encode_comment_rule",
+          "description": "Move the rule into a named guard, type, config value, or test; keep comments for rationale.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "logic_in_comments.js",
+      "tier": "domain"
+    },
+    {
       "id": "crime_00023",
+      "type": "date_string_concat",
+      "charge": "Date String Sewing",
+      "severity": "low",
+      "confidence": 0.85,
+      "file": "src/date.ts",
+      "lines": [
+        41,
+        41
+      ],
+      "summary": "1 hand-rolled string concatenation using Date methods. Manual formatting routinely drops zero-padding, timezone, or zero-indexed month handling.",
+      "evidence": [
+        "`\"…\" + .getUTCFullYear()` @L41",
+        "lines: 41",
+        "use `toISOString()` or `Intl.DateTimeFormat` instead of `+`-concatenation"
+      ],
+      "effort": "small",
+      "fix_shape": "format dates via a single helper; never concatenate fragments",
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.85,
+        "agent_risk": 0.45,
+        "churn": 0.15,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "use_iso_or_intl",
+          "description": "Replace the concatenation with `d.toISOString()`, `Intl.DateTimeFormat(locale, opts).format(d)`, or a timezone-aware library's formatter.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "date_string_concat.js",
+      "tier": "domain"
+    },
+    {
+      "id": "crime_00024",
+      "type": "locale_drift",
+      "charge": "Host-Locale Drift",
+      "severity": "low",
+      "confidence": 0.85,
+      "file": "src/date.ts",
+      "lines": [
+        46,
+        46
+      ],
+      "summary": "1 `toLocale*()` call with no locale argument. Output varies by the runtime's default locale, not by anything the code controls.",
+      "evidence": [
+        "due.toLocaleDateString() @L46",
+        "lines: 46",
+        "pass an explicit locale (e.g. `'en-US'`) or use Intl.DateTimeFormat"
+      ],
+      "effort": "small",
+      "fix_shape": "centralise locale; one provider for all formatters",
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.85,
+        "agent_risk": 0.45,
+        "churn": 0.15,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "fix_locale_arg",
+          "description": "Pass an explicit BCP-47 locale string, or move to `Intl.DateTimeFormat` with locale + options.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "locale_drift.js",
+      "tier": "domain"
+    },
+    {
+      "id": "crime_00025",
+      "type": "docs_code_drift",
+      "charge": "Docs-Code Drift",
+      "severity": "low",
+      "confidence": 0.9,
+      "file": "docs/teams.md",
+      "summary": "1 local link in docs/teams.md point at file(s) that do not exist on disk. Agents reading this doc may follow stale instructions.",
+      "evidence": [
+        "docs/teams.md:5 → ./setup.md (not found)"
+      ],
+      "effort": "small",
+      "fix_shape": "sync the doc to the code, or move the assertion into a test",
+      "scores": {
+        "severity": 0.35,
+        "confidence": 0.9,
+        "agent_risk": 0.44,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "fix_doc_link",
+          "description": "Update the docs or restore the referenced file so agents do not follow stale instructions.",
+          "risk": "low"
+        }
+      ],
+      "pack": "universal",
+      "detector_id": "docs_code_drift",
+      "tier": "domain"
+    },
+    {
+      "id": "crime_00026",
       "type": "sync_io_in_hotpath",
       "charge": "Sync I/O in Hot Path",
       "severity": "low",
@@ -876,7 +995,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -890,7 +1009,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00024",
+      "id": "crime_00027",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "low",
@@ -916,7 +1035,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -927,125 +1046,6 @@
       ],
       "pack": "language-js",
       "detector_id": "direct_date.js",
-      "tier": "domain"
-    },
-    {
-      "id": "crime_00025",
-      "type": "weak_test_signal",
-      "charge": "Test That Proves Nothing",
-      "severity": "medium",
-      "confidence": 0.88,
-      "file": "src/billing.test.ts",
-      "lines": [
-        4,
-        6
-      ],
-      "summary": "Test \"renders the enterprise plan\" contains no expect/assert calls. A test that only runs setup gives agents false confidence.",
-      "evidence": [
-        "test: \"renders the enterprise plan\"",
-        "0 expect/assert calls",
-        "lines 4-6"
-      ],
-      "effort": "small",
-      "fix_shape": "assert behaviour, not implementation; remove no-op assertions",
-      "scores": {
-        "severity": 0.45,
-        "confidence": 0.88,
-        "agent_risk": 0.46,
-        "churn": 0.05,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_importers": 0,
-        "recency": 0.83
-      },
-      "suggested_actions": [
-        {
-          "kind": "assert_observable_behaviour",
-          "description": "Assert the observable behaviour this test is meant to protect, or delete the test if it only exercises setup.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "weak_test_signal.js",
-      "tier": "nonDomain"
-    },
-    {
-      "id": "crime_00026",
-      "type": "large_file",
-      "charge": "God File",
-      "severity": "medium",
-      "confidence": 0.71,
-      "file": "src/billing.ts",
-      "lines": [
-        1,
-        311
-      ],
-      "summary": "File is 311 lines (threshold 300). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.",
-      "evidence": [
-        "311 non-empty lines",
-        "1.0× the configured 300-line threshold"
-      ],
-      "effort": "medium",
-      "fix_shape": "split by responsibility; one concern per module",
-      "scores": {
-        "severity": 0.6,
-        "confidence": 0.71,
-        "agent_risk": 0.45,
-        "churn": 0.2,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_importers": 0,
-        "recency": 0.83
-      },
-      "suggested_actions": [
-        {
-          "kind": "split_file",
-          "description": "Split along clear responsibility boundaries. Smaller modules give humans and agents a smaller surface to reason about per edit.",
-          "risk": "medium"
-        }
-      ],
-      "pack": "universal",
-      "detector_id": "large_file",
-      "tier": "domain"
-    },
-    {
-      "id": "crime_00027",
-      "type": "logic_in_comments",
-      "charge": "Logic in the Alibi",
-      "severity": "medium",
-      "confidence": 0.71,
-      "file": "src/billing.ts",
-      "lines": [
-        39,
-        39
-      ],
-      "summary": "Comment appears to carry a rule that nearby code does not obviously encode. Hidden prose rules are easy for agents and new maintainers to miss.",
-      "evidence": [
-        "comment says: \"Only owners can refund enterprise plans unless billing support approves.\"",
-        "rule terms: only, unless",
-        "domain terms not found nearby: owner, plan, billing"
-      ],
-      "effort": "small",
-      "fix_shape": "lift the prose rule to an assert / type / test / config check",
-      "scores": {
-        "severity": 0.5,
-        "confidence": 0.71,
-        "agent_risk": 0.45,
-        "churn": 0.2,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_importers": 0,
-        "recency": 0.83
-      },
-      "suggested_actions": [
-        {
-          "kind": "encode_comment_rule",
-          "description": "Move the rule into a named guard, type, config value, or test; keep comments for rationale.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "logic_in_comments.js",
       "tier": "domain"
     },
     {
@@ -1077,7 +1077,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 1
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -1092,46 +1092,6 @@
     },
     {
       "id": "crime_00029",
-      "type": "singular_plural_type_mismatch",
-      "charge": "Plural Mismatch",
-      "severity": "low",
-      "confidence": 0.7,
-      "file": "src/api/state.ts",
-      "lines": [
-        24,
-        27
-      ],
-      "summary": "2 declarations whose plural form disagrees with the annotated type's array shape.",
-      "evidence": [
-        "plural name, singular type: `users: User` @L24",
-        "singular name, array type: `invoice: Invoice[]` @L27",
-        "v1 detector — type aliases and generic types are silently skipped"
-      ],
-      "effort": "quick",
-      "fix_shape": "make the name agree with the type — `users` for array, `user` for scalar",
-      "scores": {
-        "severity": 0.3,
-        "confidence": 0.7,
-        "agent_risk": 0.4,
-        "churn": 0.05,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_importers": 0,
-        "recency": 1
-      },
-      "suggested_actions": [
-        {
-          "kind": "rename_or_reshape",
-          "description": "Rename the variable to match the type's shape, or change the type to match the name. If the project intentionally diverges, add the name to `detectors.options.singular_plural_type_mismatch.allowedNames`.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "singular_plural_type_mismatch.js",
-      "tier": "domain"
-    },
-    {
-      "id": "crime_00030",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -1158,7 +1118,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.83
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -1172,7 +1132,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00031",
+      "id": "crime_00030",
       "type": "option_bag_junk_drawer",
       "charge": "Option Bag Junk Drawer",
       "severity": "low",
@@ -1198,7 +1158,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.83
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -1212,7 +1172,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00032",
+      "id": "crime_00031",
       "type": "return_shape_roulette",
       "charge": "Return Shape Roulette",
       "severity": "low",
@@ -1239,7 +1199,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.83
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -1253,7 +1213,7 @@
       "tier": "domain"
     },
     {
-      "id": "crime_00033",
+      "id": "crime_00032",
       "type": "negative_flag_maze",
       "charge": "Negative Flag Maze",
       "severity": "low",
@@ -1278,7 +1238,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.83
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -1289,6 +1249,46 @@
       ],
       "pack": "language-js",
       "detector_id": "negative_flag_maze.js",
+      "tier": "domain"
+    },
+    {
+      "id": "crime_00033",
+      "type": "singular_plural_type_mismatch",
+      "charge": "Plural Mismatch",
+      "severity": "low",
+      "confidence": 0.7,
+      "file": "src/api/state.ts",
+      "lines": [
+        24,
+        27
+      ],
+      "summary": "2 declarations whose plural form disagrees with the annotated type's array shape.",
+      "evidence": [
+        "plural name, singular type: `users: User` @L24",
+        "singular name, array type: `invoice: Invoice[]` @L27",
+        "v1 detector — type aliases and generic types are silently skipped"
+      ],
+      "effort": "quick",
+      "fix_shape": "make the name agree with the type — `users` for array, `user` for scalar",
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.7,
+        "agent_risk": 0.4,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "rename_or_reshape",
+          "description": "Rename the variable to match the type's shape, or change the type to match the name. If the project intentionally diverges, add the name to `detectors.options.singular_plural_type_mismatch.allowedNames`.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "singular_plural_type_mismatch.js",
       "tier": "domain"
     },
     {
@@ -1315,7 +1315,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.75,
+        "recency": 0,
         "agent_risk": 0.39
       },
       "suggested_actions": [
@@ -1353,7 +1353,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.75,
+        "recency": 0,
         "agent_risk": 0.39
       },
       "suggested_actions": [
@@ -1391,7 +1391,7 @@
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.75,
+        "recency": 0,
         "agent_risk": 0.39
       },
       "suggested_actions": [
@@ -1431,7 +1431,7 @@
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.83
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -1471,7 +1471,7 @@
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0.83
+        "recency": 0
       },
       "suggested_actions": [
         {
@@ -1486,13 +1486,13 @@
     }
   ],
   "coverage": {
-    "files_total": 16,
+    "files_total": 19,
     "files_by_language": {
       "js": 16
     },
-    "files_universal_only": 0,
-    "files_skipped": 0,
+    "files_universal_only": 3,
     "packs_loaded": [
+      "universal",
       "language-js"
     ]
   },

@@ -5,13 +5,12 @@ import { buildCoverageBanner } from "./coverage.js";
 function coverage(
   filesTotal: number,
   universalOnly: number,
-  packs: string[] = ["language-js"],
+  packs: string[] = ["universal", "language-js"],
 ): ScanReport["coverage"] {
   return {
     files_total: filesTotal,
     files_by_language: { js: filesTotal - universalOnly },
     files_universal_only: universalOnly,
-    files_skipped: 0,
     packs_loaded: packs,
   };
 }
@@ -45,5 +44,13 @@ describe("buildCoverageBanner", () => {
   it("labels the no-pack case explicitly", () => {
     const banner = buildCoverageBanner(coverage(100, 100, []));
     expect(banner).toContain("(no language packs loaded)");
+  });
+
+  it("treats a universal-only run as having no language packs", () => {
+    // `packs_loaded` always contains "universal", so the banner must
+    // filter it out rather than reporting it as language coverage.
+    const banner = buildCoverageBanner(coverage(100, 100, ["universal"]));
+    expect(banner).toContain("(no language packs loaded)");
+    expect(banner).not.toContain("universal");
   });
 });

@@ -30,7 +30,7 @@ export function renderCoverageExplain(
   out.write(`  files with only universal coverage: ${coverage.files_universal_only}\n`);
   if (coverage.files_universal_only > 0) {
     const tail =
-      coverage.packs_loaded.length === 0
+      languagePacks(coverage.packs_loaded).length === 0
         ? "Install a language pack to expand coverage."
         : "Install or wait for a language pack that covers these extensions.";
     out.write(
@@ -59,10 +59,11 @@ export function buildCoverageBanner(
   const universalRatio = coverage.files_universal_only / coverage.files_total;
   if (universalRatio <= 0.5) return null;
 
+  const langPacks = languagePacks(coverage.packs_loaded);
   const packsLabel =
-    coverage.packs_loaded.length === 0
+    langPacks.length === 0
       ? "(no language packs loaded)"
-      : `(${coverage.packs_loaded.map(shortPackId).join(", ")})`;
+      : `(${langPacks.map(shortPackId).join(", ")})`;
   const claimedPct = Math.round((1 - universalRatio) * 100);
   return (
     `coverage: ${coverage.files_total} files, ` +
@@ -73,4 +74,14 @@ export function buildCoverageBanner(
 
 function shortPackId(full: string): string {
   return full.replace(/^language-/, "");
+}
+
+/**
+ * `packs_loaded` reports every pack that ran, including `universal`.
+ * Coverage prose is about which *language* packs claimed files, so the
+ * universal pack — which claims everything and explains nothing about
+ * language support — is filtered out before rendering.
+ */
+function languagePacks(packsLoaded: readonly string[]): string[] {
+  return packsLoaded.filter((p) => p.startsWith("language-"));
 }

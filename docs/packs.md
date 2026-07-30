@@ -32,10 +32,15 @@ claimed:
   "files_total": 412,
   "files_by_language": { "js": 412 },
   "files_universal_only": 0,
-  "files_skipped": 0,
-  "packs_loaded": ["language-js"]
+  "packs_loaded": ["universal", "language-js"]
 }
 ```
+
+`packs_loaded` names every pack that ran. The universal pack always
+leads it — it claims every file unconditionally, so a repo no language
+pack recognises still reports `["universal"]`. Coverage prose in the
+human reporter filters it out, because "which language packs claimed
+files" is the question a coverage banner answers.
 
 The human reporter prints a one-line banner when >50% of files
 were unclaimed; `--explain-coverage` prints the full breakdown.

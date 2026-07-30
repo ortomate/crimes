@@ -63,8 +63,7 @@ describe("ScanReport.coverage", () => {
         files_total: 100,
         files_by_language: { js: 80 },
         files_universal_only: 20,
-        files_skipped: 0,
-        packs_loaded: ["language-js"],
+        packs_loaded: ["universal", "language-js"],
       },
     };
     expect(report.coverage?.files_total).toBe(100);

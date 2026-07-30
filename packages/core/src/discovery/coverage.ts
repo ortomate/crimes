@@ -1,7 +1,6 @@
-import { extname } from "node:path";
 import type { ScanReport } from "../finding.js";
 import type { Pack } from "../pack.js";
-import { JS_EXTENSIONS } from "./language-pack-router.js";
+import type { LanguagePackRouter } from "./language-pack-router.js";
 
 type Coverage = NonNullable<ScanReport["coverage"]>;
 
@@ -10,21 +9,28 @@ const PACK_SHORT_ID: Partial<Record<Pack, string>> = {
   "language-py": "py",
 };
 
-const PACK_EXTENSIONS: Partial<Record<Pack, readonly string[]>> = {
-  "language-js": JS_EXTENSIONS,
-  // language-py registers at module-load in 0.13.0.
-};
-
+/**
+ * Roll discovered files into per-language buckets for
+ * `ScanReport.coverage`.
+ *
+ * Pack membership comes from the `LanguagePackRouter` — the same
+ * registry the detector orchestrator routes on — so coverage cannot
+ * drift from what actually ran. A pack that registers extensions at
+ * module load is reported here automatically; there is no second list
+ * to keep in sync.
+ *
+ * `packs_loaded` always leads with `universal`, which claims every file
+ * unconditionally and therefore never appears in the router.
+ */
 export function buildCoverage(args: {
   files: readonly string[];
-  packsLoaded: readonly string[];
+  router: LanguagePackRouter;
 }): Coverage {
   const filesByLanguage: Record<string, number> = {};
   let filesUniversalOnly = 0;
 
   for (const abs of args.files) {
-    const ext = extname(abs).toLowerCase();
-    const claimingPack = pickPack(ext, args.packsLoaded);
+    const claimingPack = args.router.claimingPack(abs);
     if (claimingPack === undefined) {
       filesUniversalOnly += 1;
       continue;
@@ -37,15 +43,6 @@ export function buildCoverage(args: {
     files_total: args.files.length,
     files_by_language: filesByLanguage,
     files_universal_only: filesUniversalOnly,
-    files_skipped: 0,
-    packs_loaded: [...args.packsLoaded],
+    packs_loaded: ["universal", ...args.router.registeredPacks()],
   };
-}
-
-function pickPack(ext: string, packsLoaded: readonly string[]): Pack | undefined {
-  for (const pack of packsLoaded as readonly Pack[]) {
-    const exts = PACK_EXTENSIONS[pack];
-    if (exts?.includes(ext)) return pack;
-  }
-  return undefined;
 }
