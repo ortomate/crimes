@@ -196,6 +196,55 @@ interface ScanCoverage {
    * matching language pack still reports `["universal"]`.
    */
   packs_loaded: string[];
+  /**
+   * Per-package breakdown. Present only when the scan root is a
+   * monorepo — two or more directories carrying a package manifest
+   * (`package.json`, `pyproject.toml`, `setup.py`, `Cargo.toml`,
+   * `go.mod`). Sorted by path. Added in 0.15.0.
+   *
+   * `files_by_language` says a repo is 75% TypeScript; this says which
+   * *package* is the Python one. Presence is itself the "this is a
+   * monorepo" signal — a single-package repo omits the field rather
+   * than reporting one entry that restates the repo total.
+   */
+  by_package?: Array<{
+    /** Repo-relative directory holding the manifest. */
+    path: string;
+    files_total: number;
+    /** Same short-id keying as the top-level `files_by_language`. */
+    files_by_language: Record<string, number>;
+    /**
+     * Short pack id holding a *strict* majority of this package's
+     * files, or `null` when no language reaches one (a genuinely mixed
+     * package) or none is claimed at all.
+     */
+    dominant_language: string | null;
+  }>;
+}
+```
+
+Example on a polyglot monorepo:
+
+```json
+{
+  "files_total": 550,
+  "files_by_language": { "js": 412, "py": 138 },
+  "files_universal_only": 0,
+  "packs_loaded": ["universal", "language-js", "language-py"],
+  "by_package": [
+    {
+      "path": "packages/api",
+      "files_total": 138,
+      "files_by_language": { "py": 138 },
+      "dominant_language": "py"
+    },
+    {
+      "path": "packages/web",
+      "files_total": 412,
+      "files_by_language": { "js": 412 },
+      "dominant_language": "js"
+    }
+  ]
 }
 ```
 
@@ -541,7 +590,10 @@ Which detector pack produced this finding. One of:
   `.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts` files.
 - `"language-py"` — AST evidence via `@crimes/language-py` (0.14.0+).
   Runs only on `.py/.pyi` files.
-- `"cross-language"` — aligns artefacts from ≥2 language packs (0.15.0+).
+- `"cross-language"` — aligns artefacts from ≥2 language packs
+  (0.15.0+). These detectors run once per scan rather than once per
+  file. Their findings still carry a `file` — the anchor a reader
+  would edit first — with the other side in `related_files`.
 
 Required since `schema_version: "0.3.0"`. Distinct from `tier` (the
 scope-tier `"domain" | "nonDomain"` field): `pack` answers "what kind of

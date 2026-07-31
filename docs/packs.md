@@ -13,7 +13,8 @@ read. Each finding carries a `pack` field identifying its origin pack.
 - **`language-py`** (0.14.0) — Requires AST parsing via
   `@crimes/language-py` (tree-sitter-python). Runs only on `.py/.pyi`.
 - **`cross-language`** (0.15.0) — Requires aligning artefacts from
-  two or more language packs. Runs after every per-pack pass.
+  two or more language packs. Runs once per scan, after every per-pack
+  pass.
 
 ## Tier vs pack
 
@@ -162,6 +163,63 @@ Project roots are detected from `pyproject.toml`, `setup.py` and
 `setup.cfg` as well as `package.json`, so running `crimes context` from
 a subdirectory of a Python repo still scans the whole project.
 
+## The cross-language pack
+
+Three detectors, added in 0.15.0. Each one reports a disagreement
+**between** two languages — the findings no single-language tool can
+produce, because neither side's type checker, linter or compiler can
+see the other half.
+
+| detector | the disagreement |
+| --- | --- |
+| `cross_language_route_drift` | the frontend calls a path the backend doesn't serve, or the two disagree on the HTTP method |
+| `cross_language_type_drift` | a closed set (Python `Enum`, TS string-literal union) listed differently on each side |
+| `cross_language_concept_alias_drift` | the same concept named `team` in one language and `workspace` in the other |
+
+### How they run
+
+Unlike every other detector, these run **once per scan** rather than
+once per file — a cross-language finding is by definition about two
+files, so there is no single "current" file. The detector receives the
+whole parsed corpus (`ctx.files`, each entry tagged with its pack) and
+picks its own anchor.
+
+Findings still carry a `file`, because fingerprints are
+`<type>::<file>::<symbol>` and baselines, suppressions, triage and the
+file-grouped report all key off it. The anchor is the file a reader
+would edit first; the rest goes in `related_files`.
+
+### What they will not do
+
+The false-positive surface for a cross-language detector is roughly
+squared — two languages' worth of source to mismatch — so all three are
+deliberately conservative:
+
+- **They never fire one-sided.** Each returns early unless both
+  languages are present with the relevant evidence. In a JS-only repo,
+  "no backend route" for every `fetch` would be noise proportional to
+  the repo's size.
+- **They only use quotable evidence.** A path assembled at runtime
+  (`@app.get(PREFIX + "/users")`, ``fetch(`${base}/users`)``) is
+  skipped on both sides, and a union with any non-literal member
+  (`"free" | string`) is dropped whole rather than captured partially.
+- **They require real overlap before calling something drift.** Two
+  same-named `Status` types sharing no members are different concepts,
+  not a disagreement.
+
+**Matching is on literal strings, not resolved symbols.** A
+cross-language import graph is deferred, so `cross_language_route_drift`
+lines up the path text both sides wrote down. Path parameters are
+normalised, so `/users/{user_id}`, `/users/<int:user_id>`, `/users/:id`
+and ``/users/${id}`` all compare equal. A route or URL that only exists
+at runtime is invisible to it, and the finding's own evidence says so.
+
+One non-obvious behaviour worth knowing: `cross_language_concept_alias_drift`
+reads Python docstrings, so a docstring that uses both names — "the
+team, called a workspace in the UI" — suppresses the finding. That is
+intentional. A codebase that documents its own mapping where a reader
+will find it has this problem far less than one that does not.
+
 ## Coverage
 
 Every `ScanReport.coverage` block reports how many files each pack
@@ -189,3 +247,42 @@ Coverage is derived from the `LanguagePackRouter` — the same registry
 the detector orchestrator routes on — so it cannot drift from what
 actually ran. A pack that registers extensions is reported here
 automatically; there is no second list to update.
+
+### `by_package` (0.15.0)
+
+On a monorepo — two or more directories carrying a package manifest —
+coverage gains a per-package breakdown:
+
+```json
+{
+  "by_package": [
+    { "path": "packages/api", "files_total": 138,
+      "files_by_language": { "py": 138 }, "dominant_language": "py" },
+    { "path": "packages/web", "files_total": 412,
+      "files_by_language": { "js": 412 }, "dominant_language": "js" }
+  ]
+}
+```
+
+The repo-wide `files_by_language` says a repo is 75% TypeScript.
+`by_package` says *which part* is the Python one, which is what decides
+where a change is risky — in a mostly-TypeScript repo a single Python
+service otherwise looks like a rounding error.
+
+Details worth knowing:
+
+- **Absent on single-package repos**, so presence is itself the "this
+  is a monorepo" signal. One entry restating the repo total would be
+  noise.
+- **Manifests are found on disk**, not in the discovered file set —
+  `include` covers source and docs, so `package.json` and
+  `pyproject.toml` are never scanned. `Cargo.toml` and `go.mod` count
+  as package roots too, even though no pack parses those languages:
+  naming the package is more useful than folding it into the repo total.
+- **Files attribute to the deepest enclosing package**, so a nested
+  package inside another is counted separately.
+- **`dominant_language` needs a strict majority.** A package that is
+  45% Python and 40% TypeScript gets `null` rather than a label, because
+  calling either one dominant puts a confident answer on a coin flip.
+
+`--explain-coverage` prints the same breakdown.
