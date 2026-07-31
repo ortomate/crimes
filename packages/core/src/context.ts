@@ -21,6 +21,7 @@ import {
   safelyBuildPettyIndex,
   safelyBuildScoringContext,
 } from "./context-indexes.js";
+import { applyEmptyReasons, buildClues } from "./context-clues.js";
 import { findLikelyTests } from "./context-likely-tests.js";
 import type { ContextRelatedFile } from "./context-related-files.js";
 import { findRelatedFiles } from "./context-related-files.js";
@@ -322,98 +323,21 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     findings,
   };
 
-  if (agent_guidance.length === 0) {
-    report.agent_guidance_reason =
-      findings.length === 0 && related_files.length === 0
-        ? "no findings on this file and no deterministic related files"
-        : "findings on this file did not match any keyed guidance line";
-  }
+  const claimingPack = resolveLanguagePackRouter().claimingPack(targetAbs);
+  applyEmptyReasons(report, {
+    unclaimedExtension: claimingPack
+      ? undefined
+      : extname(targetAbs).toLowerCase() || "(no extension)",
+  });
 
-  // Override the generic reason with a more specific message when no language
-  // pack claims the target file's extension — universal detectors still ran,
-  // but JS/TS-specific detectors were skipped because no pack owns this type.
-  const langPackRouter = resolveLanguagePackRouter();
-  const noPackClaim = !langPackRouter.claimingPack(targetAbs);
-  if (noPackClaim) {
-    const ext = extname(targetAbs).toLowerCase() || "(no extension)";
-    const suffix =
-      findings.length === 0
-        ? "Universal checks ran (no findings)."
-        : "Showing universal-pack findings only.";
-    report.agent_guidance_reason = `no language pack claims ${ext} files; install or wait for one. ${suffix}`;
-  }
-  if (related_files.length === 0) {
-    report.related_files_reason =
-      "no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings";
-  }
-  if (likely_tests.length === 0) {
-    report.likely_tests_reason =
-      "no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename";
-  }
-
-  // ── clues block ────────────────────────────────────────────────────────────
-  // Build the ambient signals block (frozen contract for Release B).
-  const clues: ContextClues = { related_signals: [] };
-
-  // churn — present only when git data is available for the inspected file.
-  // Plumbing note: ScoringContext.churnResult is the raw CollectChurnResult
-  // that buildScoringContext already obtained. We surface it here so context()
-  // doesn't need a second collectChurn call (Option 1 from the task spec).
-  if (scoring?.churnResult?.gitAvailable === true) {
-    const churnEntry = scoring.churnResult.files.find(
-      (f) => f.file === fileRel,
-    );
-    if (churnEntry) {
-      clues.churn = {
-        commits_90d: churnEntry.changeCount,
-        last_commit_at: churnEntry.latestChange,
-        unique_authors_90d: churnEntry.uniqueAuthors,
-      };
-    }
-  }
-
-  // suppressions — per-file inventory (regardless of whether any matched today).
-  if (options.suppressionsEntries) {
-    const supps = suppressionsForFile(
-      options.suppressionsEntries,
-      fileRel,
-      findings,
-    );
-    if (supps.length > 0) {
-      clues.suppressions = supps;
-    }
-  }
-
-  // test_gap — raw {0, 0.5, 1} + quartile-ranked percentile + label.
-  // Always populated when scoring is available. When scoring is absent
-  // (e.g. an exotic failure in safelyBuildScoringContext), we skip the
-  // block rather than fabricating a value.
-  if (scoring) {
-    const raw = scoring.testGap.rawForFile(fileRel);
-    const score = scoring.testGap.forFile(fileRel);
-    const eligible = allFiles.length >= 4;
-    clues.test_gap = eligible
-      ? {
-          raw,
-          percentile: score,
-          label:
-            score >= 0.75
-              ? "top-quartile"
-              : score <= 0.25
-                ? "bottom-quartile"
-                : "median",
-        }
-      : { raw, label: "unknown" };
-  }
-
-  // Omit clues entirely if all three substantive blocks are absent.
-  // related_signals alone does NOT count — it is always [] in Release A.
-  // In practice this threshold is never met because test_gap is always
-  // populated when scoring succeeds, and scoring succeeds in the vast
-  // majority of cases.
-  if (clues.churn || clues.suppressions || clues.test_gap) {
-    report.clues = clues;
-  }
+  const clues = buildClues({
+    scoring,
+    fileRel,
+    findings,
+    fileCount: allFiles.length,
+    suppressionsEntries: options.suppressionsEntries,
+  });
+  if (clues) report.clues = clues;
 
   return report;
 }
