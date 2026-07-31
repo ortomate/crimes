@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>crimes — agent-native change & risk scanner for TS/JS</title>
+    <title>crimes — agent-native change & risk scanner for TS/JS & Python</title>
     <meta
       name="description"
-      content="Open-source CLI that scans TypeScript & JavaScript repos for change risk and AI-agent risk. Local, deterministic, no cloud. JSON output is the contract."
+      content="Open-source CLI that scans TypeScript, JavaScript & Python repos for change risk and AI-agent risk — including drift between the two. Local, deterministic, no cloud. JSON output is the contract."
     />
     <meta name="theme-color" content="#0a0a0a" />
     <meta name="color-scheme" content="dark" />
@@ -14,7 +14,7 @@
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <meta
       name="keywords"
-      content="codebase risk, code scanner, AI coding agents, agent-native, TypeScript, JavaScript, CLI, code quality, churn, hotspots, Claude Code, AGENTS.md"
+      content="codebase risk, code scanner, AI coding agents, agent-native, TypeScript, JavaScript, Python, polyglot, monorepo, CLI, code quality, churn, hotspots, Claude Code, AGENTS.md"
     />
     <link rel="canonical" href="https://crimes.sh/" />
 
@@ -22,7 +22,7 @@
     <meta property="og:title" content="crimes — built for agents, readable by humans" />
     <meta
       property="og:description"
-      content="A local, open-source CLI that ranks change-risk and agent-risk in TS/JS repos. JSON output is the contract."
+      content="A local, open-source CLI that ranks change-risk and agent-risk in TS/JS and Python repos, including findings that span both. JSON output is the contract."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://crimes.sh/" />
@@ -37,7 +37,7 @@
     <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="crimes — built for agents, readable by humans" />
-    <meta name="twitter:description" content="Open-source CLI that ranks change-risk and agent-risk in TS/JS repos. JSON output is the contract." />
+    <meta name="twitter:description" content="Open-source CLI that ranks change-risk and agent-risk in TS/JS and Python repos, including findings that span both. JSON output is the contract." />
     <meta name="twitter:image" content="https://crimes.sh/og-image.svg" />
     <meta name="twitter:image:alt" content="crimes — a crime scene investigator for your codebase." />
 
@@ -57,7 +57,7 @@
             "@id": "https://crimes.sh/#website",
             "url": "https://crimes.sh/",
             "name": "crimes",
-            "description": "Open-source CLI that scans TypeScript and JavaScript repos for change risk and AI-agent risk.",
+            "description": "Open-source CLI that scans TypeScript, JavaScript and Python repos for change risk and AI-agent risk, including findings that span both languages.",
             "inLanguage": "en-US",
             "publisher": { "@id": "https://crimes.sh/#author" }
           },
@@ -79,8 +79,8 @@
             "applicationCategory": "DeveloperApplication",
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
-            "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.14.0",
+            "description": "A local, open-source CLI that scans TypeScript, JavaScript and Python repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, frontend and backend disagreeing about their own API, and patterns that confuse AI coding agents.",
+            "softwareVersion": "0.15.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/ortomate/crimes",
             "programmingLanguage": "TypeScript",
@@ -121,7 +121,7 @@
                 "name": "What is crimes?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "crimes is an open-source CLI that scans a TypeScript or JavaScript repository for change risk and AI-agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents. It runs locally with no cloud calls and outputs both a human-readable report and a stable, versioned JSON contract."
+                  "text": "crimes is an open-source CLI that scans a TypeScript, JavaScript or Python repository for change risk and AI-agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents. In a polyglot repo it also reports disagreements between languages, such as a frontend calling an endpoint the backend does not serve. It runs locally with no cloud calls and outputs both a human-readable report and a stable, versioned JSON contract."
                 }
               },
               {
@@ -145,7 +145,7 @@
                 "name": "Which languages does crimes support?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "The first language pack is TypeScript and JavaScript, including JSX and TSX. The detector core and finding schema are language-agnostic so additional language packs can be added without breaking the JSON contract. Python and other languages are tracked as future work."
+                  "text": "TypeScript and JavaScript (including JSX and TSX) and Python. A universal pack runs on every file in any language, so a Rust or Go repo still gets file-level and git-derived findings. Since 0.15.0 a cross-language pack also reports disagreements between Python and TypeScript that neither language\u0027s own tooling can see — a frontend calling a path the backend does not serve, or a type listed differently on each side."
                 }
               },
               {
@@ -856,10 +856,13 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             <summary>What is <code>crimes</code>?</summary>
             <p>
               <code>crimes</code> is an open-source CLI that scans a
-              TypeScript or JavaScript repository for <strong>change
-              risk</strong> and <strong>AI-agent risk</strong> — duplicated
-              business rules, ambiguous sources of truth, weakly tested
-              hotspots, and patterns that confuse AI coding agents. It runs
+              TypeScript, JavaScript or Python repository for
+              <strong>change risk</strong> and <strong>AI-agent
+              risk</strong> — duplicated business rules, ambiguous sources
+              of truth, weakly tested hotspots, and patterns that confuse
+              AI coding agents. In a polyglot repo it also reports
+              disagreements <em>between</em> languages, such as a frontend
+              calling an endpoint the backend does not serve. It runs
               locally with no cloud calls and outputs both a human report
               and a stable, versioned JSON contract.
             </p>
@@ -898,11 +901,15 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
           <details>
             <summary>Which languages does <code>crimes</code> support?</summary>
             <p>
-              The first language pack is TypeScript and JavaScript,
-              including JSX and TSX. The detector core and finding schema
-              are language-agnostic, so additional language packs can be
-              added without breaking the JSON contract. Python and other
-              languages are tracked as future work.
+              TypeScript and JavaScript (including JSX and TSX) and
+              Python. A universal pack runs on every file in any
+              language, so a Rust or Go repo still gets file-level and
+              git-derived findings. Since <strong>0.15.0</strong> a
+              cross-language pack also reports disagreements
+              <em>between</em> Python and TypeScript that neither
+              language's own tooling can see — a frontend calling a path
+              the backend does not serve, or a type listed differently
+              on each side.
             </p>
           </details>
 
