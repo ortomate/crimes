@@ -56,6 +56,7 @@ import { syncIoInHotpathDetector } from "./detectors/sync-io-in-hotpath.js";
 import { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
 import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
+import { pythonDetectors } from "./detectors/py/index.js";
 
 /**
  * Built-in source-detector slate, in priority order. Order matters for
@@ -121,6 +122,11 @@ export const builtInDetectors: Detector[] = [
   exactDuplicateBlockDetector,
   nearDuplicateBlockDetector,
   duplicatedRoleStatusPlanCheckDetector,
+  // Python pack (0.14.0). Ids are qualified (`large_function.py`) so
+  // they are separately addressable in `detectors.enable` / `disable`;
+  // the findings they emit carry the abstract `type` so cross-language
+  // grouping still works. See `detectors/py/shared.ts`.
+  ...pythonDetectors,
 ];
 
 /**

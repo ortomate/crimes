@@ -20,9 +20,14 @@ describe("detector-defaults", () => {
   });
 
   it("covers every registered detector id (source + asset)", () => {
+    // `getDefaultsFor` is keyed on `Finding.type`, which is the abstract
+    // charge — language packs qualify only the *detector* id. A Python
+    // detector with `id: "large_function.py"` emits findings with
+    // `type: "large_function"` and correctly picks up that type's
+    // defaults, so the pack suffix is stripped before the lookup.
     const ids = new Set<string>([
-      ...builtInDetectors.map((d) => d.id),
-      ...builtInAssetDetectors.map((d) => d.id),
+      ...builtInDetectors.map((d) => stripPackSuffix(d.id)),
+      ...builtInAssetDetectors.map((d) => stripPackSuffix(d.id)),
     ]);
     for (const id of ids) {
       expect(
@@ -30,6 +35,14 @@ describe("detector-defaults", () => {
         `missing default for detector ${id} — add it to detector-defaults.ts`,
       ).toBeDefined();
     }
+  });
+
+  it("resolves defaults for a Python detector via its abstract type", () => {
+    // Guards the split above: if a Python detector ever emitted its
+    // qualified id as `Finding.type`, it would silently fall back to
+    // GENERIC_DEFAULT instead of the charge's real effort / fix_shape.
+    expect(getDefaultsFor("large_function")).not.toEqual(GENERIC_DEFAULT);
+    expect(getDefaultsFor("large_function.py")).toEqual(GENERIC_DEFAULT);
   });
 
   it("returns GENERIC_DEFAULT for an unknown detector type", () => {
@@ -40,3 +53,8 @@ describe("detector-defaults", () => {
     expect(getDefaultsFor("large_function").effort).toBe("small");
   });
 });
+
+/** Mirror of `assignPackAndDetectorId`'s suffixing, in reverse. */
+function stripPackSuffix(id: string): string {
+  return id.replace(/\.(js|py|x)$/, "");
+}
