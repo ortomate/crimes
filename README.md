@@ -152,6 +152,13 @@ half, and ships one side of a two-sided change.
 monorepo: the repo-wide language split says a repo is 75% TypeScript,
 `by_package` says *which package* is the Python one.
 
+It also fixes a bug 0.14.0 shipped: **`crimes context` reported no
+findings for Python files.** The pre-edit briefing only ran the
+universal and JS packs, and parsing a `.py` file with the TypeScript
+parser returns an empty result rather than an error — so it reported
+clean files. If you run `crimes` on Python, this is the reason to
+upgrade.
+
 Schema stays `0.3.0` — `Finding.pack: "cross-language"` and
 `coverage.by_package` land additively, fingerprints are unchanged.
 Release notes: [`docs/releases/v0.15.0.md`](./docs/releases/v0.15.0.md).

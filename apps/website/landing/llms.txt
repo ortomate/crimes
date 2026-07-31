@@ -374,6 +374,12 @@ dominant language on monorepos, answering which *package* is the Python
 one in a repo the top-level split calls 75% TypeScript. Absent on
 single-package repos.
 
+0.15.0 also fixes a bug 0.14.0 shipped: `crimes context` reported no
+findings for Python files, because the pre-edit briefing only ran the
+universal and language-js packs and parsing a .py file with the
+TypeScript parser yields an empty result rather than an error. Anyone
+running crimes on Python should upgrade.
+
 Schema stays 0.3.0; `Finding.pack: "cross-language"` and
 `coverage.by_package` land additively. Fingerprints unchanged.
 
