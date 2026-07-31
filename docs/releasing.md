@@ -90,9 +90,30 @@ README at publish time, and stale ones are not patched after the fact.
   GitHub Release in Step 5.
 - **[`apps/website/landing/llms.txt`](../apps/website/landing/llms.txt)**
   — add a `docs/releases/vX.Y.Z.md` entry so the AI-overview pass picks
-  up the new release. (The landing page's "What's next" strip points
-  at the GitHub Releases page rather than maintaining its own list,
-  so no per-release `index.html` edit is needed.)
+  up the new release.
+- **[`apps/website/landing/index.html`](../apps/website/landing/index.html)**
+  — the landing page. Two things to check every release:
+  1. **`"softwareVersion"`** in the JSON-LD `SoftwareApplication`
+     block. This is what Google and AI answer surfaces read as "the
+     current version of crimes". `verify-build` fails CI if it does not
+     match `packages/cli/package.json`, so you will be told — but fix
+     it here rather than waiting for the failure.
+  2. **Any product claim the release invalidated.** The page describes
+     what crimes is in prose and in the JSON-LD `description`; a
+     release that changes the answer to "what does it scan?" or "what
+     does it find?" has to change those too. The Python pack is the
+     worked example: "scans TypeScript and JavaScript repositories"
+     was true until 0.14.0 shipped and false the moment it did.
+
+  The rest of the landing page is deliberately not per-release — the
+  "What's next" strip points at the GitHub Releases page rather than
+  maintaining its own list, and statements of the form "as of 0.11.0,
+  `crimes init --agents` also installs a hook" are historical and
+  should **not** be bumped.
+
+  > This section exists because the previous version of it said no
+  > per-release `index.html` edit was needed. The site then advertised
+  > `0.12.0` through both the 0.13.0 and 0.14.0 releases.
 - **JSON schema only if it changed.** If the schema gained fields,
   also update [`docs/json-schema.md`](./json-schema.md) and the pinned
   fixture at [`docs/fixtures/messy-ts-app.json`](./fixtures/messy-ts-app.json).
