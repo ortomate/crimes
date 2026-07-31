@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:39:48.612Z",
+  "run_id": "ac979a09-81a0-4aa4-a10c-016f3fcda0a6",
+  "response": "The scan identifies two architecture-surface findings:\n\n1. `crime_00002` — `layer_violation` in `src/domain/billing.ts`\n2. `crime_00003` — `deep_import` in `src/application/billing-flow.ts`\n\n### Proposed refactor\n\n| Finding | Current dependency | Change |\n|---|---|---|\n| `crime_00002` | `domain/billing.ts → presentation/invoice-view.ts` | Break this import completely. Define a presentation-neutral port—such as `InvoicePresenter` or `InvoiceOutput`—in the domain or application boundary. Have `invoice-view.ts` implement that port, then inject it from the composition root into `billing-flow.ts`. |\n| `crime_00003` | `billing-flow.ts → some-pkg/dist/internal/private/helper.js` | Redirect the import to the package’s documented public entry point, such as `some-pkg`, or an officially exported subpath. If the helper is not public, replace it with a locally owned adapter or request an upstream export; do not preserve the private path behind a trivial re-export. |\n\nA suitable dependency direction would be:\n\n```text\npresentation/invoice-view.ts\n        implements\napplication or domain InvoicePresenter port\n        consumed by\napplication/billing-flow.ts → domain/billing.ts\n```\n\nThe domain must contain only the contract and domain behavior; it must not instantiate, import, or otherwise know about `invoice-view.ts`.\n\nThis should also help dismantle the reported three-file cycle:\n\n```text\napplication/billing-flow.ts\n→ domain/billing.ts\n→ presentation/invoice-view.ts\n→ application/billing-flow.ts\n```\n\nRemoving the domain-to-presentation edge directly addresses `crime_00002` and breaks that cycle, assuming there is no alternate edge between those modules. If the presentation layer imports `billing-flow.ts` solely to obtain shared types, move those types to the interface module or use `import type`.\n\n### How the risks differ\n\n`layer_violation` reports a forbidden dependency direction inside the repository. Its agent risk is higher (`0.56`) because an agent editing domain behavior may unknowingly affect UI code, invert ownership, or recreate the cross-layer cycle. The import is technically resolvable, but architecturally invalid under `crimes.config.json`.\n\n`deep_import` reports reliance on another package’s unpublished internals. Its agent risk is lower here (`0.45`) because the repair is usually localized, but the dependency is unstable: package upgrades can move or remove `dist/internal/private/helper.js` without treating that as a public breaking change.\n\nIn short: break `domain → presentation` through dependency inversion; redirect `application → package internals` through the package’s supported public API.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

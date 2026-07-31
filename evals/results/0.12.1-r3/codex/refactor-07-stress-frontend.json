@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:37:29.487Z",
+  "run_id": "18d4eda7-5ee5-4ec4-928d-30575690695e",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a TypeScript risk investigation. I’ll inspect its instructions, run `crimes context` against `Card.tsx`, and then map a concrete refactor to all three finding types without editing the fixture.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m switching to the repository’s locally built CLI—the documented equivalent for an unpublished checkout—and keeping the scan rooted at the fixture.\n\n`crimes context src/Card.tsx --format json` confirms all three findings, with `accessible_interaction_risk` carrying the highest agent-risk score (`0.62`). It also found no likely tests.\n\nI’d refactor the component to use semantic markup and Tailwind’s tokenized, responsive utilities:\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  return (\n    <button\n      type=\"button\"\n      onClick={onActivate}\n      className=\"\n        grid w-full max-w-card grid-cols-1 gap-6\n        border border-card-border bg-surface p-6 text-left text-ink\n        shadow-card\n        focus-visible:outline focus-visible:outline-2\n        focus-visible:outline-offset-2 focus-visible:outline-focus\n        md:grid-cols-card\n      \"\n    >\n      <span className=\"min-w-0 text-lg\">{children}</span>\n      <span className=\"text-sm text-muted\">sidebar</span>\n    </button>\n  );\n}\n```\n\nAdd the component-specific values to the central Tailwind theme rather than embedding arbitrary values in JSX:\n\n```ts\nexport default {\n  theme: {\n    extend: {\n      colors: {\n        brand: \"#0050ff\",\n        surface: \"#f7f7fa\",\n        ink: \"#111111\",\n        muted: \"#666666\",\n        \"card-border\": \"#cccccc\",\n        focus: \"#1a73e8\",\n      },\n      maxWidth: {\n        card: \"50rem\",\n      },\n      gridTemplateColumns: {\n        card: \"minmax(0, 1fr) minmax(12rem, 15rem)\",\n      },\n      boxShadow: {\n        card: \"0 0.125rem 0.25rem rgb(0 0 0 / 0.2)\",\n      },\n    },\n  },\n};\n```\n\nHow this addresses each finding:\n\n- `accessible_interaction_risk`: replaces `<div onClick>` with `<button type=\"button\">`. Native buttons already provide keyboard activation, focus behavior, and an accessible role, so synthetic `role`, `tabIndex`, and key handlers are unnecessary. If activation navigates somewhere, use `<a href>` instead.\n- `design_token_escape`: removes the nine inline literals. Colors, maximum width, layout, and shadow become named theme tokens; spacing and typography use the shared Tailwind scale.\n- `responsive_fragility`: removes the fixed `800px`, `720px`, `240px`, and `600px` dimensions. The card is fluid (`w-full`) with a tokenized maximum, uses one column by default, and switches to a bounded two-column grid at `md`. `text-lg` and `text-sm` replace raw pixel font sizes.\n\nOne caveat: because `children` is unrestricted, callers must not place links or buttons inside this button. If interactive descendants are required, keep an `<article>` container and add a separate named `<button>` for the card action. A focused test should verify native keyboard activation and the absence of nested interactive controls.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

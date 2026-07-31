@@ -1,0 +1,34 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T22:57:02.928Z",
+  "run_id": "8609b133-6c17-4dee-baf1-faefdbc9f190",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is a targeted context/risk inspection. I’ll run the requested JSON command against the fixture and base the answer on its exact output.\n\nThe global `crimes` binary isn’t installed in this shell. I’m switching to the repository’s locally built CLI, which runs the same command and preserves the requested JSON contract.\n\n`src/billing.ts` has no findings: **0 high, 0 medium, 0 low**, with risk level `none`.\n\n- Likely test: `src/billing.test.ts`\n- Low edit risk because no change-risk signals, agent guidance, or coupled related files were detected.\n- Churn is minimal: one commit and one author in the last 90 days.\n\nThe test-gap status is `unknown`, so the likely test path does not guarantee coverage.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:16:36.771Z",
+  "run_id": "0166ede8-c60c-40d0-b1e9-e56225248a7f",
+  "response": "Confirmed the drift, and read the three files to ground the proposal. I did **not** edit anything — these are eval fixtures whose drift is intentional, and the ask was to propose.\n\n## What the scan actually says\n\nTwo findings, `crime_00011` (`action_label_drift`) and `crime_00012` (`copy_ia_drift`), with **byte-identical evidence**:\n\n```\ngroup: delete\naliases: archive, delete, remove\n\"archive\" in 2 file(s): SeatList.tsx, TeamList.tsx\n\"delete\"  in 2 file(s): TeamList.tsx, UserList.tsx\n\"remove\"  in 2 file(s): SeatList.tsx, UserList.tsx\n```\n\nBoth are `low` / confidence 0.6 / agent_risk 0.38 — the two lowest-ranked findings in a 12-finding report. This is cheap-to-fix hygiene, not an emergency.\n\nThe source confirms it, and adds a detail the JSON hides — the drift is **per-destination**, not just per-file:\n\n| href | labels pointing at it | files |\n|---|---|---|\n| `/users/manage` | \"Delete user\", \"Remove member\" | UserList:7,8 |\n| `/teams/manage` | \"Archive team\" | TeamList:6 |\n| `/seats/manage` | \"Delete the seat\", \"Remove member\", \"Archive member\" | TeamList:7, SeatList:6,7 |\n\nEvery destination is labelled with more than one verb, and `/seats/manage` gets **three verbs from two different components**. That's the real defect: an agent asked to \"wire up the delete flow\" has no way to tell whether these are one action or three.\n\n## Proposed canonical set\n\nSplit on *what survives the action*, not on tone:\n\n| Verb | Means | Reversible | Use for |\n|---|---|---|---|\n| **Remove** | revoke an association; the person/record still exists elsewhere | n/a | member ↔ team/seat membership |\n| **Delete** | destroy the record itself | no | the team, the user account |\n| **Archive** | hide/retire, restorable | yes | **ban it here** — nothing in this fixture has an undo |\n\nObject noun: **member** for a person-in-a-container, **team** for the container. Drop \"user\" and \"seat\" from labels.\n\n## Changes, tied to findings\n\nBoth findings share one root cause, so one edit set clears both. Ordered by what I'd do first:\n\n**1. `src/components/SeatList.tsx` — first.** Lines 6–7 give the same href two verbs on adjacent lines (`Remove member` / `Archive member`), and this is the destination TeamList also reaches into. It has to be settled before TeamList's stray can be pointed anywhere sensible.\n→ collapse to a single `<NavItem label=\"Remove member\" href=\"/seats/manage\" />`. Kills the `archive` hit in this file (`crime_00011`/`00012` evidence line 3).\n\n**2. `src/components/TeamList.tsx`.** Line 6 `\"Archive team\"` → `\"Delete team\"` (no undo exists, so `archive` is a lie). Line 7 `\"Delete the seat\"` doesn't belong here at all — it points at `/seats/manage`, another component's destination; delete the item and let SeatList own it. Clears the file's `archive` **and** `delete` hits.\n\n**3. `src/components/UserList.tsx`.** Lines 7–8 are two labels for one href. If they're genuinely one action, collapse to `\"Remove member\"`; if the account-destruction action is real, it needs its own destination and the label `\"Delete user\"`. Either way, don't ship both verbs against `/users/manage`.\n\n**One caveat worth stating plainly:** the detector needs ≥3 aliases each appearing in ≥2 files. Right now each alias sits at exactly 2 files, so **fixing any single component silences both findings** while the other two stay inconsistent. Don't treat the finding going green as proof the drift is gone — do all three.\n\nAlso below threshold and therefore invisible in this report: the *noun* drift. `user`/`member`/`seat` is a seeded group too, but \"user\" appears in 1 file and \"seat\" in 1 file, so only one alias qualifies and the group never fires. My proposal converges on \"member\", which is safe — it doesn't push any noun over the threshold.\n\n## How the two detectors differ\n\nThey share the same analysis function (`packages/core/src/detectors/action-label-drift.ts:71`, `analyse(...)`). The only difference is the input filter:\n\n- `action_label_drift` reads **JSX labels + nav entries + string-valued props** — the whole IA surface.\n- `copy_ia_drift` passes `restrictToJsxLabel: true`, keeping only signals whose kind starts with `jsx_` (`action-label-drift.ts:91`), and skipping nav entries entirely (`:99`).\n\nOn *this* fixture the two sets are identical. `<NavItem label=\"…\" />` matches `UI_LABEL_TAGS`, so the extractor tags every one of these five strings as `jsx_label` (`packages/language-js/src/parse/ui-strings.ts:30-41`) — which passes the JSX restriction. Same inputs → same fingerprint → duplicate finding. The only thing that differs in the output is `fix_shape` (\"pick one verb per action\" vs \"pick the canonical label; redirect copies to it\").\n\nThey'd diverge on a fixture where the drift lives outside JSX text — e.g. a `nav.ts` array with `{ label: \"Archive team\" }`, or a non-JSX label constant. `action_label_drift` fires; `copy_ia_drift` stays silent. That's the intended split: one detector covers the code surface, the other covers pure UI copy.\n\nTwo notes on reading the report:\n- The `file` field on both findings (`SeatList.tsx`) is a **dedup anchor**, not a severity ranking — it's `allFiles[0]` after a lexicographic sort (`action-label-drift.ts:126-127`). SeatList happens to also be the right place to start, but the JSON isn't telling you that.\n- Emitting both findings for one problem is arguably double-counting in the aggregate: the same drift contributes twice to the low-severity count. Worth considering suppressing `copy_ia_drift` when `action_label_drift` fired on the identical alias set and file list.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "permission_ia_drift",
+      "crime_00003": "concept_alias_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Permission IA Drift": "permission_ia_drift",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": "src/components/UserList.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": "src/components/TeamList.tsx",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": "src/components/SeatList.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

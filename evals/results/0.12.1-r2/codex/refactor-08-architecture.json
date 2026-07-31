@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:16:25.241Z",
+  "run_id": "421168fe-75b1-4e87-8cb7-29328bed68bb",
+  "response": "The scan reports two relevant findings:\n\n| Finding | Import to change | Recommended action |\n|---|---|---|\n| `crime_00002` — `layer_violation` | `src/domain/billing.ts` → `src/presentation/invoice-view.ts` | Break the dependency. Define any required contract or data type in the domain, then have the presentation layer implement or consume that contract. The domain must not import presentation code. |\n| `crime_00003` — `deep_import` | `src/application/billing-flow.ts` → `some-pkg/dist/internal/private/helper.js` | Redirect the import to `some-pkg` or a documented exported subpath. If the helper is not publicly exported, replace it with a supported API or request an upstream export rather than depending on `dist/internal`. |\n\nFor `crime_00002`, a clean dependency direction would look like:\n\n```text\npresentation/invoice-view.ts\n          ↓\ndomain/billing.ts\n```\n\nFor example, `billing.ts` could expose an `Invoice`, billing result, domain event, or domain-owned interface. `invoice-view.ts` can import that public domain contract and translate it into display output. Application code should orchestrate the two when necessary.\n\nBreaking the domain-to-presentation edge also helps dismantle the three-file cycle reported as `crime_00001`:\n\n```text\napplication/billing-flow.ts\n  → domain/billing.ts\n  → presentation/invoice-view.ts\n  → application/billing-flow.ts\n```\n\nFor `crime_00003`, the desired change is conceptually:\n\n```ts\n// Fragile private implementation path\nimport { helper } from \"some-pkg/dist/internal/private/helper.js\";\n\n// Supported package surface\nimport { helper } from \"some-pkg\";\n```\n\nThe two findings represent different agent risks:\n\n- `layer_violation` is an architectural-direction failure. An agent modifying domain behavior may unknowingly affect UI code, introduce circular dependencies, or place responsibilities in the wrong layer. It has broader design consequences, reflected by its medium severity and `0.56` agent-risk score.\n- `deep_import` is an encapsulation and upgrade risk. The dependency direction may be acceptable, but the application is coupled to an external package’s unpublished file layout. It is more likely to cause a localized failure during a dependency upgrade, reflected by low severity and a lower `0.45` agent-risk score.\n\nSo the domain/presentation import should be removed and inverted through a domain-owned contract; the package import should retain its direction but be redirected through the package’s supported public API.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "scenario": "review-01-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:47:36.452Z",
+  "run_id": "dfd9571a-aeeb-4e5c-8e8e-4a6634cf6b5b",
+  "response": "Three findings, one shared root, plus a scoping caveat that changes all three verdicts. Taking them in the order the scan ranks them:\n\n## 1. `route_metadata_drift` — `crime_00016` → **warn**\n\n`/settings/billing` carries four distinct vocabularies at once:\n\n| Axis | Name |\n|---|---|\n| route path + file (`src/routes/settings/billing.tsx`) | **Billing** |\n| component (`PricingPage`) | **Pricing** |\n| `metadata.title` + `src/nav/registry.ts` | **Plans** |\n| `<title>` | **Subscription** |\n\nConfidence is 0.65 — the lowest of the three — and that's honest. The component-name axis is the weak one: a component legitimately gets named for what it renders, so `PricingPage` rendering a billing route isn't automatically a defect. Strip that axis and you still have three names (Billing / Plans / Subscription) across path, metadata, page title, and nav, which is a real defect.\n\nWarn rather than block because the fix is a naming decision, not a mechanical correction — someone has to pick the canonical term, and the edit lands in 4+ files. That's a conversation for review, not a gate.\n\n## 2. `duplicated_navigation_source` — `crime_00014` → **warn, and don't count it separately**\n\nThis is not an independent finding. Its entire evidence set — `registry.ts` says \"Plans\", `sidebar.ts` says \"Billing\" — is a strict subset of `crime_00016`'s evidence. Same destination, same two files, same root cause: `/settings/billing` has no canonical name and no single source of truth. Fixing the drift fixes the duplication; they should be one review comment and one commit, not two.\n\nThe one thing it adds is the *fix shape*: `crime_00016` tells you the names disagree, `crime_00014` tells you why they can't stay agreed — two nav files independently own the same destination. So consolidate nav first (one registry, sidebar derives from it), then align the route metadata to it. Higher confidence (0.70) than the drift finding because \"same path in two files\" is a mechanical fact, not a judgement about naming.\n\n## 3. `docs_code_drift` — `crime_00021` → **block**\n\nThe only one of the three I'd gate on, despite it being the lowest severity (`low`, agent_risk 0.44). Severity is the wrong lens here:\n\n- **Confidence 0.90, and it's decidable.** `docs/teams.md:5 → ./setup.md` either resolves to `docs/setup.md` on disk or it doesn't. No naming judgement, no false-positive surface.\n- **The fix is one line** — repoint the link or restore the file.\n- **It's agent-facing context that is actively wrong.** A stale label makes an agent inconsistent; a dead link makes it follow instructions to a file that doesn't exist. Note `docs/teams.md` is also the anchor for `concept_alias_drift` (`crime_00012`: organisation / team / workspace all in that one file). That doc is the least trustworthy agent input in the repo and it's the one an agent reaching for setup instructions will read first.\n\nA gate should block on things that are certainly true and cheap to fix. This is both. The two IA findings above are neither.\n\n## Nothing here earns `ignore`\n\nAll three are real. If you want the noise floor for comparison, it's elsewhere in this scan — `boolean_naming_drift` on `paid`/`expired`/`stale` (`crime_00028`) is the kind of finding that belongs in `ignore` or a config allowlist. The IA findings aren't that.\n\n## The caveat that actually governs these verdicts\n\nEvery finding in this report has `churn: 0` and `recency: 0`. The scan has no git-history signal, so **it cannot tell you whether any of this is new**. That matters, because \"block merge\" is a claim about a diff, not about a repo:\n\n- If this PR introduced the second nav source, `crime_00014` becomes a block.\n- If `/settings/billing` has been mis-labelled for two years and this PR only touched `src/date.ts`, blocking on it is how teams learn to `--no-verify`.\n\nSo the operational version of the above is: run the gate diff-scoped (`crimes diff main...HEAD`), block on anything the diff *introduced*, and warn on pre-existing findings the diff *touches*. Under whole-repo scan — which is what you have here — `docs_code_drift` is the only one I'd hold a merge for, precisely because it's decidable without knowing when it appeared.\n\nOne adjacent signal worth reading alongside these, since it's the same problem from the other end: three routes (`/account/subscription`, `/team`, `/workspace/members`) are flagged `orphaned_destination` — no nav references them at all — while `/settings/billing` is referenced twice. The nav layer is simultaneously duplicating one destination and missing three. That's a single IA cleanup, not five tickets.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 7,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_navigation_source",
+        "observed": "duplicated_navigation_source",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "docs_code_drift",
+        "observed": "docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav/registry.ts",
+        "observed": "src/nav/registry.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/settings/billing.tsx",
+        "observed": "src/routes/settings/billing.tsx",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/teams.md",
+        "observed": "docs/teams.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      }
+    ]
+  }
+}

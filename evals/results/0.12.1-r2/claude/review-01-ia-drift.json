@@ -1,0 +1,129 @@
+{
+  "scenario": "review-01-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:23:12.938Z",
+  "run_id": "6a12eac8-b3f9-4678-8d05-7b170441baff",
+  "response": "All three findings check out against the fixture — `docs/setup.md` genuinely doesn't exist (only `billing.md`, `commands.md`, `teams.md`), and the two nav files really do disagree.\n\n## The three findings\n\n**1. `docs_code_drift` — `crime_00021`, `docs/teams.md:5 → ./setup.md`** → **block merge**\n\n| | |\n|---|---|\n| Confidence | 0.90 (highest of the three) |\n| Severity | low |\n| Fix | one line |\n\nThis is ranked *lowest* by the scan (agent_risk 0.44) and it's the one I'd gate on. Merge gates should key on **confidence × determinism × fix cost**, not severity. \"File does not exist on disk\" is a binary fact with no interpretation layer — there is no false-positive story. The fix is to repoint the link or create the page. An agent asked to \"follow the setup guide\" hits a dead end and will confidently invent the missing steps.\n\n**2. `duplicated_navigation_source` — `crime_00014`, `/settings/billing` = \"Plans\" vs \"Billing\"** → **warn**, escalate to **block if the diff touches `src/nav/registry.ts` or `src/nav/sidebar.ts`**\n\nConfidence 0.70. The divergence is factual, but whether it's a *defect* depends on intent — a sidebar and a command palette can legitimately label the same destination differently. What makes it real here is that both files carry the same shape (`path`/`title` vs `to`/`label`) with no documented precedence, so nothing tells an editor which one is canonical. That's the classic two-sources-of-truth trap: the next agent updates one and ships a UI that says \"Plans\" in one surface and \"Billing\" in another.\n\nThe touch-based escalation is the right gate — a warn that never blocks gets tuned out, but blocking every PR over a pre-existing naming split is noise.\n\n**3. `route_metadata_drift` — `crime_00016`, four competing names for `/settings/billing`** → **warn**\n\nConfidence 0.65, the weakest of the three, and appropriately so. Four of the seven evidence lines are soft: a component named `PricingPage` doesn't *have* to match its nav label, and a `<title>` differing from a nav entry is sometimes deliberate SEO. Blocking on a 0.65-confidence naming heuristic will produce arguments, not fixes.\n\nBut the evidence is worse than the confidence suggests once you read the file. `metadata.title = \"Plans\"` and `<title>Subscription</title>` are **both** page titles for the same route, set eleven lines apart, and they disagree. That's not a naming-convention quibble — it's two mechanisms competing to set one value, and in most React metadata setups one silently wins. Worth a comment on the PR that touches this file, not a merge block.\n\n## The overlap matters for how you act on these\n\n`crime_00014` is not an independent finding — its entire evidence set (`registry.ts: Plans`, `sidebar.ts: Billing`) appears verbatim inside `crime_00016`. **Two findings, one root cause.** Fix the nav source of truth and 2 of the 7 drift evidence lines clear on their own. Don't file two tickets.\n\nOrder the work:\n\n1. Pick the canonical label for `/settings/billing` — \"Billing\" matches the URL segment, so the cheapest reconciliation is renaming the two \"Plans\" strings rather than the route.\n2. Collapse `registry.ts` / `sidebar.ts` to one source, or add a header comment declaring which is authoritative.\n3. Resolve the `metadata.title` / `<title>` conflict inside `billing.tsx`.\n4. Fix the `setup.md` link.\n\nOne thing the scan doesn't connect: `/account/subscription` (`crime_00034`) is an orphan whose `<h1>` reads \"Your subscription\" — the same word as the `<title>` on `/settings/billing`. Two destinations appear to be competing for one concept. Before renaming anything, confirm whether the orphan is a stale duplicate that should be deleted, or the real subscription page that `/settings/billing` was meant to link to. That answer changes which label is canonical, so it belongs before step 1 — but it's a question for whoever owns the flow, not a merge gate.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_navigation_source",
+        "observed": "duplicated_navigation_source",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "docs_code_drift",
+        "observed": "docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav/registry.ts",
+        "observed": "src/nav/registry.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/settings/billing.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/teams.md",
+        "observed": "docs/teams.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "route_metadata_drift",
+        "observed": "docs_code_drift",
+        "passed": false
+      }
+    ]
+  }
+}

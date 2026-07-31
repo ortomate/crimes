@@ -1,0 +1,72 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:20:31.988Z",
+  "run_id": "426a8c02-30ac-441b-a129-a7a72127553e",
+  "response": "## What the scan is actually telling you\n\n12 findings, but they aren't 12 problems. Within the scope you asked about (`src/routes/`, `src/nav.ts`, `docs/routes.md`) they collapse into **three drift clusters plus a stale doc**:\n\n**Cluster 1 — `/admin` permission drift** (`crime_00002`, medium, conf 0.70)\nOne destination described three ways: nav declares `role=admin` (`src/nav.ts:6`), the guard checks `admin`, `manager`, and `owner` across four sites in `src/routes/admin.ts`, and `docs/routes.md` carries a third token. This is the only finding in the set that touches an authorization surface.\n\n**Cluster 2 — tenant vocabulary split** (`crime_00003` + orphans `00009`, `00010`)\n`organisation` / `team` / `workspace` across 5 files, with three sibling routes — `/organisation`, `/teams`, `/workspace` — of which two are orphaned. The orphan findings aren't independent work items; they're corroborating evidence that this is a half-finished rename, not three deliberate concepts.\n\n**Cluster 3 — billing-plans fork** (`crime_00004` + orphans `00007`, `00008`)\n`/admin/billing-plans` and `/billing-plans` share tokens, share no link, and *both* are orphaned. Same pattern: the orphan findings are the evidence, not extra debt.\n\n**Stale docs** (`crime_00005`, `crime_00006`)\n`docs/routes.md:14` links to `/admin` (unresolvable), and lines 23/27/31 document `iaq teams`, `iaq workspace`, `iaq refresh` when the bin advertises only `get` and `list`.\n\n## Blocking vs. follow-up\n\n**Blocking:**\n\n1. **`crime_00002` — permission drift.** Three role tokens for one admin destination is a correctness question about who can reach `/admin`, not a tidiness question. Either the guard's `owner`/`manager` branches are intentional and nav+docs are lying, or they're accidental privilege widening. Resolve before merge; the fix is small (`effort: small`) and the alternative is shipping an access-policy surface no one can read.\n\n2. **`crime_00004` — the billing-plans fork, but only to the extent of one check.** Confidence is 0.6 and parallel destinations are often deliberate. What makes it blocking-adjacent here is the interaction with cluster 1: one route sits under `/admin`, the other doesn't. If both serve the same billing data and the non-admin one isn't guarded, that's an access gap wearing an IA costume. Verify the guard on `src/routes/billing-plans.ts`; if it's guarded equivalently, demote to follow-up.\n\n**Follow-up:**\n\n- **`crime_00003` tenant aliases + the four orphans.** Real and worth doing — three names for one concept is exactly the shape that gets an agent to reimplement `TeamList` as `WorkspaceList`. But picking the canonical term is a product decision with a rename behind it, and the `suggested_actions` risk is `medium`. Don't hold a PR for it; file it as one ticket covering the rename *and* the retirement of the two orphaned routes, since they're the same work.\n- **`crime_00005`, `crime_00006` docs drift.** Mechanical, `risk: low`, ~15 minutes. Fast follow rather than blocker — unless this PR is the one that changed the command surface, in which case the doc update belongs in it.\n\n**Ignore / not your problem here:**\n\n- **`crime_00011` and `crime_00012` are the same finding twice** — identical group, aliases, files, and scores, emitted by both `action_label_drift.js` and `copy_ia_drift.js`. Count it once. It's also in `src/components/`, outside the scope you named.\n- **`crime_00001` missing agent context** is legitimate but orthogonal to IA drift.\n\n## Two caveats on the ranking\n\n`blast_radius` and `blast_radius_importers` are `0` on every finding and `churn` is at floor (0.05–0.15) throughout — this fixture has no importer graph or git history feeding the scorer. Don't read `blast_radius: 0` as \"nothing depends on this\"; read it as \"not measured.\" Likewise `test_gap: 0.5` is the uniform default, not a signal. That means the ordering here is essentially severity × confidence, which is why the permission finding lands at the top for the right reason but the orphans land at 0.39 despite being the clearest evidence in the report.\n\nNet: one blocker, one verify-then-decide, and two well-scoped follow-ups.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "permission_ia_drift",
+      "crime_00003": "concept_alias_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Permission IA Drift": "permission_ia_drift",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      }
+    ]
+  }
+}

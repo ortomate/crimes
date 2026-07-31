@@ -1,0 +1,90 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:46:07.956Z",
+  "run_id": "712f2ef7-3250-4321-b229-a770dae96a43",
+  "response": "- **Permission IA drift (`crime_00002`) — Block merge.** `/admin` uses `admin`, `manager`, and `owner` across navigation, route guards, and docs. This ambiguity affects authorization behavior: an agent could align the UI while leaving the guard more or less permissive. Establish one canonical policy, centralize it, and test each role before merging.\n\n- **Parallel billing destinations (`crime_00004`) — Warn.** `/admin/billing-plans` and `/billing-plans` share intent but have no linking or documentation, and both are also reported as orphaned. Confirm whether the split is intentional; otherwise redirect or consolidate. It warrants review but is not proven incorrect at only `0.60` confidence.\n\n- **Undocumented CLI mismatch (`crime_00006`) — Warn.** Docs advertise `iaq teams`, `iaq workspace`, and `iaq refresh`, while the binary advertises only `get` and `list`. Update/remove those references or restore the commands. This reliably causes poor developer experience, but not an access-control failure, so it need not block unless those docs are part of the release contract.\n\n**Highest agent-risk:** permission drift at **0.52**, versus **0.48** for the parallel destination and **0.44** for command drift. It is the most dangerous because an apparently reasonable edit can produce a security-sensitive inconsistency across three policy surfaces. None of these should be ignored; only the permission drift should block merge.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "permission_ia_drift",
+      "crime_00003": "concept_alias_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Permission IA Drift": "permission_ia_drift",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  }
+}

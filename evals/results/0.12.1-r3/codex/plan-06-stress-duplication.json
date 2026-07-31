@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:32:37.079Z",
+  "run_id": "10dd4f1d-4bca-4f19-b733-79df1d8d0eaa",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this plan is driven by scan findings. I’ll verify the six call sites and preserve behavior boundaries before laying out the two commits.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m switching to the repository-built CLI described by `AGENTS.md`. The source confirms an important constraint: the three sanitizer bodies are behaviorally identical, while the role predicates are not (`admin`, `admin || owner`, and `not admin`), so consolidation must preserve those distinctions.\n\nThe JSON scan reports three duplication findings:\n\n| ID | Finding | Scope | Agent risk |\n|---|---|---|---:|\n| `crime_00001` | Exact duplicate | `recordSanitiseEvent` in both telemetry files | 0.55 |\n| `crime_00002` | Near duplicate | `sanitizeUserInput`, `sanitizeText`, `cleanMessage` | 0.54 |\n| `crime_00003` | Duplicated role check | `\"admin\"` comparisons across `policy.ts` and the three sanitizer modules | 0.50 |\n\nThe two `direct_date` findings are not duplication findings. The telemetry duplicate is also outside the requested sanitiser/role refactor and should remain a separate change.\n\n## Two-step change set\n\n### 1. Centralise role policy\n\nAdd one canonical predicate to `src/policy.ts`:\n\n```ts\nexport function isAdmin(role: string): boolean {\n  return role === \"admin\";\n}\n```\n\nThen:\n\n- Make `canEditBilling`, `canSeeAuditLog`, and `canImpersonate` delegate to `isAdmin`.\n- Import it into the sanitizer modules.\n- Preserve the three existing guard semantics:\n\n  - `assertAdminA(role)` → `isAdmin(role)`\n  - `assertAdminB(role)` → `isAdmin(role) || role === \"owner\"`\n  - `assertAdminC(role)` → `!isAdmin(role)`\n\n- Keep existing exported function names as compatibility wrappers.\n- Add characterization tests covering `admin`, `owner`, and an ordinary role for every exported predicate.\n\nThis centralises the `\"admin\"` rule without incorrectly making the three sanitizer guards equivalent.\n\n### 2. Extract the common sanitiser pipeline\n\nCreate a neutral module such as `src/sanitize.ts` containing one implementation of the shared pipeline:\n\n```ts\nexport function sanitize(value: string): string {\n  // Existing body, unchanged.\n}\n```\n\nReplace the three bodies with thin compatibility wrappers:\n\n```ts\nexport function sanitizeUserInput(raw: string): string {\n  return sanitize(raw);\n}\n```\n\nApply the same pattern to `sanitizeText` and `cleanMessage`. Preserve the current operation order, rejection rules, 1,000-character limit, punctuation threshold, and uppercase normalization exactly.\n\nAdd one table-driven test suite for the shared implementation, including:\n\n- `null`/`undefined` runtime inputs despite the current `string` annotation\n- whitespace and control characters\n- overlong input\n- leading `<` or `>`\n- literal `\\\\x`\n- repeated punctuation\n- uppercase normalization\n- ordinary valid text\n\nAlso assert that all three legacy exports produce the same results as the shared helper.\n\nAfter each step, run the fixture scan again. Step 1 should remove `crime_00003`; step 2 should remove `crime_00002`. The expected remaining duplication finding is `crime_00001` for telemetry, which should not be bundled into this change set.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "exact_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

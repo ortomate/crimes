@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:25:38.134Z",
+  "run_id": "a2a0522c-e4ea-44a6-9857-9b3d84b16367",
+  "response": "## The cycle\n\n`crime_00001` names three files; the actual edges are:\n\n```\nsrc/application/billing-flow.ts:1  → src/domain/billing.ts        (chargeCustomer)\nsrc/domain/billing.ts:2            → src/presentation/invoice-view.ts  (renderInvoice)  ← the bad edge\nsrc/presentation/invoice-view.ts:3 → src/application/billing-flow.ts   (runBillingFlow)\n```\n\nEach import is also a *call*, so the cycle is behavioral, not just a module-graph artifact: `runBillingFlow() → chargeCustomer() → renderInvoice() → runBillingFlow() → …`. The runtime error you're chasing is most likely `RangeError: Maximum call stack size exceeded`, not a module-init failure — under ESM with hoisted function declarations these bindings resolve fine. (If any of this gets transpiled to CJS, you'd *additionally* see `renderInvoice is not a function` from whichever module happens to be the entry point.)\n\n## Break `src/domain/billing.ts:2`\n\n```ts\nimport { renderInvoice } from \"../presentation/invoice-view.js\";\n```\n\nThree reasons, in order of weight:\n\n1. **It's the only edge that's independently wrong.** crimes flags it twice — once as a cycle member, once as `crime_00002` (`rule: domain cannotImport presentation`). The other two edges point inward (presentation → application → domain) and are legal under `crimes.config.json`. When exactly one edge in a ring violates the declared architecture, that edge is the cycle's cause, not a co-symptom.\n2. **It's the only cut that leaves a valid graph.** Removing presentation → application means the UI can no longer enter the flow at all; removing application → domain means the app layer can't call its own domain logic. Removing domain → presentation leaves `presentation → application → domain`, acyclic and rule-conformant.\n3. **Everything else stays put.** No file moves, no new module, no signature changes outside `chargeCustomer`.\n\n## Two things in the JSON that don't apply here\n\nThe `suggested_actions` on `crime_00001` are the detector's generic advice and both mislead in this instance:\n\n- **`import type`** won't work. `renderInvoice` is invoked at `billing.ts:5`, so it's a genuine runtime edge — type-only import would be a compile error.\n- **\"extract shared types to a leaf module\"** doesn't fit either. No types are shared across the ring; the cycle is a call chain. Extracting types would leave all three runtime edges intact.\n\n## The fix\n\nInvert the dependency — domain returns a value, presentation formats it:\n\n```ts\n// src/domain/billing.ts  — no presentation import\nexport function chargeCustomer(amount: number): number {\n  return amount;   // or a ChargeResult\n}\n```\n\n```ts\n// src/presentation/invoice-view.ts\nimport { runBillingFlow } from \"../application/billing-flow.js\";\n\nexport function renderInvoice(amount: number): string {\n  runBillingFlow();\n  return `Invoice: ${amount}`;\n}\n```\n\nThe import is what crimes sees, but the *call* at `billing.ts:5` is what overflows the stack — deleting the import without deleting the call just moves the failure to compile time. Verify by re-running `crimes scan --format json` and confirming both `crime_00001` and `crime_00002` clear; if the cycle clears but the layer violation doesn't, you cut the wrong edge.\n\n`crime_00003` (deep import of `some-pkg/dist/internal/private/helper.js`) is unrelated to the cycle — worth fixing, but separately.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      }
+    ]
+  }
+}

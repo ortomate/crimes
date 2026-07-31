@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:22:49.030Z",
+  "run_id": "c90a1835-92d9-4b04-8fa8-a7b3b8847067",
+  "response": "## First: what this PR actually is\n\n`package.json` says `commander@9.5.0`. This isn't authored code — it's a verbatim vendored copy of a third-party library. That reframes the whole review: **the merge-blocking comment is about the PR's shape (\"add the dependency, don't vendor 163 files\"), not about any finding in this report.** No individual finding blocks.\n\nI verified the four findings whose call actually hinged on reading the code. Three of the four are detector false positives, and they account for a large fraction of the report.\n\n## Verified checks\n\n**`crime_00010` — hardcoded localhost, `lib/command.js:2152`** → false positive. The literal is inside a comment:\n```js\n// e.g. --inspect=localhost:1234\n```\nIt documents Node's `--inspect` flag *format* for `_executeSubCommand`'s debug-port remapping. Commander makes no network calls at all.\n\n**`crime_00020`–`crime_00035` — 16 tests with \"0 expect/assert calls\"** → all false positives. Both files assert through a shared helper:\n```js\n// tests/command.exitOverride.test.js\nexpectCommanderError(caughtErr, 0, 'commander.helpDisplayed', '(outputHelp)');\n// tests/ts-imports.test.ts\nfunction checkClass(obj, name) { expect(typeof obj).toEqual('object'); … }\n```\nThese are well-structured tests — try/catch, then assert code + message. The detector counts only inline `expect(` in the test body.\n\n**`crime_00055` — logic in comments** → false positive. The comment is pure rationale (why the old sinon SIGUSR1 workaround existed, with a link to the Node docs). Its own `fix_shape` says \"keep comments for rationale\" — this *is* the good state.\n\n**`crime_00046`–`crime_00052` — weak matchers, `command.copySettings.test.js`** → fair but low-value. `expect(cmd._hasHelpOption).toBeTruthy()` on a genuinely boolean field; `toBe(true)` is stricter but the behaviour is protected.\n\n## Triage\n\n**Block merge: none.** My block bar is correctness risk, security, or a test that claims coverage it doesn't have. The only candidate was the zero-assertion cluster, and it evaporated on inspection.\n\n**Warn (9) — real, none gating:**\n\n| ID | Finding | sev | agent_risk | Why warn |\n|---|---|---|---|---|\n| 00002 | `lib/command.js` 2180 lines | high | 0.63 | The one legitimate God File. Load-bearing, 7.3× threshold — genuinely the file an agent will mis-edit. But splitting a vendored library is worse than living with it. |\n| 00006 | `_executeSubCommand` 120 lines | high | 0.62 | Mixes path resolution, debug-port rewriting, spawn, and signal wiring. Highest real edit hazard in the tree. |\n| 00011 | `parseOptions` 115 lines | med | 0.53 | Core parse loop; subtle ordering invariants. |\n| 00013 | `_parseCommand` 80 lines | med | 0.52 | Hook + action ordering. |\n| 00014 | `addOption` 69 lines | med | 0.52 | 1.1× threshold — marginal. |\n| 00018 | `lib/help.js` 462 lines | med | 0.51 | Cohesive but large. |\n| 00008/09 | `choices` duplicated in `argument.js`/`option.js` | med | 0.54 | Real: two parallel API surfaces that must stay in lockstep. Small and deliberate, but a fix landing in one and not the other is a plausible agent error. |\n| 00037/39 | 6 broken zh-CN doc links | low | 0.44 | Genuine dead links; agents following them get nothing. Cheap fix, docs-only. |\n\n**Ignore (46):** everything else. The substantial groups:\n\n- **Non-code \"God Files\" (00001, 00003, 00004)** — `CHANGELOG.md` (1244), `Readme.md` (1130), `Readme_zh-CN.md` (1072). A changelog is an append-only ledger; splitting it is actively wrong. These are `severity: high, agent_risk: 0.63` — tied for the top of the report.\n- **Test-file size (00036, 00042–00045)** — 200–350-line `describe` callbacks are idiomatic Jest, and `agent_risk` already discounts them to 0.34–0.45.\n- **Public-API boolean names (00016, 00040)** — `required`, `variadic`, `optional`, `mandatory`, `hide` are the documented API. Renaming to `isRequired` is a breaking change. `allowedNames` config, not a finding.\n- **Local boolean names (00015)** — `displayHelp`, `allowUnknown` etc. Cosmetic, `agent_risk` 0.52 overstates it.\n- **Examples dir (00007, 00012)** — `myParseInt` duplicated across two `examples/` files and `\"PORT\"` appearing in 5 of them. Examples are deliberately self-contained so each reads standalone; deduplicating them defeats their purpose.\n- **`sync_io_in_hotpath` (00038)** — `fs.existsSync` in `findFile`. Correct by design: subcommand resolution must complete synchronously before `spawn`. Async would be a bug.\n- The four verified false positives above.\n\n## Detector notes (you own crimes, so these are actionable)\n\n1. **`weak_test_signal` doesn't follow assertion helpers** — 16 of 55 findings (29% of this report) are wrong. Both call sites are the standard \"extract an assertion helper\" pattern, which the detector penalizes as the *opposite* of what it is. Highest-value fix here: resolve single-file-local helper functions containing `expect(` and count calls to them.\n2. **`large_file` applies a 300-line code threshold to Markdown** — 3 of the 6 `high` findings are a changelog and two READMEs, and they rank at the very top by `agent_risk` (0.63). Either exempt `.md` or give prose its own threshold.\n3. **`hardcoded_localhost` doesn't strip comments** before matching.\n4. **`logic_in_comments` fired on rationale** — the exact content its own `fix_shape` tells you to preserve. \"Note: the previous test had X, revisit if required\" tripped the `required`/`before` rule terms.\n\nNet: 55 findings, ~17 real, 9 worth a comment, 0 gating. The ranking pathology is the notable part — four of the five highest-`agent_risk` findings are non-code files.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "large_file",
+      "crime_00004": "large_file",
+      "crime_00005": "large_file",
+      "crime_00006": "large_function",
+      "crime_00007": "exact_duplicate_block",
+      "crime_00008": "exact_duplicate_block",
+      "crime_00009": "exact_duplicate_block",
+      "crime_00010": "hardcoded_localhost",
+      "crime_00011": "large_function",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "large_function",
+      "crime_00014": "large_function",
+      "crime_00015": "boolean_naming_drift",
+      "crime_00016": "boolean_naming_drift",
+      "crime_00017": "large_file",
+      "crime_00018": "large_file",
+      "crime_00019": "large_file",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "weak_test_signal",
+      "crime_00032": "weak_test_signal",
+      "crime_00033": "weak_test_signal",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "weak_test_signal",
+      "crime_00036": "large_function",
+      "crime_00037": "docs_code_drift",
+      "crime_00038": "sync_io_in_hotpath",
+      "crime_00039": "docs_code_drift",
+      "crime_00040": "boolean_naming_drift",
+      "crime_00041": "commented_out_code",
+      "crime_00042": "large_function",
+      "crime_00043": "large_function",
+      "crime_00044": "large_function",
+      "crime_00045": "large_function",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "weak_test_signal",
+      "crime_00053": "weak_test_signal",
+      "crime_00054": "weak_test_signal",
+      "crime_00055": "logic_in_comments"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "God Function": "large_function",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Commented-Out Corpse": "commented_out_code",
+      "Logic in the Alibi": "logic_in_comments"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "hardcoded_localhost",
+        "passed": false
+      }
+    ]
+  }
+}

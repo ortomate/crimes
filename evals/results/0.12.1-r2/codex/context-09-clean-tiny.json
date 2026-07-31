@@ -1,0 +1,34 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T22:56:31.612Z",
+  "run_id": "ec813bba-74a1-49fc-b7be-a2f14e8093db",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a pre-edit context check. I’ll run the requested command against the tiny fixture and base the safety assessment on its JSON evidence.\n\nThe global `crimes` binary isn’t on this shell’s PATH. I’m switching to the repository’s locally built CLI and keeping the fixture as the scan root; this runs the same requested context operation without changing files.\n\n`crimes context src/add.ts --format json` found:\n\n- Risk level: `none`\n- Findings: 0 high, 0 medium, 0 low\n- Likely test: `src/add.test.ts`\n- Related files or agent guidance: none\n- Churn: 1 commit and 1 author in the last 90 days\n\nThe supplied repository scan also found zero issues across both files.\n\n**Assessment:** `src/add.ts` is safe to extend. Update or add coverage in `src/add.test.ts`, then run the tests after editing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

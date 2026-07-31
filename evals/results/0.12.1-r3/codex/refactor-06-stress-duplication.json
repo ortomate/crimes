@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:36:07.931Z",
+  "run_id": "bf441555-ad0d-4b3c-a60c-d9cbfc5f88fa",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to ground the refactor in the actual three implementations, especially their differing arguments and return behavior. I’ll keep this read-only and propose the consolidation rather than modifying the fixture.\n\nThe three bodies are behaviorally identical; only local identifiers and exported function names differ. I’m checking call sites and exports now so the proposal preserves any existing API surface instead of assuming those names are safe to remove.\n\nThe scan confirms one medium-confidence near-duplicate across:\n\n- `src/sanitize-a.ts:10–36` — `sanitizeUserInput`\n- `src/sanitize-b.ts:9–35` — `sanitizeText`\n- `src/sanitize-c.ts:9–35` — `cleanMessage`\n\nTheir behavior is identical; only names differ.\n\n### Proposed refactor\n\nAdd `src/sanitize.ts` with one canonical API:\n\n```ts\nexport function sanitizeText(\n  input: string | null | undefined,\n): string;\n```\n\nContract:\n\n- Returns `\"\"` for `null`, `undefined`, empty, or rejected input.\n- Trims and normalizes whitespace.\n- Removes control characters.\n- Truncates to 1,000 characters.\n- Rejects leading `<`/`>`, `\\\\x`, and excessive punctuation.\n- Lowercases long input that is over 90% uppercase.\n\nPreserve existing exports as compatibility aliases:\n\n```ts\n// sanitize-a.ts\nexport { sanitizeText as sanitizeUserInput } from \"./sanitize.js\";\n\n// sanitize-b.ts\nexport { sanitizeText } from \"./sanitize.js\";\n\n// sanitize-c.ts\nexport { sanitizeText as cleanMessage } from \"./sanitize.js\";\n```\n\nThis avoids three wrapper bodies while keeping callers working.\n\n### Files that would change\n\n- Add `src/sanitize.ts`\n- Update `src/sanitize-a.ts`\n- Update `src/sanitize-b.ts`\n- Update `src/sanitize-c.ts`\n- Add a focused test such as `src/sanitize.test.ts`\n\nThe `assertAdminA/B/C` functions should remain separate from this refactor. They have materially different semantics—especially `assertAdminC`, which returns true for non-admins—and belong to the separate policy finding. The telemetry duplication is also unrelated.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

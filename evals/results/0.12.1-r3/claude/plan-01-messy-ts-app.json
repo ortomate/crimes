@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:32:35.195Z",
+  "run_id": "4d3952be-6418-4dfb-97ca-ee2e8f2e4175",
+  "response": "## Gate context first\n\n`crimes verdict --format json` returns:\n\n```\nverdict: \"unchanged\"  ·  new: 0  ·  fixed: 0  ·  unchanged: 37\n\"no maintainability change vs. base — verdict is advisory only.\"\n```\n\nNothing in this list is *new on the branch*, so none of it blocks a merge. This is scheduled debt paydown, not incident triage — which is what lets me put a 204-line God Function behind a 5-minute portability fix in the ordering below.\n\n## Triage order\n\nOrdered by **file cluster**, not by rank — four of the top 10 live in `src/date.ts` and are one edit, not four.\n\n| # | Batch | Findings | Response | Why here |\n|---|---|---|---|---|\n| 0 | Agent context | `crime_00005` | fix now | Do this first *only if agents will do batches 1–4*. Every edit below gets safer once the repo declares its commands and conventions. If a human is doing the work, drop to last. |\n| 1 | `src/api/files.ts` consts | `crime_00006`, `crime_00007` | fix now | Two module-level constants, one edit, ~5 minutes, zero blast radius. Highest value-per-minute in the list. |\n| 2 | `src/date.ts` temporal | `crime_00002`, `crime_00003`, `crime_00008` | fix now | One file, one sitting. Inject the clock (`00002`) **first** — it creates the seam that makes the other two testable. |\n| 3 | *(prerequisite — not in the top 10)* | `crime_00019`, `crime_00037` | fix now | See \"What the top 10 misses\" below. Blocks batch 4. |\n| 4 | `src/billing.ts` structure | `crime_00004` | fix now, gated | 204 lines, `effort: small` is optimistic. Do not start until batch 3 lands. |\n| 5 | Deferred | `crime_00009`, `crime_00010` | defer | Each needs a decision, not a keystroke. |\n| 6 | Downgraded | `crime_00001` | ignore | Its own evidence undercuts it. |\n\n**On batch 1** — `SCHEMA_PATH = \"/Users/andrew/dev/crimes/schema.json\"` is worse than the finding says. `loadPlanSchema()` guards with `existsSync` and returns `null`, so on every other machine and every CI runner it *silently returns no schema* rather than crashing. Silent degradation beats a stack trace at hiding itself.\n\n## Grouped by category\n\n**structural** — `crime_00004` (God Function, `generateInvoice`, 204 lines) → **fix now**, sequenced after tests. The file's own comment names eight responsibilities in one body: pricing, discount rules, country tax, persistence, audit logging, email rendering, retry, PII. Extract along those seams.\n\n**git-history** — **empty, and legitimately so.** Every finding in the report has `churn: 0` and `recency: 0`, there are no hotspot findings, and `verdict` reports zero drift vs `origin/main`. The fixture has no per-file history to mine, so I have nothing to rank here. I'd rather report the bucket empty than promote a low-severity finding into it.\n\n**IA** — `crime_00005` (Missing Agent Context) → **fix now**. `package.json` declares a bin with no discoverable docs. This is the one finding whose fix changes the cost of every other fix.\n\n**frontend** — `crime_00001` (SVG with embedded raster) → **ignore**. Ranked #1 by `agent_risk` (0.70), but its own evidence reads `SVG byte size: 592 bytes` — I confirmed that on disk. The charge's argument is \"usually larger than a plain PNG\"; at 592 bytes total, including base64 overhead, that can't be true. The detector's severity is generic to the pattern and doesn't read its own size evidence. **The real frontend asset problem is `crime_00011`** (`hero-banner.png`, 253.9 KB) at rank #11 — I'd swap it into the top 10 for `crime_00001`.\n\n**duplication** — `crime_00009` (`\"enterprise\"` across `src/api/plan.ts`, `src/billing.ts`, `src/jobs/plan-sync.ts`, `src/ui/pricing.ts`) → **defer**, explicitly until after batch 4. The finding's own `suggested_actions.risk` is `medium`, one of the four sites is `billing.ts`, and centralising a literal into a plan registry while that file is being split means two refactors colliding. Sequence, don't skip.\n\n**Doesn't fit the five buckets** — flagging rather than forcing:\n- *Determinism / temporal* (`crime_00002`, `00003`, `00008`) → **fix now**, batch 2. Four of the top 10 are timezone and clock bugs; calling them \"structural\" would lose what they actually are.\n- *Config / portability* (`crime_00006`, `crime_00007`) → **fix now**, batch 1.\n- `crime_00010` (DST-naive `+ 86400000`) → **defer**. Genuinely ambiguous: `tomorrowMs(nowMs: number): number` is milliseconds in, milliseconds out. If it means \"+24 hours\" it is correct as written and the finding is a false positive; if it means \"+1 calendar day\" it is a real DST bug. That's a product question, and its `confidence` (0.80) is the lowest in the top 10. Answer the question, then fix or suppress.\n\n## Three corrections from checking the receipts\n\n1. **`crime_00003`'s evidence is misattributed.** It reports `\"d\" uses getUTCFullYear() @L9 and getMonth() @L41` — but those are two different `d` variables in two different function scopes (`todayKey` at L8, `dateLabel` at L40). The detector merged receivers across scopes. **The finding is still real**: `dateLabel` at L41 alone mixes `getUTCFullYear()` with `getMonth()` and `getDate()`. Right bug, wrong receipt — fix L41, ignore the L9 half of the evidence.\n2. **`crime_00004`'s `effort: small` is wrong** for a 204-line function with eight responsibilities and no test coverage. Budget it as large.\n3. **`crime_00001` is over-ranked** on generic pattern severity, per the frontend note above.\n\n## What the top 10 misses\n\n**`src/billing.ts` has no real test coverage at all** — and the top 10 doesn't say so. Both tests in `billing.test.ts` call stubs *defined in the test file itself* (`renderEnterprisePlan` is an empty body; `createInvoice` returns a hardcoded `{ id: \"invoice_123\" }`). Neither imports `billing.ts`. So `crime_00019` (0 assertions) and `crime_00037` (weak matcher) are ranked #19 and #37 as test-hygiene nits, but together they mean the 204-line refactor at rank #4 would run with **zero** regression protection. That inversion is why batch 3 exists: write assertions against the real module before touching `generateInvoice`.\n\nAlso worth pulling forward: `crime_00020` (`calculateRefundPreview` sends email and writes audit rows) and `crime_00027` (the comment at L39, *\"Only owners can refund enterprise plans unless billing support approves\"*) are **one defect, not two** — a function that neither calculates a preview nor enforces the ownership rule, but does fire side effects. Ranks #20 and #27 individually; as a pair, top-10 material.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

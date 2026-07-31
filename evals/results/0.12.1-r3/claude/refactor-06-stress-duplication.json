@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:36:21.574Z",
+  "run_id": "5d70b62a-1077-4c45-9bb9-e89cd0cef3f8",
+  "response": "## What the scan confirms\n\n`crimes scan --format json` reports 5 findings, and three of them are the duplication story:\n\n| id | charge | evidence |\n|---|---|---|\n| `crime_00002` | Near-Duplicate Block (`confidence 0.85`) | `sanitize-a.ts:10-36 (sanitizeUserInput)`, `sanitize-b.ts:9-35 (sanitizeText)`, `sanitize-c.ts:9-35 (cleanMessage)` — same body hash `289f7da71f3a…` across 3 files |\n| `crime_00001` | Exact Duplicate Block (`confidence 0.95`) | `telemetry-a.ts:6-19` and `telemetry-b.ts:6-19`, both `recordSanitiseEvent`, identical bodies |\n| `crime_00003` | Duplicated Role/Status/Plan Check (`confidence 0.7`) | literal `\"admin\"` compared in 4 files using **2 distinct expression shapes** |\n\nI read the three sanitise functions to check what the near-duplicate hash is actually eliding. It is eliding **nothing**: `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` are token-for-token identical apart from the parameter and local variable names (`raw/working`, `input/cleaned`, `value/normalised`). Same 1000-char cap, same `[!?]{3,}` count > 5 rule, same 0.9 upper-case ratio over length 30, same `<`/`>`/`\\x` rejects.\n\nThat matters for the plan: the finding's `fix_shape` says *\"consolidate into one helper; pass the differing values as args\"*, but there are no differing values. This is a delete-two-copies refactor, not a parameterisation. Don't invent an options bag to justify the merge.\n\n## The one thing that must not be consolidated\n\nThe three admin guards sitting next to those functions are **not** duplicates — they have three different behaviours:\n\n- `assertAdminA` (`sanitize-a.ts:6`) → `role === \"admin\"`\n- `assertAdminB` (`sanitize-b.ts:5`) → `role === \"admin\" || role === \"owner\"` ← **owner is also allowed**\n- `assertAdminC` (`sanitize-c.ts:5`) → `role !== \"admin\"` ← **inverted**\n\n`crime_00003` flags them together because they all test the same literal, and its `fix_shape` (\"centralise the policy check\") is right — but collapsing all three onto one predicate silently changes two of them. This is exactly the drift the detector exists to catch, and it's the highest-risk part of the refactor. Handle it as: one predicate for the shared *primitive*, distinct named policies on top.\n\n## Proposed public API\n\n**`src/sanitize.ts`** (new)\n\n```ts\nexport function sanitizeText(input: string): string;\n```\n\nOne exported function. No options parameter — every call site today wants identical limits, and adding knobs nothing sets just re-creates the divergence in a new shape. Add an options bag when a second caller genuinely needs a different cap.\n\nTwo supporting details:\n\n- Export the magic numbers as named constants (`MAX_LENGTH = 1000`, `MAX_SHOUT_RUNS = 5`, `UPPERCASE_RATIO_LIMIT = 0.9`, `UPPERCASE_MIN_LENGTH = 30`) so tests can assert boundaries without hardcoding them twice.\n- Keep the `input === null || input === undefined` guard and the `String(input)` coercion, despite the `string` type annotation. They're dead under TS but live for JS callers, and dropping them during a consolidation turns a \"no behaviour change\" refactor into a real one.\n\n**`src/policy.ts`** (rewritten)\n\n```ts\nexport function isAdmin(role: string): boolean;        // role === \"admin\"\nexport function isElevated(role: string): boolean;     // admin OR owner  (was assertAdminB)\nexport function canEditBilling(role: string): boolean; // → isAdmin(role)\nexport function canSeeAuditLog(role: string): boolean; // → isAdmin(role)\nexport function canImpersonate(role: string): boolean; // → isAdmin(role)\n```\n\n`assertAdminA` → `isAdmin`. `assertAdminB` → `isElevated` (kept as its own name so the owner-inclusion stays visible rather than hiding inside a boolean). `assertAdminC` → deleted; its one negation becomes `!isAdmin(role)` at the call site. After this, `\"admin\"` appears as a literal in exactly two places in the repo, both in `policy.ts`.\n\n**`src/telemetry.ts`** (new)\n\n```ts\nexport interface SanitiseEvent { originalLength: number; sanitisedLength: number; reductionRatio: number; timestamp: number; }\nexport function recordSanitiseEvent(originalLength: number, sanitisedLength: number, now?: () => number): void;\n```\n\nThe optional `now` injection resolves `crime_00004` and `crime_00005` (Temporal Recklessness, `Date.now()` at line 16 of both telemetry files) in the same edit — they're the same line of code twice, and it defaults to `Date.now` so no caller changes.\n\n## Files that would change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **new** — the single `sanitizeText` implementation |\n| `src/telemetry.ts` | **new** — the single `recordSanitiseEvent`, with injectable clock |\n| `src/sanitize-a.ts` | **deleted** — body → `sanitize.ts`, `assertAdminA` → `policy.isAdmin` |\n| `src/sanitize-b.ts` | **deleted** — body dropped as duplicate, `assertAdminB` → `policy.isElevated` |\n| `src/sanitize-c.ts` | **deleted** — body dropped as duplicate, `assertAdminC` → `!isAdmin()` at call sites |\n| `src/telemetry-a.ts` | **deleted** — merged into `telemetry.ts` |\n| `src/telemetry-b.ts` | **deleted** — merged into `telemetry.ts` |\n| `src/policy.ts` | **rewritten** — gains `isAdmin`/`isElevated`; the three `can*` functions delegate |\n\nNet: 6 source files → 3.\n\n## Risk and sequencing\n\n`blast_radius: 0` and `blast_radius_importers: 0` on all three duplication findings, and the fixture's `package.json` declares no `exports`. Nothing imports these modules, so the renames are fully contained — no re-export shims needed. (If this pattern were in a package with a public entry point, `sanitizeUserInput`/`cleanMessage` would need deprecated aliases re-exported from `sanitize.ts` for a release.)\n\n`test_gap: 0.5` on every finding, and there are no tests in the fixture. The correct order is:\n\n1. Write characterisation tests against **one** of the three existing functions first. The body has at least one rule that looks accidental — `replace(/[ -]/g, \"\")` is a character *range* from `U+0020` to `U+002D`, so it strips spaces and all of `!\"#$%&'()*+,-`, which is probably not what \"strip control characters\" intended. Pin the current behaviour before moving it; do not fix it during the consolidation.\n2. Move the body to `sanitize.ts` unchanged, delete the other two.\n3. Do the policy work as a **separate commit** — it's the only step with a real behaviour-change risk, and it should be reviewable on its own.\n4. Re-run `crimes scan --format json`; `crime_00001` through `crime_00005` should all clear.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

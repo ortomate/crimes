@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:19:56.526Z",
+  "run_id": "329b35bc-b208-4f06-b89d-626cb8f94768",
+  "response": "I’m using the repository’s `crimes-codebase-risk` review guidance to keep the merge decision aligned with the scanner’s intended severity and risk semantics. I’ll classify every one of the 37 reported findings (noting the skipped ID is just numbering).\n\nI’d block the merge on all four new high-severity findings. Medium findings become warnings; low findings normally do not gate, except the two with `agent_risk ≥ 0.50`, which deserve explicit review.\n\n“ignore” below means “do not gate this merge,” not “never fix.”\n\n### Block merge — 4\n\n| ID | Finding | Severity | Agent risk | Justification |\n|---|---|---:|---:|---|\n| `crime_00001` | Embedded rasters in `partner-logo.svg` | high | 0.70 | Highest agent-risk finding, with a misleading asset format and no test coverage. New high-severity finding must block. |\n| `crime_00002` | Direct clock access in `date.ts` | high | 0.62 | Eight nondeterministic clock reads create broad temporal test risk. High severity and high agent risk justify gating. |\n| `crime_00003` | Mixed UTC/local methods in `date.ts` | high | 0.61 | Host-timezone-dependent behavior can silently corrupt dates. High severity and substantial agent risk make this merge-blocking. |\n| `crime_00004` | 204-line `generateInvoice` | high | 0.55 | The function is 3.4× its threshold and difficult to edit safely. Despite the lowest risk among the highs, a newly introduced high still blocks. |\n\n### Warn — 17\n\n| ID | Finding | Severity | Agent risk | Justification |\n|---|---|---:|---:|---|\n| `crime_00005` | Missing agent context | medium | 0.53 | Agents cannot discover commands or conventions. High-priority warning, especially for a CLI repository. |\n| `crime_00006` | Hardcoded `localhost:3000` | medium | 0.53 | Likely to fail outside one development environment; risk is high enough for prompt remediation. |\n| `crime_00007` | Hardcoded user path | medium | 0.53 | Guarantees non-portability across developers, CI, and deployment environments. |\n| `crime_00008` | Timezone-unsafe parsing | medium | 0.53 | Ambiguous date literals can change meaning between hosts. Strong correctness warning. |\n| `crime_00009` | Scattered `\"enterprise\"` policy literal | medium | 0.52 | Four copies across four areas create policy-drift risk. Warn, but centralization is not necessarily merge-critical. |\n| `crime_00010` | DST-naive day arithmetic | medium | 0.52 | Can produce wrong results on DST boundaries. Material correctness risk, though localized. |\n| `crime_00011` | 254 KB raster | low | 0.52 | Severity is low, but unusually high agent risk and complete test gap elevate it to a non-blocking asset review. |\n| `crime_00012` | Tenant concept aliases | medium | 0.51 | Four competing terms can lead maintainers to duplicate domain behavior. Requires a vocabulary decision. |\n| `crime_00013` | Raster icon that should be vector | low | 0.50 | Low functional impact, but the elevated agent risk and test gap justify confirming the asset choice. |\n| `crime_00014` | Duplicated navigation source | medium | 0.49 | Conflicting labels already demonstrate drift. Warn and establish a canonical source. |\n| `crime_00015` | Dense TODO/FIXME file | medium | 0.49 | Fourteen markers make intended behavior unclear. Warn for triage rather than block. |\n| `crime_00016` | Route metadata drift | medium | 0.49 | Four labels for one destination create visible inconsistency and future edit risk. |\n| `crime_00018` | Direct clock access in `billing.ts` | medium | 0.46 | Seven clock reads still create nondeterminism, but existing tests reduce the calculated risk below the high-severity instance. |\n| `crime_00019` | Assertion-free billing test | medium | 0.46 | The test provides false confidence and should gain an observable assertion before being relied upon. |\n| `crime_00020` | Side-effecting “preview” function | medium | 0.44 | The name can cause callers to invoke mutations accidentally. Meaningful API-contract warning. |\n| `crime_00026` | 311-line `billing.ts` | medium | 0.42 | Barely exceeds the threshold and has no calculated test gap; warn, but do not gate independently. |\n| `crime_00027` | Authorization rule only in a comment | medium | 0.42 | Potentially important billing policy is not encoded in code or tests. Warn despite the moderate score. |\n\n### Ignore for merge — 16\n\n| ID | Finding | Severity | Agent risk | Justification |\n|---|---|---:|---:|---|\n| `crime_00021` | Broken documentation link | low | 0.44 | Worth fixing, but it does not justify holding the initial merge. |\n| `crime_00022` | Synchronous file I/O | low | 0.44 | Performance depends on call frequency, which the finding does not establish. Backlog pending hot-path evidence. |\n| `crime_00023` | One direct clock read | low | 0.44 | Localized nondeterminism; address with related temporal work rather than gate alone. |\n| `crime_00024` | Manual date string construction | low | 0.43 | Plausible formatting bug, but isolated and below the warning-risk cutoff. |\n| `crime_00025` | Implicit host locale | low | 0.43 | Output may vary, but this is a localized presentation concern. |\n| `crime_00028` | Unprefixed booleans in `state.ts` | low | 0.42 | Naming clarity issue with limited behavioral risk. |\n| `crime_00029` | Unprefixed booleans in `petty.ts` | low | 0.42 | Naming concern only; the existing imperative names may also be intentional idioms. |\n| `crime_00030` | Broad options bag | low | 0.40 | Type-contract improvement, but no demonstrated defect or broad impact. |\n| `crime_00031` | Multiple implicit return shapes | low | 0.40 | An explicit union would help, but the current score does not warrant merge friction. |\n| `crime_00032` | Negative flag condition | low | 0.40 | Readability and inversion risk are modest and localized. |\n| `crime_00033` | Singular/plural type mismatch | low | 0.40 | Clear naming debt, but readily understood from the annotations. |\n| `crime_00034` | Orphaned `/account/subscription` route | low | 0.39 | Low-confidence reachability inference; the framework may discover routes automatically. Verify later. |\n| `crime_00035` | Orphaned `/team` route | low | 0.39 | Same low-confidence reachability caveat; insufficient evidence to gate. |\n| `crime_00036` | Orphaned `/workspace/members` route | low | 0.39 | Same low-confidence reachability caveat; insufficient evidence to gate. |\n| `crime_00037` | Weak assertion matcher | low | 0.34 | Lowest-risk test finding; improve when strengthening the billing suite. |\n| `crime_00038` | Four TODOs in `billing.ts` | low | 0.32 | Lowest agent-risk score and only slightly above the density threshold. Backlog cleanup. |\n\nOverall decision: **request changes / block merge** until `crime_00001`–`crime_00004` are resolved or explicitly accepted. The 17 warnings should be recorded as follow-up work, with the temporal correctness and environment portability findings handled first. The scan also reports one suppressed finding, but it cannot be classified because its details are absent from the supplied findings array.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "svg_with_embedded_raster",
+        "passed": false
+      }
+    ]
+  }
+}

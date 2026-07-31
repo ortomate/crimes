@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:47:00.866Z",
+  "run_id": "2d96d6d4-0793-49d3-bc80-7a06d8a6f27c",
+  "response": "I verified the findings whose verdicts depend on details the JSON doesn't carry. Several don't survive contact with the source.\n\n## Verdict: **merge with comments** — 0 blocking, 6 warn, 49 ignore\n\nNothing here blocks. The strongest real finding is a `medium` at `agent_risk` 0.54, and blocking a merge over medium-severity structure is how a risk tool gets muted. More importantly, **44% of the findings (24/55) are false positives** that I confirmed by reading the code.\n\n## Block merge — none\n\nNo finding clears the bar. The two highest `agent_risk` scores in the report (0.63 on `lib/command.js`, 0.62 on `_executeSubCommand`) are real, but they describe a mature parser's shape, not a defect introduced by this change. Also worth naming: \"on top of an empty baseline\" makes every line in a vendored Commander.js tree look new. That's a measurement artifact, not a quality signal, and it should not drive a gate.\n\n## Warn — 6 findings, 4 distinct defects\n\n| ID | Charge | sev / agent_risk | Why |\n|---|---|---|---|\n| `crime_00008`, `crime_00009` | Exact Duplicate Block | medium / **0.54** | **The best finding in the report.** `Argument.choices()` (`lib/argument.js:99-111`) and `Option.choices()` (`lib/option.js:176-188`) are byte-identical, including the `InvalidArgumentError` message and the `variadic` branch. This is the canonical agent failure: fix the message in one, ship a product with two different error strings. Note 8 and 9 are one defect double-counted (whole function + inner block). |\n| `crime_00006` | God Function | high / **0.62** | `_executeSubCommand` (120 lines) mixes path resolution, node-vs-exec launch detection, `spawn`, signal forwarding, and error mapping in one body. Highest justified `agent_risk` here — an agent editing the signal handling has to hold the launch-mode logic in context to not break it. |\n| `crime_00002` | God File | high / **0.63** | `lib/command.js` at 2180 lines. Legitimate as a warning, not a gate — it's one cohesive `Command` class, and splitting it is a bigger risk than the size. Flag it so the next feature lands as a new module. |\n| `crime_00011`, `crime_00013` | God Function | medium / 0.53, 0.52 | `parseOptions` (115) and `_parseCommand` (80). Real, lower urgency than `_executeSubCommand`. Comment, don't gate. |\n\n## Ignore — with reasons\n\n**Confirmed false positives (24 findings) — these are detector bugs, not code problems:**\n\n- **`crime_00020`–`crime_00035`, all 16 \"0 expect/assert calls.\"** Every one of these tests asserts. `tests/command.exitOverride.test.js` routes assertions through `expectCommanderError()` (declared at line 11); `tests/ts-imports.test.ts` uses `checkClass()`. The exitOverride file even declares the helper machine-readably at line 9: `/* eslint jest/expect-expect: [\"error\", { \"assertFunctionNames\": [...] }] */`. The detector should read that directive, and more generally should follow one level of call indirection into same-file helpers before claiming zero assertions. This is the single highest-value fix — 29% of the report is one bug.\n- **`crime_00037`, `crime_00039` (6 links).** The links aren't stale, they're percent-encoded. `./%E6%9C%AF%E8%AF%AD%E8%A1%A8.md` decodes to `./术语表.md`, which exists in `docs/zh-CN/` — as do all five in the zh-CN Readme. `decodeURIComponent` before `stat`.\n- **`crime_00010` \"Dev-Server URL.\"** `localhost:1234` at `lib/command.js:2152` is inside `// e.g. --inspect=localhost:1234`, a comment documenting the regex on the line below. No literal in the code path.\n- **`crime_00041` \"Commented-Out Corpse.\"** The two lines document the shape of the `spawn` call the mock captures, sitting directly above `return mock.mock.calls[0][1]`. That's rationale for live code, exactly what the detector's own fix text asks for.\n\n**Correct but not actionable (the rest):**\n\n- `crime_00001`, `00003`, `00004` — `CHANGELOG.md`, `Readme.md`, `Readme_zh-CN.md` flagged as God Files at `agent_risk` 0.63, tied for the highest in the report. A 1244-line changelog is a changelog. Prose files shouldn't be scored by a code-coupling threshold at all.\n- `crime_00005`, `00016` — `typings/index.d.ts` size and its 19 unprefixed booleans (`required`, `variadic`, `optional`, `mandatory`). These are the published API surface of a package with tens of millions of weekly downloads. \"Rename to `isRequired`\" is a major-version break proposed at medium severity.\n- `crime_00046`–`crime_00054` \"weak matchers.\" `expect(cmd._hasHelpOption).toBeFalsy()` after a `toBeTruthy()` on the same field pre-mutation is a real before/after behaviour assertion. `toBe(false)` would be marginally tighter; not worth a reviewer's comment.\n- `crime_00012` \"PORT\" — it's `.env('PORT')` across four independent `examples/` scripts. Env var names are the interface; centralizing them across standalone examples would make the examples worse.\n- `crime_00036`, `00042`–`00045` — long `describe` callbacks in test files. Test suites are lists; length isn't coupling.\n- `crime_00038` — `fs.existsSync` in `findFile`. This is CLI subcommand resolution in a one-shot process before anything else runs. There is no event loop to block.\n- `crime_00015`, `00040` — internal boolean locals. Cosmetic.\n- `crime_00055` \"Logic in the Alibi\" — a note about a removed sinon SIGUSR1 test. Closest to a legitimate low: it's a TODO wearing a comment's clothes. Not worth blocking or warning.\n\n## The takeaway for the tool\n\nThe precision problem is concentrated, not diffuse: two detector bugs (`weak_test_signal` helper indirection, `docs_code_drift` percent-encoding) produce 22 of the 24 false positives. Fixing those takes the report from 44% noise to ~4%, and would move `weak_test_signal` from the least trustworthy detector in this run to a clean zero — which is the correct answer for this codebase.\n\nThe second issue is scoring: the three highest-`agent_risk` findings in the whole report (0.63) are a changelog and two READMEs. `large_file` shouldn't apply its coupling rationale — \"small edits can collide with code an agent never loaded into context\" — to files that contain no code.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "large_file",
+      "crime_00004": "large_file",
+      "crime_00005": "large_file",
+      "crime_00006": "large_function",
+      "crime_00007": "exact_duplicate_block",
+      "crime_00008": "exact_duplicate_block",
+      "crime_00009": "exact_duplicate_block",
+      "crime_00010": "hardcoded_localhost",
+      "crime_00011": "large_function",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "large_function",
+      "crime_00014": "large_function",
+      "crime_00015": "boolean_naming_drift",
+      "crime_00016": "boolean_naming_drift",
+      "crime_00017": "large_file",
+      "crime_00018": "large_file",
+      "crime_00019": "large_file",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "weak_test_signal",
+      "crime_00032": "weak_test_signal",
+      "crime_00033": "weak_test_signal",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "weak_test_signal",
+      "crime_00036": "large_function",
+      "crime_00037": "docs_code_drift",
+      "crime_00038": "sync_io_in_hotpath",
+      "crime_00039": "docs_code_drift",
+      "crime_00040": "boolean_naming_drift",
+      "crime_00041": "commented_out_code",
+      "crime_00042": "large_function",
+      "crime_00043": "large_function",
+      "crime_00044": "large_function",
+      "crime_00045": "large_function",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "weak_test_signal",
+      "crime_00053": "weak_test_signal",
+      "crime_00054": "weak_test_signal",
+      "crime_00055": "logic_in_comments"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "God Function": "large_function",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Commented-Out Corpse": "commented_out_code",
+      "Logic in the Alibi": "logic_in_comments"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T22:56:57.550Z",
+  "run_id": "3663a614-f36a-4cc6-bf10-883aa8fadc57",
+  "response": "`crimes context src/billing.ts --format json` confirms the scan: **zero findings**.\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"findings\": [],\n\"agent_guidance\": [],\n\"related_files\": []\n```\n\n**likely_tests: `src/billing.test.ts`** — the module has a directly co-located test file, and it's the only one crimes associates with it.\n\n## Why this is low risk to edit\n\nThe file is 11 lines: one `Money` interface and one pure `format()` function.\n\n- **No structural risk.** One small function, no nesting, one parameter, no God-function or large-file surface to trip over.\n- **No blast radius.** `related_files` is empty and the reason given is explicit — no import-graph neighbours, no shared domain tokens, no same-directory siblings. Nothing else in the fixture depends on it, so a change can't ripple.\n- **Deterministic and pure.** `format()` takes `Money` in and returns a string; no `Date.now()`, no `Math.random()`, no `process.env`, no I/O. Same input always gives the same output, which is exactly what makes it safe to change and trivial to verify.\n- **Typed narrowly.** `currency` is a literal union (`\"USD\" | \"EUR\" | \"GBP\"`), so the compiler catches a whole class of mistakes at edit time rather than at runtime.\n- **Covered.** `src/billing.test.ts` sits right next to it — you get a fast feedback loop on any edit.\n- **Cold history.** Churn clues show 1 commit in 90 days by 1 author: stable code, not a contested hotspot.\n\nTwo caveats worth stating rather than glossing: `test_gap` is reported as `\"unknown\"` (raw 0) — crimes found a likely test file but isn't asserting coverage depth, so read the test before assuming a behaviour is pinned. And \"no findings\" means no *detected* risk, not proof of correctness — `amount.toFixed(2)` still carries the usual float-money caveat that a risk scanner won't flag.\n\nPractically: edit it, run `src/billing.test.ts`, done. No pre-edit context gathering needed beyond the file itself.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

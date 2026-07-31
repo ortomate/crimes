@@ -167,6 +167,35 @@ Record the observed noise band in the release notes alongside the
 baseline, so the next person comparing two versions knows how big a
 move has to be before it means anything.
 
+### Measured noise band (3 samples at 0.12.1)
+
+Three full runs of **identical code and scorer**
+(`0.12.1`, `0.12.1-r2`, `0.12.1-r3`):
+
+| level | claude | codex |
+|-------|--------|-------|
+| per-agent aggregate | mean 0.901, σ 0.041 | mean 0.592, σ 0.083 |
+| per-scenario-kind, worst observed range | 0.25 (`plan`) | 0.15 (`bugfix`, `plan`) |
+| per-scenario-kind, best | 0.00 (`context`) | 0.00 (`context`) |
+
+Read this as:
+
+- **Per-agent aggregate is usable.** Treat moves under ~6pp as noise.
+- **`per_scenario_kind` is not interpretable at current scenario
+  counts.** Each kind holds only 7–8 scenarios, so one flipped
+  assertion moves it 8–15pp, and `plan`/claude ranged 0.64–0.88 across
+  three identical runs. Do not quote it in release notes as evidence of
+  improvement or regression without repeat samples.
+- **codex is roughly twice as noisy as claude** (σ 0.083 vs 0.041).
+  Agent-to-agent comparisons need more samples than version-to-version
+  ones.
+
+The investigation that produced these numbers began with an apparent
+5-point drop between 0.10.5 and 0.12.0, including `bugfix`/claude
+−12pp and `plan`/claude −11pp. Both sit inside the band above. There
+was no regression — and with one sample per version there was no way
+to know that from the summary alone.
+
 ## Scenario↔fixture coverage discipline
 
 Every entry in a scenario's `expected_artifacts.referenced_findings`

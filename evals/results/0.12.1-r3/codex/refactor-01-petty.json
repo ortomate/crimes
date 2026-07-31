@@ -1,0 +1,118 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "codex",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:37:34.244Z",
+  "run_id": "e5fa708b-e745-45c0-b46d-213bdc24314f",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a TypeScript risk investigation. I’ll run the requested file-level context command and inspect `petty.ts`, then give a refactor proposal only—no code changes.\n\nThe global `crimes` binary isn’t on this shell’s PATH, so I’m switching to the repository-built CLI—the documented equivalent for an unpublished checkout.\n\nThe context report confirms the three requested findings, all low severity with roughly `0.41` agent risk. It also reports `boolean_naming_drift`, which the negative-flag refactor naturally fixes.\n\n1. `option_bag_junk_drawer` — `describeCheckout`\n\n[src/petty.ts:10](/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/petty.ts:10) reads six unrelated properties from one broad bag. Although `CheckoutOptions` is named, it still mixes plan, actor, location, payment, and retry state.\n\nRefactor into cohesive records and destructure the exact dependencies:\n\n```ts\ninterface CheckoutDescription {\n  checkout: {\n    plan: string;\n    status: string;\n    shouldRetry: boolean;\n  };\n  customer: {\n    role: string;\n    region: string;\n  };\n  payment: {\n    currency: string;\n  };\n}\n\nexport function describeCheckout({\n  checkout,\n  customer,\n  payment,\n}: CheckoutDescription): string {\n  return [\n    checkout.plan,\n    customer.role,\n    customer.region,\n    payment.currency,\n    checkout.status,\n    String(checkout.shouldRetry),\n  ].join(\":\");\n}\n```\n\nToday, an agent could add another vaguely relevant property to the junk drawer, omit it at a caller, or place it incorrectly in the positional serialized output. The narrower groups make ownership and required fields explicit.\n\n2. `return_shape_roulette` — `resolvePaymentResult`\n\n[src/petty.ts:21](/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/petty.ts:21) returns three shapes with zero key overlap in some branches and has no explicit return type.\n\nIntroduce a discriminated union:\n\n```ts\ntype PaymentResult =\n  | {\n      kind: \"error\";\n      code: string;\n      message: string;\n    }\n  | {\n      kind: \"redirect\";\n      url: string;\n      permanent: boolean;\n    }\n  | {\n      kind: \"success\";\n      value: string;\n      cached: boolean;\n    };\n\nexport function resolvePaymentResult(input: PaymentInput): PaymentResult {\n  if (input.error) {\n    return {\n      kind: \"error\",\n      code: input.code ?? \"unknown\",\n      message: input.message ?? \"Payment failed\",\n    };\n  }\n\n  if (input.redirect) {\n    return {\n      kind: \"redirect\",\n      url: input.url ?? \"\",\n      permanent: false,\n    };\n  }\n\n  return {\n    kind: \"success\",\n    value: input.value ?? \"\",\n    cached: false,\n  };\n}\n```\n\nCallers must now narrow on `result.kind`. Today, an agent might assume every result has `ok`, access `url` without checking the branch, or introduce a fourth undocumented shape. Ideally, make `PaymentInput` a discriminated union too, preventing contradictory inputs such as both `error` and `redirect`.\n\n3. `negative_flag_maze` — `canRunBilling`\n\n[src/petty.ts:34](/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/petty.ts:34) combines `!disableBilling && !skipRetry`. Rename both inputs positively and return the predicate directly:\n\n```ts\nexport function canRunBilling(\n  isBillingEnabled: boolean,\n  isRetryEnabled: boolean,\n): boolean {\n  return isBillingEnabled && isRetryEnabled;\n}\n```\n\nCall sites must invert their existing negative values during migration:\n\n```ts\ncanRunBilling(!disableBilling, !skipRetry);\n```\n\nToday, an agent adding an exception could easily negate only one flag, change `&&` to `||`, or misread “not skipped” as “skip.” Positive names remove that mental inversion and also resolve the accompanying `boolean_naming_drift` finding.\n\nBefore changing behavior, add focused tests—especially all four truth-table combinations for `canRunBilling` and exhaustive branch tests for `PaymentResult`. The context report found no likely tests for this file.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "large_function",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00008": "timezone_unsafe_parse",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "dst_naive_arithmetic",
+      "crime_00011": "oversized_raster",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "raster_should_be_vector",
+      "crime_00014": "duplicated_navigation_source",
+      "crime_00015": "todo_density",
+      "crime_00016": "route_metadata_drift",
+      "crime_00018": "direct_date",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "name_behavior_mismatch",
+      "crime_00021": "docs_code_drift",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "boolean_naming_drift",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-30T22:53:08.226Z",
+  "run_id": "d54ab66d-07b1-4f8f-8c0e-e09aa802e37e",
+  "response": "## The cycle\n\nAll three edges are runtime value imports, so the ring is real:\n\n```\nsrc/application/billing-flow.ts:1  → ../domain/billing.js        (application → domain)   ✅ legal\nsrc/domain/billing.ts:2            → ../presentation/invoice-view.js (domain → presentation) ❌ illegal\nsrc/presentation/invoice-view.ts:3 → ../application/billing-flow.js  (presentation → application) ✅ legal\n```\n\nTwo findings describe the same defect from different angles: `crime_00001` (Circular Dependency, 3 files) names the ring, and `crime_00002` (Layer Violation, `domain cannotImport presentation`) names the single edge inside it that is independently wrong.\n\nWorth noting about the \"runtime error\" you suspect: the call graph mirrors the import graph exactly — `runBillingFlow()` → `chargeCustomer()` → `renderInvoice()` → `runBillingFlow()`. Under ESM the module graph itself will load (cycles resolve via live bindings), so the crash you're chasing is most likely a stack overflow from unbounded mutual recursion, not a TDZ/`undefined is not a function` at import time. Breaking the import cycle correctly breaks the recursion too, but confirm the stack trace before assuming the loader is at fault.\n\n## Break this import\n\n**`src/domain/billing.ts:2` — the `renderInvoice` import from `presentation`.**\n\nWhy that one and not the other two:\n\n1. **It's the only edge that's wrong on its own merits.** A cycle dies if you cut any single edge, so the tiebreaker is which edge you'd want gone even without the cycle. `application → domain` and `presentation → application` both run inward/downward and match the configured rules. `domain → presentation` is the one the layer rule already forbids — cutting it fixes two findings with one change.\n2. **It inverts the direction of change.** Domain code currently can't be tested, reused, or rendered differently without dragging a view module along. Every future presentation change becomes a domain change.\n3. **The fix is local and obvious.** `chargeCustomer` is doing presentation work in the domain layer:\n   ```ts\n   // domain/billing.ts — return data, not a rendered string\n   export function chargeCustomer(amount: number): { amount: number } {\n     return { amount };\n   }\n   ```\n   and let `invoice-view.ts` (which already sits in presentation) do the `Invoice: ${amount}` formatting. The domain layer loses its import entirely — no interface, no injection, no third module needed.\n\nOne caveat on the tool's own advice: `crime_00001`'s suggested action offers \"convert one direction to an `import type`.\" That doesn't apply to this edge — `renderInvoice` is *called* at line 5, not just referenced in a type position, so a type-only import would fail to compile. Extracting a shared leaf module is also overkill here; there are no shared types to extract, just misplaced responsibility.\n\n## Not part of the cycle\n\n`crime_00003` (deep import of `some-pkg/dist/internal/private/helper.js` at `billing-flow.ts:4`) is a separate, low-severity issue — worth a follow-up, but it has no bearing on the cycle or the runtime error.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      }
+    ]
+  }
+}

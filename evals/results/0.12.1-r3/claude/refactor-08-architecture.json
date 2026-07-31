@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.12.1",
+  "timestamp": "2026-07-31T00:39:55.959Z",
+  "run_id": "7e4740e5-6ec5-4fef-b50b-e911fd83a076",
+  "response": "I read the fixture (4 files + `crimes.config.json`) so the proposal is concrete rather than generic.\n\n## The dependency graph, as scanned\n\n```\npresentation/invoice-view.ts ──▶ application/billing-flow.ts ──▶ domain/billing.ts\n        ▲                                                                │\n        └────────────────────────────────────────────────────────────────┘\n                          domain ──▶ presentation   ← illegal edge\n```\n\nOnly **one** edge in that ring is illegal. Under `crimes.config.json`, `presentation` has no restrictions and `application → domain` is allowed. The single rule-breaking edge is `domain/billing.ts` → `presentation/invoice-view.ts`, and it is also the edge that closes the cycle.\n\nThat's the leverage point: `crime_00002` (layer_violation) and `crime_00001` (circular_dependency) are the *same import* reported by two detectors. Deleting it retires both.\n\n## Change 1 — break `domain → presentation` outright (crime_00002, and crime_00001 with it)\n\nDon't redirect this one through an interface. `chargeCustomer` isn't collaborating with the view, it's *returning* through it — the dependency exists only because the domain function decided to hand back a formatted string.\n\n```diff\n  // src/domain/billing.ts\n- import { renderInvoice } from \"../presentation/invoice-view.js\";\n-\n- export function chargeCustomer(amount: number): string {\n-   return renderInvoice(amount);\n- }\n+ export interface Charge {\n+   amount: number;\n+ }\n+\n+ export function chargeCustomer(amount: number): Charge {\n+   return { amount };\n+ }\n```\n\n```diff\n  // src/presentation/invoice-view.ts\n- export function renderInvoice(amount: number): string {\n-   runBillingFlow();\n-   return `Invoice: ${amount}`;\n- }\n+ export function renderInvoice(charge: Charge): string {\n+   return `Invoice: ${charge.amount}`;\n+ }\n```\n\nData flows *up* the layers (domain → application → presentation); control does not flow back down. Effort matches the finding's `medium` and the suggested `respect_layer_boundary` action. `fix_shape` in the finding says \"route through the layer boundary or relocate the consumer\" — this is *relocate the consumer*: formatting was always a presentation concern sitting in the wrong file.\n\n**When you would redirect instead.** If domain genuinely needs to emit rendered output as part of its own behavior (say, `chargeCustomer` must produce a customer-facing receipt for an audit log), then invert rather than delete: declare the port in `domain`, implement it in `presentation`, wire it in `application`.\n\n```ts\n// src/domain/ports.ts  — owned by domain, imports nothing\nexport interface InvoiceRenderer {\n  render(charge: Charge): string;\n}\n\n// src/domain/billing.ts\nexport function chargeCustomer(amount: number, renderer: InvoiceRenderer): string {\n  return renderer.render({ amount });\n}\n```\n\nThe import edge now points `presentation → domain`, which is legal, and the cycle stays broken. I'd only reach for this if the collaboration is real — here it isn't, so Change 1 as written is the smaller correct fix.\n\n## Change 2 — the cycle's other half is legal but still wrong (crime_00001, secondary)\n\n`renderInvoice` calling `runBillingFlow()` is not a layer violation and won't be flagged again once Change 1 lands. It is still worth fixing while you're in the file: rendering a view triggers a billing charge as a side effect. Change 1's signature rewrite already removes it. Flagging it explicitly because it's the part of `crime_00001` that no rule in your config forbids — the detector caught the ring, not the side-effect-in-a-renderer, and only one of those two problems is machine-checkable today.\n\nThe finding's suggested action offers `import type` as a cycle-breaker. **Don't use it here.** These are runtime call edges, not type edges; downgrading the import would silence the detector without removing the re-entrancy.\n\n## Change 3 — redirect the deep import to the package surface (crime_00003)\n\n```diff\n  // src/application/billing-flow.ts\n- import { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n+ import { internalHelper } from \"some-pkg\";\n```\n\nIf `internalHelper` isn't on the public surface, don't code around it in place — put the reach-through behind one local adapter and file the upstream issue:\n\n```ts\n// src/infrastructure/some-pkg-adapter.ts\n// TODO(upstream #NNN): internalHelper is not exported from some-pkg's entry point.\n// Confined here so the next major upgrade breaks exactly one file.\nexport { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n```\n\nThis is the \"redirect through a proper interface\" half of the task applied to a *third-party* boundary: you can't change the package's exports, so you own the seam instead. `infrastructure` is the right home — external-system coupling is what that layer is for, and nothing in the rules forbids `application → infrastructure`. The finding rates this `quick` / `low` risk, and it stays quick either way.\n\n## How the two findings differ in agent risk\n\nThe scores are close (`layer_violation` 0.56, `deep_import` 0.45) but the risk is different in kind, not just degree.\n\n**`layer_violation` — the rule isn't in the code.** Nothing in `domain/billing.ts` marks that import as forbidden. It typechecks, it resolves, it passes tests. The constraint lives in `crimes.config.json`, a file an agent editing billing logic has no reason to open. That's a multiple-sources-of-truth problem: the code and the architecture disagree and only one of them is in the agent's context window. The consequences compound:\n\n- **It spreads silently.** An agent asked to \"add a discount summary to `chargeCustomer`\" sees a working `renderInvoice` import and reuses it. Each added call makes the eventual inversion more expensive, and no local signal ever fires.\n- **Direction is the whole point.** A layer edge isn't wrong because it's ugly; it's wrong because it inverts the intended direction of change. Once domain depends on presentation, a view refactor can break billing — the blast radius runs backwards from what the team designed.\n- **Here it's also load-bearing for a cycle.** An agent that \"fixes\" the cycle without understanding the layer rule may break the *legal* edge instead (`presentation → application`), leaving the illegal one in place. The scan reports both findings; only reading them together tells you which edge to cut.\n\n**`deep_import` — the rule is in the string.** `some-pkg/dist/internal/private/helper.js` announces itself. An agent reading that line can tell it's reaching past a boundary without any external config, which is why confidence is lower (0.85 — the heuristic can misfire on packages that legitimately publish subpaths) but detectability is much higher. Its failure mode is *temporal*, not structural: it works until the next upgrade, then fails loudly at module resolution. Loud and localized is a much better failure than silent and spreading.\n\nThe residual agent risk on the deep import is narrower and worth naming: an agent may **propagate the pattern** by copying the specifier into new files, and a naive fix that swaps to `some-pkg`'s public entry can compile while resolving to a *different* symbol with the same name. That's why Change 3 either verifies the public export or funnels through a single adapter — never a blind specifier swap.\n\n**In one line:** a layer violation is invisible from the file it lives in and gets worse every time an agent touches that file; a deep import is visible from the line it lives on and gets worse only when someone else ships a release.\n\n## Order of work\n\n1. **Change 1** — one import deletion, retires `crime_00002` and `crime_00001` together.\n2. **Change 3** — independent, `quick`, no interaction with the others.\n3. Re-run `crimes scan --format json`; expect all three findings gone. If `layer_violation` persists, the rule is matching a path you didn't intend — check the `src/domain/**` glob before assuming the fix failed.\n\nI have not modified the fixture — it's an eval input, and the scenario asked for a proposal.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}
