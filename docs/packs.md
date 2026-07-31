@@ -154,6 +154,14 @@ they sit beside it or under a `tests/` directory. Before 0.14.0 only
 suffix conventions were understood, so every Python file scored
 `test_gap: 1.0` — "no test at all" — regardless of coverage.
 
+`crimes context` reads the same table for `likely_tests`, and matches
+Python imports by dotted module path (`from billing.rates import x`,
+`from .rates import x`) rather than by relative path specifier.
+
+Project roots are detected from `pyproject.toml`, `setup.py` and
+`setup.cfg` as well as `package.json`, so running `crimes context` from
+a subdirectory of a Python repo still scans the whole project.
+
 ## Coverage
 
 Every `ScanReport.coverage` block reports how many files each pack

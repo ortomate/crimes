@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T04:43:53.467Z",
+  "run_id": "18027d4e-b68e-4d24-8e41-459c922d11ba",
+  "response": "## Confirmed\n\nRe-ran `crimes scan --format json` against the fixture; it reproduces the report above. Three duplication findings, all `medium`, plus two `low` clock findings that ride along with the telemetry duplicate:\n\n| id | charge | what it caught |\n|---|---|---|\n| `crime_00001` | Near-Duplicate Block | `sanitizeUserInput` / `sanitizeText` / `cleanMessage` — same body hash `289f7da71f3a…`, 3 files |\n| `crime_00002` | Exact Duplicate Block | `recordSanitiseEvent` — same body hash `4f23be2be37a…`, `telemetry-a.ts` + `telemetry-b.ts` |\n| `crime_00003` | Duplicated Role/Status/Plan Check | literal `\"admin\"`, 4 files, **2 distinct expression shapes** |\n| `crime_00004/5` | Temporal Recklessness | `Date.now()` at `telemetry-{a,b}.ts:16` |\n\nI read the six source files to check the findings rather than take them on faith. Two things worth knowing before you refactor:\n\n**The sanitiser triple is a true rename-only duplicate.** `sanitize-a.ts:10-36`, `sanitize-b.ts:9-35`, `sanitize-c.ts:9-35` differ only in the parameter and local variable names (`raw`/`working`, `input`/`cleaned`, `value`/`normalised`). Every threshold is identical — the 1000-char cap, the `[!?]{3,}` count > 5, the 0.9 upper-ratio at length > 30. There is **nothing** that needs parameterising, so `fix_shape`'s \"pass the differing values as args\" doesn't apply here: one nullary-options function reaches exact parity.\n\n**The admin guards have already drifted — do not collapse them.** This is the finding that matters, and it's the one the JSON can only hint at (\"2 distinct expression shapes\"):\n\n```ts\nassertAdminA(role)  // role === \"admin\"\nassertAdminB(role)  // role === \"admin\" || role === \"owner\"   ← wider\nassertAdminC(role)  // role !== \"admin\"                        ← inverted\n```\n\n`assertAdminC` returns the **opposite** of its siblings despite the identical name shape. Any agent that \"consolidates the admin checks\" by picking one implementation silently flips or widens authorisation at a third of the call sites. Treat `crime_00003` as two separate jobs: dedupe `policy.ts`'s three identical bodies (safe), and *rebase* the sanitize-* guards onto a shared primitive while preserving each one's distinct semantics (not a dedupe).\n\n## Proposed refactor\n\nTwo new modules, three deletions, one rewrite.\n\n**`src/sanitize.ts`** (new) — the single implementation, body lifted verbatim from `sanitize-a.ts`.\n\n**`src/telemetry.ts`** (new) — one `recordSanitiseEvent`, with the clock injected so `crime_00004/5` die with the duplicate rather than getting copied into the survivor.\n\n**`src/policy.ts`** (rewrite) — `isAdmin` becomes the one place `\"admin\"` is compared, and the three `can*` functions plus the three sanitize-* guards all delegate to it.\n\n### Public API of the consolidated functions\n\n```ts\n// src/sanitize.ts\nexport interface SanitizeOptions {\n  maxLength?: number;        // default 1000\n  maxPunctuationRuns?: number; // default 5   — runs of /[!?]{3,}/\n  shoutRatio?: number;       // default 0.9   — uppercase share that triggers lowercasing\n  shoutMinLength?: number;   // default 30    — below this, shouting is left alone\n}\n\nexport function sanitize(input: string, options?: SanitizeOptions): string;\n```\n\nCall it with no options and you get byte-for-byte the current behaviour of all three functions — that's what makes the migration mechanical and reviewable. The options object exists because those four magic numbers are the things that will actually diverge next; better they diverge as arguments at a call site than as a fourth copy of the file. If you'd rather not speculate, ship `sanitize(input: string): string` and add the options when a caller needs them — the internals don't change either way.\n\n```ts\n// src/telemetry.ts\nexport interface SanitiseEvent {\n  type: \"sanitise.complete\";\n  payload: {\n    originalLength: number;\n    sanitisedLength: number;\n    reductionRatio: number;\n    timestamp: number;\n  };\n  source: \"sanitiser\";\n}\n\n/** Pure: builds the event, reads no clock. */\nexport function buildSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: number,\n): SanitiseEvent;\n\n/** Side-effecting shell; `now` defaults to Date.now() at the boundary. */\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: () => number = Date.now,\n): void;\n```\n\nSplitting build-from-emit is what lets a test assert on the payload without monkey-patching the clock or capturing `console.log`. The default parameter keeps every existing call site source-compatible.\n\n```ts\n// src/policy.ts\nexport function isAdmin(role: string): boolean;              // role === \"admin\"\nexport function isAdminOrOwner(role: string): boolean;       // was assertAdminB\nexport function isNotAdmin(role: string): boolean;           // was assertAdminC — name states the inversion\nexport function canEditBilling(role: string): boolean;\nexport function canSeeAuditLog(role: string): boolean;\nexport function canImpersonate(role: string): boolean;\n```\n\n`canEditBilling`, `canSeeAuditLog`, and `canImpersonate` currently have identical bodies. Keep all three as distinct exports — they're the same rule *today*, and collapsing them to one function destroys the seam where they'll differ tomorrow. Just make each one `return isAdmin(role)`.\n\n### Files that would change\n\n| file | change |\n|---|---|\n| `src/sanitize.ts` | **new** — `sanitize()` + `SanitizeOptions` |\n| `src/telemetry.ts` | **new** — `recordSanitiseEvent()`, `buildSanitiseEvent()`, `SanitiseEvent` |\n| `src/policy.ts` | **rewrite** — add `isAdmin` / `isAdminOrOwner` / `isNotAdmin`; the three `can*` bodies delegate |\n| `src/sanitize-a.ts` | **delete** — body → `sanitize()`, `assertAdminA` → `isAdmin` |\n| `src/sanitize-b.ts` | **delete** — `assertAdminB` → `isAdminOrOwner` (keeps the `\"owner\"` widening) |\n| `src/sanitize-c.ts` | **delete** — `assertAdminC` → `isNotAdmin` (keeps the inversion) |\n| `src/telemetry-a.ts` | **delete** |\n| `src/telemetry-b.ts` | **delete** |\n\nStraight deletion is safe here, no re-export shims needed: every finding reports `blast_radius_importers: 0`, and the package is `private` with no `main`/`exports` field — nothing inside or outside the fixture imports these modules. In a real repo with importers you'd keep the old files as one-line re-exports for a release before deleting.\n\nEffort matches the report's `small` / `small` / `medium`. The medium is `crime_00003`, and now you know why: the sanitiser and telemetry work is mechanical, but the policy consolidation is a behaviour-preserving rename across three subtly different guards, and it's the only part of this refactor that can change what a user is allowed to do.\n\n**Expected post-refactor scan:** all five findings clear. `crime_00001` and `crime_00002` go when the copies do; `crime_00004/5` go with the injected clock; `crime_00003` clears once `\"admin\"` appears in exactly one expression in one file.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

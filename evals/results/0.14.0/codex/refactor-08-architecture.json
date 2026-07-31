@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T04:46:39.815Z",
+  "run_id": "670bf1d4-0fd7-439f-8705-5dcced298492",
+  "response": "The scan reports two relevant findings:\n\n1. `crime_00002` — `layer_violation`  \n   Break the import from `src/domain/billing.ts` to `src/presentation/invoice-view.ts`.\n\n   The domain should expose billing entities/results without knowing how invoices are rendered. Move presentation-specific transformation into `invoice-view.ts`. If collaboration is genuinely required, define a domain-owned port such as `InvoicePresenter` or `InvoiceOutput`, then implement it in the presentation layer and inject it from the application layer.\n\n   This also removes one edge from the reported three-file circular dependency, so it may resolve `crime_00001` as a consequence.\n\n2. `crime_00003` — `deep_import`  \n   Replace:\n\n   ```ts\n   import { helper } from \"some-pkg/dist/internal/private/helper.js\";\n   ```\n\n   with the package’s documented public export, ideally:\n\n   ```ts\n   import { helper } from \"some-pkg\";\n   ```\n\n   If `helper` is not publicly exported, don’t preserve the private import behind a local re-export. Either use a supported public API or place an adapter in the infrastructure layer that implements an application-owned interface. If no public API can provide the behavior, request an upstream export or replace the dependency.\n\nThe risks differ in scope:\n\n- `layer_violation` is an internal architectural-direction failure. It makes domain code depend on UI concerns, encourages future changes to cross layers, and can create cycles—as it does here. Its agent risk is therefore higher (`0.34`, medium).\n- `deep_import` crosses a package encapsulation boundary. It may work today, but an ordinary dependency upgrade can move or remove the private file without a public breaking-change signal. It is more localized and usually quicker to fix, hence the lower agent risk (`0.29`, low).\n\nThe clean dependency direction should be:\n\n```text\npresentation → application → domain\n                     ↓\n              infrastructure adapter\n                     ↓\n            dependency public API\n```\n\nNeither the domain nor application layer should import presentation code, and external package internals should never become part of an application-facing interface.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

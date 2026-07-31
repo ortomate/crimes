@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T04:56:11.226Z",
+  "run_id": "df08d8e6-2125-4ccd-a228-f916c70b29fa",
+  "response": "The dominant cause is blocking I/O in the HTTP request path. It explains both symptoms: requests queue behind a stalled event loop or occupied workers, so p99 latency spikes while CPU remains mostly idle.\n\nRanked by likely contribution:\n\n1. **Blocking network call — `requests.get()` in async `get_invoice`** (`api/routes.py:21`)  \n   Highest impact. Network latency directly freezes the event-loop thread, preventing unrelated requests from progressing. Replace it with an async client such as `httpx.AsyncClient`, with explicit timeouts and connection pooling.\n\n2. **Blocking subprocess — `subprocess.run()` in `export_invoice`** (`api/routes.py:31`)  \n   Potentially long and highly variable. It occupies the request worker for the subprocess’s entire lifetime. Move export work to a background job, or use async subprocess APIs if the response genuinely must wait.\n\n3. **Explicit blocking sleep — `time.sleep()` in `export_invoice`** (`api/routes.py:32`)  \n   Pure worker/event-loop starvation. If asynchronous waiting is intended, use `await asyncio.sleep()`; otherwise remove it.\n\n4. **Synchronous file access — `open()` in async `get_invoice`** (`api/routes.py:23`)  \n   Usually shorter than the network and subprocess calls, but disk or network-mounted storage can introduce severe tail latency. Move it off the event loop with `asyncio.to_thread()` or use asynchronous file handling.\n\nThe other seven findings do not explain load-dependent latency collapse:\n\n- Clock handling and direct date reads can cause correctness and testability bugs.\n- The circular dependency can cause startup/import failures.\n- The large function and deep imports increase maintenance risk.\n- Boolean naming drift is cosmetic relative to this incident.\n\nThe first remediation should therefore be to eliminate **all four synchronous operations from async request execution**, starting with `requests.get()`. Also check whether `export_invoice` is async: if it is, every listed operation can stall all concurrent requests on that event loop; if it is synchronous, it still exhausts the server’s worker/thread capacity under moderate concurrency.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

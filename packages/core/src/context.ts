@@ -159,9 +159,34 @@ export interface ContextReport {
 }
 
 /**
+ * Files that mark a directory as a project root, in no particular
+ * precedence order — the walk stops at the nearest directory carrying
+ * any of them.
+ *
+ * `package.json` was the only marker until 0.14.0, which made
+ * `crimes context` subtly wrong on Python projects: run it from a
+ * subdirectory of a repo with no `package.json` anywhere and the walk
+ * found nothing, fell back to `cwd`, and scanned a subtree that didn't
+ * include the repo's `tests/` directory — so `likely_tests` came back
+ * empty for a covered module. Adding the Python markers costs nothing
+ * on a JS repo and makes the fallback correct for a Python one.
+ */
+const PROJECT_ROOT_MARKERS = [
+  "package.json",
+  "pyproject.toml",
+  "setup.py",
+  "setup.cfg",
+] as const;
+
+function hasProjectRootMarker(dir: string): boolean {
+  return PROJECT_ROOT_MARKERS.some((m) => existsSync(join(dir, m)));
+}
+
+/**
  * Walk upward from `start` (a directory path) looking for an enclosing
- * `package.json`. Returns the absolute path of the directory that contains
- * it, or `undefined` if none is found before the filesystem root.
+ * project root — a directory containing any of
+ * {@link PROJECT_ROOT_MARKERS}. Returns its absolute path, or
+ * `undefined` if none is found before the filesystem root.
  *
  * The walk is bounded by the filesystem root — there is no separate stop
  * condition, so callers that want to confine the search to a specific
@@ -179,11 +204,11 @@ export async function findNearestPackageRoot(
   // Guard against `parse(dir).root === dir` looping forever on filesystem root.
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    if (existsSync(join(dir, "package.json"))) return dir;
+    if (hasProjectRootMarker(dir)) return dir;
     const parent = dirname(dir);
     if (parent === dir || parent === parse(dir).root) {
       // Final check at the filesystem root before giving up.
-      if (existsSync(join(parent, "package.json"))) return parent;
+      if (hasProjectRootMarker(parent)) return parent;
       return undefined;
     }
     dir = parent;

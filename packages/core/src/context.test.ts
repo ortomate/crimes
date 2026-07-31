@@ -228,6 +228,19 @@ describe("context", () => {
       expect(report.likely_tests).toContain("test/index_test.ts");
     });
 
+    it("treats pyproject.toml as a project root so tests/ is in scope", async () => {
+      // Without a Python root marker the walk finds no package.json,
+      // falls back to cwd, and scans a subtree that excludes tests/ —
+      // so a covered module reports no likely tests.
+      const root = await makeRepo({
+        "pyproject.toml": '[project]\nname = "demo"\n',
+        "billing/rates.py": "DEFAULT = 0.2\n",
+        "tests/test_rates.py": "from billing.rates import DEFAULT\n",
+      });
+      const resolved = await findNearestPackageRoot(join(root, "billing"));
+      expect(resolved).toBe(await realpath(root));
+    });
+
     it("recognises the Python test_<name>.py prefix as a sibling test", async () => {
       const root = await makeRepo({
         "billing/rates.py": "DEFAULT = 0.2\n",

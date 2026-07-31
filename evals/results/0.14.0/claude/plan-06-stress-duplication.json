@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T04:36:19.864Z",
+  "run_id": "93985fbe-5da5-4584-aae2-f5c0ba5c4ac9",
+  "response": "Read the six fixture files to ground the plan. Two facts shape everything below:\n\n- **Nothing in the fixture imports anything.** All six functions are exported leaves with zero internal call sites and no tests — consistent with `blast_radius: 0` and `test_gap: 0.5` on every finding. Consumers, if any, are outside this package, so the safe migration lever is re-export shims, not call-site rewrites.\n- **The two duplication clusters are not the same kind of duplication**, even though `crimes` reports them at the same severity. That distinction is what makes this two steps and not one.\n\n## What the evidence actually says\n\n`crime_00001` (near-duplicate, confidence 0.85) — the three sanitise bodies are token-for-token identical modulo the accumulator name (`working` / `cleaned` / `normalised`) and the parameter name. Same regexes, same 1000-char clamp, same `0.9` upper-ratio threshold. This is **true duplication**: one behaviour, three copies.\n\n`crime_00003` (role check, confidence 0.7) — this is **divergent** duplication, and the detector is telling you so with \"2 distinct expression shapes\". Spelled out:\n\n| Site | Predicate | Semantics |\n|---|---|---|\n| `policy.ts:3,8,13` | `role === \"admin\"` | admin only |\n| `sanitize-a.ts:7` `assertAdminA` | `role === \"admin\"` | admin only |\n| `sanitize-b.ts:6` `assertAdminB` | `role === \"admin\" \\|\\| role === \"owner\"` | **admin or owner** |\n| `sanitize-c.ts:6` `assertAdminC` | `role !== \"admin\"` | **inverted** |\n\n`assertAdminC` returns `true` for non-admins. A mechanical \"replace all three with `isAdmin()`\" flips that guard's polarity and revokes owner access at the B site. That is the single highest-risk edit in this change set, and it's why the role checks get their own step with their own review.\n\nOne evidence caveat: `src/policy.ts:1` is a comment line containing `role === \"admin\"` in backticks. The detector counted it, so policy.ts has 3 real occurrences, not 4. Doesn't change the plan; does change the \"7 occurrences\" headline to 6.\n\n---\n\n## Step 1 — Consolidate the sanitisers (mechanical, behaviour-preserving)\n\n**Prerequisite, in the same commit:** there are no tests. Write characterisation tests against the *current* `sanitizeUserInput` first — empty/null/undefined, whitespace collapse, the 1000-char clamp boundary, `<`/`>` prefix rejection, the `\\\\x` literal, `!!!`×6 rejection, and the upper-ratio branch at length 30/31. These are what make the collapse verifiable rather than merely plausible.\n\n**Change:**\n\n1. New `src/sanitize.ts` exporting one function:\n   ```ts\n   export function sanitize(input: string): string { /* the shared body */ }\n   ```\n   No options parameter. `fix_shape` on the finding says \"pass the differing values as args\" — but here *nothing* differs. Adding a config object to a function with one behaviour invents a seam you'd have to maintain and test.\n2. Replace the bodies in `sanitize-a/b/c.ts` with re-exports (`export const sanitizeUserInput = sanitize;` etc.), keeping the three public names alive. Leave `assertAdminA/B/C` where they are, untouched — they are step 2's problem.\n3. Point the characterisation tests at `sanitize`.\n\n**Result:** `crime_00001` clears. Diff is a delete-plus-rename that a reviewer can approve on sight, and it removes ~75 lines of the noise that step 2's review has to read past.\n\n**Deferred to a follow-up, not blocking:** deleting the three shim names. That needs a consumer sweep outside this package.\n\n## Step 2 — Consolidate the role checks (semantic, needs two decisions)\n\nCannot be mechanical. Two questions have to be answered before code changes; both are product decisions, not refactor decisions:\n\n- **Does `owner` keep admin privileges at the B site?** If yes, the shared predicate is `admin || owner` and `policy.ts` *widens* — three capabilities silently gain owner access. If no, owners *lose* access at B. There is no consolidation that leaves both untouched; the drift already happened and this step forces the reckoning.\n- **What is `assertAdminC` actually guarding?** A `role !== \"admin\"` helper named `assertAdmin` is a misleading name, which is exactly the `agent_risk: 0.33` signal — an agent reading the name will invert the logic. Rename it to what it means (`isNonAdmin`, or whatever the call site implies) *before* touching its body.\n\n**Change, once answered:**\n\n1. New `src/roles.ts` with the single predicate and an explicit role constant:\n   ```ts\n   export const ADMIN_ROLES = [\"admin\"] as const;   // or [\"admin\", \"owner\"]\n   export function hasAdminRole(role: string): boolean { … }\n   ```\n2. `policy.ts` keeps all three capability functions — `canEditBilling`, `canSeeAuditLog`, `canImpersonate` — each delegating to `hasAdminRole`. **Do not collapse them into one `isAdmin()`.** They're behaviourally identical today and semantically distinct; billing, audit, and impersonation permissions are the ones most likely to diverge next quarter. Sharing the predicate is the fix; erasing the capability names is a regression.\n3. `assertAdminA` → `hasAdminRole`. `assertAdminB` → `hasAdminRole`, with a comment recording the owner decision. `assertAdminC` → `!hasAdminRole(role)` at the call site, under its corrected name.\n4. Tests: one table-driven test over `hasAdminRole` covering `admin` / `owner` / `member` / `\"\"`, plus one test per capability function so a future divergence shows up as a test change rather than a silent one.\n\n**Result:** `crime_00003` clears. Review this one on the semantics diff, not the line count — that's the whole reason it isn't merged into step 1.\n\n---\n\n## Explicitly out of scope\n\n`crime_00002` (`recordSanitiseEvent` duplicated exactly across `telemetry-a/b.ts`) and `crime_00004`/`crime_00005` (`Date.now()` at line 16 of each) are a coherent **step 3**, not part of this change set. They should land together — extracting the shared function and injecting a clock in one pass is one edit; doing them separately means writing the same function twice. Nothing in steps 1 or 2 touches `telemetry-*.ts`, so ordering is free.\n\n**Verification:** re-run `crimes scan --format json` after each step. Expect `total: 5 → 4` after step 1, `→ 3` after step 2, with `crime_00002/4/5` surviving by design.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

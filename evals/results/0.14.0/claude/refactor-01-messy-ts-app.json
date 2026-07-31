@@ -1,0 +1,112 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T04:43:14.852Z",
+  "run_id": "c66afdf5-3873-4ac4-b416-4d6f555f1447",
+  "response": "`crimes context src/billing.ts` reports **HIGH** risk: 6 findings (1 high, 4 medium, 1 low), churn low (4 commits/90d), test gap bottom-quartile, 0 importers. Everything below is scoped to those findings — I have not edited the fixture (it's an eval fixture, and the task asks for the list).\n\n## 1. Split `generateInvoice` and collapse the duplicated tax rule\n\n**Findings:** `crime_00005` God Function (severity 0.9, confidence 0.95, lines 50–253 = 3.4× the 60-line domain threshold) · `crime_00035` God File (311 lines) · `crime_00038` Unfinished Business (4 markers at 183–308).\n\nThe body runs eight unrelated responsibilities with no seams: line pricing (69–89), loyalty discount (92–102), promo resolution (106–126), fraud scoring (129–143), country tax (146–154), currency (160–165), PII audit log + metrics (184–211), email composition (214–233), and a retry loop (239–248). The detector's \"an agent editing one section often misses interactions in another\" is literal here — `metadata` is mutated in four separate regions, so an edit to promo handling at L123 silently changes the metrics tags read at L206.\n\nThe extraction that pays for itself: `priceLines`, `loyaltyDiscount`, `applyPromo`, `scoreRisk`, `renderInvoiceEmail`, `sendWithRetry`, leaving `generateInvoice` as a ~30-line orchestrator. Do the tax region first — lines 146–154 are a byte-for-byte copy of the exported `tax()` at 257–268, so extracting to a single `taxFor(country)` removes a second source of truth rather than just moving code. Same for `daysSince`, computed identically at L92 and L273. This also takes the God File finding below threshold (311 vs 300) and lets three of the four TODO markers be resolved or deleted in context.\n\n## 2. Rename/split `calculateRefundPreview` and encode the comment rule\n\n**Findings:** `crime_00015` False Identity (`calculateRefundPreview`, 40–44, \"side-effect-like calls: saveRefundAudit, sendRefundEmail\") · `crime_00020` Logic in the Alibi (L39, \"domain terms not found nearby: owner, plan, billing\").\n\nThese are one defect. A four-line function named `calculate…Preview` writes an audit record and **emails the customer**, then returns `invoice.totalCents` unchanged — there is no calculation at all. Any agent (or human) wiring a refund preview into a UI will fire production email on page render, and the name gives no reason to check. That's the highest real-world blast radius in the file despite its medium severity, because the failure is invisible at the call site.\n\nMeanwhile the only statement of the authorization rule lives in the comment at L39 — \"Only owners can refund enterprise plans unless billing support approves\" — and the detector is right that the body encodes none of it: no role check, no plan check, no approval check. Fix both together: `previewRefund(invoice): number` (pure), `requestRefund(actor, user, invoice)` (audit + email), and an `assertCanRefund(actor, user, invoice)` guard that turns the prose into a check with a test. Delete the commented-out legacy refund block at 33–37 while you're there — it references `loadRefund`/`approveRefund`, which don't exist, and is prime copy-paste bait.\n\n## 3. Inject a clock, then make the two existing tests assert something\n\n**Findings:** `crime_00013` Temporal Recklessness (7 reads at 57, 63, 92, 198, 238, 250, 273) · `crime_00025` weak test signal (\"renders the enterprise plan\", 0 assertions) · `crime_00034` (\"creates an invoice\", 1 weak matcher).\n\nThis is third because it's the *enabler* for the first two rather than a risk in itself. `test_gap` is bottom-quartile and the two tests that exist prove nothing — one has zero `expect` calls. The reason they're empty is structural: the loyalty tiers at 95–100 branch on `Date.now() - user.createdAt`, so no one can assert \"365 days → 10% discount\" without monkey-patching the global clock. Same for `recommendUpgrade`'s 4-deep nesting at 272–305, which encodes upgrade policy written down nowhere else.\n\nThread a `now: () => number` (or a `Clock`) through the domain boundary, and the extracted helpers from #1 become directly testable — at which point the two weak tests can assert real behaviour instead of being deleted. One thing the scan doesn't flag: `Math.random()` at L56 makes invoice IDs non-deterministic too, and wants the same treatment (inject an ID generator) for the same reason.\n\n**Deliberately not in the top 3:** the nav/route metadata drift, orphaned destinations, and asset findings are real but live in other files and don't reduce billing risk. `String Sprinkles` (`crime_00004`, `\"enterprise\"` in 4 files including `billing.ts:7`) is worth doing — but as a repo-wide constant, not a billing-local change, and it's cheaper after #1 collapses the plan-discount branches into one helper.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}
