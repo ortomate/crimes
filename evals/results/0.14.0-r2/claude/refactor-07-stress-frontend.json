@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:43:54.640Z",
+  "run_id": "a41c01c4-8dd6-49bf-8298-dc7501937fb0",
+  "response": "## Context first\n\n```\n$ crimes context src/Card.tsx\nrisk: MEDIUM  (3 findings: 0 high, 1 medium, 2 low)\nClues\n  · churn: 2 commits over 90d · last touched 2 months ago · 1 author\n  · test gap: top-quartile\nRelated files: (no neighbourhood signal)\nLikely tests: (none found)\n```\n\nThree things that shape the plan:\n\n- **0 importers, low churn** — this is a leaf. Refactoring it can't break callers, and nobody is racing me in the file. Blast radius is genuinely bottom-quartile, so I can restructure the markup rather than patch it in place.\n- **Top-quartile test gap, no test file** — there is no safety net. The a11y change is the only one with behavioural risk, so it's the only one that needs a test written alongside it.\n- `tailwind.config.ts` sits next to it defining `brand` / `surface` / `ink`. The token scale exists; `Card.tsx` just doesn't use it. **But the scale is three colours and the file needs seven** — so this isn't a pure find-and-replace, part of the fix is extending the theme. Flagging that up front because it's the bit that turns \"quick\" effort into a small design conversation.\n\n## The three changes\n\n### 1. `accessible_interaction_risk` (medium, conf 0.85) — line 10\n\n`<div onClick>` with no `role` / `tabIndex` / `aria-label`. Keyboard and screen-reader users can't reach it.\n\nThe finding's `suggested_actions` offers `role=\"button\" tabIndex={0}` as an escape hatch, and **I'd deliberately not take it here**. This div wraps `{children}` plus a sidebar — arbitrary content, potentially including its own links and buttons. Putting `role=\"button\"` on a container with interactive descendants is a worse violation than the one we're fixing: it produces nested interactive elements, and screen readers flatten the whole subtree into one button label.\n\nSo: **make the interactive thing a real element, and make it a child, not the wrapper.** Two shapes depending on intent:\n\n- Card is a *navigation target* → a `<a>` inside the card with `absolute inset-0` (stretched-link pattern), so the whole surface is clickable but only the anchor is in the a11y tree.\n- Card *performs an action* → an explicit `<button>` in the card with a real label.\n\nThe fixture's handler is `console.log(\"clicked\")`, so intent is unstated. I've written the version below with an explicit `onActivate` prop and a real `<button>`, and left the stretched-link variant as a comment — **this is the one decision I'd want confirmed before landing.** If the card is a link, the `<a>` variant is correct and the `<button>` is wrong.\n\nThis is also the only change that warrants the test the context report says doesn't exist: one Testing Library case asserting the card is reachable by `getByRole('button', { name: ... })` and fires on `{Enter}`.\n\n### 2. `design_token_escape` (low, conf 0.75) — 9 raw values\n\nNine literals across four kinds. The agent-risk story is the real one: the next agent extending this file copies `#ff00aa` forward and the escape metastasises.\n\nMapping to the existing scale, with honest gaps:\n\n| Raw | Maps to | Note |\n|---|---|---|\n| `#0a0a0a` | `ink` (`#111111`) | near-match, safe collapse |\n| `#333333`, `#666666` | — | needs `ink-muted` / `ink-subtle` added |\n| `#cccccc` | — | needs `border` |\n| `#1a73e8` | — | needs `focus`; this is Google blue, almost certainly copy-paste |\n| `#ff00aa` | — | not plausibly a real brand colour next to `brand: #0050ff`; **treat as placeholder and confirm** rather than enshrining it as a token |\n| `rgb(0,0,0)` shadow | — | needs `boxShadow.card` |\n| `padding: 24` | spacing scale (`p-6`) | already covered |\n\nAdding a token for `#ff00aa` would launder a bug into the design system. I'd swap it to `surface` and raise it.\n\n### 3. `responsive_fragility` (low, conf 0.65) — 3 fixed sizes, no `@media`\n\n`width: 800`, `width: 720`, `fontSize: 18`, and no media query anywhere in the file.\n\nTwo notes beyond what the detector caught:\n\n- `width: 800` and `maxWidth: 1024` on the same element is already incoherent — the max-width never applies. The intent is almost certainly `width: 100%; max-width: 1024px`, which is also the fix.\n- The detector flagged 3 values; `height: 600` and `width: 240` are the same class of problem and I'd fix them in the same pass rather than leave a partial job that re-fires later.\n\nThe `fix_shape` says *container queries, not pixel media queries* — right call for a component with 0 importers that could be dropped anywhere. Viewport breakpoints would be wrong here: the card doesn't know how wide its slot is. So the 720/240 split becomes a container-query grid, and type uses the fluid scale.\n\n## Proposed `Card.tsx`\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate: () => void;\n  label: string; // accessible name for the action\n};\n\nexport function Card({ children, onActivate, label }: CardProps) {\n  return (\n    // responsive_fragility: w-full + max-w-5xl replaces the contradictory\n    // width:800/maxWidth:1024 pair. min-h, not h, so content can't be clipped.\n    // @container establishes the query context for the split below.\n    <div className=\"@container relative w-full max-w-5xl min-h-[37.5rem] p-6\n                    bg-surface text-ink border border-border rounded-lg shadow-card\">\n      {/* accessible_interaction_risk: a real <button>, as a child of the\n          container rather than the container itself, so nested interactive\n          content in {children} stays reachable. */}\n      <button\n        type=\"button\"\n        onClick={onActivate}\n        className=\"focus-visible:outline focus-visible:outline-2\n                   focus-visible:outline-offset-2 focus-visible:outline-focus\"\n      >\n        {label}\n      </button>\n\n      {/* If the card is a navigation target rather than an action, replace the\n          button above with:\n            <a href={href} className=\"absolute inset-0 focus-visible:...\">\n              <span className=\"sr-only\">{label}</span>\n            </a>\n          and drop onActivate. Needs a product answer. */}\n\n      {/* responsive_fragility: the 720/240 px split becomes a container-query\n          grid that stacks below 40rem of *container* width, not viewport. */}\n      <div className=\"grid grid-cols-1 @[40rem]:grid-cols-[3fr_1fr] gap-6\">\n        <div className=\"text-lg text-ink-muted\">{children}</div>\n        <div className=\"text-sm text-ink-subtle\">sidebar</div>\n      </div>\n    </div>\n  );\n}\n```\n\nWith `tailwind.config.ts` extended to cover the gap:\n\n```ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      \"ink-muted\": \"#333333\",   // was raw in Card.tsx\n      \"ink-subtle\": \"#666666\",  // was raw in Card.tsx\n      border: \"#cccccc\",        // was raw in Card.tsx\n      focus: \"#1a73e8\",         // was raw; verify against brand before locking\n    },\n    boxShadow: {\n      card: \"0 2px 4px rgb(0 0 0 / 0.12)\",\n    },\n  },\n};\n```\n\n## Sequencing\n\n1. **Tokens first** (`quick`, zero behaviour change) — extend the theme, swap the literals. Independently verifiable, and it stops the escape spreading while the rest is in review.\n2. **Responsive** (`small`, layout-only) — needs eyes on it at a few container widths since there's no visual regression test.\n3. **A11y last** (`small`, behavioural) — it's the only change with a real API decision (`button` vs stretched `<a>`) and the only one shipping with a new test.\n\nRe-running `crimes scan` after should take the file to zero findings; if `design_token_escape` still fires, something got missed in the swap rather than the detector being wrong — its threshold is ≥5 raw values.\n\n**Two things I'd want answered before landing:** whether the card is an action or a link (decides change 3's shape), and whether `#ff00aa` is a real colour or a placeholder (decides whether it becomes a token or gets deleted). Both are safe to assume-and-flag if you'd rather I just pick — I'd assume link and placeholder respectively.\n\nI've written this as a proposal only, no files changed — `07-stress-frontend` is a detector-tuning fixture, so actually applying the refactor would disarm the three findings it exists to trigger.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

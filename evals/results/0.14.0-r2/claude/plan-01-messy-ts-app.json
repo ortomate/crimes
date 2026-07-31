@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:37:42.865Z",
+  "run_id": "452fa3bb-075b-40dd-823d-0c734264ceee",
+  "response": "Ran the verdict for gating context before ordering anything:\n\n```\nverdict: unchanged — 0 new, 0 fixed, 37 unchanged (vs origin/main)\n\"no maintainability change vs. base — verdict is advisory only.\"\n```\n\nSo nothing here is a regression and nothing is blocking a merge. This is pure debt triage, and the order should be driven by *fix density per PR*, not by the rank column.\n\n## Top 10, grouped and tagged\n\n| # | ID | Finding | File | Group | Response |\n|---|----|---------|------|-------|----------|\n| 1 | `crime_00001` | Temporal Recklessness (8× clock reads) | `src/date.ts` | temporal | **fix now** |\n| 2 | `crime_00002` | Return Shape Roulette | `src/petty.ts:21` | structural | defer |\n| 3 | `crime_00003` | Missing Agent Context | repo root | IA | **fix now** |\n| 4 | `crime_00004` | String Sprinkles (`\"enterprise\"` ×4 areas) | `src/api/plan.ts:2` | duplication | **fix now** (narrow scope) |\n| 5 | `crime_00005` | God Function `generateInvoice` (204 ln) | `src/billing.ts:50` | structural | **fix now** |\n| 6 | `crime_00006` | Duplicated Navigation Source | `src/nav/registry.ts` | IA | **fix now** |\n| 7 | `crime_00007` | Route Metadata Drift (4 labels) | `src/routes/settings/billing.tsx` | IA | **fix now** |\n| 8 | `crime_00008` | Sync I/O in Hot Path | `src/api/files.ts:12` | structural | defer |\n| 9 | `crime_00009` | Option Bag Junk Drawer | `src/petty.ts:10` | structural | **ignore** |\n| 10 | `crime_00010` | Half-UTC, Half-Local | `src/date.ts:9,41` | temporal | **fix now** |\n\nTwo of your five buckets came back empty, and both for reasons worth knowing:\n\n- **git-history: nothing.** Every finding in the report has `churn: 0`, `recency: 0`, `blast_radius: 0`. The fixture has no git history of its own, so the hotspot signal is absent — not \"no hotspots\", *no measurement*. Nothing in this order is hotspot-justified.\n- **frontend: nothing in the top 10.** The asset findings are `crime_00032` (SVG with embedded raster, severity **high** 0.75), `crime_00036`, `crime_00037` — ranked 32/36/37 because `agent_risk` is low for assets. #32 is a genuine high-severity, quick fix that the top-10 cut hides. Grab it opportunistically.\n\nI added a **temporal** group because #1 and #10 don't honestly belong in any of your five.\n\n## Triage order\n\n**Wave 1 — `AGENTS.md` (#3).** Half an hour, and it goes first because it changes the risk profile of every subsequent wave: agents editing this repo currently have zero declared conventions and can't discover the `messy` bin. Cheapest reduction in *future* crime rate on the board.\n\n**Wave 2 — one PR on `src/date.ts` (#1 + #10).** This is the highest-density target in the whole report: `date.ts` carries **6 of 37 findings**, but only two of them surfaced in the top 10. Injecting a clock and picking one time domain also closes `crime_00012` (unsafe parse), `crime_00018` (DST-naive `+86400000`), `crime_00026` (date string concat), `crime_00027` (locale drift). Six findings, one file, two decisions.\n\n**Wave 3 — `/settings/billing` naming (#6 + #7).** These are one bug, not two: the destination is called `Plans` in `nav/registry.ts`, `Billing` in `nav/sidebar.ts`, `Subscription` in `<title>`, and `PricingPage` as the component. Pick the canonical noun, collapse to one nav source, derive the rest. Fixing #6 without #7 leaves the drift.\n\n**Wave 4 — `generateInvoice` (#5), then the rest of `billing.ts`.** Sequencing matters here: `billing.ts` also holds `crime_00013` (7 clock reads), `crime_00015` (`calculateRefundPreview` sends email), `crime_00020`, `crime_00035`, `crime_00038`. Decompose the 204-line function *first*, then those become local edits instead of surgery inside a god function. And do Wave 2 before this one so there's a clock abstraction to import.\n\n**Wave 5 — the `\"enterprise\"` literal (#4).** Scope guard: extract a named constant into one module and import it in the four sites. Do *not* let this turn into a plan-policy refactor — the suggested action is flagged `risk: medium` for that reason.\n\n## Deferred, with triggers\n\n- **#2 Return Shape Roulette** — real (3 shapes, 0% key overlap, no return type), but `resolvePaymentResult` is a small pure function. Fix it the next time anyone touches payment result handling; a discriminated union is 10 lines.\n- **#8 Sync I/O** — `loadPlanSchema` reads a schema file, which reads like boot-time work rather than per-request. Promote it to fix-now only if you confirm it's called per request. The more urgent problem in that file is `crime_00017`: `SCHEMA_PATH = \"/Users/andrew/dev/crimes/schema.json\"` — that function returns `null` on every machine that isn't yours. It ranks 17th; it should be fixed this week regardless of this list.\n\n## The one ignore\n\n**#9 Option Bag Junk Drawer** is a false positive. The detector reports \"a broad `options` object with an implicit shape\", but the parameter is typed as a declared `CheckoutOptions` interface with six explicitly-typed fields. The shape is already named and narrow — exactly the fix the detector is asking for. Suppress it rather than acting on it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "direct_date",
+        "passed": false
+      }
+    ]
+  }
+}

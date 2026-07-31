@@ -1,0 +1,53 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:50:42.944Z",
+  "run_id": "1cc17679-7a3a-412c-b8a1-2158bd386dd8",
+  "response": "I read the fixture source alongside the scan output rather than reasoning from the findings alone.\n\n## The riskiest function: `build_invoice` (`domain/invoicing.py:15-75`)\n\nOnly one finding names it directly — `crime_00005`, God Function, medium severity, `agent_risk` 0.35, the *fifth*-ranked finding. That undersells it, because four of the eight findings converge on this one function's body or its module-level imports:\n\n| Finding | How it lands in `build_invoice` |\n|---|---|\n| `crime_00005` God Function | the function itself — 61 lines, depth 5, 5 params |\n| `crime_00003` Temporal Recklessness | lines 20, 21, 53 are all inside it |\n| `crime_00002` Two Clocks, One Module | lines 20 + 21 are *adjacent lines* in its preamble |\n| `crime_00004` Circular Dependency | the cycle exists because line 72 calls `format_money` |\n\nIt's also the only thing `api/routes.py` calls, and the fixture has **no test files at all** (11 `.py` files, zero `test_*`), so `test_gap: 0.5` is the floor, not a measurement of thin coverage.\n\n## What makes it risky beyond length\n\n**1. Two naive clocks, one dict, no type distinction.** `issued = datetime.now()` (local-naive) and `period_start = datetime.utcnow()` (UTC-naive) sit on consecutive lines and land in the same return dict as if they were the same kind of value. They differ by the host's UTC offset. An agent asked to \"unify the timestamps\" picks one, and every downstream comparison silently shifts — and CI runs UTC, where the two agree and the test passes.\n\n**2. A crash and a money bug hiding in the coupon branch.** Line 53 is `coupon.get(\"expires_at\") < datetime.now()` — no default. A coupon dict without `expires_at` raises `TypeError` at runtime, and only when a coupon is present. Worse, line 60's `if stackable and coupon.get(\"bonus\")` sits *outside* the `percent`/`fixed` chain, so the bonus is added regardless of kind and defeats the `min(coupon[\"value\"], subtotal)` clamp above it. Nothing bounds `discount_total` by `subtotal`, so `apply_vat(subtotal - discount_total, region)` can be handed a negative amount. An agent refactoring this will faithfully preserve the bug — or \"fix\" it and change billing output with no test to catch either.\n\n**3. The domain reaches up into the API for presentation.** Line 9 imports `format_money` from `api.rendering`; `api/rendering.py:7` imports `LINE_ITEM_CAP` back. That's a layer inversion *and* the import cycle. The practical hazard: adding any import to `invoicing.py` can change which module initialises first and turn a passing pytest run into an `ImportError` under uvicorn.\n\n**4. Every input is an untyped `dict` with `.get()` defaults.** Five positional params, and `item`, `coupon`, `options` have no declared shape. `item.get(\"kind\")`, `item.get(\"prepaid\")`, `options.get(\"locale\")` — a typo'd key never raises, it just takes the else branch. An agent has no signature to read; it must infer the contract from the branches, and it cannot tell an intentional default from a silent fallthrough. This is what actually makes the 61 lines expensive.\n\n**5. Silent data loss with no return channel.** `skipped` and `warnings` accumulate and are returned, but `metered = LINE_ITEM_CAP` clamps usage without the caller ever being able to distinguish \"capped\" from \"genuinely 500\". Money is `float` throughout, including the `* 12 * 0.85` annual-prepaid path.\n\n## Refactor plan\n\nOrdered so a safety net exists before anything moves.\n\n**Step 1 — break the cycle first (mechanical, zero behaviour change).** Move `LINE_ITEM_CAP` to a leaf `domain/limits.py` that imports nothing from the ring; point both `invoicing.py` and `rendering.py` at it. Then drop `display_total` from the return dict and let `routes.py` call `format_money(invoice[\"total\"], options)`. That removes the `api.rendering` import from the domain entirely — fixing the cause, not just the ring. Prefer this over a function-local import, which hides the cycle from every static reader.\n\n**Step 2 — make time an argument.**\n\n```python\ndef build_invoice(customer, line_items, coupon, region, *, now=None):\n    now = now or (lambda: datetime.now(timezone.utc))\n    issued = now()\n    period_start = issued          # was utcnow() — see note\n```\n\nCall this out explicitly in the commit: collapsing the two clocks to one instant **is** a behaviour change, currently masked on UTC hosts. Normalise `coupon[\"expires_at\"]` to aware-UTC at the boundary so line 53's comparison is well-defined.\n\n**Step 3 — write characterization tests now, before extracting.** With an injectable clock this is finally possible. Pin current output for: empty items, zero-quantity skip, each of the three `kind` branches, usage over cap, percent/fixed/stackable coupons, expired coupon, missing `expires_at`. Record the negative-total case as a `pytest.mark.xfail` — it documents the bug without pretending it's intended.\n\n**Step 4 — extract three pure helpers, keep `build_invoice` as a thin orchestrator.**\n\n```python\ndef price_line_item(item) -> tuple[Decimal, str | None]   # the kind/annual/prepaid tree\ndef total_line_items(items) -> LineTotals                  # subtotal, skipped, warnings\ndef coupon_discount(coupon, subtotal, at) -> Decimal       # the discount branch\n```\n\nEach is testable standalone, and the extraction flattens depth 5 → 2. `build_invoice` drops to ~15 lines of orchestration.\n\n**Step 5 — fix what the extraction exposes,** as separate commits so each is reviewable: clamp `discount_total` to `subtotal`; decide whether `bonus` should apply outside the percent/fixed branches (it currently does — my read is that's unintended); switch money to `Decimal`.\n\n**Step 6 — booleans.** `expired` → `is_expired`, `stackable` → `is_stackable`, and `stale` (line 79, `crime_00008`) → `is_stale`. Note that `stale` as written is `issued_at < now()`, which is true for every invoice ever issued — it's a tautology, not a staleness check. Either give it a threshold or delete it.\n\nI'd leave `api/routes.py`'s four blocking calls (`crime_00001`, the highest-ranked finding) for a separate pass — it's the more urgent production problem, but it's a different function and mixing it into this refactor makes the diff unreviewable.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

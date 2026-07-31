@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:55:58.281Z",
+  "run_id": "6bdca4fd-8cd6-4d57-833b-2d9be7b64d42",
+  "response": "I’ll trace the flagged calls through the HTTP handlers so the ranking reflects event-loop impact and request frequency, not just the scan severities.\n\nThe dominant cause is blocking I/O inside `async def` FastAPI handlers. These calls freeze the event-loop worker, so unrelated requests queue while CPU remains mostly idle.\n\nRanked by likely contribution:\n\n1. **Synchronous HTTP request on every invoice GET** — [`routes.py:21`](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/api/routes.py:21)  \n   `requests.get(...)` blocks the event loop for the full upstream latency. It also has no timeout, so a slow billing service can stall a worker indefinitely. This is likely the main p99 driver if GET is the common route.\n\n2. **Synchronous export subprocess** — [`routes.py:31`](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/api/routes.py:31)  \n   `subprocess.run(...)` waits for PDF rendering to finish while blocking the event loop. CPU usage by the service can remain low because it is waiting on the child process.\n\n3. **Unconditional two-second sleep** — [`routes.py:32`](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/api/routes.py:32)  \n   `time.sleep(2)` freezes the event loop after every export. Combined with `subprocess.run`, one export request can pause all requests handled by that worker for more than two seconds.\n\n4. **Synchronous file read on every invoice GET** — [`routes.py:23`](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/api/routes.py:23)  \n   Reading `/etc/billing/rates.json` synchronously adds another blocking section. It is probably smaller than the network, subprocess, and sleep delays, but filesystem stalls can still amplify tail latency.\n\nThe export route is especially damaging because its two blocking operations run sequentially. The immediate remediation is to use an async HTTP client, replace `time.sleep` with `await asyncio.sleep`, move PDF generation to a background job, and cache or asynchronously load the rates file.\n\nThe other seven scan findings do not explain the load-dependent latency collapse:\n\n- The import cycle may cause startup failures.\n- Clock handling can cause correctness and testing bugs.\n- The large function and deep imports increase maintenance risk.\n- Boolean naming drift is cosmetic.\n\nThe synchronous hot-path finding should therefore be treated as the incident root cause, independent of the other findings’ reported severities.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

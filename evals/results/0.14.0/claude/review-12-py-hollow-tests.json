@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:29:14.882Z",
+  "run_id": "d155b544-ea1f-4389-8c4a-6f6d0dd4aeab",
+  "response": "`crimes scan --format json` returns a single finding, but the useful answer is what sits *around* it. I read the package and ran the suite to confirm the shape.\n\n## The one finding\n\n`tests/test_reporting.py` — **Weak Test Signal**, high severity, confidence 0.85. All 4 test functions, 0 assertions between them. They call the code and discard the result.\n\n## What's genuinely covered\n\n**`billing/rates.py`** — real coverage. `tests/test_rates.py` asserts on returned values: `rate_for(\"GB\") == 0.20`, `rate_for(\"DE\") == 0.19`, the unknown-region fallback, and `is_zero_rated` for known regions. Break `rate_for` and the suite goes red. Refactor this file with normal care.\n\nTwo caveats even here:\n- `test_unknown_region_falls_back_to_default` asserts `rate_for(\"ZZ\") == DEFAULT_RATE` — both sides read the same module constant, so it passes for any value of `DEFAULT_RATE`. It pins the *fallback wiring*, not the fallback *value*.\n- `is_zero_rated` is only exercised on its `False` branch. No region in `RATES` is 0, so the `True` path has never run.\n\n## What only looks covered\n\n**`billing/reporting.py`** — this is the trap. Four tests named after the functions, imports that look right, green suite. What they actually prove is \"does not raise.\" Nothing checks:\n- `build_report`'s `total`, `lines`, or that `region` is threaded through\n- the CSV string in `export_report` — the `%.2f` formatting is completely unverified\n- the JSON dict shape\n- the `ValueError` for an unsupported format — that branch is never even *executed*, no test passes a bad `fmt`\n\n**`billing/ledger.py`** — no test file at all, and this is the part a coverage tool will lie to you about. `build_report` → `post_entry`, so the hollow reporting tests *execute* `post_entry` including the VAT line `gross = amount * (1 + rate_for(region))`. A line-coverage report will show that function as covered. Zero assertions ever touch the number it produces. `reverse_entry` is the honest gap — never called by anything, 0% by any measure.\n\n## Proof, not inference\n\nI copied the fixture and made three mutations: flipped the VAT sign to `1 - rate_for(region)`, hardcoded `report[\"total\"]` to `0`, and replaced the CSV format string with the literal `\"WRONG\"`. All 7 tests still passed.\n\n## What this means for the refactor\n\n- **`rates.py`** — protected. Move freely.\n- **`reporting.py` and the money math in `ledger.py`** — unprotected, and worse than untested, because the green suite reads as permission. Before touching either, add assertions to the four existing `test_reporting.py` tests (they already construct the right inputs — the effort is small, per the finding's `fix_shape`: \"assert on the result, not just that it ran\"). Get `post_entry`'s gross calculation asserted at a known region and amount before you change anything under it.\n- **`reverse_entry`** — genuinely untested; needs a test written from scratch, not a strengthened one.\n\nOne note on the tool: the scan flags the hollow file but does not flag `ledger.py` as untested — the finding's `test_gap` score is 0. The ledger gap came from reading the package, not from the JSON.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      }
+    ]
+  }
+}

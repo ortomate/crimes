@@ -1,0 +1,72 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:52:29.428Z",
+  "run_id": "a37a7f8d-6e20-4895-98b3-ecb2885312b8",
+  "response": "## Verdict\n\nTwelve findings, but only **two blocking**. The rest are real drift that belongs in a follow-up. One finding is noise, and the scan's headline ranking is wrong for this review — the highest-`agent_risk` finding is out of scope, and the one thing that can actually hurt users is ranked 11th.\n\nI read the fixture alongside the JSON, because two of the findings are framed in a way that would cause damage if acted on literally.\n\n---\n\n## Blocking\n\n### 1. `/admin` permission drift is an access-control bug, not a naming problem — `crime_00011`\n\nThe scan calls this \"3 different role tokens across 3 files\" and scores `agent_risk: 0.25`. That undersells it. The code at `src/routes/admin.ts:6-11`:\n\n```ts\nexport const requiredRole = \"owner\";\n\nexport function loadAdminPanel() {\n  if (currentUser.role === \"manager\") return { ok: true, legacy: true };  // ← returns first\n  if (currentUser.role !== \"owner\") return null;\n  return { ok: true };\n}\n```\n\nThe stale `manager` fallback is checked **before** the owner gate, so it isn't an inconsistent label — it's a live bypass. Anyone with `role: \"manager\"` gets the admin panel on a route whose declared `requiredRole` is `\"owner\"`. Meanwhile `nav.ts:9` gates the link on `role: \"admin\"`, a fourth token that matches neither.\n\ncrimes found the drift by counting tokens; it could not see that the drift resolves in the *permissive* direction. Fix before merge: delete the legacy branch, pick one token, route every check through `requiredRole`.\n\n### 2. Two nav links point at routes that don't exist — the scan reported this backwards\n\n`crime_00007` and `crime_00008` say `/organisation` and `/workspace` are **orphaned destinations**, with `fix_shape: \"delete the orphan destination or wire it up\"` and a `link_or_retire` action. Following that advice deletes live pages.\n\nWhat's actually happening:\n\n| nav href (`src/nav.ts`) | route file | route path |\n|---|---|---|\n| `/teams` | `src/routes/teams.ts` | `/teams` ✓ |\n| `/workspaces` | `src/routes/workspace.ts` | `/workspace` ✗ |\n| `/organisations` | `src/routes/organisation.ts` | `/organisation` ✗ |\n| `/admin` | `src/routes/admin.ts` | `/admin` ✓ |\n\nHalf the nav 404s on a trailing `s`. The detector's evidence line — \"no nav source references this destination\" — is literally true and completely misleading: nav *does* reference these, just at the wrong path. The routes aren't orphans; they're the targets of broken links. The fix is a rename to align nav and routes, not a deletion. Blocking because it's user-visible breakage in the primary navigation.\n\nSame class of bug in the components, which the scan missed entirely: `TeamList.tsx`, `UserList.tsx`, and `SeatList.tsx` link to `/teams/manage`, `/users/manage`, and `/seats/manage` — none of which have a route file anywhere in `src/routes/`.\n\n---\n\n## Follow-ups\n\n**Billing has three names and no owner** (`crime_00003`, `crime_00005`, `crime_00006`). `/billing-plans` and `/admin/billing-plans` are byte-identical stubs; nav has no billing entry at all; docs advertise `/billing-plan` (singular), matching neither. This is genuinely unbuilt surface, so nothing is breaking today — but it's the one place an agent will confidently pick the wrong file. Decide which is canonical before anyone implements against it, then delete or redirect the other.\n\n**Pluralisation is inconsistent across all three IA sources.** Nav is plural, docs are singular, route files are mixed. Worth noting who's right: nav is correct for teams, docs are correct for workspace and organisation, and nobody is correct for billing. Pick a convention repo-wide, in the same pass as blocker #2.\n\n**Tenant vocabulary** (`crime_00002`). \"organisation\", \"team\", \"workspace\" as three names for one concept. In most B2B apps these are legitimately distinct nesting levels, so I'd normally push back on this finding — but here all three are identical `listX`/`getX` stubs and `nav.ts` lists them side by side as peer destinations, so the tool is right. It needs a product decision, not a mechanical rename. Follow-up.\n\n**Docs reference three CLI commands that don't exist** (`crime_00012`). `iaq teams`, `iaq workspace`, `iaq refresh` vs. an advertised surface of `list` and `get`. Trivially correct — just fix it in this PR rather than filing it.\n\n**Action verbs** (`crime_00009`). Delete/remove/archive used interchangeably across the three list components, including `\"Delete the seat\"` and `\"Remove member\"` on the same target. Copy consistency work; genuine but not urgent.\n\n---\n\n## Don't act on these\n\n**`crime_00004`** — docs-code drift on `docs/routes.md:14 → /admin (not found)`. This is a false positive: `[admin console](/admin)` is a site-relative route link, and `/admin` **does** exist at `src/routes/admin.ts`. The detector resolved it as a filesystem path. Worse, it's an inversion — it flagged the one doc link that's correct while missing the four bullet paths on lines 5-8 that are genuinely wrong.\n\n**`crime_00010`** is a duplicate of `crime_00009` — same group, same aliases, same file list, same evidence, emitted by two detectors (`action_label_drift.js` and `copy_ia_drift.js`). One issue, counted twice.\n\n**`crime_00001`** (missing agent context) is ranked first by aggregate risk but isn't an IA finding at all. Out of scope here.\n\nNet: 12 findings → 8 real issues, 2 of them blocking.\n\n## On the tool itself\n\nThree calibration notes, since this repo is the crimes fixture set:\n\n- The `orphaned_destination` detector only walks route-file → referrer. It never checks href → route, so a near-miss link reads as an orphan rather than a broken link, and the suggested action (`delete`) is the opposite of the correct fix. Worth an evidence-line change at minimum: \"no nav source references this destination\" should distinguish *unreferenced* from *referenced at a similar path*.\n- `docs_code_drift` is treating site-relative route paths as file paths.\n- `action_label_drift` and `copy_ia_drift` are double-reporting identical evidence.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": "src/routes/teams.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      }
+    ]
+  }
+}

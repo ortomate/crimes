@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:10:04.088Z",
+  "run_id": "9f6a071f-52dc-4adb-b7a3-db62076a0798",
+  "response": "Both commands ran against the fixture (`evals/fixtures/01-messy-ts-app` is a symlink to `examples/messy-ts-app`). Verdict first, because it changes what kind of plan this is:\n\n```\nverdict: unchanged   new: 0   fixed: 0   unchanged: 37\n\"no maintainability change vs. base — verdict is advisory only.\"\n```\n\n**Nothing in the top 10 is new.** All 37 findings are standing debt against `origin/main`, so none of this is a merge gate — it's backlog work you schedule, not a blocker you clear. That's the frame for every \"fix now\" below: *fix now* means \"next time you open this file\", not \"before this branch lands\".\n\n## Triage order\n\nThe scan is already ranked by aggregate risk (`agent_risk` descends monotonically: 0.44 → 0.36), so `crime_00001`–`crime_00010` are the top 10. My order departs from theirs — I batch by file, because six of these live in two files and the edits collide:\n\n| # | ID | Charge | Group | Tag |\n|---|---|---|---|---|\n| 1 | `crime_00010` | Half-UTC, Half-Local (`src/date.ts:39-41`) | Time/determinism | **fix now** |\n| 2 | `crime_00001` | Temporal Recklessness (`src/date.ts`, 8 sites) | Time/determinism | **fix now** |\n| 3 | `crime_00005` | God Function `generateInvoice` (204 lines) | Structural | **fix now** |\n| 4 | `crime_00004` | String Sprinkles — `\"enterprise\"` × 4 areas | Duplication | **fix now** |\n| 5 | `crime_00007` | Route Metadata Drift (`/settings/billing`) | IA | **fix now** |\n| 6 | `crime_00006` | Duplicated Navigation Source (same route) | IA | **fix now** |\n| 7 | `crime_00003` | Missing Agent Context (repo-level) | IA | **fix now** |\n| 8 | `crime_00002` | Return Shape Roulette `resolvePaymentResult` | Structural | defer |\n| 9 | `crime_00008` | Sync I/O in Hot Path (`loadPlanSchema`) | Runtime | defer |\n| 10 | `crime_00009` | Option Bag Junk Drawer `describeCheckout` | Structural | ignore |\n\n**Why this order.** #1 and #2 are one editing session on a 53-line file: `dateLabel()` reads `getUTCFullYear()` then `getMonth()`/`getDate()` on the same `d`, which silently shifts the label by the host's UTC offset — a wrong-output bug, not a smell. But you can't write a regression test for it while `new Date()` is called inline, so the clock injection has to land with it or alongside it. Do #1 and #2 together and you also clear `crime_00012`, `00018`, `00026`, `00027` (four more date.ts findings from outside the top 10) in the same pass — six findings, one file.\n\n#5 and #6 are likewise one edit: both describe `/settings/billing` labelled four ways (`PricingPage` / `Plans` / `Subscription` / `Billing`). Pick a canonical noun once, update both nav sources and the route metadata.\n\n#7 is the cheapest agent-risk reduction on the board — writing an `AGENTS.md` costs an hour and is the only finding whose fix improves how *every* future agent edit goes.\n\n## Group rollup\n\n- **Structural** — 3 (`00005`, `00002`, `00009`). Only `00005` earns urgency; the other two are shape-of-API nits.\n- **IA** — 3 (`00007`, `00006`, `00003`). The densest cluster, and cheapest to clear.\n- **Duplication** — 1 in the top 10 (`00004`). Arguably 3: `00006`/`00007` are duplication-of-truth wearing an IA hat.\n- **git-history** — **0 findings, and that's a measurement gap, not a clean bill.** Every finding in the report carries `churn: 0`, `recency: 0`, `blast_radius: 0`. This fixture has no meaningful git history, so a third of the scoring model contributed nothing. Ranking here is severity × confidence × agent_risk only. On a real repo with churn data, this order would move.\n- **frontend** — 0 in the top 10. The frontend findings exist (`00032` SVG-with-embedded-raster is `high`, plus `00036`, `00037`) but rank 32nd–37th because asset weight doesn't feed agent risk. Treat them as a separate perf/asset ticket, not part of this triage.\n\n## Two places I'd override the tool\n\n**Promote `crime_00017` (ranked 17th) into the fix-now set.** `src/api/files.ts:9` hardcodes `/Users/andrew/dev/crimes/schema.json`, and `loadPlanSchema()` returns `null` when the path is missing — so on every machine that isn't yours it fails *silently* and the caller sees \"no schema\". Same for `crime_00016`'s `localhost:3000`. Both are `quick` effort and both are outright broken-off-this-laptop, but they rank below boolean-naming nits because their churn and blast-radius inputs are zero. That's the git-history gap showing up as a ranking error.\n\n**`crime_00009` gets *ignore*, and `crime_00008` is conditional.** The option bag is six property reads inside one function with no cross-file contract — naming the shape costs more than it returns until the function grows. For the sync I/O: `package.json` declares `bin: {\"messy\": \"src/billing.ts\"}`, so this is a CLI, where blocking the event loop during startup is normal and correct. The detector's own evidence flags it `low`. Keep it deferred while this stays CLI-only; promote it to fix-now the day `files.ts` gets imported by a server path.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "direct_date",
+        "passed": false
+      }
+    ]
+  }
+}

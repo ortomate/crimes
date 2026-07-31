@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:38:43.272Z",
+  "run_id": "8d7006a0-d676-4005-a964-52016dd24b96",
+  "response": "Read all six fixture files to ground the plan. Two things the scan output doesn't tell you, both of which change the plan:\n\n- **The three sanitise bodies are identical modulo identifier names** — `sanitize-a.ts:10-36`, `sanitize-b.ts:9-35`, `sanitize-c.ts:9-35` differ only in `working`/`cleaned`/`normalised` and the param name. There are no differing values, so the finding's `fix_shape` (\"pass the differing values as args\") overstates it: this is a straight extraction with no parameters.\n- **The three role checks are *not* the same predicate.** `assertAdminA` = `role === \"admin\"`, `assertAdminB` = `role === \"admin\" || role === \"owner\"`, `assertAdminC` = `role !== \"admin\"`. Consolidating them into one `isAdmin` silently drops `\"owner\"` and inverts one call site. The finding says \"2 distinct expression shapes\" and doesn't surface the `\"owner\"` branch at all — that's the drift it's warning about, already realised.\n\nAlso worth knowing: one of the four `policy.ts` hits (line 1) is the file's own comment, so there are 3 real call sites there, 6 real `\"admin\"` comparisons across the 4 files.\n\n---\n\n# Refactor plan: 06-stress-duplication\n\nTwo steps, ordered deliberately. Step 1 is behaviour-preserving and touches the same three files Step 2 does — doing it first shrinks `sanitize-a/b/c.ts` to just their guards, so Step 2's diff is three one-line changes instead of three changes buried in 30-line files. If Step 2 has to be reverted, the dedup survives.\n\n## Step 0 (prerequisite, ~20 min): characterisation tests\n\nThere are no tests in this repo (`test_gap: 0.5` on every finding, no test files in the tree). Both steps below are \"prove the output didn't change\" refactors, and there's currently nothing to prove it with.\n\nWrite one table-driven test that runs the **same input set** through `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` and asserts all three agree, covering: `\"\"`, whitespace-only, `null`/`undefined` (they're typed `string` but the body checks for both), a `>1000` char string, leading `<`/`>`, a string containing `\\x`, `!!!!` runs, and an all-caps `>30` char string.\n\nTwo behaviours to pin *as-is*, not fix:\n- `replace(/[ -]/g, \"\")` strips spaces and hyphens (the `-` is trailing, so it's a literal, not a range) — which makes the following `replace(/\\s+/g, \" \")` nearly dead, since only tabs/newlines can still match. Looks like a mangled control-char class.\n- `includes(\"\\\\x\")` matches a literal backslash-x, not an escape sequence.\n\nBoth are suspicious. **Do not fix them inside a dedup commit** — pin current behaviour, consolidate, then change semantics in a separate, reviewable commit where the diff *is* the behaviour change.\n\n## Step 1: one sanitiser (`crime_00001`, low risk)\n\n**Change:** new `src/sanitize.ts` exporting a single `sanitizeText(input: string): string` with the shared body. Delete the three copies.\n\n**Two judgement calls:**\n\n1. **No parameters.** The three bodies have zero differing values. Adding an options bag now would be speculative generality. What *is* worth lifting is the four bare magic numbers (`1000` max length, `5` punctuation runs, `0.9` upper ratio, `30` length floor) — promote them to named module constants. That gives future divergence a place to land other than a fourth copy, without inventing an API nobody calls.\n2. **In this repo, delete the old names outright** — nothing imports them (6 files, no index, no consumers). In a real codebase, keep `sanitizeUserInput`/`cleanMessage` as one-line re-exports marked `@deprecated` so Step 1 touches zero call sites and is trivially revertible, then remove them in a follow-up once callers migrate.\n\n**Verify:** Step 0's test now runs against one function; `tsc --noEmit` catches any missed import.\n\n## Step 2: one `\"admin\"` literal, three capabilities (`crime_00003`, medium risk)\n\nThe finding flags **the literal**, not the functions. The correct fix removes the duplicated literal while *preserving* the three distinct predicates — collapsing the three `policy.ts` capabilities into one `canDoAdminThing` would be the wrong read of this finding and would destroy three product concepts that exist precisely so they can diverge.\n\n**Change:** `src/policy.ts` becomes the single home for the literal.\n\n```ts\nexport type Role = \"admin\" | \"owner\" | \"member\";\n\nconst ADMIN: Role = \"admin\";\n\nexport function isAdmin(role: string): boolean {\n  return role === ADMIN;\n}\n\nexport function isAdminOrOwner(role: string): boolean {\n  return isAdmin(role) || role === \"owner\";\n}\n\n// Capabilities stay separate — they will diverge; that is the point.\nexport const canEditBilling = isAdmin;\nexport const canSeeAuditLog = isAdmin;\nexport const canImpersonate = isAdmin;\n```\n\n(Write them as three explicit `function` declarations rather than aliases if you want each to keep its own doc comment and a place to grow a second condition. Either way, three names, one literal.)\n\n**Then migrate the three guards, preserving semantics exactly:**\n\n| Old | New | Note |\n|---|---|---|\n| `assertAdminA(role)` — `role === \"admin\"` | `isAdmin(role)` | direct |\n| `assertAdminB(role)` — `=== \"admin\" \\|\\| === \"owner\"` | `isAdminOrOwner(role)` | **must keep `\"owner\"`** — the one real semantic difference |\n| `assertAdminC(role)` — `role !== \"admin\"` | `!isAdmin(role)` at the call site | do **not** add an `isNotAdmin` helper — negation belongs at the call site, a named negative predicate just re-creates the drift |\n\nTyping `Role` as a union is what actually prevents recurrence: a future `role === \"admn\"` becomes a typecheck failure rather than a silently-false branch.\n\n**Verify:** `tsc --noEmit`, plus a small truth-table test over `isAdmin`/`isAdminOrOwner` for `\"admin\"`, `\"owner\"`, `\"member\"`, `\"\"`. Re-run `crimes scan --format json` — `crime_00001` and `crime_00003` should both drop.\n\n**Risk note for review:** the `assertAdminB` → `isAdminOrOwner` mapping is the one place a reviewer must look. If a reviewer wants \"owner\" gone, that's a *policy decision* — make it in its own commit, not smuggled in under a dedup.\n\n---\n\n## Adjacent, outside the two-step ask\n\n`crime_00002` (exact-duplicate `recordSanitiseEvent` in `telemetry-a.ts`/`telemetry-b.ts`) and `crime_00004`/`crime_00005` (`Date.now()` at line 16 of each) are **one fix, not three**: delete one copy into `src/telemetry.ts` with an injected clock —\n\n```ts\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: () => number = Date.now,\n): void { /* … */ }\n```\n\nDoing the dedup first means the clock injection lands in one file instead of two. It's independent of Steps 1 and 2 (nothing in `sanitize-*.ts` imports telemetry today), so it can go before, after, or in parallel — I'd slot it after Step 2 as a third small commit rather than fold it in, since mixing it into either step muddies an otherwise single-purpose diff.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:57:02.129Z",
+  "run_id": "c4e59d4b-7633-40ce-8c25-5674370a26dc",
+  "response": "I’m using the repository’s crimes risk-review workflow here, then I’ll distinguish actual behavioral protection from mere test execution.\n\nThe global `crimes` binary isn’t installed in this shell. I’m checking the local evaluation setup for its built CLI; the supplied JSON already gives the complete finding evidence, so this won’t delay the coverage assessment.\n\nThe suite provides narrow, uneven protection.\n\n| Package area | Protection level | What is actually checked |\n|---|---|---|\n| `billing.rates` | Genuinely covered | Exact rates for `GB` and `DE`; unknown-region fallback via `ZZ`; `is_zero_rated()` returning false for `GB` and `FR`. These tests contain real assertions. |\n| `billing.reporting` | Only looks covered | Four tests execute `build_report()` and `export_report()` but make zero assertions. Incorrect report fields, totals, CSV text, or JSON output could all pass. |\n| `billing.ledger.post_entry` | Incidental execution only | Called through `build_report()`, so gross failures that raise may be noticed. Its returned account, net, gross, and region values are never asserted. |\n| `billing.ledger.reverse_entry` | Uncovered | No test invokes it. |\n| Unsupported export formats | Uncovered | No test verifies that `export_report()` raises `ValueError`. |\n\nThe key difference is that `test_rates.py` checks observable results, so behavioral regressions in those specific cases should fail the suite. By contrast, all four functions in `test_reporting.py` merely verify “the call did not raise.” The scan therefore raises one high-severity `weak_test_signal`: **0 assertions across 4 tests**.\n\nFor the refactor, treat rates as protected only for the listed cases. Treat reporting and ledger as effectively unprotected against wrong results; their apparent coverage is execution coverage, not correctness coverage. Also, a clean scan elsewhere would not prove comprehensive coverage—the finding specifically identifies hollow tests, not full line or branch coverage.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

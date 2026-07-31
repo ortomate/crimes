@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:28:50.241Z",
+  "run_id": "f0485169-b218-418b-959a-64f4bab11095",
+  "response": "I’ll inspect the billing source and tests alongside the supplied scan result, so I can distinguish real behavioral protection from tests that merely execute code.\n\nThe suite provides real behavioral protection for `billing.rates`, but only superficial execution coverage for reporting and ledger behavior.\n\n- `billing.rates` is genuinely covered:\n  - `rate_for(\"GB\") == 0.20`\n  - `rate_for(\"DE\") == 0.19`\n  - Unknown regions fall back to `DEFAULT_RATE`\n  - `is_zero_rated(\"GB\")` and `is_zero_rated(\"FR\")` must be false\n\n  These assertions would catch incorrect return values. However, the exact French rate and a truly zero-rated region are not tested.\n\n- `billing.reporting` only looks covered. All four tests call `build_report` or `export_report`, but make zero assertions. They protect only against exceptions for the exercised inputs:\n  - `build_report`’s account, region, lines, and total can all be wrong while tests remain green.\n  - CSV output can be malformed or contain incorrect values.\n  - JSON output can have incorrect keys or values.\n  - The unsupported-format `ValueError` path is not tested.\n\n- `billing.ledger` has no direct tests:\n  - `post_entry` is executed indirectly by the hollow reporting tests, but its net/gross calculation and returned fields are never checked.\n  - `reverse_entry` is not exercised at all.\n\nSo the practical distinction is:\n\n- **Genuine coverage:** tests assert observable behavior and fail when results become incorrect (`rates.py`).\n- **Apparent coverage:** code is imported and executed, so line coverage may look healthy, but incorrect results still pass (`reporting.py` and indirectly `post_entry`).\n- **No coverage:** behavior is neither exercised nor asserted (`reverse_entry`).\n\nThe scan’s `coverage.files_total: 6` means six Python files were analyzed by Crimes; it is not runtime test coverage. Likewise, the single finding should not be read as “everything else is protected”—it specifically identified the assertion-free reporting test file.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

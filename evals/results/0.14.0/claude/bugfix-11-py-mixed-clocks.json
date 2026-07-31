@@ -1,0 +1,59 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:05:29.090Z",
+  "run_id": "ed1a655d-7227-4107-8137-51400ce39a73",
+  "response": "I ran the scan you gave me against the fixture and read the modules it points at. Here's what's going on.\n\n## The module responsible\n\n**`domain/invoicing.py`** — specifically `build_invoice`, lines 20–21.\n\ncrimes flags it twice, and the pair is the whole story:\n\n- `crime_00002` — **Two Clocks, One Module** (`mixed_utc_local_methods`): 1 read via `utcnow()`, 3 via `now()`, none with a `tz=` argument.\n- `crime_00003` — **Temporal Recklessness** (`direct_date`): all 4 reads return **naive** datetimes.\n\nThe two consecutive lines are the bug:\n\n```python\nissued       = datetime.now()      # line 20 — naive LOCAL wall time\nperiod_start = datetime.utcnow()   # line 21 — naive UTC\n```\n\nBoth come back as `datetime` with `tzinfo=None`. Nothing in the type system, and nothing at any call site, distinguishes them. They are then stored side by side in the returned dict as `issued_at` and `period_start` (lines 67–68) and handed downstream as if they were the same kind of value.\n\n## Mechanism\n\n`period_start` is the billing-period stamp, and it is the *only* value in the module read in UTC. Everything else — `issued`, the coupon comparison at line 53, the `stale` check at line 79 — is local wall time. So `period_start` is offset from every one of its neighbours by exactly the host's UTC offset.\n\nThat offset is harmless in the middle of the day and decisive near a boundary. Whenever wall-clock time is within `|UTC offset|` hours of midnight, `issued_at` and `period_start` land on **different calendar days**. When that midnight is also a month boundary, they land in different **billing periods** — which is the symptom your customers are reporting.\n\nWhich direction it drifts depends on the sign of the host's offset, and it's worth confirming which one you have:\n\n- **Host west of UTC** (e.g. a `us-east-1` worker at UTC−4): an invoice built at 21:00 local on 31 July gets `issued_at = Jul 31 21:00` but `period_start = Aug 1 01:00`. Late evening → period jumps **forward** into next month. This one matches \"late in the evening\" directly.\n- **Host east of UTC** (e.g. a Frankfurt worker at UTC+2): the rollback window is 00:00–02:00 local, so `period_start` falls **back** into the previous month just after midnight — which reads as \"late evening\" to a customer whose own clock is further east than the server's.\n\nEither way the window is only a couple of hours wide out of twenty-four, and only bites when it overlaps a period boundary. That's your \"only sometimes.\"\n\nThere's a second, independent defect on the same two lines that will keep biting even after the timezones are fixed: **lines 20 and 21 are two separate clock reads.** A request that crosses midnight between them produces an invoice whose `issued_at` and `period_start` disagree by a day even with perfect timezone hygiene. Rare, but it's the same class of failure and the same fix.\n\n## Why CI never sees it\n\n`datetime.utcnow()` and `datetime.now()` return **identical values when the host's UTC offset is zero**. CI runners — GitHub Actions, most containers, anything with `TZ` unset in a minimal image — run at UTC. The discrepancy isn't merely unlikely on CI; it is exactly, deterministically **zero**. Every assertion comparing `issued_at` to `period_start` passes, and will pass forever, no matter how many times you re-run it.\n\ncrimes says this outright in the evidence for `crime_00002`:\n\n> \"a UTC-configured CI runner makes the two agree, so tests pass and production drifts\"\n\nTwo things compound it:\n\n1. **No exception is ever raised.** Both values are naive, so `<` between them is legal. Python only raises `TypeError` when you compare naive against *aware* — which never happens here, because there is no aware datetime anywhere in the module. The bug is silent by construction.\n2. **There are no tests.** The fixture is 11 `.py` files with no test module among them, which is consistent with the uniform `test_gap: 0.5` across all eight findings. So even the accidental UTC-passing test doesn't exist to be re-run under another zone.\n\n## Ruling out the other findings\n\nWorth being explicit, because the scan's highest-severity finding is *not* the culprit:\n\n| Finding | Why it isn't this bug |\n|---|---|\n| `crime_00001` sync I/O in hot path (**high**) | Latency and event-loop starvation. Wrong timings, never wrong values. |\n| `crime_00004` circular dependency | `api/rendering.py` ↔ `domain/invoicing.py`. Fails loudly at import, or not at all — it can't produce a *sometimes-wrong field*. |\n| `crime_00005` God Function | `build_invoice` is 61 lines at depth 5 — the **carrier**, not the cause. It's why lines 20 and 21 sit 50 lines away from the return that ships them, and why nobody noticed. |\n| `crime_00006/7` deep imports, `crime_00008` boolean naming | Coupling and readability. Unrelated. |\n\nRank by `agent_risk` rather than severity and the two clock findings (0.44, 0.43) sit right at the top alongside the I/O one (0.46) — which is the ordering that actually points at this bug.\n\n## Proposed fix\n\n**1. One convention: timezone-aware UTC, converted only at the presentation boundary.**\n\n```python\nfrom datetime import datetime, timezone\n\ndef _utc_now():\n    return datetime.now(timezone.utc)\n```\n\nReplace all four reads (lines 20, 21, 53, 79). Every value becomes aware, so a future naive/aware mix raises `TypeError` at the comparison instead of returning a quietly wrong answer — the failure mode moves from silent to loud.\n\n**2. Read the clock once.**\n\n```python\nissued = _utc_now()\n```\n\nand derive `period_start` from `issued` rather than from a second call.\n\n**3. Derive the billing period from an explicit billing timezone — this is the real domain fix.**\n\n`period_start = utcnow()` is semantically wrong even with correct timezone handling: a billing period doesn't start \"now\", it starts at a calendar boundary, and *whose* calendar is a business decision, not a property of the host.\n\n```python\nfrom zoneinfo import ZoneInfo\n\nissued = _utc_now()\nbilling_tz = ZoneInfo(customer[\"billing_tz\"])          # or the tenant/plan zone\nlocal = issued.astimezone(billing_tz)\nperiod_start = local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)\n```\n\nThis is the step that makes the host's own timezone irrelevant — which is what you want, since the host's zone is an accident of deployment.\n\n**4. Inject the clock so the boundary is testable at all.**\n\n```python\ndef build_invoice(customer, line_items, coupon, region, options, *, now=_utc_now):\n    issued = now()\n```\n\nThen a test can pin 23:30 on 31 December in a `UTC+13` zone and assert the period, with no module patching. This is crimes' `inject_clock` suggested action, and it's marked `risk: low` because the default keeps every existing call site working.\n\n**5. Also check `coupon[\"expires_at\"]` at line 53.** It's compared against local naive `now()`. If that field arrives from a database or API as UTC — the usual case — coupons currently expire early or late by the host offset, a second evening-shaped bug hiding behind the same root cause. Once `_utc_now()` is aware, this comparison will raise `TypeError` if `expires_at` is naive, which tells you immediately whether the boundary needs a `.replace(tzinfo=timezone.utc)` on ingest.\n\n**6. Stop CI from hiding it.** Two changes, both cheap:\n\n- Run the suite under a non-UTC zone — ideally a matrix, e.g. `TZ=America/New_York` and `TZ=Pacific/Auckland` alongside UTC. Opposite-sign offsets catch drift in both directions, and Auckland's DST is southern-hemisphere so it catches transition bugs UTC-only runs can't.\n- Enable ruff's `DTZ` rules (flake8-datetimez): `DTZ005` bans bare `datetime.now()`, `DTZ003` bans `datetime.utcnow()`. That makes the regression a lint failure rather than a customer report.\n\nWorth noting `datetime.utcnow()` is deprecated as of Python 3.12 anyway, so step 1 is due regardless.\n\nI haven't modified anything under `evals/fixtures/` — changing the fixture would invalidate the eval baseline. Say the word if you want me to apply this to a real service instead.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      }
+    ]
+  }
+}

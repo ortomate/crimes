@@ -1,0 +1,34 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:07:07.416Z",
+  "run_id": "3610851d-8462-48b8-9e17-bd5443138cc8",
+  "response": "`crimes context src/billing.ts --format json` confirms it: **zero findings**.\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"agent_guidance\": [],\n\"related_files\": [],\n\"findings\": []\n```\n\n**likely_tests:** `src/billing.test.ts`\n\n## Why this module is low risk to edit\n\n**No findings, and the reasons are explicit.** `agent_guidance_reason` says *\"no findings on this file and no deterministic related files\"* — there's nothing for the tool to warn about, not a case of the detectors being unable to see the file. Coverage confirms the file was actually parsed: `packs_loaded` includes `language-js` and `files_universal_only` is 0, so this went through the full TS/JS pack rather than falling back to universal-only heuristics.\n\n**Blast radius is effectively zero.** `related_files` is empty and `related_files_reason` spells out why: no import-graph edges, no shared domain tokens, no domain-prefix filenames, no same-directory siblings other than its own test. The whole repo is 2 files. Nothing downstream breaks because there is no downstream.\n\n**The surface is tiny and fully typed.** `src/billing.ts` is one exported interface (`Money`, with `currency` a closed union of `\"USD\" | \"EUR\" | \"GBP\"`) and one pure function, `format(money: Money): string`. It reads its input, formats, returns — no `Date.now()`, no `process.env`, no I/O, no mutation. That's why the testability and hidden-side-effect detectors stay silent, and it's what makes behaviour changes verifiable by reading the function alone.\n\n**It's stable and tested.** Churn is 1 commit in 90 days from a single author — no hotspot signal. `src/billing.test.ts` covers `format` directly with two currency cases asserting exact output.\n\n**One caveat on the test signal:** `test_gap` reports `raw: 0` with `label: \"unknown\"` — the score is neutral because there isn't enough history to calibrate, not because coverage was measured as complete. The colocated test file is real and does exercise the function, but it only pins USD and EUR; GBP and edge cases (negative amounts, rounding at `.005`, non-finite values) are untested. If you change `format`'s rounding or currency handling, add a case rather than trusting the existing two to catch it.\n\n**Bottom line:** small, pure, fully typed, no dependents, low churn, colocated test. Safe to edit directly — the only real risk is silently changing the output string format, which the two existing assertions will catch for USD/EUR.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

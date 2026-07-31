@@ -1,0 +1,59 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:04:57.670Z",
+  "run_id": "ead57622-1722-4359-870d-02615fb1ca07",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to inspect the flagged clock reads in context. I’ll trace how the billing period is calculated and compare that with the CI timezone behavior; I’ll propose the fix without changing code.\n\nThe responsible path is already localized to `domain/invoicing.py`: `build_invoice()` records `issued_at` from local wall time but `period_start` from UTC, and both values are naïve. I’m validating the scanner result and the exact late-evening Europe boundary case before giving the fix.\n\nThe bug is in [`domain/invoicing.py`](</Users/andrew/dev/crimes/evals/fixtures/11-py-service/domain/invoicing.py:20>), specifically `build_invoice()`:\n\n```python\nissued = datetime.now()       # host-local, naïve\nperiod_start = datetime.utcnow()  # UTC, naïve\n```\n\nThese calls describe the same real-world instant using different clock conventions, but neither value carries `tzinfo`. Downstream code therefore cannot tell that one is local time and the other UTC.\n\nNear a date or month boundary, the two clocks can produce different calendar periods. DST makes the affected window vary during the year. The behavior is also tied to the server’s timezone—not necessarily the customer’s billing timezone.\n\nCI hides the bug because CI runs in UTC. There, `datetime.now()` and `datetime.utcnow()` produce nearly identical wall-clock values, so tests cannot expose the offset. The direct clock reads also make boundary tests difficult to pin deterministically.\n\nOne nuance: for mainland European zones east of UTC, the mismatch is normally visible between local midnight and UTC midnight, not broadly throughout the late evening. If reports consistently mean 22:00–23:59 local, verify the production host and customer timezone mapping too; UTC-western European regions or a server configured in another timezone can shift the window.\n\nThe fix should capture one timezone-aware instant and derive everything from it:\n\n```python\nfrom datetime import datetime, timezone\nfrom zoneinfo import ZoneInfo\n\ndef build_invoice(\n    customer,\n    line_items,\n    coupon,\n    region,\n    options,\n    *,\n    now=lambda: datetime.now(timezone.utc),\n):\n    instant = now()\n    issued = instant\n\n    billing_zone = ZoneInfo(customer[\"billing_timezone\"])\n    local_date = instant.astimezone(billing_zone).date()\n```\n\nThen:\n\n- Store `issued_at` as aware UTC.\n- Define whether the billing period is UTC-based or customer-local.\n- If customer-local, derive the period from `instant.astimezone(billing_zone)`—never from the host timezone.\n- Prefer a period value such as `\"2026-07\"` or a date over a misleading naïve datetime.\n- Make coupon expiry values timezone-aware and compare them with the same `instant`.\n- Use the injected clock in `summarise()` as well.\n\nAdd tests with a fixed aware instant on both sides of a month boundary, including a DST zone such as `Europe/Paris`. This directly covers the condition that UTC-only CI currently masks.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

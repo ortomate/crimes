@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:19:40.168Z",
+  "run_id": "ed6adba1-6b55-44bf-aad3-d09af9236e3d",
+  "response": "## What the scan actually found\n\nThree findings, not the \"several violations\" the brief implies — one `layer_violation`, one `deep_import`, and a `circular_dependency` that shares an edge with the first. The whole dependency graph is four files:\n\n```\napplication/billing-flow.ts ──▶ domain/billing.ts          legal (down)\ndomain/billing.ts           ──▶ presentation/invoice-view  ✗ crime_00002\npresentation/invoice-view   ──▶ application/billing-flow   legal (down)\napplication/billing-flow.ts ──▶ some-pkg/dist/internal/…   ✗ crime_00003\ninfrastructure/db.ts        ──▶ (nothing, and nothing imports it)\n```\n\nThe important structural fact the JSON doesn't say out loud: **`crime_00001` and `crime_00002` are the same edge.** The ring is three files, two of its edges are legal downward imports, and the one illegal edge — `domain → presentation` — is what closes it. Cutting it resolves both findings. The config declares four layers but `infrastructure` is an orphan, so this is really a three-layer ring plus a dead leaf.\n\n## Change 1 — break `domain/billing.ts:2` (crime_00002, and crime_00001 with it)\n\n```ts\n// src/domain/billing.ts\nimport { renderInvoice } from \"../presentation/invoice-view.js\";  // delete\nexport function chargeCustomer(amount: number): string {\n  return renderInvoice(amount);\n}\n```\n\n`renderInvoice` is pure string formatting; the domain is reaching upward to borrow a presenter. **Break, don't redirect.** Invert the responsibility — `chargeCustomer` returns a domain value, presentation formats it:\n\n```ts\n// src/domain/billing.ts\nexport interface Charge { amount: number }\nexport function chargeCustomer(amount: number): Charge { return { amount }; }\n```\n\n```ts\n// src/presentation/invoice-view.ts\nimport type { Charge } from \"../domain/billing.js\";   // legal: presentation → domain\nexport function renderInvoice(charge: Charge): string { return `Invoice: ${charge.amount}`; }\n```\n\nI'd reserve the interface-port option (`InvoiceRenderer` declared in domain, implemented in presentation, injected by application) for when domain genuinely needs to *invoke* a collaborator it can't own — a notifier, a persistence port. It's the wrong tool for a formatter, and the finding's own `suggested_actions` offers it as one of two options precisely because the detector can't tell which case this is. Here it's the cheap one.\n\nNote the second-order smell this exposes: `invoice-view.renderInvoice` currently calls `runBillingFlow()`, so rendering an invoice *charges the customer*. Once the cycle is cut, drop that call too — presentation should format, not trigger billing.\n\n## Change 2 — `application/billing-flow.ts:4` (crime_00003)\n\n```ts\nimport { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n```\n\nRedirect to `import { internalHelper } from \"some-pkg\"`. If the symbol isn't exported from the root, don't code around it — put the deep import behind a single adapter in `infrastructure/` (the layer that's supposed to own the outside world, and is currently doing nothing), export the capability from there, and file the upstream issue. That way exactly one file carries the upgrade risk instead of every consumer.\n\nSeparately: `some-pkg` isn't in `package.json` at all. That's a phantom dependency — resolving today only through hoisting, if at all. Worth fixing alongside; `crimes` won't tell you, it only reads the specifier shape.\n\n## How the two differ in agent risk\n\nThe scores are close (0.34 vs 0.29) but the failure modes aren't comparable:\n\n**`layer_violation` is a contagion risk.** The constraint lives in `crimes.config.json`, not in the code. An agent opening `domain/billing.ts` sees a relative import that compiles, type-checks, and looks exactly like every legal import in the repo — there is no local signal that it's wrong. So an agent asked to extend billing will faithfully add a second presentation import, and a third, each one more defensible than the last because *the file already does it*. The rule is invisible at the point of editing, and the violation is self-justifying. That's why confidence is 0.95: the detector reads a declared rule, so there's no ambiguity about intent. The damage is architectural — it inverts the direction of change for everything downstream.\n\n**`deep_import` is a drift risk.** The evidence is the line itself: `dist/internal/private` is legible to any reader, human or model, as reaching past a boundary. Agents don't tend to propagate it, and it doesn't compound. What it does is fail *later* — an upstream minor bump moves the file and nothing warns you at authoring time, because there's no error to see today. Confidence is 0.85, not 0.95, because a path can look deep and still be a legitimate published subpath export; the detector is inferring from shape.\n\nShort version: the layer violation is dangerous because an agent **can't see it and will copy it**; the deep import is dangerous because everyone **can see it and it still breaks on someone else's schedule**. That's why `layer_violation` outranks it despite both having identical blast radius (3 importers) and test gap (0.5) — the differentiator is entirely in how the two behave under future edits.\n\n## Order\n\n1. Change 1 — one file, closes two findings, unblocks any further work in the ring.\n2. Change 2 — `effort: quick`, independent, safe to land separately.\n3. Optional: decide whether `infrastructure` is real. Right now it's a declared layer with one unimported file; if it stays empty, the `domain cannotImport infrastructure` rule is enforcing nothing and the config is describing an architecture the code doesn't have.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

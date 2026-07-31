@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:02:00.122Z",
+  "run_id": "3b9f54d7-e208-48f9-98d6-cde546529f66",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a dependency-risk investigation. I’ll verify the cycle’s actual import edges, then identify the smallest architecture-correct edge to remove.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m switching to the repository’s locally built CLI—the documented equivalent for an unpublished checkout.\n\nBreak this import in `src/domain/billing.ts`:\n\n```ts\nimport { renderInvoice } from \"../presentation/invoice-view.js\";\n```\n\nThe confirmed cycle is:\n\n```text\npresentation/invoice-view\n  → application/billing-flow\n  → domain/billing\n  → presentation/invoice-view\n```\n\n`domain → presentation` is the best edge to remove because it also violates the configured architecture rule. Make `chargeCustomer()` return domain data, then let the presentation layer render that result after calling the application flow. This produces the intended acyclic direction:\n\n```text\npresentation → application → domain\n```\n\nAn `import type` conversion will not work here because `renderInvoice()` is called at runtime. The deep-package import is a separate low-severity issue and is not causing this cycle.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

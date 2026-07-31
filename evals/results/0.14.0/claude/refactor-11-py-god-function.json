@@ -1,0 +1,53 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:23:17.138Z",
+  "run_id": "705830e9-0f06-41df-9976-c902af541ac5",
+  "response": "Ran it — output matches the context exactly (8 findings, 11 Python files).\n\n## The pick: `build_invoice` — `domain/invoicing.py:15–75`\n\nFour of the eight findings land on this one function or the module it anchors: God Function (`crime_00005`), Temporal Recklessness (`crime_00003`), Two Clocks One Module (`crime_00002`), and one half of the import cycle (`crime_00004`). It's also the only domain entry point — 3 importers, called from `api/routes.py:26`.\n\nIt beats `get_invoice`'s high-severity blocking I/O because that fix is mechanical and loud: swap `requests` for `httpx.AsyncClient` and you're done, and if you're wrong the request fails visibly. Every plausible wrong change to `build_invoice` is *silent*.\n\n## What makes it risky beyond 61 lines\n\n**Two clocks, both naive, both flowing into the return value.** Line 20 `datetime.now()` → `issued_at`; line 21 `datetime.utcnow()` → `period_start`. Same type, different zones, no way to tell them apart. Line 53 then compares a caller-supplied `coupon[\"expires_at\"]` against local `datetime.now()` — if a caller ever passes an aware datetime that's a `TypeError` at runtime; if it passes UTC-naive, coupon expiry is silently wrong by the host offset. `summarise()` at line 79 reads `issued_at` back and compares it to a *third* clock read. An agent asked to \"clean up the inconsistent datetime usage\" will unify these in one line, and on a UTC CI runner every test still passes.\n\n**Deleted-looking behaviour that isn't dead.** Line 60: if `coupon[\"kind\"]` is neither `percent` nor `fixed`, `discount_total` stays 0 and then `+= bonus`. Any agent restructuring that `if/elif` into a clean `if/elif/else` or a dispatch dict will drop that path.\n\n**A default that contradicts itself.** Line 29 skips items where `quantity` defaults to 0; line 48 reads `item.get(\"quantity\", 1)`. The `1` is unreachable — missing-quantity items are already skipped. It reads like an intentional default, so an agent \"harmonising\" them by changing line 29 to `.get(\"quantity\", 1)` changes which items get billed.\n\n**A latent call-site mismatch.** `routes.py:26` passes `{\"rates\": rates}` as `options`; `format_money` reads `options.get(\"locale\", \"en-GB\")`. Locale is never actually supplied and `rates` is never read. Whichever direction an agent \"fixes\" this, it's guessing.\n\n**Domain imports presentation.** Line 9 pulls `format_money` from `api/rendering.py`, which imports `LINE_ITEM_CAP` back. That's the cycle — and it means moving code between these two files can flip a working import into `ImportError` depending on entry point. Passes under pytest, fails under uvicorn.\n\n**No seam, no tests.** Pricing, coupon expiry, VAT, and currency formatting share one body with no injected clock, and there are zero test files in the fixture. Nothing will tell an agent it broke something.\n\n**Float money.** `item[\"price\"] * 12 * 0.85` — not flagged by any detector, but it's a real defect that a refactor should absorb rather than preserve.\n\n## Refactor plan\n\n**0. Characterization tests first.** No tests exist. Pin the current return dict for ~6 line-item shapes (subscription annual prepaid / annual / monthly, usage over cap, usage under, missing-quantity skip) plus the three coupon kinds *including the bonus-without-kind path*. Freeze the clock via monkeypatch. Nothing below is safe without this.\n\n**1. Break the cycle by moving formatting out of the domain.** Drop `display_total` from the return dict, delete the `from api.rendering import format_money` import, and have `routes.py` call `format_money(invoice[\"total\"], options)` itself. This kills the cycle in one direction (rendering → invoicing stays, one-way) and drops the `options` param — signature goes 5 → 4. Prefer this over extracting `LINE_ITEM_CAP` to a shared leaf module: domain code shouldn't be picking currency symbols.\n\n**2. Extract pure helpers — no behaviour change.**\n- `_partition_line_items(items) -> (billable, skipped)`\n- `_subscription_total(item)`, `_usage_total(item) -> (total, warning|None)`, `_default_total(item)`\n- Replace the triple nest with `_PERIOD_MULTIPLIER = {\"annual\": 12}` and a named `PREPAID_ANNUAL_DISCOUNT = 0.85`\n\nNesting drops from 5 to 2 and each helper is testable with no clock.\n\n**3. Inject the clock and go timezone-aware.** Add `now: Callable[[], datetime] = lambda: datetime.now(timezone.utc)`. One instant for `issued_at`. Normalise `coupon[\"expires_at\"]` through an explicit `_as_utc()` that *raises* on naive input rather than assuming — loud beats silent. Fix `summarise()` in the same commit since it compares against `issued_at`, and rename `stale` → `is_stale` (`crime_00008`) while you're there. Flag for a human: `period_start` almost certainly means \"start of billing period,\" not \"now\" — that's a product question, not a refactor.\n\nThis is a breaking change to the return contract (naive → aware datetimes). Ship it as one commit spanning `invoicing.py` and `routes.py`.\n\n**4. Give the inputs a shape.** `TypedDict` for `LineItem` and `Coupon`, and move money to `Decimal` in the same pass — the dataclass boundary is the natural place to do the conversion.\n\n**5. Then resolve the two latent bugs** (the `options`/`locale` mismatch, the `quantity` default) as separate commits, each with a test that fails first.\n\nEnd state: `build_invoice` is ~15 lines of orchestration, 4 params, one injected clock, zero imports from `api/`. The `deep_import` findings in `rendering.py:8` and `vat.py:3` are unrelated and cheap — re-export from `tax/__init__.py` whenever.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

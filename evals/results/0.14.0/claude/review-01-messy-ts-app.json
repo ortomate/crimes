@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:24:19.995Z",
+  "run_id": "b97fc4ec-4b8c-4564-8fe9-0b6295aaf765",
+  "response": "## Review verdict\n\n**37 findings** (4 high / 15 medium / 18 low), plus 1 suppressed. My triage: **8 block**, **19 warn**, **10 ignore**.\n\nOne caveat that shapes everything below: `blast_radius`, `blast_radius_importers`, `churn`, and `recency` are **0 on every single finding**. That's an artefact of the framing — the whole repo is one PR on an empty baseline, so there's no history to churn and no pre-existing importers. Read those zeros as \"unmeasurable\", not \"safe\". That leaves `severity` and `agent_risk` doing all the work, and `agent_risk` tops out at 0.44 — so I'm not using a flat agent_risk threshold; I'm using it to *promote* low-severity findings that a severity-only read would wave through.\n\n---\n\n## Block merge (8)\n\n| ID | Finding | sev | agent_risk | Why it blocks |\n|---|---|---|---|---|\n| `crime_00017` | Hardcoded `/Users/andrew/dev/crimes/schema.json` — `src/api/files.ts:9` | 0.6 | 0.30 | Neither score is the argument — `confidence: 0.9` is. This path exists on exactly one laptop. Every other dev, every CI runner, every deploy fails. Effort `quick`. There is no version of \"merge and fix later\" that survives the first CI run. |\n| `crime_00016` | Hardcoded `localhost:3000` — `src/api/files.ts:8` | 0.6 | 0.30 | Same file, same class, same `quick` effort. Works only against whichever dev server happens to be up. Bundle the fix with 00017. |\n| `crime_00010` | Half-UTC, half-local on receiver `d` — `src/date.ts:9,41` | **0.8** | 0.36 | `getUTCFullYear()` and `getMonth()` on the same value. This is silently wrong by the host's UTC offset — it produces plausible dates that are off by one, and it will pass review by eye. High severity + 0.85 confidence + a date module with no tests. |\n| `crime_00012` | `new Date(\"2026-12-25T07:00:00\")`, `new Date(\"2026-12-20\")` — `src/date.ts:29,33` | 0.6 | 0.35 | Only medium alone, but it compounds 00010 in the same file: the module both parses without a zone and mixes zone families. `confidence: 0.9`, effort `small`. Blocking as one date.ts correctness unit. |\n| `crime_00001` | 8× `Date.now()`/`new Date()` — `src/date.ts:4–40` | **0.8** | **0.44** | Highest `agent_risk` in the report, and it's why 00010/00012 can't be verified: with 8 unpinned clock reads, you cannot write the test that would have caught the UTC/local bug. `test_gap: 0.5`. Fixing this first makes the other two date blockers provable rather than argued. |\n| `crime_00015` | `calculateRefundPreview` calls `saveRefundAudit`, `sendRefundEmail` — `src/billing.ts:40` | 0.55 | 0.31 | The score understates this. A function named `…Preview` that sends customer email and writes an audit row is a live foot-gun: any caller — human or agent — reasonably treats it as a dry run. Real-world side effects on a money path. Renaming is `small` effort. |\n| `crime_00005` | `generateInvoice`, 204 lines — `src/billing.ts:50–253` | **0.9** | 0.38 | Highest severity in the report, 3.4× threshold, `confidence: 0.95`. `agent_risk` is only 0.38 because there are no importers *yet* — that's the empty-baseline artefact. This is the one moment the function is cheap to split; a 204-line orchestrator that ships never gets decomposed later. |\n| `crime_00025` | Test `\"renders the enterprise plan\"` has 0 assertions — `src/billing.test.ts:4–6` | 0.45 | 0.27 | Both scores are middling and I'm still blocking. A green test that asserts nothing is worse than no test: it's the artefact reviewers and agents cite as evidence billing is covered. `confidence: 0.88`, effort `small`. Assert or delete. |\n\n**Theme:** the blockers reduce to three files — `src/date.ts` (correctness + untestability), `src/api/files.ts` (environment-portability), `src/billing.ts` (a misleading name on a refund path, an unsplittable function, and a test that proves nothing).\n\n---\n\n## Warn (19)\n\nLand the PR with these tracked. Grouped by what they actually are.\n\n**Agent-facing ambiguity — low severity, disproportionate `agent_risk`.** This is where the scoring model earns its keep; a severity-only review ignores all four.\n\n- `crime_00002` Return Shape Roulette, `resolvePaymentResult` (sev **0.3**, ar **0.43**) — three return shapes, 0% key overlap, no explicit return type. Third-highest agent_risk in the report on a \"low\" finding. Every caller guesses.\n- `crime_00003` Missing Agent Context (sev 0.6, ar **0.42**) — no AGENTS.md/CLAUDE.md/SKILL.md, and `package.json` declares a `bin`. A repo that ships a binary with zero discoverable commands.\n- `crime_00008` Sync I/O in `loadPlanSchema` (sev 0.4, ar 0.38) — 3 blocking calls, async counterparts exist for all three.\n- `crime_00009` Option Bag Junk Drawer, `describeCheckout` (sev 0.3, ar 0.38) — 6 implicit property reads.\n\n**Multiple sources of truth.** Each is an edit that will go stale in exactly one place:\n\n- `crime_00004` `\"enterprise\"` in 4 files across 4 areas (sev 0.5, ar 0.42) — this is duplicated *policy*, not a duplicated string.\n- `crime_00006` `/settings/billing` labelled `Plans` and `Billing` in two nav files (sev 0.6, ar 0.38).\n- `crime_00007` The same route labelled **four** ways — path, component `PricingPage`, `metadata.title: Plans`, `<title>: Subscription` (sev 0.6, ar 0.38).\n- `crime_00019` `tenant` concept spelled account/organisation/team/workspace across 5 files (sev 0.55, ar 0.30).\n\n00006 and 00007 are one fix; 00019 explains the three orphan routes below.\n\n**Correctness, deferrable:**\n\n- `crime_00018` `+ 86400000` day math (sev 0.6, ar 0.30) — wrong on DST days. `medium` effort, so it's a follow-up rather than a blocker.\n- `crime_00013` 7 clock reads in `billing.ts` (sev 0.6, ar 0.34) — same class as blocker 00001 but lower severity; fold into the clock-injection ticket.\n- `crime_00020` **Escalate to block if unconfirmed** — comment at `billing.ts:39`: *\"Only owners can refund enterprise plans unless billing support approves.\"* (sev 0.5, ar 0.30, conf 0.71). Sitting directly above `calculateRefundPreview`. If that authorization rule is genuinely nowhere in code, this stops being a documentation nit and becomes a missing check on a refund path. One question to the author resolves it.\n\n**Structure and hygiene:**\n\n- `crime_00035` `billing.ts` 311 lines (sev 0.6, ar 0.18) — only 1.0× threshold; splitting `generateInvoice` (blocker 00005) likely resolves it for free.\n- `crime_00014` 14 TODO/FIXME/HACK/XXX in `src/todo.ts` at 411.8/1k LOC (sev 0.4, ar 0.32) — 41× threshold. A brand-new file that's mostly unfinished markers.\n- `crime_00034` `\"creates an invoice\"` uses only weak matchers (sev 0.25, ar 0.23) — same file as blocker 00025; fix together.\n- `crime_00033` `docs/teams.md:5 → ./setup.md` doesn't exist (sev 0.35, ar 0.24, conf 0.9) — one-line fix, and agents follow doc links.\n- `crime_00029/30/31` Three orphan routes — `/account/subscription`, `/team`, `/workspace/members` (sev 0.4, ar 0.26 each, conf 0.65) — unreachable from nav, docs, or imports. Note these are *exactly* the three tenant-alias routes from 00019; that's not coincidence, it's three half-built versions of one concept. Author confirms in-flight or deletes.\n- `crime_00032` SVG with 2 embedded base64 rasters (sev **0.75**, ar 0.24) — the only high-severity finding I'm not blocking. High on asset quality, but `agent_risk 0.24`, no behaviour change, trivially reversible post-merge. Severity alone would over-rank this.\n\n---\n\n## Ignore (10)\n\nNot \"wrong\" — just below the bar for gating a merge. Style, or already covered by a blocker's fix.\n\n| ID | Finding | sev | agent_risk |\n|---|---|---|---|\n| `crime_00011` | Negative Flag Maze, `!disableBilling && !skipRetry` | 0.25 | 0.36 |\n| `crime_00022` | Unprefixed booleans `paid`/`expired`/`stale` | 0.3 | 0.29 |\n| `crime_00028` | Unprefixed booleans `disableBilling`/`skipRetry` | 0.3 | 0.26 |\n| `crime_00023` | 1× `Date.now()` in `state.ts` | 0.35 | 0.28 |\n| `crime_00024` | `users: User` / `invoice: Invoice[]` | 0.3 | 0.28 |\n| `crime_00026` | Date string concat, `date.ts:41` | 0.3 | 0.26 |\n| `crime_00027` | `toLocaleDateString()` with no locale | 0.3 | 0.26 |\n| `crime_00036` | 32×32 PNG icon | 0.35 | 0.16 |\n| `crime_00037` | 253.9 KB hero banner | 0.4 | **0.14** |\n| `crime_00038` | 4 TODOs in `billing.ts` (12.9/1k) | 0.2 | **0.08** |\n\nReasoning: 00023, 00026, and 00027 all live inside code the date.ts blockers already force you to rewrite — raising them separately is noise. 00011/00022/00028 are naming conventions; 00011 carries a notable ar 0.36 for a 0.25-severity finding, so it's the one I'd promote first if the author is touching `petty.ts` anyway. 00037 is at the very bottom of its own severity ladder (253.9 KB against a 200/500/1000 KB ladder) and 00038 is 12.9 markers/1k against a threshold of 10 — both are threshold grazes with the two lowest agent_risk scores in the report (0.14, 0.08).\n\n---\n\n## What I'd say on the PR\n\n> Four things block: `src/api/files.ts` has a hardcoded home path and a `localhost:3000` URL that break on every machine but yours; `src/date.ts` mixes UTC and local methods on the same value while parsing zone-less strings, with 8 unpinned clock reads that make the bug untestable; `calculateRefundPreview` sends email and writes audit rows; and `generateInvoice` is 204 lines with a billing test that asserts nothing. All but the date work is `small` or `quick` effort.\n>\n> One question before I can finish the review: is the `billing.ts:39` rule — *only owners can refund enterprise plans unless billing support approves* — enforced anywhere in code? If not, that moves to the blocking list.\n>\n> Also worth a look before merge, though not gating: `/settings/billing` is labelled four different ways across route/component/title/nav, and there are three unreachable routes (`/account/subscription`, `/team`, `/workspace/members`) that look like three half-built takes on the same \"tenant\" concept.\n\nOne finding was suppressed by config — worth confirming that suppression is intentional rather than inherited.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "hardcoded_local_path",
+        "passed": false
+      }
+    ]
+  }
+}

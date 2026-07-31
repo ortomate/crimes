@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:26:53.067Z",
+  "run_id": "89faf1f4-8f3b-4edb-af01-e2f8a299f397",
+  "response": "## Verdict\n\n**Do not block on the report as it stands.** 55 findings, but the actionable set is small: 2 items I'd hold the merge for (both pending a ~2-minute verification), 9 I'd warn on, and 44 that are either correct-by-design for a CLI library or scoring artifacts.\n\n| Decision | Findings | Share |\n|---|---|---|\n| Block | 9 (2 issues) | 16% |\n| Warn | 12 (9 issues) | 22% |\n| Ignore | 34 | 62% |\n\nThe `summary` block oversells: 6 `high` findings, but 3 are markdown prose files and 1 is a `.d.ts`. Only **2 high-severity findings sit in executable code** — and they're both `lib/command.js`.\n\n---\n\n## Block\n\n### B1 — `crime_00049` Hardcoded `localhost:1234` in `lib/command.js:2152`\n`severity 0.60 · confidence 0.90 · agent_risk 0.20`\n\nA dev-server URL in shipping library source is the only finding in this report that could be a *behavioural* defect rather than a shape complaint. Every environment that isn't the author's laptop silently fails against it. Effort is `quick`, so there's no cost argument for deferring.\n\n**Condition:** verify it's live code, not a JSDoc `@example` or a help-text sample string. At line 2152 of a 2180-line file it's plausibly inside a doc comment block, in which case this downgrades to ignore. One `Read` resolves it. I'm blocking on the unverified case because the fix is a one-liner and the failure mode is environment-dependent — the worst kind to catch post-merge.\n\n### B2 — `crime_00015`–`crime_00022` Eight zero-assertion tests in `tests/command.exitOverride.test.js`\n`severity 0.45 · confidence 0.88 · agent_risk 0.27` (×8)\n\nTest names: *\"when specify --help then throw CommanderError\"*, *\"when mandatory program option missing then throw CommanderError\"*, *\"when option argument not in choices then throw CommanderError\"*. These are the tests guarding the error-exit contract — the single most consequential behaviour in a CLI framework, and the exact surface an agent will \"refactor\" with confidence because green tests say it's covered. `agent_risk 0.27` badly understates that: eight named-for-behaviour tests that assert nothing is a **false-safety** pattern, which is the thing `agent_risk` is supposed to price.\n\n**Condition — and I expect this one to flip:** eight findings, one file, one suite, identical shape. That's the signature of a *shared assertion helper*, not eight genuinely empty tests. If the file defines something like `expectCommanderError(err, code, ...)`, the detector is counting `expect(` call sites and missing the indirection. Grep the file for the helper before acting. If a helper exists → **ignore all 8** and add it to the detector's known-assertion list.\n\nSame caveat does **not** rescue `crime_00023`–`00030` (`tests/ts-imports.test.ts`) — see Ignore.\n\n---\n\n## Warn\n\n| # | Finding | sev / agent_risk | Why warn |\n|---|---|---|---|\n| `00046` | Duplicate `choices()` — `lib/argument.js:99-111` ↔ `lib/option.js:176-188` | 0.55 / 0.22 | Real duplication in shipping code, identical bodies. A validation fix has to land twice, and nothing enforces that. Commander deliberately keeps `Argument`/`Option` parallel, so this is a design tension, not an accident — but it's the one duplication in the report that's in `lib/`. Extract or add a comment binding them. |\n| `00007` | `lib/command.js` — 2180 lines | 0.85 / 0.36 | 7.3× threshold. Not a merge gate, but see *Concentration* below. |\n| `00010` | `_executeSubCommand` — 120 lines | 0.90 / 0.30 | Highest `severity` in the report. Spawns child processes, resolves paths, handles signals. Also carries `00014` (sync I/O) and the corpse comment `00012` in its test file — three findings on one code path. |\n| `00001` | `typings/index.d.ts` — 892 lines | 0.85 / 0.48 | **Top `agent_risk` in the report** and correctly so: it's the public API contract, and an agent editing it can't hold it in context. Big `.d.ts` files are normal, so warn — but it's the file most worth splitting. |\n| `00049` | (see B1, if it turns out to be a comment) | | |\n| `00034`, `00035` | Docs-code drift — 6 broken links in `Readme_zh-CN.md` + `docs/zh-CN/` | 0.35 / 0.24 | Agents follow doc links. Cheap fix. **But verify first:** every reported link is percent-encoded Chinese (`%E6%9C%AF%E8%AF%AD%E8%A1%A8.md` = `术语表.md`). If the detector isn't URL-decoding before the existence check, all 6 are false positives and this is a `crimes` bug, not a repo bug. |\n| `00037`–`00043` | 7 weak-matcher tests in `command.copySettings.test.js` | 0.25 / 0.23 | Truthiness assertions where the point is that a *specific value* was copied. Genuine but minor signal loss. Fix opportunistically. |\n| `00013` | 9 unprefixed booleans in `lib/command.js` | 0.55 / 0.28 | `displayHelp`, `displaySuggestion`, `allowUnknown` are internals, so renaming is safe — unlike the typings ones. Low value, low risk. |\n| `00048` | `lib/help.js` — 462 lines | 0.60 / 0.22 | Cohesive single responsibility. Note it, don't act. |\n\n---\n\n## Ignore\n\n**Markdown counted as source — 4 findings, 3 of them `high`.** `00006` (CHANGELOG.md, 1244 lines), `00008` (Readme_zh-CN.md, 1072), `00009` (Readme.md, 1130), and `00005` (`index.test-d.ts`, 481). An append-only changelog being long is the changelog working. `agent_risk 0.36` on a CHANGELOG is noise, and it's outranking `_executeSubCommand` (0.30) — a real code path — purely on line count. **This is the report's worst ranking failure.**\n\n**Public API surface — 2 findings, 21 declarations.** `00003` (19 unprefixed booleans in `typings/index.d.ts`: `required`, `variadic`, `optional`) and `00053` (`mandatory`, `hide` in `lib/option.js`). These are Commander's published names. Renaming them to `isRequired`/`isVariadic` is a **major-version break** for every downstream consumer, to satisfy a naming convention. The detector's own suggested action offers `allowedNames` — take that path.\n\n**`examples/` is supposed to be standalone — 2 findings.** `00002` (`\"PORT\"` across 5 example files) and `00004` (`myParseInt` duplicated across two examples). Copy-paste-runnable examples that share a helper module stop being copy-paste-runnable. Both are correctly tiered `nonDomain`; the tier should have suppressed them.\n\n**`00014` Sync I/O in hot path** (`fs.existsSync` ×2, `fs.realpathSync` ×1). Context-blind. This is subcommand resolution at CLI startup in a short-lived process — there is no event loop to starve and no concurrency to block. Converting to async here buys nothing and adds `await` propagation through `_executeSubCommand`. Ignore, and consider exempting CLI-entrypoint paths from this detector.\n\n**`00023`–`00030` — 8 zero-assertion tests in `tests/ts-imports.test.ts`.** Named `Command`, `Option`, `CommanderError`, `InvalidArgumentError`. These are *type-resolution smoke tests* — the assertion is that `tsc` compiles the file. No runtime `expect` is expected or wanted. Correct pattern, wrong detector. (This is why B2 needs verifying rather than acting on: the same detector already produced 8 false positives in this report.)\n\n**Test-file size — 6 findings.** `00051`, `00052`, `00054`, `00055` (`describe` callbacks 206–349 lines), `00032` (125-line anonymous test fn). Standard Jest structure. A 349-line `describe` isn't mixing responsibilities, it's listing cases. The detector already applies a raised 200-line test threshold and these barely clear it (1.0×–1.7×).\n\n**`00050`** `lib/option.js` at 327 lines — 1.09× threshold, `confidence 0.71`. Noise.\n\n**`00012`** Commented-out `childProcess.spawn` in a test, **`00031`** a \"revisit if required\" note (`confidence 0.65`). Both `low`. Delete when next in the file.\n\n**`00047`** — duplicate report of `00046`. Lines 101-109 are strictly *inside* 99-111 of the same finding. Same duplication, counted twice, inflating the medium bucket. Detector dedupe gap.\n\n---\n\n## The signal the ranking buries: concentration\n\nRanking by aggregate risk scatters this, but **8 of 55 findings land in `lib/command.js`** — `00007` (2180 lines), `00010` / `00011` / `00033` / `00036` (four God Functions), `00013` (9 booleans), `00014` (sync I/O), `00049` (hardcoded URL). One file carries 15% of the report, both real code `high`s, and the top-severity finding.\n\nThat's the actual review comment, and no single finding says it. If I were writing one paragraph on this PR: *`lib/command.js` is where every future merge conflict and every agent-induced regression will happen. Nothing in it blocks today; splitting `_executeSubCommand` and `parseOptions` out is the highest-leverage follow-up.*\n\n---\n\n## Config changes before the next scan\n\nThe 62% ignore rate is mostly fixable — these are calibration bugs, not judgement calls:\n\n1. **Exclude `.md` from `large_file`.** Removes 3 of 6 `high`s. A prose file has no \"responsibility boundaries\" to split along.\n2. **Add Commander's public API names to `boolean_naming_drift.allowedNames`** (`required`, `variadic`, `optional`, `mandatory`, `hide`) — kills 21 unactionable declarations across 3 findings.\n3. **Exempt `examples/**` from duplication + magic-literal detectors.** The `nonDomain` tier is already computed; wire it to suppression.\n4. **Teach `weak_test_signal` about custom assertion helpers and type-only test files.** It produced 8 confirmed false positives (`ts-imports`) and 8 suspected (`exitOverride`) — 16 of 55 findings, 29% of the report, from one detector.\n5. **Percent-decode local doc links** before the existence check in `docs_code_drift`.\n6. **Dedupe nested `exact_duplicate_block` hits** (`00047` ⊂ `00046`).\n\nWith those six, this scan reports roughly 20 findings with a ~50% action rate instead of 55 at ~20% — and `_executeSubCommand` stops being outranked by a changelog.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "magic_domain_literal_scatter",
+      "crime_00003": "boolean_naming_drift",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "large_file",
+      "crime_00006": "large_file",
+      "crime_00007": "large_file",
+      "crime_00008": "large_file",
+      "crime_00009": "large_file",
+      "crime_00010": "large_function",
+      "crime_00011": "large_function",
+      "crime_00012": "commented_out_code",
+      "crime_00013": "boolean_naming_drift",
+      "crime_00014": "sync_io_in_hotpath",
+      "crime_00015": "weak_test_signal",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "weak_test_signal",
+      "crime_00018": "weak_test_signal",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "logic_in_comments",
+      "crime_00032": "large_function",
+      "crime_00033": "large_function",
+      "crime_00034": "docs_code_drift",
+      "crime_00035": "docs_code_drift",
+      "crime_00036": "large_function",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "weak_test_signal",
+      "crime_00039": "weak_test_signal",
+      "crime_00040": "weak_test_signal",
+      "crime_00041": "weak_test_signal",
+      "crime_00042": "weak_test_signal",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "exact_duplicate_block",
+      "crime_00047": "exact_duplicate_block",
+      "crime_00048": "large_file",
+      "crime_00049": "hardcoded_localhost",
+      "crime_00050": "large_file",
+      "crime_00051": "large_function",
+      "crime_00052": "large_function",
+      "crime_00053": "boolean_naming_drift",
+      "crime_00054": "large_function",
+      "crime_00055": "large_function"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "God Function": "large_function",
+      "Commented-Out Corpse": "commented_out_code",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Logic in the Alibi": "logic_in_comments",
+      "Docs-Code Drift": "docs_code_drift",
+      "Dev-Server URL": "hardcoded_localhost"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "hardcoded_localhost",
+        "passed": false
+      }
+    ]
+  }
+}

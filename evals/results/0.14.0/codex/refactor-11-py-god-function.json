@@ -1,0 +1,53 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:22:01.496Z",
+  "run_id": "51e94b47-4bff-46f5-b395-72b7fbae7e03",
+  "response": "I’ll inspect `build_invoice` itself so the refactor plan preserves its actual branches and side effects, then tie the plan back to the scan findings.\n\nThe riskiest refactor target is `domain/invoicing.py::build_invoice`.\n\nAlthough its 61 lines trigger the finding, the deeper risk is its concentration of unrelated policy and hidden contracts:\n\n- Five-level nesting encodes subscription, usage-cap, quantity, and coupon rules through branch order.\n- Five untyped parameters carry implicit dictionary schemas.\n- It mixes calculation, validation, VAT policy, presentation formatting, warnings, and response construction.\n- Three direct clock reads use both `now()` and `utcnow()`. They are nondeterministic and produce naive datetimes representing different time zones.\n- Coupon expiry may fail if `expires_at` is timezone-aware.\n- Importing `format_money` creates the `domain.invoicing ↔ api.rendering` cycle; changes can therefore affect module startup, not merely invoice results.\n- The module has three importers and a reported test gap, increasing both blast radius and regression uncertainty.\n\nConcrete refactor plan:\n\n1. Add characterization tests before moving code. Cover zero/negative quantities, monthly and annual subscriptions, prepaid discounts, usage below/above the cap, ordinary items, expired coupons, both coupon kinds, stackable bonuses, VAT, formatting, and empty input. Freeze time in these tests.\n\n2. Break the import cycle. Move `LINE_ITEM_CAP` into a dependency-free policy/constants module. Move `format_money` to a leaf presentation utility—or inject a formatter—so neither `api.rendering` nor `domain.invoicing` imports the other.\n\n3. Introduce explicit input types, preferably `LineItem`, `Coupon`, and `Invoice` dataclasses or `TypedDict`s. This makes the currently implicit keys and optional values visible to agents and type checking.\n\n4. Extract pure item pricing:\n\n   ```python\n   price_line_item(item, cap) -> LineItemResult\n   ```\n\n   `LineItemResult` should contain the amount plus optional skip/warning information. Keep subscription and usage calculations in smaller helpers if necessary.\n\n5. Extract pure coupon calculation:\n\n   ```python\n   calculate_discount(subtotal, coupon, now) -> Decimal\n   ```\n\n   Preserve the existing ordering: percentage/fixed discount first, then the stackable bonus.\n\n6. Inject a single clock into `build_invoice`, call it once, and use timezone-aware UTC:\n\n   ```python\n   def build_invoice(..., now=utc_now, formatter=format_money):\n       instant = now()\n   ```\n\n   Derive both `issued_at` and `period_start` from that instant, and compare coupon expiry using the same timezone convention.\n\n7. Leave `build_invoice` as a thin orchestrator: price items, calculate discount, apply VAT, format the total, and assemble the result. Keep its existing return shape initially so callers do not need to change simultaneously.\n\n8. Run the characterization suite after each extraction, then add focused unit tests for the new pure helpers. Finally rerun `crimes scan --format json` to confirm the god-function and circular-dependency findings are gone without introducing new high-severity findings.\n\nThe key is to separate policy one seam at a time. Rewriting the whole function into a new model at once would risk silently changing its branch ordering, rounding, cap behavior, or public result shape.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

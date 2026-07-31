@@ -1,0 +1,34 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:35:33.922Z",
+  "run_id": "a2d57d89-fb8b-4bdd-9301-b1045ac8f62f",
+  "response": "The available protection is weak: `tests/test_reporting.py` contains four tests, but none make assertions. They only detect exceptions; they would not catch incorrect ledger reversal results or malformed report output.\n\nThe scan found no dependency or blast-radius warning for the ledger code. However, the reported `blast_radius: 0` applies to the test finding itself, not necessarily to the ledger module, so it cannot establish what imports or depends on ledger reversal.\n\nBefore changing it, I’d want target-file context (`crimes context <ledger-file> --format json`) to identify likely tests, importers, and safe-editing notes. Based on this scan alone, a reversal change should be treated as poorly protected and should include explicit behavioral assertions for reversed amounts, balances, metadata, and double-reversal handling.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

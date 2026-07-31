@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:38:14.570Z",
+  "run_id": "71d1a6c7-e841-4c6b-910f-f4fc209a0c48",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to ground the plan in the scan evidence and actual call sites. I’ll keep the change set to two coherent, independently verifiable steps.\n\nThe global `crimes` binary is not installed in this environment, so I’m falling back to the supplied JSON contract and inspecting the six fixture files directly. That’s sufficient to map behavior-preserving extraction order and test seams without modifying anything.\n\nThe scan reports three duplication findings:\n\n- `crime_00001` — three near-identical sanitizers: `sanitizeUserInput`, `sanitizeText`, and `cleanMessage`.\n- `crime_00002` — duplicated telemetry implementation in `telemetry-a.ts` and `telemetry-b.ts`.\n- `crime_00003` — `\"admin\"` policy checks duplicated across `policy.ts` and the three sanitizer modules.\n\n## Two-step refactor\n\n1. Centralize role policy\n\nCreate one canonical `isAdmin(role)` policy in `policy.ts` and route every admin comparison through it, including the three existing policy functions and `assertAdminA/B/C`.\n\nPreserve the guards’ currently different behavior:\n\n- `assertAdminA`: `isAdmin(role)`\n- `assertAdminB`: `isAdmin(role) || role === \"owner\"`\n- `assertAdminC`: `!isAdmin(role)` — despite its misleading name\n\nKeep existing exports as thin adapters initially to avoid an unrelated API break. Add table-driven characterization tests for `admin`, `owner`, and an ordinary role. This should eliminate `crime_00003` without accidentally converting the three guards into equivalent rules.\n\n2. Extract the shared sanitizer\n\nAdd a single internal sanitizer implementation containing the common normalization and rejection pipeline. Replace the bodies of:\n\n- `sanitizeUserInput`\n- `sanitizeText`\n- `cleanMessage`\n\nwith thin delegates to that implementation, preserving their public names. Test all three entry points against the same cases: nullish input, control characters, whitespace, length truncation, angle-bracket and `\\\\x` rejection, punctuation rejection, uppercase normalization, and ordinary text.\n\nThen rerun the JSON scan. Acceptance criteria:\n\n- `crime_00001` and `crime_00003` disappear.\n- No new high-severity findings appear.\n- Existing exports and behavior remain intact.\n- `crime_00002` remains explicitly deferred: telemetry consolidation and clock injection are a separate concern and should not expand this change set.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

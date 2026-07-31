@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:54:40.753Z",
+  "run_id": "5bc99e12-d8d3-4263-b0f4-cf5b7258e0fd",
+  "response": "## Verdict\n\n**Block on 1 issue (2 finding IDs). Warn on 9. Ignore 44.**\n\nI read the flagged code rather than triaging from summaries, and **18 of 55 findings (33%) are verifiable false positives**. The scan's own `agent_risk` ranking is inverted here: 6 of the top 9 ranked findings are things I'd ignore, and the one issue I'd block on sits at rank 46/55.\n\n---\n\n## 🔴 Block merge — 1 issue\n\n| ID | File | sev | agent_risk |\n|---|---|---|---|\n| `crime_00046`, `crime_00047` | `lib/argument.js:99` ↔ `lib/option.js:176` | medium | 0.22 |\n\n`choices()` is byte-identical in both classes — including the user-facing error string:\n\n```js\nthrow new InvalidArgumentError(`Allowed choices are ${this.argChoices.join(', ')}.`);\n```\n\nThis is the only finding in the report that is real, domain-tier, cheap to fix, and *silently divergent*. Anyone told \"improve the choices error message\" or \"make choice matching case-insensitive\" will grep, find one hit, fix it, and ship a library where `--opt` and positional args validate differently.\n\nNote the two IDs are **one duplication reported twice** — `crime_00047` (lines 101–109) is the inner arrow body of `crime_00046` (lines 99–111). Fix once, both clear.\n\n`agent_risk` 0.22 badly under-rates this. Duplicated *policy with a shared error message* is the textbook multiple-sources-of-truth case; the score reads as low because churn/test_gap/blast_radius are all 0 in a fresh-clone repo with no git history. **This is the scoring gap to look at** — on an empty baseline, aggregate risk collapses toward severity and the differentiator stops differentiating.\n\n---\n\n## 🟡 Warn — 9 findings\n\n**`lib/command.js` is the whole architectural story** (`crime_00007`, `+00010/11/33/36`) — 2180 lines, 7.3× threshold, containing `_executeSubCommand` (120 lines, sev 0.90, agent_risk 0.30), `parseOptions` (115), `_parseCommand` (80), `addOption` (69). Highest real-code agent risk in the report. Warn, not block: splitting the public heart of a CLI parser isn't a PR-sized ask, and every one of these is a *class method* — the evidence line \"invariants are likely shared with sibling methods\" is exactly why extraction here is risky, not free. Track it; don't gate on it.\n\n**`typings/index.d.ts`** (`crime_00001`) — 892 lines, agent_risk **0.48, highest in the report**. The size itself is unremarkable for a `.d.ts`. What's real is the implied one: this file is a hand-maintained second source of truth for `lib/*.js` with no compiler link between them. Warn on the *drift risk*, not the line count.\n\n**Docs-code drift** (`crime_00034`, `crime_00035`) — 6 broken local links across `Readme_zh-CN.md` and `docs/zh-CN/`, all URL-encoded paths to files that don't exist. Low severity (0.35), but genuinely agent-facing: an agent reading the Chinese docs follows a dead path. Cheapest real fix in the report.\n\n**`crime_00013`** — 9 unprefixed booleans in `lib/command.js` (`displayHelp`, `displaySuggestion`, `combine`, `allowUnknown`). Internal params, so renaming is safe. Weakest of the warns; fine to defer.\n\n---\n\n## ⚪️ Ignore — 44 findings\n\n### Verified false positives (18) — detector bugs, worth filing\n\n**16× \"0 expect/assert calls\"** (`crime_00015`–`crime_00030`). Every one asserts through a helper the detector can't see through:\n\n- `tests/command.exitOverride.test.js:84` → `expectCommanderError(caughtErr, ...)` — checks exit code, error code, *and* message\n- `tests/ts-imports.test.ts:15` → `checkClass(commander, 'Command')` — two `expect` calls at `:10-11`\n\nThese are well-factored tests, not empty ones. The detector should follow calls to same-file functions whose bodies contain `expect`, or at minimum treat an `expect*`/`check*`-named call as an assertion candidate and drop confidence rather than reporting 0.\n\n**`crime_00049` — hardcoded `localhost:1234`.** It's inside a comment:\n\n```js\n} else if ((match = arg.match(/^(--inspect(-brk|-port)?)=([^:]+):(\\d+)$/)) !== null) {\n  // e.g. --inspect=localhost:1234     ← lib/command.js:2152\n```\n\nDocumentation for Node's `--inspect` port-incrementing logic. `hardcoded_localhost` is scanning comments; it shouldn't.\n\n**`crime_00012` — \"Commented-Out Corpse.\"** `tests/command.executableSubcommand.search.test.js:13-14` explains what the mocked `spawn` call looks like so the reader understands `mock.mock.calls[0][1]`. That's rationale — precisely what the detector's own `suggested_action` says to replace dead code *with*.\n\n### Correct-by-design or category error (26)\n\n- **Markdown \"God File\" ×3** (`crime_00006` CHANGELOG 1244 lines, `crime_00009` Readme, `crime_00008` Readme_zh-CN) — all `severity: high`, all meaningless. A CHANGELOG is append-only; \"split by responsibility\" is not a coherent instruction for it. `large_file` should not emit `.md` at domain tier.\n- **Sync I/O** (`crime_00014`) — `fs.existsSync`/`realpathSync` in `findFile`/`_executeSubCommand`. This is a CLI resolving a subcommand executable at startup before `spawn`. There is no event loop to block and no concurrent request to starve. Correct as written.\n- **Boolean naming in `typings/index.d.ts`** (`crime_00003`, agent_risk 0.43) — `required`, `variadic`, `optional`, `mandatory` are Commander's **public API surface**. Renaming to `isRequired` is a breaking change to every consumer. Suppress via `boolean_naming_drift.allowedNames`. Same for `crime_00053` (`mandatory`, `hide` in `lib/option.js`).\n- **`examples/` findings** (`crime_00002` \"PORT\" ×5, `crime_00004` duplicated `myParseInt`) — examples are duplicated *on purpose* so each is copy-pasteable standalone. Extracting a shared helper would make them worse. Both are `tier: nonDomain`; that tier should suppress duplication and literal-scatter outright.\n- **9× weak matchers** (`crime_00037`–`crime_00045`) — the assertions are real: `expect(cmd._hasHelpOption).toBeTruthy()` then `toBeFalsy()` after the copy, at `command.copySettings.test.js:34,38`. That's a genuine before/after behavioural assertion. There *is* a smell here, but it's a different one — coupling to private `_`-prefixed fields — and the detector isn't raising it.\n- **Test-suite size** (`crime_00051/52/54/55` describe callbacks 206–349 lines, `crime_00032` 125-line arrow, `crime_00005` `index.test-d.ts` 481 lines) — long `describe` blocks are how Jest suites look. Splitting for line count alone buys nothing.\n- **`crime_00031` logic-in-comments** — a historical note about a removed sinon SIGUSR1 test. Stale, mildly worth deleting, not a rule anyone must encode. Confidence 0.65 is honest.\n- **`crime_00048` `lib/help.js` (462), `crime_00050` `lib/option.js` (327)** — 1.5× and 1.1× threshold. Cohesive single-class modules. Noise at this margin.\n\n---\n\n## What this run says about the tool\n\n1. **Comment-awareness is missing in at least two detectors** — `hardcoded_localhost` fired on a comment; `commented_out_code` fired on an explanatory one. Both are one-line fixes with outsized precision payoff.\n2. **`weak_test_signal` needs helper resolution.** 16 findings, 16 wrong, and they're the single largest block in the report — they alone would train a reviewer to ignore the detector.\n3. **`large_file` should exclude `.md`** or emit it at a separate tier. Three `severity: high` findings on a CHANGELOG and two READMEs is the most visible credibility cost in the output.\n4. **Zero git history flattens the ranking.** Every finding has `churn: 0` and `recency: 0`, so `agent_risk` degenerates toward severity+confidence — which is why 16 identical false positives (0.27) outrank the one real multi-source-of-truth bug (0.22). Worth deciding whether `agent_risk` should be renormalised when history is unavailable, so the differentiating signals aren't diluted by structurally-zero ones.\n\nPrecision on this fixture is roughly **11 actionable / 55 reported (20%)**. The one finding worth blocking on is real and well-evidenced — the problem is that it's buried at rank 46.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "magic_domain_literal_scatter",
+      "crime_00003": "boolean_naming_drift",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "large_file",
+      "crime_00006": "large_file",
+      "crime_00007": "large_file",
+      "crime_00008": "large_file",
+      "crime_00009": "large_file",
+      "crime_00010": "large_function",
+      "crime_00011": "large_function",
+      "crime_00012": "commented_out_code",
+      "crime_00013": "boolean_naming_drift",
+      "crime_00014": "sync_io_in_hotpath",
+      "crime_00015": "weak_test_signal",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "weak_test_signal",
+      "crime_00018": "weak_test_signal",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "logic_in_comments",
+      "crime_00032": "large_function",
+      "crime_00033": "large_function",
+      "crime_00034": "docs_code_drift",
+      "crime_00035": "docs_code_drift",
+      "crime_00036": "large_function",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "weak_test_signal",
+      "crime_00039": "weak_test_signal",
+      "crime_00040": "weak_test_signal",
+      "crime_00041": "weak_test_signal",
+      "crime_00042": "weak_test_signal",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "exact_duplicate_block",
+      "crime_00047": "exact_duplicate_block",
+      "crime_00048": "large_file",
+      "crime_00049": "hardcoded_localhost",
+      "crime_00050": "large_file",
+      "crime_00051": "large_function",
+      "crime_00052": "large_function",
+      "crime_00053": "boolean_naming_drift",
+      "crime_00054": "large_function",
+      "crime_00055": "large_function"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "God Function": "large_function",
+      "Commented-Out Corpse": "commented_out_code",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Logic in the Alibi": "logic_in_comments",
+      "Docs-Code Drift": "docs_code_drift",
+      "Dev-Server URL": "hardcoded_localhost"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "exact_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

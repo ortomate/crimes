@@ -1,0 +1,72 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:24:02.429Z",
+  "run_id": "72f77110-3917-427c-97d5-152c7beeb36f",
+  "response": "The scan shows three substantive IA drift clusters. Only one is blocking-quality.\n\n| IA cluster | Findings | Recommendation |\n|---|---|---|\n| `/admin` permissions disagree across nav, route guard, and docs | `crime_00011` | **Blocking.** `admin`, `manager`, and `owner` appear to have inconsistent access to the same destination. Align the policy and centralize the permission check before merging; this can expose or hide navigation incorrectly and create authorization ambiguity. |\n| Duplicate billing destinations | `crime_00003`, `crime_00005`, `crime_00006` | **Follow-up**, unless this change introduces or modifies billing navigation. Decide whether `/billing-plans` or `/admin/billing-plans` is canonical, then redirect, merge, or explicitly document the split. The two orphan findings reinforce the same root issue and should not be counted separately. |\n| Tenant vocabulary split between `organisation`, `team`, and `workspace` | `crime_00002`, supported by `crime_00007` and `crime_00008` | **Follow-up.** Pick a canonical product concept or document why these are distinct. Avoid a blind rename: the words may represent genuinely different scopes. Wire up or retire the orphaned routes after that decision. |\n\nDocumentation findings:\n\n- `crime_00012`: **Follow-up, but fix before publishing these docs.** `iaq teams`, `iaq workspace`, and `iaq refresh` are not advertised commands, so readers will encounter failures.\n- `crime_00004`: **Needs validation rather than immediate blocking.** `/admin` appears to be an application route backed by `src/routes/admin.ts`, so treating it as a missing file may be a detector false positive. Confirm the Markdown link is intended as an application URL. If so, report it as false positive rather than rewriting a valid route link.\n\nNot part of this IA consistency decision:\n\n- `crime_00001` concerns agent instructions, not route consistency.\n- `crime_00009` and `crime_00010` are duplicate signals about action labels in list components. They are copy-system follow-ups, not blockers for `src/routes/`, `src/nav.ts`, and `docs/routes.md`.\n\nOverall verdict: **block on resolving the `/admin` permission model; track the duplicate/orphan routes, terminology, and stale command documentation as follow-ups.** No scan finding independently proves that a route should be deleted—canonical ownership must be decided first.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      }
+    ]
+  }
+}

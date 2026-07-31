@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:28:59.168Z",
+  "run_id": "8daec4c5-a850-4379-9827-efa6d59dc0d2",
+  "response": "## Diagnosis\n\n`crimes` puts one finding above everything else and it's the right one: **`crime_00001` — `sync_io_in_hotpath` in `api/routes.py`** (severity 0.85, confidence 0.8). Everything else in the report is a correctness or maintainability crime with no latency component.\n\nThe symptom you describe — p99 collapses, CPU stays low — is the signature of event-loop starvation. Both handlers in `api/routes.py` are `async def`, so they run *on* the loop, not in the threadpool. Every blocking call in them holds the single event loop for its full wall-clock duration, during which the process is idle-waiting, not computing. Low CPU isn't evidence against a bottleneck here; it's the proof of one.\n\nOne extra diagnostic detail the scan doesn't spell out: `health()` at `routes.py:37` is a plain `def`, so FastAPI runs it in the threadpool. Your health checks stay green while the async routes starve — the load balancer keeps sending traffic into a stalled loop.\n\n## Ranked by contribution\n\n**1. `time.sleep(2)` — `routes.py:32`, in `async def export_invoice`**\nThe dominant term. Unconditional, deterministic, 2 full seconds of total loop stall per export request. Nothing else on the loop progresses during it. A single worker caps at ~0.5 exports/sec, and *every* concurrent request — including `/invoices/{id}` reads that have nothing to do with exports — takes a +2s hit per overlapping export. This alone converts moderate load into a queue.\n\n**2. `subprocess.run([...], check=True)` — `routes.py:31`, same handler**\nBlocking, unbounded, and no `timeout=`. PDF rendering is slow and variable, and the CPU it burns is charged to a *child process* — so your service's own CPU graph stays flat while the loop is pinned. A hung renderer stalls the loop indefinitely with no ceiling. Ranked below `time.sleep` only because its duration is variable rather than a guaranteed 2s; if renders routinely exceed 2s, swap 1 and 2.\n\n**3. `requests.get(...)` — `routes.py:21`, in `async def get_invoice`**\nBlocking HTTP inside async, on what is almost certainly your highest-traffic route. No `timeout=` argument, and `requests` defaults to *no timeout* — so if `billing.internal` degrades, this holds the loop until the socket dies. Lower per-call cost than the export path, but multiplied by far higher request volume, and it's the route most likely to show the p99 you're measuring. This is also the purest \"waiting, not computing\" call in the file.\n\n**4. `open(\"/etc/billing/rates.json\")` — `routes.py:23`**\nReal but small. A page-cached local read is sub-millisecond. It matters as a per-request loop hold on the hot read path, and it becomes serious if that path is ever a network or container-overlay mount. Also: the file is re-read on every single request, which is a caching bug independent of the blocking.\n\nBelow the blocking calls, `build_invoice` (`crime_00005`, 61 lines) also executes synchronously on the loop — but it's pure arithmetic over a list, so it's noise next to the four above.\n\n## Not contributing to this problem\n\nWorth fixing, but they will not move your p99 — don't let them absorb the incident's time:\n\n- `crime_00003` / `crime_00002` — `direct_date` and `mixed_utc_local_methods` in `domain/invoicing.py`. Real correctness bugs (a naive `utcnow()` compared against naive `now()` at line 53 is wrong by your host's UTC offset), but zero latency impact.\n- `crime_00004` — the `api/rendering.py` ↔ `domain/invoicing.py` cycle. Import-time only; it can crash startup, not slow steady state.\n- `crime_00006` / `crime_00007` — deep imports into `tax.rules.regional.eu.vat_bands`. Coupling.\n- `crime_00008` — `stale` naming at `invoicing.py:79`. Cosmetic.\n\n## Fix order\n\n1. Delete `time.sleep(2)` outright — it's a fake queue delay in a handler that already returns `{\"status\": \"queued\"}`. Instant, near-total recovery of export-path stalls.\n2. Move `subprocess.run` off the request path into a real background task/worker; if it must stay for now, `await asyncio.to_thread(...)` plus an explicit `timeout=` at minimum.\n3. Replace `requests.get` with `httpx.AsyncClient` and set an explicit connect/read timeout.\n4. Load `rates.json` once at startup rather than per request (this makes the `open()` finding disappear rather than just moving it off-thread).\n\nSteps 1–3 should be enough to see p99 return; step 1 alone will be visible immediately.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      }
+    ]
+  }
+}

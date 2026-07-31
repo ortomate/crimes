@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:15:22.535Z",
+  "run_id": "feb293ae-dd98-4365-8bd5-e40ca977597f",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to ground the refactor proposal in the actual function signatures and call sites, while treating the supplied JSON as the scan confirmation.\n\nThe three bodies are behaviorally identical; only parameter/local names and exported function names differ. I’m checking exports and tests now so the file-change list accounts for compatibility rather than assuming these functions are private.\n\nThe scan confirms one medium-severity `near_duplicate_block`: the same sanitisation body occurs in:\n\n- `src/sanitize-a.ts:10–36` — `sanitizeUserInput`\n- `src/sanitize-b.ts:9–35` — `sanitizeText`\n- `src/sanitize-c.ts:9–35` — `cleanMessage`\n\nExtract the implementation into a neutral shared module:\n\n```ts\n// src/sanitize.ts\nexport function sanitizeText(\n  value: string | null | undefined,\n): string;\n```\n\nThe wider input type reflects the existing null/undefined handling. Its behavior should remain exactly as today: trim, remove control characters, collapse whitespace, cap at 1,000 characters, reject suspicious prefixes/escape sequences/excess punctuation, and normalize unusually uppercase long text.\n\nFiles affected:\n\n- Add `src/sanitize.ts` with the consolidated implementation.\n- Change `src/sanitize-a.ts` to retain `assertAdminA` and re-export the helper as `sanitizeUserInput`.\n- Change `src/sanitize-b.ts` to retain `assertAdminB` and re-export `sanitizeText`.\n- Change `src/sanitize-c.ts` to retain `assertAdminC` and re-export the helper as `cleanMessage`.\n- Add `src/sanitize.test.ts` covering the shared behavior and compatibility exports.\n\nFor example:\n\n```ts\n// sanitize-a.ts\nexport { sanitizeText as sanitizeUserInput } from \"./sanitize.js\";\n```\n\nThis preserves all three existing public names, so downstream callers need not migrate immediately, while future sanitisation fixes land in one place. The separate `\"admin\"` policy duplication and telemetry findings should remain outside this scoped refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

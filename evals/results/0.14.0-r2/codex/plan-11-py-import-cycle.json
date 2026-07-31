@@ -1,0 +1,65 @@
+{
+  "scenario": "plan-11-py-import-cycle",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:40:58.434Z",
+  "run_id": "26f7e64c-37da-42e0-989e-235c5281a33c",
+  "response": "I’ll verify the supplied findings by running the scan against the fixture, then inspect the import relationships and packaging layout so the extraction plan distinguishes hard boundary blockers from cleanup.\n\nThe global `crimes` binary isn’t installed in this shell. I’m locating the repository’s built CLI and will run that equivalent against the fixture before drafting the plan.\n\nThe scan matches the supplied eight findings. The key distinction is now clear: one consumer reaches directly into the proposed tax package’s private tree; the API/domain cycle is real but does not include `tax`, so it is an integration risk rather than a packaging prerequisite.\n\nI ran the scan against the fixture using the repository-built CLI because the global `crimes` command was unavailable. It reproduced all eight supplied findings.\n\n## Extraction blockers\n\n| Finding | Classification | Why |\n|---|---|---|\n| Circular dependency: `api/rendering.py ↔ domain/invoicing.py` | Release blocker | It does not pass through `tax`, but changing imports during extraction could change initialization order and expose the existing half-initialized-module failure. Break it before validating the extracted package. |\n| Deep import from `api/rendering.py` into `tax.rules.regional.eu.vat_bands` | Boundary blocker | The host application reaches into the proposed package’s internal layout. Removing the in-repo `tax` tree would break this consumer unless the package exposes a supported public API. |\n| Deep import inside `tax/vat.py` | Design blocker for the new package | It would technically install, but would preserve an unstable internal dependency as the package’s foundation. Replace it while establishing the public/internal module boundary. |\n\nThe other findings are untidy but do not prevent extraction:\n\n- Direct and mixed clock reads are in `domain/invoicing.py`, not the tax implementation.\n- The large `build_invoice` function makes the integration seam harder to test, but `apply_vat` is already a distinct call.\n- Blocking request-path I/O is confined to `api/routes.py`.\n- Renaming `stale` to `is_stale` is readability cleanup only.\n\n## Plan\n\n1. Add characterization tests before moving code.\n\n   Cover the current observable tax contract:\n\n   - Known regional rates for GB, DE, FR, and IE.\n   - Unknown regions defaulting to zero tax.\n   - The exact return behavior of `apply_vat`.\n   - The public meaning of `STANDARD_BAND`, if it really needs to remain available to the service.\n   - Importing `api.rendering` and `domain.invoicing` in both orders, exposing the current cycle rather than depending on pytest’s import order.\n\n2. Break the API/domain cycle.\n\n   Move `LINE_ITEM_CAP` from [domain/invoicing.py](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/domain/invoicing.py) into a small leaf policy/constants module with no API imports. Both invoicing and rendering can import that leaf.\n\n   Longer-term, money formatting belongs at the presentation boundary rather than inside invoice assembly. That layering cleanup is desirable, but removing the reverse `api.rendering → domain.invoicing` edge is the minimum extraction prerequisite. Do not hide the cycle with a function-local import.\n\n3. Define a separately installable tax package.\n\n   Use a non-generic import namespace such as `invoice_tax`, with its own `pyproject.toml` and `src/invoice_tax/` layout. A reasonable surface is:\n\n   ```python\n   from invoice_tax import apply_vat, STANDARD_BAND\n   ```\n\n   Keep the regional rate table private, for example in `invoice_tax._bands`. The package must import no modules from `api` or `domain`.\n\n4. Move the tax implementation and establish its public API.\n\n   Move the logic from [tax/vat.py](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/tax/vat.py) and the rate definitions from [vat_bands.py](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/tax/rules/regional/eu/vat_bands.py). Re-export supported names from `invoice_tax/__init__.py`.\n\n   This removes the internal five-level import reported in `tax/vat.py`.\n\n5. Migrate every host consumer.\n\n   Update:\n\n   - `domain/invoicing.py` to import `apply_vat` from `invoice_tax`.\n   - [api/rendering.py](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/api/rendering.py) to import `STANDARD_BAND` from the public package surface—not `_bands` or another internal path.\n\n   Search for both `tax.` imports and direct references to `BANDS`, `STANDARD_BAND`, and `apply_vat` before deleting the old package.\n\n6. Validate the real distribution boundary.\n\n   Build a wheel, install it into a clean environment alongside the service, and verify:\n\n   - `import invoice_tax` works without the repository on `PYTHONPATH`.\n   - The service imports succeed in either order.\n   - Characterization and integration tests pass.\n   - The installed package contains no imports from the host service.\n   - The old in-repo `tax` directory can be removed without hidden consumers failing.\n\n7. Re-run `crimes scan --format json`.\n\n   The acceptance target is that the circular-dependency finding and both deep-import findings disappear. The clock, large-function, hot-path I/O, and boolean-name findings may remain as explicitly deferred service cleanup; they should not be mixed into the package extraction unless tests reveal a required behavioral change.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/rendering.py",
+        "observed": "api/rendering.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tax/rules/regional/eu/vat_bands.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

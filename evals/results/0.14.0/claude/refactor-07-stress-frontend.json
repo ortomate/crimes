@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:16:43.550Z",
+  "run_id": "c4469773-5b8b-4ecc-a9e3-f4653695cddd",
+  "response": "I ran the context check on the fixture. Here's the readout that drives the proposal:\n\n```\nCRIMES CONTEXT\nfile: src/Card.tsx\nrisk: MEDIUM  (3 findings: 0 high, 1 medium, 2 low)\n\nClues\n  · churn: 2 commits over 90d · last touched 2 months ago · 1 author\n  · test gap: top-quartile\n\nLikely tests\n  (no test file matched the target basename …)\n```\n\nTwo facts shape how aggressive the refactor can be: **0 importers** (blast radius bottom-quartile) and **churn low** — so this is a safe file to restructure wholesale. But **test gap is top-quartile with no test file at all**, so nothing will catch a regression; the refactor has to ship with a test.\n\nCurrent file, for reference (`src/Card.tsx:9-31`): one `<div>` carrying a 9-property inline `style` object, an `onClick`, and two fixed-width child `<div>`s (720px main + 240px sidebar) — an intended two-column card whose layout, theme, and interaction are all encoded as literals in one place.\n\n---\n\n## 1. Design Token Escape (`crime_00002`, low, confidence 0.75)\n\n> Evidence: `9 hard-coded style values across 4 kinds (color, px, rgb, shadow)` — `#ff00aa`, `#0a0a0a`, `#cccccc`, `#1a73e8`, `rgb(0, 0, 0)` …\n\nThe repo already has the token source of truth — `tailwind.config.ts` defines `brand`, `surface`, `ink`. None of the nine literals in `Card.tsx` come from it. That is the actual agent risk here: the next agent extending this file copies `#ff00aa` forward, and the token scale silently stops being the source of truth.\n\nWorth being honest about the mismatch: **the existing scale can't absorb all nine values.** `brand`/`surface`/`ink` cover background, surface, and body text. There is no token for the border (`#cccccc`), the muted sidebar text (`#666666`), the focus ring (`#1a73e8`), or the shadow. So the fix is two-sided — extend the scale, *then* consume it:\n\n```ts\n// tailwind.config.ts — the scale grows to cover what Card actually needs\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      \"ink-muted\": \"#666666\",\n      border: \"#cccccc\",\n      focus: \"#1a73e8\",\n    },\n    extend: {\n      boxShadow: { card: \"0 2px 4px rgb(0 0 0 / 0.24)\" },\n      spacing: { card: \"1.5rem\" },        // was padding: 24\n      maxWidth: { card: \"64rem\" },        // was maxWidth: 1024\n    },\n  },\n};\n```\n\nNote `#ff00aa` is deliberately *not* preserved — it's a fixture-grade magenta with no token equivalent; the card background becomes `bg-surface`. That's a visual change and needs a design sign-off, which is exactly the conversation the finding is meant to force.\n\nThen the component holds zero raw values:\n\n```tsx\nclassName=\"bg-surface text-ink border border-border shadow-card p-card\n           outline-focus\"\n```\n\n## 2. Accessible Interaction Risk (`crime_00001`, medium, confidence 0.85)\n\n> Evidence: `line 10: <div> with onClick has no role / aria-label / tabIndex`\n\nThis is the highest-severity of the three and the one with real user impact: the card is reachable by mouse only. `fix_shape` says *use semantic elements; add ARIA only when semantics don't fit* — so `role=\"button\" tabIndex={0}` is the fallback, not the answer.\n\nWhich semantic element depends on a question the fixture doesn't answer: **can `children` contain its own links or buttons?** Nested interactive content inside a `<button>` is invalid HTML and breaks keyboard navigation, so:\n\n**Default — whole card is a single action, children are inert content:**\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  sidebar?: React.ReactNode;\n  onActivate: () => void;\n  label: string;\n};\n\nexport function Card({ children, sidebar, onActivate, label }: CardProps) {\n  return (\n    <button\n      type=\"button\"\n      onClick={onActivate}\n      aria-label={label}\n      className=\"card @container text-left focus-visible:outline-2\n                 focus-visible:outline-offset-2 focus-visible:outline-focus …\"\n    >\n      …\n    </button>\n  );\n}\n```\n\nA real `<button>` gets focus, Enter/Space activation, and the correct role for free — no ARIA needed, which is what \"add ARIA only when semantics don't fit\" is asking for.\n\n**Escape hatch — card contains its own interactive content:** keep the root a `<div>`, and put one `<button>`/`<a>` inside with a stretched overlay (`after:absolute after:inset-0`) as the card's primary action. The div keeps no `onClick` at all.\n\nEither way, `onClick={() => console.log(\"clicked\")}` becomes an `onActivate` prop. The inline `console.log` is a placeholder, and leaving it means the a11y fix has no real behaviour to attach to.\n\n## 3. Responsive Fragility (`crime_00003`, low, confidence 0.65)\n\n> Evidence: `line 10: width 800px`, `line 24: width 720px`, `line 24: fontSize 18px (no @media in file)`, `no @media query found in the file`\n\n`fix_shape` here is specific and worth following literally: *drive layout from container queries or a fluid scale, not pixel media queries*. A card with 0 importers today may be dropped into a sidebar tomorrow — viewport media queries would be measuring the wrong box. Container queries measure the card:\n\n```tsx\n<div className=\"w-full max-w-card @container\">\n  <div className=\"grid gap-card grid-cols-1 @md:grid-cols-[minmax(0,1fr)_15rem]\">\n    <div className=\"text-[clamp(1rem,0.9rem+0.5vw,1.125rem)]\">{children}</div>\n    <aside className=\"text-ink-muted text-sm\">{sidebar}</aside>\n  </div>\n</div>\n```\n\nEach swap, and why:\n\n| Was | Becomes | Reason |\n|---|---|---|\n| `width: 800` | `w-full max-w-card` | width floors at the viewport instead of overflowing it |\n| `width: 720` / `width: 240` | `grid-cols-[minmax(0,1fr)_15rem]`, collapsing to one column below the `@md` container breakpoint | the two columns were the *real* intent; the pixels were an implementation of it |\n| `fontSize: 18` | `clamp(1rem, 0.9rem + 0.5vw, 1.125rem)` | fluid type with a floor, so it never drops below body size |\n| `height: 600` | `min-h-[37.5rem]` | **not flagged**, but the same bug class — a fixed height clips overflowing content. Worth fixing in the same pass. |\n\n`maxWidth: 1024` is the one sizing value that was already correct — `max-width` is the pattern the other two should have used, so it survives as `max-w-card`.\n\n---\n\n## Sequencing and verification\n\nThe three findings are independent, but there's one ordering constraint: **extend `tailwind.config.ts` first**, or step 1 has no tokens to consume and you'll be tempted to leave the raw values in place.\n\n1. Extend the token scale (unblocks everything).\n2. Rewrite `Card.tsx` — a11y root element, grid layout, token classes. One commit; the three concerns touch the same 20 lines and splitting them means three broken intermediate states.\n3. **Add `src/Card.test.tsx`.** This is non-negotiable given `test gap: top-quartile` and `Likely tests: (no test file matched)`. Minimum: keyboard activation fires `onActivate`, and the accessible name resolves. Without it, nothing verifies the fix that matters most.\n\nPost-edit gate:\n\n```bash\ncrimes context src/Card.tsx\n```\n\nExpect all three to clear — `severity: medium` → risk `NONE`. The inline `style` object disappearing is what silences `design_token_escape` and `responsive_fragility`; the `<button>` root is what silences `accessible_interaction_risk`. Moving the hexes *into* `tailwind.config.ts` won't re-trigger the detector — that file is the token definition, not a JSX consumer of it.\n\nOne caveat on my confidence: the token names above (`ink-muted`, `border`, `focus`) are my invention, since the fixture's scale doesn't cover those roles. If the real design system has established names, use those — the finding is about *escaping* the tokens, not about which names win.\n\nI have not modified the fixture — it's an intentional-mess fixture for detector tuning, so editing it would break the eval baseline. Everything above is a proposal against `evals/fixtures/07-stress-frontend/src/Card.tsx`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "design_token_escape",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:34:01.905Z",
+  "run_id": "a9d652b1-3ab8-49f2-b6b1-3e9bf43dc6ef",
+  "response": "## `crimes context src/add.ts`\n\n```\nCRIMES CONTEXT\nfile: src/add.ts\nrisk: NONE  (0 findings)\n\nAgent guidance\n  (no findings on this file and no deterministic related files)\n\nRelated files\n  (no neighbourhood signal: no IA finding related_files, no shared domain tokens,\n   no domain-prefix filenames, no same-directory siblings)\n\nLikely tests\n  · src/add.test.ts\n\nClues\n  · churn: 1 commits over 90d · last touched 3 months ago · 1 author\n  · test gap: bottom-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n## What it found: nothing — and that's the correct answer here\n\n`risk.level: \"none\"`, `findings: []`, `agent_guidance: []`. The repo-wide scan agrees: `summary.total: 0` across 2 JS files, with `universal`, `language-js`, and `language-py` packs all loaded. So this is \"the detectors ran and had nothing to say,\" not \"the detectors didn't run.\"\n\nThe file itself is four lines:\n\n```ts\n// Minimal control fixture — should produce zero crimes findings.\nexport function add(a: number, b: number): number {\n  return a + b;\n}\n```\n\nPure function, two typed params, no branching, no `Date.now()`/`process.env`/IO, no imports, single export, no duplicates to collide with. There is nothing for a structural, dependency, duplication, testability, or history detector to latch onto.\n\n## Is it safe to extend?\n\n**Yes — with the caveat that safety comes from reading the file, not from the empty report.**\n\nThe useful signal crimes gives you is the *negative space*:\n\n- **No related files, no neighbourhood signal.** `related_files_reason` spells out that there's no shared-domain, same-directory, or import-graph coupling. Blast radius of an edit is essentially local — but also, crimes can't tell you who calls `add()` outside this fixture, so an exported symbol change is still a caller-visible change.\n- **`likely_tests: [\"src/add.test.ts\"]`** — run that after editing. That's the whole verification story for this file.\n- **Churn: 1 commit / 90d, 1 author, last touched 3 months ago.** Cold, uncontested file. No concurrent-edit or hotspot risk.\n\nThe thing to actually watch: a zero-finding report on a 4-line file is a low-information result, and it stays low-information right up until your edit changes that. If \"extend\" means adding branching, a `Date`/env read, a second export, or a new import edge, you'd be introducing exactly the shapes the detectors watch for. Re-run `crimes context src/add.ts --format json` (or `crimes scan --changed`) after the edit and diff against this baseline of zero — any new finding is 100% attributable to your change, which is the cleanest possible attribution you'll ever get.\n\nOne inconsistency worth noting since JSON is the product contract: the JSON reports `clues.test_gap: { raw: 0, label: \"unknown\" }` while the human renderer prints `test gap: bottom-quartile` for the same value. An agent gating on `label` sees \"unknown\" where a human reader sees a confident \"well tested.\" Same underlying `raw: 0`, two different stories.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:36:52.062Z",
+  "run_id": "d06f1e3c-df92-4bb6-9ef0-d9252ed58e07",
+  "response": "I ran `crimes` before touching anything. Here's what it says.\n\n## What crimes reported\n\n**`crimes context billing/ledger.py`** — the file you'd be editing:\n\n```\nCRIMES CONTEXT\nfile: billing/ledger.py\nrisk: NONE  (0 findings)\n\nLikely tests\n  (no test file matched the target basename (looked for siblings, __tests__/ and tests/\n   directories, and the .test / .spec / _test / test_ naming conventions) and no test\n   file imports it)\n\nClues\n  · churn: 1 commits over 90d · last touched today · 1 author\n  · test gap: top-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n**`crimes scan`** — the repo, 6 Python files, one finding:\n\n```\ntests/test_reporting.py  1 finding · 1 high\n   1. Weak Test Signal · test_build_report()   4 of 4 test functions contain no assertion\n```\n\n## What protection you have: effectively none\n\nRead those two together, because separately each one lies to you.\n\n`risk: NONE` on `ledger.py` is an **absence of findings, not evidence of safety** — crimes even flags it as \"suspiciously clean.\" The clues underneath are the real signal: `likely_tests` is **empty**, and `test_gap` is **top-quartile** (raw 1.0 — the worst bucket). There is no `tests/test_ledger.py`, and no test file imports `billing.ledger`. Nothing directly asserts anything about `reverse_entry`.\n\nThe only test that reaches `ledger.py` at all reaches it *transitively*: `tests/test_reporting.py` → `billing.reporting.build_report` → `billing.ledger.post_entry`. And that is precisely the file carrying the repo's single high finding:\n\n> \"4 of 4 test functions contain no assertion\"\n> \"0 total assertions across 4 tests (0.0 per test, expected ≥ 1)\"\n> \"They pass as long as the code under test does not raise, which is not the same as it being correct.\"\n\nSo the one path that looks like coverage is hollow. `pytest` will stay green through almost any wrong reversal you can write — a sign flip on the wrong key, a dropped field, a wrong `gross`. The suite only fails if you make it *raise*.\n\nThe one place with genuine protection is `billing/rates.py` — `tests/test_rates.py` asserts real values (`rate_for(\"GB\") == 0.20`, fallback to `DEFAULT_RATE`). That's exactly the module your change *doesn't* touch.\n\n## What else the change could affect\n\n`crimes context` on `ledger.py` returns no importers and lists only same-directory related files (`__init__.py`, `rates.py`, `reporting.py`, score 0.2 each — proximity, not a call graph). I confirmed by grep: **`reverse_entry` has zero callers in this repo.** Its only occurrence is its own definition at `billing/ledger.py:16`.\n\nThat's a two-edged fact:\n\n- **Nothing in-repo breaks visibly.** No caller, no import, no test — so there is no mechanism at all that will tell you you got it wrong. Zero callers means zero blast radius *and* zero detection.\n- **The real coupling is the dict shape, not the call graph.** `reverse_entry` mirrors the exact contract `post_entry` emits — `account`, `net`, `gross`, `region` (`ledger.py:7–12` vs `17–22`). `reporting.build_report` consumes that shape and reads `entry[\"gross\"]` into `report[\"total\"]`, which flows into `export_report`'s CSV and JSON output. If your change to reversal alters the entry shape — renames a key, adds one, changes what `gross` means — you've implicitly changed the contract `reporting.py` depends on, and crimes' import-based blast radius won't show it because reversal and reporting never touch directly.\n\nOne substantive thing worth knowing before you design the change: `reverse_entry` negates `gross` directly rather than recomputing it via `rate_for`. So the reversal path never consults the rate table, and the well-tested `rates.py` gives you no safety net whatsoever on it. If you're considering recomputing `gross` from the region's rate on reversal, that's a behaviour change from \"exact mirror\" to \"recomputed\" — and for a rate that has since changed, the two disagree.\n\n## What I'd do before editing\n\nI haven't changed anything. My recommendation, in order:\n\n1. **Write `tests/test_ledger.py` first** — real assertions on `reverse_entry`: the round-trip property (`reverse(post(x))` negates net and gross and preserves account/region), and reversal of a zero-amount entry. This is the missing protection, and it's the cheap part.\n2. **Fix `tests/test_reporting.py`** — or at minimum don't trust it. crimes' own `fix_shape` is *\"assert on the result, not just that it ran.\"* Until it asserts, it is not a regression gate for anything downstream of `post_entry`.\n3. Then make the reversal change, and re-run `crimes scan` to confirm the high finding cleared rather than moved.\n\nThe eval-worthy summary: crimes told me the file I want to edit is clean and the file I *don't* want to edit is the problem — and that inversion is the whole point. `risk: NONE` plus an empty `likely_tests` plus a top-quartile test gap is not \"safe to change,\" it's \"unobserved.\"",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

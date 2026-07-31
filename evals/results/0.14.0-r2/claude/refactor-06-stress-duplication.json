@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:43:13.805Z",
+  "run_id": "b487873d-7217-4e9d-9609-41a107dd5aaa",
+  "response": "## What the scan confirms\n\n`crimes scan --format json` reports 5 findings; three are duplication charges, and they form one cluster around sanitisation:\n\n| id | charge | files | evidence |\n|---|---|---|---|\n| `crime_00001` | Near-Duplicate Block (medium, conf 0.85) | `sanitize-a.ts:10-36`, `sanitize-b.ts:9-35`, `sanitize-c.ts:9-35` | hash `289f7da71f3a…`, 3 occurrences |\n| `crime_00002` | Exact Duplicate Block (medium, conf 0.95) | `telemetry-a.ts:6-19`, `telemetry-b.ts:6-19` | hash `4f23be2be37a…`, 2 occurrences |\n| `crime_00003` | Duplicated Role/Status/Plan Check (medium, conf 0.70) | `policy.ts`, `sanitize-a/b/c.ts` | literal `\"admin\"`, 4 files, 2 expression shapes |\n\nReading the three sanitisers confirms the near-duplicate call: `sanitizeUserInput` / `sanitizeText` / `cleanMessage` are the **same function with renamed locals** (`working` / `cleaned` / `normalised`). Every literal matches too — `1000`, `[!?]{3,}`, `> 5`, `0.9`, `> 30`. So the finding's `fix_shape` (\"pass the differing values as args\") overshoots: there are no differing values. It's a straight three-into-one merge.\n\n`recordSanitiseEvent` in `telemetry-a.ts` / `telemetry-b.ts` is byte-identical, including the `Date.now()` that `crime_00004`/`crime_00005` flag.\n\n**One thing the scan can't tell you, and it matters:** the admin guards are *not* duplicates. crimes sees 2 expression shapes; the source has three semantics:\n\n- `assertAdminA` — `role === \"admin\"`\n- `assertAdminB` — `role === \"admin\" || role === \"owner\"` (broader)\n- `assertAdminC` — `role !== \"admin\"` (**inverted**)\n\nCollapsing these into one helper the way `crime_00003`'s `extract_policy_function` action suggests would silently change authorisation behaviour at two of three call sites. Treat that finding as *investigate*, not *apply*.\n\n## Proposed refactor\n\n### 1. `src/sanitize.ts` (new) — the consolidated helper\n\n```ts\nexport function sanitize(input: string): string;\n```\n\nThat's the whole public API. Signature `(input: string) => string`, total, no options object, no config. Justification: all three copies are behaviourally identical, so parameterising now would be inventing variation that doesn't exist. If callers later diverge (different `maxLength`, say), add an optional second `SanitizeOptions` argument then — it's a backward-compatible change.\n\nBehaviour contract, unchanged from the existing bodies: returns `\"\"` for null/undefined, trims, strips control chars, collapses whitespace, truncates at 1000 chars, rejects strings starting `<`/`>`, rejects strings containing `\\x`, rejects >5 runs of `!!!`/`???`, and lowercases all-caps strings over 30 chars.\n\n### 2. `src/telemetry.ts` (new) — deduped, with the clock injected\n\n```ts\nexport interface Clock { now(): number }\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  clock?: Clock,     // defaults to Date\n): void;\n```\n\nThe optional `clock` closes `crime_00004`/`crime_00005` in the same edit and keeps the call sites unchanged. Both `direct_date` findings collapse into one injectable seam once the duplicate is gone.\n\n### 3. Files that would change\n\n| file | change |\n|---|---|\n| `src/sanitize.ts` | **new** — the single `sanitize()` |\n| `src/telemetry.ts` | **new** — single `recordSanitiseEvent()` with the clock seam |\n| `src/sanitize-a.ts` | delete `sanitizeUserInput`; keep `assertAdminA` (moved to `policy.ts`, see below) |\n| `src/sanitize-b.ts` | delete `sanitizeText`; keep `assertAdminB` |\n| `src/sanitize-c.ts` | delete `cleanMessage`; keep `assertAdminC` |\n| `src/telemetry-a.ts` | delete |\n| `src/telemetry-b.ts` | delete |\n| `src/policy.ts` | optional — see below |\n\nThe scan gives `blast_radius_importers: 0` on both duplication findings, and there's no entry point in `package.json`, so nothing in-repo imports these names. Outright deletion is safe here; in a real package you'd leave `export { sanitize as sanitizeText } from \"./sanitize\"` shims for a deprecation cycle.\n\n### 4. The policy check — separate, smaller change\n\n`policy.ts`'s three functions (`canEditBilling`, `canSeeAuditLog`, `canImpersonate`) genuinely are the same `role === \"admin\"` check three times. Those collapse safely into one predicate:\n\n```ts\nexport function isAdmin(role: string): boolean;\n```\n\nwith the three capability functions delegating to it (keep them named — they document *what* the permission is, and they're where the rules will diverge first).\n\nThe `assertAdminA/B/C` guards should move into `policy.ts` alongside it but stay **three distinct functions** with intent-revealing names — something like `isAdmin`, `isAdminOrOwner`, `isNotAdmin`. That's what the \"2 distinct expression shapes\" evidence is really pointing at: the shapes have drifted, and naming them is the fix, not merging them.\n\n## Sequencing\n\n1. Land `src/sanitize.ts` + delete the three copies (mechanical, zero behaviour change — `effort: small` is right).\n2. Land `src/telemetry.ts` with the clock seam, delete both copies (closes 3 findings at once).\n3. Land the `policy.ts` rename/consolidation as its own commit, so the authorisation-semantics review isn't buried in a dedup diff.\n\nSteps 1 and 2 are pure deletions of provably identical code. Step 3 needs a human to confirm the `isAdminOrOwner` and `isNotAdmin` call sites are intentional before anything is renamed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

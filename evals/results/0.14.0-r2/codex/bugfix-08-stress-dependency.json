@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:29:36.585Z",
+  "run_id": "878dc8ce-1967-4fd2-8f27-394f56605fff",
+  "response": "Break the import from:\n\n`src/domain/billing.ts` → `src/presentation/invoice-view.ts`\n\nThis edge is the strongest candidate because it both closes the three-file cycle and violates the configured architecture: the domain layer should not depend on presentation.\n\nMove the required type, interface, or helper into a dependency-free domain/shared module, then let both files import it. If the dependency is purely TypeScript typing, replace it with `import type`. Preserve the intended direction:\n\n`presentation → application → domain`\n\nThe unrelated deep import in `billing-flow.ts` should be fixed separately; it does not explain this cycle.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

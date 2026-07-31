@@ -1,0 +1,53 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:50:25.235Z",
+  "run_id": "69053951-9fd1-41ab-8924-c43665046db3",
+  "response": "I’ll use the scan’s per-function evidence, then inspect `build_invoice` so the refactor preserves its actual branches and side effects rather than offering generic “extract helpers” advice.\n\nThe riskiest single refactor target is `domain.invoicing.build_invoice`.\n\nThe scan’s highest individual `agent_risk` score is attached to `get_invoice`, but that finding aggregates blocking calls from two route handlers. `build_invoice` is the clearest single-function risk because several hazards overlap:\n\n- Five-level nesting across line-item types, billing periods, caps, and coupon rules.\n- Five untyped parameters and loosely structured dictionaries; required keys and valid values are implicit.\n- Multiple responsibilities: pricing, validation, discounting, taxation, formatting, timestamps, and response assembly.\n- Mixed local/UTC naive datetimes. Coupon comparison can also fail if `expires_at` is timezone-aware.\n- A dependency cycle: `build_invoice` imports `api.rendering.format_money`, while `api.rendering` imports `LINE_ITEM_CAP` back from `domain.invoicing`.\n- Ordering-sensitive business rules: discount before VAT, fixed discounts capped at subtotal, bonuses conditionally stacked, and usage capped with a warning.\n- Its returned dictionary is an implicit public contract used by API callers, with three importers and limited test protection.\n\nConcrete refactor plan:\n\n1. Add characterization tests covering every branch: invalid quantities, each subscription variant, usage below/above cap, ordinary items, expired coupons, percent/fixed discounts, stackable bonuses, VAT ordering, warnings, and the exact returned keys.\n\n2. Inject a clock into `build_invoice`, initially preserving current behavior. Then deliberately migrate timestamps and coupon expiry values to timezone-aware UTC in a separate change.\n\n3. Extract pure, typed helpers:\n\n   - `_price_line_item(item) -> LineItemPrice`\n   - `_calculate_lines(line_items) -> LineSummary`\n   - `_calculate_discount(subtotal, coupon, now) -> Decimal`\n   - `_assemble_invoice(...) -> Invoice`\n\n   Small dataclasses or `TypedDict`s should replace ambiguous tuples and raw dictionary assumptions.\n\n4. Keep `build_invoice` as a thin orchestrator:\n\n   ```python\n   line_summary = calculate_lines(line_items)\n   discount = calculate_discount(line_summary.subtotal, coupon, now())\n   total = apply_vat(line_summary.subtotal - discount, region)\n   return assemble_invoice(...)\n   ```\n\n5. Break the import cycle by moving `LINE_ITEM_CAP` into a domain/config leaf module and moving money formatting out of `api.rendering` into a dependency-free presentation utility. Domain invoicing should not import the API layer.\n\n6. Preserve the return shape during extraction. Only after tests pass should stronger models such as an `Invoice` dataclass be introduced at the domain boundary.\n\nThis splits the risky branches into independently testable calculations while leaving one readable orchestration path. The local `crimes` executable was unavailable, so this assessment uses the supplied scan output plus inspection of the referenced source.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:08:48.255Z",
+  "run_id": "dc7b23e3-f29b-4f0e-b62c-305b5195e856",
+  "response": "## What I ran\n\n```bash\ncrimes context billing/ledger.py     # the file I'd be changing\ncrimes context billing/reporting.py  # the only in-repo consumer\n```\n\n`crimes scan` had already given me the repo-level picture (1 high finding).\n\n## What protection I have: effectively none\n\n```\nCRIMES CONTEXT\nfile: billing/ledger.py\nrisk: NONE  (0 findings)\n\nLikely tests\n  (no test file matched the target basename (looked for siblings, __tests__/ and tests/\n   directories, and the .test / .spec / _test / test_ naming conventions) and no test\n   file imports it)\n\nClues\n  · churn: 1 commits over 90d · last touched today · 1 author\n  · test gap: top-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\nThe important line is the empty **Likely tests** list, not the `risk: NONE` headline. `risk: NONE` means \"no detector fired on this file's code\" — it does not mean \"safe to change\". `ledger.py` has **no test file, and no test imports it**, and its `test_gap` sits in the **top quartile** for this repo. If I get `reverse_entry` wrong, nothing in the suite goes red.\n\nI confirmed that by hand: `reverse_entry` has **zero references anywhere in the repo** — no caller, no test. It is never executed by `pytest` at all.\n\n## The one high finding matters here, indirectly\n\nThe scan's only finding is on the *other* test file:\n\n> **Weak Test Signal** — `tests/test_reporting.py::test_build_report` (high, confidence 0.85)\n> \"4 of 4 test functions in this file assert nothing. They pass as long as the code under test does not raise, which is not the same as it being correct.\"\n> Evidence: `0 total assertions across 4 tests (0.0 per test, expected ≥ 1)`\n\n`crimes context billing/reporting.py` shows `tests/test_reporting.py` as its likely test — and `reporting.py` is the only in-repo file that imports `ledger`. So the one path that *does* reach ledger code is guarded by tests that assert nothing. That's the trap: a green suite here proves only that no exception was raised. `build_report`'s `total` is read straight off `entry[\"gross\"]`, and no test checks that value.\n\nThe genuinely-tested file is `billing/rates.py` (`tests/test_rates.py` has real assertions, `test_gap: bottom-quartile`). `ledger.post_entry` depends on `rate_for` — but that protects the *rate lookup*, not the ledger's arithmetic, and nothing on the reversal path.\n\n## What my change could affect\n\n- **The entry dict is an implicit contract** between `post_entry` (line 8–13) and `reverse_entry` (line 17–22): keys `account`, `net`, `gross`, `region`. They're duplicated literally, not shared. Change the shape or the sign semantics in one and the two silently drift apart — no test catches it.\n- **`gross` flows into reporting.** `build_report` puts entries in `lines` and copies `entry[\"gross\"]` to `total` (`reporting.py:12`). A reversal change that alters `gross`'s meaning propagates into report totals and into `export_report`'s CSV/JSON output, all of it under assertion-free tests.\n- **Callers of `reverse_entry` are invisible to crimes.** Zero in-repo references means either it's dead code or it's public API consumed outside this package. Crimes can't tell you which, and it can't compute a blast radius for callers it can't see — treat the empty result as *unknown*, not *zero*.\n\n## What I'd do before touching it\n\n1. **Write asserting tests for `reverse_entry` first** — at minimum a round-trip: `post_entry` then `reverse_entry` should sum `net` and `gross` to zero, and preserve `account`/`region`. That converts \"no tests\" into an actual regression net for the change I'm about to make.\n2. **Fix `tests/test_reporting.py` in the same change**, per the finding's suggested action: *\"Assert on the returned value or the observable side effect.\"* Otherwise the downstream consumer of my change stays unguarded.\n3. **Confirm who calls `reverse_entry`** outside this package before changing its return shape or sign convention.\n\nI haven't changed any code — this was the pre-edit check you asked for. Say the word and I'll start with the tests.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

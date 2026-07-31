@@ -1,0 +1,65 @@
+{
+  "scenario": "plan-11-py-import-cycle",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:41:10.102Z",
+  "run_id": "ada96347-67eb-407e-a315-eace829015a1",
+  "response": "## What I ran\n\n`crimes scan --format json` in `evals/fixtures/11-py-service` — 8 findings (2 high, 5 medium, 1 low), matching the output above. I then read the five source modules, because the scan reports *findings*, not the full import graph, and the extraction decision turns on the graph.\n\n## The graph crimes' findings imply\n\n```\napi/routes.py     ──> domain.invoicing\napi/rendering.py  ──> domain.invoicing         ┐ crime_00004 (cycle)\ndomain/invoicing  ──> api.rendering            ┘\ndomain/invoicing  ──> tax.vat\napi/rendering.py  ──> tax.rules.regional.eu.vat_bands   crime_00006 (depth 5)\ntax/vat.py        ──> tax.rules.regional.eu.vat_bands   crime_00007 (depth 5)\ntax/rules/.../vat_bands.py ──> nothing\n```\n\n**`tax/` is a leaf.** It has zero imports back into `domain` or `api`, no clock reads, no I/O — every temporal and hot-path finding landed in `domain/` and `api/`, none in `tax/`. `apply_vat` is a pure function over a dict. That absence is the strongest evidence in the report *for* the extraction: the hard part of extracting a package (untangling inbound edges) is already done.\n\n## Blocking vs. untidy\n\n| Finding | Where | Verdict |\n|---|---|---|\n| crime_00006 deep import | `api/rendering.py:8` → tax internals | **Blocks a clean cut.** The only cross-boundary edge into `tax`. |\n| crime_00007 deep import | `tax/vat.py:3` → tax internals | Untidy. Wholly inside `tax`; travels with the package. |\n| crime_00004 circular dep | `api/rendering` ↔ `domain/invoicing` | **Not a blocker** — both members stay behind. But see below. |\n| 00001 sync I/O, 00002/00003 clocks, 00005 god function, 00008 naming | `api/routes.py`, `domain/invoicing.py` | Untidy, and out of scope. None of this code moves. |\n\nTwo calls worth defending:\n\n**crime_00006 is the real one, and it's not blocking for the reason it looks like.** Nothing breaks if you move `tax/` with that import intact — the path still resolves once the package is installed. What breaks is your ability to ever change the package's internals. `tax.rules.regional.eu.vat_bands.STANDARD_BAND` becomes published API the moment you cut the release, and every future consumer couples to that five-level layout. `tax/__init__.py` is currently 0 bytes: the package has no public surface at all. Defining one is the actual work of this extraction.\n\n**crime_00004 doesn't block, but fix it first anyway.** Both modules in the ring stay in the service, so it has no bearing on whether `tax` can leave. The reason to do it first is verification: the cycle's failure mode is import-order-dependent (crimes says this — \"whichever module is imported first decides whether this raises\"), and extraction *changes import order*, since `tax` moves from first-party to an installed distribution. If you cut the package and then hit an `ImportError`, you'll spend a day blaming the extraction for a latent bug it merely reshuffled. Fixing it first is cheap insurance, not a prerequisite.\n\n## The plan\n\n**0. Pin the behaviour.** There are no tests in the fixture — `test_gap` is 0.5 across all 8 findings. `apply_vat` is pure, so this is ~20 lines: assert each region in `BANDS`, and assert the unknown-region case. Do this before anything moves; it's the only thing that will tell you the cut was clean.\n\n**1. Break the cycle** (`crime_00004`, ~30 min). `api/rendering.py` imports `LINE_ITEM_CAP` from `domain/invoicing.py`; `domain/invoicing.py` imports `format_money` back. Move `LINE_ITEM_CAP` into a constants leaf module that both import. Do **not** use a function-level deferred import — as crimes notes, that removes the error without removing the cycle and hides it from every static reader, including the next agent.\n\n**2. Give `tax` a public surface.** Populate `tax/__init__.py` with an explicit `__all__`. From current usage the surface is `apply_vat`, `BANDS`, `STANDARD_BAND`, and (unused today, but part of the same table) `REDUCED_BAND`. Decide deliberately — this list is the contract you're stuck with.\n\n**3. Rewrite both deep imports** (`crime_00006`, `crime_00007`) to `from tax import ...`. Two lines. Now `api/rendering.py` touches only the surface you just declared, and `tax/rules/regional/eu/` becomes free to restructure.\n\n**4. Cut the package.** New `pyproject.toml`, move `tax/` across, add it as a dependency of `py-service`. Steps 1–3 are all reversible in-repo; this is the first irreversible one, which is why it's fourth.\n\n**5. Re-scan both repos.** The service should come back with `crime_00004`, `00006`, `00007` gone and the five `domain`/`api` findings intact — those are the pre-existing debt, unchanged, and should not be conflated with extraction fallout.\n\n## Two things crimes didn't flag that the split makes worse\n\n- `apply_vat` does `BANDS.get(region, 0.0)` — an unrecognised region silently yields **zero tax** rather than raising. Today that's a one-line fix in the same commit as the caller. After the split it's a cross-repo release. Raise on unknown region during step 2, while it's still cheap.\n- `BANDS` is a bare rate table with no effective dates. Once versioned separately, a VAT rate change ships on the package's cadence, and invoices reprocessed against a newer package version will silently recompute at the new rate. Worth deciding now whether the package takes an effective-date argument — it's much harder to add to a published API later.\n\nNaming: the import root `tax` is very generic for something on a shared path. Renaming it (`acme_tax`) costs one more line of churn in step 3 and avoids a collision you can't undo after publishing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/rendering.py",
+        "observed": "api/rendering.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tax/rules/regional/eu/vat_bands.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      }
+    ]
+  }
+}

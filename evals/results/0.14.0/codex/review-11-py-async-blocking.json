@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "codex",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:28:14.285Z",
+  "run_id": "ee51101a-abe2-48fb-a44b-8b7351161214",
+  "response": "The dominant cause is `crime_00001`: synchronous I/O in HTTP handlers. It exactly matches the symptom—requests wait while the event loop or worker is blocked, so concurrency and p99 collapse while CPU remains mostly idle.\n\nRanked by likely contribution:\n\n1. **`requests.get()` — `api/routes.py:21`, inside `get_invoice`**\n   - Most likely primary bottleneck.\n   - A synchronous network request can block for its entire upstream latency.\n   - If `get_invoice` is the async handler identified by the scan, one slow upstream call stalls every request sharing that event loop.\n   - Replace it with an async HTTP client such as `httpx.AsyncClient`, with explicit timeouts and bounded connection pooling.\n\n2. **`time.sleep()` — `api/routes.py:32`, inside `export_invoice`**\n   - Guaranteed blocking for the complete sleep duration.\n   - In an async handler, replace it with `await asyncio.sleep(...)`.\n   - If this is retry/backoff logic, ensure retries are bounded and do not keep a worker occupied.\n\n3. **`subprocess.run()` — `api/routes.py:31`, inside `export_invoice`**\n   - Blocks until the child process exits and may have highly variable duration.\n   - Move export generation to a background job, or use `asyncio.create_subprocess_exec()` when the request genuinely must await it.\n   - Add a timeout and concurrency limit either way.\n\n4. **`open()` — `api/routes.py:23`, inside `get_invoice`**\n   - Usually less damaging than network or subprocess waits, but filesystem latency can spike and still blocks an async event loop.\n   - Cache small/static data, preload it, or move unavoidable file access to a thread with `asyncio.to_thread()`.\n\nThe other seven findings do not explain this load-dependent latency collapse:\n\n- The datetime findings can cause correctness and testability bugs.\n- The circular dependency can cause startup/import failures.\n- The large function and deep imports increase maintenance risk.\n- Boolean naming drift is cosmetic relative to the incident.\n\nThe first corrective pass should therefore be confined to `api/routes.py`: eliminate all four blocking calls from async execution, then load-test each endpoint separately while monitoring event-loop lag, upstream latency, subprocess duration, and request concurrency. Avoid spending incident time refactoring `domain/invoicing.py`; it is important follow-up work, but not the present performance cause.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      }
+    ]
+  }
+}

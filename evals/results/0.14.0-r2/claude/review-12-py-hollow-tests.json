@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.14.0",
+  "timestamp": "2026-07-31T05:57:32.700Z",
+  "run_id": "3760aee7-6dac-46ef-83e0-b56089b103a5",
+  "response": "## What the scan gives you\n\nOne finding, high severity, and it's the right one:\n\n```\ncrime_00001  weak_test_signal  tests/test_reporting.py  (lines 11–25)\n  4 of 4 test functions contain no assertion\n  0 total assertions across 4 tests\n```\n\nI re-ran it to confirm, and ran the suite: **7 tests pass, 5 assertions total — all 5 of them in `tests/test_rates.py`, against one module.** The other four tests are green because nothing raised.\n\nImportant caveat before the breakdown: the scan's clean bill for the rest of the package is not a coverage report. `weak_test_signal` fires on test files that assert nothing; it does not fire on production code that has no test file at all. `billing/ledger.py` is absent from the findings because nothing flagged it, not because it's protected.\n\n## Genuinely covered\n\n**`billing/rates.py`** — `tests/test_rates.py` asserts on return values, so a refactor here is safe. Two holes worth knowing:\n\n- `is_zero_rated`'s **True branch has never executed**. No region in `RATES` has a zero rate, so `assert not is_zero_rated(...)` only ever exercises the False path. Add a zero-rated region during the refactor and you have no signal.\n- **`FR`'s rate is never asserted directly** — only via `not is_zero_rated(\"FR\")`, which passes for any non-zero value. Change `FR` from `0.20` to `0.05` and the suite stays green.\n\n## Only looks covered\n\n**`billing/reporting.py`** — four tests named after four behaviours, zero assertions. Concretely, all of these edits keep the suite green:\n\n- `build_report` returning `total` as `entry[\"net\"]` instead of `entry[\"gross\"]` — the VAT silently vanishes from every report.\n- Dropping the `lines` key, or renaming `region`. Nothing reads the shape.\n- Changing `export_report`'s CSV from `\"account,total\\n%s,%.2f\"` to any other delimiter, header, or precision. The exact output string is the module's contract with whatever consumes it, and it is pinned nowhere.\n- Swapping the JSON dict's keys.\n\nAnd `export_report`'s `raise ValueError(\"unsupported format: %s\")` branch is **never exercised at all** — no test passes an unknown format. That's zero coverage, not weak coverage.\n\n`test_round_trip` (line 23) is the sharpest example: it promises the strongest test in the file and is the weakest — it builds, exports, and never parses back or compares anything.\n\n**`billing/ledger.py`** — no test file, but `post_entry` is called transitively by all four hollow `reporting` tests. That is the worst combination: it **runs on every test run and is verified by nothing**. The line `gross = amount * (1 + rate_for(region))` is the arithmetic core of the package and is not asserted anywhere in the suite. Change it to `1 - rate_for(region)`, or drop the `1 +`, and all 7 tests pass.\n\n`reverse_entry` is never called by any test, directly or transitively — zero execution. Sign-flip errors, dropped keys, input mutation: no signal.\n\n**If you reach for coverage.py to settle this, it will mislead you.** `ledger.py` will report high line coverage and `reporting.py` near-100% (missing only the `ValueError` line), because execution is exactly what the hollow tests provide. Line coverage measures the thing this suite is good at and misses the thing it lacks.\n\n## Refactor risk, ordered\n\n1. **`ledger.post_entry`** — executed constantly, verified never, and `reporting` computes every `total` from its output, so a bug propagates silently into reports.\n2. **`reporting.export_report`** — the serialization format is a de facto external contract; nothing pins it, including the error path.\n3. **`ledger.reverse_entry`** — no coverage, but no in-package callers either, so breakage is only as loud as its external users.\n4. **`rates.py`** — safe, modulo the two holes above.\n\n## Minimum to add before touching this\n\nThe scan's `fix_shape` is \"assert on the result, not just that it ran.\" Specifically:\n\n- `post_entry`: assert `gross` for a known region and the default-rate fallback — this pins the VAT formula, which currently nothing does.\n- `export_report`: assert the exact CSV string and the exact JSON dict; add `pytest.raises(ValueError)` for an unsupported format.\n- `build_report`: assert `total == lines[0][\"gross\"]` and that `lines` has one entry.\n- Any assertion at all on `reverse_entry`.\n- `rate_for(\"FR\") == 0.20` directly.\n\nThat's roughly an hour, and it converts a suite that currently protects one 18-line module into one that protects the package.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      }
+    ]
+  }
+}
