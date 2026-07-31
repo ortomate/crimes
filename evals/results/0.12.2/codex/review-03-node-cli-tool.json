@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:43:40.125Z",
+  "run_id": "85898052-e51c-49c2-a7ac-4fdbc9675c39",
+  "response": "## Merge verdict: block\n\nOne finding is merge-blocking: the new production core arrives as a 2,180-line god file. The remaining requested findings are warnings or context-sensitive ignores. This review covers the 37 findings in the requested categories; it intentionally excludes unrelated detector types such as large functions, duplication, and boolean naming.\n\n### Block merge\n\n| Finding | Severity / agent risk | Decision | Justification |\n|---|---:|---|---|\n| `crime_00001` — `lib/command.js`, 2,180 lines | high / **0.46** | **Block** | This is the highest-risk requested finding and affects the CLI’s central implementation. At 7.3× the threshold with a 0.5 test-gap score, future changes require agents to reason across an unmanageably broad surface. Require a responsibility-based split or an explicit, reviewed exception. |\n\n### Warn\n\n| Finding(s) | Severity / agent risk | Justification |\n|---|---:|---|\n| `crime_00002` — `typings/index.d.ts`, 892 lines | high / **0.43** | Public typings are a broad editing surface, but declaration files are often intentionally centralized. Request a follow-up split by API area; don’t block solely on size. |\n| `crime_00017` — `typings/index.test-d.ts`, 481 lines | medium / **0.32** | A large type-test matrix is harder to navigate and update consistently. Splitting by API feature would reduce agent risk, but this is test organization rather than a correctness defect. |\n| `crime_00018` — `lib/help.js`, 462 lines | medium / **0.32** | Meaningful production-code concentration at 1.5× the threshold. Ask for modularization or a tracked follow-up. |\n| `crime_00019` — hardcoded `localhost:1234` in `lib/command.js` | medium / **0.30** | Verify whether this is executable configuration or merely example/help text. If runtime behavior depends on it, move it behind configuration before merge; the scan alone does not prove that. |\n| `crime_00022`–`crime_00029` — eight `exitOverride` tests with no assertions | medium / **0.27 each** | These claim concrete error and callback behavior but contain no detected assertion. Require observable assertions—or evidence that a helper performs them—because silent passes would create false confidence. |\n| `crime_00043`–`crime_00049` — seven `copyInheritedSettings` tests using only weak matchers | low / **0.23 each** | Non-blocking, but copying settings should generally assert exact transferred values or resulting behavior, not merely existence/truthiness. |\n\n### Ignore\n\n| Finding(s) | Severity / agent risk | Justification |\n|---|---:|---|\n| `crime_00003` — `\"PORT\"` across examples and typings | medium / **0.41** | Despite the relatively high score, the copies span independent examples and a type-test file. `\"PORT\"` describes a conventional environment-variable key; centralizing examples would couple otherwise standalone samples. |\n| `crime_00009` — `CHANGELOG.md`, 1,244 lines | high / **0.36** | Append-only historical documentation is naturally large. Its `test_gap`, churn, and blast-radius scores are all zero, so the high severity does not translate into a merge risk. |\n| `crime_00010` — `Readme_zh-CN.md`, 1,072 lines | high / **0.36** | Long-form documentation, not a coupled implementation module. Splitting may improve navigation but should not gate this PR. |\n| `crime_00011` — `Readme.md`, 1,130 lines | high / **0.36** | Same reasoning: documentation length alone is not production change risk, and all contributing risk dimensions are zero. |\n| `crime_00020` — `lib/option.js`, 327 lines | medium / **0.29** | Only 1.1× the generic threshold, with modest confidence. Size alone is insufficient evidence that this cohesive option abstraction needs splitting. |\n| `crime_00021` — alleged commented-out code | low / **0.29** | The evidence resembles a short platform-behavior note (“non-Win, launchWithNode”), not a disabled implementation block. Treat as detector noise unless inspection reveals actual executable code in comments. |\n| `crime_00030`–`crime_00037` — TypeScript import tests without assertions | medium / **0.27 each** | These appear to be compile-time import/typing smoke tests. Successful compilation is the assertion; adding runtime `expect` calls would not strengthen the contract they protect. |\n| `crime_00038` — SIGUSR1 “revisit if required” comment | low / **0.27** | This is historical rationale/TODO prose in a test, not an active business rule that must be encoded. It can be cleaned up, but it should not affect merge. |\n| `crime_00050`, `crime_00051` — variadic boolean tests using weak matchers | low / **0.23 each** | Truthy/falsy matchers are appropriate when the observable result is itself boolean. The low severity and risk do not justify churn without evidence the matcher permits incorrect values. |\n\nIn short: block on `crime_00001`; require attention to the production/type-file concentration and genuinely assertion-free behavioral tests; suppress or ignore the documentation, example, compile-test, and context-sensitive false positives.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "magic_domain_literal_scatter",
+      "crime_00004": "large_function",
+      "crime_00005": "large_function",
+      "crime_00006": "boolean_naming_drift",
+      "crime_00007": "boolean_naming_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "large_file",
+      "crime_00010": "large_file",
+      "crime_00011": "large_file",
+      "crime_00012": "large_function",
+      "crime_00013": "large_function",
+      "crime_00014": "exact_duplicate_block",
+      "crime_00015": "exact_duplicate_block",
+      "crime_00016": "exact_duplicate_block",
+      "crime_00017": "large_file",
+      "crime_00018": "large_file",
+      "crime_00019": "hardcoded_localhost",
+      "crime_00020": "large_file",
+      "crime_00021": "commented_out_code",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "weak_test_signal",
+      "crime_00032": "weak_test_signal",
+      "crime_00033": "weak_test_signal",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "weak_test_signal",
+      "crime_00036": "weak_test_signal",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "logic_in_comments",
+      "crime_00039": "large_function",
+      "crime_00040": "boolean_naming_drift",
+      "crime_00041": "docs_code_drift",
+      "crime_00042": "docs_code_drift",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "large_function",
+      "crime_00053": "large_function",
+      "crime_00054": "large_function",
+      "crime_00055": "large_function"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Commented-Out Corpse": "commented_out_code",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Logic in the Alibi": "logic_in_comments",
+      "Docs-Code Drift": "docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:23:46.324Z",
+  "run_id": "320f3bbe-df37-4463-87b3-0939f238163f",
+  "response": "`crimes context src/add.ts --format json` on `09-clean-tiny`:\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"findings\": [],\n\"agent_guidance\": [],\n\"related_files\": [],\n\"likely_tests\": [\"src/add.test.ts\"]\n```\n\n**What crimes found: nothing — and it says why, explicitly.**\n\n- **Zero findings, risk level `none`.** No structural, dependency, duplication, or testability charges on this file.\n- **No agent guidance**, with the reason stated: `\"no findings on this file and no deterministic related files\"`.\n- **No related files**, also reasoned: `\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"`. `src/add.ts` is 4 lines and imports nothing; there is no blast radius to map.\n- **`likely_tests`: `src/add.test.ts`** — a co-located test exists (8 lines), so an edit here has a place to land assertions immediately.\n- **Clues:** 1 commit in the last 90 days, 1 author, last touched 2026-05-18. No churn hotspot, no multi-author contention.\n- **Coverage confirms the scan was real, not empty:** 2 files, both JS/TS, `universal` + `language-js` packs loaded, `files_universal_only: 0`. The empty result is a genuine clean read, not a parse failure or a skipped file.\n\n**Is it safe to extend? Yes.**\n\nThis is the low-risk case the tool is designed to green-light quickly. A 4-line file, one caller-free export, an existing sibling test, and no churn or coupling signal means an edit here is locally contained — the main risk of extending it is behavioural (getting the new logic wrong), not architectural, and the existing test file is the place to pin that down.\n\nTwo caveats worth stating rather than glossing over:\n\n1. **`test_gap` is `{\"raw\": 0, \"label\": \"unknown\"}`** — crimes detected a likely test file but is *not* asserting coverage of the specific behaviour you're about to add. \"Unknown\" is not \"covered.\" Add a test for whatever you introduce; don't infer from the clean report that existing tests will catch a regression.\n2. **A clean report is a statement about this file, not about the change you're planning.** If your edit adds imports, side effects, or `Date.now()`/`process.env` reads, the file stops being the trivially-clean thing crimes just measured. Re-run `crimes scan` after the edit — that's the cheap check that keeps the \"safe\" label true.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

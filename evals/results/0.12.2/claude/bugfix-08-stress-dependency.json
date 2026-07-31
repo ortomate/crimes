@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:20:21.888Z",
+  "run_id": "80c20660-9c2b-49a4-a7d5-bc8f86e9fc0b",
+  "response": "## The cycle\n\nThree files, all value imports (each imported symbol is actually *called*):\n\n```\nsrc/application/billing-flow.ts ──> src/domain/billing.ts\n        ▲                                    │\n        │                                    ▼\n        └────────── src/presentation/invoice-view.ts\n```\n\n- `billing-flow.ts:1` → `chargeCustomer` from domain\n- `billing.ts:2` → `renderInvoice` from presentation\n- `invoice-view.ts:3` → `runBillingFlow` from application\n\n## What the runtime error actually is\n\nWorth separating two failure modes, because the fix differs:\n\n1. **Not a TDZ/undefined-import error.** All three exports are hoisted function declarations, so ESM circular resolution won't throw at load time here. If the reported symptom were `X is not a function`, this cycle isn't the cause.\n2. **It is unbounded mutual recursion.** `runBillingFlow()` → `chargeCustomer(100)` → `renderInvoice(amount)` → `runBillingFlow()` → … with no base case. Any entry point into the ring produces `RangeError: Maximum call stack size exceeded`. That's the runtime error to expect.\n\nSo the cycle isn't just a tree-shaking/hygiene problem — the call graph mirrors the import graph exactly, and it's infinite.\n\n## Break this import\n\n**`src/domain/billing.ts:2` — `import { renderInvoice } from \"../presentation/invoice-view.js\"`.**\n\nThree independent reasons converge on that one edge:\n\n- **It's the only edge pointing the wrong way.** `application → domain` and `presentation → application` are both correct-direction dependencies. `domain → presentation` inverts the stack; domain should be the leaf that everything depends on and that depends on nothing.\n- **It's also `crime_00002`.** The layer violation and the cycle are the *same* import — `rule: domain cannotImport presentation`. Deleting it clears a `high` and a `medium` finding at once. Breaking either of the other two edges would leave the layer violation standing.\n- **The scan's \"convert to `import type`\" suggestion doesn't apply here.** `renderInvoice`, `chargeCustomer`, and `runBillingFlow` are all invoked at runtime, so no edge in this ring can be demoted to a type-only import. The cycle has to be broken structurally.\n\n## Shape of the fix\n\nInvert the dependency: domain returns data, presentation formats it.\n\n```ts\n// src/domain/billing.ts — no presentation import\nexport function chargeCustomer(amount: number): number {\n  return amount; // or a Charge/receipt object\n}\n\n// src/presentation/invoice-view.ts — formatting lives here\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${amount}`;\n}\n```\n\nThat leaves `presentation → application → domain`, a straight line with domain as leaf, and kills the recursion (`renderInvoice` no longer re-enters `runBillingFlow`). Note `invoice-view.ts:6` calls `runBillingFlow()` for its side effect and discards the result — if the intent was \"render the invoice this flow produced,\" `runBillingFlow` should return the charge and `renderInvoice` should take it as a parameter rather than calling into the flow at all.\n\nIf you can't restructure the return type right now, the smaller move is to have `chargeCustomer` accept a renderer callback injected by the caller — same effect on the import graph, less churn on signatures.\n\n## Not part of this bug\n\n`crime_00003` (deep import of `some-pkg/dist/internal/private/helper.js` at `billing-flow.ts:4`) is real but unrelated to the cycle — it's an upgrade-fragility risk, not a load-order or recursion one. Fix it separately; it's `effort: quick`.\n\nBlast radius is small (3 importers, `churn: 0.1`) — this is a cheap fix now and a much more expensive one once more code enters the ring.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

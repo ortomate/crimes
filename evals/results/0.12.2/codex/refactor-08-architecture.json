@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:35:48.884Z",
+  "run_id": "d1f0f0d3-9f16-4eee-aa7f-9a3cf87ed2d1",
+  "response": "The scan identifies two relevant boundary problems:\n\n| Finding | Import to change | Recommended change |\n|---|---|---|\n| `crime_00002` — `layer_violation` | `src/domain/billing.ts` → `src/presentation/invoice-view.ts` | **Break this dependency.** Define a presentation-neutral interface or output model in the domain—such as `InvoiceOutput` or `InvoicePresenter`—and have the presentation layer implement or consume it. Wire the implementation in the application/infrastructure composition layer. |\n| `crime_00003` — `deep_import` | `src/application/billing-flow.ts` → `some-pkg/dist/internal/private/helper.js` | **Redirect this import** to the package’s documented public entry point, such as `some-pkg`, or a documented exported subpath. If the helper is not publicly exported, replace it locally or request an upstream export rather than depending on `dist/internal`. |\n\nFor `crime_00002`, the domain must not know about invoice rendering. A suitable dependency direction is:\n\n```text\npresentation ──> application ──> domain\n                                  ↑\n                      domain-owned interface\n```\n\nThis change also removes one edge from the three-file cycle reported as `crime_00001`:\n\n```text\napplication/billing-flow.ts\n→ domain/billing.ts\n→ presentation/invoice-view.ts\n→ application/billing-flow.ts\n```\n\nSo the preferred cycle-breaking edge is specifically `domain/billing.ts → presentation/invoice-view.ts`, because it is independently forbidden by the configured architecture. Avoid merely converting it to `import type` if the domain still conceptually depends on a presentation-owned type; relocate that contract into the domain or application boundary instead.\n\nThe risks differ:\n\n- `layer_violation` (`crime_00002`, agent risk `0.34`) violates the repository’s intended dependency direction. An agent editing domain behavior may unknowingly affect UI code, introduce presentation concepts into business rules, or deepen cycles. It is an internal architectural and change-propagation risk.\n- `deep_import` (`crime_00003`, agent risk `0.29`) bypasses an external package’s supported API. It may work today, but an otherwise compatible package upgrade can move or remove the private file. It is primarily an upgrade-fragility risk and is usually a smaller, localized redirect.\n\nPriority: break the domain-to-presentation import first because it also helps eliminate the high-severity cycle, then replace the package deep import with a public entry point.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

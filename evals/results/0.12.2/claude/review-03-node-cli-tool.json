@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:44:31.128Z",
+  "run_id": "1f624d1f-d75f-4d56-acc9-65431d65f16a",
+  "response": "Verified the findings against the fixture. Note the repo identity first — `.crimes-eval-meta.json` says this is **Commander.js v9.5.0 upstream, pinned at `c03f066`**. So \"a PR added this on top of an empty baseline\" is a whole-library vendoring, not authored code. That changes several verdicts, and I'll flag where.\n\n## Verdict summary\n\n| Decision | Count | Findings |\n|---|---|---|\n| **Block merge** | 0 | — |\n| **Warn** | 8 | 00001, 00004, 00005, 00015+00016, 00018, 00041, 00042 |\n| **Ignore** | 47 | everything else |\n\nNothing blocks. **19 of 55 findings (35%) are verified false positives** — that's the headline result, more important than the triage itself.\n\n---\n\n## Warn\n\n**00015 + 00016 — duplicated `choices` (`lib/argument.js:99-111` ↔ `lib/option.js:176-188`)** · severity 0.55 · agent_risk 0.32\nThe highest genuine agent risk in the report despite ranking 15th. Two byte-identical `choices` implementations across sibling classes. An agent told \"fix choices validation\" patches one and silently leaves the other half of the public API broken. Cheap to fix, concrete failure mode.\nThese two are the **same duplication counted twice** — 00015 at function granularity, 00016 at block granularity (lines 101-109 are inside 99-111). Dedupe bug in the detector.\n\n**00001 — `lib/command.js` is 2180 lines** · severity 0.85 · agent_risk 0.46\nReal. 7.3× threshold, and it holds `parseOptions`, `_parseCommand`, `_executeSubCommand`, and the help/error plumbing. Ranks first and deserves to. Warn not block: splitting a 2180-line file is not a PR-review-cycle change, and for vendored upstream it's not ours to split.\n\n**00004 — `_executeSubCommand`, 120 lines** · severity 0.90 · agent_risk 0.40\nThe single riskiest function here: resolves executable paths, does `fs.realpathSync`, spawns child processes, wires signal forwarding. Highest severity in the report. Warn.\n\n**00005 — `parseOptions`, 115 lines** · severity 0.70 · agent_risk 0.39\nCore arg-parsing state machine — `--` handling, combined short flags, positional-options mode. Genuinely hard to edit safely without reading all 115 lines.\n\n**00041 / 00042 — dead doc links** · severity 0.35 · agent_risk 0.24\nSix URL-encoded links to `docs/zh-CN/术语表.md`, `可变参数的选项.md`, `不再推荐使用的功能.md` that don't exist on disk. Verified — lowest agent_risk in the warn set but the only findings that are *fully verifiable, fully actionable, and cheap*. An agent following these hits nothing.\n\n**00018 — `lib/help.js`, 462 lines** · severity 0.60 · agent_risk 0.32\nMarginal at 1.5×, but it's real domain code. Warn quietly.\n\n---\n\n## Ignore — verified false positives (19)\n\n**00019 `hardcoded_localhost` at `lib/command.js:2152`** — the line is a **comment**: `// e.g. --inspect=localhost:1234`. The detector doesn't strip comments before matching. Confirmed FP.\n\n**00022–00029 `weak_test_signal` in `command.exitOverride.test.js` (8 findings)** — every one of these calls the shared helper `expectCommanderError(caughtErr, code, ...)`, which contains the assertions. The tests assert thoroughly. The detector counts only *lexically local* `expect` calls and is blind to assertion helpers.\n\n**00030–00037 `weak_test_signal` in `ts-imports.test.ts` (8 findings)** — same defect. Each test calls `checkClass()`, which holds two `expect`s (`typeof obj` and `obj.constructor.name`). Same root cause as above; 16 of 55 findings trace to one detector limitation.\n\n**00038 `logic_in_comments` in `command.executableSubcommand.signals.test.js`** — a historical note about a removed sinon test. The \"rule terms: required, before\" match fires on `\"revisit if required\"` and on `\"before retrying\"` *inside a quoted Node error string*. This is exactly the rationale comment the detector is supposed to preserve.\n\n**00021 `commented_out_code` in `command.executableSubcommand.search.test.js:13-14`** — two comment lines documenting the two `childProcess.spawn` shapes the helper below unpacks. Documentation of live behaviour, not a corpse.\n\n---\n\n## Ignore — real pattern, wrong target (28)\n\n| Findings | Why ignore |\n|---|---|\n| 00009, 00010, 00011 — \"God File\" on `CHANGELOG.md`, `Readme.md`, `Readme_zh-CN.md` | A 1244-line CHANGELOG is append-only *by design*. `fix_shape: \"split by responsibility; one concern per module\"` is nonsense for prose. `large_file` should not run on `.md`. |\n| 00007, 00040 — unprefixed booleans `required`, `variadic`, `optional`, `mandatory`, `hide` | These are **public API property names**. Renaming to `isRequired` is a semver-major break of Commander's surface. Never actionable. |\n| 00006 — 9 unprefixed booleans in `command.js` | Same category; a few (`combine`, `allowUnknown`) are internal and could be renamed, but not worth a review comment at agent_risk 0.38. |\n| 00043–00049, 00050, 00051 — \"weak assertion matchers\" (9) | `toBeTruthy()`/`toBeFalsy()` on values that **are booleans** (`_hasHelpOption`, `option.variadic`). Correct matcher choice, not a weak test. |\n| 00003 — `\"PORT\"` scattered | It's `.env('PORT')` — the actual env var name, which *must* be the literal string. Also the evidence self-contradicts: claims \"5 production files\" then lists `examples/` demos and `typings/index.test-d.ts`. |\n| 00014 — duplicate `myParseInt` across two examples | Examples are deliberately standalone/copy-pasteable. Extracting a shared helper would make them worse. |\n| 00008 — sync I/O in `findFile`/`_executeSubCommand` | A CLI resolving its subcommand binary at startup. There is no event loop to block yet. Correct code. |\n| 00039, 00052–00055 — large `describe` callbacks | A 349-line `describe` is a test file, not a god function. |\n| 00002, 00017 — `typings/index.d.ts` (892), `index.test-d.ts` (481) | Declaration files mirror the API surface; size is a function of the API, not of poor factoring. |\n| 00020 — `lib/option.js` at 327 lines | 1.1× threshold. Noise at the boundary. |\n\n---\n\n## Signal for the scoring model\n\nTwo things worth acting on in `crimes` itself:\n\n**agent_risk doesn't separate signal from noise here.** The range across all 55 findings is 0.14–0.46 — a 0.32 spread with no gap. The verified false positive at 00019 scores 0.30; the genuinely dangerous duplicated `choices` scores 0.32. You cannot threshold this report. Everything gets `test_gap: 0.5` or `0`, `churn: 0`, `blast_radius: 0` — with three of six inputs flat, `agent_risk` is a near-linear function of `severity × confidence`, which is what `severity` already told you. The differentiator isn't differentiating.\n\n**One detector limitation produced 29% of the report.** `weak_test_signal` not following assertion helpers generated 16 false positives across two files. Both `expectCommanderError` and `checkClass` are declared in the same file as their callers — a same-file check for \"does this called function contain `expect`\" would eliminate all 16.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "magic_domain_literal_scatter",
+      "crime_00004": "large_function",
+      "crime_00005": "large_function",
+      "crime_00006": "boolean_naming_drift",
+      "crime_00007": "boolean_naming_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "large_file",
+      "crime_00010": "large_file",
+      "crime_00011": "large_file",
+      "crime_00012": "large_function",
+      "crime_00013": "large_function",
+      "crime_00014": "exact_duplicate_block",
+      "crime_00015": "exact_duplicate_block",
+      "crime_00016": "exact_duplicate_block",
+      "crime_00017": "large_file",
+      "crime_00018": "large_file",
+      "crime_00019": "hardcoded_localhost",
+      "crime_00020": "large_file",
+      "crime_00021": "commented_out_code",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "weak_test_signal",
+      "crime_00032": "weak_test_signal",
+      "crime_00033": "weak_test_signal",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "weak_test_signal",
+      "crime_00036": "weak_test_signal",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "logic_in_comments",
+      "crime_00039": "large_function",
+      "crime_00040": "boolean_naming_drift",
+      "crime_00041": "docs_code_drift",
+      "crime_00042": "docs_code_drift",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "large_function",
+      "crime_00053": "large_function",
+      "crime_00054": "large_function",
+      "crime_00055": "large_function"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Commented-Out Corpse": "commented_out_code",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Logic in the Alibi": "logic_in_comments",
+      "Docs-Code Drift": "docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

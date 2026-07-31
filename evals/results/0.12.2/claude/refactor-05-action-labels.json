@@ -1,0 +1,78 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:36:03.207Z",
+  "run_id": "74ea2abc-7d58-458f-b7b7-a0d0056e6948",
+  "response": "I read the three components and both detector implementations. Here's the analysis.\n\n## The drift, confirmed\n\nTwo findings cover it — `crime_00009` (`action_label_drift`) and `crime_00010` (`copy_ia_drift`), both anchored on `src/components/SeatList.tsx`, both `low` / confidence 0.6 / `agent_risk` 0.27, both citing group `delete` with aliases `archive, delete, remove`.\n\nThe actual labels:\n\n| File | Labels | href |\n|---|---|---|\n| `UserList.tsx:7-8` | \"Delete user\", \"Remove member\" | both `/users/manage` |\n| `TeamList.tsx:6-7` | \"Archive team\", \"Delete the seat\" | `/teams/manage`, `/seats/manage` |\n| `SeatList.tsx:6-7` | \"Remove member\", \"Archive member\" | both `/seats/manage` |\n\nNote what the table shows that the finding evidence doesn't: **two of the three files put two different verbs on the same href.** `UserList` sends \"Delete user\" and \"Remove member\" to the identical destination; `SeatList` sends \"Remove member\" and \"Archive member\" to the identical destination. That's stronger evidence than \"three aliases across the repo\" — it's one destination under two names inside one file.\n\n## Proposed canonical label set\n\nDon't collapse to one verb. The three words map to three genuinely distinct outcomes, and flattening them would be a data-loss bug dressed as consistency. Canonicalise the *semantics*, then the wording:\n\n| Verb | Meaning | Reversible | Canonical phrasing |\n|---|---|---|---|\n| **Remove** | Detach a person from a container (team / workspace / seat). Account survives. | Yes, by re-adding | `Remove member` |\n| **Archive** | Retain the record, hide it from active views. | Yes, by restoring | `Archive team` |\n| **Delete** | Destroy the record permanently. | No | `Delete user` |\n\nTwo supporting rules, because the verb alone doesn't fix this fixture:\n\n1. **One noun per concept.** `user` = the account; `member` = a person's membership in a tenant. `seat` is a *billing* unit, not a person — never use it as the object of a person-action. `Delete the seat` is currently the only place `seat` is an object, and it's in the wrong file.\n2. **One verb per destination.** If two `NavItem`s share an `href`, they are one action; pick one label or split the destination.\n\n## Refactor order\n\n**First: `UserList.tsx`.** It's the only file where the drift is provable from the repo itself rather than from a product decision — both entries point at `/users/manage`, so one of the two labels is definitionally wrong. Collapsing lines 7–8 into a single `<NavItem label=\"Remove member\" href=\"/users/manage\" />` needs no stakeholder input and no semantic ruling.\n\nIt also has a disproportionate effect on the findings. `delete` currently qualifies because it appears in two files (`TeamList`, `UserList`); the detector requires each alias in ≥2 files and ≥3 qualifying aliases. Drop `delete` from `UserList` and it falls to one file, the group drops to two qualifying aliases, and **both `crime_00009` and `crime_00010` clear** — from a one-line edit.\n\nThat's worth stating plainly rather than celebrating: the crimes go quiet because `delete` fell below a file-count threshold, not because the codebase stopped being ambiguous. `TeamList.tsx:7` would still say \"Delete the seat\" against a seats route. Treat the cleared finding as a coverage artifact, and keep going:\n\n**Second: `TeamList.tsx:7`.** \"Delete the seat\" points at `/seats/manage` — a label about seats living in the teams component, using the destructive verb for what the seats surface calls \"Remove\"/\"Archive\". Move it to `SeatList` or drop it, and decide whether the seat action is billing-side (`Release seat`) or membership-side (`Remove member`). Also touch `label=\"Archive team\"` only after deciding whether archiving a team is a real retained state — if it isn't, it's `Delete team`.\n\n**Third: `SeatList.tsx:6-7`.** Both labels, one href. This needs an actual product answer — is \"archived member\" a state the system has? If yes, split the destination. If no, keep `Remove member` and delete the archive entry. Last because it's the only one requiring a decision you can't derive from the code.\n\n`TeamList.tsx` is also the anchor of `crime_00002` (`concept_alias_drift`, medium, `organisation`/`team`/`workspace` across five files). When you open it for step two, you're standing in both the noun drift and the verb drift — worth batching.\n\n## How the two detectors differ on this fixture\n\nThey don't. That's the finding about the finding.\n\nBoth call the same `analyse()` in `packages/core/src/detectors/action-label-drift.ts:71` over the same `ACTION_GROUPS`. `copy_ia_drift` (`copy-ia-drift.ts:36`) passes `restrictToJsxLabel: true`, which does two things: filters label signals to `kind.startsWith(\"jsx_\")` (`action-label-drift.ts:91`), and skips the nav-entry sweep entirely (`:99`). `action_label_drift` runs the broader pass — JSX labels *plus* nav entry labels and their string-valued attributes.\n\nOn this fixture the broader pass finds nothing extra. The `label=\"...\"` props on `NavItem` are extracted as `jsx_label`, so they're inside the restricted set already; `src/nav.ts` carries tenant vocabulary (`organisation`/`team`/`workspace`) but no delete-group verbs. Result: `crime_00009` and `crime_00010` are byte-identical in `file`, `evidence`, `related_files`, and every score. Only `type`, `charge`, and `fix_shape` differ (\"pick one verb per action; update labels uniformly\" vs \"pick the canonical label; redirect copies to it\").\n\nSo this is **one signal reported twice**, not two independent confirmations — don't read the pair as corroboration, and don't fix them as separate work items. The single `UserList` edit closes both.\n\nThey would diverge if `src/nav.ts` gained an entry like `{ label: \"Archive workspace\" }`, or if a verb appeared in a non-JSX string prop or a nav array — `action_label_drift` would pick it up and `copy_ia_drift` would stay silent. This fixture just doesn't exercise that gap.\n\n## What both detectors miss here\n\n`ACTION_GROUPS` includes `{ id: \"user\", aliases: [\"user\", \"member\", \"seat\", ...] }`, and this fixture drifts hard on exactly that axis — the same person is a \"user\", a \"member\", and a \"seat\". It doesn't fire: `member` appears in two files (`UserList`, `SeatList`), but `user` appears as a label token only in `UserList:7` and `seat` only in `TeamList:7`, so each falls under the ≥2-files-per-alias gate and the group never reaches three qualifying aliases.\n\nThat's the more dangerous half for an agent. A verb mismatch produces a confusing button; a noun mismatch produces an agent that can't tell whether `SeatList` and `UserList` operate on the same entity, and writes a second code path. If this fixture is meant to stress IA drift, the object-noun case is currently passing through undetected — the file-count threshold is tuned for repo-wide vocabulary sprawl and misses drift concentrated in three small files.\n\nI haven't edited anything under `evals/fixtures/` — changing the fixture would move the eval baseline, and this scenario asked for a proposal.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": "src/components/SeatList.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

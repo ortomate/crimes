@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:31:55.189Z",
+  "run_id": "f0e1a451-013d-46e8-beb6-4c1a5a99493a",
+  "response": "## Duplication confirmed\n\n`crimes scan --format json` reports 5 findings; the one the task is about is `crime_00001`:\n\n| field | value |\n|---|---|\n| type | `near_duplicate_block` (confidence 0.85) |\n| group | hash `289f7da71f3a…`, 3 files / 3 occurrences |\n| sites | `src/sanitize-a.ts:10-36` (`sanitizeUserInput`), `src/sanitize-b.ts:9-35` (`sanitizeText`), `src/sanitize-c.ts:9-35` (`cleanMessage`) |\n| scores | severity 0.55, test_gap 0.5, agent_risk 0.34, churn 0.10, blast_radius 0 |\n\nReading the three files confirms the detector and sharpens it: the bodies are **identical modulo identifier names** (`working` / `cleaned` / `normalised`). Every constant matches — trim, `[ -]` strip, whitespace collapse, 1000-char cap, empty check, `<`/`>` prefix reject, `\\x` reject, >5 runs of `[!?]{3,}` reject, uppercase-ratio 0.9 over length 30 → lowercase. So the finding's `fix_shape` (\"pass the differing values as args\") over-prescribes here: **there are no differing values**. This is a straight three-way collapse, not a parameterisation.\n\nTwo things the finding does *not* say, that constrain the refactor:\n\n- **The `assertAdmin*` guards in the same three files are not duplicates — they are three different predicates.** `assertAdminA` is `role === \"admin\"`, `assertAdminB` is `admin || owner`, `assertAdminC` is `role !== \"admin\"` — a negation. This is the `agent_risk` in practice: a \"consolidate this file's helpers\" sweep that folds them together silently inverts C's callers. Leave them alone in this change; they belong to `crime_00003`.\n- **There are no in-repo callers and no tests.** Grepping the fixture, none of the three functions is imported anywhere, and there's no test dir (consistent with `test_gap: 0.5`). The exported names *are* the public surface, so removal is a breaking change for any external consumer.\n\n## Proposed refactor\n\n**Step 0 (before touching anything):** write a characterisation test against `sanitizeUserInput` covering the eight branches. With no tests and three copies, that's the only way to prove the collapse is behaviour-preserving.\n\n**Step 1:** create `src/sanitize.ts` holding the single implementation, with the magic numbers lifted to named module constants (`MAX_LENGTH = 1000`, `MAX_PUNCTUATION_RUNS = 5`, `UPPERCASE_RATIO_THRESHOLD = 0.9`, `UPPERCASE_MIN_LENGTH = 30`).\n\n**Step 2:** reduce `sanitize-a/b/c.ts` to their `assertAdmin*` guards plus a deprecated re-export alias of the new function; delete the alias (and the files, if the guards move to `policy.ts`) on the next major.\n\n### Public API\n\n```ts\n// src/sanitize.ts\nexport function sanitize(value: string): string;\n```\n\nOne required arg, one return, no options object. Justification: all three copies use the same constants, so an options bag would be configuration invented for a variation that doesn't exist — and it would widen the contract permanently to buy nothing today. The named constants are the extension point; promote one to an optional `SanitizeOptions` field only when a real caller needs a different limit.\n\nTwo contract details worth pinning in the signature's doc comment, because they're currently implicit:\n\n- The param is typed `string` but the body checks `null`/`undefined` and calls `String(value)` — it actually accepts `unknown`. Either type it `unknown` honestly, or drop the dead guards. Don't ship the current mismatch into the shared helper, where it becomes everyone's ambiguity.\n- The function is total: it returns `\"\"` for every rejection path rather than throwing. Callers can't distinguish \"empty input\" from \"rejected as hostile\". If that distinction matters to any caller, this is the moment to add a sibling `sanitizeWithReason(value): { text: string; rejected?: RejectionReason }` — but only if a caller asks.\n\n### Files that change\n\n| file | change |\n|---|---|\n| `src/sanitize.ts` | **new** — the single `sanitize()` implementation + named constants |\n| `src/sanitize-a.ts` | delete `sanitizeUserInput` body; `export { sanitize as sanitizeUserInput }` (deprecated). Keep `assertAdminA`. |\n| `src/sanitize-b.ts` | delete `sanitizeText` body; deprecated alias. Keep `assertAdminB`. |\n| `src/sanitize-c.ts` | delete `cleanMessage` body; deprecated alias. Keep `assertAdminC`. |\n| `src/sanitize.test.ts` | **new** — characterisation tests written in step 0 |\n\nNo other file changes: nothing imports these functions, so there are no call sites to migrate.\n\n## The other three findings — separate changes, don't bundle\n\nScoped out of the above deliberately; each is its own commit:\n\n- **`crime_00003`** (`duplicated_role_status_plan_check`, \"admin\" across 4 files / 2 shapes) — the real work is deciding whether `assertAdminB`'s `|| \"owner\"` and `assertAdminC`'s negation are intentional policy or drift. That's a product question, and answering it wrong is a privilege bug. Consolidating into `isAdmin(role)` in `policy.ts` is right *after* that's settled.\n- **`crime_00002`** (`exact_duplicate_block`) — `recordSanitiseEvent` is byte-identical in `telemetry-a.ts` and `telemetry-b.ts`. Delete one, re-export.\n- **`crime_00004` / `00005`** (`direct_date`) — the `Date.now()` inside each copy. Folding the telemetry duplicate first makes this a one-line fix (inject `now: () => number`) instead of two.\n\nSequencing matters: telemetry (00002) before the clock injection (00004/00005), and the sanitize collapse before the policy consolidation, so the `assertAdmin*` guards are the only thing left in those files when you go to reason about them.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

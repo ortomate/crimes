@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:27:36.885Z",
+  "run_id": "5ce3a740-9c39-40d9-8a72-d774bfab01e4",
+  "response": "I read the scan output and the six fixture files. Here's the plan.\n\n## What the JSON actually says\n\nFive findings, three of them duplication:\n\n| id | charge | shape |\n|---|---|---|\n| `crime_00001` | Near-Duplicate Block | `sanitizeUserInput` / `sanitizeText` / `cleanMessage` — 3 files, same body |\n| `crime_00003` | Duplicated Role Check | `\"admin\"` across 4 files, **2 distinct expression shapes** |\n| `crime_00002` | Exact Duplicate Block | `recordSanitiseEvent` × 2 (telemetry, out of scope below) |\n\nTwo facts from the evidence drive the whole plan:\n\n1. **The three sanitise bodies are identical modulo identifier renaming.** I diffed them line by line — `working` / `cleaned` / `normalised` is the only difference. Confidence 0.85, and it holds. This half is a mechanical extraction with no semantic decision in it.\n2. **The three role checks are *not* identical.** The detector says \"2 distinct expression shapes\" and it's understating the problem:\n   - `assertAdminA` → `role === \"admin\"`\n   - `assertAdminB` → `role === \"admin\" || role === \"owner\"` ← **admits an extra role**\n   - `assertAdminC` → `role !== \"admin\"` ← **inverted**\n\n   Anything that \"consolidates the three role checks\" into one predicate by picking a winner is a **behaviour change**, not a refactor. That's the whole reason this needs to be two steps and not one.\n\nAlso worth noting: `test_gap: 0.5` on every finding, and there are no test files in the fixture. And `blast_radius_importers: 0` everywhere — nothing outside these files imports them, so renames are free here.\n\n---\n\n## Step 1 — Consolidate the sanitiser (behaviour-preserving)\n\n**Change:** new `src/sanitize.ts` exporting a single `sanitizeText(input: string): string` holding the body verbatim from `sanitize-a.ts:10-36`. Delete `sanitizeUserInput`, `sanitizeText`, `cleanMessage` from the three `sanitize-*.ts` files.\n\nBecause `blast_radius_importers` is 0, delete outright rather than leaving re-export shims. (In a real codebase with importers you'd keep deprecated re-exports for a release; here they'd be dead code.)\n\n**Before touching anything:** write a characterisation test against the *current* `sanitizeUserInput` covering each branch — null/undefined, trim, control-char strip, whitespace collapse, the 1000-char truncation, empty result, `<`/`>` prefix, `\\x` substring, the `[!?]{3,}` punctuation counter, and the upper-ratio lowercasing. Then run it against all three originals to prove they agree. That test is what makes step 1 mechanical, and it's the thing that pays down `test_gap` for step 2.\n\n**What's left behind:** the three `sanitize-*.ts` files reduce to nothing but `assertAdminA/B/C`. That's deliberate — it isolates step 2's diff to pure policy code.\n\n**Verify:** re-run `crimes scan --format json`; `crime_00001` should disappear and `files_total` drop. `crime_00003` will still fire — its four-file spread is untouched.\n\n**Effort:** small. Risk: low. One commit.\n\n---\n\n## Step 2 — Centralise the role policy (semantics decision required)\n\n`src/policy.ts` is the natural home; it already exists and already contains three copies of the check.\n\n**Change:** one predicate plus explicit call sites.\n\n```ts\n// src/policy.ts\nexport function isAdmin(role: string): boolean {\n  return role === \"admin\";\n}\nexport function isOwner(role: string): boolean {\n  return role === \"owner\";\n}\n```\n\nThen rewrite every call site to *preserve its current meaning*, not to unify meanings:\n\n| old | new | behaviour |\n|---|---|---|\n| `assertAdminA` | `isAdmin(role)` | identical |\n| `assertAdminB` | `isAdmin(role) \\|\\| isOwner(role)` | identical |\n| `assertAdminC` | `!isAdmin(role)` | identical |\n\nThe B and C variants get deleted as functions; their *callers* inline the composed expression. The literal `\"admin\"` then exists in exactly one place, which is what silences `crime_00003` — one file, one shape.\n\n**The judgement call I'd push back on:** don't collapse `canEditBilling`, `canSeeAuditLog`, and `canImpersonate` into a single function just because all three currently return `role === \"admin\"`. They are three distinct capabilities that happen to share a rule today. Keep the three named functions, have each delegate to `isAdmin`, and let them diverge later without a rewrite:\n\n```ts\nexport const canEditBilling  = (role: string) => isAdmin(role);\nexport const canSeeAuditLog  = (role: string) => isAdmin(role);\nexport const canImpersonate  = (role: string) => isAdmin(role);\n```\n\nCollapsing them would make the scan quieter and the code worse — that's the failure mode this finding invites.\n\n**The open question for whoever owns this:** is `assertAdminB`'s inclusion of `\"owner\"` intentional, or is it drift? The plan above assumes intentional and preserves it. If it's a bug, that's a separate fix with its own commit and its own reasoning — do not smuggle it in under a refactor.\n\n**Verify:** table-driven tests over `isAdmin`/`isOwner` for `admin` / `owner` / `viewer` / `\"\"`, plus one assertion per migrated call site that the composed expression matches the old function's truth table. Re-run the scan; `crime_00003` clears.\n\n**Effort:** medium (the detector agrees). Risk: medium — it's the step where a mistake changes who can do what.\n\n---\n\n## Deliberately out of scope\n\n`crime_00002` (duplicate `recordSanitiseEvent`) and `crime_00004`/`00005` (`Date.now()` in both telemetry copies) are a coupled third change: dedupe the function *and* inject a clock in the same commit, since fixing the duplicate first would otherwise mean touching the same body twice. It's genuinely small, but bundling it into step 1 mixes a signature change into an otherwise identifier-only diff. Land it after, as step 3.\n\nI've written the plan but haven't made any edits — say the word and I'll execute step 1.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

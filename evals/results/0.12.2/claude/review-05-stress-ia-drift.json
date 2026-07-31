@@ -1,0 +1,72 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:42:04.094Z",
+  "run_id": "47938738-cff8-4517-91c7-e719f163d45b",
+  "response": "Verified every finding against the fixture source. The 12 findings collapse to **5 distinct defects**, and the scan's ranking inverts the two that matter.\n\n## Verdict\n\nTwo blocking issues, three follow-ups. Neither blocker is the top-ranked finding.\n\n## Blocking\n\n**1. `/admin` permission drift is an auth bypass, not a labelling problem** (crime_00011)\n\nThree tokens for one route is the headline, but the real defect is in the code:\n\n```ts\n// src/routes/admin.ts:4\nexport const requiredRole = \"owner\";\n// :9\nif (currentUser.role === \"manager\") return { ok: true, legacy: true };\nif (currentUser.role !== \"owner\") return null;\n```\n\nThe legacy `manager` branch returns before the owner check — managers get the admin panel today, regardless of what `requiredRole` says. `src/nav.ts:10` gates the entry on `role: \"admin\"`, a third token that matches neither. So the nav shows the link to admins who then fail the guard, while managers who never see the link can reach `loadAdminPanel()` directly.\n\nFix: delete the legacy branch, export one `requiredRole`, have nav read it rather than restate it, update `docs/routes.md:14`.\n\n**2. Two main-nav links 404** (surfaced obliquely as crime_00007, crime_00008)\n\n`src/nav.ts` links `/workspaces` and `/organisations` (plural). The routes are `src/routes/workspace.ts` → `/workspace` and `src/routes/organisation.ts` → `/organisation` (singular). `/teams` is the only one of the three wired correctly — which is why `teams.ts` is *not* flagged as an orphan.\n\nThis matters for how you read the scan: crimes reports these as orphaned destinations that \"may have outlived the journey,\" and suggests \"delete the orphan destination or wire it up.\" **Deleting them is the wrong branch.** They aren't dead code — they're live destinations behind a misspelled link. An agent taking the finding at face value would delete two working routes and leave the nav broken. Rename the route files to plural to match `/teams`; two-line fix.\n\n## Follow-up\n\n- **Tenant vocabulary** (crime_00002) — `team`/`workspace`/`organisation` across 5 files is the root cause feeding most of the other findings, but consolidating is a product decision plus a rename. Write down the canonical term now; refactor on its own branch.\n- **Billing** (crime_00003, crime_00005, crime_00006) — `/admin/billing-plans` and `/billing-plans` are both stubs returning `[]`, neither linked from nav, and `docs/routes.md:8` advertises a third spelling `/billing-plan`. Zero harm while they're stubs; decide canonical shape before anyone fills them in.\n- **Docs sync** (crime_00004, crime_00012) — broken `/admin` link, three CLI commands (`iaq teams|workspace|refresh`) that `bin/iaq.ts` doesn't have, plus four stale singular paths at `docs/routes.md:5-8` the scan missed. ~10 minutes; batch as one commit.\n- **Action labels** (crime_00009/00010) — delete/remove/archive across three components needs a copy decision, not a code fix.\n- **Missing agent context** (crime_00001) — out of scope for IA; ranked #1 by `agent_risk` but tells you nothing about routes.\n\n## Where the scan itself needs work\n\nSince this is your eval fixture, five things worth logging:\n\n1. **Ranking inversion.** The permission finding — the only one with a security consequence — ranks 11th of 12 by `agent_risk` (0.25). More broadly, every finding sits in a 0.19–0.43 band, so rank is close to non-informative here. `blast_radius` is 0 everywhere (no cross-imports in the fixture) and `test_gap` is a flat 0.5, so `agent_risk` is carrying almost no discriminating signal.\n2. **Duplicate finding.** crime_00009 (`action_label_drift.js`) and crime_00010 (`copy_ia_drift.js`) are the same defect with identical evidence and identical summary text — `copy_ia_drift` is emitting `action_label_drift`'s wording. Only `fix_shape` differs. Real total is 11, not 12.\n3. **Missing charge: nav → nonexistent destination.** The tool detects the orphan half of a broken link but never the dangling-link half, which is the more actionable side and the one that leads to the correct fix.\n4. **Comment prose counted as guard evidence.** Two rows cite `route_guard (src/routes/admin.ts:2)` for the literals `admin` and `manager` — line 2 is a comment. The conclusion is right, the receipts are partly wrong.\n5. **`docs_code_drift` only sees markdown link syntax.** It caught `[admin console](/admin)` and missed four backticked paths at `docs/routes.md:5-8` that are equally stale.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      }
+    ]
+  }
+}

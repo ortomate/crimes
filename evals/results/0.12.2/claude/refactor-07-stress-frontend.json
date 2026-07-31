@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:32:53.619Z",
+  "run_id": "4a30d005-7183-4db0-a692-3fdaed579d95",
+  "response": "## What `crimes context src/Card.tsx` adds over the scan\n\n```\nrisk: MEDIUM  (3 findings: 0 high, 1 medium, 2 low)\nClues\n  · churn: 2 commits over 90d · last touched 2 months ago · 1 author\n  · test gap: top-quartile\nLikely tests\n  (no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename)\n```\n\nTwo things that aren't in the scan JSON's finding list: the file has **no tests at all** (which is why `test_gap: 1.0` on all three findings), and **0 importers** — so blast radius is zero and every fix here is contained. That combination is the good case for a refactor: nothing downstream breaks, but nothing catches a regression either, so the change needs a test added in the same commit.\n\nThe file itself (`src/Card.tsx:8-32`) is 25 lines, all three crimes in one JSX tree.\n\n---\n\n## The three fixes\n\n### 1. `accessible_interaction_risk` — medium, `crime_00001`\n\n> `line 10: <div> with onClick has no role / aria-label / tabIndex`\n\nThis is the only medium and the only one that's a real user-facing defect rather than a maintenance hazard. Keyboard users can't focus the div, screen readers don't announce it as actionable, and there's no Enter/Space handler.\n\nThe detector's `fix_shape` is *\"use semantic elements; add ARIA only when semantics don't fit\"* — so `role=\"button\" tabIndex={0}` is the fallback, not the fix. The fix is a real `<button>`.\n\n**But there's a decision to make first**, because `Card` takes arbitrary `children`. If those children ever contain a link or button, wrapping the whole card in `<button>` nests interactive content — invalid HTML, and screen readers flatten it. Two shapes:\n\n- **A. Whole card is the target, children are inert** → outer element becomes `<button type=\"button\">`. Simplest.\n- **B. Children may be interactive** → card stays a `<div>`, and a real `<button>` inside gets stretched over the card with `::after`. Preserves a single tab stop and correct semantics.\n\nI'd go with **A** for this component and make the constraint explicit in the type, since nothing imports it yet and there's no evidence of interactive children:\n\n```tsx\nexport function Card({\n  children,\n  onActivate,\n  label,\n}: {\n  children: React.ReactNode;\n  onActivate?: () => void;\n  label?: string;\n}) {\n  const Root = onActivate ? \"button\" : \"div\";\n  return (\n    <Root\n      type={onActivate ? \"button\" : undefined}\n      onClick={onActivate}\n      aria-label={onActivate ? label : undefined}\n      className=\"…\"\n    >\n```\n\nMaking `onActivate` optional also fixes something the detector can't see: the current `onClick={() => console.log(\"clicked\")}` is a placeholder. A non-interactive card shouldn't render as a button at all, so the accessibility affordance follows the prop rather than being unconditional.\n\n### 2. `design_token_escape` — low, `crime_00002`\n\n> `9 hard-coded style values across 4 kinds (color, px, rgb, shadow)`\n> `line 10: color #ff00aa` · `#0a0a0a` · `#cccccc` · `#1a73e8` · `rgb rgb(0, 0, 0)`\n\nThe summary names the actual risk: *\"agents extending the file may copy them forward without realising they bypass the tokens.\"* That's the agent-risk framing, and it's right — the next agent to add a variant to this card will copy `#cccccc` rather than look up the border token.\n\nThe important finding here isn't in the JSON: **`tailwind.config.ts` only defines three tokens** (`brand: #0050ff`, `surface: #f7f7fa`, `ink: #111111`), and **none of the six colours in `Card.tsx` map onto them**. So this isn't \"swap literal for token\" — the token scale is genuinely missing the roles this component needs. Fixing the file without extending the config would just push the literals into `arbitrary-[#cccccc]` classes, which the detector would rightly still flag.\n\nExtend the config first:\n\n```ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      \"ink-muted\": \"#333333\",\n      \"ink-subtle\": \"#666666\",\n      border: \"#cccccc\",\n    },\n    boxShadow: { card: \"0 2px 4px rgb(0 0 0 / 0.2)\" },\n  },\n};\n```\n\nThen the per-value mapping, with two that need a human call rather than a mechanical swap:\n\n| Literal | Token | Note |\n|---|---|---|\n| `background: \"#ff00aa\"` | `bg-surface` | **Needs your call.** Magenta matches no token and reads like fixture filler. If it's intentional brand accent, it needs a named token, not a swap. |\n| `color: \"#0a0a0a\"` | `text-ink` | `#111111` — imperceptible shift |\n| `borderColor: \"#cccccc\"` | `border-border` | new token |\n| `outlineColor: \"#1a73e8\"` | `outline-brand` | **Behaviour change.** `#1a73e8` is Google blue, almost certainly copy-pasted; `brand` is `#0050ff`. Worth confirming, but a focus ring that isn't your brand colour is the bug. |\n| `boxShadow: \"0 2px 4px rgb(0,0,0)\"` | `shadow-card` | also softens the fully-opaque black, which was almost certainly unintended |\n| `#333333` / `#666666` (l.24, l.27) | `text-ink-muted` / `text-ink-subtle` | |\n\n### 3. `responsive_fragility` — low, `crime_00003`\n\n> `line 10: width 800px` · `line 24: width 720px` · `line 24: fontSize 18px (no @media in file)`\n> `no @media query found in the file`\n\n`width: 800` on the root is the actual breakage — it's a hard width, not a max, so the card overflows every phone viewport. Note `maxWidth: 1024` sits right beside it and is dead code: a fixed `width` makes `maxWidth` unreachable. The nested `width: 720` + `width: 240` are a hand-rolled two-column split that can't collapse.\n\nThe detector's `fix_shape` — *\"drive layout from container queries or a fluid scale, not pixel media queries\"* — is the better guidance here than the generic `suggested_action` (which says add `@media`). Since `Card` has zero importers, it doesn't know its own viewport context; container queries are the correct tool:\n\n- Root: `w-full max-w-4xl` — `max-w-4xl` is 896px, so keep `maxWidth: 1024` as `max-w-[64rem]` if 1024 was deliberate. Either way `width` stops being fixed.\n- Split: `@container` on the root, then `grid grid-cols-1 @2xl:grid-cols-[1fr_240px]` — collapses to stacked below the container breakpoint, no media query needed.\n- `fontSize: 18` → `text-lg` (`1.125rem`), so it respects user font-size settings. `px` doesn't.\n\n---\n\n## Resulting file\n\n```tsx\nexport function Card({\n  children,\n  onActivate,\n  label,\n}: {\n  children: React.ReactNode;\n  onActivate?: () => void;\n  label?: string;\n}) {\n  const Root = onActivate ? \"button\" : \"div\";\n  return (\n    <Root\n      type={onActivate ? \"button\" : undefined}\n      onClick={onActivate}\n      aria-label={onActivate ? label : undefined}\n      className=\"@container w-full max-w-4xl p-6 grid grid-cols-1 gap-6\n                 @2xl:grid-cols-[1fr_240px]\n                 bg-surface text-ink border border-border shadow-card\n                 outline-brand focus-visible:outline-2\"\n    >\n      <div className=\"text-lg text-ink-muted\">{children}</div>\n      <div className=\"text-sm text-ink-subtle\">sidebar</div>\n    </Root>\n  );\n}\n```\n\nEvery `style={{}}` object is gone, which is what clears all three detectors at once — they all scan inline JSX style values. That's not a coincidence worth relying on, though: the token and responsive fixes are only real because the config gained the missing tokens and the layout gained a collapse rule.\n\n## Before you land it\n\nThree things I'd want settled, in order of how much they'd change the diff:\n\n1. **`#ff00aa` and `#1a73e8`** — these are the only two swaps that are visible behaviour changes rather than refactors. The rest are within a shade of the existing tokens.\n2. **Interactive children** — if `Card` will ever wrap a link, shape B (stretched link) instead of shape A.\n3. **A test.** `test_gap` is `1.0` on all three findings and `crimes` found no test file. A `Card.test.tsx` asserting the root renders as `<button>` when `onActivate` is passed and `<div>` when it isn't would close the gap and lock in the accessibility fix — the one that can silently regress.\n\nThen re-run the gate: `crimes scan src/Card.tsx --format json` should come back with `summary.total: 0`.\n\nWant me to apply this — config, component, and test — or adjust the two colour calls first?",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

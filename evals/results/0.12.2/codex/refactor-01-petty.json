@@ -1,0 +1,118 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:33:06.203Z",
+  "run_id": "8a5e03f0-0a83-4a90-8b54-3edeb15b5838",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a TypeScript risk investigation. I’ll run the requested file-level context command and inspect `petty.ts`, then propose only the three scoped refactors—no code changes.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m using the repository’s locally built CLI against the same fixture. The source confirms the three patterns are independent: an overly broad checkout record, three incompatible payment-result objects, and a double-negative billing predicate.\n\nThe context report identifies the requested three low-severity findings. I’d refactor them independently:\n\n1. `option_bag_junk_drawer` — `describeCheckout`\n\nToday, one broad object carries six unrelated values. An agent adding another checkout attribute may simply expand this bag, may not know which fields are required, and could confuse operational state (`retry`) with checkout or localization data.\n\nSplit the input into narrow domain records and destructure them:\n\n```ts\ninterface CheckoutDetails {\n  plan: string;\n  role: string;\n  status: string;\n}\n\ninterface CheckoutLocale {\n  region: string;\n  currency: string;\n}\n\ninterface CheckoutAttempt {\n  isRetry: boolean;\n}\n\nexport function describeCheckout(\n  checkout: CheckoutDetails,\n  locale: CheckoutLocale,\n  attempt: CheckoutAttempt,\n): string {\n  const { plan, role, status } = checkout;\n  const { region, currency } = locale;\n  const { isRetry } = attempt;\n\n  return [plan, role, region, currency, status, String(isRetry)].join(\":\");\n}\n```\n\nThis ties each future field to an explicit concept instead of turning `options` into a growing junk drawer.\n\n2. `return_shape_roulette` — `resolvePaymentResult`\n\nThe function currently returns three objects with no common discriminator and as little as 0% key overlap. An agent could access `ok` on the redirect result, assume `url` exists after checking truthiness incorrectly, or add a fourth undocumented shape.\n\nDefine a discriminated union and an explicit return type:\n\n```ts\ntype PaymentResult =\n  | {\n      kind: \"error\";\n      code?: string;\n      message?: string;\n    }\n  | {\n      kind: \"redirect\";\n      url?: string;\n      permanent: boolean;\n    }\n  | {\n      kind: \"success\";\n      value?: string;\n      cached: boolean;\n    };\n\nexport function resolvePaymentResult(input: PaymentInput): PaymentResult {\n  if (input.error) {\n    return { kind: \"error\", code: input.code, message: input.message };\n  }\n\n  if (input.redirect) {\n    return { kind: \"redirect\", url: input.url, permanent: false };\n  }\n\n  return { kind: \"success\", value: input.value, cached: false };\n}\n```\n\nCallers must now narrow on `kind`, and adding a variant produces useful exhaustiveness errors. A follow-up improvement would make `PaymentInput` discriminated too, eliminating ambiguous inputs where both `error` and `redirect` are true.\n\n3. `negative_flag_maze` — `canRunBilling`\n\n`!disableBilling && !skipRetry` requires two mental inversions. An agent extending the condition could easily negate only one term, accidentally use `||`, or misunderstand whether `skipRetry` enables billing.\n\nMake the inputs positive and return the predicate directly:\n\n```ts\nexport function canRunBilling(\n  isBillingEnabled: boolean,\n  isRetryAllowed: boolean,\n): boolean {\n  return isBillingEnabled && isRetryAllowed;\n}\n```\n\nCall sites must invert the old values during migration:\n\n```ts\ncanRunBilling(!disableBilling, !skipRetry);\n```\n\nIdeally, rename or derive the positive values at their source rather than retaining that inversion indefinitely. This also resolves the overlapping `boolean_naming_drift` finding for the two old parameters.\n\nBecause no likely test file was found for `petty.ts`, I’d add focused tests for all payment-result variants and the four billing-flag combinations before changing callers.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "option_bag_junk_drawer",
+        "passed": false
+      }
+    ]
+  }
+}

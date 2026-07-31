@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:19:37.105Z",
+  "run_id": "6387235f-216d-4ce1-859d-9e2a2b8d1396",
+  "response": "Break the import from `src/domain/billing.ts` → `src/presentation/invoice-view.ts`.\n\nWhy:\n\n- It closes the three-file cycle: `billing-flow` → `billing` → `invoice-view` → `billing-flow`.\n- It also fixes the reported architecture violation: domain code should not depend on presentation code.\n- Presentation should consume domain data, not provide runtime helpers or types back to the domain.\n\nMove any shared data types into a dependency-free domain/leaf module, then import them with `import type`. If the domain uses invoice formatting or rendering logic, move that behavior to the presentation layer and have `billing-flow.ts` coordinate it. This preserves the intended direction:\n\n```text\npresentation → application → domain\n```\n\nThe deep package import is unrelated to the suspected runtime cycle and can be handled separately.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

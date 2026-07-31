@@ -1,0 +1,78 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:35:33.191Z",
+  "run_id": "7fb187e4-b6e6-448d-8ea0-2bbdd161f01f",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to ground the recommendation in the supplied scan and the three component implementations. I’ll keep this read-only: confirm the exact labels, then map each proposed edit to the two findings.\n\nThe scan’s evidence matches the source exactly: all three aliases occur across the trio, and `SeatList` is the clearest first move because it contains two competing labels for the same `/seats/manage` destination and neither uses the likely canonical verb. I’m checking the detector implementations now so the distinction isn’t inferred from their names alone.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m using the repository’s already-built local CLI for the same read-only JSON scan. The supplied report remains the decision context.\n\nThe local JSON scan confirms both low-severity findings:\n\n- `crime_00009` — `action_label_drift`\n- `crime_00010` — `copy_ia_drift`\n\nBoth identify the destructive aliases `archive`, `delete`, and `remove` across the same three components.\n\n### Canonical label set\n\nUse the pattern **“Delete {resource}”**:\n\n| Component | Current labels | Canonical label |\n|---|---|---|\n| `UserList.tsx` | Delete user / Remove member | Delete user |\n| `TeamList.tsx` | Archive team / Delete the seat | Delete team / Delete seat |\n| `SeatList.tsx` | Remove member / Archive member | Delete seat |\n\nWhere two entries represent the same operation and destination, consolidate them rather than leaving duplicate “Delete” links. The scan directly justifies normalizing the verb; aligning `member`, `user`, and `seat` with the actual resource is an adjacent copy clarification, not a separate reported finding here.\n\n### Refactor order\n\nStart with `SeatList.tsx`.\n\nIt is the anchor file for both findings and has the clearest local inconsistency: `Remove member` and `Archive member` both point to `/seats/manage`. Changing or consolidating them to `Delete seat` establishes the convention with minimal ambiguity.\n\nThen update:\n\n1. `TeamList.tsx`: `Archive team` → `Delete team`; standardize `Delete the seat` → `Delete seat`.\n2. `UserList.tsx`: `Remove member` → `Delete user`, consolidating the duplicate destination if both entries perform the same action.\n\n### How the detectors differ\n\n`action_label_drift` is the broader semantic detector. It considers JSX labels plus other indexed navigation and string-valued action signals across the code surface. The associated change is: choose one destructive verb—`Delete`—everywhere.\n\n`copy_ia_drift` is the frontend-restricted variant. It considers only JSX-visible labels, focusing on inconsistent language users actually see. The associated change is: make each rendered label follow the exact `Delete {resource}` copy pattern.\n\nThey produce identical evidence on this fixture because every qualifying occurrence is inside a JSX `label` prop. In a repository where `remove` or `archive` appeared only in navigation metadata or other indexed code strings, `action_label_drift` could still fire while `copy_ia_drift` would not.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:24:24.283Z",
+  "run_id": "fdd96280-c79e-4d79-8642-00f2f9a3b27a",
+  "response": "**Confirmed: zero findings on `src/billing.ts`.**\n\n```\nrisk.level : none\ntotals     : high 0 · medium 0 · low 0 · total 0\nfindings   : []\n```\n\n**likely_tests:** `src/billing.test.ts` — it exists and covers the module's only export (`format`), with cases for USD and EUR.\n\n## Why this module is low risk to edit\n\n- **No findings, and none suppressed.** The `context` report and the repo-wide `scan` agree: 0 findings across the whole fixture (2 files, both picked up by the `language-js` pack — so this isn't a \"file wasn't parsed\" false negative).\n- **Tiny surface.** One interface (`Money`) and one pure function (`format`, 3 lines). Nothing to trip large-function, deep-nesting, or too-many-params detectors.\n- **Pure, no hidden I/O.** No `Date.now()`, `Math.random()`, or `process.env` — nothing non-deterministic to reason about, and the function is trivially testable.\n- **Types constrain the blast radius.** `currency` is a literal union (`\"USD\" | \"EUR\" | \"GBP\"`), so a bad call site is a compile error rather than a runtime surprise.\n- **Tests sit right next to it.** `likely_tests` resolves to a real, adjacent test file — feedback on any edit is immediate.\n- **Quiet history, no fan-in.** `clues.churn` shows 1 commit in 90 days from 1 author, and `related_files` is empty (`\"no neighbourhood signal\"`) — nothing else in the repo imports it, so an edit here doesn't ripple.\n\nOne caveat worth stating: `clues.test_gap` is `{\"raw\": 0, \"label\": \"unknown\"}` — crimes found no coverage data, so \"well tested\" here is my read of the adjacent test file, not a coverage-backed measurement. The tests cover `USD` and `EUR`; `GBP` and negative/rounding-edge amounts are untested. If you widen `Money` or change formatting behaviour, add cases rather than assuming the existing two carry it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

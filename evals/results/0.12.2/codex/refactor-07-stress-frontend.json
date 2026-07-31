@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:33:50.651Z",
+  "run_id": "cedf5bc8-4f98-40f2-8eff-e20925f2cbc3",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is a finding-driven frontend refactor review. I’ll inspect its workflow, then run `crimes context src/Card.tsx` in the fixture and map the proposal directly to the three finding types.\n\nThe global `crimes` binary isn’t installed in this environment, so I’m resolving the repository-built CLI and will run the same JSON context command through it. No files are being changed.\n\n`crimes context` confirms one medium and two low findings, with no likely tests or related design-system files detected. I’d refactor `Card` into a non-interactive layout container with an explicit semantic action.\n\n```tsx\nimport styles from \"./Card.module.css\";\n\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  return (\n    <article className={styles.card}>\n      <div className={styles.content}>{children}</div>\n\n      <aside className={styles.sidebar}>sidebar</aside>\n\n      <button\n        type=\"button\"\n        className={styles.action}\n        onClick={onActivate}\n      >\n        Open card\n      </button>\n    </article>\n  );\n}\n```\n\nThe associated CSS should:\n\n```css\n.card {\n  container: card / inline-size;\n  display: grid;\n  grid-template-columns:\n    minmax(0, 1fr)\n    minmax(var(--card-sidebar-min), var(--card-sidebar-max));\n  inline-size: 100%;\n  max-inline-size: var(--card-max-inline-size);\n  padding: var(--space-card);\n  color: var(--color-text-primary);\n  background: var(--color-surface-accent);\n  border: var(--border-width-subtle) solid var(--color-border-subtle);\n  box-shadow: var(--shadow-card);\n}\n\n.content {\n  min-inline-size: 0;\n  font-size: clamp(\n    var(--font-size-body-min),\n    var(--font-size-body-fluid),\n    var(--font-size-body-max)\n  );\n}\n\n.sidebar {\n  color: var(--color-text-secondary);\n}\n\n.action {\n  color: var(--color-action);\n  outline-color: var(--color-focus-ring);\n}\n\n@container card (inline-size < 40rem) {\n  .card {\n    grid-template-columns: minmax(0, 1fr);\n  }\n}\n```\n\nHow this maps to the findings:\n\n- `accessible_interaction_risk`: remove `onClick` from the outer `<div>` and expose the action as a native `<button>`. It automatically supplies keyboard activation, focusability, and button semantics. Because `children` is unrestricted `ReactNode`, wrapping the entire card in a button could create invalid nested interactions; a dedicated action is safer. If the action navigates, use `<a href>` instead.\n- `design_token_escape`: move presentation out of JSX and replace the nine raw colors, spacing, shadow, and sizing literals with established theme tokens. The proposed token names are illustrative; their values should live in the shared theme, not be redefined locally as aliases for the same literals.\n- `responsive_fragility`: remove the fixed `800px`, `720px`, `600px`, and sidebar widths. Use `inline-size: 100%`, a tokenized maximum, `minmax(0, 1fr)`, fluid `clamp()` typography, and a container-query collapse based on the card’s available space.\n\nSince context found no likely tests, I’d add a component test verifying that the button is reachable by keyboard and activates with Enter/Space, plus a narrow-container layout test ensuring the card does not overflow. No files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:31:32.241Z",
+  "run_id": "bd9756d7-51fe-4531-aa5e-dd76f2e65a09",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to ground the refactor in the actual function signatures and preserve each module’s existing API. I’ll inspect the three sanitizers and their call sites, then propose the smallest consolidation.\n\nThe supplied scan already confirms the three-way duplicate; the first inspection command stopped because the referenced fixture path is not present in this checkout. I’m checking the runner’s local fixture layout for the source files before finalizing the API shape.\n\nThe global `crimes` binary is not installed in this environment, so I’m treating the provided JSON as the authoritative scan result and using the fixture source only to validate behavior and naming. The three bodies are behaviorally identical; no options object is needed.\n\nThe scan confirms a three-way near-duplicate:\n\n- `src/sanitize-a.ts:10–36` — `sanitizeUserInput`\n- `src/sanitize-b.ts:9–35` — `sanitizeText`\n- `src/sanitize-c.ts:9–35` — `cleanMessage`\n\nAll three perform the same trimming, control-character removal, whitespace normalization, length limiting, rejection checks, and uppercase normalization.\n\nI’d extract this canonical API:\n\n```ts\n// src/sanitize.ts\nexport function sanitizeText(\n  value: string | null | undefined,\n): string;\n```\n\nNo configuration is necessary because the implementations have no behavioral differences. The explicit nullable type also matches their existing runtime handling.\n\nFiles changed:\n\n- Add `src/sanitize.ts` containing the consolidated implementation.\n- Update `src/sanitize-a.ts` so `sanitizeUserInput` delegates to `sanitizeText`.\n- Update `src/sanitize-b.ts` to re-export the canonical `sanitizeText`.\n- Update `src/sanitize-c.ts` so `cleanMessage` delegates to `sanitizeText`.\n- Add or update tests for the shared function and compatibility wrappers, if tests exist.\n\nCompatibility wrappers should preserve the current public exports:\n\n```ts\n// sanitize-a.ts\nexport function sanitizeUserInput(value: string): string {\n  return sanitizeText(value);\n}\n\n// sanitize-b.ts\nexport { sanitizeText } from \"./sanitize.js\";\n\n// sanitize-c.ts\nexport function cleanMessage(value: string): string {\n  return sanitizeText(value);\n}\n```\n\nThe separate `\"admin\"` policy finding should be addressed independently; combining it with this extraction would unnecessarily broaden the refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

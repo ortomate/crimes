@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T01:26:49.295Z",
+  "run_id": "61af059a-3b22-4df7-b234-9a1525b4ed02",
+  "response": "`crimes verdict` first, since it changes how to read the list:\n\n```\nverdict: unchanged   new: 0   fixed: 0   unchanged: 37\n\"no maintainability change vs. base — verdict is advisory only.\"\n```\n\nNothing here is a regression from a pending change. All 37 findings are pre-existing debt, so triage is a burn-down plan, not a gate to clear — no finding gets promoted just because it's \"new.\"\n\n## Triage order (top 10 by aggregate risk)\n\n| # | ID | Charge | File | Category | Response |\n|---|----|--------|------|----------|----------|\n| 1 | `crime_00003` | Missing Agent Context | *(repo root)* | IA | **fix now** |\n| 2 | `crime_00001` | Temporal Recklessness (8×) | `src/date.ts` | structural | **fix now** |\n| 3 | `crime_00010` | Half-UTC, Half-Local | `src/date.ts:9,41` | structural | **fix now** |\n| 4 | `crime_00004` | String Sprinkles (`\"enterprise\"`) | `src/api/plan.ts` +3 | duplication | **fix now** |\n| 5 | `crime_00006` | Duplicated Navigation Source | `src/nav/registry.ts` | duplication / IA | **fix now** |\n| 6 | `crime_00007` | Route Metadata Drift | `src/routes/settings/billing.tsx` | frontend / IA | **fix now** |\n| 7 | `crime_00005` | God Function (204 lines) | `src/billing.ts:50` | structural | **defer** (blocked — see below) |\n| 8 | `crime_00002` | Return Shape Roulette | `src/petty.ts:21` | structural | defer |\n| 9 | `crime_00009` | Option Bag Junk Drawer | `src/petty.ts:10` | structural | defer |\n| 10 | `crime_00008` | Sync I/O in Hot Path | `src/api/files.ts:12` | structural | **ignore** (suppress with reason) |\n\nI reordered against the scan's own ranking in one place: `crime_00005` is the highest-severity structural finding (0.9) but drops to #7 because it can't be done safely yet.\n\n## Grouped, in the order I'd actually work them\n\n**Batch 1 — IA (1 finding, ~15 min).** `crime_00003`: write `AGENTS.md` covering the `messy` bin, the test command, and the layer conventions. This is first not because it's the worst but because every later batch is an agent-assisted edit into a repo that currently ships no instructions. Cheapest agent-risk reduction on the board.\n\n**Batch 2 — structural, time handling (2 findings, one file, one sitting).** `crime_00001` + `crime_00010` are both `src/date.ts` and both fixed by the same move: inject a clock at the domain boundary, then pick one Date family per receiver (UTC for storage, local only at display). Doing them together avoids touching the file twice. `crime_00012` (Timezone Roulette), `crime_00018` (DST-naive math), `crime_00026`, `crime_00027` are the same file and same edit session — pull them in for free, which clears 6 of 37 findings in one pass.\n\n**Batch 3 — duplication + frontend/IA (3 findings, one root cause).** `crime_00004`, `crime_00006`, `crime_00007` all trace to a single missing source of truth. `/settings/billing` is labelled four ways (\"Plans\", \"Billing\", \"Subscription\", `PricingPage`), and `\"enterprise\"` is hand-typed in four files across four layers. Fix as one change: a plan-constants module plus a canonical nav registry that routes derive from. Fixing `crime_00006` alone leaves `crime_00007` stale, so don't split them.\n\n**Deferred — structural, blocked on test signal.** `crime_00005` (God Function) is the highest-severity finding at 0.9, and its `test_gap` score is **0** — but that score is wrong in a way worth knowing about. `src/billing.test.ts` has two tests, and both are flagged separately (`crime_00025`, `crime_00034`). Reading the file: `renderEnterprisePlan()` and `createInvoice()` are stubs defined inside the test file itself. Neither test imports `src/billing.ts`. `generateInvoice` has **zero** real coverage, and the scoring model reads it as covered because a test file exists alongside it.\n\nSo splitting a 204-line function here is an unprotected refactor. Sequence: fix `crime_00025` + `crime_00034` (write tests that actually call `generateInvoice`) → then extract helpers. Promote `crime_00005` to fix-now the moment there are real assertions.\n\n`crime_00002` and `crime_00009` are both `src/petty.ts`, both low severity, no importers, no blast radius. Genuine cleanups, no urgency — batch them into whatever change next touches that file.\n\n**Ignore — `crime_00008`.** The detector calls `loadPlanSchema` a hot path; it isn't. It's a one-shot schema load with no loop and no request context, where blocking is the correct behaviour. Suppress it with that reason recorded. Note the actual bug in that file is one line up: `crime_00017`, a hardcoded `/Users/andrew/...` path that makes `existsSync` return false on every machine but one — so the function silently returns `null` in CI and in prod. That ranks #17 on aggregate risk and is a two-minute fix; I'd pull it forward into Batch 1.\n\n**Git-history — empty, and that's a measurement gap.** All 37 findings report `churn: 0`, `recency: 0`, `blast_radius: 0`. No hotspot, bug-fix-churn, or frequently-changed-and-weakly-tested finding appears anywhere in the report. This ordering is therefore built on severity × confidence × agent_risk alone, with a third of the scoring model contributing nothing. On a real repo with history, churn would likely reshuffle the middle of this list — `src/billing.ts` in particular would probably climb. Treat the ordering above as confident at the top and bottom, soft in the middle.\n\n**Frontend is under-represented in the top 10.** The highest-severity frontend finding is `crime_00032` (SVG with embedded raster, severity 0.75, confidence 0.95) — it ranks #22 overall only because `agent_risk` is 0.24. Aggregate ranking is doing its job, but if the goal for this pass were page weight rather than agent safety, `crime_00032`, `crime_00037` (254 KB hero PNG), and `crime_00036` would be the batch to run instead.\n\n**Net:** Batches 1–3 plus `crime_00017` clear 11 of 37 findings, including both remaining highs that are safe to touch, in roughly half a day.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "missing_agent_context",
+        "passed": false
+      }
+    ]
+  }
+}
