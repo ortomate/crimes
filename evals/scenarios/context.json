@@ -131,11 +131,10 @@
     "kind": "context",
     "prompt": "You have been asked to change how ledger entries are reversed in this package. Before touching anything, use crimes to work out what protection you have if you get it wrong, and what else your change could affect. Report what you learned.",
     "expected_artifacts": {
-      "referenced_findings": [],
       "referenced_files": [
-        "billing/ledger.py"
-      ],
-      "expected_priority": ""
+        "billing/ledger.py",
+        "billing/reporting.py"
+      ]
     },
     "judge_questions": [
       "Did the agent determine that ledger.py has no test file of its own?",

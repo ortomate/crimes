@@ -275,6 +275,49 @@ try {
     `  → ${hotReport.hotspots.length} hotspots, git_available=${hotReport.git_available}\n`,
   );
 
+  // The Python pack is the one part of the CLI whose correctness depends on
+  // files that are *not* bundled into dist/index.js: two WASM blobs that have
+  // to be listed in `files`, copied into dist/ at build time, and located at
+  // runtime from inside the bundle. Every other smoke assertion above would
+  // still pass with all of that broken — the JS fixture never touches it — so
+  // a packaging regression would ship silently. Hence: scan real Python from
+  // the installed tarball and require that the pack actually claimed it.
+  step("crimes scan on a Python fixture (exercises the vendored WASM grammar)");
+  const pyFixture = resolve(repoRoot, "evals", "fixtures", "11-py-service");
+  const pyJsonOut = run(installedBin, [
+    "scan",
+    pyFixture,
+    "--format",
+    "json",
+  ]).stdout;
+  const pyReport = JSON.parse(pyJsonOut);
+  assert(
+    pyReport.coverage?.packs_loaded?.includes("language-py"),
+    "python scan: coverage.packs_loaded is missing language-py",
+  );
+  assert(
+    (pyReport.coverage?.files_by_language?.py ?? 0) > 0,
+    "python scan: coverage.files_by_language.py is zero — the pack claimed no files",
+  );
+  const pyFindings = pyReport.findings.filter((f) => f.pack === "language-py");
+  assert(
+    pyFindings.length > 0,
+    "python scan: no language-py findings — the grammar probably failed to load",
+  );
+  // blast_radius is derived from the Python import graph. If module
+  // resolution silently returned nothing, every finding scores 0 here and the
+  // whole pack quietly under-ranks — which is exactly the failure 0.14.0
+  // exists to avoid, so assert the graph produced at least one edge.
+  assert(
+    pyFindings.some((f) => (f.scores?.blast_radius ?? 0) > 0),
+    "python scan: every finding has blast_radius 0 — the Python import graph resolved nothing",
+  );
+  process.stdout.write(
+    `  → ${pyReport.coverage.files_by_language.py} python files, ` +
+      `${pyFindings.length} language-py findings, ` +
+      `packs=${pyReport.coverage.packs_loaded.join("+")}\n`,
+  );
+
   process.stdout.write(`\n✓ smoke test passed (crimes@${expectedVersion})\n`);
 } finally {
   if (installRoot) rmSync(installRoot, { recursive: true, force: true });
