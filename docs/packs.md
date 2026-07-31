@@ -220,6 +220,30 @@ team, called a workspace in the UI" — suppresses the finding. That is
 intentional. A codebase that documents its own mapping where a reader
 will find it has this problem far less than one that does not.
 
+### `crimes context` in a monorepo
+
+`crimes context <file>` auto-scopes to the nearest enclosing package
+root, which keeps the pre-edit briefing fast. In a monorepo that root
+is one package — so the other language is not in scope, and the
+cross-language detectors correctly decline to fire one-sided:
+
+```console
+$ crimes context packages/api/billing/plans.py
+risk: NONE  (0 findings)          # scoped to packages/api — Python only
+
+$ crimes context packages/api/billing/plans.py --root .
+risk: HIGH  (2 findings)          # whole monorepo in scope
+```
+
+Pass `--root` at the monorepo root when you want cross-language
+findings from `context`. `crimes scan` is unaffected — it uses the root
+you give it, so cross-language findings appear normally there.
+
+This is a deliberate trade rather than an oversight: widening the
+context root automatically would make every `crimes context` call parse
+the entire monorepo, including the `PreToolUse` hook that runs on every
+agent edit.
+
 ## Coverage
 
 Every `ScanReport.coverage` block reports how many files each pack

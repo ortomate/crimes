@@ -777,4 +777,39 @@ describe("context — universal pack on unsupported extensions", () => {
     expect(report.agent_guidance_reason).toMatch(/no language pack claims \.rs files/);
     expect(report.agent_guidance_reason).toMatch(/universal-pack findings only/i);
   });
+
+  describe("language-py findings reach crimes context", () => {
+    it("reports Python findings that `crimes scan` reports", async () => {
+      // Shipped broken in 0.14.0: `runDetectorsOnTarget` handled only
+      // the universal and language-js packs, so `crimes context` on a
+      // Python file reported "risk: NONE (0 findings)" for a file scan
+      // reported four findings on. Parsing a .py file with the TS
+      // parser yields an empty ParsedFile rather than an error, which
+      // is why nothing surfaced the gap.
+      const root = await makeRepo({
+        "pyproject.toml": '[project]\nname = "demo"\n',
+        "svc/billing.py":
+          "from datetime import datetime\n\n" +
+          "def stamp():\n" +
+          "    start = datetime.utcnow()\n" +
+          "    end = datetime.now()\n" +
+          "    return end - start\n",
+      });
+      const report = await context({ root, file: "svc/billing.py" });
+      expect(report.findings.length).toBeGreaterThan(0);
+      expect(report.findings.map((f) => f.detector_id)).toContain(
+        "mixed_utc_local_methods.py",
+      );
+      expect(report.risk).not.toBe("none");
+    });
+
+    it("still reports nothing for a Python file that is genuinely clean", async () => {
+      const root = await makeRepo({
+        "pyproject.toml": '[project]\nname = "demo"\n',
+        "svc/constants.py": "MAX_RETRIES = 3\n",
+      });
+      const report = await context({ root, file: "svc/constants.py" });
+      expect(report.findings).toEqual([]);
+    });
+  });
 });
