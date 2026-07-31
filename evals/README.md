@@ -174,21 +174,27 @@ Three full runs of **identical code and scorer**
 
 | level | claude | codex |
 |-------|--------|-------|
-| per-agent aggregate | mean 0.901, σ 0.041 | mean 0.592, σ 0.083 |
+| `summary.json` per-agent rate | 0.87 / 0.84 / 0.91 → σ 0.029 | 0.65 / 0.62 / 0.64 → σ 0.012 |
+| mean of per-scenario means (`evals:variance`) | 0.901, avg per-scenario σ 0.041 | 0.592, avg per-scenario σ 0.083 |
 | per-scenario-kind, worst observed range | 0.25 (`plan`) | 0.15 (`bugfix`, `plan`) |
 | per-scenario-kind, best | 0.00 (`context`) | 0.00 (`context`) |
 
 Read this as:
 
-- **Per-agent aggregate is usable.** Treat moves under ~6pp as noise.
+- **The per-agent aggregate is the number to trust.** A 2σ band is
+  roughly ±0.06 for claude and ±0.03 for codex, so treat aggregate
+  moves under ~6pp as noise.
 - **`per_scenario_kind` is not interpretable at current scenario
   counts.** Each kind holds only 7–8 scenarios, so one flipped
   assertion moves it 8–15pp, and `plan`/claude ranged 0.64–0.88 across
   three identical runs. Do not quote it in release notes as evidence of
   improvement or regression without repeat samples.
-- **codex is roughly twice as noisy as claude** (σ 0.083 vs 0.041).
-  Agent-to-agent comparisons need more samples than version-to-version
-  ones.
+- **Per-scenario noise and aggregate noise point in opposite
+  directions.** codex is about twice as noisy as claude on any single
+  scenario (avg σ 0.083 vs 0.041), yet its aggregate is the *steadier*
+  of the two (σ 0.012 vs 0.029) because those per-scenario errors
+  cancel. Don't infer aggregate stability from per-scenario stability,
+  or the reverse.
 
 The investigation that produced these numbers began with an apparent
 5-point drop between 0.10.5 and 0.12.0, including `bugfix`/claude
