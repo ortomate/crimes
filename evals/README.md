@@ -249,6 +249,26 @@ of the response. `agents/codex-transcript.ts` reduces the stream to
 affected (`--output-format json` yields one envelope), so agent-vs-agent
 comparisons before this fix were not like-for-like.
 
+**The scorer only sees extensions it was told about.**
+`extractFilePaths` matches a fixed extension list. A `referenced_files`
+expectation naming an extension missing from that list fails *silently*
+— the check records `observed: null` and counts as a miss, even when
+the agent quoted the path verbatim. There is no error, just a lower
+number.
+
+This has bitten twice. 0.8.0 added the asset extensions after
+image-referencing scenarios scored 0 on files the agent had named
+correctly. 0.14.0 added `py` / `pyi`: every Python scenario's file
+checks failed automatically, and the one scenario resting entirely on
+file references scored a hard 0.00 for both agents. The uncorrected
+numbers said codex had collapsed on Python (0.089); re-scoring the same
+responses gave 0.261, and claude went 0.497 → 0.967.
+
+**Adding a language pack means adding its extensions to
+`SCORED_FILE_EXTENSIONS` in `score.ts`.** It is pre-seeded with several
+languages that have no pack yet, so the next one fails loudly on its
+detectors rather than quietly on its scoring.
+
 **Paths the prompt supplies are not scored.** Over half the
 `referenced_files` expectations name a file the scenario prompt already
 gave the agent ("Use `crimes context src/date.ts` … which helper should
