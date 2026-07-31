@@ -1,4 +1,5 @@
 import type { ParsedFile } from "@crimes/language-js";
+import type { ParsedPyFile } from "@crimes/language-py";
 import type { z } from "zod";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
 import type { CrimesConfig } from "./config.js";
@@ -56,6 +57,10 @@ export type Detector =
   | (BaseDetector & {
       pack: "language-js";
       run(ctx: LanguageJsDetectorContext): Promise<PreFinding[]> | PreFinding[];
+    })
+  | (BaseDetector & {
+      pack: "language-py";
+      run(ctx: LanguagePyDetectorContext): Promise<PreFinding[]> | PreFinding[];
     });
 
 /**
@@ -71,6 +76,13 @@ export type UniversalDetector = Extract<Detector, { pack: "universal" }>;
  * unit tests and in the language-js scan pipeline.
  */
 export type LanguageJsDetector = Extract<Detector, { pack: "language-js" }>;
+
+/**
+ * Convenience alias for the language-py branch of the `Detector` union.
+ * Use this type when you know you have a Python detector, e.g. in unit
+ * tests and in the language-py scan pipeline.
+ */
+export type LanguagePyDetector = Extract<Detector, { pack: "language-py" }>;
 
 /**
  * An asset detector inspects files that aren't TS/JS source — images,
@@ -141,13 +153,16 @@ export interface AssetDetectorContext {
  *
  *  - `kind: "universal"` → fed to detectors with `pack: "universal"`
  *  - `kind: "language-js"` → fed to detectors with `pack: "language-js"`
- *  - (future) `kind: "language-py"` → 0.13.0
- *  - (future) `kind: "cross-language"` → 0.14.0
+ *  - `kind: "language-py"` → fed to detectors with `pack: "language-py"`
+ *  - (future) `kind: "cross-language"` → 0.15.0
  *
  * Detectors declare the kind they expect via their `pack` field;
  * the registry only feeds them the matching context.
  */
-export type DetectorContext = UniversalDetectorContext | LanguageJsDetectorContext;
+export type DetectorContext =
+  | UniversalDetectorContext
+  | LanguageJsDetectorContext
+  | LanguagePyDetectorContext;
 
 export interface UniversalDetectorContext {
   kind: "universal";
@@ -261,6 +276,57 @@ export interface LanguageJsDetectorContext {
    * finalisation happens after `run()` returns — but it is exposed
    * here for advanced detectors that want to gate behaviour on the
    * scoring signal.
+   */
+  scoring?: ScoringContext;
+}
+
+/**
+ * Language-py context. Carries the `ParsedPyFile` from
+ * `@crimes/language-py` plus the cross-file indexes that are genuinely
+ * language-agnostic.
+ *
+ * Note what is deliberately *absent* relative to the JS context:
+ * `jsxShapeIndex` and `functionHashIndex` are TS/JS-specific artefacts,
+ * and threading them here "for symmetry" would be exactly the
+ * JS-shaped-abstraction failure this release exists to disprove. The
+ * `imports` graph, by contrast, **is** shared: `packages/core` resolves
+ * Python module paths via `@crimes/language-py` and merges the resulting
+ * edges into the same `ImportGraph`, so `circular_dependency.py`,
+ * `deep_import.py`, and `scores.blast_radius` all read one graph
+ * regardless of which pack produced a given edge.
+ */
+export interface LanguagePyDetectorContext {
+  kind: "language-py";
+  /** Repo-relative path with forward slashes. */
+  file: string;
+  /** Absolute path on disk. */
+  absolutePath: string;
+  /** Raw file source. */
+  source: string;
+  /** Parsed Python surface — see `@crimes/language-py`. */
+  parsed: ParsedPyFile;
+  /** Resolved config (already merged with defaults). */
+  config: CrimesConfig;
+  /**
+   * Optional repo-level IA signal index. Populated by `scan` and
+   * `context`; absent in unit-test stubs.
+   */
+  ia?: IaIndex;
+  /**
+   * Optional repo-level petty-crimes signal index. Populated by `scan`
+   * and `context`; absent in unit-test stubs.
+   */
+  petty?: PettyIndex;
+  /**
+   * Optional repo-level import graph, carrying both JS and Python edges.
+   * Populated by `scan` and `context`; absent in unit-test stubs that
+   * don't exercise cross-file dependency analysis.
+   */
+  imports?: ImportGraph;
+  /**
+   * Optional per-file scoring context. Same contract as the JS context —
+   * finalisation happens after `run()` returns, so detectors rarely need
+   * to read it directly.
    */
   scoring?: ScoringContext;
 }

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "tsup";
+// @ts-expect-error -- plain .mjs build helper owned by @crimes/language-py.
+import { copyWasmAssets } from "../language-py/scripts/copy-wasm.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -48,5 +50,14 @@ export default defineConfig({
   },
   define: {
     __CRIMES_VERSION__: JSON.stringify(pkg.version),
+  },
+  // The Python pack's two WASM assets travel with the bundle. They are
+  // data, not code, so esbuild can't inline them — and once the pack is
+  // bundled into dist/index.js it is no longer next to its own
+  // node_modules. `@crimes/language-py`'s grammar loader resolves both by
+  // walking up from wherever it runs, so landing them in dist/ is what
+  // makes the published single-file CLI able to parse Python at all.
+  async onSuccess() {
+    copyWasmAssets(resolve(here, "dist"));
   },
 });

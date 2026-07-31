@@ -1,8 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { relative, sep } from "node:path";
 import { parseFile } from "@crimes/language-js";
+import { parsePyFile } from "@crimes/language-py";
 import type { CrimesConfig } from "./config.js";
-import type { Detector, LanguageJsDetectorContext } from "./detector.js";
+import type {
+  Detector,
+  LanguageJsDetectorContext,
+  LanguagePyDetectorContext,
+} from "./detector.js";
 import { groupDetectorsByPack } from "./detector-registry.js";
 import { buildUniversalContext } from "./discovery/universal-context.js";
 import type { LanguagePackRouter } from "./discovery/language-pack-router.js";
@@ -139,6 +144,37 @@ export async function runDetectorsForFile(args: {
     };
     for (const detector of jsDetectors) {
       const detectorFindings = await detector.run(jsCtx);
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
+    }
+  }
+
+  // Language-py pack: runs only when the Python pack claims the file's
+  // extension. Same shape as the JS branch above — the routing seam is
+  // the point of this release, so the two read identically.
+  const pyDetectors = args.grouped["language-py"] ?? [];
+  if (
+    pyDetectors.length > 0 &&
+    args.langPack.claims("language-py", args.absolutePath)
+  ) {
+    const source = await readFile(args.absolutePath, "utf8");
+    const parsed = await parsePyFile({
+      absolutePath: args.absolutePath,
+      source,
+    });
+    const pyCtx: LanguagePyDetectorContext = {
+      kind: "language-py",
+      file,
+      absolutePath: args.absolutePath,
+      source,
+      parsed,
+      config: args.config,
+      ia: args.indexes.ia,
+      petty: args.indexes.petty,
+      imports: args.indexes.imports,
+      scoring: args.indexes.scoring,
+    };
+    for (const detector of pyDetectors) {
+      const detectorFindings = await detector.run(pyCtx);
       findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
     }
   }

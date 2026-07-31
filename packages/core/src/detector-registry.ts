@@ -3,6 +3,7 @@ import type {
   AssetDetector,
   Detector,
   LanguageJsDetector,
+  LanguagePyDetector,
   UniversalDetector,
 } from "./detector.js";
 import type { Pack } from "./pack.js";
@@ -255,6 +256,7 @@ export class UnknownDetectorError extends Error {
 export interface GroupedDetectors {
   universal?: UniversalDetector[];
   "language-js"?: LanguageJsDetector[];
+  "language-py"?: LanguagePyDetector[];
 }
 
 /**
@@ -283,6 +285,10 @@ export function groupDetectorsByPack(
       const bucket = grouped["language-js"] ?? [];
       bucket.push(d as LanguageJsDetector);
       grouped["language-js"] = bucket;
+    } else if (d.pack === "language-py") {
+      const bucket = grouped["language-py"] ?? [];
+      bucket.push(d as LanguagePyDetector);
+      grouped["language-py"] = bucket;
     }
   }
   return grouped;

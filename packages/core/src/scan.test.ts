@@ -855,7 +855,7 @@ describe("scan — universal pack execution", () => {
 });
 
 describe("scan — ScanReport.coverage", () => {
-  it("counts JS files under language-js and non-JS under universal-only", async () => {
+  it("counts files under the pack that claims them, and the rest as universal-only", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-cov-"));
     try {
       await writeFile(join(root, "a.ts"), "const x = 1;\n");
@@ -872,9 +872,20 @@ describe("scan — ScanReport.coverage", () => {
       });
       expect(report.coverage).toBeDefined();
       expect(report.coverage?.files_total).toBe(5);
-      expect(report.coverage?.files_by_language).toEqual({ js: 2 });
-      expect(report.coverage?.files_universal_only).toBe(3);
-      expect(report.coverage?.packs_loaded).toEqual(["universal", "language-js"]);
+      // `py: 1` from 0.14.0 — before the Python pack, `c.py` counted as
+      // universal-only. This is the coverage block becoming meaningful
+      // for a mixed-language repo, which is the point of the release.
+      expect(report.coverage?.files_by_language).toEqual({ js: 2, py: 1 });
+      expect(report.coverage?.files_universal_only).toBe(2);
+      expect(report.coverage?.universal_only_by_extension).toEqual({
+        ".rs": 1,
+        ".md": 1,
+      });
+      expect(report.coverage?.packs_loaded).toEqual([
+        "universal",
+        "language-js",
+        "language-py",
+      ]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

@@ -1,4 +1,5 @@
 import { extname } from "node:path";
+import { PY_EXTENSIONS } from "@crimes/language-py";
 import type { Pack } from "../pack.js";
 
 /**
@@ -37,8 +38,16 @@ export interface LanguagePackRouter {
 
 const packExtensions = new Map<Pack, Set<string>>();
 
-// Seed defaults — JS pack always present in core.
+// Seed the packs that ship in-tree. Each pack owns its own claim list —
+// `PY_EXTENSIONS` lives in `@crimes/language-py`, not here — so there is
+// still exactly one source of truth per language and `coverage` derives
+// from this router rather than from a parallel literal.
+//
+// The import is a type-and-constant import only: `@crimes/language-py`
+// defers `web-tree-sitter` behind a dynamic import, so seeding the
+// router here costs a JS-only scan nothing.
 packExtensions.set("language-js", new Set<string>(JS_EXTENSIONS));
+packExtensions.set("language-py", new Set<string>(PY_EXTENSIONS));
 
 /**
  * Idempotently register a pack's extension claim list. Subsequent calls

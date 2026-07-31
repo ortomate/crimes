@@ -15,6 +15,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import ts from "typescript";
+import { buildPythonImportEdges } from "./python.js";
 import type { ImportEdge, ImportGraph } from "./types.js";
 
 const SOURCE_EXT_RE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
@@ -81,6 +82,23 @@ export async function buildImportGraph(
   const inMap = new Map<string, ImportEdge[]>();
   const files = new Set<string>();
 
+  // Python edges are resolved by `@crimes/language-py` and merged into
+  // this same graph. Every downstream consumer — cycle detection, fan-in
+  // / fan-out, and `scores.blast_radius` — is language-agnostic, so a
+  // Python module imported by 30 others earns the same blast radius a TS
+  // module would. Added in 0.14.0; before that Python scored 0.
+  const python = await buildPythonImportEdges({
+    root,
+    files: options.files,
+    maxFiles,
+  });
+  edges.push(...python.edges);
+  // Register every Python file, not just the ones that import something —
+  // a leaf module with zero imports is still a node other files point at.
+  for (const abs of options.files) {
+    if (/\.pyi?$/.test(abs)) files.add(toRepoPath(root, abs));
+  }
+
   await Promise.all(
     sourceFiles.map(async (abs) => {
       const fromRel = toRepoPath(root, abs);
@@ -129,7 +147,7 @@ export async function buildImportGraph(
     in: inMap,
     files,
   };
-  if (limited) {
+  if (limited || python.limited) {
     graph.limited = true;
     graph.limitedReason =
       `import graph truncated to first ${maxFiles} source files; ` +
