@@ -129,41 +129,53 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.12.0`
+## Status — `crimes@0.13.0`
 
-`crimes@0.12.0` is the latest published version on npm. It introduces
-the **universal pack**: detectors that run on every file in every repo
-without an AST. `crimes scan` on a Python, Go, Rust, or any non-JS
-repo now produces real findings (large files, raster assets, localhost
-leaks, docs drift, missing agent context, TODO density, commented-out
-code) plus a coverage banner explaining the gap, instead of an empty
-report. Schema bumps `0.2.0` → `0.3.0` adding required `Finding.pack`
-+ `Finding.detector_id` and optional `ScanReport.coverage`. Release
+`crimes@0.13.0` is the latest published version on npm. It is the
+**ranking release**: no new detectors, but a substantial change to
+which findings surface first.
+
+`agent_risk` — the score that separates "this file is long" from "an
+agent will get this wrong" — had collapsed into `severity`
+(correlation 0.79) while ignoring `blast_radius` (0.06), the exact
+failure `PRD.md` §10 says must not happen. The formula now leads with
+the detector's own judgement, which 30 of 48 detectors were computing
+and having discarded on every scan. Severity correlation is now 0.18,
+blast radius 0.48. Release notes:
+[`docs/releases/v0.13.0.md`](./docs/releases/v0.13.0.md). Previous
+release: [`docs/releases/v0.12.0.md`](./docs/releases/v0.12.0.md).
+
+What's in `0.13.0`:
+
+- **`agent_risk` reweighted.** `0.40*intrinsic + 0.20*churn +
+  0.20*test_gap + 0.20*blast_radius`, where `intrinsic` is the
+  detector's own agent-risk judgement. Severity and confidence are no
+  longer terms. **Expect your rankings to move** — the findings are the
+  same, the order is not. Fingerprints are unchanged, so baselines,
+  suppressions, triage and feedback all carry over.
+- **`test_gap` no longer fires on non-code files.** Markdown, JSON and
+  YAML scored "no test at all" and were ranked against code, pushing
+  documentation to the top of scans. Files no language pack claims now
+  score 0 and leave the quartile population.
+- **`coverage.universal_only_by_extension`.** A histogram of the
+  universal-only bucket by extension, printed largest-first by
+  `--explain-coverage`. Answers which language pack would buy the most
+  coverage in your repo. Optional field, additive to schema `0.3.0`.
+- **`crimes triage` records calibration feedback.** Dispositions imply
+  a verdict, so the feedback loop fills up as a byproduct of triage
+  instead of requiring a second command per finding. `wont-fix` is
+  ambiguous, so it asks rather than guessing.
+- **`pnpm ci` → `pnpm verify`.** pnpm reserves `ci`, so the documented
+  verification gate never ran the workspace script.
+- **Eval harness correctness.** Codex responses were being scored as
+  raw JSONL transcripts (82–84% tool output, vs 0% for claude), and
+  `referenced_files` credited agents for restating paths the prompt
+  supplied. Both fixed; the apparent 0.10.5 → 0.12.0 regression was
+  measurement error and disappears once corrected. A measured noise
+  band is now published in `evals/README.md`.
+
+Earlier `0.12.0` work (_universal pack_) remains shipped. Release
 notes: [`docs/releases/v0.12.0.md`](./docs/releases/v0.12.0.md).
-Previous release:
-[`docs/releases/v0.11.1.md`](./docs/releases/v0.11.1.md).
-
-What's in `0.12.0`:
-
-- **Universal pack.** `crimes scan` on a Python, Go, Rust, or any
-  non-JS repo now produces real findings. Universal-pack detectors
-  (large files, raster assets, localhost/local-path leaks, duplicate
-  filenames, docs-code drift, missing agent context, TODO density,
-  commented-out code) run on every file without an AST. JS/TS
-  behaviour is byte-identical to 0.11.1.
-- **Coverage banner + `--explain-coverage`.** Human output prints a
-  one-line banner when >50% of discovered files are universal-only.
-  `--explain-coverage` prints the full per-pack file-count breakdown
-  and explains what universal-only files lose (no `large_function`,
-  `circular_dependency`, etc.).
-- **`crimes context <unsupported.rs>`.** Returns universal-pack
-  findings + git/IA context with a guidance note about the language
-  gap, instead of an empty report.
-- **Schema bump `0.2.0` → `0.3.0`.** `Finding.pack` and
-  `Finding.detector_id` are now required on every finding.
-  `ScanReport.coverage` is optional and present when ≥1 file was
-  discovered. JSON consumers that pinned to `"0.2.0"` must accept
-  `"0.3.0"`. Fingerprints and baselines are unchanged.
 
 Earlier `0.10.0` work (_Release A front-door redesign_) remains
 shipped. Release notes:

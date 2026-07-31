@@ -338,7 +338,26 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.12.0 — universal pack (current release)
+## 0.13.0 — the ranking release (current release)
+
+No new detectors; a substantial change to which findings surface first.
+`agent_risk` had collapsed into `severity` (correlation 0.79) while
+ignoring `blast_radius` (0.06) — the failure PRD §10 says must not
+happen. The formula is now
+`0.40*intrinsic + 0.20*churn + 0.20*test_gap + 0.20*blast_radius`,
+where `intrinsic` is the detector's own agent-risk judgement, which 30
+of 48 detectors computed and had discarded every scan. Severity
+correlation is now 0.18, blast radius 0.48. `test_gap` no longer scores
+markdown/JSON/YAML, which had been pushing docs to the top of scans.
+New optional field `coverage.universal_only_by_extension` answers which
+language pack would buy the most coverage. `crimes triage` now records
+calibration feedback as a byproduct. Rankings move; fingerprints do
+not, so baselines, suppressions and triage carry over.
+
+Release notes:
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.13.0.md
+
+## 0.12.0 — universal pack
 
 Universal-pack detectors now run on every file in every repo without
 needing an AST. `crimes scan` on Python, Go, Rust, or any non-JS repo

@@ -4,17 +4,23 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.12.0` (npm) ✅ shipped —
-  universal pack: first release of the wider-codebase-support arc.
-  `crimes scan` now works on any repo; universal-pack findings carry the
-  same confidence as language-pack ones, just from less evidence.
-  Schema bump `0.2.0` → `0.3.0` adding required `Finding.pack` +
-  `Finding.detector_id` and optional `ScanReport.coverage`.
-  `packages/cli/package.json` tracks the latest shipped version. Release
-  notes: [`docs/releases/v0.12.0.md`](./docs/releases/v0.12.0.md).
-  Previous: `crimes@0.11.1` — first calibration patch on _triage as the
-  front door_ (Release B). Patch notes:
-  [`docs/releases/v0.11.1.md`](./docs/releases/v0.11.1.md).
+- **Last published version:** `crimes@0.13.0` (npm) ✅ shipped — the
+  ranking release. No new detectors; `agent_risk` had collapsed into
+  `severity` (correlation 0.79) while ignoring `blast_radius` (0.06),
+  the failure `PRD.md` §10 says must not happen. The formula now leads
+  with the detector's own agent-risk judgement, which 30 of 48
+  detectors computed and had discarded on every scan. `test_gap` no
+  longer scores non-code files. Adds optional
+  `coverage.universal_only_by_extension` (the language-pack demand
+  signal) and automatic calibration feedback from `crimes triage`.
+  Schema stays `0.3.0`; fingerprints unchanged. Release notes:
+  [`docs/releases/v0.13.0.md`](./releases/v0.13.0.md).
+  Previous: `crimes@0.12.0` — universal pack, the first release of the
+  wider-codebase-support arc. `crimes scan` works on any repo; schema
+  bump `0.2.0` → `0.3.0` adding required `Finding.pack` +
+  `Finding.detector_id` and optional `ScanReport.coverage`. Release
+  notes: [`docs/releases/v0.12.0.md`](./releases/v0.12.0.md).
+  `packages/cli/package.json` tracks the latest shipped version.
 - **Previously shipped milestones:** `crimes@0.10.0` — _front-door
   redesign_ (Release A): file-grouped `scan` layout, repo-relative
   `test_gap` quartile, recency-weighted ranking, `scopeTiers.nonDomain`,
@@ -1152,14 +1158,16 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
 ## 🚧 Planned for later versions
 
-### Wider codebase support — `0.13.0` → `0.14.0`
+### Wider codebase support — `0.14.0` → `0.15.0`
 
 > **Design spec:**
 > [`docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md`](./superpowers/specs/2026-05-22-wider-codebase-support-design.md).
 > The universal-pack arc shipped in `0.12.0`. Two releases remain.
+> Renumbered when the ranking work took `0.13.0`: the Python pack is
+> now `0.14.0` and polyglot IA is `0.15.0`.
 > Schema stays at `0.3.0`; subsequent releases are additive.
 
-- **`crimes@0.13.0` — Python language pack.** New
+- **`crimes@0.14.0` — Python language pack.** New
   `packages/language-py/` using `tree-sitter-python` (no Python
   runtime required at install / scan time). Ports eight detectors as
   the seam-proving slate: `large_function.py`, `direct_date.py`,
@@ -1168,7 +1176,27 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
   `boolean_naming_drift.py`. Eval harness gains 6 Python scenarios +
   2 fixtures. `Finding.detector_id` carries the qualified form
   (`large_function.py`); `Finding.type` stays abstract.
-- **`crimes@0.14.0` — polyglot IA + monorepo coverage.** Three new
+
+> **Known blockers for the Python pack, found while shipping 0.13.0.**
+> These are consequences of the 0.13.0 scoring work meeting the
+> incoming pack, so they are not in the original design spec:
+>
+> 1. `test_gap` sibling detection strips `.test`/`.spec` suffixes.
+>    Python uses a prefix (`test_billing.py` covers `billing.py`), so
+>    it never matches, and the fallback path needs an import graph
+>    Python lacks. Every Python file would score "no test at all", and
+>    `test_gap` is 0.20 of `agent_risk`.
+> 2. `imports/build.ts` is TypeScript-only (tsconfig resolution,
+>    `ts.ScriptKind`). `blast_radius` would be 0 for all Python, and
+>    `circular_dependency.py` / `deep_import.py` are 2 of the 8
+>    detectors on the slate — they need new resolution
+>    infrastructure, not a port. Decide explicitly whether to build a
+>    Python import graph or ship 6 detectors and declare the gap.
+> 3. Detectors must set their own `scores.agent_risk`. Since 0.13.0 it
+>    is the heaviest input (0.40); detectors that omit it fall back to
+>    a compressed severity default and rank below their peers.
+
+- **`crimes@0.15.0` — polyglot IA + monorepo coverage.** Three new
   cross-language detectors: `cross_language_concept_alias_drift`,
   `cross_language_route_drift` (FastAPI / Django / Flask routes
   matched against TS fetch sites + nav labels),
@@ -1180,8 +1208,8 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
   linter — no single-language tool produces these findings.
 
 Explicitly **not** in this arc: other language packs (Go / Rust /
-Java each get their own future minor releases on the 0.13.0
-template), cross-language import graph (deferred to 0.15.0+), LLM-
+Java each get their own future minor releases on the 0.14.0
+template), cross-language import graph (deferred to 0.16.0+), LLM-
 assisted modes (PRD §26, still deferred), Homebrew / standalone
 binaries (M6, independent track).
 

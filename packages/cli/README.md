@@ -15,6 +15,20 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.13.0` headline:** the ranking release. `agent_risk` — the score
+that separates "this file is long" from "an agent will get this wrong"
+— had collapsed into `severity` (correlation 0.79) while ignoring
+`blast_radius` (0.06). It now leads with the detector's own
+agent-risk judgement, which 30 of 48 detectors were computing and
+having discarded on every scan. `test_gap` no longer fires on markdown
+and JSON, which had been pushing documentation to the top of scans.
+Expect rankings to move; fingerprints are unchanged so baselines,
+suppressions and triage carry over. `crimes triage` now records
+calibration feedback automatically, and `--explain-coverage` breaks
+universal-only files down by extension so you can see which language
+pack would buy the most coverage. **`0.12.0` headline:** the universal
+pack — `crimes scan` produces real findings on Python, Go, Rust or any
+non-JS repo without an AST, plus a coverage banner explaining the gap.
 **`0.11.1` headline:** first calibration patch on `0.11.0`: compact
 hook output for pre-edit briefings, capped `hotspots --format json`
 with hidden counts, scan headers that show severity buckets up front,
