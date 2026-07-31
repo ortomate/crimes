@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:09:07.032Z",
+  "run_id": "bca33782-1a1a-432b-8ab4-139ba3fe6028",
+  "response": "## Confirmation\n\nScan reproduces clean (5 findings, 3 medium). Reading the three files confirms the detector is right, and adds one thing the JSON can't tell you:\n\n**The three sanitise bodies are byte-identical modulo variable names.** `sanitizeUserInput(raw)`, `sanitizeText(input)`, and `cleanMessage(value)` differ only in the identifiers `raw`/`working`, `input`/`cleaned`, `value`/`normalised`. Same trim, same control-char strip, same 1000-char cap, same `<`/`>` and `\\x` rejections, same `[!?]{3,}` count > 5 rule, same 0.9 upper-ratio + length > 30 lowercasing. There are **no differing values to parameterise** — the `fix_shape` hint (\"pass the differing values as args\") doesn't apply here; it's a straight three-into-one merge.\n\n**The admin guards next to them are *not* identical, and that's the trap.** `crime_00003` groups them, but they have three different meanings:\n\n| File | Guard | Semantics |\n|---|---|---|\n| `sanitize-a.ts:6` | `role === \"admin\"` | admin only |\n| `sanitize-b.ts:5` | `role === \"admin\" \\|\\| role === \"owner\"` | admin **or owner** |\n| `sanitize-c.ts:5` | `role !== \"admin\"` | **negated** — true for non-admins |\n\nCollapsing those into one `isAdmin()` would silently invert `assertAdminC` and drop `owner` from `assertAdminB`. They share a *literal*, not a *rule*.\n\n## Proposed refactor\n\nThree independent consolidations, in increasing order of risk.\n\n### 1. `src/sanitize.ts` (new) — merge the three bodies\n\n```ts\nexport function sanitize(value: string): string;\n```\n\nOne export, one argument, returns the sanitised string (`\"\"` for null/undefined/empty/rejected input). The five tunables (`1000`, `5`, `0.9`, `30`, the reject prefixes) become module-level named constants — not parameters. No call site currently varies them, so an options bag would be speculative surface area. If a caller later needs to diverge, add a second optional parameter then:\n\n```ts\nexport function sanitize(value: string, options?: SanitizeOptions): string;\n```\n\nThe three old names stay as one-line re-exports so nothing outside `src/` breaks:\n\n```ts\n// src/sanitize-a.ts\nexport { sanitize as sanitizeUserInput } from \"./sanitize.js\";\n```\n\nThe runtime signature is already loose (`String(value)` + null/undefined checks despite a `string` type), so the aliases are behaviour-preserving.\n\n### 2. `src/telemetry.ts` (new) — merge the exact duplicate and inject the clock\n\nKills `crime_00002`, `crime_00004`, and `crime_00005` in one move:\n\n```ts\nexport type Clock = () => number;\n\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: Clock = Date.now,\n): void;\n```\n\nDefault parameter keeps every existing call site working unchanged; tests pass `() => 0`. If you also want to assert on the emitted line rather than capturing `console.log`, widen to a fourth `sink: (line: string) => void = console.log` — worth it here, since the payload shape is the actual thing under test.\n\n### 3. `src/policy.ts` — one primitive, three named rules\n\nAdd the shared primitive, then express each guard in terms of it rather than merging them:\n\n```ts\nexport function isAdmin(role: string): boolean;        // role === \"admin\"\nexport function canEditBilling(role: string): boolean;  // = isAdmin\nexport function canSeeAuditLog(role: string): boolean;  // = isAdmin\nexport function canImpersonate(role: string): boolean;  // = isAdmin\nexport function isAdminOrOwner(role: string): boolean;  // isAdmin(role) || role === \"owner\"\n```\n\n`assertAdminA` → `isAdmin`. `assertAdminB` → `isAdminOrOwner` (renamed, because \"assertAdminB\" lies about accepting owners). `assertAdminC` → `!isAdmin(role)`, kept at its call site as a negation rather than given its own export — a named `isNotAdmin` invites the double-negative bugs you're trying to avoid. The literal `\"admin\"` then appears exactly once in the repo.\n\n## Files that change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **new** — the single `sanitize` implementation |\n| `src/telemetry.ts` | **new** — single `recordSanitiseEvent` with injected clock |\n| `src/sanitize-a.ts` | body deleted → re-export alias; guard delegates to `isAdmin` |\n| `src/sanitize-b.ts` | body deleted → re-export alias; guard delegates to `isAdminOrOwner` |\n| `src/sanitize-c.ts` | body deleted → re-export alias; guard becomes `!isAdmin(role)` |\n| `src/telemetry-a.ts` | body deleted → re-export alias |\n| `src/telemetry-b.ts` | body deleted → re-export alias |\n| `src/policy.ts` | adds `isAdmin` / `isAdminOrOwner`; the three `can*` functions delegate |\n\nThat's 2 new files and 6 edited — the whole `src/` tree. Once callers are migrated, the six alias files can be deleted in a follow-up; splitting the move from the deletion keeps each step reviewable.\n\n## One caveat before you start\n\nEvery finding carries `test_gap: 0.5` and there are no test files in the fixture — the merge is behaviour-preserving *by inspection only*. Write a characterisation test against `sanitizeUserInput` first (empty string, whitespace-only, >1000 chars, leading `<`, embedded `\\x`, `\"!!!\"`×6, an all-caps 40-char string), confirm it passes against all three originals, then point it at `sanitize`. Ten minutes, and it converts \"these look identical\" into \"these are identical.\"",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": false
+      }
+    ]
+  }
+}

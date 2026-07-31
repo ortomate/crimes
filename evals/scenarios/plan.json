@@ -5,8 +5,12 @@
     "kind": "plan",
     "prompt": "Plan a migration of all manual date-string construction in this repo to standardized formatting (`toISOString()` or `Intl.DateTimeFormat`). Use `crimes scan --format json` to find every `date_string_concat` finding. For each file flagged, propose the specific replacement and explain whether to use `toISOString()` (machine-readable / persistence / IDs) or `Intl.DateTimeFormat` (user-facing). Don't paraphrase — quote each finding's evidence.",
     "expected_artifacts": {
-      "referenced_findings": ["date_string_concat"],
-      "referenced_files": ["src/date.ts"],
+      "referenced_findings": [
+        "date_string_concat"
+      ],
+      "referenced_files": [
+        "src/date.ts"
+      ],
       "expected_priority": "date_string_concat"
     },
     "judge_questions": [
@@ -20,7 +24,11 @@
     "kind": "plan",
     "prompt": "Use `crimes scan --format json` and `crimes verdict --format json` to propose a triage order for the top 10 findings. Group by detector category (structural / git-history / IA / frontend / duplication) and tag each with the recommended response (fix now / defer / ignore).",
     "expected_artifacts": {
-      "referenced_findings": ["large_function", "direct_date", "todo_density"],
+      "referenced_findings": [
+        "large_function",
+        "direct_date",
+        "todo_density"
+      ],
       "expected_priority": "large_function"
     },
     "judge_questions": [
@@ -34,7 +42,10 @@
     "kind": "plan",
     "prompt": "Use `crimes scan --format json` to enumerate the duplication findings. Propose a refactor plan that consolidates the three sanitise helpers AND the three role checks into a coherent two-step change set.",
     "expected_artifacts": {
-      "referenced_findings": ["near_duplicate_block", "duplicated_role_status_plan_check"],
+      "referenced_findings": [
+        "near_duplicate_block",
+        "duplicated_role_status_plan_check"
+      ],
       "expected_priority": "duplicated_role_status_plan_check"
     },
     "judge_questions": [
@@ -48,7 +59,11 @@
     "kind": "plan",
     "prompt": "Use `crimes scan --format json` to find the hotspot files: those with high fan-in or fan-out (high_fan_in_fan_out), the large file findings, and the top large_function findings. Propose a triage order — which files would you refactor first to reduce blast radius across the codebase, and which would you leave alone? Justify each pick with the finding's evidence (fan-in / fan-out numbers).",
     "expected_artifacts": {
-      "referenced_findings": ["high_fan_in_fan_out", "large_file", "large_function"],
+      "referenced_findings": [
+        "high_fan_in_fan_out",
+        "large_file",
+        "large_function"
+      ],
       "expected_priority": "high_fan_in_fan_out"
     },
     "judge_questions": [
@@ -62,13 +77,39 @@
     "kind": "plan",
     "prompt": "Plan a portability sweep for this codebase: every developer-specific path baked into source needs to go. Use `crimes scan --format json` to enumerate every `hardcoded_local_path` finding. For each path flagged, propose the specific replacement and explain whether it should go through `os.homedir()` (the user's home is the natural anchor), `process.env.<NAME>` (a deploy-supplied base directory), or a relative path resolved from the repo root. Don't paraphrase — quote the literal path from each finding's evidence.",
     "expected_artifacts": {
-      "referenced_findings": ["hardcoded_local_path"],
-      "referenced_files": ["src/api/files.ts"],
+      "referenced_findings": [
+        "hardcoded_local_path"
+      ],
+      "referenced_files": [
+        "src/api/files.ts"
+      ],
       "expected_priority": "hardcoded_local_path"
     },
     "judge_questions": [
       "Did the agent distinguish between `os.homedir()` (user-anchored), `process.env.*` (env-anchored), and relative paths (repo-anchored) rather than recommending one for everything?",
       "Did the agent quote at least one literal path from the finding evidence verbatim rather than paraphrasing 'a hardcoded home directory'?"
+    ]
+  },
+  {
+    "id": "plan-11-py-import-cycle",
+    "fixture": "11",
+    "kind": "plan",
+    "prompt": "We want to extract the tax logic in this repo into a separately installable package. Run `crimes scan --format json` first, then write a plan for the extraction that accounts for the dependency problems crimes surfaces. Say which ones block the extraction and which are merely untidy.",
+    "expected_artifacts": {
+      "referenced_findings": [
+        "circular_dependency",
+        "deep_import"
+      ],
+      "referenced_files": [
+        "api/rendering.py",
+        "tax/rules/regional/eu/vat_bands.py"
+      ],
+      "expected_priority": "circular_dependency"
+    },
+    "judge_questions": [
+      "Did the agent identify the import cycle between domain.invoicing and api.rendering?",
+      "Did the agent recognise that a Python import cycle can raise ImportError at startup depending on import order?",
+      "Did the agent flag the deep import into tax.rules.regional.eu.vat_bands as coupling to package internals that the extraction would break?"
     ]
   }
 ]

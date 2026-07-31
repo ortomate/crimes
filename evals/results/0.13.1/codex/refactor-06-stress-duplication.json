@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:09:04.198Z",
+  "run_id": "51ca25cf-44f9-48ed-b8ef-65dbdc425aae",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a scan-driven refactor assessment. I’ll inspect the three implementations and their callers so the proposed consolidated API preserves the real behavior and existing exports.\n\nThe installed `crimes` binary isn’t on this shell’s PATH, so I’m switching to the repository-built CLI described in `AGENTS.md`. The source confirms the sanitizers have the same behavior under renamed locals; I’m checking the fixture’s module surface before fixing the file/API list.\n\nThe scan confirms one medium-confidence near-duplicate block: the same sanitisation body appears in three files under renamed functions and local variables.\n\n### Proposed refactor\n\nAdd a canonical shared module:\n\n```ts\n// src/sanitize.ts\nexport function sanitize(\n  input: string | null | undefined,\n): string;\n```\n\nIt should own all current behavior: trimming, control-character removal, whitespace normalization, the 1,000-character limit, unsafe-prefix and `\\\\x` rejection, punctuation filtering, and uppercase normalization.\n\nPreserve the existing exports as thin compatibility wrappers:\n\n```ts\nexport function sanitizeUserInput(raw: string): string {\n  return sanitize(raw);\n}\n```\n\nDo likewise for `sanitizeText` and `cleanMessage`. This avoids breaking current importers while ensuring future rule changes happen once.\n\n### Files affected\n\n- Add [src/sanitize.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize.ts)\n- Update [src/sanitize-a.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-a.ts)\n- Update [src/sanitize-b.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-b.ts)\n- Update [src/sanitize-c.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-c.ts)\n- Add a focused `src/sanitize.test.ts` if this fixture is being made testable\n\nNo options object is warranted: the implementations have no behavioral differences to parameterize. The telemetry duplication and duplicated admin-policy checks are separate findings and should be handled in separate refactors.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

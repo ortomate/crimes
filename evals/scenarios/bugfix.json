@@ -5,8 +5,12 @@
     "kind": "bugfix",
     "prompt": "Imagine the billing tests are failing on a date-boundary edge case. Use `crimes scan src/billing.ts --format json` to find risk factors that could explain the flakiness. Identify the most likely cause and propose a fix.",
     "expected_artifacts": {
-      "referenced_findings": ["direct_date"],
-      "referenced_files": ["src/billing.ts"],
+      "referenced_findings": [
+        "direct_date"
+      ],
+      "referenced_files": [
+        "src/billing.ts"
+      ],
       "expected_priority": "direct_date"
     },
     "judge_questions": [
@@ -20,8 +24,14 @@
     "kind": "bugfix",
     "prompt": "A circular-dependency runtime error is suspected. Use `crimes scan --format json` to find the cycle, then propose which import to break and why.",
     "expected_artifacts": {
-      "referenced_findings": ["circular_dependency"],
-      "referenced_files": ["src/domain/billing.ts", "src/presentation/invoice-view.ts", "src/application/billing-flow.ts"],
+      "referenced_findings": [
+        "circular_dependency"
+      ],
+      "referenced_files": [
+        "src/domain/billing.ts",
+        "src/presentation/invoice-view.ts",
+        "src/application/billing-flow.ts"
+      ],
       "expected_priority": "circular_dependency"
     },
     "judge_questions": [
@@ -35,8 +45,12 @@
     "kind": "bugfix",
     "prompt": "A promo window test passes in CI (UTC server) but in production the promo opens a day early for European users. Use `crimes scan src/date.ts --format json` to find the parse-time timezone bug, name the literal that's responsible, and propose the smallest change that makes the production behaviour match the CI behaviour without renaming the function.",
     "expected_artifacts": {
-      "referenced_findings": ["timezone_unsafe_parse"],
-      "referenced_files": ["src/date.ts"],
+      "referenced_findings": [
+        "timezone_unsafe_parse"
+      ],
+      "referenced_files": [
+        "src/date.ts"
+      ],
       "expected_priority": "timezone_unsafe_parse"
     },
     "judge_questions": [
@@ -50,7 +64,9 @@
     "kind": "bugfix",
     "prompt": "A user is reporting that an esbuild plugin regression slipped through CI even though the relevant test still passes. Use `crimes scan test --format json` to find tests that may not actually be asserting anything, then explain which test you'd strengthen first and what specific assertion you'd add. Don't paraphrase the finding evidence — quote it.",
     "expected_artifacts": {
-      "referenced_findings": ["weak_test_signal"],
+      "referenced_findings": [
+        "weak_test_signal"
+      ],
       "expected_priority": "weak_test_signal"
     },
     "judge_questions": [
@@ -64,13 +80,38 @@
     "kind": "bugfix",
     "prompt": "A production handler that used to respond in milliseconds is now stalling under concurrent load — p99 latency spiked and the event loop is reporting lag. Use `crimes scan src/api/files.ts --format json` to find the per-request blocking call(s) responsible. Quote the finding's evidence verbatim, name the specific sync method(s) involved, and propose the smallest async migration that preserves the function's public signature. Don't paper over the symptom with caching — fix the blocking call itself.",
     "expected_artifacts": {
-      "referenced_findings": ["sync_io_in_hotpath"],
-      "referenced_files": ["src/api/files.ts"],
+      "referenced_findings": [
+        "sync_io_in_hotpath"
+      ],
+      "referenced_files": [
+        "src/api/files.ts"
+      ],
       "expected_priority": "sync_io_in_hotpath"
     },
     "judge_questions": [
       "Did the agent name at least one specific synchronous method (`existsSync`, `statSync`, or `readFileSync`) from the finding's evidence rather than 'sync I/O' generically?",
       "Did the agent's fix swap each `*Sync` call for its async counterpart (`fs.promises.*` or `fs.readFile` with `await`) instead of recommending a cache, a worker thread, or a `setImmediate` wrapper?"
+    ]
+  },
+  {
+    "id": "bugfix-11-py-mixed-clocks",
+    "fixture": "11",
+    "kind": "bugfix",
+    "prompt": "Customers in Europe report that invoices created late in the evening are stamped with the wrong billing period — but only sometimes, and never on our CI runner. Run `crimes scan --format json` on this repo and work out which module is responsible and why the bug is invisible in CI. Explain the mechanism, then propose a fix.",
+    "expected_artifacts": {
+      "referenced_findings": [
+        "mixed_utc_local_methods",
+        "direct_date"
+      ],
+      "referenced_files": [
+        "domain/invoicing.py"
+      ],
+      "expected_priority": "mixed_utc_local_methods"
+    },
+    "judge_questions": [
+      "Did the agent identify that utcnow() and now() are both used in the same module and both return naive datetimes?",
+      "Did the agent explain that a UTC-configured CI runner makes the two agree, which is why the bug does not reproduce there?",
+      "Does the proposed fix move to timezone-aware datetimes rather than just replacing one call with the other?"
     ]
   }
 ]

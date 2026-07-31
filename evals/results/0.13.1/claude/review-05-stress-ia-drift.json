@@ -1,0 +1,72 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:16:39.683Z",
+  "run_id": "cf20816d-e332-49b1-8377-3882dbfbabeb",
+  "response": "## Verdict\n\nThe scan's 12 findings collapse to **5 distinct defects**. One is blocking, one needs a verification before you can call it non-blocking, and the rest are follow-ups.\n\n---\n\n## Blocking\n\n### 1. Permission drift on `/admin` is a live auth bug, not a naming problem — `crime_00011`\n\nThe scan reports \"3 different role tokens across 3 files.\" That undersells it. Reading `src/routes/admin.ts:6-12`:\n\n```ts\nexport const requiredRole = \"owner\";\n\nexport function loadAdminPanel() {\n  if (currentUser.role === \"manager\") return { ok: true, legacy: true };\n  if (currentUser.role !== \"owner\") return null;\n  return { ok: true };\n}\n```\n\nThe stale `manager` branch runs **before** the owner check, so `loadAdminPanel()` does not enforce its own declared `requiredRole`. A manager gets `{ ok: true }`. The three tokens aren't three labels for one rule — they're a guard whose exported contract and actual behavior disagree, with `src/nav.ts:10` (`role: \"admin\"`) exposing the entry to a third population.\n\nFix before merge: pick the canonical role, delete the legacy branch, and have `nav.ts` read `requiredRole` from the route module rather than restating it as a literal.\n\n**Note on triage:** this finding carries the report's highest `severity` (0.65) but the lowest-but-one `agent_risk` (0.25), so aggregate ranking placed it **11th of 12**. If you triage top-N from this report you will skip it. Worth logging against the ranking model — a permission token disagreeing across nav/guard/docs is close to the definition of a multiple-sources-of-truth agent risk.\n\n---\n\n## Verify before shipping\n\n### 2. Nav hrefs point at paths no route file provides\n\nThe scan didn't state this directly, but it falls out of combining `src/nav.ts` with the orphan findings (`crime_00007`, `crime_00008`):\n\n| nav href | route file on disk |\n|---|---|\n| `/teams` | `src/routes/teams.ts` ✅ |\n| `/workspaces` | only `src/routes/workspace.ts` (singular) ❌ |\n| `/organisations` | only `src/routes/organisation.ts` (singular) ❌ |\n\ncrimes reported `/workspace` and `/organisation` as *orphaned* (nothing links to them). Same defect from the other side: two of four nav entries are likely dead links. Blocking if your router does literal path matching; a follow-up if something normalizes plurals. Confirm which, then classify — this is the one item I can't settle from the fixture alone.\n\n---\n\n## Follow-ups\n\n**3. Tenant vocabulary sprawl — `crime_00002`.** `organisation` / `team` / `workspace` for one concept across 5 files, layered with a singular-plural split that runs three different ways (nav plural, route files mixed, docs all singular). Real agent risk — an agent asked to \"add a member invite\" has three plausible files and no signal which is canonical — but it's a rename, safest done once the routes above are settled. Pick the canonical term, document it, and land it as one sweep.\n\n**4. `/billing-plans` vs `/admin/billing-plans` — `crime_00003`.** Both files are stubs returning `[]`; nav has no Billing entry at all; docs advertise a third spelling (`/billing-plan`, singular). Cheap to resolve *now* precisely because neither has logic yet. Decide which is canonical before either one grows a real implementation, or you'll be merging two divergent billing surfaces later.\n\n**5. Stale docs — `crime_00004`, `crime_00012`.** `docs/routes.md` documents four singular route paths that don't exist, and three CLI subcommands (`iaq teams`, `iaq workspace`, `iaq refresh`) against a bin that registers only `list` and `get` (confirmed in `bin/iaq.ts:10-22`). Low blast radius for the app, high for anyone following the docs. Fix in the same PR as whatever route decisions come out of #2–#4, so you write the doc once.\n\n**6. `archive` / `delete` / `remove` label drift — `crime_00009`, `crime_00010`.** Genuine copy inconsistency across the three list components. Lowest priority here; a copy-guide decision, not an engineering one.\n\n---\n\n## Two notes on the scan itself\n\n- **`crime_00009` and `crime_00010` are the same finding emitted twice** — identical evidence, file, and alias group, differing only in `detector_id` (`action_label_drift.js` vs `copy_ia_drift.js`) and `fix_shape`. Looks like detector overlap rather than two defects.\n- **The four `orphaned_destination` findings largely restate #3 and #4** rather than adding new information. `/organisation` and `/workspace` are orphaned *because* of the plural mismatch; the two billing routes are orphaned *because* they're a parallel pair nobody linked. Counting them separately inflates the total from ~5 defects to 12 and pushes the one genuine blocker down the list.\n\n**Recommendation:** block on #1, resolve #2 with a five-minute router check, batch #3–#5 into a single IA-consistency PR, and treat #6 as backlog.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": "src/routes/teams.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      }
+    ]
+  }
+}

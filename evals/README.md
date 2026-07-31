@@ -189,6 +189,16 @@ Read this as:
   assertion moves it 8–15pp, and `plan`/claude ranged 0.64–0.88 across
   three identical runs. Do not quote it in release notes as evidence of
   improvement or regression without repeat samples.
+
+  This also constrains how you evaluate a **new language pack**. The
+  0.14.0 Python pack added 6 scenarios across 5 kinds — roughly one per
+  kind, which is far below what any per-kind number can resolve. The
+  decision there was to judge on the aggregate and say so in the
+  release notes, rather than inflate the scenario count purely to make
+  a grouping legible. If you do want a readable per-language grouping
+  in future, it needs enough scenarios of its own to clear the same bar
+  the per-kind numbers fail — plan for that up front rather than
+  discovering it after the run.
 - **Per-scenario noise and aggregate noise point in opposite
   directions.** codex is about twice as noisy as claude on any single
   scenario (avg σ 0.083 vs 0.041), yet its aggregate is the *steadier*

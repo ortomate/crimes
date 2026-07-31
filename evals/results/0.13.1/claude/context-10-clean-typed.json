@@ -1,0 +1,34 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:02:13.286Z",
+  "run_id": "0f42ccf0-14b3-4897-9822-75cf4588011d",
+  "response": "`crimes context src/billing.ts --format json` confirms the file is clean.\n\n## Result\n\n- **Risk level:** `none` — `\"total\": 0`, with 0 high / 0 medium / 0 low\n- **Findings:** `[]`\n- **`likely_tests`:** `src/billing.test.ts`\n- **`related_files`:** `[]`, and `agent_guidance` is empty\n\nThe tool explains both empties itself: `related_files_reason` says *\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"*, and `agent_guidance_reason` says *\"no findings on this file and no deterministic related files.\"* Empty here means \"nothing to warn about,\" not \"analysis skipped\" — the repo-wide scan is consistent (`summary.total: 0` across both files, `language-js` pack loaded).\n\n## Why it's low risk to edit\n\n`src/billing.ts` is 11 lines: a `Money` interface and a single pure `format(money: Money): string`.\n\n1. **No blast radius.** `related_files` is empty and there are no same-directory siblings or import-graph neighbours — nothing downstream depends on this module in the fixture, so a change can't ripple.\n2. **Pure and deterministic.** `format` destructures its argument and returns a template string. No `Date.now()`, `Math.random()`, `process.env`, I/O, or mutation — the testability detectors have nothing to flag, and behaviour is fully determined by the input.\n3. **Types constrain the edit.** `currency` is a closed union (`\"USD\" | \"EUR\" | \"GBP\"`) and `amount` is `number`, so the contract is explicit at the call site rather than implied.\n4. **Cold, single-author history.** `clues.churn` shows 1 commit in 90 days by 1 author (last 2026-05-18). No churn hotspot, no bug-fix thrash, no concurrent editors to conflict with.\n5. **A test sits right next to it.** `likely_tests` resolves `src/billing.test.ts` by the sibling-naming convention, so there's an obvious place to verify a change.\n\nOne caveat worth stating: `test_gap` is `{\"raw\": 0, \"label\": \"unknown\"}` — `likely_tests` is a *path-convention* match, not a coverage measurement. crimes is telling you where the test should be, not that it meaningfully exercises `format`. Before editing, open `src/billing.test.ts` and confirm it actually asserts on the formatting behaviour; that's the one piece this report can't vouch for.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "codex",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:17:37.331Z",
+  "run_id": "92f7961a-3c74-461a-adc7-f38e746a9bc6",
+  "response": "## Merge recommendation\n\n**Block merge pending 9 findings:** the 2,180-line core implementation and eight runtime tests with no explicit assertion. The remaining findings are warnings or context-sensitive noise.\n\nI evaluated the requested categories only: **37 findings** total — 9 block, 11 warn, 17 ignore. `agent_risk` informs priority, but file role matters: a `0.36` production implementation is more consequential than a `0.36` changelog.\n\n### Block merge\n\n| Finding | Severity / agent risk | Decision rationale |\n|---|---:|---|\n| `crime_00007` — `lib/command.js`, 2,180 lines | high / **0.36** | Core production behavior is concentrated in a file 7.3× the threshold. For a new codebase this creates an immediate change-collision and partial-context hazard. Split major responsibilities before merge. |\n| `crime_00015`–`crime_00022` — eight `command.exitOverride` tests with zero assertions | medium / **0.27 each** | These claim to verify thrown errors, help/version exits, executable subcommands, and invalid choices but contain no detected assertion. Because these are runtime error/exit contracts—not compilation checks—the aggregate false-confidence risk is merge-blocking. Add explicit assertions for error type/code/message or callback behavior. |\n\nTreat `crime_00015`–`00022` as one review thread with eight affected cases, rather than eight unrelated objections.\n\n### Warn\n\n| Finding(s) | Severity / agent risk | Decision rationale |\n|---|---:|---|\n| `crime_00001` — `typings/index.d.ts`, 892 lines | high / **0.48** | Highest score in this subset and weakly covered (`test_gap: 0.75`), but declaration files often intentionally centralize a public API. Request a follow-up split or documented ownership boundary; do not block solely on size. |\n| `crime_00005` — `typings/index.test-d.ts`, 481 lines | medium / **0.37** | Large type-test surface makes focused edits harder. Warn and suggest splitting by API area, but it is test infrastructure rather than runtime code. |\n| `crime_00048` — `lib/help.js`, 462 lines | medium / **0.22** | Production source at 1.5× the threshold deserves decomposition, though its score and zero reported blast radius do not justify a gate. |\n| `crime_00049` — `localhost:1234` in `lib/command.js` | medium / **0.20** | Verify whether this is executable configuration or merely help/example text. If executable, move it behind configuration before merge; if illustrative text, suppress as a false positive. |\n| `crime_00037`–`crime_00043` — seven `copySettings` tests using only weak matchers | low / **0.23 each** | Assertions exist, so these are not empty tests. Still, the repeated pattern may only show that values are present rather than proving copied settings affect observable behavior. Strengthen representative cases; non-blocking. |\n\n### Ignore for this merge\n\n| Finding(s) | Severity / agent risk | Decision rationale |\n|---|---:|---|\n| `crime_00002` — `\"PORT\"` scattered through examples and typings | medium / **0.46** | Despite the relatively high score, the occurrences span independent examples and a type-test file. Centralizing an environment-variable name across examples would create artificial coupling. |\n| `crime_00006` — `CHANGELOG.md`, 1,244 lines | high / **0.36** | Append-only historical documentation is naturally large; the detector’s code-context rationale does not apply. |\n| `crime_00008`, `crime_00009` — Chinese and English readmes | high / **0.36 each** | Long reference documentation is not a god-module problem. Documentation navigation may be improved separately, but file length should not gate merge. |\n| `crime_00050` — `lib/option.js`, 327 lines | medium / **0.19** | Only 1.1× the generic threshold with low risk. Splitting now could reduce cohesion more than risk. Revisit if it continues growing. |\n| `crime_00012` — alleged commented-out code | low / **0.29** | Evidence reads like a platform-behavior explanation rather than disabled executable code. Replace with clearer prose if confusing, but do not gate or force deletion. |\n| `crime_00031` — SIGUSR1 “revisit if required” comment | low / **0.27** | Low-confidence historical note, not an active rule the implementation promises to enforce. It may become an issue/TODO, but it is not merge-blocking logic. |\n| `crime_00023`–`crime_00030` — TypeScript import tests with no `expect` | medium / **0.27 each** | These appear to be compile-time smoke tests: successful importing/typechecking is the assertion. Adding runtime assertions would not improve the contract. Configure or suppress the detector for type-compilation tests. |\n| `crime_00044`, `crime_00045` — variadic boolean tests with weak matchers | low / **0.23 each** | The observable result is itself boolean, so a boolean matcher may be appropriate. No evidence here that the tests fail to distinguish the intended outcomes. |\n\nOverall, I would not use the raw **6 high / 30 medium / 19 low** summary as a merge gate. In the requested categories, the actionable blockers are the core `lib/command.js` concentration and the assertion-free runtime tests; documentation size, compile-time tests, and example literals should not hold the PR hostage.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "magic_domain_literal_scatter",
+      "crime_00003": "boolean_naming_drift",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "large_file",
+      "crime_00006": "large_file",
+      "crime_00007": "large_file",
+      "crime_00008": "large_file",
+      "crime_00009": "large_file",
+      "crime_00010": "large_function",
+      "crime_00011": "large_function",
+      "crime_00012": "commented_out_code",
+      "crime_00013": "boolean_naming_drift",
+      "crime_00014": "sync_io_in_hotpath",
+      "crime_00015": "weak_test_signal",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "weak_test_signal",
+      "crime_00018": "weak_test_signal",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "logic_in_comments",
+      "crime_00032": "large_function",
+      "crime_00033": "large_function",
+      "crime_00034": "docs_code_drift",
+      "crime_00035": "docs_code_drift",
+      "crime_00036": "large_function",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "weak_test_signal",
+      "crime_00039": "weak_test_signal",
+      "crime_00040": "weak_test_signal",
+      "crime_00041": "weak_test_signal",
+      "crime_00042": "weak_test_signal",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "exact_duplicate_block",
+      "crime_00047": "exact_duplicate_block",
+      "crime_00048": "large_file",
+      "crime_00049": "hardcoded_localhost",
+      "crime_00050": "large_file",
+      "crime_00051": "large_function",
+      "crime_00052": "large_function",
+      "crime_00053": "boolean_naming_drift",
+      "crime_00054": "large_function",
+      "crime_00055": "large_function"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "God Function": "large_function",
+      "Commented-Out Corpse": "commented_out_code",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Logic in the Alibi": "logic_in_comments",
+      "Docs-Code Drift": "docs_code_drift",
+      "Dev-Server URL": "hardcoded_localhost"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  }
+}

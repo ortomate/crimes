@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:05:16.191Z",
+  "run_id": "3c0ed8dc-2442-4aa1-904a-5b6a6a4719b3",
+  "response": "Read the fixture to ground the plan: `evals/fixtures/06-stress-duplication/` is 6 files, no tests, and **no import edges anywhere** — consistent with `blast_radius_importers: 0` on every finding.\n\n## What the scan says vs. what the source says\n\nIn scope:\n\n| id | charge | sites |\n|---|---|---|\n| `crime_00001` | Near-Duplicate Block (0.85 conf) | `sanitize-a.ts:10-36` / `sanitize-b.ts:9-35` / `sanitize-c.ts:9-35` |\n| `crime_00003` | Duplicated Role Check (0.70 conf) | `policy.ts` ×4, `sanitize-a/b/c` ×1 each |\n\nThe two groups are **not equally safe to consolidate**, and the finding for `crime_00003` understates why. It reports *\"4 files, 2 distinct expression shapes\"* — but reading the source, there are three semantically distinct guards:\n\n```\nsanitize-a.ts:7   role === \"admin\"                        // strict\nsanitize-b.ts:6   role === \"admin\" || role === \"owner\"    // wider — includes owner\nsanitize-c.ts:6   role !== \"admin\"                        // INVERTED\n```\n\nThe detector's shape-grouping keys on the `role === \"admin\"` sub-expression, so B's `|| role === \"owner\"` disjunct collapses into shape 1 and the divergence is invisible in the evidence. `assertAdminC` is a negation with a name that reads like an assertion — anyone (human or agent) who \"deduplicates\" these three into one `isAdmin()` silently grants `owner` billing access and inverts every C call site. That single fact drives the whole plan ordering.\n\nThe sanitise bodies, by contrast, are token-identical modulo identifier renames (`working` / `cleaned` / `normalised`) — verified line-by-line, including the `String(x)` coercion and the `|| 1` divide guard. That one is genuinely mechanical.\n\n---\n\n## The plan\n\n### Step 0 — characterization tests first (blocking, ~30 min)\n\nEvery finding carries `test_gap: 0.5` and the fixture has **zero test files**. There is no safety net for either step. Before touching anything:\n\n```ts\n// src/__tests__/sanitize.characterize.test.ts\nconst CASES = [\"\", \"  hi  \", \"<script>\", \"a\\\\xff\", \"!!!!!!x!!!!!!…\", \"A\".repeat(40),\n               \"x\".repeat(1200), \"  multi   space  \"];\nfor (const c of CASES)\n  expect([sanitizeUserInput(c), sanitizeText(c), cleanMessage(c)])\n    .toEqual([sanitizeUserInput(c), sanitizeUserInput(c), sanitizeUserInput(c)]);\n```\n\nCover the branch boundaries the bodies actually have: null/undefined, empty-after-trim, the 1000-char truncation, `<`/`>` prefix, the `\\x` literal, the `>5` punctuation-run threshold, and the `upperRatio > 0.9 && length > 30` lowercasing. Do the same for the three role guards — asserting **current** behavior including `owner→true` on B and the inversion on C. These tests must pass *before* the refactor and *unchanged* after.\n\n### Step 1 — consolidate the sanitisers (`crime_00001`, mechanical)\n\n1. New `src/sanitize.ts` exporting one `sanitizeText(input: string): string` — lift `sanitize-a.ts:10-36` verbatim, no behavior edits, no \"while I'm here\" cleanups.\n2. `sanitize-a/b/c.ts` re-export it under the old names (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) so the module surface is unchanged.\n3. Run Step 0's tests. Green = the extraction is faithful.\n4. Delete the shim files and their names *only* if you've confirmed no external consumers. Here `blast_radius_importers: 0` says the fixture has none — in a real repo, that number is the gate, and the shims stay until it reads 0.\n\nNo product decisions in this step. It should be reviewable as a pure diff.\n\n### Step 2 — consolidate the role checks (`crime_00003`, needs a decision)\n\nStep 1 must land first, and the ordering is load-bearing: once the ~26-line bodies are gone, `sanitize-a/b/c.ts` are three files whose entire remaining content is three disagreeing admin guards sitting next to each other. The divergence stops being buried at the top of a long file and becomes the diff.\n\nThen, and only then:\n\n1. **Adjudicate, don't merge.** For each of the three shapes, answer: is this the intended rule, or drift? Specifically — *should `owner` have the same rights as `admin`?* and *is `assertAdminC`'s negation deliberate or a bug already in the tree?* This is a product question; a refactor cannot answer it. If it can't be answered, stop here and ship Step 1 alone — that's a legitimate outcome, not a failure.\n2. Extract the decided rules into `src/policy.ts` as **named predicates, not one**: e.g. `isAdmin(role)` and `isAdminOrOwner(role)`. Collapsing to a single predicate is the trap; the correct end state may well be two rules that are each used deliberately.\n3. Rewrite call sites one at a time. `policy.ts`'s three functions (`canEditBilling`, `canSeeAuditLog`, `canImpersonate`) each become a one-line delegation. Replace `assertAdminC`'s negation with `!isAdmin(role)` at the call site rather than preserving an inverted helper — the name is the hazard.\n4. Re-run Step 0's role tests. **Any test you have to change is a behavior change** — it needs to be called out in the commit message, not quietly amended.\n\n---\n\n## Ride-alongs (not in the two steps — separate commit)\n\n`crime_00002` (exact duplicate `recordSanitiseEvent` across `telemetry-a/b.ts`, 0.95 conf) is a clean win and touches nothing the two steps touch. Worth noting: extracting it also collapses `crime_00004` and `crime_00005` — both are the *same* `Date.now()` at `telemetry-*.ts:16` — into a single injection point, so one `now: () => number` parameter clears three findings at once. Do it after Step 2 so the review diffs stay separate.\n\n## Verification\n\n`crimes scan --format json` after each step. Expected: `crime_00001` gone after Step 1 with `crime_00003` still firing (fewer files); `crime_00003` gone after Step 2. Total should drop 5 → 3 → 2, and → 0 with the ride-along. If `crime_00003` disappears after Step 1 alone, something consolidated the guards that shouldn't have — check the diff.\n\n**Risk summary:** Step 1 is low-risk and reversible. Step 2 is a behavior-change disguised as a dedup — the `owner` disjunct and the `!==` inversion mean the \"obvious\" consolidation is wrong, and the scan's evidence won't tell you that on its own.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

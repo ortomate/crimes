@@ -15,6 +15,20 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.14.0` headline:** the Python language pack. `crimes scan` now
+parses `.py` / `.pyi` and reports Python findings alongside JavaScript
+ones in one report — `packs_loaded: ["universal", "language-js",
+"language-py"]`. Eight Python detectors ship, written to the language
+rather than ported: `direct_date.py` charges naive datetimes,
+`circular_dependency.py` explains an `ImportError` at startup, and
+`sync_io_in_hotpath.py` escalates inside `async def`, where a blocking
+call stalls the whole event loop. **No Python runtime is needed at
+install or scan time** — parsing goes through a vendored WebAssembly
+grammar, with no native code and no install scripts, and nothing loads
+at all in a repo with no Python. Two scoring fixes came with it:
+`test_gap` now understands the `test_*.py` prefix convention (Python
+files previously all scored "no test at all"), and `blast_radius` is
+computed from a real Python import graph rather than being `0`.
 **`0.13.0` headline:** the ranking release. `agent_risk` — the score
 that separates "this file is long" from "an agent will get this wrong"
 — had collapsed into `severity` (correlation 0.79) while ignoring

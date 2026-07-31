@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:09:33.303Z",
+  "run_id": "eb7175b0-ee73-4375-870a-9fd0d97fbb33",
+  "response": "`crimes context src/Card.tsx` adds three things the scan JSON didn't carry: no keyed agent guidance matched, **no test file exists** (all three findings score `test_gap: 1.0`), and the file is cold — 2 commits in 90d, 1 author, 0 importers. So this is a safe, unobserved refactor: nothing imports `Card`, and nothing will catch a regression either.\n\nOne thing reading the file surfaces that neither the scan nor the context output states: the layout is *already* broken at every viewport. The container is `width: 800` and its two children are `720` + `240` = 960px. The responsive finding isn't just \"fragile on mobile\" — the fixed widths are internally inconsistent today.\n\n## Proposed refactor\n\n```tsx\nimport styles from \"./Card.module.css\";\n\nexport function Card({\n  children,\n  onSelect,\n  label,\n}: {\n  children: React.ReactNode;\n  onSelect: () => void;\n  label: string;\n}) {\n  return (\n    <button type=\"button\" className={styles.card} onClick={onSelect} aria-label={label}>\n      <div className={styles.body}>{children}</div>\n      <div className={styles.sidebar}>sidebar</div>\n    </button>\n  );\n}\n```\n\n```css\n/* Card.module.css */\n.card {\n  display: flex;\n  gap: var(--space-3);\n  width: 100%;\n  max-width: var(--size-card-max);   /* was 800px */\n  padding: var(--space-3);\n  background: var(--color-brand);     /* was #ff00aa */\n  color: var(--color-ink);            /* was #0a0a0a */\n  border: 1px solid var(--color-border);\n  box-shadow: var(--shadow-1);\n  text-align: left;\n  font: inherit;\n}\n.card:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }\n\n.body    { flex: 1 1 auto; font-size: var(--font-size-md); }\n.sidebar { flex: 0 0 clamp(12rem, 25%, 15rem); color: var(--color-ink-muted); }\n\n@container (max-width: 40rem) {\n  .card { flex-direction: column; }\n  .sidebar { flex-basis: auto; }\n}\n```\n\nAnd the token scale has to grow — the current config only defines three colors, none of which cover border, muted text, focus ring, or shadow:\n\n```ts\n// tailwind.config.ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      \"ink-muted\": \"#666666\",   // was inline #666666 / #333333\n      border: \"#cccccc\",        // was inline #cccccc\n      focus: \"#1a73e8\",         // was inline #1a73e8\n    },\n    boxShadow: { 1: \"0 2px 4px rgb(0 0 0 / 0.16)\" },\n  },\n};\n```\n\n## Change → finding\n\n**`accessible_interaction_risk` (crime_00001, medium, confidence 0.85)** — `<div onClick>` at line 22 becomes a real `<button type=\"button\">` with an `aria-label` from a new required prop. This takes the `suggested_actions` first branch (\"use a `<button>`\") rather than the `role=\"button\"` + `tabIndex={0}` fallback, which is the right call here because the element has no competing semantics — the fallback exists for cases where you can't change the tag. Free consequences: keyboard focus, Enter/Space activation, and the `:focus-visible` ring, which the original had an `outlineColor` for but no reachable focus state to apply it to. Note this is the one **API-breaking** change in the set — `Card` gains `onSelect` and `label`. With 0 importers that costs nothing today; it would not be free later.\n\n**`design_token_escape` (crime_00002, low, confidence 0.75)** — all 9 inline literals move out of `style={{}}` into CSS custom properties backed by the Tailwind theme. The detector's framing is the point: an agent extending this file copies `#ff00aa` forward and silently forks the palette. The important half of this fix is the config change, not the component change — mapping `#0a0a0a` → `ink` is mechanical, but `#cccccc`, `#666666`, `#1a73e8`, and the shadow have **no token to escape to**. Swapping them for the three existing colors would be wrong; they need new named roles first. `#ff00aa` is a judgment call I'd flag rather than decide: it's not a near-miss on `brand: #0050ff`, so it's either an intentional accent that deserves its own token or fixture noise.\n\n**`responsive_fragility` (crime_00003, low, confidence 0.65)** — `width: 800` → `width: 100%` + `max-width`; `width: 720` and `width: 240` → flex ratios; `fontSize: 18` → a rem-based token. The 720+240-inside-800 overflow gets fixed as a side effect of dropping fixed children widths. I've used a **container query** rather than the `@media` the suggested action mentions, matching the finding's own `fix_shape` (\"drive layout from container queries or a fluid scale, not pixel media queries\") — a card is a component, not a page, so it should respond to its slot rather than the viewport. If the build can't target `@container`, `@media (max-width: 40rem)` is the equivalent fallback and will also satisfy the detector's \"no `@media` in file\" evidence line.\n\n## Sequencing and verification\n\nLand the token config first, then the CSS module, then the component API change — that way the `design_token_escape` fix is reviewable on its own and the breaking prop change is isolated in one commit.\n\nTwo caveats worth stating plainly. First, `test_gap: 1.0` on all three findings is not incidental: there's no `Card.test.tsx`, so the accessibility fix in particular ships unverified. I'd add a test asserting the rendered element is `role=\"button\"` and reachable by keyboard *before* the refactor, so it's the thing proving the fix rather than a formality after it. Second, converting inline styles to a CSS module assumes this project has CSS-module support wired up — the fixture has only a `package.json` and a Tailwind config, so I can't confirm that from here. If it doesn't, the same refactor works with Tailwind utility classes (`w-full max-w-3xl bg-brand text-ink`), which is arguably a better fit given the config already exists; the finding-to-change mapping above is unchanged either way.\n\nI haven't modified the fixture — it's an eval input, and editing it would move the baseline.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

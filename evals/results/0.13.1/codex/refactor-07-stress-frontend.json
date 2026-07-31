@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:10:08.631Z",
+  "run_id": "d2436e4b-7976-4974-a85f-afef1b5a90aa",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a finding-driven TypeScript refactor review. I’ll inspect the actual `crimes context` output and `Card.tsx`, then map each proposed change directly to its finding type.\n\nThe globally installed `crimes` binary isn’t available in this shell, so I’m switching to the repository’s locally built CLI. The source confirms the three risks are concentrated in one clickable outer container and two fixed-width children; there is no existing theme module to reuse, only Tailwind configuration to inspect.\n\n`crimes context` confirms all three findings, with no related files or likely tests. I’d refactor `Card` into a semantic, token-driven, container-responsive component:\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate?: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  return (\n    <article className=\"@container w-full max-w-screen-lg border border-border bg-surface p-6 text-ink shadow-card\">\n      <div className=\"grid grid-cols-1 gap-6 @md:grid-cols-4\">\n        <div className=\"min-w-0 text-base @md:col-span-3\">\n          {children}\n        </div>\n\n        <aside className=\"text-sm text-muted\">\n          sidebar\n        </aside>\n      </div>\n\n      {onActivate && (\n        <button type=\"button\" onClick={onActivate}>\n          Open card\n        </button>\n      )}\n    </article>\n  );\n}\n```\n\nMapping to the findings:\n\n- `accessible_interaction_risk`: Remove `onClick` from the non-semantic outer `<div>`. Expose the action through a real `<button>`, which supplies keyboard focus, Enter/Space activation, and button semantics automatically. Keeping arbitrary `children` outside the button also avoids invalid or nested interactive content.\n- `design_token_escape`: Replace inline colors, spacing, typography, borders, outlines, and shadows with named Tailwind tokens. Existing `brand`, `surface`, and `ink` tokens should be reused; add semantic `border`, `muted`, and `shadow-card` tokens to `tailwind.config.ts` if those visual distinctions are required. Raw values belong in the centralized token definition, not JSX.\n- `responsive_fragility`: Replace `800px`, `720px`, `240px`, and the fixed height with `w-full`, a tokenized maximum width, and a one-column layout that becomes four columns based on the card’s container. Use `text-base`/`text-sm` or a tokenized fluid type scale instead of raw pixel font sizes.\n\nBecause `context` found no likely tests, I’d also add a component test covering keyboard activation and a narrow-container rendering case. The specific button label and handler API should reflect the card’s real action; adding ARIA to the old clickable `<div>` would be a weaker fallback.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

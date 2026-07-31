@@ -4,8 +4,18 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.13.0` (npm) ✅ shipped — the
-  ranking release. No new detectors; `agent_risk` had collapsed into
+- **Last published version:** `crimes@0.14.0` (npm) ✅ shipped — the
+  Python language pack. `packages/language-py/` registers `.py` /
+  `.pyi` and ships eight detectors, proving the 0.12.0 pack seam is
+  reusable rather than JS-shaped. No Python runtime required at
+  install or scan time (vendored WebAssembly `tree-sitter-python`, no
+  native code, no install scripts). Two scoring fixes land with it:
+  `test_gap` now understands Python's `test_*.py` prefix convention
+  (every Python file previously scored "no test at all"), and
+  `blast_radius` is computed from a real Python import graph rather
+  than being `0`. Schema stays `0.3.0`; fingerprints unchanged.
+  Release notes: [`docs/releases/v0.14.0.md`](./releases/v0.14.0.md).
+  Previous: `crimes@0.13.0` — the ranking release. No new detectors; `agent_risk` had collapsed into
   `severity` (correlation 0.79) while ignoring `blast_radius` (0.06),
   the failure `PRD.md` §10 says must not happen. The formula now leads
   with the detector's own agent-risk judgement, which 30 of 48
@@ -55,6 +65,56 @@ mirror, not a planning doc.
 | M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
 | M5 — Public launch            | ✅ completed in `0.6.0` — full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/) via Astro + Starlight; landing page unchanged. |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
+
+---
+
+## ✅ Shipped in `crimes@0.14.0`
+
+> **Theme: Python language pack** — the second pack, and the one that
+> proves the language-pack seam introduced in 0.12.0 is reusable rather
+> than a JS-shaped abstraction with one implementation.
+>
+> Release notes: [`docs/releases/v0.14.0.md`](./releases/v0.14.0.md).
+> Design spec:
+> [`docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md`](./superpowers/specs/2026-05-22-wider-codebase-support-design.md)
+> (which still calls this release `0.13.0` — it was renumbered when the
+> ranking work took that number).
+
+- **New package `packages/language-py/`.** Registers `.py` / `.pyi`;
+  `crimes scan` on a mixed repo reports `packs_loaded: ["universal",
+  "language-js", "language-py"]` with a populated
+  `files_by_language.py`.
+- **Eight detectors**, chosen to prove the seam rather than reach
+  catalogue parity: `large_function.py`, `direct_date.py`,
+  `mixed_utc_local_methods.py`, `sync_io_in_hotpath.py`,
+  `boolean_naming_drift.py`, `weak_test_signal.py`,
+  `circular_dependency.py`, `deep_import.py`. Each sets its own
+  evidence-scaled `scores.agent_risk`. They are written to the
+  language, not ported — `direct_date.py` charges naive datetimes,
+  `circular_dependency.py` explains an `ImportError` at startup, and
+  `sync_io_in_hotpath.py` escalates inside `async def`.
+- **`test_gap` understands Python's test convention.** `test_billing.py`
+  covers `billing.py` — a prefix, where every other supported language
+  uses a suffix. Without it every Python file scored `test_gap: 1.0`.
+  A `tests/` directory now pairs by basename for **both** languages,
+  which also fixes JS repos that keep tests outside `src/`.
+- **`blast_radius` is real for Python.** Python module resolution
+  (`__init__.py` packages, relative-dot levels, src-layouts) feeds the
+  same shared `ImportGraph` the JS pack does. Unresolvable specifiers
+  (PEP 420 namespace packages, `importlib`, runtime `sys.path` edits)
+  become external edges rather than guesses.
+- **No Python runtime, no native code.** Parsing goes through a
+  vendored WebAssembly `tree-sitter-python` grammar with
+  `web-tree-sitter`; there is no addon to compile and no install script
+  to run. Parser init is lazy, so a JS-only repo pays nothing.
+- **Qualified detector ids.** Python detectors are `large_function.py`
+  in `detectors.enable` / `disable` / `options`, so each language's
+  version is separately addressable. `Finding.type` stays abstract, so
+  fingerprints, baselines, suppressions and triage are unaffected.
+- **Eval harness:** 2 Python fixtures (`11-py-service`,
+  `12-py-tested`) and 6 Python scenarios spanning all five kinds.
+
+Schema stays `0.3.0`. `Finding.pack: "language-py"` lands additively.
 
 ---
 
@@ -1158,43 +1218,15 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
 ## 🚧 Planned for later versions
 
-### Wider codebase support — `0.14.0` → `0.15.0`
+### Wider codebase support — `0.15.0`
 
 > **Design spec:**
 > [`docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md`](./superpowers/specs/2026-05-22-wider-codebase-support-design.md).
-> The universal-pack arc shipped in `0.12.0`. Two releases remain.
-> Renumbered when the ranking work took `0.13.0`: the Python pack is
-> now `0.14.0` and polyglot IA is `0.15.0`.
+> The universal-pack arc shipped in `0.12.0` and the Python pack in
+> `0.14.0`. One release remains.
+> Renumbered when the ranking work took `0.13.0`: the Python pack
+> became `0.14.0` and polyglot IA `0.15.0`.
 > Schema stays at `0.3.0`; subsequent releases are additive.
-
-- **`crimes@0.14.0` — Python language pack.** New
-  `packages/language-py/` using `tree-sitter-python` (no Python
-  runtime required at install / scan time). Ports eight detectors as
-  the seam-proving slate: `large_function.py`, `direct_date.py`,
-  `sync_io_in_hotpath.py`, `circular_dependency.py`, `deep_import.py`,
-  `weak_test_signal.py`, `mixed_utc_local_methods.py`,
-  `boolean_naming_drift.py`. Eval harness gains 6 Python scenarios +
-  2 fixtures. `Finding.detector_id` carries the qualified form
-  (`large_function.py`); `Finding.type` stays abstract.
-
-> **Known blockers for the Python pack, found while shipping 0.13.0.**
-> These are consequences of the 0.13.0 scoring work meeting the
-> incoming pack, so they are not in the original design spec:
->
-> 1. `test_gap` sibling detection strips `.test`/`.spec` suffixes.
->    Python uses a prefix (`test_billing.py` covers `billing.py`), so
->    it never matches, and the fallback path needs an import graph
->    Python lacks. Every Python file would score "no test at all", and
->    `test_gap` is 0.20 of `agent_risk`.
-> 2. `imports/build.ts` is TypeScript-only (tsconfig resolution,
->    `ts.ScriptKind`). `blast_radius` would be 0 for all Python, and
->    `circular_dependency.py` / `deep_import.py` are 2 of the 8
->    detectors on the slate — they need new resolution
->    infrastructure, not a port. Decide explicitly whether to build a
->    Python import graph or ship 6 detectors and declare the gap.
-> 3. Detectors must set their own `scores.agent_risk`. Since 0.13.0 it
->    is the heaviest input (0.40); detectors that omit it fall back to
->    a compressed severity default and rank below their peers.
 
 - **`crimes@0.15.0` — polyglot IA + monorepo coverage.** Three new
   cross-language detectors: `cross_language_concept_alias_drift`,
@@ -1208,8 +1240,8 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
   linter — no single-language tool produces these findings.
 
 Explicitly **not** in this arc: other language packs (Go / Rust /
-Java each get their own future minor releases on the 0.14.0
-template), cross-language import graph (deferred to 0.16.0+), LLM-
+Java each get their own future minor releases on the `language-py`
+template — see `CONTRIBUTING.md` §"Adding a new language"), cross-language import graph (deferred to 0.16.0+), LLM-
 assisted modes (PRD §26, still deferred), Homebrew / standalone
 binaries (M6, independent track).
 

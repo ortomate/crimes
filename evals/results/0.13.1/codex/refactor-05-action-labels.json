@@ -1,0 +1,78 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "codex",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:11:33.151Z",
+  "run_id": "0265279c-b00b-4189-a206-f511981aa4a0",
+  "response": "The scan confirms one semantic action is expressed with three verbs—`archive`, `delete`, and `remove`—across all three list components. Both `crime_00009` (`action_label_drift`) and `crime_00010` (`copy_ia_drift`) report the same evidence.\n\nI’d standardize on this label set:\n\n- Row/menu action: **Delete user**, **Delete team**, **Delete seat**\n- Confirmation title: **Delete this user/team/seat?**\n- Destructive confirmation button: **Delete**\n- Dismissal button: **Cancel**\n- Reserve **Remove** for detaching membership without deleting the underlying record.\n- Reserve **Archive** for a reversible lifecycle state.\n\nGiven the scenario says the operations are equivalent destructive actions, every relevant `Remove` and `Archive` should become `Delete`. The implementation should still verify that “archive” is not genuinely reversible before changing its promise to users.\n\nI’d refactor `SeatList.tsx` first. It is the primary file on both findings and contains both noncanonical aliases—`Archive` and `Remove`—but no `Delete`. Converting it establishes the target pattern most clearly. Then:\n\n1. `SeatList.tsx`: `Archive`/`Remove` → `Delete`\n2. `TeamList.tsx`: retain `Delete`; change `Archive` → `Delete`\n3. `UserList.tsx`: retain `Delete`; change `Remove` → `Delete`\n\nThe detector distinction is conceptual, even though this fixture makes their output identical:\n\n- `action_label_drift` is the focused finding: inconsistent verbs for an equivalent user action. The button/menu/confirmation action labels are the direct remediation.\n- `copy_ia_drift` is the broader copy and information-architecture signal: inconsistent vocabulary can teach users and agents that there are multiple operations or destinations. Aligning confirmation titles, explanatory copy, tests, and any shared copy constants addresses that broader finding.\n\nHere, the two detectors overlap completely—same anchor file, aliases, related files, severity, and confidence—so they should drive one coordinated refactor, not two separate changes. Afterward, rerun `crimes scan --format json`; both findings should disappear together.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

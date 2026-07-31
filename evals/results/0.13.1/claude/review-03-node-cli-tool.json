@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:18:48.369Z",
+  "run_id": "9f2db342-9ed3-4e04-98b7-8ad2c86a466e",
+  "response": "## Framing caveat\n\nThis is Commander.js — a mature, heavily-used library — presented as a single PR against an empty baseline. No real gate blocks a whole-library import on 55 style/structure findings, so I'm reading the scan as a **risk map for agents about to edit this code**, and applying merge verdicts as if the code were genuinely new. That's the only reading under which \"block\" means anything here.\n\n**Triage: 0 block · 17 warn (9 work items) · 38 ignore.**\n\n---\n\n## Block merge\n\n**None.** Nothing in the 55 is a correctness defect or a silent erosion of the safety net on the evidence given. One item is conditionally blocking — see `crime_00015–22` below.\n\n---\n\n## Warn\n\n### 1. `lib/command.js` — 2180 lines + 4 oversized methods (`crime_00007`, `00010`, `00011`, `00033`)\n`severity 0.85 / agent_risk 0.36` for the file; `_executeSubCommand` at 120 lines carries the highest function severity in the report (0.90).\n\nThis is the only cluster where the structural finding and the real risk agree. `_executeSubCommand` (946–1065) and `parseOptions` (1419–1533) are the two hardest-to-reason-about bodies in the codebase, and they're class methods — the evidence line *\"invariants are likely shared with sibling methods\"* is the important part. An agent editing option parsing in a 2180-line class will not have the sibling methods in context.\n\n**Note the score is understated, not overstated:** `churn: 0` and `test_gap: 0` across all four. Churn is zero because the fixture has no git history, not because the file is stable — in the real repo `lib/command.js` is the single most-churned file in the project. Read `agent_risk 0.36` here as a floor.\n\nWarn, don't block: it's cohesive (one class, one concern), and splitting it is a larger and riskier change than anything it would prevent.\n\n### 2. Duplicated `choices()` across `lib/argument.js` and `lib/option.js` (`crime_00046`, `00047`)\n`severity 0.55 / agent_risk 0.22` — **the most understated finding in the report.**\n\n`argument.js:99-111` and `option.js:176-188` are byte-identical implementations of `choices()`. This is real domain logic (argument validation), duplicated across two independently-maintained public classes. Fix a validation bug in one, ship it, miss the other — and the divergence is invisible to both the type system and the test suite. That's exactly the failure mode `agent_risk` is supposed to catch, and 0.22 doesn't reflect it.\n\n`crime_00047` is the same duplication reported at a narrower span (101-109 inside 99-111) — dedupe to one item.\n\n**Highest-value fix in the report.** Effort: small.\n\n### 3. Eight assertion-free tests in `tests/command.exitOverride.test.js` (`crime_00015–00022`)\n`severity 0.45 / agent_risk 0.27` each.\n\n**This is the one item that could become a block — but almost certainly won't.** Eight consecutive tests named *\"…then throw CommanderError\"* reporting zero `expect` calls is far better explained by a shared assertion helper (`expectCommanderError(err, code)` inside a `try/catch`) than by eight genuinely empty tests. A test named \"then throw X\" with no assertion *and* no helper would either fail on the uncaught throw or pass vacuously — and the suite is green.\n\nSo: near-certain detector blind spot (assertions behind a helper call). **Verify by reading one of them.** If the assertions really are absent, it blocks — eight tests claiming to protect the entire error-exit contract while protecting nothing is precisely the false-confidence signal an agent would trust. If a helper is there, close all eight and configure the detector to recognise it.\n\n### 4. Six broken doc links in the zh-CN translations (`crime_00034`, `00035`)\n`severity 0.35 / agent_risk 0.24`.\n\nReal, and correctly scored. Five links in `Readme_zh-CN.md` plus one in `docs/zh-CN/可变参数的选项.md` point at URL-encoded filenames that don't exist — the translation references pages that were never translated or never committed. Low blast radius, but an agent reading the Chinese docs for context follows a dead path and gets nothing. Fix or delete the links.\n\n### 5. `typings/index.d.ts` — 892 lines (`crime_00001`)\n`severity 0.85 / agent_risk 0.48` — **highest agent_risk in the report**, and the ranking is right even though the suggested fix isn't.\n\n`blast_radius_importers: 1` is the scanner's blind spot: this file is the entire public API surface, imported by every downstream consumer the scan can't see. Real blast radius is \"everyone.\" Don't split it — a single `.d.ts` entry point is the correct shape for a published package, and splitting it churns consumer imports for nothing.\n\nWarn only as context: any agent touching this file is editing a public contract, and 892 lines means it won't have the whole contract loaded.\n\n### 6. Commented-out spawn code (`crime_00012`)\n`severity 0.25 / agent_risk 0.29`. Two lines of disabled `childProcess.spawn` config in a test that exercises subcommand search. Trivially real, `effort: quick`. Delete it — git remembers. The only reason it's above several medium findings on `agent_risk` is correct: dead implementation snippets are exactly what an agent copies.\n\n---\n\n## Ignore\n\n### Markdown counted as source (`crime_00006`, `00008`, `00009`) — 3 findings\n`CHANGELOG.md` (1244), `Readme.md` (1130), `Readme_zh-CN.md` (1072), all `severity 0.85`. **The three highest-severity findings in the report are false positives.** A changelog is append-only by design; splitting it is actively wrong. Note the scoring already knows this — `agent_risk` drops to 0.36 and `test_gap` to 0 while severity stays pinned at 0.85. Rank by `agent_risk`, not severity, and these fall where they belong.\n\n### `\"PORT\"` literal scatter (`crime_00002`)\n`severity 0.5 / agent_risk 0.46` — second-highest `agent_risk`, and wrong. The summary says *\"5 production files\"*; the evidence lists four files under `examples/` and one under `typings/`. The finding's own `tier: nonDomain` contradicts its prose. Example files are meant to be standalone and copy-pasteable — extracting a shared `PORT` constant across them would make them worse. Ignore.\n\n### Boolean naming on CLI domain nouns (`crime_00003`, `00013`, `00053`) — 3 findings\n`required`, `variadic`, `optional`, `mandatory`, `hide`, `combine`, `allowUnknown`. In an argument-parsing library these aren't undecorated booleans — they're the domain vocabulary (`--required`, variadic args). Renaming `required` → `isRequired` in `typings/index.d.ts` is a breaking public API change to fix a readability nit. Ignore and add them to `detectors.options.boolean_naming_drift.allowedNames` so they stop resurfacing.\n\n### `fs.existsSync` in subcommand resolution (`crime_00014`)\n`severity 0.4 / agent_risk 0.28`. Three sync stat calls in `findFile`/`_executeSubCommand` during one-time startup path resolution in a CLI. \"Hot path\" is a server framing; there is no event loop to starve here, and the sync version is simpler and correct. Ignore — the detector should exclude CLI entry paths.\n\n### `localhost:1234` (`crime_00049`)\n`severity 0.6 / agent_risk 0.20`. Commander makes zero network calls — it's an argument parser. A hardcoded dev-server URL at `lib/command.js:2152` (28 lines from EOF) is a JSDoc example, not live code. Confirm once, then ignore; it can't be a runtime literal in a library that never opens a socket.\n\n### `tests/ts-imports.test.ts` — 8 assertion-free tests (`crime_00023–00030`)\nUnlike the `exitOverride` cluster, these are correctly assertion-free. The test *is* the import — the assertion is \"this typechecks,\" enforced by `tsc`, not by `expect`. `legacy default export of global Command`, `program`, `createCommand`, `Command`, `Option`, `CommanderError`, `InvalidArgumentError`, `InvalidOptionArgumentError` are all import-surface smoke tests. Legitimate pattern. Ignore all eight.\n\n### `tests/command.copySettings.test.js` — weak matchers (`crime_00037–00043`) — 7 findings\n`severity 0.25 / agent_risk 0.23`. Testing that settings copy across a `copyInheritedSettings()` call is inherently an identity check — a truthiness or equality matcher on the copied flag is the appropriate assertion, not a weak one. Ignore.\n\n### `tests/options.variadic.test.js` (`crime_00044`, `00045`)\nSame category, and here the nit is marginally fair — `expect(option.variadic).toBeTruthy()` on a boolean should be `toBe(true)`. Not worth a review comment on its own. Ignore, note in passing.\n\n### Large test callbacks and describe bodies (`crime_00032`, `00051`, `00052`, `00054`, `00055`) — 5 findings\n349, 308, 244, 206, and 125 lines. Table-driven suites are supposed to be long and flat; the \"responsibilities\" a 349-line `describe` mixes are *test cases*, which is the point. Ignore, and consider raising the test-callback threshold above 200 — at 1.0× (`crime_00055`, 206 lines) the detector is reporting noise.\n\n### Remaining structural findings (`crime_00004`, `00005`, `00036`, `00048`, `00050`) — 5 findings\n- `myParseInt` duplicated across two example files — examples are deliberately self-contained. Ignore.\n- `typings/index.test-d.ts` at 481 lines, `lib/help.js` at 462, `lib/option.js` at 327 (1.1× threshold) — all cohesive single-concern modules; splitting buys nothing.\n- `addOption` at 69 lines, 1.1× threshold — noise at the margin.\n\n---\n\n## What I'd actually send the author\n\n1. Extract the shared `choices()` implementation (`crime_00046`) — the one real correctness risk in the diff.\n2. Read one `exitOverride` test and confirm the assertions live in a helper (`crime_00015–22`); if not, that's a blocker.\n3. Fix or drop the six dead zh-CN doc links (`crime_00034`, `00035`).\n4. Delete the commented-out spawn config (`crime_00012`).\n\nEverything else is either a detector artifact or a structural observation about a library that already works.\n\n**Two calibration notes if this scan is feeding a gate:** rank by `agent_risk`, not `severity` — the top three severities are all markdown and the top real finding sits at 0.22. And `churn: 0` across every finding means the git signal never loaded; in a repo with history, the `lib/command.js` cluster would rank well above where it currently sits.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "magic_domain_literal_scatter",
+      "crime_00003": "boolean_naming_drift",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "large_file",
+      "crime_00006": "large_file",
+      "crime_00007": "large_file",
+      "crime_00008": "large_file",
+      "crime_00009": "large_file",
+      "crime_00010": "large_function",
+      "crime_00011": "large_function",
+      "crime_00012": "commented_out_code",
+      "crime_00013": "boolean_naming_drift",
+      "crime_00014": "sync_io_in_hotpath",
+      "crime_00015": "weak_test_signal",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "weak_test_signal",
+      "crime_00018": "weak_test_signal",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "logic_in_comments",
+      "crime_00032": "large_function",
+      "crime_00033": "large_function",
+      "crime_00034": "docs_code_drift",
+      "crime_00035": "docs_code_drift",
+      "crime_00036": "large_function",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "weak_test_signal",
+      "crime_00039": "weak_test_signal",
+      "crime_00040": "weak_test_signal",
+      "crime_00041": "weak_test_signal",
+      "crime_00042": "weak_test_signal",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "exact_duplicate_block",
+      "crime_00047": "exact_duplicate_block",
+      "crime_00048": "large_file",
+      "crime_00049": "hardcoded_localhost",
+      "crime_00050": "large_file",
+      "crime_00051": "large_function",
+      "crime_00052": "large_function",
+      "crime_00053": "boolean_naming_drift",
+      "crime_00054": "large_function",
+      "crime_00055": "large_function"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "God Function": "large_function",
+      "Commented-Out Corpse": "commented_out_code",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Logic in the Alibi": "logic_in_comments",
+      "Docs-Code Drift": "docs_code_drift",
+      "Dev-Server URL": "hardcoded_localhost"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "weak_test_signal",
+        "passed": false
+      }
+    ]
+  }
+}

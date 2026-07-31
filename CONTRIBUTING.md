@@ -96,13 +96,68 @@ Detector design rules:
 ## Adding a new language
 
 The registry exists as of 0.12.0 — you don't wire packs into `scan.ts`
-by hand any more.
+by hand any more. `packages/language-py` (0.14.0) is the worked example
+to copy; read it alongside this section.
 
-Create `packages/language-<lang>` alongside `language-js`, then call
-`registerPackExtensions("language-<lang>", [".ext", ...])` at module
-load. `LanguagePackRouter` routes files to the claiming pack, and
-`ScanReport.coverage` picks the pack up automatically — there is no
-second list to update.
+1. **Create `packages/language-<lang>`** alongside `language-js`. It
+   exports a `<LANG>_EXTENSIONS` constant, a `parse<Lang>File` function,
+   and the parsed-file type its detectors read. It must not depend on
+   `@crimes/core` — core depends on it.
+
+2. **Register the claim.** `packages/core/src/discovery/language-pack-router.ts`
+   seeds the router from each pack's own exported extension list:
+
+   ```ts
+   packExtensions.set("language-py", new Set<string>(PY_EXTENSIONS));
+   ```
+
+   The list lives in the pack, so there is still one source of truth per
+   language; core only does the seeding, because `registerPackExtensions`
+   lives in core and a pack calling it would be a dependency cycle.
+   `LanguagePackRouter` then routes files to the claiming pack and
+   `ScanReport.coverage` picks it up automatically — no second list.
+
+   Keep the import cheap. Core loads every pack's module eagerly just to
+   read its extensions, so anything expensive (a WASM runtime, a parser
+   binary) belongs behind a lazy/dynamic import. Otherwise a repo with
+   none of that language pays for the pack existing.
+
+3. **Add a context variant.** `LanguagePyDetectorContext` in
+   `packages/core/src/detector.ts`, a branch on the `Detector` union, a
+   `grouped["language-<lang>"]` bucket in `groupDetectorsByPack`, and a
+   routing block in `scan-detect.ts`.
+
+   Only carry indexes the language actually has. The Python context
+   deliberately omits `jsxShapeIndex` and `functionHashIndex` — adding
+   fields "for symmetry" is how a pack seam quietly becomes
+   JS-shaped.
+
+4. **Qualify your detector ids** (`large_function.py`) while emitting
+   the abstract `Finding.type` (`large_function`). The qualified id
+   keeps the detector separately addressable in `detectors.enable` /
+   `disable` and avoids a registry collision with the JS detector of
+   the same name; the abstract type keeps cross-language grouping,
+   fingerprints, baselines and suppressions working. See
+   [`docs/packs.md`](./docs/packs.md#detector-ids-vs-finding-types).
+
+5. **Set `scores.agent_risk` on every finding**, scaled to the evidence
+   found. Since 0.13.0 it is 0.40 of the unified formula, and detectors
+   that omit it fall back to a deliberately-compressed severity-derived
+   default. A detector without an opinion ranks below one with an
+   opinion — which is the intended behaviour, so don't be the former.
+
+6. **Check `test_gap` understands the language's test convention.**
+   `testBaseCovers` in `packages/core/src/scoring/build.ts` pairs a
+   test file to the file it covers. Python needed a *prefix* rule
+   (`test_billing.py`) where every other supported language uses a
+   suffix; getting this wrong scores every file in the language at
+   `test_gap: 1.0` and silently over-ranks the whole pack.
+
+7. **Check whether the import graph needs the language.**
+   `blast_radius` is derived purely from it, and it is 0.20 of
+   `agent_risk`. `packages/core/src/imports/python.ts` shows the shape:
+   resolution logic lives in the pack, and core merges the resulting
+   edges into the one shared `ImportGraph`.
 
 File discovery itself is universal-pack infrastructure and lives in
 `packages/core/src/discovery/`; language packs supply parsing, not

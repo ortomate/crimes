@@ -207,11 +207,15 @@ describe("crimes scan --explain-coverage", () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-cli-coverage-"));
     await writeFile(join(root, "x.ts"), "const x = 1;\n", "utf8");
     await writeFile(join(root, "y.py"), "x = 1\n", "utf8");
+    // Rust has no pack, so it is the one file here that stays
+    // universal-only. `.py` was serving that role until 0.14.0.
+    await writeFile(join(root, "z.rs"), "fn main() {}\n", "utf8");
     const result = await runCli(["scan", ".", "--explain-coverage", "--no-color"], root);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("coverage breakdown");
-    expect(result.stdout).toContain("files discovered: 2");
+    expect(result.stdout).toContain("files discovered: 3");
     expect(result.stdout).toContain("language-js");
+    expect(result.stdout).toContain("language-py");
     expect(result.stdout).toContain("files with only universal coverage: 1");
   });
 

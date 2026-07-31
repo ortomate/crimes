@@ -338,7 +338,50 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.13.0 — the ranking release (current release)
+## 0.14.0 — Python language pack (current release)
+
+`crimes scan` now parses `.py` / `.pyi` via `@crimes/language-py` and
+reports Python findings alongside JavaScript ones in the same report.
+A mixed repo reports
+`packs_loaded: ["universal", "language-js", "language-py"]` with a
+populated `files_by_language: { js: 412, py: 138 }`.
+
+Eight Python detectors: `large_function.py`, `direct_date.py`,
+`mixed_utc_local_methods.py`, `sync_io_in_hotpath.py`,
+`boolean_naming_drift.py`, `weak_test_signal.py`,
+`circular_dependency.py`, `deep_import.py`. They are written to the
+language rather than ported — `direct_date.py` charges naive datetimes
+(no JS analogue), `circular_dependency.py` explains an ImportError at
+startup rather than a bundling problem, and `sync_io_in_hotpath.py`
+escalates inside `async def`, where a blocking call stalls the entire
+event loop rather than one worker.
+
+No Python runtime is required at install or scan time. Parsing goes
+through a vendored WebAssembly build of tree-sitter-python: no native
+addon, no install scripts, and nothing loaded at all in a repo with no
+Python files.
+
+Two scoring fixes shipped alongside, both of which otherwise mis-rank
+Python against JavaScript. `test_gap` now understands Python's *prefix*
+test convention (`test_billing.py` covers `billing.py`), where before
+every Python file scored 1.0 — "no test at all" — regardless of
+coverage. And `blast_radius` is computed from a real Python import
+graph (`__init__.py` packages, relative-dot levels, src-layouts) rather
+than being 0 for every Python file; since 0.13.0 that signal is worth
+0.20 of `agent_risk`.
+
+Detector ids are qualified per pack (`large_function.py`) so each
+language's version is separately addressable in
+`detectors.enable` / `disable`, while `Finding.type` stays abstract
+(`large_function`) so cross-language grouping, fingerprints, baselines
+and suppressions are unaffected.
+
+Schema stays `0.3.0`; `Finding.pack: "language-py"` lands additively.
+
+Release notes:
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.14.0.md
+
+## 0.13.0 — the ranking release
 
 No new detectors; a substantial change to which findings surface first.
 `agent_risk` had collapsed into `severity` (correlation 0.79) while

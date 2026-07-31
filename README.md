@@ -129,11 +129,58 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.13.0`
+## Status — `crimes@0.14.0`
 
-`crimes@0.13.0` is the latest published version on npm. It is the
-**ranking release**: no new detectors, but a substantial change to
-which findings surface first.
+`crimes@0.14.0` is the latest published version on npm. It is the
+**Python language pack**: `crimes scan` now parses `.py` / `.pyi` and
+reports Python findings alongside JavaScript ones in the same report.
+
+```console
+$ crimes scan . --explain-coverage
+
+coverage breakdown:
+  files discovered: 550
+  packs loaded: universal, language-js, language-py
+  files by language:
+    js: 412
+    py: 138
+```
+
+Eight Python detectors ship: `large_function.py`, `direct_date.py`,
+`mixed_utc_local_methods.py`, `sync_io_in_hotpath.py`,
+`boolean_naming_drift.py`, `weak_test_signal.py`,
+`circular_dependency.py`, `deep_import.py`. They are not ports of the
+JS ones — `direct_date.py` charges naive datetimes,
+`circular_dependency.py` explains an `ImportError` at startup, and
+`sync_io_in_hotpath.py` escalates inside `async def` because a blocking
+call there stalls the whole event loop.
+
+**No Python runtime is required**, at install or at scan time. The pack
+parses via a vendored WebAssembly build of `tree-sitter-python`, ships
+no native code and no install scripts, and loads nothing at all in a
+repo with no `.py` files.
+
+Two scoring fixes landed with it, both of which would otherwise have
+mis-ranked Python against JavaScript:
+
+- **`test_gap` understands Python's test convention.** `test_billing.py`
+  covers `billing.py` — a *prefix*, where every other supported language
+  uses a suffix. Without it every Python file scored `test_gap: 1.0`
+  ("no test at all") no matter how well covered.
+- **`blast_radius` is real for Python.** Python module resolution
+  (`__init__.py` packages, relative-dot levels, `src/` layouts) feeds
+  the same import graph the JS pack does. Without it every Python file
+  scored `0` on a signal worth 0.20 of `agent_risk`.
+
+Schema stays `0.3.0` — `pack` and `coverage` already shipped in 0.12.0,
+and `Finding.pack: "language-py"` lands additively. Fingerprints are
+unchanged. Release notes:
+[`docs/releases/v0.14.0.md`](./docs/releases/v0.14.0.md). Pack
+reference: [`docs/packs.md`](./docs/packs.md).
+
+Earlier `0.13.0` work (_the ranking release_) remains shipped. It was
+no new detectors, but a substantial change to which findings surface
+first.
 
 `agent_risk` — the score that separates "this file is long" from "an
 agent will get this wrong" — had collapsed into `severity`

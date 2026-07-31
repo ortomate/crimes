@@ -1,0 +1,112 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:09:00.068Z",
+  "run_id": "242b8b1a-e282-4600-9ee2-732cf631862c",
+  "response": "`crimes context src/billing.ts` reports **HIGH** risk: 6 findings (1 high, 4 medium, 1 low), churn 4 commits/90d, test gap **bottom-quartile**, 0 importers. I read the file to confirm each finding is real rather than a threshold artifact — all six are.\n\n## Top 3 changes\n\n### 1. Break up `generateInvoice` and de-duplicate the tax table\n*Findings: God Function `crime_00005` (high, conf 0.95, lines 50–253) — and it's the root cause of God File `crime_00035`.*\n\n204 lines, 3.4× the 60-line domain threshold, containing eight unrelated responsibilities that the file's own comments name: plan pricing (69–89), loyalty discount (92–102), promo resolution (106–126), fraud scoring (129–143), country tax (146–156), currency selection (160–165), PII audit logging (184–199), email composition (214–233), and a retry loop (239–248).\n\nThe concrete payoff isn't line count — it's a live two-sources-of-truth bug. The country tax ladder at `src/billing.ts:146-154` is a verbatim copy of exported `tax()` at `src/billing.ts:257-268`, and the comment at 255 admits it: *\"If a region's tax rate changes, both copies have to be updated; nothing makes that obvious.\"* An agent told \"update the DE VAT rate\" will grep, find `tax()`, change it, and ship an invoice generator that still charges 19%. Extracting `taxFor(country)` and having both paths call it collapses that to one edit site. Same shape for `applyPlanPricing`, `loyaltyDiscount`, `resolvePromo`, `scoreFraudRisk`, `renderInvoiceEmail`.\n\nTwo things fall out for free: the God File finding (311 lines, only 1.0× threshold — a symptom, not a cause), and the swallowed error at `src/billing.ts:246` and PII-to-stdout at `184-199` become isolated, fixable units instead of edits inside a 204-line body.\n\n### 2. Split `calculateRefundPreview` and encode the rule above it\n*Findings: False Identity `crime_00015` (conf 0.80, lines 40–44) + Logic in the Alibi `crime_00020` (line 39).*\n\nThese are the same defect at the same site, and together they're the sharpest agent hazard in the file. The name promises a pure calculation; the body (`src/billing.ts:41-42`) writes an audit record and **emails the customer** before returning a number it could have computed without any I/O. Any agent wiring a \"refund preview\" into a UI render path or a retry loop will mail customers repeatedly — the name gives it no reason to suspect otherwise.\n\nThe comment at line 39 makes it worse: *\"Only owners can refund enterprise plans unless billing support approves.\"* The detector flags that `owner`, `plan`, and `billing` appear nowhere in the body — and it's right. That authorization rule is enforced by nothing. A prose-only rule in a repo with a bottom-quartile test gap is a rule that will be violated silently.\n\nFix: `previewRefundAmount(invoice): number` (pure), `recordRefundRequest(user, invoice)` (effects, honestly named), and a real `canRefund(user, invoice)` guard encoding the owner/enterprise/support-approval condition. Also delete the dead commented-out refund block at `33-37` — it references `approveRefund`/`sendRefundReceipt` and reads as recoverable intent.\n\n### 3. Inject a clock (and the id source)\n*Finding: Temporal Recklessness `crime_00013` (7 uses at 57, 63, 92, 198, 238, 250, 273).*\n\nMedium severity in isolation, but it's the gate on everything above. Two of those calls decide money: `daysSince` at `src/billing.ts:92` selects the 10%/5%/2% loyalty tier, and `:273` drives `recommendUpgrade`'s 7/14/30/90/180-day ladder. You cannot write a test that pins the 365-day boundary without monkey-patching global `Date`. Add `Math.random()` at `:56` (invoice id) to the same fix — it's the other non-determinism blocking a snapshot test.\n\nThis matters because of what `crimes` says about the safety net: test gap bottom-quartile, and both existing tests are charged — `crime_00025` \"renders the enterprise plan\" has **0 assertions**, `crime_00034` \"creates an invoice\" uses only weak matchers. Reading `src/billing.test.ts` confirms it's worse than the finding implies: both tests call local stubs defined at the bottom of the test file (`renderEnterprisePlan`, `createInvoice` at lines 13–19) and never import `src/billing.ts` at all. The module has **zero** real coverage.\n\n## Sequencing\n\nDo **#3 first**, then write actual characterization tests against `generateInvoice`'s current output, *then* land #1. Splitting a 204-line money path with no assertions protecting it is how a refactor silently changes a tax total. #2 is independent and can go anytime — it's five lines and low risk.\n\n## What I'd skip\n\n- **God File `crime_00035`** — 311 lines against a 300 threshold (1.0×) with `agent_risk` 0.18. It resolves itself once #1 lands; splitting the file as its own change is medium-risk for near-zero gain.\n- **Unfinished Business `crime_00038`** — 4 markers, `agent_risk` 0.08, the lowest-ranked finding in the whole report. Two of them (the `FIXME` on PII logging at 183, the `XXX` on the swallowed error at 246) get addressed inside #1 anyway.\n\nNo code changed — this is the analysis you asked for.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

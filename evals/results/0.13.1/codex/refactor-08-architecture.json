@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:12:04.624Z",
+  "run_id": "cc3ff575-bd82-4dd6-85b5-e51b4cc4b5b2",
+  "response": "The scan identifies two relevant boundary problems:\n\n| Finding | Import | Recommended change |\n|---|---|---|\n| `crime_00002` — `layer_violation` | `src/domain/billing.ts` → `src/presentation/invoice-view.ts` | **Break this import.** The domain should expose billing data, decisions, or events—not call presentation code. Let `src/application/billing-flow.ts` coordinate billing and invoice rendering. If the domain genuinely needs an outward capability, define a domain-owned interface and inject an adapter implemented by an outer layer. |\n| `crime_00003` — `deep_import` | `src/application/billing-flow.ts` → `some-pkg/dist/internal/private/helper.js` | **Redirect this import.** Import the symbol from `some-pkg`’s documented public entry point. If it is not exported, place an application-owned interface in front of it and implement that interface in infrastructure; otherwise request an upstream public export rather than depending directly on `dist/internal`. |\n\nBreaking the domain-to-presentation edge also likely resolves the reported three-file cycle:\n\n```text\napplication/billing-flow.ts\n  → domain/billing.ts\n  → presentation/invoice-view.ts\n  → application/billing-flow.ts\n```\n\nThe intended dependency flow should instead resemble:\n\n```text\npresentation → application → domain\ninfrastructure ──implements──> application/domain ports\n```\n\nThe two finding types represent different agent risks:\n\n- `layer_violation` has higher agent risk (`0.34`, medium) because it contradicts the repository’s declared architecture. An agent following imports may put domain behavior into presentation code, extend the dependency inversion, or create further cycles. The risk is structural and affects where future changes belong.\n- `deep_import` has slightly lower agent risk (`0.29`, low) because the layer relationship may still be conceptually valid, but the imported path is private and unstable. An agent may treat an undocumented implementation detail as supported API, causing failures when the dependency changes its build layout or internals.\n\nSo the architectural edge should be removed and collaboration inverted through an owned interface; the package edge should be redirected to a supported public surface, with an infrastructure adapter only if no suitable public API exists.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

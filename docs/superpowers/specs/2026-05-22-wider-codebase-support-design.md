@@ -1,5 +1,16 @@
 # Wider codebase support — three-release design
 
+> **Renumbering note (added 2026-07-31).** This document was written
+> before the ranking work claimed `0.13.0`. The version numbers below
+> are the *original* slots and are now off by one from what shipped:
+> the universal pack was `0.12.0` as planned, but the **Python pack
+> shipped as `0.14.0`** and **polyglot IA is `0.15.0`**.
+> [`docs/roadmap.md`](../../roadmap.md) carries the accurate numbering.
+> The spec is left otherwise unedited as the historical design record —
+> see [`docs/releases/v0.14.0.md`](../../releases/v0.14.0.md) for what
+> the Python pack actually shipped, including two scoring fixes and a
+> parser-packaging decision this document did not anticipate.
+
 **Status:** Draft, brainstormed 2026-05-22.
 **Slots:** `crimes@0.12.0`, `crimes@0.13.0`, `crimes@0.14.0`.
 **Schema bump:** `0.2.0` → `0.3.0` (lands once, in 0.12.0).

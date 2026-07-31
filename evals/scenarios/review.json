@@ -5,8 +5,12 @@
     "kind": "review",
     "prompt": "A PR adds a `tomorrowMs` helper to src/date.ts that adds 86_400_000 to a timestamp. Use `crimes scan src/date.ts --format json` to find the DST-naive arithmetic finding. Explain whether you'd block the PR or request changes, citing the finding's evidence verbatim. Identify which two dates per year the helper would produce a wrong answer.",
     "expected_artifacts": {
-      "referenced_findings": ["dst_naive_arithmetic"],
-      "referenced_files": ["src/date.ts"],
+      "referenced_findings": [
+        "dst_naive_arithmetic"
+      ],
+      "referenced_files": [
+        "src/date.ts"
+      ],
       "expected_priority": "dst_naive_arithmetic"
     },
     "judge_questions": [
@@ -20,7 +24,11 @@
     "kind": "review",
     "prompt": "Imagine a PR added the current state of this repo on top of an empty baseline. Use `crimes scan --format json` to enumerate findings and categorise each as: block merge / warn / ignore. Justify each category with the finding's severity + scores.agent_risk.",
     "expected_artifacts": {
-      "referenced_findings": ["large_function", "direct_date", "todo_density"],
+      "referenced_findings": [
+        "large_function",
+        "direct_date",
+        "todo_density"
+      ],
       "expected_priority": "large_function"
     },
     "judge_questions": [
@@ -34,8 +42,15 @@
     "kind": "review",
     "prompt": "Review the IA consistency across src/routes/, src/nav.ts, and docs/routes.md using `crimes scan --format json`. Identify the drift findings and recommend whether they're blocking-quality issues or follow-ups.",
     "expected_artifacts": {
-      "referenced_findings": ["concept_alias_drift", "orphaned_destination"],
-      "referenced_files": ["src/routes/teams.ts", "src/routes/workspace.ts", "docs/routes.md"]
+      "referenced_findings": [
+        "concept_alias_drift",
+        "orphaned_destination"
+      ],
+      "referenced_files": [
+        "src/routes/teams.ts",
+        "src/routes/workspace.ts",
+        "docs/routes.md"
+      ]
     },
     "judge_questions": [
       "Did the agent recognise that the same entities are referred to inconsistently across files?",
@@ -48,7 +63,11 @@
     "kind": "review",
     "prompt": "Imagine a PR landed this dashboard codebase on top of an empty baseline. Use `crimes scan --format json` to enumerate the petty / single-file findings (dead code, magic literals, repeated role checks) and categorise each as: block merge / warn / ignore. Justify each category with the finding's severity + scores.agent_risk and group your output by detector type.",
     "expected_artifacts": {
-      "referenced_findings": ["commented_out_code", "magic_domain_literal_scatter", "duplicated_role_status_plan_check"],
+      "referenced_findings": [
+        "commented_out_code",
+        "magic_domain_literal_scatter",
+        "duplicated_role_status_plan_check"
+      ],
       "expected_priority": "duplicated_role_status_plan_check"
     },
     "judge_questions": [
@@ -62,7 +81,12 @@
     "kind": "review",
     "prompt": "Imagine a PR added this Commander.js codebase on top of an empty baseline. Use `crimes scan --format json` to enumerate the agent-risk findings — dead code, prose-rules-in-comments, magic literals, tests with weak assertions, large files. For each, decide block merge / warn / ignore, and justify with severity + scores.agent_risk.",
     "expected_artifacts": {
-      "referenced_findings": ["commented_out_code", "logic_in_comments", "weak_test_signal", "magic_domain_literal_scatter"],
+      "referenced_findings": [
+        "commented_out_code",
+        "logic_in_comments",
+        "weak_test_signal",
+        "magic_domain_literal_scatter"
+      ],
       "expected_priority": "logic_in_comments"
     },
     "judge_questions": [
@@ -76,8 +100,17 @@
     "kind": "review",
     "prompt": "The /admin destination is described three different ways across nav, route guard, and docs. There's also a parallel destination (src/routes/admin/billing-plans.ts mirrors the top-level billing-plans route) and a docs page referencing iaq subcommands that the bin doesn't advertise. Use `crimes scan --format json` to find these three IA drifts. For each, recommend block merge / warn / ignore and explain which one carries the highest agent-risk and why.",
     "expected_artifacts": {
-      "referenced_findings": ["permission_ia_drift", "parallel_destination", "command_drift_docs_code_drift"],
-      "referenced_files": ["src/routes/admin.ts", "src/nav.ts", "src/routes/admin/billing-plans.ts", "docs/routes.md"],
+      "referenced_findings": [
+        "permission_ia_drift",
+        "parallel_destination",
+        "command_drift_docs_code_drift"
+      ],
+      "referenced_files": [
+        "src/routes/admin.ts",
+        "src/nav.ts",
+        "src/routes/admin/billing-plans.ts",
+        "docs/routes.md"
+      ],
       "expected_priority": "permission_ia_drift"
     },
     "judge_questions": [
@@ -91,8 +124,16 @@
     "kind": "review",
     "prompt": "Three IA findings overlap in this repo: a route's path / file / component / nav entries disagree (route_metadata_drift), one destination shows up in two different nav source files with different labels (duplicated_navigation_source), and a docs page links to a file that doesn't exist (docs_code_drift). Use `crimes scan --format json` to enumerate these and recommend whether each is a block merge / warn / ignore.",
     "expected_artifacts": {
-      "referenced_findings": ["route_metadata_drift", "duplicated_navigation_source", "docs_code_drift"],
-      "referenced_files": ["src/nav/registry.ts", "src/routes/settings/billing.tsx", "docs/teams.md"],
+      "referenced_findings": [
+        "route_metadata_drift",
+        "duplicated_navigation_source",
+        "docs_code_drift"
+      ],
+      "referenced_files": [
+        "src/nav/registry.ts",
+        "src/routes/settings/billing.tsx",
+        "docs/teams.md"
+      ],
       "expected_priority": "route_metadata_drift"
     },
     "judge_questions": [
@@ -106,8 +147,12 @@
     "kind": "review",
     "prompt": "A PR adds an `adminUrl()` helper to src/api/files.ts that returns the admin dashboard URL. Use `crimes scan src/api/files.ts --format json` to find the `hardcoded_localhost` finding. Quote the literal URL from the finding's evidence and explain whether you'd block the PR or request changes. Recommend the specific configuration mechanism (env var name, settings module location, framework runtime-config slot) the URL should move to — don't stop at 'use config'.",
     "expected_artifacts": {
-      "referenced_findings": ["hardcoded_localhost"],
-      "referenced_files": ["src/api/files.ts"],
+      "referenced_findings": [
+        "hardcoded_localhost"
+      ],
+      "referenced_files": [
+        "src/api/files.ts"
+      ],
       "expected_priority": "hardcoded_localhost"
     },
     "judge_questions": [
@@ -121,13 +166,58 @@
     "kind": "review",
     "prompt": "A PR adds `src/assets/hero-banner.png` as the new landing-page hero. Use `crimes scan --format json` to find the `oversized_raster` finding. Quote the file size from the finding evidence and decide whether to block the PR or request changes. Recommend the specific transformation — target dimensions for the visible render area, and which modern format (WebP vs AVIF) you'd use for re-encode and why.",
     "expected_artifacts": {
-      "referenced_findings": ["oversized_raster"],
-      "referenced_files": ["src/assets/hero-banner.png"],
+      "referenced_findings": [
+        "oversized_raster"
+      ],
+      "referenced_files": [
+        "src/assets/hero-banner.png"
+      ],
       "expected_priority": "oversized_raster"
     },
     "judge_questions": [
       "Did the agent quote the actual byte size / KB number from the finding evidence rather than paraphrasing 'too big'?",
       "Did the agent recommend a specific modern format (WebP or AVIF) and justify the choice (browser support, file-size vs quality tradeoff) rather than stopping at 'compress it'?"
+    ]
+  },
+  {
+    "id": "review-11-py-async-blocking",
+    "fixture": "11",
+    "kind": "review",
+    "prompt": "This service falls over under moderate load: p99 latency collapses even though CPU stays low. Use `crimes scan --format json` to review the HTTP layer and identify what is causing it. Rank what you find by how much it contributes to the problem.",
+    "expected_artifacts": {
+      "referenced_findings": [
+        "sync_io_in_hotpath"
+      ],
+      "referenced_files": [
+        "api/routes.py"
+      ],
+      "expected_priority": "sync_io_in_hotpath"
+    },
+    "judge_questions": [
+      "Did the agent identify blocking calls inside async def handlers as the cause?",
+      "Did the agent explain that a blocking call in an async handler stalls the event loop for all concurrent requests, not just one worker?",
+      "Did the agent propose async equivalents (httpx.AsyncClient, aiofiles, asyncio.sleep) or moving the work off the request path?"
+    ]
+  },
+  {
+    "id": "review-12-py-hollow-tests",
+    "fixture": "12",
+    "kind": "review",
+    "prompt": "We are about to refactor this billing package and want to know how much the existing test suite actually protects us. Run `crimes scan --format json` and report which parts of the package are genuinely covered and which only look covered. Be specific about the difference.",
+    "expected_artifacts": {
+      "referenced_findings": [
+        "weak_test_signal"
+      ],
+      "referenced_files": [
+        "tests/test_reporting.py",
+        "billing/reporting.py"
+      ],
+      "expected_priority": "weak_test_signal"
+    },
+    "judge_questions": [
+      "Did the agent notice that the reporting tests call the code but assert nothing?",
+      "Did the agent distinguish between a module having a test file and being meaningfully tested?",
+      "Did the agent avoid claiming the package is well tested purely because test files exist?"
     ]
   }
 ]

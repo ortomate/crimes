@@ -35,7 +35,7 @@ description: Use when editing, reviewing, or investigating a TypeScript / JavaSc
 
 ## Pack coverage
 
-\`crimes\` ships findings under two packs:
+\`crimes\` ships findings under three packs:
 
 - **Universal pack** runs on every file. Detectors: large files, raster
   asset weight, duplicate filenames, hardcoded localhost / local paths,
@@ -43,6 +43,18 @@ description: Use when editing, reviewing, or investigating a TypeScript / JavaSc
   commented-out code (non-JS only).
 - **Language-js pack** runs on \`.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts\`
   files only. Most detectors live here.
+- **Language-py pack** runs on \`.py/.pyi\` files only. Eight detectors:
+  \`large_function.py\`, \`direct_date.py\`,
+  \`mixed_utc_local_methods.py\`, \`sync_io_in_hotpath.py\`,
+  \`boolean_naming_drift.py\`, \`weak_test_signal.py\`,
+  \`circular_dependency.py\`, \`deep_import.py\`. Python-specific
+  hazards are called out as such: a naive \`datetime\` (no \`tz=\`) can
+  raise \`TypeError\` when compared against an aware one, an import
+  cycle can raise \`ImportError\` at startup depending on import order,
+  and blocking I/O inside \`async def\` stalls the whole event loop.
+
+Run \`crimes scan --explain-coverage\` to see which packs claimed which
+files in this repo.
 
 Findings on files no language pack claims have **full confidence** on
 the things universal detectors can see, and are **silent** on things

@@ -1,0 +1,78 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.13.1",
+  "timestamp": "2026-07-31T04:12:38.080Z",
+  "run_id": "92537915-8a99-4d87-8c14-6eab9ae52311",
+  "response": "## 1. Drift confirmed\n\nThe scan's `delete`-group evidence lines up exactly with the source:\n\n| File | Line | Label | href |\n|---|---|---|---|\n| `src/components/UserList.tsx` | 7 | `Delete user` | `/users/manage` |\n| `src/components/UserList.tsx` | 8 | `Remove member` | `/users/manage` |\n| `src/components/TeamList.tsx` | 6 | `Archive team` | `/teams/manage` |\n| `src/components/TeamList.tsx` | 7 | `Delete the seat` | `/seats/manage` |\n| `src/components/SeatList.tsx` | 6 | `Remove member` | `/seats/manage` |\n| `src/components/SeatList.tsx` | 7 | `Archive member` | `/seats/manage` |\n\nThree verbs (`delete`/`remove`/`archive`), each in exactly 2 files — which is the minimum `analyse()` requires (≥3 aliases, each in ≥2 files, `packages/core/src/detectors/action-label-drift.ts:120-124`). Three qualifying aliases → `severity: low`; a fourth would have made it medium (`:128`).\n\nTwo things the JSON does *not* say, worth knowing before you plan the fix:\n\n- **The object nouns are drifting too, but below threshold.** The same detector carries a `user` group (`user`/`member`/`seat`). Here `member` appears in 2 files, but `user` and `seat` appear in 1 each — so only 1 alias qualifies and the group never fires. The noun drift is real in the source; it just isn't in the report.\n- **`file: src/components/SeatList.tsx` is not a priority signal.** The anchor is the lexicographically first contributing file (`:126-127`, `isPrimaryAnchor` at `:178`). S < T < U. Don't read it as \"start here.\"\n\n## 2. Canonical label set\n\nThe three verbs aren't synonyms in a seats/teams product — they're three distinct operations, and the fixture is using them interchangeably. So the canon is a semantics assignment, not just a pick-one:\n\n| Verb | Reserved for | Reversible? |\n|---|---|---|\n| **Delete** | permanent destruction of the record | no |\n| **Remove** | detaching a member from a container (team/workspace) — the record survives | n/a |\n| **Archive** | soft-delete / retire, still retrievable | yes |\n\nAll six labels above point at `*/manage` routes with no evidence of soft-delete or detach semantics anywhere in the fixture, so **all three surfaces are the same operation and all three take `Delete`**. `Remove` and `Archive` stay in the vocabulary but go unused until those operations actually exist.\n\nObject noun: canonicalize per surface, matching the route — `user` for `/users`, `team` for `/teams`, `seat` for `/seats`. Resulting labels:\n\n```\nUserList.tsx  → \"Delete user\"          (one item; line 8 is a duplicate destination)\nTeamList.tsx  → \"Delete team\"          (seat action moves to SeatList)\nSeatList.tsx  → \"Delete seat\"          (one item; lines 6-7 are the same href)\n```\n\nDocument it in a copy guide, per the finding's `pick_canonical_label` suggested action — otherwise the next agent re-derives a fourth verb.\n\n## 3. Refactor order\n\n**`TeamList.tsx` first.** Three reasons, in order of weight:\n\n1. It's the only file where the **label and the destination disagree**: line 7 renders `Delete the seat` → `/seats/manage` from inside a *team* component. That's not copy drift, it's an action in the wrong component — and it's the sole source of the `seat` noun outside `SeatList`. Fixing it forces the decision the other two files just inherit.\n2. It's also the anchor of **`crime_00002` (`concept_alias_drift`, medium, agent_risk 0.39)** — the `tenant` group (`organisation`/`team`/`workspace`). It is the one file where both naming decisions in this repo intersect, and it carries the higher-ranked finding. One pass, two findings.\n3. `UserList` already contains the target label (`Delete user`), so it needs the least work and should go last.\n\nOrder: **`TeamList.tsx` → `SeatList.tsx` → `UserList.tsx`.**\n\n| Change | Ties to |\n|---|---|\n| `TeamList.tsx:6` `Archive team` → `Delete team` | `crime_00009` / `crime_00010` — drops `archive` to 1 file |\n| `TeamList.tsx:7` move `Delete the seat` out of `TeamList` into `SeatList` | not in the report — wrong-component action; also removes the `seat` noun from the tenant-alias file, helping `crime_00002` |\n| `SeatList.tsx:6-7` collapse `Remove member` + `Archive member` → one `Delete seat` | `crime_00009` / `crime_00010` — drops `remove` and `archive`, and removes the two-labels-one-href duplicate |\n| `UserList.tsx:7-8` collapse `Delete user` + `Remove member` → one `Delete user` | `crime_00009` / `crime_00010` — same duplicate-href shape |\n\n⚠️ **Fixing any one of these three files silences the finding.** The group sits at exactly the 3-alias threshold, so removing either non-canonical verb from either of its two files drops the count to 2 and the finding disappears — from `TeamList` alone, from `SeatList` alone, or from `UserList` alone. A green re-scan after step one would be a false all-clear. Finish all three; the detector cannot tell you when you're done here.\n\n## 4. How the two detectors differ\n\nThey are **the same analysis run over two different input surfaces**. `copy_ia_drift` (`packages/core/src/detectors/copy-ia-drift.ts:30-37`) calls the identical `analyse()` exported by `action-label-drift.ts`, with the same `ACTION_GROUPS` catalogue, same thresholds, same anchor rule. The only argument that differs is `restrictToJsxLabel: true`, which does two things:\n\n- keeps only labels whose kind starts with `jsx_` — i.e. `jsx_title` and `jsx_label`, dropping `document_title`, `metadata_title`, `use_title` (`action-label-drift.ts:91`);\n- skips the nav-entry loop entirely, so nav array labels and attributes never contribute (`:99`).\n\nSo `action_label_drift` = whole IA surface (UI copy + nav literals + code-side titles); `copy_ia_drift` = the pure UI-copy subset.\n\n**On this fixture the two collapse into one.** Every hit comes from `label=\"…\"` props on `<NavItem>`, which the JS pack records as `jsx_label` (`packages/language-js/src/parse/ui-strings.ts:132`) — those survive the JSX restriction. And the repo's only nav source, `src/nav.ts`, contains no delete-group verbs at all (`Teams`, `Workspaces`, `Organisations`, `Admin Console`). The broader detector's extra surface therefore contributes zero additional hits, and `crime_00009` and `crime_00010` come out byte-identical apart from `id`, `detector_id`, and `fix_shape` (*\"pick one verb per action; update labels uniformly\"* vs *\"pick the canonical label; redirect copies to it\"*).\n\nPractical reading: **that's one problem counted twice, not two problems** — don't treat the pair as evidence of extra severity. The signal in their agreeing file-for-file is that the drift is *purely* in UI copy: there's no nav-side or code-side divergence to chase. They would separate if, say, `nav.ts` gained `{ label: \"Archive workspace\" }` or a component called `useTitle(\"Remove seat\")` — then `action_label_drift`'s evidence would list files that `copy_ia_drift`'s doesn't, and the delta would be exactly the non-copy surfaces you'd otherwise miss.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": "src/components/UserList.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": "src/components/TeamList.tsx",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": "src/components/SeatList.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

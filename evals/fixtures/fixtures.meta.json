@@ -70,6 +70,20 @@
       "name": "clean-typed",
       "kind": "hand-crafted",
       "purpose": "Control: a small strict-TS module with a focused test suite. Stronger control — zero findings expected."
+    },
+    {
+      "id": "11",
+      "path": "evals/fixtures/11-py-service",
+      "name": "py-service",
+      "kind": "hand-crafted",
+      "purpose": "FastAPI-shaped Python package — exercises the 0.14.0 language-py slate: large_function.py (deeply nested build_invoice), direct_date.py + mixed_utc_local_methods.py (now() alongside utcnow()), sync_io_in_hotpath.py (requests/open/subprocess/sleep inside async handlers), circular_dependency.py (domain.invoicing ↔ api.rendering), deep_import.py (tax.rules.regional.eu.vat_bands)."
+    },
+    {
+      "id": "12",
+      "path": "evals/fixtures/12-py-tested",
+      "name": "py-tested",
+      "kind": "hand-crafted",
+      "purpose": "Python package with three modules at three different coverage levels: rates.py has real asserting tests, reporting.py has a test file that asserts nothing, ledger.py has no test at all. Exercises weak_test_signal.py and is the fixture that proves the 0.14.0 test_gap fix — Python's test_ prefix convention now pairs, so these three do not all score test_gap 1.0."
     }
   ]
 }
