@@ -168,7 +168,8 @@ function buildOrphanFinding(
   const shown = orphans.slice(0, 8);
 
   const evidence: string[] = [
-    `${orphans.length} frontend ${plural(orphans.length, "call")} reach a path no backend route declares`,
+    `${orphans.length} frontend ${plural(orphans.length, "call")} ` +
+      `${orphans.length === 1 ? "reaches" : "reach"} a path no backend route declares`,
     ...shown.map(
       (o) => `${o.file}:${o.line} — ${o.method.toUpperCase()} ${o.url}`,
     ),
@@ -196,9 +197,10 @@ function buildOrphanFinding(
     file: anchor.file,
     lines: [anchor.line, orphans[orphans.length - 1]!.line],
     summary:
-      `${orphans.length} frontend ${plural(orphans.length, "call")} target a path that ` +
-      "no backend route declares. Either the path is wrong or the route was renamed on " +
-      "one side only — both fail at runtime as a 404 that reads like a data problem.",
+      `${orphans.length} frontend ${plural(orphans.length, "call")} ` +
+      `${orphans.length === 1 ? "targets" : "target"} a path that no backend route ` +
+      "declares. Either the path is wrong or the route was renamed on one side only — " +
+      "both fail at runtime as a 404 that reads like a data problem.",
     evidence,
     effort: "small",
     fix_shape: "align the path, or generate the client from the route table",

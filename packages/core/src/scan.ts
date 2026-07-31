@@ -146,7 +146,11 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   });
   findings.push(...assetFindings);
 
-  const coverage = buildCoverage({ files: inputs.allFiles, router: langPack });
+  const coverage = buildCoverage({
+    files: inputs.allFiles,
+    router: langPack,
+    root,
+  });
 
   // Backfill the per-finding scoring fields (churn / test_gap /
   // blast_radius) and recompute `agent_risk` from the unified 0.6.0

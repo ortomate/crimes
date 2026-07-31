@@ -235,6 +235,25 @@ class Plan(str, Enum):
     ).toEqual([]);
   });
 
+  it("still fires when the sets have drifted a long way apart", async () => {
+    // Overlap is measured against the *smaller* set, not the union.
+    // Against the union this is 2/5 = 0.4 and would be silently
+    // dropped — meaning the more two sets had drifted, the less likely
+    // the drift would be reported. Exactly inverted.
+    const found = await run(crossLanguageTypeDriftDetector, {
+      "api/models.py": `
+class Plan(str, Enum):
+    FREE = "free"
+    PRO = "pro"
+    TEAM = "team"
+    SCALE = "scale"
+`,
+      "src/types.ts": `export type Plan = "free" | "pro" | "enterprise";`,
+    });
+    expect(found).toHaveLength(1);
+    expect(found[0]!.summary).toMatch(/diverged by 3 values/);
+  });
+
   it("does not pair same-named sets with no overlap", async () => {
     // Two unrelated `Status` types are different concepts, not drift.
     expect(
@@ -310,6 +329,29 @@ class TeamService:
         return []
 `,
           "src/team.ts": `export function useTeam() { return null; }`,
+        },
+        GROUPS,
+      ),
+    ).toEqual([]);
+  });
+
+  it("stays quiet when a docstring already documents the mapping", async () => {
+    // Docstrings are part of the alias pool, so a Python docstring that
+    // uses the frontend's word means the vocabulary is not cleanly
+    // split — and that the mapping is written down where a reader will
+    // find it. That is the case where the finding is *least* warranted,
+    // so this behaviour is deliberate rather than a gap.
+    expect(
+      await run(
+        crossLanguageConceptAliasDriftDetector,
+        {
+          "api/team_service.py": `
+class TeamService:
+    """Operations on a team, called a workspace in the UI."""
+    def list_teams(self):
+        return []
+`,
+          "src/WorkspaceProvider.ts": `export function useWorkspace() { return null; }`,
         },
         GROUPS,
       ),

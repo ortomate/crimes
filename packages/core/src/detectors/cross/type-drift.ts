@@ -19,7 +19,19 @@ import { intrinsicFor, plural, severityScore } from "../py/shared.js";
  * listed different members.
  */
 
-/** How similar two member sets must be to count as the same concept. */
+/**
+ * How much of the *smaller* set must be shared before two same-named
+ * sets count as the same concept.
+ *
+ * Measured against the smaller set, not the union. Using the union as
+ * the denominator is inverted for this purpose: the more two sets have
+ * drifted, the lower the union ratio, so the more real the drift the
+ * less likely it is to be reported. A four-member Python enum and a
+ * three-member TS union sharing two values — an obvious, textbook drift
+ * — scores 2/5 = 0.4 against the union and would be silently dropped.
+ * Against the smaller set it is 2/3, which is the answer a reader would
+ * give.
+ */
 const MIN_OVERLAP_RATIO = 0.5;
 
 /** A set this small is more likely coincidence than a shared concept. */
@@ -75,8 +87,8 @@ export const crossLanguageTypeDriftDetector: CrossLanguageDetector = {
         // to share a name but nothing else are not drift — they are
         // different concepts, and calling them drift would be a
         // fabricated finding.
-        const union = new Set([...pyMembers, ...jsMembers]).size;
-        if (shared.length === 0 || shared.length / union < MIN_OVERLAP_RATIO) {
+        const smaller = Math.min(pyMembers.size, jsMembers.size);
+        if (shared.length === 0 || shared.length / smaller < MIN_OVERLAP_RATIO) {
           continue;
         }
 

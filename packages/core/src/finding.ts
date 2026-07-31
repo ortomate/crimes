@@ -295,5 +295,34 @@ export interface ScanReport {
      * router, so this reflects what actually executed.
      */
     packs_loaded: string[];
+    /**
+     * Per-package breakdown, present only when the scan root looks like
+     * a monorepo — two or more directories carrying a package manifest
+     * (`package.json`, `pyproject.toml`, `setup.py`, `Cargo.toml`,
+     * `go.mod`).
+     *
+     * Added in 0.15.0. The repo-wide `files_by_language` says a repo is
+     * 70% TypeScript; this says *which* package is the Python one. In a
+     * polyglot monorepo that is the difference between "there is some
+     * Python here" and "`packages/api` is a Python service" — and the
+     * latter is what decides where a change is risky.
+     *
+     * Sorted by path. Absent on single-package repos rather than
+     * present with one entry, so consumers can treat presence as "this
+     * is a monorepo".
+     */
+    by_package?: Array<{
+      /** Repo-relative directory holding the manifest. */
+      path: string;
+      files_total: number;
+      /** Same short-id keying as the top-level `files_by_language`. */
+      files_by_language: Record<string, number>;
+      /**
+       * Short pack id holding a strict majority of this package's
+       * claimed files, or `null` when no language reaches a majority
+       * (a genuinely mixed package) or none is claimed at all.
+       */
+      dominant_language: string | null;
+    }>;
   };
 }

@@ -111,19 +111,31 @@ export const crossLanguageConceptAliasDriftDetector: CrossLanguageDetector = {
  * an alias in a comment or a string literal is far weaker evidence and
  * would balloon the false-positive surface, which for a cross-language
  * detector is already roughly squared.
+ *
+ * Docstrings are in the pool on purpose, and the consequence is worth
+ * knowing: a Python docstring that uses the frontend's word — "the
+ * team, called a workspace in the UI" — puts both aliases on the Python
+ * side, so the vocabulary is no longer cleanly split and no finding is
+ * emitted. That is the right outcome. A codebase that documents its own
+ * mapping where a reader will find it has the problem this detector
+ * exists to catch far less than one that does not.
  */
 function collectHits(files: PackedFile[], group: IaConceptAliasGroup): AliasHit[] {
   const hits: AliasHit[] = [];
   const aliases = group.aliases.map((a) => a.toLowerCase());
 
-  const match = (text: string): string | undefined =>
-    aliases.find((a) => containsToken(text, a));
+  // Every alias present, not just the first. A docstring reading "the
+  // team, called a workspace in the UI" names both; recording only the
+  // first would make the outcome depend on the order aliases happen to
+  // be listed in the group, and would report a clean language split
+  // where the text plainly documents the mapping.
+  const match = (text: string): string[] =>
+    aliases.filter((a) => containsToken(text, a));
 
   for (const entry of files) {
     if (entry.pack === "language-py") {
       for (const cls of entry.parsed.classes) {
-        const alias = match(cls.name);
-        if (alias) {
+        for (const alias of match(cls.name)) {
           hits.push({
             alias,
             file: entry.file,
@@ -132,23 +144,19 @@ function collectHits(files: PackedFile[], group: IaConceptAliasGroup): AliasHit[
             line: cls.startLine,
           });
         }
-        if (cls.docstring) {
-          const docAlias = match(cls.docstring);
-          if (docAlias) {
-            hits.push({
-              alias: docAlias,
-              file: entry.file,
-              language: "py",
-              source: `docstring of ${cls.name}`,
-              line: cls.startLine,
-            });
-          }
+        for (const alias of match(cls.docstring ?? "")) {
+          hits.push({
+            alias,
+            file: entry.file,
+            language: "py",
+            source: `docstring of ${cls.name}`,
+            line: cls.startLine,
+          });
         }
       }
       for (const fn of entry.parsed.functions) {
         if (fn.name === undefined) continue;
-        const alias = match(fn.name);
-        if (alias) {
+        for (const alias of match(fn.name)) {
           hits.push({
             alias,
             file: entry.file,
@@ -162,8 +170,7 @@ function collectHits(files: PackedFile[], group: IaConceptAliasGroup): AliasHit[
     }
 
     for (const union of entry.parsed.stringUnionTypes ?? []) {
-      const alias = match(union.name);
-      if (alias) {
+      for (const alias of match(union.name)) {
         hits.push({
           alias,
           file: entry.file,
@@ -175,8 +182,7 @@ function collectHits(files: PackedFile[], group: IaConceptAliasGroup): AliasHit[
     }
     for (const fn of entry.parsed.functions) {
       if (fn.name === undefined) continue;
-      const alias = match(fn.name);
-      if (alias) {
+      for (const alias of match(fn.name)) {
         hits.push({
           alias,
           file: entry.file,
@@ -187,8 +193,7 @@ function collectHits(files: PackedFile[], group: IaConceptAliasGroup): AliasHit[
       }
     }
     if (entry.parsed.defaultExport) {
-      const alias = match(entry.parsed.defaultExport);
-      if (alias) {
+      for (const alias of match(entry.parsed.defaultExport)) {
         hits.push({
           alias,
           file: entry.file,

@@ -195,7 +195,7 @@ export interface CrimesConfig {
 export const DEFAULT_SOURCE_INCLUDES: string[] = [
   // JavaScript / TypeScript (language-js pack)
   "**/*.{ts,tsx,js,jsx,mjs,cjs,cts,mts}",
-  // Python (universal pack today; language-py pack ships in 0.13.0)
+  // Python (language-py pack, 0.14.0)
   "**/*.{py,pyi}",
   // Other popular source languages — universal pack only for now
   "**/*.{rs,go,rb,java,kt,scala,swift,c,h,cpp,hpp,cs,php,ex,exs,lua,sh,bash,zsh}",

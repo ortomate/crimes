@@ -1,6 +1,7 @@
 import { extname } from "node:path";
 import type { ScanReport } from "../finding.js";
 import type { Pack } from "../pack.js";
+import { buildByPackage } from "./by-package.js";
 import type { LanguagePackRouter } from "./language-pack-router.js";
 
 type Coverage = NonNullable<ScanReport["coverage"]>;
@@ -26,6 +27,12 @@ const PACK_SHORT_ID: Partial<Record<Pack, string>> = {
 export function buildCoverage(args: {
   files: readonly string[];
   router: LanguagePackRouter;
+  /**
+   * Absolute scan root. Optional so existing callers keep working;
+   * `by_package` is only computed when it is supplied, since package
+   * roots are found on disk rather than in the file list.
+   */
+  root?: string;
 }): Coverage {
   const filesByLanguage: Record<string, number> = {};
   const universalOnlyByExtension: Record<string, number> = {};
@@ -43,13 +50,24 @@ export function buildCoverage(args: {
     filesByLanguage[shortId] = (filesByLanguage[shortId] ?? 0) + 1;
   }
 
-  return {
+  const coverage: Coverage = {
     files_total: args.files.length,
     files_by_language: filesByLanguage,
     files_universal_only: filesUniversalOnly,
     universal_only_by_extension: universalOnlyByExtension,
     packs_loaded: ["universal", ...args.router.registeredPacks()],
   };
+
+  if (args.root !== undefined) {
+    const byPackage = buildByPackage({
+      root: args.root,
+      files: args.files,
+      router: args.router,
+    });
+    if (byPackage) coverage.by_package = byPackage;
+  }
+
+  return coverage;
 }
 
 /**
