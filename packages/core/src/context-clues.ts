@@ -114,6 +114,8 @@ export function applyEmptyReasons(
   }
   if (likely_tests.length === 0) {
     report.likely_tests_reason =
-      "no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename";
+      "no test file matched the target basename (looked for siblings, " +
+      "__tests__/ and tests/ directories, and the .test / .spec / _test / " +
+      "test_ naming conventions) and no test file imports it";
   }
 }

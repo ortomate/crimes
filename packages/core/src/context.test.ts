@@ -228,6 +228,57 @@ describe("context", () => {
       expect(report.likely_tests).toContain("test/index_test.ts");
     });
 
+    it("recognises the Python test_<name>.py prefix as a sibling test", async () => {
+      const root = await makeRepo({
+        "billing/rates.py": "DEFAULT = 0.2\n",
+        "billing/test_rates.py": "from .rates import DEFAULT\n\ndef test_d():\n    assert DEFAULT\n",
+      });
+      const report = await context({ root, file: "billing/rates.py" });
+      expect(report.likely_tests).toContain("billing/test_rates.py");
+    });
+
+    it("recognises tests/test_<name>.py in a parallel test directory", async () => {
+      // The layout virtually every Python project uses. Before 0.14.0
+      // `crimes context` reported "no likely tests" here — the flagship
+      // command telling a Python user their covered module was uncovered.
+      const root = await makeRepo({
+        "billing/rates.py": "DEFAULT = 0.2\n",
+        "tests/test_rates.py":
+          "from billing.rates import DEFAULT\n\ndef test_d():\n    assert DEFAULT\n",
+      });
+      const report = await context({ root, file: "billing/rates.py" });
+      expect(report.likely_tests).toContain("tests/test_rates.py");
+    });
+
+    it("recognises the <name>_test.py suffix too", async () => {
+      const root = await makeRepo({
+        "billing/rates.py": "DEFAULT = 0.2\n",
+        "billing/rates_test.py": "from .rates import DEFAULT\n",
+      });
+      const report = await context({ root, file: "billing/rates.py" });
+      expect(report.likely_tests).toContain("billing/rates_test.py");
+    });
+
+    it("finds a Python test by dotted import when the name does not match", async () => {
+      const root = await makeRepo({
+        "billing/ledger.py": "def post():\n    return 1\n",
+        "tests/test_accounting.py":
+          "from billing.ledger import post\n\ndef test_p():\n    assert post()\n",
+      });
+      const report = await context({ root, file: "billing/ledger.py" });
+      expect(report.likely_tests).toContain("tests/test_accounting.py");
+    });
+
+    it("reports no likely tests for a genuinely untested Python module", async () => {
+      const root = await makeRepo({
+        "billing/rates.py": "DEFAULT = 0.2\n",
+        "billing/ledger.py": "def post():\n    return 1\n",
+        "tests/test_rates.py": "from billing.rates import DEFAULT\n",
+      });
+      const report = await context({ root, file: "billing/ledger.py" });
+      expect(report.likely_tests).toEqual([]);
+    });
+
     it("recognises foo_test.ts under __tests__/", async () => {
       const root = await makeRepo({
         "src/foo.ts": "export const foo = 1;\n",

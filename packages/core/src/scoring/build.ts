@@ -32,7 +32,7 @@ import type { Finding, FindingScores, Severity } from "../finding.js";
 import { collectChurn } from "../git/churn.js";
 import type { CollectChurnResult } from "../git/churn.js";
 import type { ImportGraph } from "../imports/types.js";
-import { isTestFile } from "../util/test-files.js";
+import { TEST_DIR_RE, isTestFile, testBaseCovers } from "../util/test-files.js";
 import { quartileScores } from "./quartile.js";
 
 export interface ChurnIndex {
@@ -133,13 +133,6 @@ export interface BuildScoringContextOptions {
 
 const CHURN_CAP = 20;
 const BLAST_RADIUS_CAP = 50;
-
-/**
- * Directory segments that mean "this holds tests for code that lives
- * elsewhere". A test inside one of these pairs with a source file by
- * basename rather than by being its sibling.
- */
-const TEST_DIR_RE = /(^|\/)(__tests__|tests?)\//;
 
 /**
  * Build the per-file scoring indices for a scan. Always returns a context
@@ -509,38 +502,3 @@ function parseRepoPath(repoPath: string): { dir: string; baseNoExt: string } {
   return { dir, baseNoExt };
 }
 
-/**
- * Does a test file's basename indicate it covers `sourceBase`?
- *
- * Test-naming convention is per-language, and until 0.14.0 this only
- * understood the JS one. `TEST_FILE_RE` already *classified*
- * `test_billing.py` correctly — only the pairing was missing, so every
- * Python file fell through to "no test at all" (`test_gap: 1.0`) even in
- * a fully covered repo. Since 0.13.0 that is 0.20 of `agent_risk`, which
- * would have systematically over-ranked Python findings against JS ones.
- *
- * Conventions understood:
- *
- * | written as         | covers    | languages     |
- * | ------------------ | --------- | ------------- |
- * | `billing.test.ts`  | `billing` | JS/TS         |
- * | `billing.spec.ts`  | `billing` | JS/TS         |
- * | `billing_test.py`  | `billing` | Python, Go    |
- * | `test_billing.py`  | `billing` | Python        |
- *
- * Note the asymmetry that made this a real bug rather than a tidy-up:
- * every other convention is a *suffix*, and Python's dominant one is a
- * *prefix*.
- *
- * `sourceBase` is compared against the affix-stripped test name, and
- * also matched verbatim so a test file whose name carries no affix at
- * all (already reduced by `parseRepoPath` splitting at the first dot)
- * still pairs.
- */
-function testBaseCovers(testBase: string, sourceBase: string): boolean {
-  if (testBase === sourceBase) return true;
-  const suffixStripped = testBase.replace(/[._](test|spec)$/, "");
-  if (suffixStripped === sourceBase) return true;
-  const prefixStripped = testBase.replace(/^(test|spec)_/, "");
-  return prefixStripped === sourceBase;
-}

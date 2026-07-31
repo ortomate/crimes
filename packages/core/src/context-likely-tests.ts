@@ -1,30 +1,41 @@
 import { readFile } from "node:fs/promises";
 import { basename, dirname, relative, sep } from "node:path";
+import {
+  TEST_DIR_RE,
+  isTestFile as isTestPath,
+  testBaseCovers,
+} from "./util/test-files.js";
 
 /**
- * Matches every test-file naming convention `findLikelyTests` honours:
+ * Matches the JS test-file naming conventions.
  *
- *   foo.test.ts / foo.spec.ts           — Jest / Vitest infix convention
- *   foo_test.ts / foo_spec.ts           — Go-style underscore suffix
- *
- * Used both to recognise candidate test files and to strip the suffix back
- * to a target basename for matching. Keep the two halves of the alternation
- * symmetric so `stripTestSuffix` stays a simple `.replace(TEST_EXT, "")`.
+ * Retained as an export for back-compat; new code should reach for
+ * `isTestFile` / `testBaseCovers` in `util/test-files.js`, which know
+ * every supported language's convention rather than only this one.
  */
 export const TEST_EXT =
   /(?:\.(?:test|spec)|_(?:test|spec))\.(ts|tsx|js|jsx|mjs|cjs)$/;
 
-const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
+/**
+ * Source extensions `likely_tests` reasons about. Python joined in
+ * 0.14.0 — before that a `.py` target stripped to nothing here, matched
+ * nothing, and `crimes context` reported "no likely tests" for a fully
+ * covered module.
+ */
+const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|cts|mts|py|pyi)$/;
+const JS_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|cts|mts)$/;
+const PY_EXT = /\.(py|pyi)$/;
 
 /**
  * Discover the test files that likely cover `targetAbs`. Two passes:
  *
- *  1. Sibling files matching one of the test-naming conventions
- *     (`foo.test.ts`, `foo.spec.tsx`, `foo_test.ts`, `foo_spec.ts`)
- *     OR files under any `__tests__` directory with the same basename.
- *  2. Test files anywhere in the repo that import the target via a
- *     relative path — restricted to test files only so `likely_tests`
- *     doesn't list arbitrary consumers.
+ *  1. **By name.** A sibling test file, or one under a `__tests__/` or
+ *     `tests/` directory, whose basename indicates it covers the
+ *     target. The naming conventions live in `util/test-files.ts` —
+ *     including Python's `test_<name>.py`, a prefix where every other
+ *     supported convention is a suffix.
+ *  2. **By import.** Test files that reference the target. Restricted
+ *     to test files so `likely_tests` doesn't list arbitrary consumers.
  */
 export async function findLikelyTests(args: {
   root: string;
@@ -34,26 +45,23 @@ export async function findLikelyTests(args: {
 }): Promise<string[]> {
   const { root, fileRel, targetAbs, allFiles } = args;
   const targetBaseNoExt = basename(fileRel).replace(SOURCE_EXT, "");
+  const targetDir = toRepoPath(dirname(fileRel));
   const result = new Set<string>();
 
   for (const abs of allFiles) {
     if (abs === targetAbs) continue;
     const rel = toRepoPath(relative(root, abs));
-    const b = basename(rel);
+    if (!isTestPath(rel)) continue;
 
-    if (TEST_EXT.test(b)) {
-      const noTest = stripTestSuffix(b);
-      if (noTest === targetBaseNoExt) {
-        result.add(rel);
-        continue;
-      }
-    }
+    const candidateBase = basename(rel).replace(SOURCE_EXT, "");
+    if (!testBaseCovers(candidateBase, targetBaseNoExt)) continue;
 
-    if (rel.split("/").includes("__tests__")) {
-      const noTest = stripTestSuffix(b);
-      if (noTest === targetBaseNoExt) {
-        result.add(rel);
-      }
+    // A basename match counts when the test sits beside the target, or
+    // inside a directory that exists to hold tests. Without the second
+    // condition an unrelated `pkg/other/rates.py` would be offered as
+    // coverage purely for sharing a name.
+    if (toRepoPath(dirname(rel)) === targetDir || TEST_DIR_RE.test(rel)) {
+      result.add(rel);
     }
   }
 
@@ -61,7 +69,7 @@ export async function findLikelyTests(args: {
     if (abs === targetAbs) continue;
     const rel = toRepoPath(relative(root, abs));
     if (result.has(rel)) continue;
-    if (!isTestFile(rel)) continue;
+    if (!isTestPath(rel)) continue;
 
     let source: string;
     try {
@@ -69,7 +77,7 @@ export async function findLikelyTests(args: {
     } catch {
       continue;
     }
-    if (importsTarget({ source, fromAbs: abs, targetAbs })) {
+    if (importsTarget({ source, fromAbs: abs, targetAbs, root })) {
       result.add(rel);
     }
   }
@@ -77,21 +85,81 @@ export async function findLikelyTests(args: {
   return [...result].sort();
 }
 
+/** @deprecated Prefer `isTestFile` from `util/test-files.js`. */
 export function isTestFile(rel: string): boolean {
-  return TEST_EXT.test(basename(rel)) || rel.split("/").includes("__tests__");
-}
-
-/**
- * Strip a test-naming suffix from a basename to recover the "subject under
- * test" basename. Symmetric with {@link TEST_EXT} — `foo.test.ts` returns
- * `foo`, `foo_test.ts` returns `foo`. Returns the input unchanged when it
- * doesn't match either convention.
- */
-function stripTestSuffix(basenameWithExt: string): string {
-  return basenameWithExt.replace(TEST_EXT, "");
+  return isTestPath(rel);
 }
 
 function importsTarget(args: {
+  source: string;
+  fromAbs: string;
+  targetAbs: string;
+  root: string;
+}): boolean {
+  const { source, fromAbs, targetAbs, root } = args;
+  if (PY_EXT.test(targetAbs)) {
+    return pythonImportsTarget({ source, targetAbs, root });
+  }
+  if (JS_EXT.test(targetAbs)) {
+    return jsImportsTarget({ source, fromAbs, targetAbs });
+  }
+  return false;
+}
+
+/**
+ * Python has no relative *path* imports, so the JS branch's `./foo`
+ * specifier matching finds nothing. What a Python test actually writes
+ * is a dotted module path (`from billing.rates import rate_for`) or a
+ * relative-dot one (`from .rates import rate_for`).
+ *
+ * Matches progressively shorter dotted suffixes rather than resolving
+ * the module path exactly. `likely_tests` is a discovery hint for a
+ * human or agent, not a scoring input, so a slightly generous match is
+ * the right trade — exact resolution lives in the import graph, which
+ * is what `test_gap` and `blast_radius` read.
+ */
+function pythonImportsTarget(args: {
+  source: string;
+  targetAbs: string;
+  root: string;
+}): boolean {
+  const { source, targetAbs, root } = args;
+  const rel = toRepoPath(relative(root, targetAbs)).replace(PY_EXT, "");
+  const segments = rel.split("/").filter((s) => s.length > 0);
+  if (segments.length === 0) return false;
+
+  // `__init__` names its package rather than a module inside it.
+  const last = segments[segments.length - 1]!;
+  const moduleTail = last === "__init__" ? segments.slice(0, -1) : segments;
+  if (moduleTail.length === 0) return false;
+
+  const leaf = moduleTail[moduleTail.length - 1]!;
+  const parent = moduleTail.slice(0, -1).join(".");
+
+  for (let i = 0; i < moduleTail.length; i += 1) {
+    const dotted = escapeRegExp(moduleTail.slice(i).join("."));
+    // `from <mod> import ...` / `import <mod>`, allowing relative dots.
+    if (new RegExp(`\\bfrom\\s+\\.*${dotted}\\s+import\\b`).test(source)) return true;
+    if (new RegExp(`\\bimport\\s+${dotted}\\b`).test(source)) return true;
+  }
+
+  // `from <parent> import <leaf>` — the module imported as a name.
+  if (
+    parent.length > 0 &&
+    new RegExp(
+      `\\bfrom\\s+\\.*${escapeRegExp(parent)}\\s+import\\s+[^\\n]*\\b${escapeRegExp(leaf)}\\b`,
+    ).test(source)
+  ) {
+    return true;
+  }
+
+  // `from . import <leaf>` — sibling module in the same package.
+  return new RegExp(
+    `\\bfrom\\s+\\.+\\s+import\\s+[^\\n]*\\b${escapeRegExp(leaf)}\\b`,
+  ).test(source);
+}
+
+function jsImportsTarget(args: {
   source: string;
   fromAbs: string;
   targetAbs: string;
@@ -99,7 +167,7 @@ function importsTarget(args: {
   const { source, fromAbs, targetAbs } = args;
   const fromDir = dirname(fromAbs);
 
-  const targetNoExt = targetAbs.replace(SOURCE_EXT, "");
+  const targetNoExt = targetAbs.replace(JS_EXT, "");
   let rel = relative(fromDir, targetNoExt);
   rel = rel.split(sep).join("/");
   if (!rel.startsWith(".")) rel = "./" + rel;
@@ -115,18 +183,20 @@ function importsTarget(args: {
   ]);
 
   if (basename(targetNoExt) === "index") {
-    const parent = rel.replace(/\/index$/, "");
-    candidates.add(parent);
+    candidates.add(rel.replace(/\/index$/, ""));
   }
 
   for (const c of candidates) {
-    const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const re = new RegExp(
-      `(?:from|require|import)\\s*\\(?\\s*["']${escaped}["']`,
+      `(?:from|require|import)\\s*\\(?\\s*["']${escapeRegExp(c)}["']`,
     );
     if (re.test(source)) return true;
   }
   return false;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function toRepoPath(p: string): string {
