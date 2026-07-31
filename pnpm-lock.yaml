@@ -133,6 +133,22 @@ importers:
         specifier: ^2.1.5
         version: 2.1.9(@types/node@22.19.19)
 
+  packages/language-py:
+    dependencies:
+      web-tree-sitter:
+        specifier: ^0.26.11
+        version: 0.26.11
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(postcss@8.5.14)(tsx@4.22.0)(typescript@5.9.3)
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.19)
+
   packages/reporter:
     dependencies:
       '@crimes/core':
@@ -2536,6 +2552,9 @@ packages:
 
   web-namespaces@2.0.1:
     resolution: {integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==}
+
+  web-tree-sitter@0.26.11:
+    resolution: {integrity: sha512-Q5Dm3YTIXSXuH6FxX6RuzX2Qwpc4DPGiYMU87Wg5Z8OIStiQFiUex4zMDc0vBTw78EphaYJacncJghCHzbZptg==}
 
   which-pm-runs@1.1.0:
     resolution: {integrity: sha512-n1brCuqClxfFfq/Rb0ICg9giSZqCS+pLtccdag6C2HyufBrh3fBOiy9nb6ggRMvWOVH5GrdJskj5iGTZNxd7SA==}
@@ -5324,6 +5343,8 @@ snapshots:
       - terser
 
   web-namespaces@2.0.1: {}
+
+  web-tree-sitter@0.26.11: {}
 
   which-pm-runs@1.1.0: {}
 

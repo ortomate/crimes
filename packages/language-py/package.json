@@ -1,0 +1,32 @@
+{
+  "name": "@crimes/language-py",
+  "version": "0.0.0",
+  "description": "Python language support for crimes: tree-sitter parsing, import resolution, and the parsed-file surface detectors read.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "vendor"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "web-tree-sitter": "^0.26.11"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.5",
+    "vitest": "^2.1.5"
+  }
+}
