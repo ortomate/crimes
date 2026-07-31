@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:44:48.633Z",
+  "run_id": "cb82c88c-d544-4957-a1e9-207f83b8738e",
+  "response": "Read all three cycle members. Here's the analysis.\n\n## The cycle\n\n```\nsrc/application/billing-flow.ts  ──imports──▶  src/domain/billing.ts\n        ▲                                              │\n        └────────  src/presentation/invoice-view.ts  ◀──┘\n```\n\nConcretely:\n- `billing-flow.ts:1` → `chargeCustomer` from `domain/billing.js`\n- `domain/billing.ts:2` → `renderInvoice` from `presentation/invoice-view.js`\n- `invoice-view.ts:3` → `runBillingFlow` from `application/billing-flow.js`\n\n## The runtime error is probably not what you think\n\nThe scan's suggested action offers `import type` as an out. That won't help here, and it's worth being precise about why: this cycle isn't only an import cycle, it's a **call** cycle.\n\n```\nrenderInvoice(amount)          invoice-view.ts:6\n  → runBillingFlow()           billing-flow.ts:7\n    → chargeCustomer(100)      billing.ts:5\n      → renderInvoice(100)     ← back to the top, unconditionally\n```\n\nThere is no base case and no branch. Any entry into any of the three functions is infinite mutual recursion — `RangeError: Maximum call stack size exceeded`.\n\nModule *initialization*, by contrast, is fine: all three exports are hoisted function declarations, so ESM has the bindings live before evaluation and you'd get no TDZ error. So if the reported symptom is a stack overflow rather than \"X is not a function\" / \"cannot access before initialization\", the call graph is your culprit, and `import type` — which only removes the runtime *edge*, not the runtime *call* — leaves the bug fully intact.\n\n## Break `domain/billing.ts → presentation/invoice-view.ts`\n\nThat's `billing.ts:2`. Three reasons it's the right edge of the three:\n\n1. **It's the only edge that is independently a defect.** The scan flags it a second time as `crime_00002` (`domain cannotImport presentation`). The other two edges — application→domain and presentation→application — both run in the architecturally sanctioned direction. Cutting either of those would fix the cycle by making the layering *worse*.\n\n2. **One cut clears two findings.** Removing this import resolves `crime_00001` and `crime_00002` together. Nothing else in the report does that.\n\n3. **It's the semantically wrong one.** `chargeCustomer` is domain logic that currently returns a formatted display string by delegating to a renderer. Billing shouldn't know invoices get rendered, let alone how.\n\n## Shape of the fix\n\nInvert the dependency rather than extracting a shared module. The scan's `fix_shape` suggests \"extract shared types to a leaf module,\" but there are no shared types here — there's a misplaced responsibility. Make `chargeCustomer` return data and let the presentation layer format it:\n\n```ts\n// src/domain/billing.ts — no presentation import at all\nexport interface Charge {\n  amount: number;\n}\n\nexport function chargeCustomer(amount: number): Charge {\n  return { amount };\n}\n```\n\n```ts\n// src/presentation/invoice-view.ts\nimport { chargeCustomer } from \"../domain/billing.js\";\n\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${chargeCustomer(amount).amount}`;\n}\n```\n\nThen decide what `runBillingFlow` is actually for — as written it calls `chargeCustomer(100)` with a hardcoded amount and discards the result, so it only exists to complete the loop. The presentation→application edge (`invoice-view.ts:3`) survives the cut and stays legal, but if `runBillingFlow` has no purpose beyond the cycle, deleting that call is the cleaner end state.\n\n## Unrelated\n\n`crime_00003` (deep import of `some-pkg/dist/internal/private/helper.js` at `billing-flow.ts:4`) shares a file with the cycle but has nothing to do with it. Separate, quick, low-risk cleanup — don't bundle it into the cycle fix, since you'll want to verify the stack overflow is gone without a second variable in the change.\n\n**One caveat on the diagnosis:** I traced the recursion from the source rather than executing it — the fixture imports `some-pkg`, which I did not confirm resolves, so I didn't try to run it. If the observed error is a module-init failure rather than a stack overflow, that would point somewhere other than this call graph and is worth telling me.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

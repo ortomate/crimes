@@ -1,0 +1,53 @@
+{
+  "scenario": "bugfix-13-polyglot-plan-drift",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:16:11.414Z",
+  "run_id": "323db69b-4ccd-4107-b4cd-4e7a241d424f",
+  "response": "I’m using the repository’s crimes risk-analysis guidance to interpret the scan, focusing on the reported validation failure rather than treating every finding as causal.\n\nThe high-severity closed-set drift is the direct match for this symptom. I’m checking the fixture declarations to distinguish the failing new tier from the unrelated route findings.\n\nThe web app’s plan list is stale.\n\nThe API’s canonical Python enum accepts:\n\n```text\nfree, pro, team, scale\n```\n\nBut the TypeScript client accepts only:\n\n```text\nfree, pro, enterprise\n```\n\nSo the newest tier, presumably `scale`, crosses the API boundary successfully but fails the web app’s type/schema validation because `scale` is absent from its closed `Plan` union. `team` has the same latent problem. Conversely, the web-only `enterprise` value would be rejected by the API.\n\nThe route-drift findings could cause separate 404/405 failures, but they do not explain this validation error.\n\nTo stop recurrence, maintain the plan enum in one canonical schema—ideally OpenAPI or JSON Schema—and generate the TypeScript type/client from it. Add a CI contract test that compares or exercises every plan value across both languages. The core failure mode is two hand-maintained closed sets with no cross-language contract test.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

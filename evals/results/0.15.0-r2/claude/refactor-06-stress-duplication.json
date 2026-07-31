@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:59:06.805Z",
+  "run_id": "e0e70eb1-b056-4ae3-8d06-efd4027523b7",
+  "response": "## Duplication confirmed\n\n`crimes scan --format json` reports 5 findings; three of them are duplication clusters, and they're all in the same blast zone:\n\n| Finding | Charge | Confidence | What's duplicated |\n|---|---|---|---|\n| `crime_00001` | Near-Duplicate Block | 0.85 | The sanitiser body, 3 copies |\n| `crime_00002` | Exact Duplicate Block | 0.95 | `recordSanitiseEvent`, 2 copies |\n| `crime_00003` | Duplicated Role/Status/Plan Check | 0.70 | `\"admin\"` across 4 files, **2 distinct shapes** |\n\nI read the files to check the tool's claim. It holds, and it's stronger than \"near\":\n\n- `sanitizeUserInput` (a:10-36), `sanitizeText` (b:9-35), `cleanMessage` (c:9-35) are **token-for-token identical apart from identifier renaming** — `raw/working`, `input/cleaned`, `value/normalised`. Same 1000-char cap, same `[!?]{3,}` > 5 rule, same 0.9 upper-case ratio at length > 30. Zero behavioural divergence.\n- `telemetry-a.ts` and `telemetry-b.ts` differ only in a header comment; the function bodies are byte-identical.\n\nTwo things the scan flags obliquely that matter more than the duplication itself:\n\n**1. The \"admin\" checks are not duplicates — one is inverted.** `crime_00003` says \"2 distinct expression shapes,\" but there are actually three predicates hiding behind near-identical names:\n\n```ts\nassertAdminA(role) → role === \"admin\"                       // sanitize-a.ts:7\nassertAdminB(role) → role === \"admin\" || role === \"owner\"   // sanitize-b.ts:6\nassertAdminC(role) → role !== \"admin\"                       // sanitize-c.ts:6  ← inverted\n```\n\n`assertAdminC` returns `true` when the caller is **not** an admin. Consolidating \"the three admin guards\" into one function is exactly the move that silently flips its call sites. This is the agent-risk trap in this fixture, and it's why `crime_00003`'s effort is `medium` while the block dedup is `small`.\n\n**2. The strip regex contains raw control bytes.** All three copies contain `.replace(/[␀-␟]/g, \"\")` where the class bounds are literal `0x00` and `0x1F` bytes embedded in the source, not `\\x00-\\x1f` escapes. Verified with `od`. Any hand-retyping during the move produces `[ -]` (space-or-hyphen) and changes behaviour. Copy the bytes; don't retype the line.\n\n## Proposed refactor\n\n**Public API of the consolidated sanitiser:**\n\n```ts\n// src/sanitize.ts\nexport function sanitize(input: string): string;\n```\n\nThat's the whole signature. The tool's `fix_shape` says *\"consolidate into one helper; pass the differing values as args\"* — that's generic boilerplate, and the evidence contradicts it here. Nothing differs between the three copies, so there are no values to parameterise. Adding a `SanitizeOptions` bag for `maxLength` / `maxPunctuationRuns` / `shoutingRatio` would be speculative generality; add it the first time a caller actually needs a different limit.\n\nName it `sanitize`, not any of the three existing names: `sanitizeUserInput` implies a trust boundary it doesn't enforce, `cleanMessage` implies message-specific handling it doesn't do. Keep the internal `null`/`undefined` guards and the `String()` coercion even though the parameter is typed `string` — they're load-bearing at untyped JS boundaries.\n\n**Supporting modules:**\n\n```ts\n// src/policy.ts — one predicate, honestly named, plus the widened variant\nexport function isAdmin(role: string): boolean;\nexport function isAdminOrOwner(role: string): boolean;   // was assertAdminB\n\n// src/telemetry.ts — dedup + clock injection (crime_00004/00005)\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: () => number = Date.now,\n): void;\n```\n\n`assertAdminC` gets deleted rather than moved — its callers (none today) become `!isAdmin(role)` at the call site, where the negation is visible. `canEditBilling` / `canSeeAuditLog` / `canImpersonate` in `policy.ts` all collapse to `return isAdmin(role)`, but keep the three named exports: they're distinct capabilities that happen to share a rule today, and merging them is what makes future policy drift impossible to express.\n\nI'd leave `console.log` as the telemetry sink. Injecting a logger is a separate concern and nothing in the scan asks for it.\n\n## Files that would change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **new** — canonical `sanitize()` |\n| `src/telemetry.ts` | **new** — single `recordSanitiseEvent` with injected clock |\n| `src/sanitize-a.ts` | **deleted** |\n| `src/sanitize-b.ts` | **deleted** |\n| `src/sanitize-c.ts` | **deleted** |\n| `src/telemetry-a.ts` | **deleted** |\n| `src/telemetry-b.ts` | **deleted** |\n| `src/policy.ts` | **modified** — delegate to `isAdmin`, absorb `isAdminOrOwner` |\n\nNo re-export shims are needed. Every finding reports `blast_radius_importers: 0`, and I confirmed it directly: there is not a single `import` or `require` anywhere in `src/`, and `package.json` declares no `main` or `exports`. All six modules are leaves, so the old names can be deleted outright.\n\n## The thing to do first\n\nThere are no test files in this fixture — `test_gap: 0.5` on every finding, and `ls -R` turns up only the six sources. Collapsing three copies of a 26-line function with eight branches, a control-character strip, and a ratio heuristic, with nothing asserting current behaviour, is where this refactor actually goes wrong.\n\nWrite characterisation tests against `sanitizeUserInput` **before** deleting anything — empty string, whitespace-only, embedded `0x00`–`0x1F`, the 1000-char boundary, leading `<`/`>`, literal `\\x`, `!!!!` runs, and an all-caps 31-char string. Then point the same suite at `sanitize()` and require it to pass unchanged. That converts the risky part of this into a mechanical one.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

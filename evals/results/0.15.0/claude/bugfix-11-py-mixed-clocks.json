@@ -1,0 +1,59 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:17:30.852Z",
+  "run_id": "4651f062-35cf-451d-bd21-e2d4ee94b9c3",
+  "response": "Ran the scan (output matches what you pasted). I also read the fixture source to confirm the mechanism rather than infer it from the findings alone.\n\n## The module: `domain/invoicing.py`\n\nTwo findings point at it, and they're the same bug seen from two angles:\n\n- `crime_00002` — **Two Clocks, One Module** (`mixed_utc_local_methods`, lines 20–79)\n- `crime_00003` — **Temporal Recklessness** (`direct_date`, same lines)\n\nEverything else in the report (blocking I/O in the async handlers, the `rendering ↔ invoicing` cycle, the deep `tax.rules.regional.eu.vat_bands` imports) is real but unrelated to this ticket.\n\n## The mechanism\n\n`build_invoice` stamps its two timestamps from **different clocks**, four lines apart:\n\n```python\nissued       = datetime.now()      # invoicing.py:20 — host-local wall clock, naive\nperiod_start = datetime.utcnow()   # invoicing.py:21 — UTC wall clock, naive\n```\n\nBoth return `datetime` with `tzinfo = None`. They are the same *instant* expressed in two different zones, but nothing in the type system, the variable names, or the returned dict records that. Downstream (`invoicing.py:65-75`) they go into the same payload as peers:\n\n```python\n\"issued_at\":    issued,        # local\n\"period_start\": period_start,  # UTC\n```\n\nOn a host running at UTC+2 (Europe/Berlin, Paris, Madrid in summer), `period_start` is permanently **two hours behind** `issued_at`. That's harmless in the middle of the day and catastrophic near a date boundary, because the two fields then land on **different calendar days**:\n\n| Local instant (CEST) | `issued_at` | `period_start` | Period derived |\n|---|---|---|---|\n| 14:00, 1 Sep | 2026-09-01 14:00 | 2026-09-01 12:00 | September ✓ |\n| 00:45, 1 Sep | 2026-09-01 00:45 | **2026-08-31 22:45** | **August ✗** |\n\nThe bad window is `[00:00, offset)` in host-local time — two hours wide in CEST, one in CET. When it lands on the 1st of a month, the invoice is stamped with the *previous month's* billing period while its own `issued_at` says the current month. That is the \"sometimes\" in the report: it needs a host at a non-zero offset **and** a submission inside a ~2-hour window adjacent to midnight **and** that midnight to be a month boundary. Everything else looks fine, which is why it reads as intermittent rather than systematic.\n\n(If your billing host runs at a *negative* offset instead, the same window sits just *before* midnight — literally \"late in the evening.\" Either way it's the hours straddling midnight, and the width is exactly the host's UTC offset.)\n\n## Why CI never sees it\n\nThe scan says it outright in the evidence:\n\n> *\"a UTC-configured CI runner makes the two agree, so tests pass and production drifts\"*\n\nOn a UTC runner the host offset is zero, so `datetime.now() == datetime.utcnow()` to the microsecond. The two clocks are *literally the same clock*, the delta is 0, and no test — however well written — can observe the defect. The bug's magnitude is a function of the environment, and CI pins that function to its one root.\n\n`crime_00003` explains the second half of why no test exists: all 4 reads are unmockable direct clock reads inside domain code (`\"a test cannot pin a fixed moment without patching the module\"`), and the fixture ships **zero tests** — no `conftest.py`, no test dir, nothing. So even a developer in Berlin couldn't write the reproducing test without first restructuring the function.\n\n## Two more bugs from the same root\n\nWorth fixing in the same change, since you'll be touching these lines:\n\n1. **`invoicing.py:53`** — `coupon.get(\"expires_at\") < datetime.now()`. Coupon expiries almost certainly arrive from the DB as naive **UTC** (that's what a psycopg `timestamp` column gives you). Comparing them against a naive **local** `now()` makes every coupon expire 1–2 hours early in Europe. Same class, different symptom — and if `expires_at` ever arrives *aware*, this line raises `TypeError` instead.\n2. **`invoicing.py:79`** — `stale = invoice[\"issued_at\"] < datetime.now()`. Consistent today only by accident (both local). The moment someone \"fixes\" just one of the four reads to be timezone-aware, this throws `TypeError: can't compare offset-naive and offset-aware datetimes` at runtime. It's the tripwire on any partial fix — which is why the fix below has to be all-or-nothing.\n\nThere's also a latent deprecation: `utcnow()` is deprecated as of Python 3.12 and slated for removal.\n\n## The fix\n\nThree parts. The first is the actual repair; the other two stop it recurring.\n\n**1. One convention: timezone-aware UTC internally, injected clock.**\n\n```python\nfrom datetime import datetime, timezone\nfrom typing import Callable\nfrom zoneinfo import ZoneInfo\n\nClock = Callable[[], datetime]\n\n\ndef utc_now() -> datetime:\n    \"\"\"The only clock read in the domain layer.\"\"\"\n    return datetime.now(timezone.utc)\n\n\ndef as_utc(value: datetime) -> datetime:\n    \"\"\"Normalise a value crossing the DB/API boundary. Naive == UTC by contract.\"\"\"\n    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)\n\n\ndef build_invoice(customer, line_items, coupon, region, options, *, now: Clock = utc_now):\n    issued = now()                                   # aware UTC\n    billing_zone = ZoneInfo(customer[\"billing_timezone\"])\n    period_start = period_start_for(issued, billing_zone)\n    ...\n    if coupon:\n        is_expired = as_utc(coupon[\"expires_at\"]) < issued\n```\n\n`summarise` takes the same injected clock: `def summarise(invoice, *, now: Clock = utc_now)`.\n\n**2. Stop reading the billing period off a clock at all.**\n\nThis is the deeper defect, and fixing only the timezone leaves it in place. `period_start = datetime.utcnow()` doesn't mean \"start of the billing period\" — it means \"now,\" and it happened to be close enough to look right. A billing period is a *civil-calendar* concept and needs an explicit zone, which is the customer's, not the host's:\n\n```python\ndef period_start_for(instant: datetime, billing_zone: ZoneInfo) -> datetime:\n    \"\"\"First moment of the customer's billing month, in their own zone.\"\"\"\n    local = instant.astimezone(billing_zone)\n    return local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)\n```\n\nNow an invoice created at 00:45 CEST on 1 September gets `period_start = 2026-09-01 00:00+02:00` — September, correctly, and correctly *regardless of where the server runs*. That's the property you actually want: the answer stops depending on deployment topology.\n\n**3. Make CI capable of failing.**\n\n- Run the suite under a matrix of `TZ` values — at minimum `UTC`, `Europe/Berlin`, and something west of UTC like `America/Los_Angeles`. A single-TZ runner is what bought this bug its ~2-hour blind spot.\n- Add the regression test the injected clock now makes possible: freeze at `2026-09-01T00:45+02:00`, assert `period_start.month == 9`. Add its mirror at `2026-08-31T23:15+02:00` asserting August.\n- Assert invariants at the boundary: every datetime leaving the domain layer has `tzinfo is not None`. Cheap, and it makes any future naive read fail loudly instead of drifting.\n\n**Before you ship it:** this changes stored data semantics, so check whether already-issued invoices in the affected windows need re-stamping. Query for invoices where `issued_at` and `period_start` fall in different months — that's your exact blast list, and per the scan `domain/invoicing.py` has 3 importers.\n\nOne note on sequencing: apply all four clock reads in a single change. Line 79 compares `issued_at` against a fresh `datetime.now()`, so converting the write path to aware datetimes while leaving that read naive turns a silent wrong-month into a hard `TypeError` in production.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      }
+    ]
+  }
+}

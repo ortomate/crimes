@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T23:01:43.288Z",
+  "run_id": "d27955b5-bc21-4161-ae01-a38e19ed1426",
+  "response": "## What the scan actually says\n\nThree findings, but only **two distinct edges** in the graph:\n\n| Edge | Finding | Legal? |\n|---|---|---|\n| `application/billing-flow.ts:1` → `domain/billing.ts` | — | ✅ legal |\n| `presentation/invoice-view.ts:3` → `application/billing-flow.ts` | — | ✅ legal (no rule bars presentation → application) |\n| `domain/billing.ts:2` → `presentation/invoice-view.ts` | **crime_00002** (layer_violation) | ❌ `domain cannotImport presentation` |\n| `some-pkg/dist/internal/private/helper.js` @ `billing-flow.ts:4` | **crime_00003** (deep_import) | ❌ past the package surface |\n\nThe cycle in **crime_00001** (`application → domain → presentation → application`) is not an independent problem. It is closed by exactly one edge — the illegal one. Break `domain/billing.ts:2` and crime_00001 and crime_00002 both retire.\n\n**Also worth knowing before you touch it:** this isn't just a static smell. `renderInvoice` → `runBillingFlow` → `chargeCustomer` → `renderInvoice` is unbounded recursion at runtime. The cycle finding is describing live stack-overflow behaviour, not only a tree-shaking hazard.\n\n## Change 1 — redirect, don't delete (crime_00002 + crime_00001)\n\n`domain/billing.ts` currently *renders*, which is why it needs presentation. Invert it: domain returns a value, presentation formats it.\n\n```ts\n// src/domain/billing.ts — leaf, no imports\nexport interface Charge { amount: number }\nexport function chargeCustomer(amount: number): Charge {\n  return { amount };\n}\n```\n```ts\n// src/application/billing-flow.ts\nimport { chargeCustomer, type Charge } from \"../domain/billing.js\";\nexport function runBillingFlow(amount: number): Charge {\n  return chargeCustomer(amount);\n}\n```\n```ts\n// src/presentation/invoice-view.ts\nimport { runBillingFlow } from \"../application/billing-flow.js\";\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${runBillingFlow(amount).amount}`;\n}\n```\n\nRemaining edges: `presentation → application → domain`. Acyclic, and legal under both configured rules.\n\nThe finding's own `suggested_action` offers the alternative — a port owned by domain (`interface InvoiceRenderer` in domain, implementation injected from presentation). That's the right shape when domain genuinely must trigger rendering. Here it doesn't; it only needed a string. Prefer deleting the dependency over inverting it — a port you don't need is architecture theatre, and it leaves the runtime recursion in place unless you're careful.\n\n## Change 2 — break to the package boundary (crime_00003)\n\n`billing-flow.ts:4` should import `some-pkg`'s documented entry:\n\n```ts\nimport { helper } from \"some-pkg\";\n```\n\nIf the symbol isn't exported there, don't code around it in place. Put the deep specifier behind one adapter — `src/infrastructure/some-pkg-adapter.ts` — so the next upgrade breaks exactly one file, and file the upstream issue. Note the layer rules permit this: only `domain` is barred from `infrastructure`; `application` may import it.\n\n`effort: \"quick\"`, `risk: \"low\"` — do this one first as a standalone commit, since it's independent of the restructure above.\n\n## How the two differ in agent risk\n\nScores: layer_violation `0.34`, deep_import `0.29`. The gap is small but the failure modes are qualitatively different, and that's the part that matters.\n\n**layer_violation is a silent constraint.** The rule lives in `crimes.config.json`, not in the code. Nothing in `domain/billing.ts` tells an agent that reaching into presentation is forbidden — the import resolves, types check, tests pass. An agent asked to \"add tax to the charge\" will read the file, see `renderInvoice` already imported, and reuse it. Every such edit is locally well-reasoned and globally wrong, and the only feedback loop is a human noticing months later. It also inverts the direction of change: once domain depends on presentation, \"tweak the invoice format\" has a blast radius that includes billing rules. Confidence `0.95` — this is a declared rule with a declared breach, not a heuristic.\n\n**deep_import is a loud constraint.** The specifier is self-documenting; `some-pkg/dist/internal/private/helper.js` announces its own crime in the source line. The failure is external and temporal — the next dependency bump moves the file and resolution fails at build time. That's fail-fast: an agent gets a hard error, not silent drift. Confidence `0.85` is lower because the heuristic can't distinguish a private path from a package that legitimately publishes subpaths.\n\nSo the ranking reflects **detectability by the next agent**, not blast radius: both findings report `blast_radius_importers: 3` (this fixture is four files — don't read much into that number). Layer violations degrade an agent's model of the codebase; deep imports just break, visibly, later.\n\n**Order of work:** Change 2 first (quick, isolated), then Change 1 as one commit that closes both crime_00001 and crime_00002. Re-run `crimes scan --format json` after; a clean report is the acceptance test.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

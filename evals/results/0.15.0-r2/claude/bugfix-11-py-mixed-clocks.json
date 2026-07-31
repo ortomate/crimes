@@ -1,0 +1,59 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:47:16.539Z",
+  "run_id": "9a5ac756-e61c-4a7d-a7f5-36303c07b2be",
+  "response": "Confirmed — I re-ran the scan against `evals/fixtures/11-py-service` and got the same 8 findings.\n\n## The module: `domain/invoicing.py`\n\n`crime_00002` — **Two Clocks, One Module** (`mixed_utc_local_methods`) — names it directly, and `crime_00003` (**Temporal Recklessness**) explains why no test catches it.\n\n## The mechanism\n\n`build_invoice` reads the clock twice, two lines apart, through two different clocks (`domain/invoicing.py:20-21`):\n\n```python\nissued       = datetime.now()      # naive LOCAL time (host zone)\nperiod_start = datetime.utcnow()   # naive UTC\n```\n\nBoth return **naive** `datetime` objects — no `tzinfo`. Python cannot tell them apart, `mypy` cannot tell them apart, and they compare and subtract without complaint. But they hold values from different zones, so they differ by the host's UTC offset.\n\nThe service runs in an EU region, so the host offset is +1 (CET) or +2 (CEST). At **23:30 local on 31 January**, the two lines produce:\n\n| field | value |\n|---|---|\n| `issued_at` | `2026-01-31 23:30` (local) |\n| `period_start` | `2026-01-31 22:30` (UTC) — or `21:30` in summer |\n\nMost of the day that's a harmless one-hour skew, invisible in the output. But when local time crosses a boundary that UTC hasn't reached yet — the last 1–2 hours of a day, and critically the last 1–2 hours of a **month** — the two timestamps land on different calendar dates, and `period_start` still points at the *previous* billing period while the invoice is stamped as issued in the new one. Hence: **late evening only, Europe only, and worse in summer** (CEST +2 widens the window to 22:00–24:00 local).\n\nThe same root cause has a second symptom at line 53:\n\n```python\nexpired = coupon.get(\"expires_at\") < datetime.now()\n```\n\nIf `expires_at` comes out of the database as UTC, it is being compared against local wall time — coupons stay valid one to two hours past expiry in the EU.\n\n## Why CI never sees it\n\nTwo independent reasons, both flagged in the scan:\n\n1. **The runner is UTC.** Containers and GitHub Actions runners default to `TZ=UTC`, where `datetime.now() == datetime.utcnow()` exactly. The offset is zero, the two clocks agree, every assertion passes. The scan says this outright: *\"a UTC-configured CI runner makes the two agree, so tests pass and production drifts.\"*\n\n2. **Even with the right TZ, no test could pin the moment.** `crime_00003` finds 4 direct clock reads in domain code with no injection point: *\"a test cannot pin a fixed moment without patching the module.\"* There is no way to write `build_invoice(...)` \"at 23:30 Europe/Berlin\" — you'd have to monkeypatch `domain.invoicing.datetime` itself. So the one test that would catch this is the one the current design makes hardest to write.\n\nNote also `1× utcnow()` — deprecated since Python 3.12 and slated for removal, so this is on a clock of its own.\n\n## Proposed fix\n\nOne decision has to be made first, and it's a product decision: **what zone defines a billing period boundary** — UTC, the customer's zone, or the company's? Since the complaint is from customers about *their* invoices, I'd assume the customer's billing zone. The fix below makes that choice explicit rather than accidental.\n\n**1. One convention: timezone-aware UTC everywhere in the domain.**\n\n```python\nfrom datetime import datetime, timezone\nfrom zoneinfo import ZoneInfo\n\ndef build_invoice(customer, line_items, coupon, region, options, now=None):\n    now = now or (lambda: datetime.now(timezone.utc))\n    issued = now()                                    # aware UTC — single read\n\n    billing_tz = ZoneInfo(customer[\"billing_tz\"])     # explicit, not the host's\n    local_issued = issued.astimezone(billing_tz)\n    period_start = local_issued.replace(\n        day=1, hour=0, minute=0, second=0, microsecond=0\n    ).astimezone(timezone.utc)\n```\n\nThree things change: `utcnow()` is gone; **the clock is read once** and both fields derive from that single instant, so they can never disagree; and the period boundary is computed in a zone the code names, not the zone the host happens to be in.\n\n**2. Inject the clock** (the `now` parameter above, or a `Clock` protocol on the service). This is what makes the regression test possible at all — and it's `crime_00003`'s `inject_clock` action, rated low risk.\n\n**3. Convert to local only at the presentation boundary** — `api/rendering.py` already owns locale via `format_money`; the tz formatting belongs there too.\n\n**4. Watch the migration trap.** The moment `issued_at` becomes aware, lines 53 and 79 (`coupon[\"expires_at\"] < datetime.now()`, `invoice[\"issued_at\"] < datetime.now()`) will raise `TypeError: can't compare offset-naive and offset-aware datetimes` against any still-naive stored value. That's exactly what `crime_00003` warns about — and it's the good outcome: a loud crash beats a silent one-hour skew. Plan for it: normalise persisted timestamps at the repository boundary (`.replace(tzinfo=timezone.utc)` on read, once you've confirmed they were stored as UTC), and fix line 79 to compare against the injected clock rather than a fresh `datetime.now()`.\n\n**5. Lock it with tests that can now be written:**\n- `build_invoice(now=lambda: datetime(2026, 1, 31, 22, 30, tzinfo=timezone.utc))` with `billing_tz=\"Europe/Berlin\"` → assert `period_start` is January, not February.\n- The same at `2026-07-31 22:30Z` to cover the CEST +2 window.\n- Set `TZ=Europe/Berlin` in one CI job so a reintroduced `datetime.now()` fails somewhere, not just in production.\n\nOne aggravating factor worth noting but not fixing here: `crime_00004` reports an import cycle between `domain/invoicing.py` and `api/rendering.py`. It isn't the cause of the date bug, but it means import order affects module initialisation — and it will resist the \"convert only at the presentation boundary\" refactor, since the domain currently imports the renderer. Breaking that cycle (extract `LINE_ITEM_CAP` into a leaf module) is cheap and makes step 3 clean.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      }
+    ]
+  }
+}

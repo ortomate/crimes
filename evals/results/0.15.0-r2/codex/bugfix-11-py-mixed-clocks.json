@@ -1,0 +1,59 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:46:36.238Z",
+  "run_id": "31098e9d-9181-48f4-81cf-e2f821496ecb",
+  "response": "I’ll trace the flagged clock reads in `domain/invoicing.py` and check the tests/CI timezone assumptions, then I’ll separate the causal finding from the unrelated scan noise.\n\nThe global `crimes` binary isn’t installed in this shell. The supplied scan is still sufficient, and I’m checking it against the fixture source directly; I’ll use the repository build if one is available.\n\nThe responsible module is [domain/invoicing.py](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/domain/invoicing.py:20), specifically `build_invoice()`.\n\nIt mixes two incompatible clock conventions:\n\n```python\nissued = datetime.now()       # naive server-local time\nperiod_start = datetime.utcnow()  # naive UTC time\n```\n\nBoth values lack timezone metadata, so Python treats them as though they share the same timezone even though their wall-clock values differ by the server’s UTC offset. Near a day/month boundary, they can land in different billing periods. Europe’s UTC offset and DST changes alter the size of that boundary window, explaining why it happens only sometimes.\n\nCI hides the bug because CI runs in UTC. There, `now()` and `utcnow()` return effectively identical wall-clock values, so tests never exercise the offset or DST boundary.\n\nThe other findings—blocking I/O, circular imports, and deep imports—are genuine risks but do not explain this billing-period defect.\n\n### Proposed fix\n\nUse one timezone-aware instant throughout domain logic and inject the clock:\n\n```python\nfrom collections.abc import Callable\nfrom datetime import datetime, timezone\n\ndef build_invoice(\n    customer,\n    line_items,\n    coupon,\n    region,\n    options,\n    now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),\n):\n    current_time = now()\n\n    issued = current_time\n    period_start = current_time\n    # Compare coupon expiry against current_time too.\n```\n\nAll stored timestamps and comparison operands, including `coupon[\"expires_at\"]`, should be timezone-aware. If the billing period follows the customer’s local calendar, derive it explicitly from the same instant:\n\n```python\nfrom zoneinfo import ZoneInfo\n\ncustomer_time = current_time.astimezone(ZoneInfo(customer[\"timezone\"]))\nbilling_period = (customer_time.year, customer_time.month)\n```\n\nDo not infer billing timezone from the server.\n\nTests should inject fixed instants around midnight and month-end for zones such as `Europe/London` and `Europe/Berlin`, including DST transitions. This makes the failure reproducible independently of the CI machine’s timezone.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

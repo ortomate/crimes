@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:52:47.623Z",
+  "run_id": "c4e679a8-4091-430b-8dcf-7d8d6f227fc0",
+  "response": "I’m using the `crimes-codebase-risk` skill because this is explicitly a scan-driven refactor plan. I’ll verify the findings and inspect the six fixture files so the two steps preserve behavior and have clear validation boundaries.\n\nThe global `crimes` binary is not installed in this shell, so I’m using the repository’s built CLI—the equivalent local invocation documented by the project. The source inspection reveals an important semantic wrinkle: the three role helpers are not interchangeable (`admin`, `admin || owner`, and `role !== admin`), so consolidation must preserve those meanings rather than blindly replacing all three with one boolean.\n\nThe scan reports three duplication findings:\n\n- `crime_00001` — three near-identical sanitizers:\n  `sanitizeUserInput`, `sanitizeText`, and `cleanMessage`.\n- `crime_00002` — exact duplicate `recordSanitiseEvent` implementations in both telemetry files.\n- `crime_00003` — repeated `\"admin\"` policy checks across `policy.ts` and the three sanitizer modules.\n\n## Two-step change set\n\n1. Centralize role policy\n\n   Add a single canonical `isAdmin(role)` function to `policy.ts`, then route every admin comparison through it:\n\n   - `canEditBilling`, `canSeeAuditLog`, and `canImpersonate` call `isAdmin`.\n   - `assertAdminA` delegates directly to `isAdmin`.\n   - `assertAdminB` preserves its distinct behavior: `isAdmin(role) || role === \"owner\"`.\n   - `assertAdminC` preserves its inverted behavior: `!isAdmin(role)`.\n\n   Add a role truth-table test covering at least `admin`, `owner`, and an ordinary role. This is essential because the three existing helpers have different semantics despite their misleadingly similar names. Keep the existing exports initially to avoid an unrelated API break.\n\n2. Consolidate sanitization\n\n   Create one shared sanitizer implementation, such as `src/sanitize.ts` exporting `sanitize`, and replace all three copied bodies with thin aliases or wrappers:\n\n   ```ts\n   export const sanitizeUserInput = sanitize;\n   export const sanitizeText = sanitize;\n   export const cleanMessage = sanitize;\n   ```\n\n   Add characterization tests before removing the copies, covering nullish runtime input, trimming, control characters, whitespace collapsing, the 1,000-character limit, rejected prefixes and `\\\\x`, repeated punctuation, and uppercase normalization.\n\nAfter each step, rerun the JSON scan. The final scan should remove `crime_00001` and `crime_00003` without introducing a high-severity finding. `crime_00002` should remain: telemetry consolidation—and the associated clock injection findings—is a separate refactor outside this two-step scope.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

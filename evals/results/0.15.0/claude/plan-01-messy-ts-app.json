@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:23:16.453Z",
+  "run_id": "4bb80a20-a3cc-409b-8d18-b32b7f101b73",
+  "response": "## What the two commands actually gave me\n\n`crimes scan --format json` — the 37 findings above. `crimes verdict --format json --base main` — **no usable signal**: the fixture isn't its own git repo, so verdict resolves against the parent `crimes` monorepo and returns `unchanged` (0 new, 0 fixed, 248 unchanged). Nothing in it informs this triage; I'm not going to pretend otherwise.\n\nThat has a second consequence worth stating up front: every finding in the report has `churn: 0`, `recency: 0`, `blast_radius: 0`. The ranking you're triaging is running on severity × confidence × agent-risk modifiers only — roughly half the scoring inputs are dark. So rank order is a starting point, not the triage order.\n\nI read the four highest-ranked files to check the findings rather than reorder them on trust. That changed three of the ten calls.\n\n## Top 10, grouped and tagged\n\n| # | ID | Charge | File | Response |\n|---|----|--------|------|----------|\n| **Structural** |\n| 5 | `crime_00005` | God Function (204 lines) | `src/billing.ts:50` | **defer** — blocked on tests |\n| 2 | `crime_00002` | Return Shape Roulette | `src/petty.ts:21` | **fix now** — underrated, see below |\n| 8 | `crime_00008` | Sync I/O in Hot Path | `src/api/files.ts:12` | **fix now** — batch |\n| 9 | `crime_00009` | Option Bag Junk Drawer | `src/petty.ts:10` | **ignore** — false positive |\n| **Testability / temporal** (no home in your five buckets; crimes' own taxonomy calls this Testability) |\n| 1 | `crime_00001` | Temporal Recklessness (8×) | `src/date.ts` | **fix now** |\n| 10 | `crime_00010` | Half-UTC, Half-Local | `src/date.ts:9,41` | **fix now** — same batch |\n| **IA** |\n| 3 | `crime_00003` | Missing Agent Context | repo root | **fix now** — do it first |\n| 7 | `crime_00007` | Route Metadata Drift | `src/routes/settings/billing.tsx` | **fix now** — batch |\n| **Duplication** |\n| 6 | `crime_00006` | Duplicated Navigation Source | `src/nav/registry.ts` | **fix now** — same batch as #7 |\n| 4 | `crime_00004` | String Sprinkles (`\"enterprise\"`) | 4 files | **defer** |\n| **Git-history** | — | *empty* | — | no churn data exists in this fixture |\n| **Frontend** | — | *empty in the top 10* | — | assets rank 32/36/37 (`crime_00032` embedded raster is `high`) |\n\n## Triage order — five edits, not ten\n\nThe ten findings collapse into five sittings, because they cluster by file.\n\n1. **`crime_00003` — write `AGENTS.md`.** ~15 minutes, and it's the multiplier: every other fix below is one an agent will otherwise re-break. Cheapest item on the list, highest leverage.\n2. **`src/api/files.ts` — `crime_00008` + `crime_00016` + `crime_00017`.** One 20-line file, one edit, three findings. And the sync I/O is the *least* of it: `SCHEMA_PATH = \"/Users/andrew/dev/crimes/schema.json\"`, so `loadPlanSchema()` returns `null` on every machine that isn't yours. `crime_00017` is the real bug and it's ranked 17th.\n3. **`src/date.ts` — `crime_00001` + `crime_00010` + `crime_00012`, `_00018`, `_00026`, `_00027`.** 53 lines, six findings, all temporal. `dateLabel()` at L41 is wrong *today*: `getMonth()` is zero-indexed and unpadded, so it emits `2026-7-1` for 1 August. `todayKey()` at L9 drops padding too. The \"mixed UTC/local\" charge understates this — it's not a latent DST risk, it's an incorrect string.\n4. **Nav/route naming — `crime_00006` + `crime_00007`.** Same destination, `/settings/billing`, carrying four names (`PricingPage`, `Plans`, `Subscription`, `Billing`). Pick one canonical label, derive the rest. Cheap, and it's the textbook \"agent updates one source, leaves two stale\" trap.\n5. **`src/petty.ts` — `crime_00002`.** Promoted above its `low` rank: the three return shapes aren't just inconsistent, the redirect branch (`{ url, permanent }`) has no `ok` field at all, so any caller writing `if (!result.ok)` treats a successful redirect as a failure. Live bug.\n\n**Deferred:** `crime_00004` — crimes rates its own suggested action `risk: \"medium\"`, correctly. Centralising `\"enterprise\"` across `api/plan.ts`, `billing.ts`, `jobs/plan-sync.ts` and `ui/pricing.ts` means asserting those four sites should share one definition, which you can't know without reading all four. Do it when you next touch plan logic.\n\n**Ignored:** `crime_00009` — false positive. `describeCheckout(options: CheckoutOptions)` takes an explicitly declared interface with six required named fields. The finding's premise (\"implicit shape\", \"hard for agents to know which fields are required\") is false on inspection. Worth recording:\n\n```bash\ncrimes feedback option_bag_junk_drawer::src/petty.ts::describeCheckout \\\n  --verdict fp --note \"Parameter is an explicit CheckoutOptions interface, not an implicit bag\"\n```\n\n## Two things the rank order gets wrong\n\n**`crime_00005` (God Function) is `high` but must not be first.** `billing.test.ts` is 19 lines holding two tests — one with zero assertions (`crime_00025`), one with a single weak matcher (`crime_00034`). Splitting a 204-line function that mixes pricing, tax, persistence, audit and retry, with that as your safety net, is how you ship a billing regression. Sequence: fix the tests, then `crime_00015` and `crime_00020`, then the split.\n\n**The most consequential finding in the report is ranked 20th.** `crime_00020` flags the comment above `calculateRefundPreview`: *\"Only owners can refund enterprise plans unless billing support approves.\"* The function body is four lines — it writes an audit record, sends an email, and returns `invoice.totalCents`. There is no permission check, no owner check, and no calculation. That's an authorization rule that exists only in prose, on a function whose name (`crime_00015`) promises a pure preview while it fires two side effects. It scores `medium`/`0.30` because agent_risk can't see that \"owner\" is a security concept. When you get to `billing.ts`, start there.\n\nOne note on completeness: `suppressed_count: 1` is the documented `commented_out_code` suppression in `.crimes/suppressions.json` — legitimately silenced, not something I dropped.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "scenario": "bugfix-13-polyglot-plan-drift",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:16:35.729Z",
+  "run_id": "0665efc2-61ad-4375-843b-631016419c83",
+  "response": "I ran the scan and then opened the three files it points at to confirm the mechanism.\n\n## What's happening\n\nOne finding explains the whole report: **`crime_00001` Cross-Language Type Drift** (high, confidence 0.75).\n\n`Plan` is declared as a *closed set* twice, by hand, in two languages:\n\n| | declared tiers |\n|---|---|\n| `packages/api/billing/plans.py:10` (Python `str, Enum`) | `free`, `pro`, `team`, `scale` |\n| `packages/web/src/workspace-client.ts:10` (TS union) | `free`, `pro`, `enterprise` |\n\nOnly `free` and `pro` are shared. The newest tiers — `team` and `scale` — exist **only** on the API side. The API is the canonical list (its own docstring says so: *\"The canonical list of tiers lives here. The web client keeps its own copy… and the two have drifted\"*).\n\nSo the failure is asymmetric, exactly as your users report it:\n\n1. A user is provisioned on `scale`. The API accepts and stores it — `Plan.SCALE` is a legal enum member, `seats_for` maps it to 50, `POST /api/teams/{id}/plan` echoes it back happily.\n2. The web app fetches that workspace. `getWorkspace()` returns `Promise<Workspace>`, and `Workspace.plan` is typed `\"free\" | \"pro\" | \"enterprise\"`.\n3. Whatever narrows the response to that union — a zod/valibot enum built from the same list, a `switch` with a throwing `default`, a plan→label lookup — has no `scale` case. The user is rejected with a validation error.\n\nThe TS union itself is erased at runtime, so the union *line* isn't the thing throwing; it's the source of truth that the web's runtime guard was written from. That's why the error surfaces only in the browser and never in the API's own tests.\n\nThe `enterprise` entry is the mirror-image bug waiting to happen: it's TS-only, so if the UI ever sends `enterprise` to `POST /api/teams/{id}/plan`, the Python side takes it as a bare `str`, and `seats_for` silently falls through to `.get(plan, 1)` → **1 seat**, no error. That fails soft, which is worse.\n\n## Why the upgrade path is also broken\n\nTwo route-drift findings mean that even after you add `scale` to the web union, changing a plan still won't work:\n\n- **`crime_00003`** — `workspace-client.ts:34` calls `PUT /api/teams/:id/plan`; `routes.py:25` declares that path as `POST`. The path exists, so this is a **405**, not a 404 — very easy to misread as a permissions bug.\n- **`crime_00005`** — `workspace-client.ts:23` calls `POST /api/workspaces`, a path no backend route declares (the backend has `POST /api/teams`). That's a **404** that reads like a data problem.\n\nAlso note `workspace-client.ts:28` and `:34` fetch the *literal string* `\"/api/teams/:id/plan\"` — the `:id` is never interpolated. Whatever `id` you pass is discarded.\n\n## Why nobody caught it\n\n**`crime_00004`** Concept Alias Drift is the reason this survived review: the same concept is `team` in Python and `workspace` in TypeScript across all 3 files. Anyone (human or agent) grepping `team` finds only the backend half; grepping `workspace` finds only the frontend half. Neither search shows you that there are two competing definitions of `Plan`. `test_gap` is 1.0 on every finding here — there is no test that crosses the boundary.\n\n## Fix\n\nImmediate, to unblock users:\n\n1. Add `\"team\" | \"scale\"` to the TS union and to the web-side runtime validator; decide whether `enterprise` is dead (delete it) or was renamed to `team`/`scale` (map it).\n2. Change `changeWorkspacePlan` to `POST`, and interpolate the id: `` fetch(`/api/teams/${id}/plan`, { method: \"POST\" }) `` — same for `workspaceSeats`.\n3. Point `createWorkspace` at `POST /api/teams`.\n\n## What stops it recurring\n\nPatching the union just resets the clock — the same drift reappears at the next tier. The structural fix is to stop hand-maintaining two copies of a closed set:\n\n- **Make the Python enum the single source and generate the TS.** FastAPI already emits OpenAPI from `Plan`; run `openapi-typescript` in CI so `Plan` and the route/method table are both generated. That kills all three cross-language findings at once — a wrong method or path becomes a type error at build time, not a 405 in production.\n- **Fail the build on drift.** Commit the generated file and have CI regenerate and `git diff --exit-code`. A backend tier added without regenerating becomes a red build.\n- **Pick one name for the concept.** `team` vs `workspace` is what made this invisible to search; crimes suggests `organization`, but any single name works. If the boundary name genuinely must differ, document the mapping in both files.\n- **Make the Python side stop failing soft.** Type `change_team_plan(plan: Plan)` instead of `plan: str` so an unknown tier is a 422, and drop the `seats_for` default of `1` — a plan not in `SEATS_INCLUDED` should raise, not quietly grant one seat.\n\n`crimes scan` can't tell you which side is *right* — it only proves the two closed sets disagree and that the disagreement is unguarded by tests. Confirming that `scale` is the intended new tier and `enterprise` is the stale one is a product call.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": "packages/api/billing/plans.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": "packages/web/src/workspace-client.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      }
+    ]
+  }
+}

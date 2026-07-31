@@ -1,0 +1,53 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:36:03.228Z",
+  "run_id": "51af21ef-94a7-4b7b-82b2-4d17360f85ab",
+  "response": "## The answer: `build_invoice` — `domain/invoicing.py:15-75`\n\nNot because it's the highest-scoring single finding. `get_invoice` (`api/routes.py:18`) carries the top `agent_risk` at 0.46, and it's the worst thing in the repo *at runtime* — a blocking `requests.get()` inside `async def` stalls the event loop for every concurrent request. But it's six lines with a mechanical fix (`httpx.AsyncClient`, `aiofiles`, push the subprocess to a task queue). High risk to *run*, low risk to *change*.\n\n`build_invoice` is the inverse. It's where four of the eight findings intersect — crimes 00002, 00003, 00004 and 00005 all land inside or through this one function — and each one removes a different guardrail an agent would normally rely on.\n\n## What makes it risky beyond its length\n\n**1. Two clocks, one function, adjacent lines.**\n```python\nissued = datetime.now()        # line 20 — local, naive\nperiod_start = datetime.utcnow()  # line 21 — UTC, naive\n```\nBoth are `datetime`. The type system cannot tell them apart. Line 53 then compares `coupon[\"expires_at\"] < datetime.now()`, and line 79 does the same against `issued_at`. An agent that \"cleans up\" one read to `datetime.now(timezone.utc)` either gets a `TypeError` against its naive sibling, or — worse — makes all four aware and silently shifts every coupon-expiry decision by the host's UTC offset. **A UTC-configured CI runner makes both spellings agree, so the test suite cannot tell you which one you shipped.**\n\nAlso: `period_start` reads the current instant, same as `issued`, just through the other convention. Nothing says whether that was deliberate. That's a question for a human, not a thing to unify silently.\n\n**2. No seam for time.** There's no injected clock, so the only way to test is `monkeypatch`ing `domain.invoicing.datetime` — which patches all four reads at once. You can't pin issue time and coupon expiry independently, which is exactly the test you'd want before touching the discount block.\n\n**3. It closes the import cycle.** `domain/invoicing.py:9` imports `format_money` from `api/rendering.py`; `api/rendering.py:7` imports `LINE_ITEM_CAP` back. `build_invoice` is the *only* reason that first edge exists (line 72). Which module the process imports first decides whether this raises — pytest imports `domain` first, a FastAPI app importing `api.routes` goes the other way. Move this function, move the constant, or add one import at either module's top, and you can flip a green test run into an `ImportError` at production boot.\n\n**4. Silent-data outputs.** `skipped` and `warnings` accumulate inside the loop and ride out in the return dict. They aren't errors and aren't logged. They're the two least conspicuous things in a 61-line body — an agent extracting the loop drops them and nothing fails.\n\n**5. Two latent bugs an extraction would have to take a position on.**\n- Line 55-61: if `kind` is neither `percent` nor `fixed`, `discount_total` stays 0 — but the `stackable and bonus` block still fires. A coupon with `kind=\"freebie\"`, `stackable=True`, `bonus=10` produces a £10 discount out of nowhere.\n- `min(coupon[\"value\"], subtotal)` caps the fixed discount, but percent and bonus aren't capped. `discount_total` can exceed `subtotal`, sending a negative amount into `apply_vat`.\n\nWhether an agent preserves or \"fixes\" these, it's a silent behavior change with no test to catch it.\n\n**6. Five opaque dict params, inconsistently read.** Lines 36/38 use `item[\"price\"]` (KeyError on missing); line 48 uses `item.get(\"price\", 0)`. Same function, same field. Nothing tells an agent which is intentional. And there are **zero test files in the repo** — `test_gap: 0.5` is understating it.\n\n## Refactor plan\n\nFour steps. Each is independently shippable and removes a finding. **Do not start step 3 before step 2 lands.**\n\n**Step 0 — pin the arithmetic (no production change).**\nWrite characterization tests that assert on `subtotal`, `discount`, `total`, `skipped` and `warnings` only — never on `issued_at`/`period_start`. Cover: the three `kind` branches, the usage cap at `LINE_ITEM_CAP`, `quantity <= 0` skips, and both coupon bugs above *as they behave today*. Coupons get an `expires_at` far in the past/future so the clock is irrelevant.\n\n**Step 1 — break the cycle (crime_00004).**\nMove `LINE_ITEM_CAP` into a leaf `domain/limits.py` with no imports; both modules import from there. Then drop the domain → api edge entirely: remove `display_total` from `build_invoice`'s return and have `api/routes.py` call `format_money` on the result.\n\n⚠️ That changes the HTTP response body — `routes.py:26` returns the dict straight out. Have the route re-add `display_total` so the wire shape is unchanged. (Alternative: pass `format_money` in as a callable parameter. Keeps the shape without moving code, but leaves domain aware of presentation. I'd take the route version.)\n\nVerify: `python -c \"import api.rendering\"` and `python -c \"import domain.invoicing\"` both succeed, and crime_00004 is gone from the next scan.\n\n**Step 2 — inject the clock (crimes 00002, 00003).**\n```python\ndef build_invoice(customer, line_items, coupon, region, options, *, now=None):\n    now = now or (lambda: datetime.now(timezone.utc))\n    issued = now()\n```\nAll four reads route through `now()`; everything becomes aware UTC.\n\nThe dangerous part is line 53. If callers pass a naive `expires_at`, making the right side aware raises `TypeError` at runtime while your tests (which now pass aware clocks) stay green. Normalize explicitly at the boundary:\n```python\ndef _as_utc(value):\n    if value.tzinfo is None:\n        return value.replace(tzinfo=timezone.utc)\n    return value.astimezone(timezone.utc)\n```\nTest with both naive and aware coupons. Then decide with a human what `period_start` was meant to be — don't guess.\n\n**Step 3 — extract, one commit each.**\nNow that time is pinnable and the cycle is gone:\n\n- `_line_total(item) -> tuple[float, str | None]` — the `kind` ladder at 33-48, returning the total plus an optional warning. Kills the deepest nesting.\n- `_price_lines(line_items) -> (subtotal, skipped, warnings)` — the loop. Returning all three explicitly makes the silent outputs impossible to drop.\n- `_coupon_discount(coupon, subtotal, now) -> float` — lines 52-61, clock passed in. Preserve the freebie-bonus and over-cap behaviors here *and add tests naming them as known bugs*, so the fix is a separate, visible commit.\n\n`build_invoice` lands at ~15 lines, nesting depth 2: price lines → discount → vat → assemble.\n\n**Step 4 — cheap wins.**\nRe-export `BANDS`/`STANDARD_BAND` from `tax/__init__.py` and import from the package root (crimes 00006/00007). Rename `stale`/`ready` → `is_stale`/`is_ready` (crime_00008) — and note `stale = issued_at < now()` is true for every invoice ever issued. The name doesn't just lack a prefix, it describes logic the code doesn't implement.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:37:24.809Z",
+  "run_id": "99d71980-fccc-4f76-a86e-31fb8856c899",
+  "response": "## Review policy I'm applying\n\nBaseline is empty, so every finding below is *new code this PR introduces* — no \"pre-existing debt\" escape hatch. Three buckets:\n\n- **Block merge** — the code is wrong or will silently do the wrong thing in some environment, or it removes the safety net that would catch that. Roughly `severity ≥ 0.55` **plus** a concrete failure mode, or a lower severity with a demonstrated correctness bug.\n- **Warn** — real debt with a named owner and a follow-up, but nothing produces incorrect behaviour today. This is where most of the `agent_risk` 0.26–0.44 findings land: they don't break the build, they break the *next* agent's edit.\n- **Ignore** — nits. Fix if you're already in the file.\n\nOne caveat before the tables: `churn`, `blast_radius`, `blast_radius_importers`, and `recency` are **0 on all 37 findings** because there's no history against an empty baseline. So ranking here is effectively `severity × agent_risk` only, and I've weighted my own judgement about blast radius on top. Also note `test_gap: 0` on `src/billing.ts` findings is misleading — billing *has* a test file, but crime_00025 and crime_00034 say those tests assert nothing. Treat billing.ts as `test_gap ≈ 1`.\n\n---\n\n## Block merge (9)\n\n| ID | Charge | sev / agent_risk | Why it blocks |\n|---|---|---|---|\n| 00017 | Localhost-on-Disk | 0.6 / 0.30 | `/Users/andrew/dev/crimes/schema.json` hardcoded in `src/api/files.ts:9`. Works on exactly one laptop. Fails on every CI runner and every deploy. Severity understates this — it's not debt, it's broken. |\n| 00016 | Dev-Server URL | 0.6 / 0.30 | `localhost:3000` at `files.ts:8`, same story. Non-config source pointing at a dev server. |\n| 00001 | Temporal Recklessness | 0.8 / **0.44** | 8 clock reads in `src/date.ts`. Highest `agent_risk` in the report, and it's the reason nothing in this module is testable. Everything else wrong with date.ts is unverifiable until this is injectable. |\n| 00010 | Half-UTC, Half-Local | 0.8 / 0.36 | Same receiver `d` reads `getUTCFullYear()` @L9 and `getMonth()` @L41. This is a live off-by-one-day bug for any user whose offset crosses midnight. High severity, concrete failure. |\n| 00012 | Timezone Roulette | 0.6 / 0.35 | `new Date(\"2026-12-25T07:00:00\")` with no zone marker — parsed in host time. Combined with 00010 this is billing dates that differ per machine. |\n| 00018 | DST-Naive Day Math | 0.6 / 0.30 | `+ 86400000` @L52. Wrong twice a year, silently, on billing periods. Blocking as part of the date.ts cluster — fix 00001/00010/00012/00018 as one change. |\n| 00005 | God Function | **0.9** / 0.38 | `generateInvoice` is 204 lines, 3.4× threshold, in the money path, with no real test coverage. Highest severity in the report. A 204-line invoice generator merged in one shot is unreviewable by definition. |\n| 00025 | Test That Proves Nothing | 0.45 / 0.27 | `\"renders the enterprise plan\"` has **zero** assertions. Low-ish scores, but this is the finding that makes 00005 unmergeable — it's the reason `test_gap` reads 0 when it should read 1. Green CI here means nothing. |\n| 00015 | False Identity | 0.55 / 0.31 | `calculateRefundPreview` calls `saveRefundAudit` and `sendRefundEmail`. A \"preview\" that emails customers and writes audit rows will get called speculatively by a human or an agent. Modest scores, unambiguous production incident. |\n\n---\n\n## Warn (21)\n\nShip it, file the tickets. These are mostly agent-risk findings: they don't misbehave, they mislead the next editor.\n\n**Multiple-sources-of-truth cluster** — highest-value warns, because they're exactly the shape where an agent edits one copy and leaves the rest stale:\n\n| ID | Charge | sev / agent_risk | Note |\n|---|---|---|---|\n| 00004 | String Sprinkles | 0.5 / **0.42** | `\"enterprise\"` in 4 files across 4 areas. Next plan-gating change misses one. |\n| 00006 | Duplicated Navigation Source | 0.6 / 0.38 | `/settings/billing` labelled \"Plans\" and \"Billing\" in two nav files. |\n| 00007 | Route Metadata Drift | 0.6 / 0.38 | Same destination named 4 ways (path, component `PricingPage`, `metadata.title` \"Plans\", `<title>` \"Subscription\"). Fix with 00006 as one change. |\n| 00019 | Concept Alias Drift | 0.55 / 0.30 | tenant / account / organisation / team / workspace across 5 files. Cheap now, expensive after the schema exists. |\n| 00020 | Logic in the Alibi | 0.5 / 0.30 | \"Only owners can refund enterprise plans unless billing support approves\" lives in a comment at `billing.ts:39` with none of those terms in nearby code. Borderline blocker — I'd block it if the refund path weren't already blocked by 00005/00015. Confirm the rule is encoded somewhere before merge. |\n\n**Agent-context and contract shape:**\n\n| ID | Charge | sev / agent_risk | Note |\n|---|---|---|---|\n| 00003 | Missing Agent Context | 0.6 / **0.42** | No AGENTS.md/CLAUDE.md, and `package.json` declares a bin. A PR that introduces a whole repo should introduce its instructions. One file, 15 minutes. (Reported against `src/api/files.ts` — it's a repo-level finding, don't read the path as the location.) |\n| 00002 | Return Shape Roulette | 0.3 / **0.43** | 3 return shapes, 0% key overlap, no return type. Low severity, near-top agent_risk — precisely the split this schema is designed to surface. |\n| 00009 | Option Bag Junk Drawer | 0.3 / 0.38 | `options` with 6 implicit property reads. |\n| 00008 | Sync I/O in Hot Path | 0.4 / 0.38 | 3 sync calls in `loadPlanSchema`. Warn now; blocks if this is ever request-path. |\n| 00013 | Temporal Recklessness | 0.6 / 0.34 | 7 clock reads in billing.ts. Same fix as 00001 — do them together. |\n\n**Rest:**\n\n| ID | Charge | sev / agent_risk | Note |\n|---|---|---|---|\n| 00032 | SVG With Embedded Raster | **0.75** / 0.24 | Highest-severity warn. Two base64 rasters in a 592-byte SVG — misleading asset, but breaks nothing. |\n| 00014 | Unfinished Business | 0.4 / 0.32 | 411 markers/1k LOC in `src/todo.ts`. 14 markers in one file means nobody can tell what's load-bearing. |\n| 00035 | God File | 0.6 / 0.18 | 311 lines, exactly 1.0× threshold. Largely resolved by fixing 00005 — don't double-count it. |\n| 00029/30/31 | Orphaned Destination ×3 | 0.4 / 0.26 each | `/account/subscription`, `/team`, `/workspace/members` unreachable. Three at once is a design question, not three bugs: decide whether the tenant surface is shipping. Confidence 0.65 — verify before deleting anything. |\n| 00026 | Date String Sewing | 0.3 / 0.26 | Fold into the date.ts blocker fix. |\n| 00027 | Host-Locale Drift | 0.3 / 0.26 | `toLocaleDateString()` with no locale — user-visible drift. Fold into the same fix. |\n| 00034 | Test That Proves Nothing | 0.25 / 0.23 | Weak matcher on `\"creates an invoice\"`. Fix alongside 00025. |\n| 00033 | Docs-Code Drift | 0.35 / 0.24 | `docs/teams.md:5 → ./setup.md` doesn't exist. Two-minute fix, and agents follow doc links. |\n| 00037 | Oversized Raster | 0.4 / 0.14 | 253.9 KB, just over the 200 KB low threshold. Resize when convenient. |\n\n---\n\n## Ignore (7)\n\n| ID | Charge | sev / agent_risk | Why |\n|---|---|---|---|\n| 00011 | Negative Flag Maze | 0.25 / 0.36 | `!disableBilling && !skipRetry` — genuinely annoying, but one conditional. Agent_risk 0.36 is the only reason to look twice. |\n| 00022 | Unprefixed Boolean | 0.3 / 0.29 | `paid`/`expired`/`stale`. Style. |\n| 00028 | Unprefixed Boolean | 0.3 / 0.26 | Same. |\n| 00024 | Plural Mismatch | 0.3 / 0.28 | `invoice: Invoice[]` is mildly confusing; detector self-declares v1 limitations. |\n| 00023 | Temporal Recklessness | 0.35 / 0.28 | One `Date.now()` in `state.ts`. Falls out of the 00001 clock injection anyway. |\n| 00036 | Icon-Sized Raster | 0.35 / 0.16 | A 32×32 PNG. |\n| 00038 | Unfinished Business | 0.2 / **0.08** | 4 markers at 12.9/1k, barely over threshold. Lowest agent_risk in the report — this is the noise floor. |\n\n---\n\n## Verdict\n\n**Request changes.** Nine blockers, but they collapse into four actual pieces of work:\n\n1. **`src/date.ts` correctness cluster** (00001, 00010, 00012, 00018, +26/27 for free) — inject a clock, pick UTC as the storage domain, convert at the display boundary. This is one change, not five.\n2. **`src/api/files.ts` portability** (00016, 00017) — two literals to config. Fifteen minutes.\n3. **Billing refund/invoice path** (00005, 00015, 00025) — rename or split `calculateRefundPreview`, extract helpers from `generateInvoice`, and make `billing.test.ts` actually assert. The last one is the real gate: everything else in billing is unverifiable until the tests do something.\n4. **Confirm the L39 refund rule** (00020) is encoded in code, not prose.\n\nEverything in the warn bucket can land as follow-ups. The pattern worth flagging to the author: the highest `agent_risk` scores in this report (0.42–0.44) are on *low-severity* findings — scattered `\"enterprise\"` literals, unnamed return shapes, missing agent context. Nothing there is broken. All of it is the kind of thing that makes the next edit break something.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

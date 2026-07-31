@@ -1,0 +1,34 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:18:55.582Z",
+  "run_id": "09bd4dc6-77c3-4a13-bcd7-56e67995241c",
+  "response": "`crimes context src/billing.ts --format json` confirms the file is clean.\n\n## No findings\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"findings\": [],\n\"agent_guidance\": [],\n\"related_files\": []\n```\n\nRisk level `none`, zero findings at every severity, and no agent guidance. The repo-wide scan agrees — `summary.total: 0` across both files, with the `universal`, `language-js`, and `language-py` packs all loaded, so the empty result is real coverage rather than a pack that failed to run.\n\n## likely_tests\n\n```\nsrc/billing.test.ts\n```\n\nThat's the single entry in `likely_tests` — the sibling test file next to the module.\n\n## Why it's low risk to edit\n\n`src/billing.ts` is 11 lines: one exported `Money` interface and one pure `format` function.\n\n- **No blast radius.** `related_files` is empty, and the reason field spells out why: no import-graph findings, no shared domain tokens, no domain-prefix filenames, no same-directory siblings. Nothing in the repo hangs off this module, so a change here doesn't ripple.\n- **Pure and deterministic.** `format` destructures its argument and returns a template string. No I/O, no clock, no env, no mutation — the same input always gives the same output, which is exactly what makes an edit easy to verify.\n- **Types constrain the surface.** `currency` is a literal union (`\"USD\" | \"EUR\" | \"GBP\"`), so the compiler catches most edit mistakes before tests run.\n- **Cold code.** `clues.churn` shows 1 commit in 90 days, 1 unique author, last touched 2026-05-18. No hotspot, no competing concurrent edits.\n- **Test in reach.** `src/billing.test.ts` sits beside it, so any behavior change has an obvious place to be covered.\n\nOne caveat worth stating plainly: `test_gap` reports `raw: 0` with label `\"unknown\"` — crimes located a likely test file but did not measure how much of `billing.ts` it actually exercises. Low risk here rests on the module's size and purity, not on verified coverage. Before editing, open `src/billing.test.ts` and check that `format` is asserted against; if it isn't, add the case as part of the change.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

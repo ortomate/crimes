@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:29:03.602Z",
+  "run_id": "1440d84a-7414-455a-9e71-8ba46fc897d4",
+  "response": "## 1. Duplication confirmed\n\nI cross-checked all five findings against the source. The scan is accurate, but it's reporting **three separate crimes that need three different fixes** — and one of them is a trap.\n\n**The real duplication (`crime_00001`):** `sanitizeUserInput` / `sanitizeText` / `cleanMessage` are identical modulo identifier names (`working` / `cleaned` / `normalised`). Every literal matches across all three: the `1000` truncation, the `[!?]{3,}` run limit of `5`, the `0.9` upper-case ratio, the `30` minimum length, the `<`/`>` prefix rejection, the `\\\\x` check. There is **no behavioural difference to preserve** — `fix_shape: \"pass the differing values as args\"` overfires here; nothing differs, so the consolidated function needs no parameters beyond the input.\n\n**Exact duplication (`crime_00002`):** `recordSanitiseEvent` is byte-identical in `telemetry-a.ts` and `telemetry-b.ts`, including the `Date.now()` that generates `crime_00004` and `crime_00005`. One consolidation closes three findings.\n\n**The trap (`crime_00003`):** the detector groups four files by the literal `\"admin\"`, but the three hoisted guards are **not** duplicates — they're three different predicates:\n\n| Guard | Body | Semantics |\n|---|---|---|\n| `assertAdminA` | `role === \"admin\"` | admin only |\n| `assertAdminB` | `role === \"admin\" \\|\\| role === \"owner\"` | **admin or owner** |\n| `assertAdminC` | `role !== \"admin\"` | **inverted** |\n\nMerging these into one helper is a security-relevant behaviour change: `assertAdminC` returns `true` for non-admins. `confidence: 0.7` and \"2 distinct expression shapes\" is the signal to read before acting. Only `policy.ts`'s three copies and `assertAdminA` are genuinely the same check.\n\n`blast_radius_importers: 0` is real — `grep` finds zero imports anywhere in `src/`. These are leaf modules, so old names can be deleted outright rather than kept as deprecated aliases.\n\n## 2. Proposed consolidation\n\n### New: `src/sanitize.ts`\n\n```ts\n/**\n * Normalise untrusted free-text input. Returns \"\" for input that is empty,\n * absent, or rejected outright (markup-leading, escape sequences, punctuation\n * spam).\n */\nexport function sanitize(input: string | null | undefined): string;\n```\n\nDesign notes on that signature:\n\n- **No options bag.** All four thresholds are identical in all three copies. Adding `{ maxLength, maxPunctuationRuns, ... }` would be speculative generality with no caller asking for it — easy to add later when a second set of thresholds actually appears.\n- **`string | null | undefined`, not `string`.** All three copies open with `if (x === null || x === undefined) return \"\"` and then call `String(x)` — the current `: string` annotation is a lie about the contract. The consolidated signature should say what the body already does.\n- **Move the body verbatim first.** Do not \"fix\" anything during the extract. In particular `replace(/[ -]/g, \"\")` is a character *range* (0x20–0x2D), so it strips space and `! \" # $ % & ' ( ) * + ,` and `-` — almost certainly a mangled control-character strip (`/[\\x00-\\x1f]/`). That's a genuine bug, but fixing it in the same commit as the consolidation makes the diff unreviewable. Consolidate, then fix once — which is the entire argument for consolidating.\n\n### New: `src/telemetry.ts`\n\n```ts\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: () => number = Date.now,\n): void;\n```\n\nThe injected `now` clears both Temporal Recklessness findings while the file is already open, with a default that keeps every call site unchanged.\n\n### `src/policy.ts`\n\n```ts\nexport function isAdmin(role: string): boolean;          // the one true check\nexport function hasElevatedRole(role: string): boolean;  // admin || owner (was assertAdminB)\n```\n\n`canEditBilling` / `canSeeAuditLog` / `canImpersonate` all become `return isAdmin(role)`. `assertAdminA` collapses into `isAdmin`. `assertAdminC` gets **no helper** — its call sites use `!isAdmin(role)` directly, so the negation stays visible instead of being buried in a function whose name implies the opposite of what it returns.\n\n## 3. Files that change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **new** — single `sanitize()` implementation |\n| `src/telemetry.ts` | **new** — single `recordSanitiseEvent()` with injected clock |\n| `src/sanitize-a.ts` | **deleted** — body → `sanitize.ts`, `assertAdminA` → `policy.isAdmin` |\n| `src/sanitize-b.ts` | **deleted** — body → `sanitize.ts`, `assertAdminB` → `policy.hasElevatedRole` |\n| `src/sanitize-c.ts` | **deleted** — body → `sanitize.ts`, `assertAdminC` → inline `!isAdmin()` |\n| `src/telemetry-a.ts` | **deleted** — folded into `telemetry.ts` |\n| `src/telemetry-b.ts` | **deleted** — folded into `telemetry.ts` |\n| `src/policy.ts` | **edited** — add `isAdmin` + `hasElevatedRole`, delegate the three `can*` functions |\n\nNet: 6 files → 3, zero import sites to update.\n\n## 4. Sequencing\n\nLand it as three commits, not one — they carry different risk:\n\n1. **Sanitisers** (mechanical, zero behaviour change) — closes `crime_00001`.\n2. **Telemetry + clock** (mechanical + a defaulted param) — closes `crimes_00002`, `_00004`, `_00005`.\n3. **Policy** (behaviour-sensitive; the B/C guards need a human decision) — closes `crime_00003`.\n\nOne caveat worth stating plainly: `test_gap: 0.5` on every finding, and there are no tests in this fixture at all. Step 1 is safe to do blind because the bodies are provably identical, but the `/[ -]/` fix that consolidation *enables* should not be attempted until `sanitize()` has characterisation tests pinning its current output — including the surprising cases where it eats punctuation.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

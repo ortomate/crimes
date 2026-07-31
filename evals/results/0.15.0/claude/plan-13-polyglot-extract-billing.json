@@ -1,0 +1,65 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:26:07.486Z",
+  "run_id": "a314a054-c34f-4dee-99e9-87ccb28e19ed",
+  "response": "I ran the scan (output matches what you pasted) and read all three source files. The scan is right about what it found, and reading the files turned up two contract bugs its literal-path matcher couldn't see. Both change the sequencing.\n\n## What's actually in the boundary\n\n`packages/api/billing/` is self-contained — `routes.py` imports only `billing.plans`, nothing outside the directory. Mechanically the extraction is cheap: move two files, stand up a FastAPI app, done. **All of the risk is in the HTTP contract**, and every finding crimes raised is a symptom of that contract never having been written down.\n\nHere is the full state of the four calls the web client makes:\n\n| Client call | Backend reality | Status |\n|---|---|---|\n| `getWorkspace` → `GET /api/workspaces/{id}` | route is `/api/teams/{team_id}` | Broken. **Crimes missed this** — the URL is assembled with `+`, and the detector says so: \"a route or URL assembled at runtime is invisible to this check\" |\n| `createWorkspace` → `POST /api/workspaces` | route is `POST /api/teams` | Broken — crime_00005 |\n| `workspaceSeats` → `GET /api/teams/:id/seats` | route exists | Path shape matches, but `fetch(\"/api/teams/:id/seats\")` **sends the literal string `:id`** — `id` is never interpolated |\n| `changeWorkspacePlan` → `PUT /api/teams/:id/plan` | route is `POST` | Method drift (crime_00003), same un-interpolated `:id`, **and the `plan` argument is never sent** — no body, no query string |\n\nZero of the four calls work today. That's the real finding: the billing API has no consumers that exercise it correctly, so \"the current behaviour\" is not a contract you can preserve — you have to author one. Doing that is dramatically cheaper while both sides are in one repo and one commit can change both.\n\nTwo more hazards worth naming:\n\n- `change_team_plan(team_id: str, plan: str)` types `plan` as bare `str`, not `Plan`. The backend will accept `\"enterprise\"` — or `\"banana\"` — and echo it back unvalidated.\n- `seats_for` uses `SEATS_INCLUDED.get(plan, 1)`. Combined with the enum drift, an `\"enterprise\"` workspace silently resolves to **1 seat** rather than erroring. Today that's a bug in one repo. After the split it's a cross-team billing incident with no stack trace.\n\nAnd the structural point: **crimes found all of this because both languages are in one tree.** The moment you split, `cross_language_type_drift` and `cross_language_route_drift` go blind — the detector needs to see both sides. You lose your drift alarm at exactly the moment drift becomes a two-team, two-deploy problem. Whatever replaces it (generated client, contract tests) has to exist *before* the cut, not after.\n\n---\n\n## Phase 0 — Freeze the contract (before the split, blocking)\n\n**0.1 — Decide the boundary vocabulary.** Not the full rename. Just: what appears in URL paths and JSON field names. Crimes suggests `organization` (crime_00004); I'd pick `team`, because it's what the backend — the side being extracted and the side that will own the contract — already uses in four route definitions. Changing it means the new team's service is born speaking a name none of its own code uses. Write the decision down; it is now frozen.\n\n**0.2 — Author the route table.** One document, four routes, exact methods and paths. Then fix both sides in a single commit:\n\n- `GET /api/teams/{team_id}`\n- `POST /api/teams`\n- `GET /api/teams/{team_id}/seats`\n- `POST /api/teams/{team_id}/plan` — with the new plan in the request body\n\nClient side: interpolate `id` properly in all four calls, send `POST` not `PUT`, and actually send `plan` in the body. This resolves crime_00003, crime_00005, and the two bugs crimes couldn't see.\n\n**0.3 — Unify the `Plan` enum (crime_00001, the high).** Python is canonical — it's the side with `SEATS_INCLUDED`, so it's the side where a wrong answer costs money. Then:\n\n- Decide what `enterprise` was. If it's real, it needs a Python member and a seat count. If it was aspirational UI, delete it.\n- Emit the TypeScript union from the Python enum via a codegen step in CI. Hand-maintained copies are the thing that already failed here.\n- Type `change_team_plan`'s `plan` parameter as `Plan` so FastAPI rejects unknown tiers at the boundary with a 422.\n- Change `seats_for` to raise on an unknown plan instead of defaulting to 1. A loud failure inside the billing service beats silent under-billing observed by nobody.\n\n**0.4 — Contract tests.** Every finding scores `test_gap: 1.0` — there is no test anywhere. You don't need a suite; you need the minimum that fails when the contract moves: one test asserting the generated TS enum matches the Python enum, and one asserting the client's four request shapes against the FastAPI route table (schemathesis against the OpenAPI schema, or a hand-written table test). This is what takes over from crimes' cross-language detectors after the cut.\n\n**Why all of this is blocking:** each item is currently a one-commit, one-CI-run, one-team change. After the split, every one becomes a versioned API change requiring coordinated deploys across two teams. The cost multiplier is roughly 10×, and the enum and route items are the ones that fail *silently* — a 405 that reads like a permissions problem, a 404 that reads like a data problem, a seat count that just reads as correct.\n\n## Phase 1 — The cut\n\nMove `packages/api/billing/` to its own repo with `pyproject.toml` and a service entrypoint. Publish the OpenAPI schema as a build artifact. The web repo consumes it and regenerates its client in CI. Run both old and new in parallel behind a flag if you want a rollback path; the route table from 0.2 is identical either way, so there's nothing to translate.\n\nKeep `crimes.config.json` in the web repo pointed at the generated client — the JS-side detectors still work, and the generated types mean the cross-language ones have nothing left to find.\n\n## Phase 2 — After the split, at each team's pace\n\n**crime_00004, the internal renames (low, medium effort).** With the boundary vocabulary frozen in 0.1, `workspace` → `team` inside the web package and any residual naming inside the billing service are now purely local refactors. Two teams, two independent PRs, no coordination. This is the finding people's instincts say to do first because it's the most visually offensive; it's the one that genuinely defers.\n\nThe one caveat crimes names is worth heeding: if the boundary name and the internal name end up differing, document the mapping where both sides will see it — in the OpenAPI description, not a wiki page.\n\n**crime_00002, `getWorkspace` (medium, small effort).** Entirely inside the web package, single team, cosmetic once the client is generated — generated clients typically name methods after the operation anyway, so this may evaporate in Phase 1 without anyone touching it.\n\n---\n\n**Sequencing rule I'd apply if new findings appear:** does the fix require both repos to change together? Then it's Phase 0. Does it live entirely inside one team's tree? Then it's Phase 2. By that test, the high and both route-drift mediums go first, the low and the remaining medium go last — which inverts the severity ordering, and correctly so.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

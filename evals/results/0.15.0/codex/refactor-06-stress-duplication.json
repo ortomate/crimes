@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:28:47.398Z",
+  "run_id": "3c7b1f2c-8f21-4245-81cc-6cb9a86c2e2c",
+  "response": "I’ll use the `crimes-codebase-risk` workflow to inspect the three implementations and their callers, then propose a behavior-preserving shared API. I’ll keep this to a refactor plan—no files will be changed.\n\nThe three sanitizer bodies are behaviorally identical; only local identifiers and exported names differ. One important boundary: the nearby admin helpers are not equivalent (`admin`, `admin|owner`, and `not admin`), so they should not be folded into the sanitizer extraction.\n\nThe global `crimes` binary is not installed in this shell, so the exact command is unavailable. The supplied JSON already establishes the finding; I’m checking whether the repository’s locally built CLI is available as the documented fallback.\n\nThe scan confirms one medium-confidence duplication: the same sanitizer body appears in three files (`sanitizeUserInput`, `sanitizeText`, and `cleanMessage`).\n\nRefactor proposal:\n\n```ts\n// src/sanitize.ts\nexport function sanitizeText(\n  value: string | null | undefined,\n): string;\n```\n\nThis function should contain the complete shared behavior: trimming, control-character removal, whitespace normalization, 1,000-character truncation, rejection checks, punctuation limits, and uppercase normalization. No configuration object is needed because the implementations have no behavioral differences.\n\nFiles changed:\n\n- Add [`src/sanitize.ts`](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize.ts) with the consolidated implementation.\n- Update [`src/sanitize-a.ts`](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-a.ts) to re-export it as `sanitizeUserInput`.\n- Update [`src/sanitize-b.ts`](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-b.ts) to re-export it as `sanitizeText`.\n- Update [`src/sanitize-c.ts`](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-c.ts) to re-export it as `cleanMessage`.\n- Ideally add `src/sanitize.test.ts` covering the shared behavior and confirming all compatibility exports behave identically.\n\nCompatibility exports can preserve the current public API:\n\n```ts\n// sanitize-a.ts\nexport { sanitizeText as sanitizeUserInput } from \"./sanitize.js\";\n\n// sanitize-b.ts\nexport { sanitizeText } from \"./sanitize.js\";\n\n// sanitize-c.ts\nexport { sanitizeText as cleanMessage } from \"./sanitize.js\";\n```\n\nThe `assertAdminA/B/C` functions should remain untouched: despite sharing the `\"admin\"` literal, they currently express three different policies. The telemetry files and `policy.ts` are outside this sanitizer refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

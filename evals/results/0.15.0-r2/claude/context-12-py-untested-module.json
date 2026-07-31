@@ -1,0 +1,34 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:50:42.502Z",
+  "run_id": "9cf1e1f7-d22b-4e80-86fc-7647340018bf",
+  "response": "I have not changed anything yet. Here's what crimes told me.\n\n## The headline: the scan output I was handed is about a different file\n\nThe only finding in the repo-wide scan is `crime_00001` — Weak Test Signal in `tests/test_reporting.py`. That is *not* the file I've been asked to change. `reverse_entry` lives in `billing/ledger.py`, which has **zero findings**. It would be easy to read \"1 finding, and it's not in my file\" as \"I'm clear to go.\" The per-file check says the opposite.\n\n```\nCRIMES CONTEXT\nfile: billing/ledger.py\nrisk: NONE  (0 findings)\n\nLikely tests\n  (no test file matched the target basename (looked for siblings, __tests__/ and tests/\n   directories, and the .test / .spec / _test / test_ naming conventions) and no test\n   file imports it)\n\nClues\n  · churn: 1 commits over 90d · last touched yesterday · 1 author\n  · test gap: top-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n## What protection I have if I get it wrong: none\n\n`likely_tests` is **empty**, with an explicit reason — no test file matches the name, and no test file imports it. `test_gap` is `raw: 1, percentile: 1, \"top-quartile\"` — the worst bucket in the repo. `reverse_entry` is not called anywhere in this repo either (`grep` finds only its definition), so there is no indirect coverage through some other module's tests.\n\nConcretely: I could invert the sign wrong, drop `region`, or return `net` where `gross` belongs, and `pytest` would stay green. The suite passing after my edit carries no information about this function.\n\nThe file being clean is the point — crimes flags crimes, and \"nobody tested this\" isn't a crime in the file, it's an absence. `risk: none` here means \"no detector fired\", not \"safe to change\".\n\n## What else the change could affect\n\nThree things worth knowing before I touch it:\n\n**1. `reverse_entry`'s only contract is its return shape, and I can't see who consumes it.** No in-repo caller means every caller is outside this package. The dict keys (`account`, `net`, `gross`, `region`) are the API. Changing them is a breaking change I have no way to detect locally.\n\n**2. The sibling in the same file *is* used, and its consumer has fake coverage.** `billing/reporting.py:3` imports `post_entry`, and `build_report` reads `entry[\"gross\"]` to compute `total` (`reporting.py:7-13`). `reverse_entry` and `post_entry` build the same four-key dict — the obvious tidy-up while reversing entries is to factor that shape into a shared helper. If I do that and get it wrong, I break `build_report`. And that's exactly where `crime_00001` bites:\n\n> \"4 of 4 test functions in this file assert nothing. They pass as long as the code under test does not raise, which is not the same as it being correct.\"\n> \"0 total assertions across 4 tests (0.0 per test, expected ≥ 1)\"\n\n`test_round_trip` calls `build_report` then `export_report` and asserts nothing. So the one place that *does* consume my file has tests that will stay green through a wrong `total`. That finding is not incidental to my task — it's the second half of the same coverage hole.\n\n**3. The tests that do exist protect the wrong direction.** `tests/test_rates.py` has real assertions, but `rates.py` is *upstream* — `ledger.py` imports `rate_for`, not the reverse. Those tests confirm my dependency behaves; they say nothing about my change.\n\n## What I'd do before editing\n\nWrite assertions first, in this order:\n\n1. A new `tests/test_ledger.py` covering `reverse_entry` as it behaves *today* — sign inversion on both `net` and `gross`, `account`/`region` preserved, and the exact key set. That's the regression net that currently doesn't exist, and it pins the shape external callers depend on.\n2. Fix `test_build_report` and `test_round_trip` to assert on `total` and `lines[0][\"gross\"]` before I go anywhere near the shared dict shape. Per the finding's own suggested action: *\"Assert on the returned value or the observable side effect.\"* Effort is marked `small`.\n\nThen re-run `crimes context billing/ledger.py` — `likely_tests` should stop being empty — and `crimes scan --changed --format json` to confirm the weak-test finding cleared rather than moved.\n\nWant me to write those tests and then make the reversal change?",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

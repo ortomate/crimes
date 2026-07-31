@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T23:11:04.563Z",
+  "run_id": "a377f465-fea3-478c-95bf-d05f99c0f857",
+  "response": "I’ll verify the supplied scan against the fixture, then inspect the test files so “genuinely covered” means behavioral assertions—not merely test-file presence or successful execution.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m using the supplied JSON as the scan result and checking its interpretation directly against the fixture’s tests.\n\nThe refactor is meaningfully protected only around `billing.rates`. Reporting merely looks tested, and ledger has no direct protection.\n\n- **Genuinely covered — `billing/rates.py`:**\n  - Known rates: GB and DE return expected values.\n  - Unknown regions fall back to `DEFAULT_RATE`.\n  - GB and FR are verified as not zero-rated.\n  - Limits: DE’s zero-rate behavior and any future true zero-rate case are not asserted.\n\n- **Only looks covered — `billing/reporting.py`:**\n  - All four tests call `build_report` or `export_report`, but contain **zero assertions**.\n  - They prove only that selected GB/DE/FR calls and CSV/JSON exports do not raise.\n  - Incorrect account, region, line, total, CSV text, or JSON output could all pass.\n  - The unsupported-format `ValueError` path is not tested.\n\n- **Effectively uncovered — `billing/ledger.py`:**\n  - `post_entry` executes indirectly through reporting tests, but none of its calculated fields are checked.\n  - `reverse_entry` is never exercised.\n  - Changes to net/gross calculations or returned entry structure could escape detection.\n\nOne important distinction: the scan’s `coverage.files_total: 6` means six Python files were **analyzed by crimes**; it is not test coverage. Likewise, test-file presence and successful execution are not behavioral protection. Before refactoring reporting or ledger, add assertions on returned values, serialized output, calculations, reversal behavior, and error cases.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

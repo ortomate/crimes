@@ -1,0 +1,65 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:56:15.483Z",
+  "run_id": "4ea9d89b-0669-4e7f-90e8-c958b43b44e5",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this plan must be grounded in the scanner’s findings and its pre-change workflow. I’ll run the requested scan first, then inspect the small billing/web boundary enough to turn the findings into an ordered extraction plan.\n\nThe global `crimes` binary is not installed in this shell (`command not found`). Per the repo instructions, I’m rerunning the same scan through the locally built CLI against the scenario fixture; this preserves the requested JSON contract.\n\nThe scan completed successfully against `13-polyglot-monorepo` using the locally built CLI because the global `crimes` command was unavailable. It reproduced the supplied result: 5 findings—1 high, 3 medium, 1 low.\n\nThe split should not begin until the API contract is internally consistent. Three findings are pre-split blockers; two can follow.\n\n## Finding disposition\n\n| Finding | Timing | Decision |\n|---|---|---|\n| `crime_00001` — plan enum drift | **Before split** | Blocking. A separately deployed client and service cannot safely disagree about valid plans. Decide whether `team`, `scale`, and `enterprise` are supported, publish one canonical schema, and generate or validate both language representations from it. |\n| `crime_00003` — `PUT` versus `POST` for plan changes | **Before split** | Blocking. Choose one canonical method. Prefer an idempotent `PUT`; temporarily retain the old `POST` handler if existing consumers need compatibility. |\n| `crime_00005` — `/api/workspaces` versus `/api/teams` | **Before split** | Blocking. Select the service’s public resource name and align the client, backend, and gateway before moving traffic. |\n| `crime_00004` — team/workspace terminology | **After split**, with a pre-split glossary | Not a runtime blocker. Document the mapping in the contract now; perform the potentially disruptive code rename separately. |\n| `crime_00002` — `getWorkspace` calls `fetch` | **After split or close as false positive** | Not a service-boundary blocker. Network-backed getters are conventional in API clients. Rename only if the project intentionally reserves `get*` for pure/local reads. |\n\nManual inspection also reveals an issue the scan does not clearly surface: the client sends literal `:id` segments in the seats and plan URLs instead of interpolating `id`. Fix this before contract testing.\n\n## Extraction plan\n\n1. **Inventory the real boundary**\n\n   Identify every caller of the billing routes, how the FastAPI router is mounted, authentication/authorization dependencies, configuration, persistence, events, scheduled work, and deployment dependencies. The scan covered only three files, so it does not establish that these are the only runtime dependencies.\n\n2. **Freeze a canonical API contract**\n\n   Create an owned OpenAPI contract covering:\n\n   - `GET /api/teams/{team_id}`\n   - `POST /api/teams`\n   - `GET /api/teams/{team_id}/seats`\n   - `PUT /api/teams/{team_id}/plan`\n   - request and response schemas\n   - the authoritative `Plan` enum\n   - error responses, authentication, and retry/idempotency behavior\n\n   Keep `/api` paths externally stable during extraction. “Workspace” may remain a UI term if the contract explicitly maps it to the service’s “team” resource.\n\n3. **Repair the existing contract before moving code**\n\n   Update the web client to use the chosen paths and interpolate IDs. Add the canonical `PUT` handler, optionally preserving `POST` as a deprecated compatibility route. Reconcile the plan catalog with product and billing data rather than silently dropping values.\n\n   Generate the TypeScript client/types from OpenAPI—or at minimum validate both Python and TypeScript against the same schema.\n\n4. **Add boundary tests**\n\n   Before extraction, add consumer/provider contract tests for all four operations, including:\n\n   - every supported plan value;\n   - unknown plan rejection;\n   - correct HTTP methods;\n   - actual IDs in generated URLs;\n   - request and response shapes;\n   - expected 4xx/5xx behavior.\n\n   These tests become the acceptance contract for the new owning team.\n\n5. **Create the deployable service**\n\n   Move billing domain code and routes behind a standalone FastAPI application with its own dependency manifest, container/build target, configuration, health/readiness endpoints, telemetry, and deployment pipeline. Give it explicit code ownership and release ownership.\n\n   Do not let the web package import service implementation code; its only dependency should be the generated contract/client.\n\n6. **Separate state and operational ownership**\n\n   If billing has persistent data, define the service-owned datastore and migration approach. Document credentials, secrets, alerts, dashboards, SLOs, on-call responsibility, rollback, and compatibility policy. No persistence or production wiring is visible in this fixture, so this requires discovery rather than assumption.\n\n7. **Deploy without changing the public entry point**\n\n   Route the existing `/api/...` paths through the current gateway or reverse proxy to the new service. Deploy first without traffic, run contract and smoke tests, then use shadow or staged traffic if available.\n\n8. **Cut over and remove the old implementation**\n\n   Increase traffic gradually while monitoring error rate, latency, rejected plan values, 404s, and 405s. Keep a routing rollback available. Once stable, remove the original in-process routes and temporary compatibility handlers on an announced schedule.\n\n9. **Perform follow-up cleanup**\n\n   Standardize team/workspace/organization terminology if worthwhile, resolve the `getWorkspace` naming finding, and remove deprecated routes. These should not be mixed into the extraction because they enlarge the migration without improving runtime isolation.\n\n## Pre-cutover gates\n\nBefore traffic moves:\n\n- `crime_00001`, `crime_00003`, and `crime_00005` are gone.\n- Literal `:id` URLs are fixed.\n- Provider and consumer contract tests pass.\n- The old and new deployments produce equivalent responses for supported requests.\n- Rollback and ownership/runbook arrangements are documented.\n- A fresh `crimes scan --format json` has no unresolved high finding at the billing boundary.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:26:28.207Z",
+  "run_id": "78b8422e-28f7-4da1-8a5f-779881e8287a",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this plan is explicitly driven by a scan and crosses a Python/TypeScript service boundary. I’ll verify the live scan first, then turn the findings into pre-split gates and post-split follow-ups.\n\nThe global `crimes` binary isn’t installed in this shell, so the first invocation failed before scanning. I’m locating the repository-built CLI and will rerun the exact JSON scan through that entry point.\n\nThe live scan matches the supplied report: 5 findings across 3 files (1 high, 3 medium, 1 low). The extraction gate is the API contract itself—plan values plus route path/method—not the client naming issue; I’m checking the small fixture now so the plan also covers deployability, migration order, and ownership boundaries.\n\nThe live scan completed successfully via the repository-built CLI and matches the supplied output: **5 findings—1 high, 3 medium, 1 low**.\n\nThe split should not cut traffic or transfer ownership until the billing contract is corrected and locked down. The naming findings can follow afterward.\n\n## Finding disposition\n\n| Finding | Decision | Reason |\n|---|---|---|\n| `crime_00001` — plan type drift | **Fix before split** | This is a data-contract incompatibility. Python accepts `team` and `scale`; TypeScript accepts `enterprise`. Independent deployment would make this drift harder to coordinate and could cause either side to reject valid persisted or returned values. |\n| `crime_00003` — `PUT` versus `POST` | **Fix before split** | The plan-change operation currently fails with 405. A broken route cannot become the new service’s compatibility contract. |\n| `crime_00005` — `/api/workspaces` has no backend route | **Fix before split** | The create operation currently has no matching backend endpoint and fails with 404. Decide the public resource name and align both sides before extracting it. |\n| `crime_00004` — `team`/`workspace` terminology | **Cleanup can follow** | A cross-codebase rename would enlarge an already risky migration. Before the split, document the mapping and choose one stable external API term. Internal renaming can happen afterward under the relevant team. |\n| `crime_00002` — `getWorkspace` name/behavior mismatch | **Can follow** | `fetch` is an expected side effect for an API client. Renaming it does not improve service isolation or runtime compatibility enough to block extraction. Review it later rather than mixing it into the move. |\n\n“Before split” here means before production traffic is cut over and ownership becomes independent—not necessarily before scaffolding the new service begins.\n\n## Extraction plan\n\n1. **Define the billing boundary**\n\n   Make the new service responsible for plan definitions, included-seat rules, plan changes, and the billing-facing tenant endpoints. Identify where tenant identity, authorization, persistence, and payment-provider operations currently live; keep non-billing tenant lifecycle outside the service unless billing genuinely owns it.\n\n   Choose a stable external resource name. Because the backend already exposes `/api/teams`, the lowest-risk migration is to preserve that contract initially and record that the web’s `Workspace` maps to the API’s `Team`. Do not rename everything to `organization` during extraction.\n\n2. **Repair and freeze the API contract**\n\n   Establish an OpenAPI document owned by the billing service, covering:\n\n   - The canonical `Plan` enum.\n   - Exact method and path for every operation.\n   - Request bodies, including the selected plan.\n   - Response and error schemas.\n   - Authentication and tenant identifiers.\n   - Compatibility and deprecation policy.\n\n   Product owners must decide whether the canonical plan set is `free/pro/team/scale`, includes `enterprise`, or requires an explicit migration/alias. Do not silently drop any value that may already be stored.\n\n   Generate the TypeScript types/client from this contract. The Python enum may remain the source only if it deterministically produces the OpenAPI schema; two handwritten closed sets are not acceptable.\n\n3. **Correct all client-route mismatches**\n\n   Align `createWorkspace` with the chosen public route and change the plan call to the canonical HTTP method.\n\n   Manual inspection also found migration blockers beyond the five reported findings:\n\n   - `getWorkspace` calls `/api/workspaces/{id}`, which the backend does not declare.\n   - `workspaceSeats` and `changeWorkspacePlan` use literal `:id` instead of interpolating the supplied ID.\n   - `changeWorkspacePlan` does not send `id` through the path or `plan` in a request body/query parameter.\n   - The client does not check non-success HTTP responses.\n\n   Correct these before cutover and encode them in generated-client or contract tests. The scan’s literal-path matching is useful but not exhaustive.\n\n4. **Add characterization and contract tests**\n\n   Before moving code, capture current intended behavior for:\n\n   - Every supported plan and its included-seat count.\n   - Tenant lookup and creation.\n   - Seat lookup.\n   - Valid and invalid plan changes.\n   - Unknown tenant, invalid plan, authentication failure, and service failure.\n   - Serialization of Python enums into the values expected by TypeScript.\n\n   Add a CI contract test that starts the Python service and exercises it through the generated TypeScript client. This becomes the cross-team compatibility gate.\n\n5. **Create an independently deployable service**\n\n   Move `billing/plans.py` and `billing/routes.py` behind a real FastAPI application entry point. Add:\n\n   - Locked runtime dependencies and a production start command.\n   - Health/readiness endpoints.\n   - Environment-based configuration and secret handling.\n   - Structured logs, request IDs, metrics, and traces.\n   - Authentication/authorization middleware.\n   - Container and deployment configuration.\n   - Database migrations and explicit data ownership, if billing state is persisted.\n\n   The current fixture has only a minimal `pyproject.toml`; it has no application entry point, declared dependencies, tests, or deployment configuration, so relocating the two Python files alone would not produce a deployable service.\n\n6. **Introduce a stable routing seam**\n\n   Initially keep the browser-facing `/api/teams/...` URLs stable and route them through the existing gateway or monolith ingress to the billing service. This avoids combining service extraction with hostname, CORS, credential, and frontend deployment changes.\n\n   Give the service its own internal address and configuration rather than embedding it in the generated client.\n\n7. **Migrate data and side effects safely**\n\n   Decide which system owns billing records and writes. If data moves:\n\n   - Backfill with reconciliation counts.\n   - Use idempotent migration and plan-change operations.\n   - Avoid uncontrolled long-lived dual writes; if they are necessary, define the source of truth and reconciliation procedure.\n   - Verify every stored plan is representable by the canonical schema.\n   - Document rollback behavior for writes made after cutover.\n\n8. **Roll out incrementally**\n\n   Deploy the service without traffic, run smoke and contract tests, then move read traffic before mutations where practical. Canary by tenant or traffic percentage while comparing status codes and response schemas.\n\n   Cut over plan changes only after read parity is established. Keep the old handler available for rollback until error rate, latency, and reconciliation checks remain healthy through an agreed observation window.\n\n9. **Transfer ownership explicitly**\n\n   Add billing-team ownership for service code, schema, deployment, alerts, dashboards, and operational runbooks. Define:\n\n   - Who approves contract changes.\n   - Versioning and deprecation expectations.\n   - Incident escalation.\n   - SLOs and alert ownership.\n   - Consumer notification and compatibility-test responsibilities.\n\n10. **Perform post-split cleanup**\n\n   After the new boundary is stable:\n\n   - Resolve `crime_00004` by converging internal terminology gradually, or retain a documented `Workspace` ↔ `Team` mapping if those are intentionally different domain concepts.\n   - Review `crime_00002`; use a clearer name such as `fetchWorkspace` only if that convention helps the web code.\n   - Remove the old billing handlers and temporary routing only after rollback is no longer required.\n   - Re-run `crimes scan --format json` and require the three contract findings to be gone.\n\n## Cutover gates\n\nThe extraction is ready for independent production ownership when:\n\n- One canonical plan schema generates or validates both languages.\n- Every web operation matches a declared method, path, request, and response.\n- Cross-language contract tests pass in CI.\n- The new service is independently buildable, deployable, observable, and rollback-capable.\n- Data ownership and reconciliation are verified.\n- Routing can switch without requiring a simultaneous frontend release.\n- The new team owns the schema, deployment, alerts, and runbook.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

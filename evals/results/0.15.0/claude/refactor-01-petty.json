@@ -1,0 +1,118 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:30:41.337Z",
+  "run_id": "cae622d4-e980-4c7b-a533-5de004a34281",
+  "response": "`crimes context src/petty.ts --format json` returns 4 findings, all `low` severity, ranked by `agent_risk`:\n\n| agent_risk | type | symbol | lines |\n|---|---|---|---|\n| 0.44 | `return_shape_roulette` | `resolvePaymentResult` | 21–32 |\n| 0.39 | `option_bag_junk_drawer` | `describeCheckout` | 10–19 |\n| 0.37 | `negative_flag_maze` | `canRunBilling` | 35 |\n| 0.27 | `boolean_naming_drift` | `disableBilling`, `skipRetry` | 34 |\n\nSeverity says \"petty.\" `agent_risk` says otherwise — every one of these is a case where the compiler stays silent while an agent writes something wrong. Note the file-level `agent_risk` for the return-shape finding is 0.44 vs 0.43 in the repo scan, and the IDs renumber between reports (`crime_00002` in the scan is `crime_00001` here) — cite these by `type`, not by id.\n\nFix in `agent_risk` order. The fourth finding folds into the third.\n\n---\n\n## 1. `return_shape_roulette` — `resolvePaymentResult` (L21–32)\n\nEvidence: *3 object-literal return shapes, lowest key overlap 0%, `{ code, message, ok }` vs `{ permanent, url }`.*\n\n```ts\nif (input.error)    return { ok: false, code: input.code, message: input.message };\nif (input.redirect) return { url: input.url, permanent: false };\nreturn { ok: true, value: input.value, cached: false };\n```\n\n**What an agent gets wrong today.** `ok` looks like the discriminant — it's on two of three branches. It is absent from the redirect branch. An agent writing the obvious caller:\n\n```ts\nconst r = resolvePaymentResult(input);\nif (!r.ok) return reportFailure(r.code, r.message);\n```\n\nsends every redirect down the failure path with `code` and `message` both `undefined`. There's no error to catch and no test to fail — the payment just silently reports as broken. The 0% key-overlap number in the evidence is the tell: the redirect branch shares *nothing* with the other two, so no property access is safe across the union.\n\nSecond trap: `permanent: false` and `cached: false` are hardcoded, never derived from `input`. They read like computed state. An agent asked to \"make redirects permanent\" will hunt for the logic that sets `permanent` and find none.\n\n**Refactor** — an explicit discriminated union with a tag on *every* branch:\n\n```ts\nexport type PaymentResult =\n  | { kind: \"error\"; code: string; message: string }\n  | { kind: \"redirect\"; url: string; permanent: boolean }\n  | { kind: \"success\"; value: string; cached: boolean };\n\nexport function resolvePaymentResult(input: PaymentInput): PaymentResult {\n  if (input.error)    return { kind: \"error\", code: input.code, message: input.message };\n  if (input.redirect) return { kind: \"redirect\", url: input.url, permanent: false };\n  return { kind: \"success\", value: input.value, cached: false };\n}\n```\n\nTwo things this buys beyond readability. `kind` is present on all three branches, so `switch (r.kind)` narrows and TS flags a missing case when a fourth branch is added. And making the payload fields **required** on the output type (they're all `?` on `input` today) forces the validation to happen at the boundary rather than leaking `undefined` into callers — you'll need `input.code ?? \"unknown\"` or a parse step, which is the point.\n\nThe finding's `fix_shape` says exactly this: *\"pick one return shape; use a discriminated union if you need both.\"* You need all three, so: union.\n\n---\n\n## 2. `option_bag_junk_drawer` — `describeCheckout` (L10–19)\n\nEvidence: *parameter `options`, 6 distinct property reads: currency, plan, region, retry, role, status.*\n\nThe function is typed — `CheckoutOptions` exists. The detector still fires, correctly, because the *type* is the junk drawer: five fields all declared `string`, joined positionally into a `:`-delimited key.\n\n```ts\nreturn [options.plan, options.role, options.region,\n        options.currency, options.status, String(options.retry)].join(\":\");\n```\n\n**What an agent gets wrong today.** Two failure modes, neither compiler-visible:\n\n- **Field swap at the call site.** `plan`, `role`, `region`, `currency`, `status` are interchangeable to the type system. `describeCheckout({ plan: user.role, role: user.plan, ... })` compiles clean. So does reading them back in the wrong order.\n- **Positional append.** Asked to add `tier` to the key, an agent naturally appends to the array or inserts near a related field. Either way the output string's shape changes. If this value is a cache key, a dedup key, or anything persisted or compared against a stored value, every existing key silently stops matching. The function is named `describeCheckout` — \"describe\" implies a human-readable summary with no format contract, which is precisely the wrong signal for a value that is actually a **structured key**.\n\n**Refactor** — give the fields distinct types so a swap is a type error, and make the key format explicit rather than implied by array order:\n\n```ts\ntype PlanId       = \"free\" | \"pro\" | \"enterprise\";\ntype Role         = \"owner\" | \"admin\" | \"member\";\ntype Region       = \"us\" | \"eu\" | \"apac\";\ntype CurrencyCode = \"USD\" | \"EUR\" | \"GBP\";\ntype CheckoutStatus = \"pending\" | \"paid\" | \"failed\";\n\ninterface CheckoutIdentity { plan: PlanId; role: Role }\ninterface CheckoutLocale   { region: Region; currency: CurrencyCode }\ninterface CheckoutState    { status: CheckoutStatus; retry: boolean }\n\n/** Stable cache key. Field order is part of the contract — append only. */\nexport function checkoutCacheKey(\n  identity: CheckoutIdentity,\n  locale: CheckoutLocale,\n  state: CheckoutState,\n): string {\n  return [identity.plan, identity.role, locale.region,\n          locale.currency, state.status, String(state.retry)].join(\":\");\n}\n```\n\nLiteral unions do the heavy lifting: `{ plan: user.role }` no longer compiles. Splitting into three named records is the finding's `fix_shape` (*\"split the options bag into named, narrowly-typed records\"*) and stops the bag growing — the next field has to earn a home in identity, locale, or state.\n\nIf splitting the parameter is too invasive for current callers, the cheap version captures most of the value: keep one parameter, swap the five `string`s for literal unions, destructure named fields in the signature so the function's actual inputs are visible without reading the body. Also worth centralising `PlanId` — the repo scan flags `\"enterprise\"` scattered across four files (`magic_domain_literal_scatter`), and this type is where it belongs.\n\n---\n\n## 3. `negative_flag_maze` — `canRunBilling` (L34–35), with `boolean_naming_drift`\n\nEvidence: *negative flags `disableBilling`, `skipRetry`; condition `!disableBilling && !skipRetry`.*\n\n```ts\nexport function canRunBilling(disableBilling: boolean, skipRetry: boolean) {\n  if (!disableBilling && !skipRetry) return true;\n  return false;\n}\n```\n\n**What an agent gets wrong today.** Three compounding problems:\n\n- **Polarity guessing.** Adding a third condition — say maintenance mode — requires inferring the house style from a double negative. `&& !maintenanceMode` and `&& maintenanceMode` are both plausible readings of \"billing can't run during maintenance,\" and the wrong one runs billing exactly when it must not. `if (x) return true; return false` also obscures that the whole body is one expression.\n- **Positional swap, invisibly.** Two same-typed positional booleans: `canRunBilling(true, false)` at a call site tells you nothing, and swapping the arguments compiles clean and inverts the gate. This is where `boolean_naming_drift` (L34) stops being cosmetic — unprefixed noun-ish names give the reader nothing to check the order against.\n- **A hidden semantic question.** `skipRetry` is a *retry policy* flag, and it hard-blocks billing entirely. That may be intentional; it may be a bug that's been unreadable long enough that nobody noticed. Double-negative logic is where this kind of thing hides. Worth confirming with whoever owns billing before preserving the behaviour.\n\n**Refactor** — positive names, a named object parameter, invert once at the config boundary:\n\n```ts\nexport interface BillingGate {\n  isBillingEnabled: boolean;\n  areRetriesEnabled: boolean;\n}\n\nexport function canRunBilling({ isBillingEnabled, areRetriesEnabled }: BillingGate): boolean {\n  return isBillingEnabled && areRetriesEnabled;\n}\n```\n\nCall site, where the negative config actually lives:\n\n```ts\ncanRunBilling({\n  isBillingEnabled:  !config.disableBilling,\n  areRetriesEnabled: !config.skipRetry,\n});\n```\n\nThe negation happens exactly once, adjacent to the config keys that justify it. The predicate itself reads positively, so extending it is unambiguous — `&& !isInMaintenance` next to two positives is obviously the odd one out and invites a positive rename. The object parameter kills the argument-swap class, and the `is`/`are` prefixes clear `boolean_naming_drift` in the same edit. That's the finding's `fix_shape` verbatim: *\"invert flags to read positively; consolidate combined states.\"*\n\n---\n\n## Why this file is worth the effort\n\nEvery one of these is `severity: low` / `effort: small` — the kind of thing a code review waves through. But all four share a signature: **the compiler cannot catch the mistake, and neither can a test that doesn't already exist** (`test_gap: 0.5` on all four, `likely_tests: []`). The `agent_risk` scores of 0.27–0.44 against severities of 0.25–0.3 are the gap the scoring model is built to surface.\n\nFix in the order above — return shape first, since it's the one that produces a wrong answer at runtime rather than a wrong edit later. The whole file is 37 lines; all three refactors are one sitting.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      }
+    ]
+  }
+}

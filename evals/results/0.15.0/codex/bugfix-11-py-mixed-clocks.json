@@ -1,0 +1,59 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:15:26.119Z",
+  "run_id": "63fbb67a-4089-49b2-802c-f65ec42589b9",
+  "response": "The responsible module is `domain/invoicing.py`, specifically the invoice-building and date/period logic around lines 20–21 and 53.\n\nIt mixes:\n\n- `datetime.now()` — naive host-local time\n- `datetime.utcnow()` — naive UTC time\n\nAlthough both values lack timezone information, they represent different clocks. In a European timezone, their calendar dates can differ around midnight. For example, at `00:30` local time in UTC+2, local time says “new billing day/month,” while UTC still says `22:30` on the previous day. Period selection can therefore use one date while the invoice timestamp or comparison uses another.\n\nThe failure is intermittent because it only appears during the host’s UTC-offset window around a day or month boundary. It is invisible in CI because the CI host runs in UTC: there, `now()` and `utcnow()` effectively agree, masking the defect.\n\nProposed fix:\n\n1. Inject a clock into the invoicing logic so tests can supply an exact instant.\n2. Return timezone-aware values, preferably `datetime.now(timezone.utc)`.\n3. Define the billing timezone explicitly. If billing periods follow a European business timezone, convert the UTC instant using `zoneinfo.ZoneInfo` before deriving the period.\n4. Never compare or derive related values from separate clock reads.\n\nFor example:\n\n```python\nfrom datetime import datetime, timezone\nfrom zoneinfo import ZoneInfo\n\nBILLING_ZONE = ZoneInfo(\"Europe/Berlin\")\n\ndef build_invoice(..., now=lambda: datetime.now(timezone.utc)):\n    instant = now()\n    billing_time = instant.astimezone(BILLING_ZONE)\n    billing_period = (billing_time.year, billing_time.month)\n```\n\nTests should pin instants immediately before and after local midnight and month-end while UTC remains on the prior date. The circular import and other findings are worth addressing separately, but they do not explain this billing-period symptom.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

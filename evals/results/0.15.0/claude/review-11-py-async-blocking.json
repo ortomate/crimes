@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:42:12.840Z",
+  "run_id": "189d2910-54f0-46a6-a8a7-aa651d0516ae",
+  "response": "## Verdict\n\nThe scan found the cause, but it's compressed into a single finding. `crime_00001` bundles four blocking calls under one `high` — their actual contribution to the latency collapse spans about five orders of magnitude. Everything else in the report is real but latency-irrelevant.\n\nThe mechanism is the one your symptoms describe exactly. All four calls sit inside `async def` handlers (`api/routes.py:18`, `api/routes.py:30`), so each one holds the **event loop**, not just its own request. One slow request stalls every concurrent request on that worker. CPU stays low because the loop is parked in a syscall, not computing.\n\nCorroborating detail the scan doesn't call out: `/health` at `api/routes.py:37` is a plain `def`, so FastAPI runs it in the threadpool. **Your health checks stay green while real traffic dies.** That asymmetry is worth checking against your monitoring — it likely explains why this looks like a mystery rather than an obvious outage.\n\n## Ranked by contribution\n\n**1. `time.sleep(2)` — `api/routes.py:32`**\nUnconditional 2-second event-loop hold on every `POST /invoices/{id}/export`. Deterministic, not load-dependent, and it poisons everything else in flight. At 5 exports/sec you need 10 seconds of loop time per second on that worker — the loop is saturated by a request rate that reads as \"moderate\" in your dashboards. This is the single largest contributor and the one that makes GET latency collapse for reasons the GET path doesn't explain.\n\n**2. `requests.get(...)` — `api/routes.py:21`**\nBlocking network call inside the hottest route, and **no `timeout=` argument** — `requests` defaults to waiting forever. Loop-hold duration equals the full RTT to `billing.internal`, unbounded. This is the self-amplifying one: upstream slows → loop holds longer → queue depth grows → p99 goes vertical. It also opens a fresh TCP+TLS connection per request (no `Session`), adding handshake latency and fd churn.\n\nIf `GET` volume dominates your traffic mix, or `billing.internal` is already degraded, this overtakes #1. Measure the split before you assume the ordering.\n\n**3. `subprocess.run([...], check=True)` — `api/routes.py:31`**\nForks `render-pdf` and blocks the loop for the entire render — unbounded, plausibly seconds. Stacks with #1 on the same route, so `export` holds the loop for `render_time + 2s`. Ranked below `requests.get` only because export traffic is presumably lower than read traffic; per-call it's just as damaging.\n\n**4. `open()` / `.read()` — `api/routes.py:23-24`**\nReal but small — local page-cached read, typically microseconds. It matters as waste (re-reading a static rates file on every request) more than as latency, though it will spike if that path is ever on network storage. Fix it for hygiene, not for p99.\n\n## Not contributing to this problem\n\n`crime_00002`, `crime_00003` (clock reads / mixed UTC-local in `domain/invoicing.py`), `crime_00005` (God Function), `crime_00006`/`crime_00007` (deep imports), `crime_00008` (boolean naming) are correctness and maintainability findings with no latency mechanism. Don't let them into this fix.\n\n`crime_00004` (the `api/rendering.py` ↔ `domain/invoicing.py` cycle) is worth its `medium` — it's a startup-crash risk that can pass under pytest and fail under a production server — but it doesn't affect steady-state latency either.\n\n## Fix order\n\n1. `time.sleep(2)` → `await asyncio.sleep(2)`, or drop it entirely (the handler returns `{\"status\": \"queued\"}` — the sleep appears to be simulating work that should already be off the request path).\n2. `requests.get` → `httpx.AsyncClient` with an explicit timeout, client held at app scope for connection reuse. Add the timeout even if you defer the async migration — an unbounded wait is the tail-risk.\n3. `subprocess.run` → `asyncio.create_subprocess_exec`, or move the render to a real background worker given the endpoint already claims to queue.\n4. Read the rates file once at startup.\n\nSteps 1–3 should recover p99 on their own. If it doesn't fully recover, the next thing to check is `build_invoice` (`domain/invoicing.py:15`) running synchronously in the handler — pure CPU, small, but it's the only remaining loop-holder on the read path.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T23:11:26.569Z",
+  "run_id": "325820e1-d9fa-4c88-9386-72261bcbc7e6",
+  "response": "Read the fixture to confirm the scan's evidence against the source.\n\n## What's causing it\n\nOne finding explains the symptom; the other seven don't. `crimes_00001` (`sync_io_in_hotpath`, `api/routes.py`) is the whole story — four blocking calls inside `async def` handlers. Low CPU with collapsed p99 is the signature of a wedged event loop: the process isn't computing, it's *waiting*, and while it waits nothing else on that worker progresses.\n\nThe single-worker saturation rule: the loop is oversubscribed once `Σ(rps × seconds_blocked)` ≥ 1. Every entry below is measured against that.\n\n**1. `subprocess.run()` + `time.sleep(2)` — `export_invoice`, routes.py:31-32**\n\nA hard 2-second floor per request, plus an unbounded PDF render with no timeout, all inside `async def`. This holds the *entire* loop, so 0.5 exports/sec alone saturates the worker. Every concurrent `/invoices/{id}` request — however cheap — sits behind it. The `time.sleep(2)` is the most damaging line in the file because it burns loop time buying nothing; there's no I/O being waited on, and the handler returns `{\"status\": \"queued\"}` as if the work were async anyway.\n\n**2. `requests.get()` with no timeout — `get_invoice`, routes.py:21**\n\nThe volume path, and the reason the collapse is specifically in the *tail*. Blocking sync HTTP inside `async def` means the loop is pinned for the full downstream RTT. With no `timeout=` argument, `requests` waits indefinitely, so `billing.internal`'s p99 becomes *your* p50 — one slow upstream call stalls every request in flight, not just its own. At a 50ms downstream latency this alone saturates one worker around 20 rps. The missing timeout is the amplifier and the scan didn't call it out separately; treat it as part of this finding.\n\n**3. `open(\"/etc/billing/rates.json\")` — `get_invoice`, routes.py:23**\n\nReal but minor: sub-millisecond off page cache. It contributes to loop hold, and it's re-reading static config on every single request, but it will not show up in your p99 next to #1 and #2. Fix it because it's free (hoist to module load), not because it's urgent.\n\nThe ranking between #1 and #2 flips on your traffic mix. If exports are rare and reads are heavy, #2 is your production incident and #1 is the landmine. Check the endpoint split before choosing what to fix first.\n\n## The one-word mitigation\n\nBoth handlers are `async def`; `/health` is plain `def`. That's backwards. FastAPI runs plain `def` endpoints in an AnyIO threadpool (40 threads by default) and `async def` ones directly on the loop. **Deleting the word `async` from `get_invoice` and `export_invoice`** moves the blocking work off the loop and takes you from 1 concurrent blocking request to 40 — no client rewrite, deployable today. Then do the real fix at leisure: `httpx.AsyncClient` with an explicit timeout, `asyncio.create_subprocess_exec`, and delete the `sleep` outright.\n\n## What is not causing it\n\nThe remaining findings are real defects but contribute nothing to latency — don't let them dilute the fix:\n\n- `crime_00004` **circular dependency** (`api/rendering.py` ↔ `domain/invoicing.py`) — a startup-order failure mode, not a runtime cost. Genuinely worth fixing, on a different ticket.\n- `crime_00002` / `crime_00003` **mixed `utcnow()`/`now()` and direct clock reads** in `domain/invoicing.py` — a correctness bug (naive datetimes from two zones compared at line 53 and 79), and the highest-value non-latency item here. Unrelated to p99.\n- `crime_00005` large function, `crime_00006`/`00007` deep imports, `crime_00008` boolean naming — maintainability. Zero latency contribution.\n\nWorth noting the scoring: the hot-path finding carries `blast_radius: 0` and `churn: 0.05`, which drags its aggregate down even though it's the sole cause of the reported symptom. Static blast radius measures importers, and a route handler has none — it doesn't capture \"holds the event loop for every concurrent request.\" Rank on the symptom you actually have, not on the aggregate, for this class of finding.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:39:06.266Z",
+  "run_id": "658d68a5-3a58-4659-b15c-bb8fa46bbd55",
+  "response": "The three relevant IA drifts are:\n\n| Finding | Recommendation | Reason |\n|---|---|---|\n| `crime_00011` — Permission IA Drift | **Block merge** | `/admin` uses `admin`, `manager`, and `owner` inconsistently across nav, route guard, and docs. This ambiguity affects authorization behavior: users may see a destination they cannot enter—or gain access under an unintended role. Centralize the permission policy and align all three surfaces before merging. |\n| `crime_00003` — Parallel Destination | **Warn** | `/admin/billing-plans` and `/billing-plans` express the same intent without linking or documenting the split. Both are also reported as orphaned. Require a follow-up to choose a canonical route, redirect the other, or document why both exist. Escalate to block if this change modifies billing behavior. |\n| `crime_00012` — Docs Reference Missing Command | **Warn** | The docs advertise `iaq teams`, `iaq workspace`, and `iaq refresh`, while the bin advertises only `get` and `list`. Readers will hit a predictable `command not found`, but this does not appear to alter runtime behavior or permissions. Update or remove the stale references. |\n\nNone should be ignored: each has concrete, cross-file evidence and a clear failure mode.\n\nThe **parallel destination has the highest calculated agent-risk**, at **0.33**, versus **0.25** for permission drift and **0.19** for command drift. It is particularly hazardous to agents because two plausible implementations represent the same billing concept, neither is linked from navigation or documentation, and an agent can confidently update one while overlooking the other.\n\nThat score does not determine merge policy by itself. I would still block on permission drift because authorization ambiguity has the most serious potential consequence, even though its computed agent-risk is lower.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  }
+}

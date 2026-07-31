@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:58:22.731Z",
+  "run_id": "fc0f9dff-747a-4876-b7a3-e5fb09faa71a",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a TypeScript refactor investigation. I’ll inspect the three implementations and their callers so the proposed helper preserves each current API and behavior.\n\nThe implementations are behaviorally identical despite renamed locals. One important boundary detail: the exported names may already be consumed externally even though this fixture has no internal callers, so I’ll treat them as compatibility wrappers rather than remove them outright.\n\nThe scan confirms one medium-severity near-duplicate across all three sanitizers (confidence `0.85`):\n\n- `sanitizeUserInput` in [sanitize-a.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-a.ts:10)\n- `sanitizeText` in [sanitize-b.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-b.ts:9)\n- `cleanMessage` in [sanitize-c.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-c.ts:9)\n\nExtract the implementation into a new `src/sanitize.ts` with this public API:\n\n```ts\nexport function sanitizeText(\n  value: string | null | undefined,\n): string;\n```\n\nIt should retain the current behavior: return `\"\"` for invalid input, strip control characters, normalize whitespace, cap output at 1,000 characters, reject suspicious prefixes/escape sequences/punctuation, and normalize excessively uppercase text.\n\nPreserve the existing exported names as compatibility aliases:\n\n```ts\n// sanitize-a.ts\nexport { sanitizeText as sanitizeUserInput } from \"./sanitize.js\";\n\n// sanitize-b.ts\nexport { sanitizeText } from \"./sanitize.js\";\n\n// sanitize-c.ts\nexport { sanitizeText as cleanMessage } from \"./sanitize.js\";\n```\n\nThe existing admin guard exports remain in their current modules.\n\nFiles affected:\n\n- Add `src/sanitize.ts`\n- Modify `src/sanitize-a.ts`\n- Modify `src/sanitize-b.ts`\n- Modify `src/sanitize-c.ts`\n- Add `src/sanitize.test.ts` covering nullish input, whitespace/control characters, length limits, rejection rules, and uppercase normalization\n\nThe telemetry and role-policy findings are separate duplication concerns and should not be folded into this focused refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

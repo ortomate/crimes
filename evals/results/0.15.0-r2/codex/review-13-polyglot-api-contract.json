@@ -1,0 +1,59 @@
+{
+  "scenario": "review-13-polyglot-api-contract",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T23:11:37.452Z",
+  "run_id": "f2bbc1c9-b436-4cf6-b38a-6ef65e367a9e",
+  "response": "The scan found three runtime contract breaks and one terminology drift. Ranked by production failure mode:\n\n| Rank | Disagreement | Production failure |\n|---|---|---|\n| 1 | `createWorkspace()` sends `POST /api/workspaces`, but the billing API declares no such route. [workspace-client.ts:23] | Guaranteed **404** whenever workspace creation is attempted. This may be misdiagnosed as a missing workspace rather than a broken endpoint. |\n| 2 | The client sends `PUT /api/teams/:id/plan`; the API accepts only `POST /api/teams/{team_id}/plan`. [workspace-client.ts:34], [routes.py:25] | Guaranteed **405 Method Not Allowed** for every plan change, potentially mistaken for an authorization failure. |\n| 3 | The `Plan` closed sets disagree. Python accepts `free`, `pro`, `team`, `scale`; TypeScript accepts `free`, `pro`, `enterprise`. [plans.py:10], [workspace-client.ts:10] | Conditional but potentially severe validation failures: backend responses containing `team` or `scale` are rejected or mishandled by the client; client requests containing `enterprise` are rejected by the API. |\n| 4 | The same tenant concept is called `team` in the API and `workspace` in the client. | No immediate wire failure by itself, but it likely caused the `/workspaces` versus `/teams` route drift and makes future cross-boundary changes easy to miss. |\n\nThe plan mismatch contains three distinct value-level disagreements:\n\n- `team`: produced/accepted by Python, absent from TypeScript.\n- `scale`: produced/accepted by Python, absent from TypeScript.\n- `enterprise`: produced/accepted by TypeScript, absent from Python.\n\n`getWorkspace()` being flagged for calling `fetch` is not a client/API contract disagreement. Fetching data is an expected side effect for an API client, so I would not rank that finding as a production contract defect.\n\nAll findings have `test_gap: 1`, suggesting no detected coverage protecting this boundary. The durable fix is to make the billing API schema canonical and generate the TypeScript client/types—such as from OpenAPI—so paths, methods, and plan values cannot drift independently.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

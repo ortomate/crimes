@@ -1,0 +1,65 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:56:08.496Z",
+  "run_id": "0525bda1-7e57-44bf-9238-3810f765f79b",
+  "response": "Scan re-run against the fixture — output matches what you have. I also read all three source files, because three of the five findings point at code whose real state is worse than the finding text alone shows.\n\n## The decision rule I'm using\n\nThe split doesn't change what's broken. It changes what it costs to fix. Today every one of these is a single atomic commit in one repo, verified by one CI run. After the split, anything spanning `packages/api/billing` and `packages/web` is two repos, two deploy trains, two backlogs, and a deprecation window negotiated with a team that doesn't report to you.\n\nSo: **fix before the split if the fix requires coordinated change on both sides of the new boundary. Defer if the fix lives entirely on one side.**\n\nThat rule puts things in a different order than crimes' severity ranking does, and I'll flag where.\n\n## What the code actually says (beyond the scan)\n\ncrimes found 5 findings. Reading `workspace-client.ts`, **all four of its calls are broken**, not the two crimes could see:\n\n| Line | Call | Backend | Status |\n|---|---|---|---|\n| 18 | `GET \"/api/workspaces/\" + id` | `GET /api/teams/{team_id}` | Wrong path — **invisible to crimes** (assembled at runtime; the finding says so explicitly) |\n| 23 | `POST /api/workspaces` | `POST /api/teams` | crime_00005. Also sends no body; `create_team(payload: dict)` requires one → 422 even after the path is fixed |\n| 28 | `GET \"/api/teams/:id/seats\"` | matches by shape | **`:id` is a literal string, never interpolated.** `id` is an unused parameter. FastAPI binds `team_id=\":id\"` and returns 200 with the wrong team's data. Silent, not an error. crimes matched this as a valid route — correctly, by shape |\n| 34 | `PUT \"/api/teams/:id/plan\"` | `POST .../plan` | crime_00003, plus the same `:id` literal bug, plus `plan` is never sent — FastAPI treats it as a required query param → 422 |\n\nTwo consequences for the plan. First, the `:id` bug is the most dangerous thing in the repo and no detector flagged it, because it *is* a well-formed path — it's just never filled in. Second, four-for-four failure means hand-patching each call is the wrong fix; generate the client.\n\nOne more: `blast_radius: 0` on every finding is not evidence. Coverage shows `files_total: 3`, one JS file. Whatever imports `workspace-client.ts` was not scanned. Treat blast radius as **unmeasured**, and measure it in step 0 — it sizes the whole migration.\n\n## Must fix before the split\n\n**1. The `Plan` closed set — crime_00001 (high).** This is the one thing on the list that can't be fixed later at any price. Python has `team` and `scale`; TypeScript has `enterprise`. Post-split, the billing service owns `Plan` and every consumer inherits whatever it says on day one. The blocking question isn't technical, it's product: **is `enterprise` a real tier that Python is missing, or dead UI code?** That's a conversation between two teams who currently sit in one repo. Have it now. Then make Python canonical (billing owns plans by definition), generate the TS union, delete the hand-maintained copy.\n\n**2. The HTTP surface — crime_00003 and crime_00005, plus the two crimes couldn't see.** These read as \"medium, quick fix\" and in-repo they are. But the route table *is* the service boundary you're about to draw. Every path, method, and request shape you get wrong at cut-over becomes a versioned public API owned by someone else, changed only via deprecation cycle. Fix all four calls, decide `plan` as body-vs-query (recommend body — a query param mutating billing state is a bad contract to freeze), and publish OpenAPI from the FastAPI routes as the artifact both teams commit to.\n\n**3. The `team` / `workspace` split — crime_00004.** crimes rates this `low` / severity 0.35. **I'd promote it to must-fix-before,** and it's my sharpest disagreement with the ranking. Severity is scored on today's blast radius; the real cost is that after the split, the two teams calcify into two dialects and cross-org renames essentially never happen. Right now it's a mechanical rename in one PR.\n\nI'd also skip crimes' suggested name. It proposes `organization` — a *third* word, requiring both sides to change. Pick one that already exists: **`team` in all API paths, types, and client code** (it's already in the URLs, so the backend doesn't move), with `workspace` allowed only as display copy in the UI layer. If the UI must show \"workspace,\" that's a label, not an identifier.\n\n**4. Contract tests — not a crimes finding, but the real blocker.** `test_gap: 1.0` on all five findings, and there are no test files in the repo. Today, \"both sides in one repo\" is doing the job tests should do — and it's doing it badly, since four of four calls are broken anyway. After the split there's nothing. Before cutting: a contract test suite (schemathesis or equivalent against the OpenAPI doc) that runs in *both* repos' CI. This is what makes the boundary safe; without it the split converts silent bugs into cross-team incidents.\n\n## Can follow after\n\n**crime_00002 — `getWorkspace` name/behaviour mismatch (medium).** Higher-severity than crime_00004, and I'm deferring it anyway. It's entirely inside `packages/web`; the new billing team never sees it. The web team can rename on their own schedule with zero coordination — exactly the property that makes something a post-split fix. In practice you'll touch this function during the `workspace`→`team` rename in step 3, so fold it in opportunistically, but don't let it gate the cut.\n\nAlso deferrable: broader `agent_risk` cleanup, the `seats_for` default-to-1 fallback, and the hardcoded `Plan.FREE` returns in every route handler (fixture stubs, but if they're real, they're a billing-team problem after the split, not a boundary problem).\n\n## Sequence\n\n- **Step 0 — measure.** Scan the full web app, not the 3 files here, and find every importer of `workspace-client.ts`. Everything below is sized by this number.\n- **Step 1 — decide `enterprise`.** Product call, both teams, before any code moves. Blocks step 2.\n- **Step 2 — one source of truth for `Plan`.** Python canonical → generate TS. Delete the hand-copy.\n- **Step 3 — fix all four calls and rename to `team`.** One PR: real interpolation (`` `/api/teams/${id}/seats` ``), correct paths, `POST` for plan change, send the `plan` payload, send the create body, `workspace`→`team` throughout. Fold in the `getWorkspace` rename here.\n- **Step 4 — publish OpenAPI + contract tests.** Generate the spec from FastAPI, generate the client from the spec, wire contract tests into CI. This is the gate: **do not cut until it's green.**\n- **Step 5 — cut.** Extract `packages/api/billing`, keep the generated-client step in the web repo's build.\n- **Step 6 — after.** Anything left in `packages/web` alone.\n\nSteps 1–4 are roughly one to two weeks of real work, most of it in step 3 depending on what step 0 finds. That's the price of not exporting four broken calls and a diverged enum to another team as their inherited public API.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

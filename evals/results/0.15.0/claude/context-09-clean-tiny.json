@@ -1,0 +1,34 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:18:12.754Z",
+  "run_id": "819add4b-6d18-4648-8e10-84451815e763",
+  "response": "I ran the context check on the fixture:\n\n```\ncrimes context src/add.ts --format json\n```\n\n## What crimes found: nothing\n\n| Field | Value |\n|---|---|\n| `risk.level` | `none` (0 high / 0 medium / 0 low) |\n| `findings` | `[]` |\n| `agent_guidance` | `[]` — reason: *\"no findings on this file and no deterministic related files\"* |\n| `related_files` | `[]` — reason: *\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"* |\n| `likely_tests` | `src/add.test.ts` |\n| `clues.churn` | 1 commit in 90d, 1 author, last touched 2026-05-18 |\n| `clues.test_gap` | raw 0, label `unknown` |\n\nThe repo-wide scan agrees: 2 files, 0 findings, all three packs (`universal`, `language-js`, `language-py`) loaded — so this is a genuine clean result, not a pack that failed to load or a file that got skipped.\n\n## Is it safe to extend?\n\nYes. `src/add.ts` is a 3-line pure function (`add(a: number, b: number): number`) with an explicit companion test at `src/add.test.ts` that crimes correctly identified. There's no blast radius to worry about — nothing imports it besides the test, no shared domain tokens with anything else in the repo, and near-zero churn means no history of churn-driven breakage.\n\nTwo caveats worth stating plainly rather than glossing over:\n\n- **`test_gap` is `unknown`, not `covered`.** Crimes found a *likely* test by filename convention; it did not verify coverage. The test exists and does cover `add`, but that's from me reading it, not from the tool.\n- **Absence of findings is not a design review.** Crimes checks change risk and agent risk, not correctness or API design. If your edit turns `add` into something with branching, side effects, or new callers, the clean bill of health here doesn't carry forward — re-run context after.\n\nFor an edit of the size this file invites, go ahead. Add a test case alongside whatever you change and the existing safety net stays intact.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

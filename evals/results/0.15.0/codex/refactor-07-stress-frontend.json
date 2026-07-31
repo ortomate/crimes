@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:29:43.206Z",
+  "run_id": "adb5d9f0-ca94-4472-b197-0eaf0e98a5ad",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a TypeScript risk investigation. I’ll inspect the actual `crimes context` output and `Card.tsx`, then map a concrete refactor to all three finding types without changing the fixture.\n\nThe skill calls for JSON context when planning and the human report when presenting. I’m running both against the fixture and reading the component so the proposal preserves its actual behavior and styling intent.\n\nThe fixture confirms the three risks, but the global `crimes` binary is not on this shell’s PATH. I’m resolving the repository-built CLI and will rerun the exact context command through it; no installation or file changes are needed.\n\n`crimes context src/Card.tsx` confirms medium overall risk: one accessibility hazard and two low-risk styling findings. It also found no related tests, so the refactor should include focused component coverage.\n\nI’d replace the clickable card container with a semantic card plus an explicit action:\n\n```tsx\nimport styles from \"./Card.module.css\";\n\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  return (\n    <article className={styles.card}>\n      <div className={styles.layout}>\n        <div className={styles.content}>{children}</div>\n        <aside className={styles.sidebar}>sidebar</aside>\n      </div>\n\n      <button type=\"button\" className={styles.action} onClick={onActivate}>\n        Open details\n      </button>\n    </article>\n  );\n}\n```\n\nThe accompanying CSS should:\n\n```css\n.card {\n  container-type: inline-size;\n  inline-size: 100%;\n  max-inline-size: var(--size-content-lg);\n  padding: var(--space-6);\n  background: var(--color-surface);\n  color: var(--color-ink);\n  border: var(--border-default);\n  box-shadow: var(--shadow-sm);\n}\n\n.layout {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);\n  gap: var(--space-4);\n}\n\n.content {\n  min-inline-size: 0;\n  font-size: clamp(\n    var(--font-size-md),\n    var(--font-size-fluid),\n    var(--font-size-lg)\n  );\n}\n\n.sidebar {\n  color: var(--color-ink-muted);\n}\n\n.action:focus-visible {\n  outline: var(--focus-ring);\n  outline-offset: var(--space-1);\n}\n\n@container (min-width: 40rem) {\n  .layout {\n    grid-template-columns: minmax(0, 1fr) var(--size-sidebar);\n  }\n}\n```\n\nHow each finding is addressed:\n\n- `accessible_interaction_risk`: removes `onClick` from the `<div>` and exposes a native `<button>` with visible text. Keyboard activation, focus, and screen-reader semantics work without manually reproducing button behavior with ARIA.\n- `design_token_escape`: replaces inline hex, RGB, pixel, and shadow literals with semantic design-system tokens. Existing `surface`, `ink`, and `brand` values in [tailwind.config.ts](/Users/andrew/dev/crimes/evals/fixtures/07-stress-frontend/tailwind.config.ts) can back these tokens; missing muted-text, border, shadow, sizing, and focus tokens should be added centrally.\n- `responsive_fragility`: removes the fixed `800px`/`720px` widths and `600px` height, uses fluid inline sizing, prevents grid overflow with `minmax(0, 1fr)`, scales typography with `clamp()`, and introduces the sidebar only when the card’s own container has enough space.\n\nBecause context reported no likely tests, I’d add a `Card.test.tsx` covering keyboard activation and accessible naming, plus narrow/wide container rendering. If preserving “click anywhere on the card” is mandatory, the root can instead be a `<button>`, but only if `children` are guaranteed never to contain links, controls, or other interactive elements.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

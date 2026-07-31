@@ -1,0 +1,118 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:30:07.856Z",
+  "run_id": "21ebc214-c90a-4dbf-b3a6-fe8e285952e9",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a finding-driven refactor analysis. I’ll run the requested file context command and inspect `src/petty.ts`; I’ll propose changes only, not edit the fixture.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m switching to the repository’s locally built CLI, which is the documented equivalent for an unpublished checkout.\n\n`crimes context` confirms the three requested findings. All are low severity, but each leaves a contract that an agent could easily misread.\n\n1. `option_bag_junk_drawer` — `describeCheckout`\n\nThe function reads six fields from a generic `options` bag. Although `CheckoutOptions` exists, its name and flat structure do not explain which concepts the fields belong to.\n\nRefactor toward a purpose-specific, destructured input:\n\n```ts\ninterface CheckoutDescriptionInput {\n  plan: string;\n  role: string;\n  region: string;\n  currency: string;\n  status: string;\n  shouldRetry: boolean;\n}\n\nexport function describeCheckout({\n  plan,\n  role,\n  region,\n  currency,\n  status,\n  shouldRetry,\n}: CheckoutDescriptionInput): string {\n  return [\n    plan,\n    role,\n    region,\n    currency,\n    status,\n    String(shouldRetry),\n  ].join(\":\");\n}\n```\n\nThis addresses `option_bag_junk_drawer` by naming the operation-specific contract and making every dependency visible at the signature. If these fields are shared more broadly, split them into meaningful nested records such as `plan`, `actor`, and `locale`; do not replace the bag with six positional arguments.\n\nToday, an agent could add an optional property, pass a broader checkout object, or rename a field without realizing that this formatter depends on it. The ambiguous `retry` name also leaves its polarity unclear.\n\n2. `return_shape_roulette` — `resolvePaymentResult`\n\nThe function returns three almost unrelated object shapes with no declared return type. Introduce a discriminated union:\n\n```ts\ntype PaymentResult =\n  | {\n      kind: \"error\";\n      ok: false;\n      code?: string;\n      message?: string;\n    }\n  | {\n      kind: \"redirect\";\n      url?: string;\n      permanent: false;\n    }\n  | {\n      kind: \"success\";\n      ok: true;\n      value?: string;\n      cached: false;\n    };\n\nexport function resolvePaymentResult(input: PaymentInput): PaymentResult {\n  if (input.error) {\n    return {\n      kind: \"error\",\n      ok: false,\n      code: input.code,\n      message: input.message,\n    };\n  }\n\n  if (input.redirect) {\n    return {\n      kind: \"redirect\",\n      url: input.url,\n      permanent: false,\n    };\n  }\n\n  return {\n    kind: \"success\",\n    ok: true,\n    value: input.value,\n    cached: false,\n  };\n}\n```\n\nThis directly addresses `return_shape_roulette`: every variant is explicit and callers can switch exhaustively on `kind`.\n\nToday, an agent could assume `ok` exists on every result, test truthiness of `url`, or add a fourth shape without updating callers. TypeScript currently infers a permissive union, but it does not provide a stable, intentional contract.\n\n3. `negative_flag_maze` — `canRunBilling`\n\nReplace the two negative positional flags with a positively named policy object:\n\n```ts\ninterface BillingRunPolicy {\n  isBillingEnabled: boolean;\n  shouldRetry: boolean;\n}\n\nexport function canRunBilling({\n  isBillingEnabled,\n  shouldRetry,\n}: BillingRunPolicy): boolean {\n  return isBillingEnabled && shouldRetry;\n}\n```\n\nMigrate callers explicitly:\n\n```ts\ncanRunBilling({\n  isBillingEnabled: !disableBilling,\n  shouldRetry: !skipRetry,\n});\n```\n\nThis addresses `negative_flag_maze` by removing `!disableBilling && !skipRetry`; it also resolves the associated `boolean_naming_drift` signal.\n\nToday, an agent can invert either condition accidentally, swap two boolean arguments without a type error, or add another negative flag and create an increasingly difficult truth table. Positive named fields make both call sites and the predicate readable.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "option_bag_junk_drawer",
+        "passed": false
+      }
+    ]
+  }
+}

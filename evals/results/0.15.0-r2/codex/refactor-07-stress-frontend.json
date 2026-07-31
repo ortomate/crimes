@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:58:59.996Z",
+  "run_id": "d2b59310-d19c-4775-871a-836b4f41cba6",
+  "response": "I’m using the `crimes-codebase-risk` skill because this request is specifically about interpreting `crimes context` findings. I’ll inspect the skill guidance, run the requested context command against the fixture, then map a concrete refactor to each finding type.\n\nThe skill’s decision rule is to plan from JSON evidence and prioritize by `agent_risk`. I’m now running `crimes context src/Card.tsx --format json` from the fixture itself and reading the component so the proposal preserves its actual behavior.\n\nThe global `crimes` binary isn’t on this shell’s PATH. The fixture source confirms the three reported hazards; I’m switching to the repository’s locally built CLI, which is the documented fallback for an unpublished checkout.\n\nThe context report adds two important constraints: there are no related files or likely tests, and the accessibility issue has the highest agent risk (`0.44`). I’m checking the fixture’s existing theme configuration so the token proposal uses project vocabulary rather than inventing raw replacements.\n\n`crimes context` confirms medium overall risk: accessibility is highest priority (`agent_risk: 0.44`), followed by design tokens and responsiveness (`0.38` each). I’d refactor [Card.tsx](/Users/andrew/dev/crimes/evals/fixtures/07-stress-frontend/src/Card.tsx:8) along these lines:\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  return (\n    <article className=\"@container w-full max-w-screen-lg border border-brand bg-surface p-6 text-ink shadow-sm\">\n      <div className=\"grid grid-cols-1 gap-6 @lg:grid-cols-3\">\n        <div className=\"min-w-0 text-lg @lg:col-span-2\">\n          {children}\n        </div>\n\n        <aside className=\"text-sm text-ink/70\">\n          sidebar\n        </aside>\n      </div>\n\n      <button\n        type=\"button\"\n        className=\"mt-6 text-brand focus-visible:outline-brand\"\n        onClick={onActivate}\n      >\n        Open card\n      </button>\n    </article>\n  );\n}\n```\n\nHow each finding is addressed:\n\n- `accessible_interaction_risk`: remove `onClick` from the non-semantic `<div>` and expose the action through a real `<button>`. It receives keyboard activation and screen-reader semantics without manually recreating them with `role`, `tabIndex`, and key handlers. If activation navigates somewhere, use `<a href>` instead.\n- `design_token_escape`: replace inline hex, RGB, shadow, spacing, and outline literals with theme-backed utilities such as `bg-surface`, `text-ink`, `border-brand`, `p-6`, and `shadow-sm`. These build on the tokens already declared in `tailwind.config.ts`.\n- `responsive_fragility`: remove the fixed `800px`, `720px`, `600px`, and `240px` dimensions. The card becomes `w-full` with a tokenized maximum width; content uses a fluid grid that stacks by default and expands through a container-query variant. Typography uses the configured scale rather than raw pixel sizes.\n\nKeeping the interactive control separate also avoids placing arbitrary `children`—which might themselves contain links or buttons—inside a clickable card. Since `crimes context` found no likely tests, I’d add coverage for keyboard activation, accessible role/name, and narrow-container layout before implementing this refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

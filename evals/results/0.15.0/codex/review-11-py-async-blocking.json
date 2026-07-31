@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:41:38.214Z",
+  "run_id": "f97f1daf-2e83-43b9-86f4-db989a279ed2",
+  "response": "I’ll trace the HTTP handlers behind the top finding so the ranking separates event-loop stalls from unrelated maintainability risks.\n\nThe latency collapse is caused by synchronous blocking calls inside both `async def` FastAPI handlers. Each call freezes the event loop, so unrelated requests queue while CPU remains mostly idle.\n\nRanked by likely contribution:\n\n1. **`export_invoice`: `time.sleep(2)` — critical, deterministic**\n   - [`api/routes.py:32`](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/api/routes.py:32)\n   - Every export blocks the entire event loop for at least two seconds. A few concurrent exports are enough to destroy p99 latency.\n\n2. **`get_invoice`: blocking `requests.get()` without a timeout — critical**\n   - [`api/routes.py:21`](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/api/routes.py:21)\n   - The event loop remains blocked for the full upstream-network delay. With no timeout, a slow billing service can stall this worker indefinitely. If this GET endpoint carries most traffic, this is probably the largest aggregate contributor.\n\n3. **`export_invoice`: synchronous `subprocess.run()` — critical**\n   - [`api/routes.py:31`](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/api/routes.py:31)\n   - PDF rendering blocks until the child process exits, then the handler blocks for another two seconds. Its duration is unbounded because no timeout is supplied.\n\n4. **`get_invoice`: synchronous file read — contributing, probably smaller**\n   - [`api/routes.py:23`](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/api/routes.py:23)\n   - Reading a small local file is usually brief, but it still blocks the shared event loop and can become expensive with cold or remote storage.\n\nThe other seven scan findings do not explain this load-dependent latency pattern:\n\n- The import cycle may cause startup failures.\n- Clock handling can cause correctness and testability bugs.\n- The large function and deep imports increase change risk.\n- Boolean naming has negligible runtime impact.\n\nRecommended order: move PDF generation to a background job; replace `time.sleep` with `await asyncio.sleep`; use an async HTTP client with explicit timeouts; cache or asynchronously load the rates file. Merely adding more workers would reduce symptoms but leave the blocking architecture intact.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:31:48.743Z",
+  "run_id": "e21a7da0-528c-4786-b3f6-c140236249bd",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this request is specifically about interpreting scan findings and planning a scoped refactor. I’ll use the supplied JSON as the confirmed scan result; no code changes are needed.\n\nThe scan confirms a three-way alias cluster: each component contains two of `archive`, `delete`, and `remove`, so this is not one isolated button typo. I’m checking the detector definitions briefly to distinguish the two overlapping findings accurately.\n\nThe scan confirms both findings on the same three-way drift: `archive`, `delete`, and `remove` each appear across at least two of the three components.\n\nCanonical label set:\n\n- Trigger/menu action: **Delete**\n- Dialog title: **Delete {user|team|seat}?**\n- Confirm button: **Delete**\n- Supporting copy: explicitly state that deletion is permanent\n- Secondary action: **Cancel**\n\nReserve **Archive** for a recoverable lifecycle transition and **Remove** for detaching something from a parent. Since this fixture says the operations are equivalent and destructive, those verbs would imply semantics that do not exist.\n\nI’d refactor `SeatList.tsx` first. Both findings are anchored there, and it is the only component that currently has neither occurrence labeled `Delete`, using both `Archive` and `Remove` instead. Then complete the alignment:\n\n- `SeatList.tsx`: `Archive` and `Remove` → `Delete`\n- `TeamList.tsx`: `Archive` → `Delete`; retain its existing `Delete`\n- `UserList.tsx`: `Remove` → `Delete`; retain its existing `Delete`\n\nEvery visible verb replacement addresses `action_label_drift`: that detector examines the broader IA label surface, including JSX labels, string-valued button props, and navigation signals. The same replacements also address `copy_ia_drift` because these fixture occurrences are JSX text.\n\nThe detectors overlap here but are not equivalent:\n\n- `action_label_drift` is the broader domain-action detector. It can catch drift spanning UI labels and other IA/code surfaces.\n- `copy_ia_drift` is the frontend-specific detector and only counts JSX label literals.\n- They emit identical evidence in this fixture because all qualifying aliases are present in JSX. Drift introduced only through a nav signal or non-JSX string-valued prop could trigger `action_label_drift` without triggering `copy_ia_drift`.\n\nOne caveat: both heuristics require three aliases, each appearing in at least two files. Refactoring `SeatList.tsx` may therefore make both findings disappear before `TeamList.tsx` and `UserList.tsx` are fully consistent. I would still finish all three components and capture the canonical vocabulary in the shared destructive-action component or copy guide.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:59:04.798Z",
+  "run_id": "8de95e36-be80-4f8a-af43-306c4080ae06",
+  "response": "## `crimes context src/Card.tsx`\n\n```\nrisk: MEDIUM  (3 findings: 0 high, 1 medium, 2 low)\nclues: churn low (2 commits/90d, 1 author) · test gap top-quartile · 0 importers\ntests: none found (no sibling, __tests__/, or importing spec)\n```\n\nEverything lives in one 24-line component with no importers and no tests. That's the good news — **blast radius is zero, so this refactor is a self-contained rewrite, not a migration.** The bad news is the same fact: nothing will catch a regression, so the refactor should land with a test.\n\nThe three findings are not independent. All nine token escapes, both fragile widths, and the a11y hazard come from the same root cause: **the component styles itself inline instead of consuming the design system, and it conflates \"the card surface\" with \"the thing you click.\"** Fix the layering and all three charges fall out.\n\n---\n\n## What's actually there\n\n```tsx\n<div style={{ width: 800, height: 600, maxWidth: 1024, padding: 24,\n              background: \"#ff00aa\", color: \"#0a0a0a\", borderColor: \"#cccccc\",\n              boxShadow: \"0 2px 4px rgb(0, 0, 0)\", outlineColor: \"#1a73e8\" }}\n     onClick={() => console.log(\"clicked\")}>\n  <div style={{ width: 720, fontSize: 18, color: \"#333333\" }}>{children}</div>\n  <div style={{ width: 240, fontSize: 14, color: \"#666666\" }}>sidebar</div>\n</div>\n```\n\nNote `tailwind.config.ts` already declares a token scale — `brand #0050ff`, `surface #f7f7fa`, `ink #111111`. The component ignores it entirely.\n\n---\n\n## 1. `accessible_interaction_risk` → make the interaction a real control\n\n*Finding: line 10, `<div>` with `onClick`, no role / aria-label / tabIndex. medium, confidence 0.85.*\n\nThe detector's suggested action is \"switch to button or add ARIA,\" but **the naive fix is wrong here.** `Card` accepts arbitrary `children`, so wrapping the root in `<button>` would nest whatever links or inputs the caller passes inside a button — invalid HTML, and worse for screen readers than the current div.\n\nTwo correct shapes; pick by intent:\n\n**A. The card has one primary action (recommended).** Move the handler onto a real control inside the card and give it an accessible name:\n\n```tsx\n<article className=\"…\">\n  {children}\n  <button type=\"button\" onClick={onActivate} className=\"…\">\n    {actionLabel}\n  </button>\n</article>\n```\n\n**B. The entire surface must be clickable.** Use the overlay-link pattern — one real `<a>`/`<button>` stretched over the card via a pseudo-element, with the card as a positioning context. Keyboard focus lands on the real control, the whole rectangle stays a hit target, and text inside remains selectable.\n\nEither way the fix is *structural*, not `role=\"button\" tabIndex={0} onKeyDown={…}` bolted onto a div — that hand-rolls semantics the platform gives you for free, and it's the version an agent will copy into the next five components.\n\nThe API change: `Card` grows an explicit `onActivate?: () => void` and `actionLabel?: string` instead of a hardcoded `console.log`. Zero importers means this rename costs nothing today.\n\n## 2. `design_token_escape` → consume the scale, and extend it where it's genuinely short\n\n*Finding: 9 hard-coded values across 4 kinds. low, confidence 0.75.*\n\nSix of the nine are colors, and **only two map onto the existing scale.** Don't force the rest:\n\n| raw | role | resolution |\n|---|---|---|\n| `#0a0a0a` | body text | → existing `ink` |\n| `#ff00aa` | card background | placeholder magenta — decide `surface` vs. `brand`, don't tokenize the mistake |\n| `#cccccc` | border | **missing token** → add `border` |\n| `#333333`, `#666666` | body / secondary text | **missing tokens** → add `ink-muted`, `ink-subtle` |\n| `#1a73e8` | focus ring | **missing token** → add `focus` (this is Chrome's blue, pasted in) |\n| `rgb(0,0,0)` shadow | elevation | **missing scale** → add `boxShadow.card` |\n\nSo the honest fix is two-sided: replace the literals *and* grow `tailwind.config.ts`, because four of these have no token to escape to. Tokenizing only what already exists would leave half the literals in place and the next agent would infer the file is \"mostly fine.\"\n\n```ts\n// tailwind.config.ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      \"ink-muted\": \"#333333\",\n      \"ink-subtle\": \"#666666\",\n      border: \"#cccccc\",\n      focus: \"#1a73e8\",\n    },\n    boxShadow: { card: \"0 2px 4px rgb(0 0 0 / 0.2)\" },\n  },\n};\n```\n\nThen the component carries `className`, not `style`. That's the part that actually stops the leak: inline `style` objects are where raw values hide, and once the file has zero of them the detector stays quiet as the file grows.\n\n## 3. `responsive_fragility` → size from the container, not from constants\n\n*Finding: `width: 800`, `width: 720`, `fontSize: 18`, no `@media` in file. low, confidence 0.65.*\n\n`width: 800` on the root is the real bug — it's a hard floor that overflows any viewport under 800px, and `maxWidth: 1024` sitting right next to it shows the intent was always \"up to 1024, fluid below.\" So:\n\n- **root:** `w-full max-w-5xl` (1024px) — delete `width: 800` entirely, it was never doing anything the max-width didn't do better. Drop `height: 600` too; a fixed-height card clips its own `children`.\n- **main/sidebar split:** the 720/240 pair is a two-column layout expressed as constants. Make it a grid that collapses — and per the finding's `fix_shape`, drive it from a **container query**, not a viewport media query. `Card` has no importers yet, which means it has no idea how wide its eventual parent is; `@container` sizes it correctly whether it lands full-bleed or in a narrow rail.\n- **typography:** `fontSize: 18` → a fluid step, e.g. `clamp(1rem, 0.95rem + 0.25vw, 1.125rem)` registered as `text-body` in the theme. Same for the 14px sidebar text.\n\nContainer queries here also mean the \"no `@media` in file\" evidence stays true after the fix — and correctly so. The detector reads absence of `@media` as a *corroborating* signal alongside fixed widths, not as a requirement; once the fixed widths are gone the finding clears regardless.\n\n---\n\n## Target component\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate?: () => void;\n  actionLabel?: string;\n};\n\nexport function Card({ children, onActivate, actionLabel = \"Open\" }: CardProps) {\n  return (\n    <article className=\"@container w-full max-w-5xl p-6 bg-surface text-ink\n                        border border-border rounded-lg shadow-card\">\n      <div className=\"grid gap-6 grid-cols-1 @2xl:grid-cols-[1fr_15rem]\">\n        <div className=\"text-body text-ink-muted\">{children}</div>\n        <aside className=\"text-sm text-ink-subtle\">sidebar</aside>\n      </div>\n\n      {onActivate && (\n        <button\n          type=\"button\"\n          onClick={onActivate}\n          className=\"mt-4 text-brand focus-visible:outline-2 focus-visible:outline-focus\"\n        >\n          {actionLabel}\n        </button>\n      )}\n    </article>\n  );\n}\n```\n\n**Finding → change map:**\n\n| finding | change |\n|---|---|\n| `accessible_interaction_risk` | `onClick` off the root div; real `<button type=\"button\">` with a visible label and a `focus-visible` ring; root becomes semantic `<article>` |\n| `design_token_escape` | all 9 literals → theme classes; `tailwind.config.ts` extended with `border`, `ink-muted`, `ink-subtle`, `focus`, `shadow-card`; **zero inline `style`** |\n| `responsive_fragility` | `width: 800` and `height: 600` deleted; `w-full max-w-5xl`; 720/240 → `@container` grid collapsing to one column; `fontSize: 18` → fluid `text-body` |\n\n## Sequencing and verification\n\n`test_gap` is top-quartile on all three findings and there is no test file, so land this in three commits and add coverage — the a11y change is the one with real behavioral risk:\n\n1. **Tokens** (`tailwind.config.ts` + swap literals for classes). Pure presentation, no API change.\n2. **Layout** (widths → fluid + container grid). Visual-only; worth a screenshot check at 375px, 768px, 1440px.\n3. **Interaction** (`onActivate` / `actionLabel`, `<button>`). This one changes the component's public API — safe now at 0 importers, expensive later.\n\nAdd `src/Card.test.tsx` before step 3: assert the control is reachable by role (`getByRole(\"button\", { name: … })`) and fires on keyboard activation. That's the regression the current file cannot catch, and it's what keeps the a11y fix from being undone by the next agent that finds `<button>` inconvenient.\n\nRe-run `crimes scan` after each commit — all three findings should clear, and step 1 alone should drop the file from MEDIUM to LOW.\n\nOne caveat worth surfacing: **`#ff00aa` is a decision, not a defect.** I'd resolve it to `surface`, but a magenta card background is odd enough that it may be a deliberate placeholder someone left in. Confirm the intended background before step 1 rather than silently tokenizing it as `brand`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

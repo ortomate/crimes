@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:23:03.349Z",
+  "run_id": "85883b41-0ef1-4223-96d0-5bfc41e45e4d",
+  "response": "## What the scan actually gives you\n\nThree duplication findings, of which two are in scope for this change set:\n\n| id | charge | sites |\n|---|---|---|\n| `crime_00001` | Near-Duplicate Block (0.85 conf) | `sanitize-a.ts:10-36` / `sanitize-b.ts:9-35` / `sanitize-c.ts:9-35` |\n| `crime_00003` | Duplicated Role Check (0.70 conf) | `policy.ts` ×3 + `sanitize-a/b/c` ×1 each — **2 distinct expression shapes** |\n| `crime_00002` | Exact Duplicate Block (0.95 conf) | `telemetry-a.ts` / `telemetry-b.ts` — *deliberately out of scope, see bottom* |\n\nBefore planning, I read the six files, and the two findings are not the same kind of problem — that distinction drives the whole plan.\n\n**`crime_00001` is genuinely identical.** The three bodies differ only in identifier names (`working` / `cleaned` / `normalised`, `raw` / `input` / `value`). Same regexes, same 1000-char clamp, same `!?{3,}` count, same 0.9 upper-ratio rule, same order. There is no behavioural difference to preserve. Mechanical.\n\n**`crime_00003` is not.** The detector's own evidence says *2 distinct expression shapes*, and its summary (\"prevent the rules from drifting silently\") undersells it — the rules have **already drifted**:\n\n| function | body | means |\n|---|---|---|\n| `policy.ts` ×3 | `role === \"admin\"` | is admin |\n| `assertAdminA` | `role === \"admin\"` | is admin |\n| `assertAdminB` | `role === \"admin\" \\|\\| role === \"owner\"` | is admin **or owner** |\n| `assertAdminC` | `role !== \"admin\"` | **is NOT admin** — inverted despite the name |\n\nCollapsing all seven into one `isAdmin()` — which is what `extract_policy_function` literally suggests — silently revokes owner access at B's call sites and **flips the guard** at C's. That is the trap in this fixture, and it is why these must be two steps and not one.\n\n(Minor: the `policy.ts:1` occurrence in the evidence is a match inside a comment, not real code. Six live sites, not seven.)\n\n---\n\n## Step 1 — Extract the sanitiser (mechanical, zero behaviour change)\n\n**New file `src/sanitize.ts`:**\n\n```ts\nexport function sanitize(value: string): string {\n  // verbatim body from sanitize-a.ts:11-35\n}\n```\n\n**Then in each of the three files, replace the body with a delegation** and keep the exported name:\n\n```ts\n// sanitize-a.ts\nexport { sanitize as sanitizeUserInput } from \"./sanitize.js\";\n```\n…and likewise `sanitizeText` in `-b`, `cleanMessage` in `-c`.\n\nKeeping the three public names as re-exports means **no consumer of this package changes in step 1**. Deciding whether `sanitizeUserInput` / `sanitizeText` / `cleanMessage` should collapse to one public name is a separate API question — don't smuggle it in here.\n\nBefore the edit, write one characterisation test against `sanitizeUserInput` covering the branches the body actually has: null/undefined, whitespace collapse, the >1000 clamp, leading `<`/`>`, the `\\\\x` literal, >5 punctuation runs, and the upper-ratio downcase at >30 chars. Run it against all three exports; it should pass identically before and after — that's the proof the extraction was clean. (`test_gap` is 0.5 on every finding here; the fixture ships no tests at all.)\n\n**Verify:** `crimes scan --format json` — `crime_00001` should disappear, and nothing else should move.\n\n---\n\n## Step 2 — Consolidate the predicate, not the capabilities (semantic, needs one decision)\n\nStep 2 only starts once step 1 is committed and green.\n\n**New file `src/roles.ts` — one predicate, honestly named:**\n\n```ts\nexport function isAdmin(role: string): boolean {\n  return role === \"admin\";\n}\n\nexport function isAdminOrOwner(role: string): boolean {\n  return role === \"admin\" || role === \"owner\";\n}\n```\n\nThen:\n\n- **`policy.ts`** — keep all three capability functions, have each delegate: `canEditBilling = (role) => isAdmin(role)`, same for `canSeeAuditLog` and `canImpersonate`. Dedupe the *predicate*, not the *capabilities* — those three names encode three distinct permissions that merely share a rule today. Merging them into one function would be a worse codebase that scans clean.\n- **`assertAdminA`** → delegates to `isAdmin`. Pure win, no semantic change.\n- **`assertAdminC`** → delegates to `!isAdmin(role)` **and gets renamed** to `isNotAdmin` (or, better, inverted at its call sites so the codebase only ever asks the positive question). Do not let it keep a name that asserts the opposite of what it returns — that misnaming is the actual `agent_risk` here, and it survives any refactor that only dedupes text.\n- **`assertAdminB`** → **this is the decision.** `admin || owner` is either (a) an intentional policy variant, in which case it delegates to `isAdminOrOwner` and stays distinct forever, or (b) drift that nobody noticed, in which case owners are about to lose access and that needs an owner's sign-off, not a refactor commit. Default to (a) — preserving observed behaviour is the safe branch — and raise (b) as a question rather than resolving it silently.\n\n**Caveat you need to price in:** all three `assertAdmin*` functions are exported but have **zero in-repo call sites** — the sanitise bodies don't use them. So renaming `assertAdminC` is a public-surface change with no local compiler check to catch breakage. If this package has external consumers, deprecate-then-remove across two releases; if it doesn't, delete the three `assertAdmin*` exports outright rather than re-exporting them, and let `roles.ts` be the only door.\n\nTests for step 2 are non-negotiable and go in first: `isAdmin`, the owner case, and the negation case each pinned before anything is rewired.\n\n**Verify:** `crime_00003` clears. Watch for a *new* fan-in finding on `roles.ts` — that one would be expected and correct, not a regression.\n\n---\n\n## Why this order\n\nStep 1 is a diff a reviewer can verify by eye and a test can prove; step 2 requires a human judgement about owner access. Front-loading the mechanical step shrinks `sanitize-a/b/c` to three lines each, so when step 2 touches those same files the policy diff is the *only* thing in it. Reversed, you'd re-touch all three files twice and review the interesting change buried in 90 lines of noise.\n\n## Deliberately not in this change set\n\n`crime_00002` (telemetry-a/b, exact duplicate, 0.95 confidence) and the two `direct_date` findings at `telemetry-a.ts:16` / `telemetry-b.ts:16` are one coherent third change: extract `recordSanitiseEvent` into a shared module *and* inject a clock while you're in there, since the `Date.now()` sits inside the very block being extracted — fixing it twice is wasted work. It's a clean 20-minute follow-up, but folding it in would put an unrelated determinism change in the same review as a policy decision. You asked for two steps; this is the honest reason there's a third.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

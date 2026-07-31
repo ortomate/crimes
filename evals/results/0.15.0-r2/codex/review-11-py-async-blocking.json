@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T23:10:27.247Z",
+  "run_id": "602c4509-0ca5-42a3-8bdd-21db484de54b",
+  "response": "The dominant cause is synchronous I/O in the HTTP hot path. Requests spend time waiting while workers—and, in `async def get_invoice`, the entire event loop—cannot serve other traffic. That directly explains collapsing p99 latency with low CPU.\n\nRanked by likely contribution:\n\n1. `requests.get()` in `api/routes.py:21` — highest impact. It performs blocking network I/O inside the async `get_invoice` handler. Under moderate concurrency, one slow upstream call stalls every request sharing that event loop.\n\n2. `time.sleep()` in `api/routes.py:32` — explicitly occupies a worker for the full sleep duration. If `export_invoice` is async, it also freezes its event loop; otherwise it still exhausts the synchronous worker pool.\n\n3. `subprocess.run()` in `api/routes.py:31` — waits synchronously for a child process on every export request. Runtime and contention can be highly variable, making it a strong p99 amplifier.\n\n4. `open()` in `api/routes.py:23` — synchronous file access in `get_invoice`. It may be relatively cheap with a warm filesystem cache, but it still blocks the event loop and can become expensive under storage contention.\n\nRecommended first fix: replace `requests.get()` with an async HTTP client and enforce timeouts; replace `time.sleep()` with `await asyncio.sleep()`. Move subprocess work to a background job or bounded executor, and make file access asynchronous or preload/cache the data. Also add concurrency tests with a deliberately slow upstream—the current `test_gap: 0.5` suggests this failure mode is not well protected.\n\nThe remaining seven findings are not credible explanations for the observed load-dependent latency collapse:\n\n- Clock handling can cause correctness and testability bugs.\n- The import cycle can cause startup/import failures.\n- The large function and deep imports increase maintenance risk.\n- Boolean naming drift is cosmetic to this incident.\n\nSo despite two findings being labelled “high,” `crime_00001` is the incident-driving finding; `direct_date` is high severity for a different class of risk.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

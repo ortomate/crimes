@@ -1,0 +1,90 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:39:16.455Z",
+  "run_id": "0a79835b-18c7-4ed1-a4a3-cef3e5729c64",
+  "response": "Read the fixture to check the findings against the actual code. All three are real, and one is more than an IA problem.\n\n## The three drifts\n\n| # | Drift | Finding | Call |\n|---|---|---|---|\n| 1 | `/admin` described three ways | `crime_00011` permission_ia_drift | **Block merge** |\n| 2 | `/admin/billing-plans` mirrors `/billing-plans` | `crime_00003` parallel_destination | **Warn** |\n| 3 | Docs reference unadvertised `iaq` subcommands | `crime_00012` command_drift | **Ignore as a gate** (fix as a chore) |\n\n---\n\n### 1. Permission IA drift on `/admin` — block\n\nThe scan reports three tokens (`admin`, `manager`, `owner`) across `src/nav.ts:10`, `src/routes/admin.ts:2`, and `docs/routes.md:14`. Reading the guard shows this isn't only a description problem:\n\n```ts\n// src/routes/admin.ts\nexport const requiredRole = \"owner\";\n\nexport function loadAdminPanel() {\n  if (currentUser.role === \"manager\") return { ok: true, legacy: true };  // ← before the owner check\n  if (currentUser.role !== \"owner\") return null;\n```\n\nThe stale `manager` branch short-circuits ahead of the `owner` check, so the declared policy (`requiredRole = \"owner\"`) is not the enforced policy — a `manager` gets in. Separately, `nav.ts` gates the link on `role: \"admin\"`, so an `admin`-role user is shown \"Admin Console\" and then handed `null`. Three tokens, three behaviours, zero agreement.\n\nBlock: an authorization divergence that already grants access the declared policy denies is not a docs chore. Fix = one exported predicate (`canAccessAdmin`) that nav, guard, and docs all cite.\n\n### 2. Parallel destination — warn\n\n`src/routes/admin/billing-plans.ts` and `src/routes/billing-plans.ts` are both stubs returning `[]`, and findings `crime_00005`/`crime_00006` confirm both are orphaned — no nav, doc, or import reaches either. So nothing user-facing breaks today, which is why this isn't a block. But it's exactly the shape that burns an agent later: \"add proration to billing plans\" has two equally plausible targets and no signal which is canonical, and the fix lands in one.\n\nWarn: require an explicit decision in the PR — pick the canonical route and redirect or delete the other. Confidence 0.6 also means a human should confirm these really are the same surface rather than admin-vs-customer views that happen to share tokens.\n\n### 3. Command drift — ignore as a gate\n\n`docs/routes.md` shows `iaq teams`, `iaq workspace`, `iaq refresh`; `bin/iaq.ts` registers only `list` and `get`. Confirmed, and confidence 0.8 is earned — it's a direct comparison of fenced commands against `.command()` registrations.\n\nBut the failure mode is a loud, immediate `command not found`. An agent that tries it learns it's wrong in one turn and self-corrects; no silent wrong state propagates. Don't gate a merge on it. It's also the cheapest fix in the report — delete three fences or generate the docs from the command table — so do it in whatever PR next touches `docs/routes.md`. Only suppress permanently if those commands are deliberately aspirational.\n\n---\n\n## Highest agent risk: the `/admin` permission drift\n\nThis is the one to fix first, and the report's own ranking disagrees with me — worth being explicit about that.\n\nThe scan gives it `agent_risk: 0.25`, the **lowest** of the three (parallel destination scores 0.33). Two scoring artifacts depress it:\n\n- **It's anchored on `docs/routes.md`**, not on `src/routes/admin.ts` where the enforcement actually lives. That drags `test_gap` to 0 (docs aren't testable) even though the guard function has no tests at all.\n- **`blast_radius: 0`** across every finding in a 12-file fixture — there are no importers to count, so the dimension carries no information here.\n\nWhat survives is `severity: 0.65`, the highest in the report, and that's the signal that matters.\n\nThe substantive case for it being highest agent-risk: it's the only drift where an agent's confident, reasonable edit is both **silent** and **security-relevant**. Ask an agent to \"tighten access to the admin console\" and it reads one of three sources. If it reads nav, it hardens against `admin` and leaves the `manager` bypass live. If it reads docs, it standardises on `manager` and *widens* access. If it reads the guard, it may keep the legacy branch it doesn't recognise as dead. Every path produces working code, passing tests (there are none), and a plausible diff — and two of the three leave or create a privilege escalation.\n\nCompare the other two. The parallel destination costs an agent a wasted edit on a dead file; the mistake is recoverable and non-privileged. The command drift fails at the shell, instantly. Neither can quietly hand a `manager` the admin panel.\n\nRanking by aggregate risk under-serves this finding. If you want the score to match the judgment, the detector should anchor `permission_ia_drift` on the enforcement site rather than the first-alphabetical evidence file — that alone would pull real `test_gap` and importer data into the score.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 7,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": "src/routes/admin.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": "src/nav.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": "src/routes/admin/billing-plans.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  }
+}

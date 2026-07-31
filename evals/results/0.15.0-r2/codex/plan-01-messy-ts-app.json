@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:52:54.968Z",
+  "run_id": "9ba5bd8e-3abd-40c9-894e-07eda00a64d5",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is a scan/verdict-driven risk triage. I’ll verify the live verdict, then rank the scan’s first 10 findings within the requested categories.\n\nThe global `crimes` binary is not installed in this shell. I’m switching to the repository-built CLI, which is the documented equivalent for an unpublished checkout.\n\nThe live verdict is `unchanged`: 0 new, 0 fixed, all 37 unchanged versus `origin/main`. That makes this a debt-reduction plan, not a branch gate; I’m preserving the scenario’s supplied top-10 ordering because the locally built CLI has slightly newer scoring and reorders a few entries.\n\nThe verdict is `unchanged`: 0 new, 0 fixed, and all 37 findings pre-existing versus `origin/main`. Nothing is a branch-introduced blocker, so prioritize by correctness risk, confidence, and shared remediation.\n\n## Structural\n\n| Order | Finding | Response | Rationale |\n|---:|---|---|---|\n| 1 | `crime_00010` — mixed UTC/local methods, `src/date.ts` | **fix now** | High-severity correctness risk; standardize on UTC and convert only at display boundaries. |\n| 2 | `crime_00001` — direct clock access, `src/date.ts` | **fix now** | High confidence and small effort. Introduce a clock while addressing the same file’s UTC/local inconsistency. |\n| 6 | `crime_00005` — 204-line `generateInvoice`, `src/billing.ts` | **fix now** | High severity/confidence. Extract pure helpers while retaining a thin orchestrator; protect behavior before refactoring. |\n| 8 | `crime_00008` — synchronous I/O, `src/api/files.ts` | **defer** | Real but low severity. First confirm this function is latency-sensitive and that callers can safely become asynchronous. |\n| 9 | `crime_00002` — inconsistent return shapes, `src/petty.ts` | **defer** | Add a discriminated return type when this API is next changed; current evidence shows ambiguity, not an active failure. |\n| 10 | `crime_00009` — implicit option bag, `src/petty.ts` | **defer** | Low severity. Give it a named narrow type during the next edit to this function. |\n\n## Information architecture\n\n| Order | Finding | Response | Rationale |\n|---:|---|---|---|\n| 3 | `crime_00003` — missing agent context | **fix now** | Small, high-confidence change with repository-wide benefit: document commands, conventions, architecture, and safety rules. |\n| 4 | `crime_00007` — route metadata drift | **fix now** | Choose one canonical destination name and align the component, page title, metadata, and navigation labels. |\n| 5 | `crime_00006` — duplicated navigation source | **fix now** | Resolve together with `crime_00007`; create one canonical record for `/settings/billing` and derive both navigation surfaces from it. |\n\n## Duplication\n\n| Order | Finding | Response | Rationale |\n|---:|---|---|---|\n| 7 | `crime_00004` — scattered `\"enterprise\"` literal | **fix now** | Medium severity and small effort. Centralize the plan identifier before the four copies evolve into divergent policy. |\n\nThis is semantic literal duplication; the detector itself belongs to the local/petty detector family, but duplication is the closest requested triage bucket.\n\n## Git-history and frontend\n\nNo findings from these categories appear in the supplied top 10.\n\nNo finding should be tagged **ignore** from the available evidence. Ignoring should require confirmation that the behavior is intentional or that the detector is a false positive; the scan currently provides neither.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "mixed_utc_local_methods",
+        "passed": false
+      }
+    ]
+  }
+}

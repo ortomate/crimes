@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:43:54.676Z",
+  "run_id": "1b609c3e-6aa6-4caa-b6f3-c6760fc71823",
+  "response": "Break `src/domain/billing.ts → src/presentation/invoice-view.ts`.\n\nWhy: it is the only cycle edge explicitly identified, and it also violates the configured architecture rule that domain code cannot import presentation code. Removing it fixes both the high-severity cycle and the medium-severity layer violation.\n\nMove invoice rendering/orchestration into `billing-flow.ts` or `invoice-view.ts`. If shared data is needed, define a plain billing/invoice DTO or interface in the domain (or a dependency-free leaf module), then let presentation import that type—using `import type` when it is type-only. The dependency direction should remain:\n\n`presentation → application/domain`, never `domain → presentation`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

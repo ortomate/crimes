@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T23:08:50.087Z",
+  "run_id": "1bc8c81f-a057-4e9a-8f6c-dfd8b2bc84d0",
+  "response": "## Verdict\n\n**1 blocking class, 5 warn, 5 ignore.** Nothing here is a correctness defect — this is a mature CLI library shape (Commander.js), and most of the 55 findings are structural facts about a library that has looked like this for years. The one thing I'd hold the merge on is the assertion-free error-path test suite.\n\nA caveat on the ranking before the dispositions: the scan's top-6 by `severity` is dominated by `CHANGELOG.md`, `Readme.md`, and `Readme_zh-CN.md` — prose files that can't cause an agent to make a bad edit. Their `agent_risk` (0.36) is *identical* to `lib/command.js` at 2180 lines, which is the finding that actually matters. Whole-corpus `agent_risk` spans only 0.14–0.48, so it can't separate signal from noise on its own here; I'm using it as an in-class tiebreaker, not as the ranking.\n\n---\n\n## Dispositions\n\n| # | Class | Findings | Decision | severity / agent_risk |\n|---|---|---|---|---|\n| 1 | `weak_test_signal` — zero-assert, `command.exitOverride.test.js` | 8 (`crime_00015`–`22`) | **BLOCK** | medium / 0.27 |\n| 2 | `large_function` — `lib/command.js` | 4 (`crime_00010`, `11`, `33`, `36`) | **WARN** | high–medium / 0.30–0.23 |\n| 3 | `exact_duplicate_block` — `lib/argument.js` ↔ `lib/option.js` | 2 (`crime_00046`, `47`) | **WARN** | medium / 0.22 |\n| 4 | `hardcoded_localhost` — `lib/command.js:2152` | 1 (`crime_00049`) | **WARN** (verify) | medium / 0.20 |\n| 5 | `commented_out_code` + `logic_in_comments` — test files | 2 (`crime_00012`, `31`) | **WARN** | low / 0.29, 0.27 |\n| 6 | `weak_test_signal` — weak matchers | 9 (`crime_00037`–`45`) | **WARN** | low / 0.23 |\n| 7 | `large_file` — `*.md`, `examples/`, `typings/` | 5 (`crime_00001`, `05`, `06`, `08`, `09`) | **IGNORE** (suppress) | high–medium / 0.48–0.36 |\n| 8 | `large_file` — `lib/*.js` | 3 (`crime_00007`, `48`, `50`) | **IGNORE** (track, don't gate) | high–medium / 0.36–0.19 |\n| 9 | `weak_test_signal` — `tests/ts-imports.test.ts` | 8 (`crime_00023`–`30`) | **IGNORE** (false positive) | medium / 0.27 |\n| 10 | `sync_io_in_hotpath` — `lib/command.js` | 1 (`crime_00014`) | **IGNORE** (false positive) | low / 0.28 |\n| 11 | `boolean_naming_drift`, `magic_domain_literal_scatter`, `docs_code_drift`, `examples/` duplication | 12 | **IGNORE** | low–medium / 0.46–0.16 |\n\n---\n\n## The block\n\n**`tests/command.exitOverride.test.js` — 8 tests with 0 expect/assert calls** (`crime_00015`–`00022`).\n\nEvery one of these is named for a behavioural contract it does not assert:\n\n- `\"when specify --version then throw CommanderError\"`\n- `\"when mandatory program option missing then throw CommanderError\"`\n- `\"when option argument not in choices then throw CommanderError\"`\n- `\"when executable subcommand and no command specified then throw CommanderError\"`\n\n`exitOverride` is the seam that lets embedders trap `process.exit`. If these tests pass without asserting, the entire error-exit contract is unprotected while *appearing* covered — which is exactly the failure mode `agent_risk` is meant to price. An agent asked to \"refactor error handling in `_parseCommand`\" runs the suite, sees green, and ships a behaviour change. Severity is only `medium` (0.45) and `agent_risk` 0.27, and I'm still blocking on it: the scores understate this because both are computed per-test in isolation, while the *cluster* of 8 covering one contract is what makes it load-bearing.\n\n**Caveat that determines the fix, not the decision:** the uniform naming pattern strongly suggests these call a shared helper (`expectCommanderError(...)` or similar) that wraps `expect` internally — which the detector doesn't count. If that's the case this is a detector blind spot, not a test gap. So the block resolves *either* way:\n\n1. Helper exists → add it to `detectors.options.weak_test_signal.assertionHelpers` (or equivalent) and re-scan. ~10 minutes, no test changes.\n2. No helper → the tests genuinely assert nothing and must be fixed before merge.\n\nI won't wave it through on the assumption of (1). Confirming which is true is the merge gate.\n\n---\n\n## Warns worth acting on\n\n**The `_executeSubCommand` region is the single riskiest place in this PR.** Four findings cluster in `lib/command.js:946–1065`:\n\n- `crime_00010` — `_executeSubCommand`, 120 lines, 2× threshold, **highest real-code severity in the scan (0.90)**, `agent_risk` 0.30\n- `crime_00014` — `fs.existsSync` ×2 + `fs.realpathSync` inside it\n- `crime_00012` — commented-out `childProcess.spawn(...)` corpse in its own test file, with a `non-Win` platform note\n- `crime_00031` — a prose rule in `command.executableSubcommand.signals.test.js`: *\"the previous (sinon) test had custom code for SIGUSR1, revisit if required\"*\n\nIndividually: medium/low. Together: 120 lines of process-spawning with platform branching, whose disabled reference implementation and whose known-fragile signal caveat both live in comments an agent will read as instructions. That's the shape that produces confidently wrong edits. I'd want `_executeSubCommand` split (extract `findFile` and the launch-argument assembly) and both comments either deleted or converted to a skipped test with a linked issue — but as a **warn**, not a gate, since none of it is broken today.\n\n**`choices()` duplicated verbatim across `lib/argument.js:99–111` and `lib/option.js:176–188`** (`crime_00046`/`47`, confidence 0.95). Real domain duplication in shipped library code — validation policy in two places means a fix to one silently diverges. Small effort, worth a follow-up. Not merge-blocking because the copies are currently identical.\n\n**`localhost:1234` at `lib/command.js:2152`** — verify, don't assume. Line 2152 of a 2180-line file is almost certainly inside a JSDoc/help-text example rather than live code, in which case it's noise. One `grep`, then either suppress or lift to config.\n\n---\n\n## Ignores, with reasons\n\n**`tests/ts-imports.test.ts` (8 findings) is a detector false positive.** These are type-import smoke tests — `import { Option } from '..'` and reference it. The TypeScript compiler *is* the assertion; adding `expect` would prove less than the type-check already does. Suppress the whole file for `weak_test_signal`.\n\n**`sync_io_in_hotpath` is a category error in a CLI.** `fs.existsSync`/`realpathSync` in subcommand resolution runs once, at startup, before the process spawns a child and exits. There is no event loop to block and no concurrent request to starve. The detector's model assumes a server. Suppress for `lib/command.js`.\n\n**All `*.md` and `examples/` `large_file` findings.** A 1244-line CHANGELOG is a correctly-maintained CHANGELOG. `typings/index.d.ts` at 892 lines is a declaration file for a library with a large public surface — splitting it would be strictly worse for consumers. Note that this finding tops the whole scan (`agent_risk` 0.48) largely because `test_gap` is scored 0.75 — but a `.d.ts` file *cannot* have tests, so that input is meaningless here. Same artifact inflates `examples/hook.js` (`crime_00002`, `test_gap` 0.75) to the #2 slot.\n\n**`lib/command.js` at 2180 lines: track, don't gate.** This is the one ignore I'm least comfortable with — it's genuinely too big and it's where the real risk lives. But it's the pre-existing shape of an upstream library, a split is a breaking-ish refactor with real regression risk, and gating a merge on it converts a review into a rewrite. Log it as tech debt with the `_executeSubCommand` extraction as the first concrete step.\n\n**`boolean_naming_drift` (3), `magic_domain_literal_scatter` \"PORT\" (1), `docs_code_drift` (2), `examples/` `myParseInt` duplication (1).** `required`/`variadic`/`mandatory`/`hide` are the established public API vocabulary of this library — renaming them to `isRequired`/`isVariadic` is a breaking change to satisfy a naming convention, and they should go in `allowedNames`. `\"PORT\"` appears in example scripts and a type test demonstrating env-var options; that's what examples are for. The zh-CN doc links are broken but the target filenames are percent-encoded Chinese — a link-checker chore, not agent risk.\n\n---\n\n## Suggested `crimes.config.json` follow-up\n\nRoughly two-thirds of this scan's volume is addressable by config, which would make the next run's ranking actually usable:\n\n- exclude `*.md`, `examples/**`, `typings/**` from `large_file`\n- add `required`, `variadic`, `mandatory`, `hide`, `optional`, `combine`, `allowUnknown` to `boolean_naming_drift.allowedNames`\n- register the project's assertion helper with `weak_test_signal`, and exclude `tests/ts-imports.test.ts`\n- exclude `lib/command.js` from `sync_io_in_hotpath`\n\nAfter that the scan reports roughly a dozen findings, and the `_executeSubCommand` cluster sits at the top where it belongs.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "magic_domain_literal_scatter",
+      "crime_00003": "boolean_naming_drift",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "large_file",
+      "crime_00006": "large_file",
+      "crime_00007": "large_file",
+      "crime_00008": "large_file",
+      "crime_00009": "large_file",
+      "crime_00010": "large_function",
+      "crime_00011": "large_function",
+      "crime_00012": "commented_out_code",
+      "crime_00013": "boolean_naming_drift",
+      "crime_00014": "sync_io_in_hotpath",
+      "crime_00015": "weak_test_signal",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "weak_test_signal",
+      "crime_00018": "weak_test_signal",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "logic_in_comments",
+      "crime_00032": "large_function",
+      "crime_00033": "large_function",
+      "crime_00034": "docs_code_drift",
+      "crime_00035": "docs_code_drift",
+      "crime_00036": "large_function",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "weak_test_signal",
+      "crime_00039": "weak_test_signal",
+      "crime_00040": "weak_test_signal",
+      "crime_00041": "weak_test_signal",
+      "crime_00042": "weak_test_signal",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "exact_duplicate_block",
+      "crime_00047": "exact_duplicate_block",
+      "crime_00048": "large_file",
+      "crime_00049": "hardcoded_localhost",
+      "crime_00050": "large_file",
+      "crime_00051": "large_function",
+      "crime_00052": "large_function",
+      "crime_00053": "boolean_naming_drift",
+      "crime_00054": "large_function",
+      "crime_00055": "large_function"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "God Function": "large_function",
+      "Commented-Out Corpse": "commented_out_code",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Logic in the Alibi": "logic_in_comments",
+      "Docs-Code Drift": "docs_code_drift",
+      "Dev-Server URL": "hardcoded_localhost"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "weak_test_signal",
+        "passed": false
+      }
+    ]
+  }
+}

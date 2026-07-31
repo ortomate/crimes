@@ -1,0 +1,34 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:48:37.603Z",
+  "run_id": "3fc3529c-604d-4c96-8e6f-120771491aa0",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a pre-edit context check. I’ll inspect its instructions, then run the requested JSON context command against the fixture.\n\nThe global `crimes` binary isn’t installed in this environment. I’m switching to the repository’s locally built CLI, which is the documented equivalent for an unpublished checkout.\n\n`crimes context` found no issues in `src/add.ts`:\n\n- Risk: **none** — 0 high, medium, or low findings\n- No agent-risk guidance or related-file warnings\n- Likely test: `src/add.test.ts`\n- Low churn: 1 commit and 1 author in the past 90 days\n\nThe file appears safe to extend. Update or add coverage in `src/add.test.ts` alongside the change. The global binary was unavailable, so I ran the equivalent locally built CLI.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "scenario": "bugfix-13-polyglot-plan-drift",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:47:11.390Z",
+  "run_id": "52429e74-d8ae-492e-8907-754df9562f32",
+  "response": "Read the fixture to confirm the mechanism. Here's what's happening.\n\n## The bug\n\n`Plan` is declared twice, by hand, in two languages — and the two lists have diverged:\n\n- `packages/api/billing/plans.py:10` — `free`, `pro`, `team`, `scale`\n- `packages/web/src/workspace-client.ts:10` — `free`, `pro`, `enterprise`\n\nYour newest tier is **`scale`** (last in the enum, 50 seats in `SEATS_INCLUDED`). The TypeScript side has never heard of it. `team` is in the same position; `enterprise` is the mirror-image case — a UI-only tier the Python enum doesn't know.\n\nThat's `crime_00001` (Cross-Language Type Drift, high, confidence 0.75), and it's the only finding in the report that explains a *validation* error on a *specific tier*.\n\n## Why the API \"accepts them fine\"\n\nThis is the part worth dwelling on, because it's not symmetry — it's two different failures that happen to cancel out on one side.\n\nThe API isn't accepting `scale` because its enum is wider. It's accepting it because the write path never consults the enum at all:\n\n```python\n@router.post(\"/api/teams/{team_id}/plan\")\ndef change_team_plan(team_id: str, plan: str):   # <- str, not Plan\n    return {\"id\": team_id, \"plan\": plan}\n```\n\n`routes.py:26` takes a bare `str`. FastAPI would enforce membership if the annotation were `Plan`; with `str` it validates nothing and echoes the value straight back. So the API would equally happily accept `enterprise`, or `banana`. It's permissive by accident, not by design — which is why it reads as \"the API is fine.\"\n\nThe web app, meanwhile, has a narrower closed set and actually enforces it. One honest caveat: a TS union is erased at runtime, so `type Plan` alone cannot produce a user-visible validation error. The rejection must come from a runtime artifact built from that same hand-maintained list — a zod enum, a `<select>` option list, an `includes()` guard. The scan can only see the type declaration; that's why confidence is 0.75, not higher. Worth confirming where in the web app the string `\"enterprise\"` appears outside `workspace-client.ts` — that's your actual rejection site.\n\n## Two other findings on the same code path\n\nNeither causes the validation error, but both sit on the upgrade flow and will bite next:\n\n- **`crime_00003`** — `changeWorkspacePlan` calls `PUT /api/teams/:id/plan`; the backend declares `POST` (`routes.py:25`). That's a 405, which reads like a permissions problem, not a method problem.\n- **`workspace-client.ts:34`** — the template literal was never written. The URL is the string `\"/api/teams/:id/plan\"`, with `:id` sent literally, and the `plan` argument is accepted and then never put in the request. So even with the method fixed, the upgrade sends no plan to no team. Same defect at line 28 for seats. The detectors flagged the method drift; this one is adjacent and undetected.\n\n`crime_00004` (team vs. workspace naming) is the reason all of this survived review: searching for `plan` on either side finds only half the code.\n\n## What stops it recurring\n\nIn order of leverage:\n\n1. **Make the API actually enforce the enum.** Change `plan: str` → `plan: Plan` in `change_team_plan`. This costs one word and turns the backend from \"accepts anything\" into a real contract — and, critically, publishes the tier list into the OpenAPI schema so it becomes generatable.\n2. **Generate the TypeScript from that schema.** `openapi-typescript` against the FastAPI schema, emitted into `packages/web/src` as a build step. Delete the hand-written `type Plan`. The generated client also kills the route/method drift, because you stop hand-writing URLs.\n3. **Gate it in CI.** `crimes scan --format json` failing the build on `cross_language_type_drift` catches the case where someone re-hand-writes a copy. Codegen prevents drift only while people use it.\n4. **Pick one word for the concept.** `team` or `workspace`, not both. This is `crime_00004` — low severity, but it's the multiplier that makes every other item on this list hard to find.\n\nOne thing the report is telling you that's easy to skim past: every finding here has `test_gap: 1.0`. Nothing tests across the language boundary. Steps 1–2 make the drift impossible to express; step 3 makes it impossible to ship. A test that round-trips every `Plan` member through the real client would have caught this on the day `scale` was added.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": "packages/api/billing/plans.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": "packages/web/src/workspace-client.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      }
+    ]
+  }
+}

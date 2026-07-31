@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:32:22.651Z",
+  "run_id": "d34a8dc7-38f7-4242-a98b-f67dc551b117",
+  "response": "I’m using the repository’s `crimes-codebase-risk` guidance to keep the recommendations aligned with how these findings are intended to drive edits. I’ll map each proposed import change directly to the supplied scan evidence.\n\nThe scan identifies two relevant imports, plus a related cycle:\n\n| Finding | Import to change | Recommendation |\n|---|---|---|\n| `crime_00002` — `layer_violation` | `src/domain/billing.ts` → `src/presentation/invoice-view.ts` | Break this dependency. Define a domain-owned invoice data type or output port, return domain data from billing, and let the application layer pass it to presentation. |\n| `crime_00003` — `deep_import` | `src/application/billing-flow.ts` → `some-pkg/dist/internal/private/helper.js` | Redirect to the package’s documented public entry point. If unavailable, isolate it in an infrastructure adapter implementing an application-owned interface. |\n\nFor `crime_00002`, presentation must depend inward on domain concepts; domain must not render or import a presentation view. A suitable flow is:\n\n```text\ndomain/billing\n    ← application/billing-flow\n        → presentation/invoice-view\n```\n\nThe application layer orchestrates the two sides. This change also removes one edge from `crime_00001`’s three-file cycle:\n\n```text\napplication/billing-flow\n→ domain/billing\n→ presentation/invoice-view\n→ application/billing-flow\n```\n\nFor `crime_00003`, prefer something equivalent to:\n\n```ts\nimport { helper } from \"some-pkg\";\n```\n\nIf `helper` is not publicly exported, avoid retaining the private path in application code. Introduce an application-owned port and implement it under infrastructure using supported package APIs. If no supported API exists, replace the dependency or request an upstream export.\n\nThe risks differ in scope:\n\n- `layer_violation` (`agent_risk: 0.34`) violates the repository’s declared dependency direction. An agent following imports can place responsibilities in the wrong layer, amplify coupling, and—as here—participate in a cycle. Fixing it requires an architectural boundary decision.\n- `deep_import` (`agent_risk: 0.29`) violates an external package’s encapsulation rather than the project’s layer rules. It is primarily upgrade risk: private files can move without compatibility guarantees. The fix is usually a localized import redirect or adapter.\n\nPriority: break the domain-to-presentation edge first because it restores the architecture and helps eliminate the high-severity cycle; then replace or isolate the deep package import.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

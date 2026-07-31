@@ -1,0 +1,59 @@
+{
+  "scenario": "review-13-polyglot-api-contract",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:43:32.692Z",
+  "run_id": "041c5e44-8efe-488a-ac86-af9812e60b40",
+  "response": "Read the three files behind the scan to check each finding and look for what literal-string matching would miss.\n\n## The contract, side by side\n\n| Backend (`packages/api/billing/routes.py`) | Frontend (`packages/web/src/workspace-client.ts`) | Agrees? |\n|---|---|---|\n| `GET /api/teams/{team_id}` | `GET /api/workspaces/${id}` (:18) | ✗ path |\n| `POST /api/teams` | `POST /api/workspaces` (:23) | ✗ path |\n| `GET /api/teams/{team_id}/seats` | `GET /api/teams/:id/seats` (:28) | ✗ placeholder |\n| `POST /api/teams/{team_id}/plan?plan=` | `PUT /api/teams/:id/plan` (:34) | ✗ method + placeholder + missing param |\n| `Plan = free\\|pro\\|team\\|scale` | `Plan = free\\|pro\\|enterprise` | ✗ 3 values |\n\nEvery one of the four endpoints disagrees. Ranked by production failure:\n\n---\n\n### 1. `createWorkspace` — hard 404 on 100% of calls\n`workspace-client.ts:23` posts to `/api/workspaces`; the backend only declares `POST /api/teams` (`routes.py:15`). Nothing creates a workspace, ever. Fails immediately and loudly, but `res.json()` is called unconditionally on the 404 body, so the caller sees a JSON parse error or a garbage `Workspace`, not a clean HTTP error. This is crimes' `crime_00005`.\n\n### 2. `getWorkspace` — hard 404, and crimes missed it\n`workspace-client.ts:18` fetches `\"/api/workspaces/\" + id`. Backend declares `GET /api/teams/{team_id}`. Same 404, same swallowed error. **The scan did not report this one** — the route-drift detector says so itself in its evidence: *\"matched on literal path strings — a route or URL assembled at runtime is invisible to this check.\"* The concatenation hid it. Two of the four calls are 404s, not one.\n\n### 3. `changeWorkspacePlan` — broken three independent ways\n`workspace-client.ts:34` vs `routes.py:25`. Fixing the method alone still leaves it broken:\n\n- **405, not 404** (`crime_00003`): `PUT` vs declared `POST`. As the finding notes, a 405 on an existing path reads like an auth/permissions problem in logs, which is why this one burns debugging time.\n- **`plan` is never sent.** The handler signature is `change_team_plan(team_id: str, plan: str)` — `plan` is a bare scalar not in the path, so FastAPI treats it as a **required query parameter**. The client passes `plan` into the function and then never puts it in the URL or a body. Post-method-fix, this returns **422 Unprocessable Entity**. Not detected by the scan.\n- **`:id` is a literal** (see #4).\n\nThe `id` and `plan` arguments to `changeWorkspacePlan` are both entirely unused. That's the tell.\n\n### 4. `:id` is never interpolated — silent wrong data, no error\n`workspace-client.ts:28` and `:34` pass `\":id\"` as a literal string; there's no template interpolation. FastAPI happily matches `/api/teams/:id/seats` against `/api/teams/{team_id}/seats` with `team_id = \":id\"`.\n\n**This is the worst failure mode in the file**: HTTP 200, well-formed JSON, wrong-by-construction data. Nothing alerts. It ranks below the 404s only because those are certain to be noticed on day one — this one ships.\n\nIt's masked further by a backend bug: `team_seats` (`routes.py:20`) ignores `team_id` entirely and returns `seats_for(Plan.FREE)` — hardcoded **1 seat for every team**. So the endpoint currently returns a plausible answer no matter what garbage ID you send it, which is exactly why nobody would catch the `:id` bug through testing.\n\n### 5. Plan enum drift — latent, and it corrupts data rather than erroring\n`plans.py:10` vs `workspace-client.ts:10` (`crime_00001`, the scan's only `high`). Both directions fail, asymmetrically:\n\n- **Backend → frontend:** a team on `\"team\"` or `\"scale\"` deserializes into a `Workspace` whose `plan` field violates its own TypeScript type. TS won't catch it — `res.json()` is `any`. Any `switch` over `Plan` silently falls through.\n- **Frontend → backend:** `\"enterprise\"` reaches `change_team_plan`, which types `plan` as a plain `str` and validates nothing (it doesn't use the `Plan` enum at all, despite importing it). The value is stored. Then `seats_for` (`plans.py:27`) does `SEATS_INCLUDED.get(plan, 1)` — an unknown plan **silently resolves to 1 seat**. I confirmed the lookup behavior: `str`-Enum keys do match raw strings, so `\"pro\"` → 3 correctly; `\"enterprise\"` → the `1` default. An enterprise customer gets a free-tier seat allowance with no error anywhere.\n\nThat last chain is the strongest argument for the finding's `unify_closed_set` action: the drift isn't a type-checking annoyance, it's a billing correctness bug.\n\n### 6. `team` vs `workspace` naming — the root cause, not a separate bug\n`crime_00004`, rated `low`, and that's right for direct failure — it breaks nothing by itself. But it's the mechanism behind #1 and #2, and the finding's own framing is the important part: an agent asked to \"fix the workspace endpoints\" greps `workspace`, finds only the TypeScript half, and edits one side of a boundary it can't see.\n\nOne disagreement with the suggested action: it proposes `\"organization\"`, a **third** name that appears nowhere in the codebase. Pick `team` (matches the wire format, so the URLs stop being wrong) or `workspace` (matches the UI), and rename the other side. Introducing a third vocabulary is how you get three-way drift.\n\n---\n\n## Scan findings I'd set aside\n\n**`crime_00002` — \"False Identity\" on `getWorkspace`** is a false positive here. The detector flags `fetch` as a side effect under a `get*` name, but a read-only HTTP GET is exactly what `getWorkspace` promises. Every function in this file would trip it. The real problem with `getWorkspace` is the 404 in #2, which the detector didn't see.\n\n## What the scan got right vs. what it missed\n\nRight: both route-drift findings, the enum drift, and the naming root cause — 4 real disagreements, correctly attributed to both files, with the 405-vs-404 distinction called out.\n\nMissed: the concatenated-URL 404 in `getWorkspace` (self-disclosed limitation), the literal `:id` placeholder at two sites, and the missing required `plan` query param. All three are *within* a path the detector already matched — they're argument-level drift, not path-level. Worth noting if this fixture is calibration input: the cross-language pack currently checks method and path, not parameters.\n\n**Bottom line:** all four endpoints are broken. Two fail closed (404), one fails closed after a misleading 405 and would then fail again (422), and one fails *open* — returning 200 with data for the wrong team. Fix the `:id` interpolation first if you care about correctness over uptime; it's the only one that isn't already visibly broken.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": "packages/web/src/workspace-client.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": "packages/api/billing/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

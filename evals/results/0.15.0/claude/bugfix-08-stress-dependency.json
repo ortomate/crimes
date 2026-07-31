@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:13:49.956Z",
+  "run_id": "a3398893-6129-42ae-a3b0-285fca382df7",
+  "response": "## The cycle\n\nThree files, one ring:\n\n```\napplication/billing-flow.ts ──→ domain/billing.ts ──→ presentation/invoice-view.ts\n        ▲                                                          │\n        └──────────────────────────────────────────────────────────┘\n```\n\n- `billing-flow.ts:1` → `chargeCustomer` from domain\n- `billing.ts:2` → `renderInvoice` from presentation\n- `invoice-view.ts:3` → `runBillingFlow` from application\n\nEvery edge is a **value** import used at call time (`chargeCustomer(100)`, `renderInvoice(amount)`, `runBillingFlow()`), so this isn't just a graph smell — it's genuine mutual recursion: `runBillingFlow → chargeCustomer → renderInvoice → runBillingFlow → …` with no base case. That's your runtime error. Under ESM you'll hit `RangeError: Maximum call stack size exceeded`; under transpiled CJS you may instead see `TypeError: renderInvoice is not a function` (or `undefined`) depending on which module the cycle is entered from, because one file gets a partially-populated `exports` object.\n\nNote the scan's suggested action offers \"convert one direction to `import type`\" — that escape hatch doesn't apply here. All three edges are runtime calls.\n\n## Break `domain/billing.ts → presentation/invoice-view.ts`\n\nTwo independent signals converge on this single edge:\n\n1. It's the only edge in the cycle that `crimes` *also* flags as a `layer_violation` (`crime_00002`) — `domain cannotImport presentation` per `crimes.config.json`.\n2. The other two edges are architecturally legal and directionally correct: `application → domain` is the intended flow, and `presentation → application` is permitted (the config only forbids `domain → *` and `application → presentation`).\n\nSo the other two edges cost you architecture to remove; this one costs you nothing, because it shouldn't exist under the team's own stated rules. Breaking it drops the ring to `presentation → application → domain` — a clean acyclic chain pointing inward, which is the direction the layering wants.\n\n## The fix\n\nDomain shouldn't be formatting output. Make `chargeCustomer` return data and let the presentation layer render it:\n\n```ts\n// src/domain/billing.ts — no presentation import\nexport interface Charge {\n  amount: number;\n}\n\nexport function chargeCustomer(amount: number): Charge {\n  return { amount };\n}\n```\n\n```ts\n// src/presentation/invoice-view.ts\nimport { chargeCustomer } from \"../domain/billing.js\";\n\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${chargeCustomer(amount).amount}`;\n}\n```\n\nThat also kills the infinite recursion, since `renderInvoice` no longer re-enters `runBillingFlow`. You'll want to decide separately whether `runBillingFlow` should still call into rendering at all — an application-layer function invoking a view is the shape that made the cycle possible in the first place, even though the config permits `application → presentation`... actually it doesn't: the rules forbid that too, and `billing-flow.ts` currently gets away with it only because it reaches presentation *transitively* through domain. Once you cut the domain edge, don't reintroduce it as a direct one.\n\nEffort is `medium` per the scan, mostly because `renderInvoice`'s callers change shape.\n\n## Unrelated\n\n`crime_00003` (deep import of `some-pkg/dist/internal/private/helper.js` at `billing-flow.ts:4`) is a separate low-severity issue — not part of the cycle, and fixing it won't affect the runtime error. Worth a quick follow-up since it's `effort: quick`, but don't bundle it into this change.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:28:17.741Z",
+  "run_id": "dce81324-9456-408f-bc5f-65a7b56f9c88",
+  "response": "I’m using the `crimes-codebase-risk` skill because this is a risk-led TypeScript refactor assessment. I’ll inspect its workflow, then run the requested file context and rank three changes from that evidence.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m switching to the repository’s locally built CLI—the documented equivalent for an unpublished checkout.\n\n`crimes context` rates [src/billing.ts](/Users/andrew/dev/crimes/examples/messy-ts-app/src/billing.ts) as **high risk**: 6 findings, including 1 high.\n\n1. **Break `generateInvoice` into pure, named stages.**  \n   The `large_function` finding flags lines 50–253: 204 lines, 3.4× the domain threshold. Extract pricing, loyalty discount, promo resolution, fraud scoring, currency selection, email rendering, and notification/metrics effects. Reuse the existing `tax()` function instead of duplicating its rules. Keep `generateInvoice` as a thin orchestrator so each policy can be tested independently.\n\n2. **Inject time rather than reading the system clock.**  \n   The `direct_date` finding identifies seven clock reads at lines 57, 63, 92, 198, 238, 250, and 273. Pass a single `now` value or injected `Clock` into invoice generation and upgrade recommendation. This prevents timestamps and age-based discounts from disagreeing within one operation and makes boundary tests deterministic.\n\n3. **Separate refund calculation, authorization, and side effects.**  \n   `calculateRefundPreview` triggers both `name_behavior_mismatch` and `logic_in_comments`: despite its preview-like name, it writes an audit record and sends email, while the owner/support authorization rule exists only in a comment at line 39. Make the preview calculation pure, add an explicit authorization guard for enterprise refunds, and move audit/email work into a clearly named command such as `requestRefund`.\n\nI’d strengthen [src/billing.test.ts](/Users/andrew/dev/crimes/examples/messy-ts-app/src/billing.test.ts) around these seams before moving code—the scan separately reports one assertion-free test and another that only checks truthiness.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

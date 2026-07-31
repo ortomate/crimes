@@ -1,0 +1,53 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T23:05:12.430Z",
+  "run_id": "85441e81-5a31-4805-b429-18f1b3522659",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to interpret the scan conservatively, then I’ll inspect the flagged function so the refactor plan matches its actual responsibilities and branch behavior.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m using the supplied JSON as the authoritative scan result. I’m checking the fixture source directly now to turn the finding into a behavior-preserving extraction plan.\n\nThe refactor target is `build_invoice` in `domain/invoicing.py` (lines 15–75), the scan’s only God Function.\n\nWhat makes it risky beyond 61 lines:\n\n- Nesting reaches five levels across several pricing rules.\n- It combines item validation, subscription/usage pricing, caps, warnings, coupons, tax, formatting, and response assembly.\n- It reads two incompatible naive clocks (`now()` and `utcnow()`), making behavior nondeterministic and timezone-dependent.\n- Its module participates in an import cycle with `api/rendering.py`; moving imports carelessly could cause startup failures.\n- Five untyped parameters and dictionary-shaped inputs hide the data contract.\n- Three importers increase the blast radius, while the scan reports a test gap.\n- Boundary cases interact: prepaid annual subscriptions, usage caps, expired/stackable coupons, VAT, and display formatting can alter the same result.\n\nConcrete refactor plan:\n\n1. Add characterization tests covering every item kind, invalid quantities, the usage cap, all coupon variants, VAT, warnings, skipped items, and the returned dictionary shape.\n2. Introduce typed inputs/results—initially `TypedDict` or dataclasses—without changing the public function signature.\n3. Extract pure helpers:\n   - `_price_line_item(item) -> LineItemResult`\n   - `_calculate_line_items(items) -> subtotal/skipped/warnings`\n   - `_calculate_discount(subtotal, coupon, now) -> amount`\n   - `_assemble_invoice(...) -> Invoice`\n4. Inject a clock so tests can supply a fixed instant. In a separately tested change, standardize on timezone-aware UTC.\n5. Break the rendering cycle by moving `format_money` and `LINE_ITEM_CAP` into dependency-free leaf modules. Domain code must not import from `api`.\n6. Leave `build_invoice` as a thin orchestrator: obtain time, calculate line items, calculate discount, apply VAT, format, assemble.\n7. Run the characterization suite after each extraction, then rescan and ensure no new high-severity findings appear.\n\nOne nuance: `get_invoice` has the highest individual `agent_risk` score (`0.46`) because it blocks an async request path. But for a structural function refactor, `build_invoice` is the riskiest target because several independent hazards converge inside and around that function.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

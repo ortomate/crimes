@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T23:11:29.222Z",
+  "run_id": "a7c823c9-ea30-4cef-a094-5be68957dc3b",
+  "response": "Ran it — the scan returns exactly one finding. Here's what it means for your refactor, plus what the scan alone doesn't tell you.\n\n## What the scan flagged\n\nOne high-severity `weak_test_signal` (confidence 0.85) on `tests/test_reporting.py`: **4 of 4 test functions, 0 assertions.** They call the code and let it return. Green means \"did not raise,\" nothing more.\n\n## Genuinely covered vs. only look covered\n\n| Function | Executed by tests? | Asserted? | Verdict |\n|---|---|---|---|\n| `rates.rate_for` | yes | yes — 3 value assertions | **genuinely covered** |\n| `rates.is_zero_rated` | yes | partially — only False outcomes | **partly covered** |\n| `ledger.post_entry` | yes, *indirectly* | no | **coverage illusion** |\n| `ledger.reverse_entry` | no | no | **untested, and honest about it** |\n| `reporting.build_report` | yes | no | **coverage illusion** |\n| `reporting.export_report` | csv + json only | no | **coverage illusion** |\n\n**Genuinely protected: `billing/rates.py`.** `tests/test_rates.py:6-17` asserts real values — `rate_for(\"GB\") == 0.20`, `rate_for(\"DE\") == 0.19`, unknown region falls back to `DEFAULT_RATE`. Break the lookup table or the fallback and the suite goes red. One gap: `is_zero_rated` is only ever asserted false (`GB`, `FR`), and no region in `RATES` is actually zero — so the True branch has never run. Add a zero-rate region during the refactor and nothing catches a wrong answer.\n\n**The dangerous case — `billing/ledger.py`.** It has no test file of its own, but `reporting.build_report` imports and calls `post_entry` (`reporting.py:3,7`), so the hollow tests *execute* it four times. A line-coverage report would show `post_entry` as covered. Nothing anywhere asserts on `gross = amount * (1 + rate_for(region))` (`ledger.py:7`). You could invert that to `amount * (1 - rate)`, drop the `1 +`, or swap `net` and `gross` in the returned dict and the suite stays green. This is the single riskiest line in the package to touch. `reverse_entry` is at least honestly naked — never called, never asserted.\n\n**`billing/reporting.py` — four tests, zero protection.** `build_report` could return an empty `lines` list, the wrong `region`, or a `total` of zero and all four tests pass. `export_report`'s csv branch (`reporting.py:18`) formats with `\"%s,%.2f\"` — no test checks the string, the field order, or the 2-decimal rounding. The json branch is likewise only smoke-run. And the `raise ValueError` path (`reporting.py:21`) is never exercised at all: there's no `pytest.raises` anywhere, so the error contract is entirely unverified.\n\n## Two things not to over-read in the JSON\n\nThe finding's `test_gap: 0` and `blast_radius: 0` describe the *test file* it's anchored to, not the health of `reporting.py`. And the scan surfaced no finding at all for `ledger.py` having no test file — I got that from reading the tree, not from the scan. Treat the one finding as a pointer, not the full picture.\n\n## Before you refactor\n\nThe dependency chain is `rates → ledger → reporting`. Your only real assertions sit at the bottom leaf. Everything above it is unguarded, and the hollow tests actively disguise that by keeping `post_entry` in the executed-lines column.\n\nCheapest path to actual safety, in order:\n1. Assert on `post_entry`'s `gross` for a known region — one test, covers the arithmetic that everything downstream depends on.\n2. Assert `build_report`'s `total` and `lines`, and the exact csv string from `export_report`.\n3. Add `pytest.raises(ValueError)` for the unsupported-format branch.\n4. Add a `reverse_entry` test and a zero-rate case for `is_zero_rated`.\n\nSteps 1–2 are where the leverage is; the current suite's green is load-bearing on nothing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      }
+    ]
+  }
+}

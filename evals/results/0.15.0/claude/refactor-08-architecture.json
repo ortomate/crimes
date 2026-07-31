@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:32:50.492Z",
+  "run_id": "79f4e838-6831-41e8-801c-7dfe39cf360d",
+  "response": "I read the four fixture files to ground the proposal against the actual import graph.\n\n**Not editing anything here** — this fixture is a deliberately broken eval input; changing it would move the 0.15.0 baseline. What follows is the proposal.\n\n## The graph\n\n```\npresentation/invoice-view.ts ──▶ application/billing-flow.ts ──▶ domain/billing.ts\n        ▲                                     │                          │\n        └─────────────────────────────────────┼──────────────────────────┘\n                    (the illegal back-edge)    └──▶ some-pkg/dist/internal/private/helper.js\n```\n\nThree findings, but **two** actual defects. `crime_00001` (Circular Dependency, high) and `crime_00002` (Layer Violation, medium) are the same line of code seen through two detectors — `src/domain/billing.ts:2` is both the rule-breaking edge and the edge that closes the ring. Fix it once, both clear.\n\n## Change 1 — break it, don't redirect it\n\n**Finding:** `crime_00002` layer_violation → *\"src/domain/billing.ts (layer: domain) imports src/presentation/invoice-view.ts (layer: presentation)\"*, rule `domain cannotImport presentation`. Also clears `crime_00001` (*\"cycle size: 3 files\"*).\n\n`chargeCustomer` currently delegates its entire body to `renderInvoice` — the domain function *is* a formatting call. There's no collaboration to route through an interface; there's a misplaced responsibility. So: break the edge, invert the direction.\n\n```ts\n// src/domain/billing.ts — no imports at all; domain becomes a leaf\nexport interface Charge { amount: number }\n\nexport function chargeCustomer(amount: number): Charge {\n  return { amount };\n}\n```\n\n```ts\n// src/presentation/invoice-view.ts — formatting stays where it belongs\nimport { runBillingFlow } from \"../application/billing-flow.js\";\nimport { chargeCustomer } from \"../domain/billing.js\";\n\nexport function renderInvoice(amount: number): string {\n  runBillingFlow();\n  return `Invoice: ${chargeCustomer(amount).amount}`;\n}\n```\n\n`presentation → application → domain` is legal under the configured rules (only `domain` and `application → presentation` are constrained), and the graph is now a DAG.\n\nReach for a port — `chargeCustomer(amount, { present }: InvoiceRenderer)` with the concrete renderer wired at a composition root — **only** if the domain genuinely needs to trigger a side effect it can't own (a receipt email, an audit record). Here it needs a string template, so a port is ceremony that leaves the coupling in place and just makes it harder to see.\n\n## Change 2 — redirect through an adapter\n\n**Finding:** `crime_00003` deep_import → *\"specifier: some-pkg/dist/internal/private/helper.js\"* at `src/application/billing-flow.ts:4`.\n\nTwo options, in preference order:\n\n1. `import { internalHelper } from \"some-pkg\"` — if the symbol is on the public surface, this is the whole fix. `effort: \"quick\"`, done.\n2. If it isn't exported, confine it. One infrastructure-owned module becomes the only file in the repo that knows the private path:\n\n```ts\n// src/infrastructure/some-pkg-adapter.ts\n// Reaches past some-pkg's published surface — internalHelper is unexported.\n// Upstream issue: <link>. Delete this file once it lands on the public entry.\nimport { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n\nexport function runHelper(): void {\n  internalHelper();\n}\n```\n\n`application → infrastructure` is unconstrained by the config, so this is legal, and the blast radius of the next `some-pkg` release drops from \"every consumer\" to one file with a comment explaining itself. That's the \"proper interface\" in this scenario — the adapter, not a port. Per the finding's own `use_public_entry` action: file the upstream issue rather than coding around it permanently.\n\nNote the specifier crosses `dist/` — you're not just past the API boundary, you're past the *build* boundary. A bundler swap upstream moves that path with no semver signal at all.\n\n## How the two differ in agent risk\n\nScores: layer_violation `0.34`, deep_import `0.29`, on identical `blast_radius` (0.06 / 3 importers), `test_gap` (0.5) and `churn`. The gap is severity (0.6 vs 0.35) and confidence (0.95 vs 0.85). What that encodes:\n\n**layer_violation is a replication risk.** The rule lives in `crimes.config.json`, not in the source. An agent opening `src/domain/billing.ts` sees `import { renderInvoice } from \"../presentation/invoice-view.js\"` — a valid relative import, resolving cleanly, with a passing test suite. Nothing in the file says this is forbidden. So when asked to add a credit-note path, the agent copies the shape it found: a second presentation import, more formatting pulled into domain. Every extension is locally correct and globally wrong, and the inversion deepens at the rate the agent works. Confidence is 0.95 because the rule was *declared* — no inference, the team wrote it down. Severity is higher because the compounding is already visible: this edge is what created the cycle, so the next edit inside that ring risks re-entrancy and unreliable tree-shaking on top of the direction inversion.\n\n**deep_import is an inheritance risk.** The code is correct today. It stays correct until someone else's release notes move `dist/internal/private/helper.js`, and no amount of reading this repo will reveal that — the failure condition lives in another project's changelog. An agent can't reason about it from available evidence, so it propagates the specifier by copy-paste when it needs the same helper elsewhere. But it's contained: one specifier, one file, `effort: \"quick\"`, and it fails *loudly* at build time with module-not-found rather than silently producing wrong behaviour. Confidence 0.85, not 0.95, because \"≥3 segments past the package name plus a private marker\" is a heuristic — some packages legitimately publish deep subpaths through their `exports` map.\n\nPractical read: layer_violation gets worse the more agent throughput you point at the repo; deep_import doesn't get worse, it just waits. Fix the layer violation first — and it's free, since it takes the high-severity cycle with it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "circular_dependency",
+        "passed": false
+      }
+    ]
+  }
+}

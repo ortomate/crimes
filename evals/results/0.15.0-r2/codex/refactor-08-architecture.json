@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T23:01:13.510Z",
+  "run_id": "88c03d8e-f38c-4cc7-8d9d-132ec96810df",
+  "response": "The two architecture findings call for different fixes:\n\n| Finding | Import | Change |\n|---|---|---|\n| `crime_00002` — `layer_violation`, medium, agent risk `0.34` | `src/domain/billing.ts` → `src/presentation/invoice-view.ts` | Break this dependency. Define a domain-owned interface or return domain data/events from `billing.ts`; have the presentation layer implement formatting/rendering, with `billing-flow.ts` wiring them together. |\n| `crime_00003` — `deep_import`, low, agent risk `0.29` | `src/application/billing-flow.ts` → `some-pkg/dist/internal/private/helper.js` | Redirect to the package’s documented public entry point, such as `some-pkg` or an exported subpath. If the helper is not public, replace it with a supported API or request an upstream export rather than depending on `dist/internal`. |\n\nFor `crime_00002`, the desired direction is approximately:\n\n```text\ndomain: defines billing model and required interface\n              ↑\napplication: coordinates the use case and dependencies\n              ↓\npresentation: implements rendering/formatting\n```\n\nThe domain must not know about `invoice-view.ts`. Moving the shared contract into a neutral/domain-owned module would also remove one edge from the reported three-file circular dependency (`crime_00001`), potentially resolving both findings together. Merely relocating the same presentation import behind a domain helper would hide, not repair, the inversion.\n\nThe risks differ:\n\n- A `layer_violation` breaks the repository’s declared dependency policy. It gives an agent the wrong architectural precedent, encourages further inward-to-outward coupling, and can expand across multiple local modules. Here it also participates in an existing cycle, so its agent risk is higher.\n- A `deep_import` may respect the local layer direction but bypasses an external package’s supported API. An agent may confidently modify or reuse private implementation details that can disappear on upgrade. Its scope is narrower and the correction is usually mechanical, hence the lower severity and agent-risk score.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

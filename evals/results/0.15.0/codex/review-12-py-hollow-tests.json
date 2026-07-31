@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:41:55.866Z",
+  "run_id": "fbbc2b42-1bae-4b77-90bc-c959bf0c1ec2",
+  "response": "The scan does not establish that any part of the billing package is genuinely protected; it detects test quality signals, not line or branch coverage.\n\nWhat only looks covered is the reporting surface in `tests/test_reporting.py`:\n\n- `test_build_report`\n- `test_export_report`\n- `test_export_report_json`\n- `test_round_trip`\n\nAll four execute production code but contain zero assertions. They prove only that those paths do not raise exceptions for the tested inputs. They do not verify report contents, export destinations or side effects, JSON structure or values, or round-trip fidelity. Incorrect but non-crashing behavior would still pass every test.\n\nThe key distinction is:\n\n- **Execution coverage:** the reporting operations are invoked.\n- **Behavioral protection:** none is demonstrated, because no expected result or side effect is checked.\n\nThe remaining package may have stronger tests—the scan found no other weak-test-signal findings—but that absence is not proof of genuine coverage. This output contains neither a coverage report nor evidence about which production branches are exercised. Before refactoring, treat reporting as effectively unprotected and inspect or measure the other tests separately. Strengthen these four tests with assertions on returned values, serialized JSON, written output, and exact round-trip equivalence.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

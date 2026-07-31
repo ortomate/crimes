@@ -1,0 +1,47 @@
+{
+  "scenario": "context-13-polyglot-rename",
+  "agent": "codex",
+  "crimes_version": "0.15.0",
+  "timestamp": "2026-07-31T22:50:23.022Z",
+  "run_id": "b4b0dedc-cc88-4f99-9f22-b4cf32517a62",
+  "response": "The core domain object is the tenant, but its name has drifted across the language boundary:\n\n- Python calls it `team`.\n- TypeScript calls it `workspace`.\n- `crimes` recommends the shared name `organization`.\n\nA complete rename would touch all three scanned files:\n\n- `packages/api/billing/plans.py`\n  - `Plan` docstring/reference using “team.”\n- `packages/api/billing/routes.py`\n  - `get_team`\n  - `create_team`\n  - `team_seats`\n  - `change_team_plan`\n  - Route paths and parameters such as `/api/teams/{team_id}/plan`.\n- `packages/web/src/workspace-client.ts`\n  - `getWorkspace`\n  - `createWorkspace`\n  - `workspaceSeats`\n  - At least one additional workspace-named symbol.\n  - Client paths such as `/api/workspaces` and `/api/teams/:id/plan`.\n\nThe rename is therefore an API-contract change, not merely a symbol rename: function names, route paths, path parameters, client URLs, and documentation all need to move together.\n\n`crimes` also found adjacent contract drift on this surface:\n\n- `POST /api/workspaces` has no matching backend route.\n- The client uses `PUT /api/teams/:id/plan`, while the backend declares `POST`.\n- The `Plan` closed set differs:\n  - Python: `free`, `pro`, `team`, `scale`\n  - TypeScript: `free`, `pro`, `enterprise`\n- `getWorkspace` performs a `fetch`, so its read-like name may conceal side effects.\n\nNo files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": "packages/api/billing/routes.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": "packages/web/src/workspace-client.ts",
+        "passed": true
+      }
+    ]
+  }
+}
