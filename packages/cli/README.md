@@ -15,6 +15,18 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.15.0` headline:** polyglot IA + monorepo coverage — findings no
+single-language tool can produce. Three cross-language detectors report
+disagreements *between* Python and TypeScript: a frontend calling a
+path the backend doesn't serve (`cross_language_route_drift`), a Python
+`Enum` and a TS string-literal union that have diverged
+(`cross_language_type_drift`), and the same concept called `team` on
+one side and `workspace` on the other
+(`cross_language_concept_alias_drift`). Every file is individually
+correct and every type checker passes; the system is still broken.
+`coverage.by_package` says which package in a mixed monorepo is the
+Python one. Single-language repos are unaffected — all three return
+early unless two languages are present.
 **`0.14.0` headline:** the Python language pack. `crimes scan` now
 parses `.py` / `.pyi` and reports Python findings alongside JavaScript
 ones in one report — `packs_loaded: ["universal", "language-js",
@@ -90,7 +102,7 @@ npx crimes scan .
 
 ## What it does
 
-Run `crimes` against any TypeScript / JavaScript repository:
+Run `crimes` against any TypeScript / JavaScript / Python repository:
 
 ```bash
 # Per-file / per-directory
@@ -112,7 +124,7 @@ crimes baseline check --fail-on medium          # fail CI only on new debt
 crimes verdict --base origin/main --fail-on new-high  # branch-level gate
 ```
 
-The JSON output is the **stable product API** (`schema_version: "0.2.0"`).
+The JSON output is the **stable product API** (`schema_version: "0.3.0"`).
 Every report carries a `report_type` discriminator (`"scan"`, `"context"`,
 `"hotspots"`, `"diff"`, `"baseline"`, `"baseline_check"`, `"verdict"`).
 Agents should consume it directly.

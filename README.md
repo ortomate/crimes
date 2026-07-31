@@ -129,11 +129,36 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.14.0`
+## Status — `crimes@0.15.0`
 
-`crimes@0.14.0` is the latest published version on npm. It is the
-**Python language pack**: `crimes scan` now parses `.py` / `.pyi` and
-reports Python findings alongside JavaScript ones in the same report.
+`crimes@0.15.0` is the latest published version on npm. It is
+**polyglot IA + monorepo coverage** — the release where `crimes` starts
+reporting problems that no single-language tool can see.
+
+Three cross-language detectors report disagreements *between* Python
+and TypeScript: `cross_language_route_drift` (the frontend calls a path
+the backend doesn't serve, or the two disagree on the HTTP method),
+`cross_language_type_drift` (a Python `Enum` and a TS string-literal
+union that have diverged), and `cross_language_concept_alias_drift`
+(the same concept called `team` in one language and `workspace` in the
+other).
+
+Every individual file in those cases is correct. Every type checker
+passes. The system is still broken — and an agent asked to "add a field
+to the workspace" greps for `workspace`, finds only the TypeScript
+half, and ships one side of a two-sided change.
+
+`ScanReport.coverage.by_package` answers the companion question on a
+monorepo: the repo-wide language split says a repo is 75% TypeScript,
+`by_package` says *which package* is the Python one.
+
+Schema stays `0.3.0` — `Finding.pack: "cross-language"` and
+`coverage.by_package` land additively, fingerprints are unchanged.
+Release notes: [`docs/releases/v0.15.0.md`](./docs/releases/v0.15.0.md).
+
+Earlier `0.14.0` work (_the Python language pack_) remains shipped:
+`crimes scan` parses `.py` / `.pyi` and reports Python findings
+alongside JavaScript ones in the same report.
 
 ```console
 $ crimes scan . --explain-coverage

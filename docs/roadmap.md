@@ -4,8 +4,18 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.14.0` (npm) ✅ shipped — the
-  Python language pack. `packages/language-py/` registers `.py` /
+- **Last published version:** `crimes@0.15.0` (npm) ✅ shipped —
+  polyglot IA + monorepo coverage, and the release the whole
+  wider-codebase-support arc was building toward. Three cross-language
+  detectors report disagreements *between* Python and TypeScript that
+  neither language's own tooling can see: a frontend calling a path the
+  backend doesn't serve, a closed set listed differently on each side,
+  and the same concept named `team` in one language and `workspace` in
+  the other. `ScanReport.coverage.by_package` says which *package* is
+  the Python one in a mixed monorepo. Schema stays `0.3.0`;
+  fingerprints unchanged. Release notes:
+  [`docs/releases/v0.15.0.md`](./releases/v0.15.0.md).
+  Previous: `crimes@0.14.0` — the Python language pack. `packages/language-py/` registers `.py` /
   `.pyi` and ships eight detectors, proving the 0.12.0 pack seam is
   reusable rather than JS-shaped. No Python runtime required at
   install or scan time (vendored WebAssembly `tree-sitter-python`, no
@@ -65,6 +75,49 @@ mirror, not a planning doc.
 | M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
 | M5 — Public launch            | ✅ completed in `0.6.0` — full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/) via Astro + Starlight; landing page unchanged. |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
+
+---
+
+## ✅ Shipped in `crimes@0.15.0`
+
+> **Theme: polyglot IA + monorepo coverage** — the third and final
+> release of the wider-codebase-support arc, and the one where the
+> wedge becomes something no single-language tool can copy.
+>
+> Release notes: [`docs/releases/v0.15.0.md`](./releases/v0.15.0.md).
+> Design spec:
+> [`docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md`](./superpowers/specs/2026-05-22-wider-codebase-support-design.md)
+> (which calls this release `0.14.0` — see the renumbering note at the
+> top of that file).
+
+- **Three cross-language detectors.** `cross_language_route_drift`,
+  `cross_language_type_drift`, `cross_language_concept_alias_drift`.
+  Each reports a disagreement *between* two languages: every
+  individual file is correct, every type checker passes, and the
+  system is still broken.
+- **A per-scan detector context.** `CrossLanguageDetectorContext` is
+  the first context that describes the whole corpus rather than one
+  file, because a cross-language finding is by definition about two.
+  Findings still carry an anchor `file` so fingerprints, baselines,
+  suppressions and triage are unaffected.
+- **`coverage.by_package`.** Per-package file counts and dominant
+  language on monorepos. Absent on single-package repos, so presence
+  is the "this is a monorepo" signal. `dominant_language` needs a
+  strict majority.
+- **New parser surfaces** the spec didn't budget for: `routes`,
+  class `members` and `docstring` on the Python side; `fetchSites`
+  and `stringUnionTypes` on the JS side. Consumed only by the
+  cross-language pack.
+- **Website drift closed.** The version guard added at the end of
+  0.14.0 fired on its first real release, and the landing page's
+  "TypeScript and JavaScript" claim — wrong since 0.14.0 — is fixed
+  in all six places it appeared.
+- **Eval harness:** polyglot fixture `13-polyglot-monorepo` and 4
+  cross-language scenarios across four kinds. 48 scenarios over 13
+  fixtures.
+
+Schema stays `0.3.0`. `Finding.pack: "cross-language"` and
+`coverage.by_package` land additively.
 
 ---
 
@@ -1218,7 +1271,13 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
 ## 🚧 Planned for later versions
 
-### Wider codebase support — `0.15.0`
+### Wider codebase support — ✅ arc complete
+
+> All three releases shipped: `0.12.0` universal pack, `0.14.0` Python
+> pack, `0.15.0` polyglot IA + monorepo coverage. Retained below for
+> the record of what was in scope.
+
+### (shipped) Wider codebase support — `0.15.0`
 
 > **Design spec:**
 > [`docs/superpowers/specs/2026-05-22-wider-codebase-support-design.md`](./superpowers/specs/2026-05-22-wider-codebase-support-design.md).

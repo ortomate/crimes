@@ -1,7 +1,9 @@
 # crimes
 
-> crimes is an open-source command-line tool that scans TypeScript and
-> JavaScript repositories for change risk and AI-agent risk. It runs
+> crimes is an open-source command-line tool that scans TypeScript,
+> JavaScript and Python repositories for change risk and AI-agent risk,
+> including disagreements between languages that neither side's own
+> tooling can see. It runs
 > locally with no cloud calls, ships a stable versioned JSON contract
 > so AI coding agents can consume its output safely, and is MIT-licensed.
 
@@ -17,7 +19,7 @@ Core principles:
 - Evidence before judgement. Every finding cites concrete AST or git
   evidence (line ranges, churn counts, import patterns).
 - JSON output is the product contract. Every report carries a
-  `schema_version` (currently `"0.2.0"`) and a `report_type`
+  `schema_version` (currently `"0.3.0"`) and a `report_type`
   discriminator (`"scan"`, `"context"`, `"hotspots"`, `"diff"`,
   `"baseline"`, `"baseline_check"`, `"verdict"`, `"explain"`,
   `"suppressions"`, `"audit_suppressions"`, `"triage"`). Breaking
@@ -32,7 +34,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.12.0)
+## Commands (latest published v0.15.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -338,7 +340,47 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.14.0 — Python language pack (current release)
+## 0.15.0 — polyglot IA + monorepo coverage (current release)
+
+The release where crimes reports problems no single-language tool can
+see. Three cross-language detectors report disagreements *between*
+Python and TypeScript:
+
+- `cross_language_route_drift` — the frontend calls a path no backend
+  route declares, or the two sides disagree about the HTTP method. A
+  missing path fails as a 404 that reads like a data problem; a method
+  mismatch fails as a 405 that reads like a permissions problem.
+- `cross_language_type_drift` — a closed set declared in both languages
+  (a Python Enum, a TypeScript string-literal union) whose members have
+  diverged. Whichever side is narrower rejects values the other already
+  produces.
+- `cross_language_concept_alias_drift` — the same product concept named
+  `team` in Python and `workspace` in TypeScript. An agent asked to
+  change "the workspace" greps for one name and finds half the code.
+
+In each case every individual file is correct and every type checker
+passes. Neither language's linter can see the other half, so these
+survive review and reach production.
+
+Cross-language detectors run once per scan rather than once per file,
+over the whole parsed corpus. They never fire one-sided (both languages
+must be present), only use evidence quotable verbatim, and require real
+overlap before calling two same-named things a disagreement. Matching
+is on literal path and member strings, not resolved symbols — a
+cross-language import graph remains deferred.
+
+`ScanReport.coverage.by_package` reports per-package file counts and
+dominant language on monorepos, answering which *package* is the Python
+one in a repo the top-level split calls 75% TypeScript. Absent on
+single-package repos.
+
+Schema stays 0.3.0; `Finding.pack: "cross-language"` and
+`coverage.by_package` land additively. Fingerprints unchanged.
+
+Release notes:
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.15.0.md
+
+## 0.14.0 — Python language pack
 
 `crimes scan` now parses `.py` / `.pyi` via `@crimes/language-py` and
 reports Python findings alongside JavaScript ones in the same report.
