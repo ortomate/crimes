@@ -1,6 +1,20 @@
+import { Writable } from "node:stream";
 import { describe, expect, it } from "vitest";
 import type { ScanReport } from "@crimes/core";
-import { buildCoverageBanner } from "./coverage.js";
+import { buildCoverageBanner, renderCoverageExplain } from "./coverage.js";
+
+/** Collect everything written to a stream as one string. */
+function capture(fn: (out: Writable) => void): string {
+  let buf = "";
+  const out = new Writable({
+    write(chunk, _enc, cb) {
+      buf += String(chunk);
+      cb();
+    },
+  });
+  fn(out);
+  return buf;
+}
 
 function coverage(
   filesTotal: number,
@@ -44,6 +58,33 @@ describe("buildCoverageBanner", () => {
   it("labels the no-pack case explicitly", () => {
     const banner = buildCoverageBanner(coverage(100, 100, []));
     expect(banner).toContain("(no language packs loaded)");
+  });
+
+  it("renders the universal-only histogram largest-first", () => {
+    const cov = {
+      ...coverage(100, 40)!,
+      universal_only_by_extension: { ".md": 5, ".py": 30, ".json": 5 },
+    };
+    const out = capture((s) => renderCoverageExplain(cov, s));
+    expect(out).toContain(".py: 30");
+    expect(out).toContain(".md: 5");
+    // Largest bucket first — it answers "which pack buys the most?"
+    expect(out.indexOf(".py")).toBeLessThan(out.indexOf(".md"));
+  });
+
+  it("collapses the long tail of extensions into one 'other' line", () => {
+    const many: Record<string, number> = {};
+    for (let i = 0; i < 10; i += 1) many[`.e${i}`] = 10 - i;
+    const cov = { ...coverage(100, 55)!, universal_only_by_extension: many };
+    const out = capture((s) => renderCoverageExplain(cov, s));
+    expect(out).toContain(".e0: 10");
+    expect(out).toContain("other (4 extensions): 10"); // .e6+.e7+.e8+.e9 = 4+3+2+1
+  });
+
+  it("omits the histogram entirely when the field is absent", () => {
+    const out = capture((s) => renderCoverageExplain(coverage(100, 40), s));
+    expect(out).toContain("files with only universal coverage: 40");
+    expect(out).not.toContain("other (");
   });
 
   it("treats a universal-only run as having no language packs", () => {

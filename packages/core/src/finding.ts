@@ -280,6 +280,16 @@ export interface ScanReport {
     /** Files no language pack claimed (universal pack ran on them). */
     files_universal_only: number;
     /**
+     * Histogram of the universal-only bucket by lower-cased file
+     * extension (`{".py": 48, ".go": 3}`); extensionless files bucket
+     * under `"(no extension)"`. Sums to `files_universal_only`.
+     *
+     * This is the demand signal for language packs: it answers "which
+     * pack would buy the most coverage in this repo?" Optional — absent
+     * on reports produced before 0.13.0.
+     */
+    universal_only_by_extension?: Record<string, number>;
+    /**
      * Pack ids that ran, always led by `"universal"` — e.g.
      * `["universal", "language-js"]`. Derived from the language-pack
      * router, so this reflects what actually executed.

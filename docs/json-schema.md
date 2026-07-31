@@ -181,6 +181,14 @@ interface ScanCoverage {
   /** Files that no language pack claimed (universal-pack coverage only). */
   files_universal_only: number;
   /**
+   * Histogram of the universal-only bucket by lower-cased extension,
+   * e.g. `{ ".py": 48, ".go": 3, "(no extension)": 1 }`. Sums to
+   * `files_universal_only`. This is the language-pack demand signal —
+   * it answers which pack would buy the most coverage in this repo.
+   * Optional; absent on reports produced before 0.13.0.
+   */
+  universal_only_by_extension?: Record<string, number>;
+  /**
    * Pack IDs that ran this scan, always led by `"universal"` — e.g.
    * `["universal", "language-js"]`. Derived from the language-pack
    * router, so it reflects what actually executed rather than what was

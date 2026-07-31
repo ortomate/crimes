@@ -28,6 +28,7 @@ export function renderCoverageExplain(
     out.write(`    ${label}: ${count}\n`);
   }
   out.write(`  files with only universal coverage: ${coverage.files_universal_only}\n`);
+  renderUniversalOnlyHistogram(coverage.universal_only_by_extension, out);
   if (coverage.files_universal_only > 0) {
     const tail =
       languagePacks(coverage.packs_loaded).length === 0
@@ -74,6 +75,40 @@ export function buildCoverageBanner(
 
 function shortPackId(full: string): string {
   return full.replace(/^language-/, "");
+}
+
+/** Extensions listed individually before the rest collapse into "other". */
+const HISTOGRAM_LIMIT = 6;
+
+/**
+ * Break the universal-only bucket down by extension, largest first.
+ *
+ * Without this the report says "48 files had universal coverage only"
+ * and leaves the reader unable to tell whether those are Python files
+ * worth a language pack or just .md and .json. Sorted by count so the
+ * first line is the answer to "which pack would buy the most here?".
+ */
+function renderUniversalOnlyHistogram(
+  histogram: Record<string, number> | undefined,
+  out: Writable,
+): void {
+  if (!histogram) return;
+  const entries = Object.entries(histogram).sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+  );
+  if (entries.length === 0) return;
+
+  const shown = entries.slice(0, HISTOGRAM_LIMIT);
+  const rest = entries.slice(HISTOGRAM_LIMIT);
+  for (const [ext, count] of shown) {
+    out.write(`    ${ext}: ${count}\n`);
+  }
+  if (rest.length > 0) {
+    const restTotal = rest.reduce((sum, [, n]) => sum + n, 0);
+    out.write(
+      `    other (${rest.length} extension${rest.length === 1 ? "" : "s"}): ${restTotal}\n`,
+    );
+  }
 }
 
 /**

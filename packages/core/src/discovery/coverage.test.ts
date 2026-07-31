@@ -53,6 +53,41 @@ describe("buildCoverage", () => {
     expect(cov.files_universal_only).toBe(2);
   });
 
+  it("breaks the universal-only bucket down by extension", () => {
+    const cov = buildCoverage({
+      files: ["/r/a.ts", "/r/x.py", "/r/y.py", "/r/z.md", "/r/Makefile"],
+      router: routerFor({ ".ts": "language-js" }),
+    });
+    expect(cov.files_universal_only).toBe(4);
+    expect(cov.universal_only_by_extension).toEqual({
+      ".py": 2,
+      ".md": 1,
+      "(no extension)": 1,
+    });
+  });
+
+  it("keeps the histogram summing to files_universal_only", () => {
+    const cov = buildCoverage({
+      files: ["/r/a.py", "/r/b.PY", "/r/c.rs", "/r/d.ts"],
+      router: routerFor({ ".ts": "language-js" }),
+    });
+    const total = Object.values(cov.universal_only_by_extension ?? {}).reduce(
+      (a, b) => a + b,
+      0,
+    );
+    expect(total).toBe(cov.files_universal_only);
+    // Extensions are lower-cased so .PY and .py share a bucket.
+    expect(cov.universal_only_by_extension?.[".py"]).toBe(2);
+  });
+
+  it("emits an empty histogram when every file is claimed", () => {
+    const cov = buildCoverage({
+      files: ["/r/a.ts"],
+      router: routerFor({ ".ts": "language-js" }),
+    });
+    expect(cov.universal_only_by_extension).toEqual({});
+  });
+
   it("picks up a newly registered pack without a second source of truth", () => {
     const cov = buildCoverage({
       files: ["/r/a.py"],
