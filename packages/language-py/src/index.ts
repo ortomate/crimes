@@ -44,4 +44,6 @@ export type {
   PyImport,
   PyInitializerKind,
   PyIoCall,
+  PyRoute,
+  PyClassMember,
 } from "./parse/types.js";

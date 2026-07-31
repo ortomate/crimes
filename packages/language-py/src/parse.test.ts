@@ -453,3 +453,131 @@ def two():
     expect([...assignLines].sort((a, b) => a - b)).toEqual(assignLines);
   });
 });
+
+describe("parsePyFile — routes (0.15.0)", () => {
+  it("captures FastAPI, Flask, and router routes with their paths", async () => {
+    const parsed = await parse(`
+@app.get("/api/users")
+async def list_users():
+    return []
+
+@router.post("/api/invoices/{invoice_id}")
+def create_invoice(invoice_id):
+    return invoice_id
+
+@bp.route("/legacy/billing")
+def legacy():
+    return "ok"
+`);
+    expect(parsed.routes.map((r) => [r.method, r.path, r.handler])).toEqual([
+      ["get", "/api/users", "list_users"],
+      ["post", "/api/invoices/{invoice_id}", "create_invoice"],
+      ["route", "/legacy/billing", "legacy"],
+    ]);
+  });
+
+  it("records the decorator receiver", async () => {
+    const parsed = await parse(`
+@app.get("/a")
+def a():
+    pass
+`);
+    expect(parsed.routes[0]!.receiver).toBe("app");
+  });
+
+  it("accepts a path passed by keyword", async () => {
+    const parsed = await parse(`
+@app.route(rule="/keyword")
+def k():
+    pass
+`);
+    expect(parsed.routes[0]!.path).toBe("/keyword");
+  });
+
+  it("skips a runtime-built path", async () => {
+    // Not quotable verbatim into evidence, and a half-known path would
+    // line up against the wrong fetch site.
+    const parsed = await parse(`
+@app.get(PREFIX + "/users")
+def u():
+    pass
+`);
+    expect(parsed.routes).toEqual([]);
+  });
+
+  it("does not mistake a project-local cache.get for a route", async () => {
+    const parsed = await parse(`
+@cache.get("some-key")
+def lookup():
+    pass
+`);
+    expect(parsed.routes).toEqual([]);
+  });
+
+  it("ignores a decorator whose literal is not a path", async () => {
+    const parsed = await parse(`
+@app.get("not-a-path")
+def x():
+    pass
+`);
+    expect(parsed.routes).toEqual([]);
+  });
+});
+
+describe("parsePyFile — class members and docstrings (0.15.0)", () => {
+  it("captures Enum members with their string values", async () => {
+    const parsed = await parse(`
+class Plan(str, Enum):
+    """Subscription tiers."""
+    FREE = "free"
+    PRO = "pro"
+    ENTERPRISE = "enterprise"
+`);
+    const cls = parsed.classes[0]!;
+    expect(cls.members.map((m) => [m.name, m.value])).toEqual([
+      ["FREE", "free"],
+      ["PRO", "pro"],
+      ["ENTERPRISE", "enterprise"],
+    ]);
+    expect(cls.docstring).toBe("Subscription tiers.");
+  });
+
+  it("captures assigned fields without a string value", async () => {
+    const parsed = await parse(`
+class Customer(BaseModel):
+    seats = 1
+    active = True
+`);
+    expect(parsed.classes[0]!.members.map((m) => [m.name, m.value])).toEqual([
+      ["seats", undefined],
+      ["active", undefined],
+    ]);
+  });
+
+  it("does not treat methods as members", async () => {
+    const parsed = await parse(`
+class Service:
+    NAME = "svc"
+    def run(self):
+        pass
+`);
+    expect(parsed.classes[0]!.members.map((m) => m.name)).toEqual(["NAME"]);
+  });
+
+  it("skips dunder assignments", async () => {
+    const parsed = await parse(`
+class A:
+    __slots__ = "x"
+    KIND = "a"
+`);
+    expect(parsed.classes[0]!.members.map((m) => m.name)).toEqual(["KIND"]);
+  });
+
+  it("has no docstring when the class does not open with a string", async () => {
+    const parsed = await parse(`
+class A:
+    KIND = "a"
+`);
+    expect(parsed.classes[0]!.docstring).toBeUndefined();
+  });
+});

@@ -334,6 +334,38 @@ export interface JsxElementInfo {
   selfClosing: boolean;
 }
 
+/**
+ * A `fetch()`-shaped HTTP call with a statically-known same-origin
+ * path. Added in 0.15.0 for `cross_language_route_drift` — matched
+ * against Python route declarations from the other side.
+ *
+ * Only literal URLs are captured; a runtime-assembled path cannot be
+ * quoted into evidence and would line up against the wrong route.
+ */
+export interface FetchSite {
+  /** Path as written, e.g. `"/api/users"`. Always starts with `/`. */
+  url: string;
+  /** Lowercased HTTP verb — from the callee, or from `{ method }`. */
+  method: string;
+  /** 1-based line of the call. */
+  line: number;
+}
+
+/**
+ * A type alias whose right-hand side is a closed set of string
+ * literals: `type Plan = "free" | "pro"`. Added in 0.15.0 for
+ * `cross_language_type_drift`.
+ *
+ * A union containing any non-literal member is not captured at all —
+ * a partial member list would invent a disagreement that isn't there.
+ */
+export interface StringUnionType {
+  name: string;
+  members: string[];
+  exported: boolean;
+  line: number;
+}
+
 export interface ParsedFile {
   /** Total non-empty line count (1-based). */
   lineCount: number;
@@ -382,6 +414,16 @@ export interface ParsedFile {
    * fixture tidy on non-React surfaces.
    */
   jsxElements?: JsxElementInfo[];
+  /**
+   * `fetch()`-shaped calls with literal same-origin paths. Absent when
+   * the file makes none. Consumed only by the cross-language pack.
+   */
+  fetchSites?: FetchSite[];
+  /**
+   * Type aliases that are closed sets of string literals. Absent when
+   * the file declares none. Consumed only by the cross-language pack.
+   */
+  stringUnionTypes?: StringUnionType[];
 }
 
 export interface ParseInput {

@@ -7,6 +7,11 @@ import {
 import { extractAssignment } from "./declarations.js";
 import { ensurePythonParser } from "./grammar.js";
 import { extractImport } from "./imports.js";
+import {
+  extractClassMembers,
+  extractDocstring,
+  routeFromDecorator,
+} from "./routes.js";
 import { classifyShape, decoratorText } from "./shapes.js";
 import type {
   ParsedPyClass,
@@ -20,6 +25,7 @@ import type {
   PyImport,
   PyIoCall,
   PyFunctionKind,
+  PyRoute,
 } from "./types.js";
 import { endLineOf, flatText, lineOf, maxNestingDepth } from "./utils.js";
 
@@ -67,6 +73,7 @@ function emptyParsedFile(source: string): ParsedPyFile {
     ioCalls: [],
     assignments: [],
     assertions: [],
+    routes: [],
     hasSyntaxErrors: false,
   };
 }
@@ -95,7 +102,10 @@ function collectWithScope(
   // Decorators attach to the wrapping `decorated_definition`, but shape
   // classification happens on the inner definition. Stash them by node
   // id on the way past rather than walking back up the tree.
-  const decoratorsByDefinition = new Map<number, string[]>();
+  const decoratorsByDefinition = new Map<
+    number,
+    { texts: string[]; nodes: Node[] }
+  >();
   const stack: Frame[] = [{ node: root, classStack: [], funcStack: [] }];
 
   while (stack.length > 0) {
@@ -109,20 +119,28 @@ function collectWithScope(
         break;
 
       case "class_definition": {
-        const cls = buildClass(node, decoratorsByDefinition.get(node.id) ?? []);
+        const cls = buildClass(
+          node,
+          decoratorsByDefinition.get(node.id)?.texts ?? [],
+        );
         result.classes.push(cls);
         childClassStack = [...classStack, cls];
         break;
       }
 
       case "function_definition": {
+        const stashed = decoratorsByDefinition.get(node.id);
         const fn = buildFunction({
           node,
-          decorators: decoratorsByDefinition.get(node.id) ?? [],
+          decorators: stashed?.texts ?? [],
           enclosingClass: classStack[classStack.length - 1],
           filePath,
         });
         result.functions.push(fn);
+        for (const decorator of stashed?.nodes ?? []) {
+          const route = routeFromDecorator(decorator, fn.name);
+          if (route) result.routes.push(route);
+        }
         // Innermost first — matches the JS `SyncIoCall` contract.
         childFuncStack = [toEnclosing(fn), ...funcStack];
         break;
@@ -168,17 +186,22 @@ function collectWithScope(
   }
 }
 
-function recordDecorators(node: Node, into: Map<number, string[]>): void {
+function recordDecorators(
+  node: Node,
+  into: Map<number, { texts: string[]; nodes: Node[] }>,
+): void {
   const definition = node.childForFieldName("definition");
   if (!definition) return;
-  const decorators: string[] = [];
+  const texts: string[] = [];
+  const nodes: Node[] = [];
   for (let i = 0; i < node.namedChildCount; i += 1) {
     const child = node.namedChild(i);
     if (child && child.type === "decorator") {
-      decorators.push(decoratorText(child));
+      texts.push(decoratorText(child));
+      nodes.push(child);
     }
   }
-  into.set(definition.id, decorators);
+  into.set(definition.id, { texts, nodes });
 }
 
 /**
@@ -231,13 +254,20 @@ function buildClass(node: Node, decorators: string[]): ParsedPyClass {
       if (child) bases.push(flatText(child));
     }
   }
-  return {
+  const body = node.childForFieldName("body");
+  const cls: ParsedPyClass = {
     name: flatText(node.childForFieldName("name")),
     startLine: lineOf(node),
     endLine: endLineOf(node),
     bases,
     decorators,
+    members: body ? extractClassMembers(body) : [],
   };
+  if (body) {
+    const docstring = extractDocstring(body);
+    if (docstring !== undefined) cls.docstring = docstring;
+  }
+  return cls;
 }
 
 function buildFunction(args: {
@@ -348,6 +378,7 @@ function sortByLine(result: ParsedPyFile): void {
   const byLine = <T extends { line: number }>(a: T, b: T): number =>
     a.line - b.line;
   result.imports.sort(byLine);
+  result.routes.sort(byLine);
   result.dateCalls.sort(byLine);
   result.ioCalls.sort(byLine);
   result.assignments.sort(byLine);

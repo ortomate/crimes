@@ -636,3 +636,69 @@ store.action(() => { return; });
     expect(arrows.every((f) => f.shape !== "cli_command_registrar")).toBe(true);
   });
 });
+
+describe("parseFile — cross-language surfaces (0.15.0)", () => {
+  it("captures fetch() with a literal same-origin path", () => {
+    const p = parse(`
+      const r = await fetch("/api/users");
+      const s = await fetch("/api/invoices", { method: "POST" });
+    `);
+    expect(p.fetchSites?.map((f) => [f.method, f.url])).toEqual([
+      ["get", "/api/users"],
+      ["post", "/api/invoices"],
+    ]);
+  });
+
+  it("captures axios/client wrappers", () => {
+    const p = parse(`
+      await axios.get("/api/a");
+      await client.post("/api/b");
+    `);
+    expect(p.fetchSites?.map((f) => [f.method, f.url])).toEqual([
+      ["get", "/api/a"],
+      ["post", "/api/b"],
+    ]);
+  });
+
+  it("skips absolute third-party URLs and runtime-built paths", () => {
+    const p = parse(`
+      await fetch("https://example.com/api/users");
+      await fetch(\`\${base}/api/users\`);
+      await fetch(pathVar);
+    `);
+    expect(p.fetchSites).toBeUndefined();
+  });
+
+  it("does not treat an unrelated .get as a request", () => {
+    const p = parse(`cache.get("/not-a-request");`);
+    expect(p.fetchSites).toBeUndefined();
+  });
+
+  it("captures a string-literal union type alias", () => {
+    const p = parse(`export type Plan = "free" | "pro" | "enterprise";`);
+    expect(p.stringUnionTypes).toEqual([
+      { name: "Plan", members: ["free", "pro", "enterprise"], exported: true, line: 1 },
+    ]);
+  });
+
+  it("captures a single-member alias", () => {
+    const p = parse(`type Only = "one";`);
+    expect(p.stringUnionTypes?.[0]?.members).toEqual(["one"]);
+  });
+
+  it("skips a union that is not a closed set of strings", () => {
+    // A partial member list would invent a disagreement that isn't there.
+    const p = parse(`
+      type Loose = "free" | string;
+      type Mixed = "a" | 1;
+      type Ref = "a" | Other;
+    `);
+    expect(p.stringUnionTypes).toBeUndefined();
+  });
+
+  it("omits both surfaces entirely on a file that has neither", () => {
+    const p = parse(`export const x = 1;`);
+    expect(p.fetchSites).toBeUndefined();
+    expect(p.stringUnionTypes).toBeUndefined();
+  });
+});

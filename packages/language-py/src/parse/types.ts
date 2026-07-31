@@ -84,6 +84,13 @@ export interface ParsedPyClass {
   /** Base class source text as written, e.g. `"unittest.TestCase"`. */
   bases: string[];
   decorators: string[];
+  /**
+   * Class-body members that read as a closed set — Enum values and
+   * Pydantic / dataclass fields. Added in 0.15.0.
+   */
+  members: PyClassMember[];
+  /** First line of the class docstring, when present. */
+  docstring?: string;
 }
 
 /**
@@ -224,6 +231,50 @@ export interface PyAssertion {
   functionName?: string;
 }
 
+/**
+ * A web-framework route declared on the Python side.
+ *
+ * Added in 0.15.0 for `cross_language_route_drift`, which lines these
+ * up against `fetch()` call sites and nav labels on the JS side.
+ *
+ * Only routes whose path is a **string literal** are captured. A path
+ * built at runtime (`@app.get(PREFIX + "/users")`) cannot be quoted
+ * verbatim into `Finding.evidence`, and the IA family's rule is that
+ * anything not quotable is not recorded.
+ */
+export interface PyRoute {
+  /** HTTP method lowercased, or `"route"` / `"websocket"` when the
+   *  decorator does not name one (Flask's `@app.route`). */
+  method: string;
+  /** Path exactly as written, e.g. `"/api/users/{user_id}"`. */
+  path: string;
+  /** Decorator receiver, e.g. `"app"`, `"router"`, `"bp"`. */
+  receiver: string;
+  /** Handler function name. */
+  handler?: string;
+  /** 1-based line of the decorator. */
+  line: number;
+}
+
+/**
+ * A member of a class body that reads as part of a closed set — an Enum
+ * value or a Pydantic/dataclass field.
+ *
+ * Added in 0.15.0 for `cross_language_type_drift`, which compares these
+ * against string-literal unions on the TS side.
+ */
+export interface PyClassMember {
+  /** Member name as written (`FREE`, `plan`). */
+  name: string;
+  /**
+   * String-literal value when the member is assigned one
+   * (`FREE = "free"`). Absent for bare annotations (`plan: str`) and
+   * for non-literal values.
+   */
+  value?: string;
+  line: number;
+}
+
 export interface ParsedPyFile {
   /** Total line count. */
   lineCount: number;
@@ -234,6 +285,8 @@ export interface ParsedPyFile {
   ioCalls: PyIoCall[];
   assignments: PyAssignment[];
   assertions: PyAssertion[];
+  /** Web-framework routes with string-literal paths. */
+  routes: PyRoute[];
   /**
    * True when tree-sitter reported an ERROR node anywhere in the tree.
    * The parse is still usable — tree-sitter recovers locally — but

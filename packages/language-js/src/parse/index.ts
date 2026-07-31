@@ -6,6 +6,10 @@ import {
   collectDateStringConcat,
   collectDateUse,
 } from "./dates.js";
+import {
+  collectFetchSite,
+  collectStringUnionType,
+} from "./cross-language.js";
 import { collectTypedDeclaration } from "./declarations.js";
 import { collectFunction } from "./functions.js";
 import { collectJsxRoot } from "./jsx.js";
@@ -22,11 +26,13 @@ import type {
   DateMethodCall,
   DateStringConcat,
   DateUse,
+  FetchSite,
   JsxElementInfo,
   NavLiteral,
   ParseInput,
   ParsedFile,
   ParsedFunction,
+  StringUnionType,
   SyncIoCall,
   TypedDeclaration,
   UiStringLiteral,
@@ -48,11 +54,13 @@ export type {
   JsxAttributeValue,
   JsxElementInfo,
   JsxNode,
+  FetchSite,
   NavLiteral,
   NavLiteralEntry,
   ParsedFile,
   ParsedFunction,
   ParseInput,
+  StringUnionType,
   SyncIoCall,
   TypedDeclaration,
   UiStringContext,
@@ -80,6 +88,8 @@ export function parseFile(input: ParseInput): ParsedFile {
   const navLiterals: NavLiteral[] = [];
   const uiStringLiterals: UiStringLiteral[] = [];
   const jsxElements: JsxElementInfo[] = [];
+  const fetchSites: FetchSite[] = [];
+  const stringUnionTypes: StringUnionType[] = [];
   let defaultExport: string | undefined;
 
   const visit = (node: ts.Node): void => {
@@ -98,6 +108,8 @@ export function parseFile(input: ParseInput): ParsedFile {
     collectSyncIoCall(node, sourceFile, functions, syncIoCalls);
     collectUiStringLiteral(node, sourceFile, uiStringLiterals);
     collectJsxRoot(node, sourceFile, input.source, jsxElements);
+    collectFetchSite(node, sourceFile, fetchSites);
+    collectStringUnionType(node, sourceFile, stringUnionTypes);
     ts.forEachChild(node, visit);
   };
 
@@ -121,5 +133,7 @@ export function parseFile(input: ParseInput): ParsedFile {
   if (dateStringConcats.length > 0) result.dateStringConcats = dateStringConcats;
   if (typedDeclarations.length > 0) result.typedDeclarations = typedDeclarations;
   if (syncIoCalls.length > 0) result.syncIoCalls = syncIoCalls;
+  if (fetchSites.length > 0) result.fetchSites = fetchSites;
+  if (stringUnionTypes.length > 0) result.stringUnionTypes = stringUnionTypes;
   return result;
 }
