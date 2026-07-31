@@ -1,4 +1,4 @@
-import { readFile, realpath } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 import { discoverFiles } from "./discovery/index.js";
 import { parseFile } from "@crimes/language-js";
@@ -41,21 +41,18 @@ import {
 } from "./git/changed-files.js";
 import { collectResurfaced } from "./resurface.js";
 import { loadTriage, resolveTriagePath } from "./triage.js";
-import { DEFAULT_ALIAS_GROUPS } from "./ia/aliases.js";
-import { buildIaIndex } from "./ia/build.js";
+// resolveAliasGroups now lives with the alias catalogue it merges into.
+// Still imported here (buildScanIndexes uses it) and re-exported
+// because it is part of the public @crimes/core API surface and
+// context.ts imports it from this module.
+import { resolveAliasGroups } from "./ia/aliases.js";
+export { resolveAliasGroups };
 import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
-import { buildImportGraph } from "./imports/build.js";
 import type { ImportGraph } from "./imports/types.js";
-import { buildJsxShapeIndex } from "./jsx/shape-index.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
-import { buildFunctionHashIndex } from "./ast-hash/function-index.js";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
-import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
-import {
-  buildScoringContext,
-  finaliseFindingScores,
-} from "./scoring/build.js";
+import { finaliseFindingScores } from "./scoring/build.js";
 import type { ScoringContext } from "./scoring/build.js";
 import type {
   ApplySuppressionsOptions,
@@ -69,6 +66,22 @@ import {
   tagTierAndSortByRankScore,
 } from "./context-helpers.js";
 import { assignPackAndDetectorId } from "./finding-finalise.js";
+import { safeRealpath } from "./util/realpath.js";
+import {
+  type ScanIndexes,
+  buildScanIndexes,
+  runDetectorsForFiles,
+  toRepoPath,
+} from "./scan-detect.js";
+import { collectResurfaceForScan } from "./scan-resurface.js";
+import {
+  safelyBuildFunctionHashIndex,
+  safelyBuildIaIndex,
+  safelyBuildImportGraph,
+  safelyBuildJsxShapeIndex,
+  safelyBuildPettyIndex,
+  safelyBuildScoringContext,
+} from "./indexes.js";
 
 export interface ScanOptions {
   /** Absolute or relative path to scan. Defaults to cwd. */
@@ -182,137 +195,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   return report;
 }
 
-/**
- * Resurface stage: re-run detectors on files in the diff against
- * `config.triage.resurfaceBase`, then keep only the findings whose
- * fingerprint matches a triage or baseline entry. Returns the annotated
- * resurfaced list. Empty when git is unavailable, the diff is empty, or
- * there's nothing to resurface — resurfacing is a quality-of-life feature
- * and must never make `scan()` fail.
- *
- * Shares the outer scan's `indexes` (IA, petty, imports, JSX shapes,
- * function hashes, scoring context) and `detectors`/`config`. The outer
- * scan already paid the cost of building these over the full file set;
- * re-detection on a handful of touched files is then just the per-file
- * detector pass, not a doubled scan.
- */
-async function collectResurfaceForScan(args: {
-  root: string;
-  config: CrimesConfig;
-  allFiles: string[];
-  indexes: ScanIndexes;
-  detectors: Detector[];
-}): Promise<Finding[]> {
-  const resurfaceBase = args.config.triage?.resurfaceBase ?? "main";
-  if (resurfaceBase === "") return [];
 
-  // Compute diff files. Any git failure (no repo, unknown ref) short-
-  // circuits to "no resurfacing this run" — resurfacing is a quality-
-  // of-life feature, never a fatal error.
-  let diffPaths: string[];
-  try {
-    diffPaths = await getChangedFiles({ root: args.root, base: resurfaceBase });
-  } catch (err) {
-    if (err instanceof NotAGitRepoError || err instanceof UnknownGitRefError) {
-      return [];
-    }
-    throw err;
-  }
-  if (diffPaths.length === 0) return [];
-
-  // Convert absolute paths to repo-relative POSIX (matching Finding.file shape).
-  // git emits canonical paths (`/private/var/...` on macOS); `args.root` may
-  // still be the `/var/...` symlink the caller passed. realpath both sides
-  // so the relative path comes out as `src/foo.ts`, not `../../private/var/.../src/foo.ts`.
-  const rootReal = await safeRealpath(args.root);
-  const diffFiles = new Set<string>(
-    await Promise.all(
-      diffPaths.map(async (abs) =>
-        relative(rootReal, await safeRealpath(abs)).split(sep).join("/"),
-      ),
-    ),
-  );
-
-  // Load triage + baseline. Both files are optional — empty when absent.
-  const [triageResult, baselineEntries] = await Promise.all([
-    loadTriage(resolveTriagePath(args.root)),
-    loadBaselineEntriesIfPresent(args.root),
-  ]);
-
-  if (triageResult.entries.length === 0 && baselineEntries.length === 0) {
-    return [];
-  }
-
-  // Map repo-relative diff files back to absolute paths from the outer
-  // scan's `allFiles` so the per-file detector pass uses identical
-  // realpath / discovery semantics (and matches what the indexes were
-  // built against). Files in the diff that aren't in `allFiles` (e.g.
-  // markdown, lockfiles, JSON) are skipped — detectors don't run on
-  // them and they can't carry triage / baseline entries.
-  const allFilesReal = await Promise.all(
-    args.allFiles.map(async (abs) => ({
-      abs,
-      relPath: relative(rootReal, await safeRealpath(abs)).split(sep).join("/"),
-    })),
-  );
-  const absByRelPath = new Map<string, string>();
-  for (const { abs, relPath } of allFilesReal) {
-    absByRelPath.set(relPath, abs);
-  }
-
-  // Per-file detector cache so multiple resurfaced fingerprints on the
-  // same file only pay one detector pass.
-  const langPack = resolveLanguagePackRouter();
-  const grouped = groupDetectorsByPack(args.detectors);
-  const detectionCache = new Map<string, Promise<Finding[]>>();
-  const reDetect = async (file: string): Promise<Finding[]> => {
-    const cached = detectionCache.get(file);
-    if (cached) return cached;
-    const absolutePath = absByRelPath.get(file);
-    if (!absolutePath) {
-      const empty = Promise.resolve<Finding[]>([]);
-      detectionCache.set(file, empty);
-      return empty;
-    }
-    const promise = (async () => {
-      const findings = await runDetectorsForFile({
-        root: args.root,
-        absolutePath,
-        config: args.config,
-        indexes: args.indexes,
-        langPack,
-        grouped,
-      });
-      // Finalise scores so resurfaced findings carry the same shape as
-      // findings from the outer scan (agent_risk, churn, etc.).
-      for (const f of findings) {
-        finaliseFindingScores(f, args.indexes.scoring);
-      }
-      return findings;
-    })();
-    detectionCache.set(file, promise);
-    return promise;
-  };
-
-  return collectResurfaced({
-    diffFiles,
-    triageEntries: triageResult.entries,
-    baselineEntries,
-    reDetect,
-  });
-}
-
-async function loadBaselineEntriesIfPresent(
-  root: string,
-): Promise<BaselineEntry[]> {
-  try {
-    const baseline = await loadBaseline(resolve(root, BASELINE_RELATIVE_PATH));
-    return baseline.findings;
-  } catch (err) {
-    if (err instanceof BaselineNotFoundError) return [];
-    throw err;
-  }
-}
 
 interface ScanInputs {
   allFiles: string[];
@@ -344,118 +227,9 @@ async function resolveScanInputs(args: {
   };
 }
 
-interface ScanIndexes {
-  ia?: IaIndex;
-  petty?: PettyIndex;
-  imports?: ImportGraph;
-  jsxShapeIndex?: JsxShapeIndex;
-  functionHashIndex?: FunctionHashIndex;
-  scoring?: ScoringContext;
-}
 
-async function buildScanIndexes(args: {
-  root: string;
-  config: CrimesConfig;
-  allFiles: string[];
-}): Promise<ScanIndexes> {
-  const { root, config, allFiles } = args;
-  // Cross-file indexes always use the full discovered file set. `--changed`
-  // gates finding emission, not the context detectors and scoring inspect.
-  const ia = await safelyBuildIaIndex({
-    root,
-    allFiles,
-    aliasGroups: resolveAliasGroups(config),
-  });
-  const petty = await safelyBuildPettyIndex({ root, allFiles });
-  const imports = await safelyBuildImportGraph({ root, allFiles });
-  const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
-  const functionHashIndex = await safelyBuildFunctionHashIndex({ root, allFiles });
-  const scoring = await safelyBuildScoringContext({ root, allFiles, imports });
 
-  return { ia, petty, imports, jsxShapeIndex, functionHashIndex, scoring };
-}
 
-async function runDetectorsForFiles(args: {
-  root: string;
-  files: string[];
-  detectors: Detector[];
-  config: CrimesConfig;
-  indexes: ScanIndexes;
-  langPack: LanguagePackRouter;
-}): Promise<Finding[]> {
-  // Group detectors by pack once per scan rather than per file — the
-  // detector list is invariant across the file loop, so re-grouping
-  // for every file is wasted work proportional to repo size.
-  const grouped = groupDetectorsByPack(args.detectors);
-  const findings: Finding[] = [];
-  for (const absolutePath of args.files) {
-    findings.push(
-      ...(await runDetectorsForFile({
-        root: args.root,
-        absolutePath,
-        config: args.config,
-        indexes: args.indexes,
-        langPack: args.langPack,
-        grouped,
-      })),
-    );
-  }
-  return findings;
-}
-
-async function runDetectorsForFile(args: {
-  root: string;
-  absolutePath: string;
-  config: CrimesConfig;
-  indexes: ScanIndexes;
-  langPack: LanguagePackRouter;
-  grouped: ReturnType<typeof groupDetectorsByPack>;
-}): Promise<Finding[]> {
-  const file = toRepoPath(relative(args.root, args.absolutePath));
-
-  const findings: Finding[] = [];
-
-  // Universal pack: always runs, no language-pack dependency.
-  const universalDetectors = args.grouped.universal ?? [];
-  if (universalDetectors.length > 0) {
-    const universalCtx = await buildUniversalContext({
-      root: args.root,
-      absolutePath: args.absolutePath,
-      file,
-      config: args.config,
-      indexes: args.indexes,
-    });
-    for (const detector of universalDetectors) {
-      const detectorFindings = await detector.run(universalCtx);
-      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
-    }
-  }
-
-  // Language-js pack: runs only when the JS pack claims the file's extension.
-  const jsDetectors = args.grouped["language-js"] ?? [];
-  if (
-    jsDetectors.length > 0 &&
-    args.langPack.claims("language-js", args.absolutePath)
-  ) {
-    const source = await readFile(args.absolutePath, "utf8");
-    const parsed = parseFile({ absolutePath: args.absolutePath, source });
-    const jsCtx: LanguageJsDetectorContext = {
-      kind: "language-js",
-      file,
-      absolutePath: args.absolutePath,
-      source,
-      parsed,
-      config: args.config,
-      ...args.indexes,
-    };
-    for (const detector of jsDetectors) {
-      const detectorFindings = await detector.run(jsCtx);
-      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
-    }
-  }
-
-  return findings;
-}
 
 /**
  * Filter a {@link ScanReport} through the suppressions list. Returns a
@@ -517,69 +291,11 @@ function summariseVisible(findings: Finding[]): ScanSummary {
   return summary;
 }
 
-async function safelyBuildPettyIndex(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<PettyIndex | undefined> {
-  try {
-    return await buildPettyIndex({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
 
-async function safelyBuildImportGraph(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<ImportGraph | undefined> {
-  try {
-    return await buildImportGraph({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
 
-async function safelyBuildJsxShapeIndex(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<JsxShapeIndex | undefined> {
-  try {
-    return await buildJsxShapeIndex({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
 
-async function safelyBuildFunctionHashIndex(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<FunctionHashIndex | undefined> {
-  try {
-    return await buildFunctionHashIndex({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
 
-async function safelyBuildScoringContext(args: {
-  root: string;
-  allFiles: string[];
-  imports: ImportGraph | undefined;
-}): Promise<ScoringContext | undefined> {
-  try {
-    return await buildScoringContext({
-      root: args.root,
-      files: args.allFiles,
-      imports: args.imports,
-    });
-  } catch {
-    return undefined;
-  }
-}
 
-function toRepoPath(p: string): string {
-  return p.split(sep).join("/");
-}
 
 /**
  * Build the IA index, but never let a failure here break the scan.
@@ -587,23 +303,6 @@ function toRepoPath(p: string): string {
  * (IA detectors) should treat absence as "skip this finding kind", not
  * as a fatal condition.
  */
-async function safelyBuildIaIndex(args: {
-  root: string;
-  allFiles: string[];
-  aliasGroups?: IaConceptAliasGroup[];
-}): Promise<IaIndex | undefined> {
-  try {
-    return await buildIaIndex({
-      root: args.root,
-      files: args.allFiles,
-      ...(args.aliasGroups !== undefined
-        ? { aliasGroups: args.aliasGroups }
-        : {}),
-    });
-  } catch {
-    return undefined;
-  }
-}
 
 /**
  * Resolve the alias-group catalogue used to build the IA index.
@@ -614,13 +313,6 @@ async function safelyBuildIaIndex(args: {
  * harmless). A future `ia.aliasGroupsReplace: true` opt-in could swap
  * "additive" for "replace".
  */
-export function resolveAliasGroups(
-  config: CrimesConfig,
-): IaConceptAliasGroup[] {
-  const overrides = config.ia?.aliasGroups ?? [];
-  if (overrides.length === 0) return DEFAULT_ALIAS_GROUPS;
-  return [...DEFAULT_ALIAS_GROUPS, ...overrides];
-}
 
 interface RestrictToChangedResult {
   /**
@@ -678,13 +370,6 @@ async function restrictToChanged(args: {
   return { scanFiles, allChangedRepoPaths };
 }
 
-async function safeRealpath(p: string): Promise<string> {
-  try {
-    return await realpath(p);
-  } catch {
-    return p;
-  }
-}
 
 
 function summarise(findings: Finding[]): ScanSummary {

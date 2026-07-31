@@ -1,5 +1,4 @@
 import { existsSync } from "node:fs";
-import { realpath } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, parse, resolve } from "node:path";
 import { discoverFiles } from "./discovery/index.js";
 import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
@@ -22,6 +21,7 @@ import {
   safelyBuildScoringContext,
 } from "./context-indexes.js";
 import { applyEmptyReasons, buildClues } from "./context-clues.js";
+import { safeRealpath } from "./util/realpath.js";
 import { findLikelyTests } from "./context-likely-tests.js";
 import type { ContextRelatedFile } from "./context-related-files.js";
 import { findRelatedFiles } from "./context-related-files.js";
@@ -190,13 +190,6 @@ export async function findNearestPackageRoot(
   }
 }
 
-async function safeRealpath(p: string): Promise<string> {
-  try {
-    return await realpath(p);
-  } catch {
-    return p;
-  }
-}
 
 /**
  * Resolve the scan root for a `context()` call.

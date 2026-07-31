@@ -22,89 +22,18 @@ import type { ScoringContext } from "./scoring/build.js";
 import { assignPackAndDetectorId } from "./finding-finalise.js";
 
 /**
- * Cross-file index builders used by `context()`. Each is a thin
- * try/catch wrapper that returns `undefined` on failure rather than
- * crashing the whole context run — single-file context should degrade
- * gracefully when one of the repo-level indexes can't be built.
+ * The six cross-file index builders moved to `indexes.ts` in 0.12.2 —
+ * `scan.ts` carried byte-identical private copies of all of them. They
+ * are re-exported here so `context.ts` keeps its single import site.
  */
-
-export async function safelyBuildIaIndex(args: {
-  root: string;
-  allFiles: string[];
-  aliasGroups?: IaConceptAliasGroup[];
-}): Promise<IaIndex | undefined> {
-  try {
-    return await buildIaIndex({
-      root: args.root,
-      files: args.allFiles,
-      ...(args.aliasGroups !== undefined
-        ? { aliasGroups: args.aliasGroups }
-        : {}),
-    });
-  } catch {
-    return undefined;
-  }
-}
-
-export async function safelyBuildPettyIndex(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<PettyIndex | undefined> {
-  try {
-    return await buildPettyIndex({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
-
-export async function safelyBuildJsxShapeIndex(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<JsxShapeIndex | undefined> {
-  try {
-    return await buildJsxShapeIndex({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
-
-export async function safelyBuildFunctionHashIndex(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<FunctionHashIndex | undefined> {
-  try {
-    return await buildFunctionHashIndex({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
-
-export async function safelyBuildImportGraph(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<ImportGraph | undefined> {
-  try {
-    return await buildImportGraph({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
-
-export async function safelyBuildScoringContext(args: {
-  root: string;
-  allFiles: string[];
-  imports: ImportGraph | undefined;
-}): Promise<ScoringContext | undefined> {
-  try {
-    return await buildScoringContext({
-      root: args.root,
-      files: args.allFiles,
-      imports: args.imports,
-    });
-  } catch {
-    return undefined;
-  }
-}
+export {
+  safelyBuildFunctionHashIndex,
+  safelyBuildIaIndex,
+  safelyBuildImportGraph,
+  safelyBuildJsxShapeIndex,
+  safelyBuildPettyIndex,
+  safelyBuildScoringContext,
+} from "./indexes.js";
 
 /**
  * Run every detector on the target file, applying the cross-file

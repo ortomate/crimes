@@ -1,3 +1,4 @@
+import type { CrimesConfig } from "../config.js";
 import type { IaConceptAliasGroup } from "./types.js";
 
 /**
@@ -67,4 +68,22 @@ export function aliasToGroupId(
     }
   }
   return map;
+}
+
+
+/**
+ * Merge user-configured alias groups on top of the built-in defaults.
+ * Overrides extend rather than replace — a repo naming one extra concept
+ * pair shouldn't lose the defaults.
+ *
+ * Moved here from scan.ts in 0.12.2. It lived in scan.ts, which forced
+ * context.ts to import scan.ts purely for this function, and blocked
+ * scan.ts's index builders from being extracted without a cycle.
+ */
+export function resolveAliasGroups(
+  config: CrimesConfig,
+): IaConceptAliasGroup[] {
+  const overrides = config.ia?.aliasGroups ?? [];
+  if (overrides.length === 0) return DEFAULT_ALIAS_GROUPS;
+  return [...DEFAULT_ALIAS_GROUPS, ...overrides];
 }
