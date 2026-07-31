@@ -141,9 +141,10 @@ $ crimes scan . --explain-coverage
 coverage breakdown:
   files discovered: 550
   packs loaded: universal, language-js, language-py
-  files by language:
-    js: 412
-    py: 138
+  files by language pack:
+    language-js (.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts): 412
+    language-py (.py/.pyi): 138
+  files with only universal coverage: 0
 ```
 
 Eight Python detectors ship: `large_function.py`, `direct_date.py`,
