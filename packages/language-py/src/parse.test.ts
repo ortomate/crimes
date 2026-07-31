@@ -313,6 +313,20 @@ def outer():
     expect(call.enclosingFunctions[1]!.shape).toBe("route_handler");
   });
 
+  it("carries each enclosing function's kind so async-ness is answerable from the chain", async () => {
+    const parsed = await parse(`
+@app.get("/x")
+async def handler():
+    def helper():
+        open("/tmp/x")
+    return helper()
+`);
+    expect(parsed.ioCalls[0]!.enclosingFunctions.map((f) => f.kind)).toEqual([
+      "function",
+      "async_function",
+    ]);
+  });
+
   it("records module-level io with an empty chain", async () => {
     const parsed = await parse(`CONFIG = open("/etc/app.conf").read()`);
     expect(parsed.ioCalls[0]!.enclosingFunctions).toEqual([]);

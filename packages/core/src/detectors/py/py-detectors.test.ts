@@ -237,6 +237,46 @@ describe("sync_io_in_hotpath.py", () => {
     expect(found[0]!.evidence.join(" ")).toMatch(/stalls the event loop/);
   });
 
+  it("reads async-ness from the scope chain, not from line containment", async () => {
+    // A blocking call in a helper nested inside an async handler still
+    // runs on the event loop, so it must escalate...
+    const nested = await run(
+      syncIoInHotpathPyDetector,
+      "src/api.py",
+      [
+        '@app.get("/x")',
+        "async def handler():",
+        "    def helper():",
+        '        requests.get("http://x")',
+        '        open("/f")',
+        "    return helper()",
+      ].join("\n"),
+    );
+    expect(nested[0]!.evidence.join(" ")).toMatch(/stalls the event loop/);
+
+    // ...whereas a sync handler that merely sits below an async function
+    // in the same file must not. Line-range containment cannot tell
+    // these apart; the scope chain can.
+    const sibling = await run(
+      syncIoInHotpathPyDetector,
+      "src/api2.py",
+      [
+        '@app.get("/a")',
+        "async def a():",
+        "    return 1",
+        "",
+        '@app.get("/b")',
+        "def b():",
+        '    requests.get("http://x")',
+        '    open("/f")',
+        "    return 2",
+      ].join("\n"),
+    );
+    expect(sibling).toHaveLength(1);
+    expect(sibling[0]!.evidence.join(" ")).not.toMatch(/stalls the event loop/);
+    expect(sibling[0]!.severity).not.toBe("high");
+  });
+
   it("exempts CLI commands and tests anywhere in the chain", async () => {
     expect(
       await run(
@@ -312,6 +352,34 @@ describe("boolean_naming_drift.py", () => {
     ).toEqual([]);
   });
 
+  it("counts a reassigned name once, not once per assignment", async () => {
+    // The charge is per-name, and the offender count drives severity.
+    const found = await run(
+      booleanNamingDriftPyDetector,
+      "src/a.py",
+      "def go(x):\n    retry = True\n    retry = False\n    retry = x > 1\n    return retry\n",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]!.evidence.filter((e) => e.includes("`retry`"))).toHaveLength(1);
+    expect(found[0]!.severity).toBe("low");
+  });
+
+  it("keeps the same name in two functions as two bindings", async () => {
+    const found = await run(
+      booleanNamingDriftPyDetector,
+      "src/a.py",
+      [
+        "def one(x):",
+        "    retry = x > 1",
+        "    return retry",
+        "def two(x):",
+        "    retry = x < 1",
+        "    return retry",
+      ].join("\n"),
+    );
+    expect(found[0]!.evidence.filter((e) => e.includes("`retry`"))).toHaveLength(2);
+  });
+
   it("honours a configured allowlist", async () => {
     const config = {
       ...DEFAULT_CONFIG,
@@ -377,6 +445,24 @@ describe("weak_test_signal.py", () => {
   it("only runs on test files", async () => {
     expect(
       await run(weakTestSignalPyDetector, "src/billing.py", "def test_a():\n    pass\n"),
+    ).toEqual([]);
+  });
+
+  it("credits an assertion made inside a local helper to the test", async () => {
+    // Attribution is by line span, not by innermost enclosing function.
+    // Keyed on the function name, the assert below belongs to `check`
+    // and `test_totals` would read as asserting nothing.
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_billing.py",
+        [
+          "def test_totals():",
+          "    def check(x):",
+          "        assert x > 0",
+          "    check(compute())",
+        ].join("\n"),
+      ),
     ).toEqual([]);
   });
 

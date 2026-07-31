@@ -526,7 +526,10 @@ bare `type`) for `universal` pack findings. Required since
 Use `type` for grouping — `type === "large_function"` matches every
 large-function finding regardless of language. Use `detector_id` only when
 you need to distinguish "JS large_function" from "Python large_function",
-which is relevant starting with the `language-py` pack in 0.13.0.
+which is relevant starting with the `language-py` pack in 0.14.0.
+Python detector *ids* are qualified (`large_function.py`) so each
+language's detector is separately addressable in config; the
+`type` they emit stays abstract. See [`docs/packs.md`](./packs.md).
 
 ### `pack`
 
@@ -536,8 +539,9 @@ Which detector pack produced this finding. One of:
   required. Runs on every discovered file.
 - `"language-js"` — AST evidence via `@crimes/language-js`. Runs only on
   `.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts` files.
-- `"language-py"` — AST evidence via `@crimes/language-py` (0.13.0+).
-- `"cross-language"` — aligns artefacts from ≥2 language packs (0.14.0+).
+- `"language-py"` — AST evidence via `@crimes/language-py` (0.14.0+).
+  Runs only on `.py/.pyi` files.
+- `"cross-language"` — aligns artefacts from ≥2 language packs (0.15.0+).
 
 Required since `schema_version: "0.3.0"`. Distinct from `tier` (the
 scope-tier `"domain" | "nonDomain"` field): `pack` answers "what kind of

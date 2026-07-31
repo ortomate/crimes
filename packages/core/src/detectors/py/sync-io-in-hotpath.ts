@@ -46,13 +46,13 @@ export const syncIoInHotpathPyDetector: LanguagePyDetector = {
     if (offenders.length === 0) return [];
 
     // Blocking the event loop is categorically worse than blocking one
-    // sync worker, so async handlers drive severity up.
+    // sync worker, so async handlers drive severity up. Asked of the
+    // scope chain rather than by testing line containment against every
+    // function in the file — enclosure is the actual question, and the
+    // chain already answers it.
     const inAsyncHandler = offenders.some((c) =>
-      ctx.parsed.functions.some(
-        (fn) =>
-          (fn.kind === "async_function" || fn.kind === "async_method") &&
-          fn.startLine <= c.line &&
-          fn.endLine >= c.line,
+      c.enclosingFunctions.some(
+        (fn) => fn.kind === "async_function" || fn.kind === "async_method",
       ),
     );
     const severity = pickSeverity(offenders.length, inAsyncHandler);

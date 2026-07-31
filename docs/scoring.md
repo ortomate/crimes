@@ -1,6 +1,6 @@
 # Scoring
 
-Every `crimes` finding carries five numeric scores in [0, 1]:
+Every `crimes` finding carries six numeric scores in [0, 1]:
 
 | Score          | Source                                          | "Higher means" |
 | -------------- | ----------------------------------------------- | -------------- |
@@ -9,7 +9,7 @@ Every `crimes` finding carries five numeric scores in [0, 1]:
 | `churn`        | Git log over a 90-day window                    | Edits more     |
 | `test_gap`     | Filesystem + import-graph test discovery        | Less tested    |
 | `blast_radius` | Import-graph transitive closure                 | Touches more   |
-| `agent_risk`   | Unified composite of all five                   | Riskier to AI edits |
+| `agent_risk`   | Unified composite — see the formula below       | Riskier to AI edits |
 
 Rank by `agent_risk` when the question is "which areas are dangerous to
 edit"; rank by `severity` when the question is "which findings are
@@ -27,7 +27,7 @@ All fields are rounded to two decimal places.
 ## The unified `agent_risk` formula
 
 `agent_risk` is recomputed for every finding after detectors emit. The
-0.12.2 formula:
+current formula, unchanged since 0.12.2:
 
 ```
 agent_risk = clamp01(
@@ -45,7 +45,7 @@ effect" (PRD §10) are actually encoded, and it scales with the evidence
 found: `concept_alias_drift` rises with the number of competing aliases,
 `mixed_utc_local_methods` with the number of offenders.
 
-Detectors that don't set one (18 of 48 today) fall back to a
+Detectors that don't set one (18 of 57 today) fall back to a
 severity-derived default, deliberately compressed so a fallback finding
 doesn't outrank a detector that made a real judgement:
 
@@ -54,6 +54,12 @@ doesn't outrank a detector that made a real judgement:
 | `high`     | 0.75                 |
 | `medium`   | 0.55                 |
 | `low`      | 0.40                 |
+
+New detectors should set their own. All eight `language-py` detectors
+(0.14.0) do, which means Python's `circular_dependency.py` and
+`deep_import.py` currently carry a real judgement where their JS
+counterparts still fall back to the severity default — those two are
+the obvious candidates when the JS side is next revisited.
 
 ### Why severity and confidence are not terms
 

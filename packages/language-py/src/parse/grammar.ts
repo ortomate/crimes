@@ -98,7 +98,7 @@ let parserPromise: Promise<Parser> | undefined;
  * grammar are loaded exactly once per process; concurrent callers await
  * the same promise rather than racing two initialisations.
  */
-export async function getPythonParser(): Promise<Parser> {
+export async function ensurePythonParser(): Promise<Parser> {
   if (parserPromise === undefined) {
     parserPromise = (async () => {
       const { Language, Parser: TSParser } = await import("web-tree-sitter");

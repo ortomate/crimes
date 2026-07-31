@@ -5,7 +5,7 @@ import {
   matchIoCall,
 } from "./calls.js";
 import { extractAssignment } from "./declarations.js";
-import { getPythonParser } from "./grammar.js";
+import { ensurePythonParser } from "./grammar.js";
 import { extractImport } from "./imports.js";
 import { classifyShape, decoratorText } from "./shapes.js";
 import type {
@@ -25,7 +25,7 @@ import { endLineOf, flatText, lineOf, maxNestingDepth } from "./utils.js";
 
 export * from "./types.js";
 export {
-  getPythonParser,
+  ensurePythonParser,
   resolveGrammarPath,
   resetPythonParserForTests,
   PythonGrammarNotFoundError,
@@ -44,11 +44,22 @@ export {
  * so detectors can decide whether a whole-file count is trustworthy.
  */
 export async function parsePyFile(input: ParsePyInput): Promise<ParsedPyFile> {
-  const parser = await getPythonParser();
+  const parser = await ensurePythonParser();
   const tree = parser.parse(input.source);
 
-  const result: ParsedPyFile = {
-    lineCount: input.source.split("\n").length,
+  const result = emptyParsedFile(input.source);
+  if (!tree) return result;
+
+  result.hasSyntaxErrors = tree.rootNode.hasError;
+  collectWithScope(tree.rootNode, input.absolutePath, result);
+  sortByLine(result);
+  tree.delete();
+  return result;
+}
+
+function emptyParsedFile(source: string): ParsedPyFile {
+  return {
+    lineCount: source.split("\n").length,
     functions: [],
     classes: [],
     imports: [],
@@ -58,49 +69,49 @@ export async function parsePyFile(input: ParsePyInput): Promise<ParsedPyFile> {
     assertions: [],
     hasSyntaxErrors: false,
   };
-  if (!tree) return result;
+}
 
-  const root = tree.rootNode;
-  result.hasSyntaxErrors = root.hasError;
+/** One node plus the lexical scope it was reached through. */
+interface Frame {
+  node: Node;
+  classStack: ParsedPyClass[];
+  funcStack: PyEnclosingFunction[];
+}
 
+/**
+ * Depth-first traversal carrying scope down the tree, so a call site
+ * knows which functions and classes enclose it without any detector
+ * having to walk back up.
+ *
+ * Iterative rather than recursive: an expression-heavy Python file can
+ * nest deeply enough to blow the call stack, and a stack overflow here
+ * would take out the whole scan rather than degrading one file.
+ */
+function collectWithScope(
+  root: Node,
+  filePath: string,
+  result: ParsedPyFile,
+): void {
   // Decorators attach to the wrapping `decorated_definition`, but shape
   // classification happens on the inner definition. Stash them by node
   // id on the way past rather than walking back up the tree.
   const decoratorsByDefinition = new Map<number, string[]>();
-
-  interface Frame {
-    node: Node;
-    classStack: ParsedPyClass[];
-    funcStack: PyEnclosingFunction[];
-  }
-
   const stack: Frame[] = [{ node: root, classStack: [], funcStack: [] }];
 
   while (stack.length > 0) {
-    const frame = stack.pop()!;
-    const { node } = frame;
-    let { classStack, funcStack } = frame;
+    const { node, classStack, funcStack } = stack.pop()!;
+    let childClassStack = classStack;
+    let childFuncStack = funcStack;
 
     switch (node.type) {
-      case "decorated_definition": {
-        const definition = node.childForFieldName("definition");
-        if (definition) {
-          const decorators: string[] = [];
-          for (let i = 0; i < node.namedChildCount; i += 1) {
-            const child = node.namedChild(i);
-            if (child && child.type === "decorator") {
-              decorators.push(decoratorText(child));
-            }
-          }
-          decoratorsByDefinition.set(definition.id, decorators);
-        }
+      case "decorated_definition":
+        recordDecorators(node, decoratorsByDefinition);
         break;
-      }
 
       case "class_definition": {
         const cls = buildClass(node, decoratorsByDefinition.get(node.id) ?? []);
         result.classes.push(cls);
-        classStack = [...classStack, cls];
+        childClassStack = [...classStack, cls];
         break;
       }
 
@@ -109,17 +120,11 @@ export async function parsePyFile(input: ParsePyInput): Promise<ParsedPyFile> {
           node,
           decorators: decoratorsByDefinition.get(node.id) ?? [],
           enclosingClass: classStack[classStack.length - 1],
-          filePath: input.absolutePath,
+          filePath,
         });
         result.functions.push(fn);
-        const enclosing: PyEnclosingFunction = {
-          shape: fn.shape,
-          startLine: fn.startLine,
-          endLine: fn.endLine,
-        };
-        if (fn.name !== undefined) enclosing.name = fn.name;
         // Innermost first — matches the JS `SyncIoCall` contract.
-        funcStack = [enclosing, ...funcStack];
+        childFuncStack = [toEnclosing(fn), ...funcStack];
         break;
       }
 
@@ -136,33 +141,15 @@ export async function parsePyFile(input: ParsePyInput): Promise<ParsedPyFile> {
         break;
       }
 
-      case "assert_statement": {
-        const assertion: PyAssertion = {
-          kind: "assert_statement",
-          line: lineOf(node),
-        };
-        const fnName = funcStack[0]?.name;
-        if (fnName !== undefined) assertion.functionName = fnName;
-        result.assertions.push(assertion);
+      case "assert_statement":
+        result.assertions.push(
+          withFunctionName({ kind: "assert_statement", line: lineOf(node) }, funcStack),
+        );
         break;
-      }
 
-      case "call": {
-        const date = matchDateCall(node);
-        if (date) result.dateCalls.push(date);
-
-        const io = matchIoCall(node);
-        if (io) result.ioCalls.push({ ...io, enclosingFunctions: funcStack });
-
-        const assertion = matchAssertionCall(node);
-        if (assertion) {
-          const entry: PyAssertion = { ...assertion };
-          const fnName = funcStack[0]?.name;
-          if (fnName !== undefined) entry.functionName = fnName;
-          result.assertions.push(entry);
-        }
+      case "call":
+        recordCall(node, funcStack, result);
         break;
-      }
 
       default:
         break;
@@ -170,13 +157,69 @@ export async function parsePyFile(input: ParsePyInput): Promise<ParsedPyFile> {
 
     for (let i = node.namedChildCount - 1; i >= 0; i -= 1) {
       const child = node.namedChild(i);
-      if (child) stack.push({ node: child, classStack, funcStack });
+      if (child) {
+        stack.push({
+          node: child,
+          classStack: childClassStack,
+          funcStack: childFuncStack,
+        });
+      }
     }
   }
+}
 
-  sortByLine(result);
-  tree.delete();
-  return result;
+function recordDecorators(node: Node, into: Map<number, string[]>): void {
+  const definition = node.childForFieldName("definition");
+  if (!definition) return;
+  const decorators: string[] = [];
+  for (let i = 0; i < node.namedChildCount; i += 1) {
+    const child = node.namedChild(i);
+    if (child && child.type === "decorator") {
+      decorators.push(decoratorText(child));
+    }
+  }
+  into.set(definition.id, decorators);
+}
+
+/**
+ * A `call` node can be up to three things at once for our purposes — a
+ * clock read, blocking I/O, and an assertion are all just calls — so
+ * each matcher gets a look rather than the first match winning.
+ */
+function recordCall(
+  node: Node,
+  funcStack: PyEnclosingFunction[],
+  result: ParsedPyFile,
+): void {
+  const date = matchDateCall(node);
+  if (date) result.dateCalls.push(date);
+
+  const io = matchIoCall(node);
+  if (io) result.ioCalls.push({ ...io, enclosingFunctions: funcStack });
+
+  const assertion = matchAssertionCall(node);
+  if (assertion) result.assertions.push(withFunctionName(assertion, funcStack));
+}
+
+function toEnclosing(fn: ParsedPyFunction): PyEnclosingFunction {
+  const enclosing: PyEnclosingFunction = {
+    shape: fn.shape,
+    kind: fn.kind,
+    startLine: fn.startLine,
+    endLine: fn.endLine,
+  };
+  if (fn.name !== undefined) enclosing.name = fn.name;
+  return enclosing;
+}
+
+function withFunctionName(
+  assertion: Omit<PyAssertion, "functionName">,
+  funcStack: PyEnclosingFunction[],
+): PyAssertion {
+  const entry: PyAssertion = { ...assertion };
+  const fnName = funcStack[0]?.name;
+  if (fnName !== undefined) entry.functionName = fnName;
+  return entry;
 }
 
 function buildClass(node: Node, decorators: string[]): ParsedPyClass {

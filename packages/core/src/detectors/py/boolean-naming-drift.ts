@@ -91,7 +91,21 @@ export const booleanNamingDriftPyDetector: LanguagePyDetector = {
     if (isTestFile(ctx.file)) return [];
 
     const allowed = readAllowedNames(ctx.config);
-    const offenders = ctx.parsed.assignments.filter((a) => isDrift(a, allowed));
+
+    // Dedupe per binding, keeping the first assignment. The charge is
+    // "this *name* doesn't signal that it holds a boolean", which is
+    // true once per name — counting `retry = True` followed by
+    // `retry = False` as two offenders would inflate the count, and the
+    // count drives severity. Keyed with the enclosing function so the
+    // same name in two functions stays two distinct bindings.
+    const seen = new Set<string>();
+    const offenders = ctx.parsed.assignments.filter((a) => {
+      if (!isDrift(a, allowed)) return false;
+      const key = `${a.functionName ?? "<module>"}::${a.name}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     if (offenders.length === 0) return [];
 
     const severity: Severity = offenders.length >= 4 ? "medium" : "low";

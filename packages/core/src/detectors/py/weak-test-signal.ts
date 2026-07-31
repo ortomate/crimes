@@ -42,16 +42,24 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     );
     if (tests.length === 0) return [];
 
-    const assertionsByFunction = new Map<string, number>();
-    for (const assertion of ctx.parsed.assertions) {
-      if (assertion.functionName === undefined) continue;
-      assertionsByFunction.set(
-        assertion.functionName,
-        (assertionsByFunction.get(assertion.functionName) ?? 0) + 1,
-      );
-    }
-
-    const silent = tests.filter((fn) => (assertionsByFunction.get(fn.name!) ?? 0) === 0);
+    // Attribute assertions by line span rather than by the innermost
+    // enclosing function's name. A test that asserts inside a local
+    // helper —
+    //
+    //     def test_totals():
+    //         def check(x): assert x > 0
+    //         check(compute())
+    //
+    // — records the assertion against `check`, so name-keyed counting
+    // would report `test_totals` as asserting nothing. It is a real
+    // test; accusing it would be exactly the kind of false positive
+    // that gets a detector disabled.
+    const silent = tests.filter(
+      (fn) =>
+        !ctx.parsed.assertions.some(
+          (a) => a.line >= fn.startLine && a.line <= fn.endLine,
+        ),
+    );
     if (silent.length === 0) return [];
 
     const minPerTest = readMinAssertions(ctx.config);

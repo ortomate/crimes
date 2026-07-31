@@ -149,6 +149,14 @@ export interface PyDateCall {
 export interface PyEnclosingFunction {
   name?: string;
   shape: PyFunctionShape;
+  /**
+   * Carried so a detector can ask "is this call inside an `async def`?"
+   * from the scope chain itself. Without it the only way to answer is to
+   * test the call's line number against every function's range, which is
+   * both O(calls × functions) and a weaker claim — line containment is
+   * not the same as lexical enclosure.
+   */
+  kind: PyFunctionKind;
   startLine: number;
   endLine: number;
 }
