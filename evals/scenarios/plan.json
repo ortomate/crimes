@@ -111,5 +111,28 @@
       "Did the agent recognise that a Python import cycle can raise ImportError at startup depending on import order?",
       "Did the agent flag the deep import into tax.rules.regional.eu.vat_bands as coupling to package internals that the extraction would break?"
     ]
+  },
+  {
+    "id": "plan-13-polyglot-extract-billing",
+    "fixture": "13",
+    "kind": "plan",
+    "prompt": "We want to extract the billing API in this monorepo into its own deployable service, owned by a different team. Run `crimes scan --format json` first, then write the extraction plan. Say which of the problems crimes surfaces must be fixed before the split and which can follow after.",
+    "expected_artifacts": {
+      "referenced_findings": [
+        "cross_language_route_drift",
+        "cross_language_type_drift",
+        "cross_language_concept_alias_drift"
+      ],
+      "referenced_files": [
+        "packages/api/billing/plans.py",
+        "packages/web/src/workspace-client.ts"
+      ],
+      "expected_priority": "cross_language_type_drift"
+    },
+    "judge_questions": [
+      "Did the agent recognise that the shared Plan type becomes a cross-service contract after the split?",
+      "Did the agent treat the route mismatches as blocking, since they become a network boundary?",
+      "Did the agent use coverage.by_package or the package layout to scope what moves?"
+    ]
   }
 ]

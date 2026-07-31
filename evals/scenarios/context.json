@@ -141,5 +141,25 @@
       "Did the agent identify which modules depend on ledger.py and would be affected by a change?",
       "Did the agent recommend adding a test before making the change?"
     ]
+  },
+  {
+    "id": "context-13-polyglot-rename",
+    "fixture": "13",
+    "kind": "context",
+    "prompt": "You have been asked to rename the core domain object in this monorepo so both halves of the product agree on what it is called. Before making any change, use crimes to work out what the object is currently called, where each name is used, and what else you would have to touch. Report what you found.",
+    "expected_artifacts": {
+      "referenced_findings": [
+        "cross_language_concept_alias_drift"
+      ],
+      "referenced_files": [
+        "packages/api/billing/routes.py",
+        "packages/web/src/workspace-client.ts"
+      ]
+    },
+    "judge_questions": [
+      "Did the agent determine the concept is called team in Python and workspace in TypeScript?",
+      "Did the agent recognise the rename spans two languages rather than one?",
+      "Did the agent note that the HTTP paths carry the name too, so renaming is an API change?"
+    ]
   }
 ]

@@ -84,6 +84,13 @@
       "name": "py-tested",
       "kind": "hand-crafted",
       "purpose": "Python package with three modules at three different coverage levels: rates.py has real asserting tests, reporting.py has a test file that asserts nothing, ledger.py has no test at all. Exercises weak_test_signal.py and is the fixture that proves the 0.14.0 test_gap fix — Python's test_ prefix convention now pairs, so these three do not all score test_gap 1.0."
+    },
+    {
+      "id": "13",
+      "path": "evals/fixtures/13-polyglot-monorepo",
+      "name": "polyglot-monorepo",
+      "kind": "hand-crafted",
+      "purpose": "A Python billing service and a TypeScript web client in one monorepo, disagreeing three ways: the Plan enum has drifted (team/scale vs enterprise), the client fetches /api/workspaces against a backend serving /api/teams, and one shared path disagrees on the HTTP verb. Exercises the 0.15.0 cross-language pack (cross_language_type_drift, cross_language_route_drift, cross_language_concept_alias_drift) plus coverage.by_package."
     }
   ]
 }

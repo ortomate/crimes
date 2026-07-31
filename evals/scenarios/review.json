@@ -219,5 +219,27 @@
       "Did the agent distinguish between a module having a test file and being meaningfully tested?",
       "Did the agent avoid claiming the package is well tested purely because test files exist?"
     ]
+  },
+  {
+    "id": "review-13-polyglot-api-contract",
+    "fixture": "13",
+    "kind": "review",
+    "prompt": "Review the contract between the web client and the billing API in this monorepo. Use `crimes scan --format json`. Report every place the two sides disagree, and rank them by how they would fail in production.",
+    "expected_artifacts": {
+      "referenced_findings": [
+        "cross_language_route_drift",
+        "cross_language_type_drift"
+      ],
+      "referenced_files": [
+        "packages/web/src/workspace-client.ts",
+        "packages/api/billing/routes.py"
+      ],
+      "expected_priority": "cross_language_route_drift"
+    },
+    "judge_questions": [
+      "Did the agent find both the missing route and the HTTP method mismatch?",
+      "Did the agent distinguish the 404 failure mode from the 405 one?",
+      "Did the agent avoid claiming a disagreement that crimes did not report?"
+    ]
   }
 ]

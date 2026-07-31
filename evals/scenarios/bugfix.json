@@ -113,5 +113,26 @@
       "Did the agent explain that a UTC-configured CI runner makes the two agree, which is why the bug does not reproduce there?",
       "Does the proposed fix move to timezone-aware datetimes rather than just replacing one call with the other?"
     ]
+  },
+  {
+    "id": "bugfix-13-polyglot-plan-drift",
+    "fixture": "13",
+    "kind": "bugfix",
+    "prompt": "Users on our newest plan tier are being rejected by the web app with a validation error, but the API accepts them fine. Run `crimes scan --format json` and work out why. Explain the mechanism and say what would stop it recurring.",
+    "expected_artifacts": {
+      "referenced_findings": [
+        "cross_language_type_drift"
+      ],
+      "referenced_files": [
+        "packages/api/billing/plans.py",
+        "packages/web/src/workspace-client.ts"
+      ],
+      "expected_priority": "cross_language_type_drift"
+    },
+    "judge_questions": [
+      "Did the agent identify that the Python Plan enum and the TypeScript Plan union list different members?",
+      "Did the agent name the specific values that exist on one side only?",
+      "Did the agent propose generating one side from the other (or a shared schema) rather than just adding the missing member by hand?"
+    ]
   }
 ]
