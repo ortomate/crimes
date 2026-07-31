@@ -27,29 +27,64 @@ All fields are rounded to two decimal places.
 ## The unified `agent_risk` formula
 
 `agent_risk` is recomputed for every finding after detectors emit. The
-0.6.0 formula:
+0.12.2 formula:
 
 ```
 agent_risk = clamp01(
-    0.4  * severity_numeric
-  + 0.2  * confidence
-  + 0.15 * churn
-  + 0.15 * test_gap
-  + 0.10 * blast_radius
+    0.40 * intrinsic       // the detector's own scores.agent_risk
+  + 0.20 * churn
+  + 0.20 * test_gap
+  + 0.20 * blast_radius
 )
 ```
 
-`severity_numeric` maps the categorical `severity` to a numeric value:
+`intrinsic` is the value the detector itself set on `scores.agent_risk`.
+It is the only genuinely agent-specific input in the system — it is
+where "multiple sources of truth", "misleading name", and "hidden side
+effect" (PRD §10) are actually encoded, and it scales with the evidence
+found: `concept_alias_drift` rises with the number of competing aliases,
+`mixed_utc_local_methods` with the number of offenders.
 
-| `severity` | numeric |
-| ---------- | ------- |
-| `high`     | 0.9     |
-| `medium`   | 0.7     |
-| `low`      | 0.45    |
+Detectors that don't set one (18 of 48 today) fall back to a
+severity-derived default, deliberately compressed so a fallback finding
+doesn't outrank a detector that made a real judgement:
 
-These mappings match the convention pre-0.6.0 detectors used, so the
-ordering of existing high-severity findings is preserved when the new
-signals are zero.
+| `severity` | fallback `intrinsic` |
+| ---------- | -------------------- |
+| `high`     | 0.75                 |
+| `medium`   | 0.55                 |
+| `low`      | 0.40                 |
+
+### Why severity and confidence are not terms
+
+From 0.6.0 to 0.12.1 the formula was
+`0.4*severity + 0.2*confidence + 0.15*churn + 0.15*test_gap + 0.10*blast_radius`,
+and the detector's own `agent_risk` was **discarded** at finalisation.
+
+Severity takes one of three values and observed confidence spans a
+0.25-wide band, so 60% of the weight sat on the two least-varying
+inputs. Measured across a 210-finding scan of this repo, that produced:
+
+| | old formula | 0.12.2 |
+| --- | --- | --- |
+| correlation with `severity` | **0.79** | 0.18 |
+| correlation with `blast_radius` | 0.06 | 0.48 |
+| correlation with `churn` | 0.45 | 0.35 |
+| correlation with `test_gap` | 0.38 | 0.49 |
+| p10–p90 spread | 0.23 | 0.33 |
+
+`agent_risk` had effectively collapsed into `severity`, which PRD §10
+says must not happen — and `blast_radius` contributed nothing at all.
+Severity remains a separate ranking axis and is still reported per
+finding; it simply no longer determines this score.
+
+The 0.12.2 figures include the companion `test_gap` fix below. Together
+they changed which findings surface: the top of a self-scan was four
+markdown files, and is now `context.ts`, `finding.ts`, `scan.ts`,
+`config.ts`, and `detector.ts` — the schema, the detector contract, and
+the scan orchestrator. A `low`-severity `sync_io_in_hotpath` finding now
+ranks third, above several `high`-severity ones, which is the behaviour
+PRD §10 describes.
 
 ## How each signal is computed
 
@@ -81,6 +116,18 @@ A three-tier signal derived from filesystem layout and the import graph:
 Test files are recognised by the standard pattern: anything under
 `__tests__/`, or any file matching `.test.{ts,tsx,js,jsx,mjs,cjs}` or
 `.spec.{…}`.
+
+**Only files a language pack claims carry a test_gap.** Markdown, JSON,
+YAML, and assets score `0.0` and are excluded from the quartile
+population entirely. A README having no unit test is a category error,
+not a risk. Before 0.12.2 they scored `1.0` and were ranked against
+code, which pushed every documentation file into the top quartile and —
+because `test_gap` feeds `agent_risk` — put four markdown files at the
+top of a self-scan of this repo. Excluding them also keeps the quartile
+boundaries meaningful for the code files that remain.
+
+This is derived from the language-pack router, so a file type becomes
+testable automatically when a pack starts claiming it — no second list.
 
 ### `blast_radius`
 

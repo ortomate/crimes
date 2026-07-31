@@ -163,6 +163,43 @@ describe("buildScoringContext > test_gap", () => {
     const ctx = await buildScoringContext({ root, files, imports });
     expect(ctx.testGap.forFile("src/util.test.ts")).toBe(0);
   });
+
+  it("returns 0 for files no language pack claims", async () => {
+    // A README having no unit test is a category error, not a risk.
+    // Before 0.12.2 these scored 1.0 and were quartile-ranked against
+    // code, pushing every doc into the top test_gap quartile.
+    const root = await makeRepo({
+      "src/util.ts": "export const u = 1;\n",
+      "README.md": "# hello\n",
+      "config.json": "{}\n",
+    });
+    const files = await discover(root);
+    const imports = await buildImportGraph({ root, files });
+    const ctx = await buildScoringContext({ root, files, imports });
+    expect(ctx.testGap.forFile("README.md")).toBe(0);
+    expect(ctx.testGap.forFile("config.json")).toBe(0);
+    // The untested .ts file still registers a gap.
+    expect(ctx.testGap.forFile("src/util.ts")).toBeGreaterThan(0);
+  });
+
+  it("excludes unclaimed files from the quartile population", async () => {
+    // Four docs plus one untested source file: if the docs were in the
+    // population they would occupy quartiles and displace the code.
+    const root = await makeRepo({
+      "src/a.ts": "export const a = 1;\n",
+      "docs/one.md": "# 1\n",
+      "docs/two.md": "# 2\n",
+      "docs/three.md": "# 3\n",
+      "docs/four.md": "# 4\n",
+    });
+    const files = await discover(root);
+    const imports = await buildImportGraph({ root, files });
+    const ctx = await buildScoringContext({ root, files, imports });
+    for (const doc of ["docs/one.md", "docs/two.md", "docs/three.md", "docs/four.md"]) {
+      expect(ctx.testGap.forFile(doc), doc).toBe(0);
+    }
+    expect(ctx.testGap.forFile("src/a.ts")).toBeGreaterThan(0);
+  });
 });
 
 describe("buildScoringContext > blast_radius", () => {
@@ -273,26 +310,78 @@ describe("computeAgentRisk", () => {
   it("follows the documented unified formula", () => {
     const got = computeAgentRisk({
       severity: "high",
-      confidence: 0.95,
+      intrinsic: 0.8,
       churn: 0.65,
       test_gap: 0.2,
       blast_radius: 0.55,
     });
-    // 0.4 * 0.9 + 0.2 * 0.95 + 0.15 * 0.65 + 0.15 * 0.2 + 0.10 * 0.55
-    //  = 0.36 + 0.19 + 0.0975 + 0.03 + 0.055 = 0.7325 → 0.73
-    expect(got).toBe(0.73);
+    // 0.40 * 0.8 + 0.20 * 0.65 + 0.20 * 0.2 + 0.20 * 0.55
+    //  = 0.32 + 0.13 + 0.04 + 0.11 = 0.60
+    expect(got).toBe(0.6);
   });
 
   it("clamps to <= 1 when every input is at maximum", () => {
     const got = computeAgentRisk({
       severity: "high",
-      confidence: 1,
+      intrinsic: 1,
       churn: 1,
       test_gap: 1,
       blast_radius: 1,
     });
     expect(got).toBeLessThanOrEqual(1);
     expect(got).toBeGreaterThan(0.9);
+  });
+
+  it("falls back to a severity-derived intrinsic when the detector sets none", () => {
+    const high = computeAgentRisk({
+      severity: "high",
+      churn: 0,
+      test_gap: 0,
+      blast_radius: 0,
+    });
+    const low = computeAgentRisk({
+      severity: "low",
+      churn: 0,
+      test_gap: 0,
+      blast_radius: 0,
+    });
+    expect(high).toBe(0.3); // 0.40 * 0.75
+    expect(low).toBe(0.16); // 0.40 * 0.40
+    expect(high).toBeGreaterThan(low);
+  });
+
+  it("lets the detector's own judgement outrank severity", () => {
+    // The point of the 0.12.2 reweight: a low-severity finding the
+    // detector considers agent-hostile (multiple sources of truth,
+    // misleading name) must be able to outrank a high-severity one it
+    // considers mechanical.
+    const lowButConfusing = computeAgentRisk({
+      severity: "low",
+      intrinsic: 0.85,
+      churn: 0,
+      test_gap: 0,
+      blast_radius: 0,
+    });
+    const highButMechanical = computeAgentRisk({
+      severity: "high",
+      intrinsic: 0.35,
+      churn: 0,
+      test_gap: 0,
+      blast_radius: 0,
+    });
+    expect(lowButConfusing).toBeGreaterThan(highButMechanical);
+  });
+
+  it("ignores a non-finite intrinsic rather than producing NaN", () => {
+    const got = computeAgentRisk({
+      severity: "medium",
+      intrinsic: Number.NaN,
+      churn: 0.5,
+      test_gap: 0,
+      blast_radius: 0,
+    });
+    expect(Number.isFinite(got)).toBe(true);
+    expect(got).toBe(0.32); // 0.40 * 0.55 + 0.20 * 0.5
   });
 });
 

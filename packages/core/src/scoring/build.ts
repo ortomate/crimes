@@ -4,24 +4,30 @@
  * Every finding now carries real `churn`, `test_gap`, and `blast_radius`
  * scores in addition to `severity` and `confidence`. These three values
  * are looked up per-file from indices built once per scan and attached
- * to `DetectorContext.scoring`. The unified `agent_risk` is computed
- * from all five via the formula in §4.4:
+ * to `DetectorContext.scoring`. The unified `agent_risk` combines the
+ * detector's own intrinsic judgement with the three context signals:
  *
  *   agent_risk = clamp01(
- *     0.4 * severity
- *     + 0.2 * confidence
- *     + 0.15 * churn
- *     + 0.15 * test_gap
- *     + 0.10 * blast_radius
+ *     0.40 * intrinsic        // detector-supplied scores.agent_risk
+ *     + 0.20 * churn
+ *     + 0.20 * test_gap
+ *     + 0.20 * blast_radius
  *   )
  *
- * The three new scores are ordinal: the formulae may shift between
+ * Reweighted in 0.12.2. The previous formula put 60% of the weight on
+ * severity and confidence and discarded the detector's own value, which
+ * left `agent_risk` correlated with severity at r=0.79 and with
+ * blast_radius at r=0.06 — collapsed into severity, which PRD §10 says
+ * must not happen.
+ *
+ * The three context scores are ordinal: the formulae may shift between
  * minor releases as we tune them, but the contract — higher is worse,
  * range [0, 1] — is stable.
  */
 
 import { relative, sep } from "node:path";
 import { getDefaultsFor } from "../detector-defaults.js";
+import { resolveLanguagePackRouter } from "../discovery/language-pack-router.js";
 import type { Finding, FindingScores, Severity } from "../finding.js";
 import { collectChurn } from "../git/churn.js";
 import type { CollectChurnResult } from "../git/churn.js";
@@ -191,6 +197,7 @@ function buildTestGapIndex(args: {
   const { repoPaths, imports } = args;
   const fileSet = new Set(repoPaths);
   const testFiles = new Set(repoPaths.filter((p) => isTestFile(p)));
+  const langPack = resolveLanguagePackRouter();
 
   // Index every discovered file's basename without extension and parent
   // directory; we'll use these to find sibling tests.
@@ -237,8 +244,16 @@ function buildTestGapIndex(args: {
     return 1;
   };
 
-  // Compute raw for every source file once, then quartile-rank in one pass.
-  const sourcePaths = repoPaths.filter((p) => !isTestFile(p));
+  // Only files a language pack claims can meaningfully have a test gap.
+  // A README having no unit test is a category error, not a risk — and
+  // including docs/JSON/YAML in the population used to push every
+  // markdown file into the top test_gap quartile, which then dominated
+  // agent_risk. Restricting the population also keeps the quartile
+  // boundaries meaningful for the code files that remain.
+  const testable = (p: string): boolean =>
+    !isTestFile(p) && langPack.claimingPack(p) !== undefined;
+
+  const sourcePaths = repoPaths.filter(testable);
   const rawValues = sourcePaths.map((p) => rawFor(p));
   const quartiles = quartileScores(rawValues);
   const quartileByPath = new Map<string, number>();
@@ -247,6 +262,8 @@ function buildTestGapIndex(args: {
   return {
     forFile(repoPath) {
       if (isTestFile(repoPath)) return 0;
+      // Unclaimed by any language pack — no test gap signal exists.
+      if (langPack.claimingPack(repoPath) === undefined) return 0;
       return quartileByPath.get(repoPath) ?? rawFor(repoPath);
     },
     rawForFile(repoPath) {
@@ -311,22 +328,60 @@ const SEVERITY_NUMERIC: Record<Severity, number> = {
 };
 
 /**
+ * Fallback intrinsic agent-risk for the detectors that don't express one
+ * of their own. Derived from severity because it is the only signal
+ * available for those findings — deliberately compressed relative to
+ * SEVERITY_NUMERIC so a fallback finding doesn't outrank a detector that
+ * actually made a judgement.
+ *
+ * Detectors SHOULD set `scores.agent_risk` themselves. See
+ * `docs/scoring.md`.
+ */
+const FALLBACK_INTRINSIC: Record<Severity, number> = {
+  high: 0.75,
+  medium: 0.55,
+  low: 0.40,
+};
+
+/**
  * Compute `agent_risk` from the unified formula. Pure — no side effects.
+ *
+ *   agent_risk = 0.40 * intrinsic     (the detector's own judgement)
+ *              + 0.20 * churn
+ *              + 0.20 * test_gap
+ *              + 0.20 * blast_radius
+ *
+ * `intrinsic` is the detector-supplied `scores.agent_risk` — the only
+ * genuinely agent-specific input in the system. It is where "multiple
+ * sources of truth", "misleading name", and "hidden side effect" are
+ * encoded (PRD §10), and it scales with the evidence the detector found:
+ * `concept_alias_drift` rises with the number of competing aliases,
+ * `mixed_utc_local_methods` with the number of offenders.
+ *
+ * Severity and confidence are deliberately NOT terms. Before 0.12.2 they
+ * carried 60% of the weight while the detector's own value was discarded
+ * outright, which made `agent_risk` track severity at r=0.79 and
+ * blast_radius at r=0.06 — collapsed into severity, exactly what the PRD
+ * says must not happen. Severity remains a separate axis in ranking and
+ * is still reported per finding; it just no longer dominates this score.
  */
 export function computeAgentRisk(args: {
   severity: Severity;
-  confidence: number;
+  /** Detector-supplied intrinsic agent risk. Falls back to severity. */
+  intrinsic?: number | undefined;
   churn: number;
   test_gap: number;
   blast_radius: number;
 }): number {
-  const sev = SEVERITY_NUMERIC[args.severity];
+  const intrinsic =
+    typeof args.intrinsic === "number" && Number.isFinite(args.intrinsic)
+      ? clamp01(args.intrinsic)
+      : FALLBACK_INTRINSIC[args.severity];
   const raw =
-    0.4 * sev +
-    0.2 * args.confidence +
-    0.15 * args.churn +
-    0.15 * args.test_gap +
-    0.10 * args.blast_radius;
+    0.40 * intrinsic +
+    0.20 * args.churn +
+    0.20 * args.test_gap +
+    0.20 * args.blast_radius;
   return round(clamp01(raw));
 }
 
@@ -334,12 +389,14 @@ export function computeAgentRisk(args: {
  * Populate `churn` / `test_gap` / `blast_radius` on a finding from the
  * scoring context, then recompute `agent_risk` from the unified formula.
  *
- * Detectors that emit findings still set `severity` and `confidence`; this
- * function backfills the rest and overwrites any `agent_risk` the
- * detector may have set (existing detectors do; future ones don't need
- * to). When `scoring` is absent — typically in detector unit-test stubs
- * — the three new fields are left unset and `agent_risk` is computed
- * with them treated as 0, preserving the pre-0.6.0 ordering.
+ * Detectors set `severity`, `confidence`, and — for 30 of 48 — their own
+ * `agent_risk`. That last value is now the heaviest input to the unified
+ * formula rather than being discarded; see {@link computeAgentRisk}.
+ * Detectors that don't set one fall back to a severity-derived default.
+ *
+ * When `scoring` is absent — typically in detector unit-test stubs — the
+ * three context-derived fields are left unset and treated as 0, so a
+ * finding's score reduces to `0.40 * intrinsic`.
  */
 export function finaliseFindingScores(
   finding: Finding,
@@ -384,9 +441,12 @@ export function finaliseFindingScores(
     );
     finding.scores.recency = recency;
   }
+  // Read the detector's own judgement BEFORE overwriting the field.
+  // 30 of 48 detectors set this; prior to 0.12.2 it was discarded.
+  const intrinsic = finding.scores.agent_risk;
   finding.scores.agent_risk = computeAgentRisk({
     severity: finding.severity,
-    confidence: finding.scores.confidence,
+    intrinsic,
     churn,
     test_gap,
     blast_radius,
