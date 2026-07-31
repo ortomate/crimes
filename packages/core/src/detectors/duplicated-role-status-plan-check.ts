@@ -1,5 +1,5 @@
 import { readFileSync as fsReadFileSync } from "node:fs";
-import type { LanguageJsDetector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, PerFileDetectorContext } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
@@ -47,7 +47,7 @@ interface CheckHit {
   expression: string;
 }
 
-function analyse(ctx: DetectorContext): Finding[] {
+function analyse(ctx: PerFileDetectorContext): Finding[] {
   if (!ctx.ia) return [];
   const files = Object.keys(ctx.ia.files);
   const hitsByLiteral = new Map<string, CheckHit[]>();
@@ -186,7 +186,7 @@ function buildFinding(
 }
 
 
-function isPrimaryAnchor(ctx: DetectorContext): boolean {
+function isPrimaryAnchor(ctx: PerFileDetectorContext): boolean {
   if (!ctx.ia) return false;
   const files = Object.keys(ctx.ia.files).sort();
   return files.length > 0 && files[0] === ctx.file;

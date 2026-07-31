@@ -4,9 +4,12 @@ import { parseFile } from "@crimes/language-js";
 import { parsePyFile } from "@crimes/language-py";
 import type { CrimesConfig } from "./config.js";
 import type {
+  CrossLanguageDetector,
+  CrossLanguageDetectorContext,
   Detector,
   LanguageJsDetectorContext,
   LanguagePyDetectorContext,
+  PackedFile,
 } from "./detector.js";
 import { groupDetectorsByPack } from "./detector-registry.js";
 import { buildUniversalContext } from "./discovery/universal-context.js";
@@ -82,6 +85,14 @@ export async function runDetectorsForFiles(args: {
   // for every file is wasted work proportional to repo size.
   const grouped = groupDetectorsByPack(args.detectors);
   const findings: Finding[] = [];
+  // Cross-language detectors need every pack's parsed output, so the
+  // per-file loop collects it as it goes rather than re-parsing the
+  // repo a second time. Only populated when a cross-language detector
+  // is actually enabled — otherwise this is pure memory cost on every
+  // scan for a feature nobody asked for.
+  const crossDetectors = grouped["cross-language"] ?? [];
+  const packedFiles: PackedFile[] = [];
+
   for (const absolutePath of args.files) {
     findings.push(
       ...(await runDetectorsForFile({
@@ -91,8 +102,55 @@ export async function runDetectorsForFiles(args: {
         indexes: args.indexes,
         langPack: args.langPack,
         grouped,
+        ...(crossDetectors.length > 0 ? { collectInto: packedFiles } : {}),
       })),
     );
+  }
+
+  if (crossDetectors.length > 0) {
+    findings.push(
+      ...(await runCrossLanguageDetectors({
+        root: args.root,
+        detectors: crossDetectors,
+        config: args.config,
+        indexes: args.indexes,
+        packedFiles,
+      })),
+    );
+  }
+
+  return findings;
+}
+
+/**
+ * Run the cross-language pass. Called once per scan, after every
+ * per-language pass has completed — a cross-language finding is a
+ * disagreement *between* files, so there is no per-file iteration here.
+ */
+export async function runCrossLanguageDetectors(args: {
+  root: string;
+  detectors: CrossLanguageDetector[];
+  config: CrimesConfig;
+  indexes: ScanIndexes;
+  packedFiles: PackedFile[];
+}): Promise<Finding[]> {
+  // Stable order so evidence strings and the anchor file a detector
+  // picks don't shift between runs on the same repo.
+  const files = [...args.packedFiles].sort((a, b) => a.file.localeCompare(b.file));
+  const ctx: CrossLanguageDetectorContext = {
+    kind: "cross-language",
+    root: args.root,
+    files,
+    config: args.config,
+    ia: args.indexes.ia,
+    imports: args.indexes.imports,
+    scoring: args.indexes.scoring,
+  };
+
+  const findings: Finding[] = [];
+  for (const detector of args.detectors) {
+    const emitted = await detector.run(ctx);
+    findings.push(...emitted.map((f) => assignPackAndDetectorId(f, detector)));
   }
   return findings;
 }
@@ -104,6 +162,12 @@ export async function runDetectorsForFile(args: {
   indexes: ScanIndexes;
   langPack: LanguagePackRouter;
   grouped: ReturnType<typeof groupDetectorsByPack>;
+  /**
+   * When present, each file this pass parses is appended here for the
+   * cross-language pass. Absent when no cross-language detector is
+   * enabled, so the corpus is never held in memory for nothing.
+   */
+  collectInto?: PackedFile[];
 }): Promise<Finding[]> {
   const file = toRepoPath(relative(args.root, args.absolutePath));
 
@@ -126,9 +190,14 @@ export async function runDetectorsForFile(args: {
   }
 
   // Language-js pack: runs only when the JS pack claims the file's extension.
+  // Parse when the pack claims the file and *either* it has detectors
+  // to run or the cross-language pass needs the corpus. Gating purely on
+  // detector count would hand the cross-language pass an empty JS side
+  // whenever someone disabled the JS detectors, and it would report the
+  // resulting one-sidedness as if the language were absent.
   const jsDetectors = args.grouped["language-js"] ?? [];
   if (
-    jsDetectors.length > 0 &&
+    (jsDetectors.length > 0 || args.collectInto !== undefined) &&
     args.langPack.claims("language-js", args.absolutePath)
   ) {
     const source = await readFile(args.absolutePath, "utf8");
@@ -146,6 +215,12 @@ export async function runDetectorsForFile(args: {
       const detectorFindings = await detector.run(jsCtx);
       findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
     }
+    args.collectInto?.push({
+      pack: "language-js",
+      file,
+      absolutePath: args.absolutePath,
+      parsed,
+    });
   }
 
   // Language-py pack: runs only when the Python pack claims the file's
@@ -153,7 +228,7 @@ export async function runDetectorsForFile(args: {
   // the point of this release, so the two read identically.
   const pyDetectors = args.grouped["language-py"] ?? [];
   if (
-    pyDetectors.length > 0 &&
+    (pyDetectors.length > 0 || args.collectInto !== undefined) &&
     args.langPack.claims("language-py", args.absolutePath)
   ) {
     const source = await readFile(args.absolutePath, "utf8");
@@ -177,6 +252,12 @@ export async function runDetectorsForFile(args: {
       const detectorFindings = await detector.run(pyCtx);
       findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
     }
+    args.collectInto?.push({
+      pack: "language-py",
+      file,
+      absolutePath: args.absolutePath,
+      parsed,
+    });
   }
 
   return findings;

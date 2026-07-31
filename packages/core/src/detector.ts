@@ -61,6 +61,10 @@ export type Detector =
   | (BaseDetector & {
       pack: "language-py";
       run(ctx: LanguagePyDetectorContext): Promise<PreFinding[]> | PreFinding[];
+    })
+  | (BaseDetector & {
+      pack: "cross-language";
+      run(ctx: CrossLanguageDetectorContext): Promise<PreFinding[]> | PreFinding[];
     });
 
 /**
@@ -83,6 +87,15 @@ export type LanguageJsDetector = Extract<Detector, { pack: "language-js" }>;
  * tests and in the language-py scan pipeline.
  */
 export type LanguagePyDetector = Extract<Detector, { pack: "language-py" }>;
+
+/**
+ * Convenience alias for the cross-language branch of the `Detector`
+ * union. These detectors run once per scan rather than once per file.
+ */
+export type CrossLanguageDetector = Extract<
+  Detector,
+  { pack: "cross-language" }
+>;
 
 /**
  * An asset detector inspects files that aren't TS/JS source — images,
@@ -154,12 +167,27 @@ export interface AssetDetectorContext {
  *  - `kind: "universal"` → fed to detectors with `pack: "universal"`
  *  - `kind: "language-js"` → fed to detectors with `pack: "language-js"`
  *  - `kind: "language-py"` → fed to detectors with `pack: "language-py"`
- *  - (future) `kind: "cross-language"` → 0.15.0
+ *  - `kind: "cross-language"` → fed to detectors with `pack: "cross-language"`
  *
  * Detectors declare the kind they expect via their `pack` field;
  * the registry only feeds them the matching context.
  */
 export type DetectorContext =
+  | UniversalDetectorContext
+  | LanguageJsDetectorContext
+  | LanguagePyDetectorContext
+  | CrossLanguageDetectorContext;
+
+/**
+ * Every context that describes **one file**.
+ *
+ * Distinct from {@link DetectorContext} because the cross-language
+ * context is per *scan*, so it carries no `file`. Helpers that read
+ * `ctx.file` — the `isPrimaryAnchor` guard the IA detectors use to emit
+ * a repo-level finding exactly once — take this instead of the full
+ * union.
+ */
+export type PerFileDetectorContext =
   | UniversalDetectorContext
   | LanguageJsDetectorContext
   | LanguagePyDetectorContext;
@@ -328,5 +356,61 @@ export interface LanguagePyDetectorContext {
    * finalisation happens after `run()` returns, so detectors rarely need
    * to read it directly.
    */
+  scoring?: ScoringContext;
+}
+
+/**
+ * One file's parsed output, tagged with the pack that produced it.
+ *
+ * Cross-language detectors receive these rather than raw `ParsedFile` /
+ * `ParsedPyFile` values so they can ask "which language is this?"
+ * without sniffing the shape.
+ */
+export type PackedFile =
+  | { pack: "language-js"; file: string; absolutePath: string; parsed: ParsedFile }
+  | { pack: "language-py"; file: string; absolutePath: string; parsed: ParsedPyFile };
+
+/**
+ * Cross-language context — the 0.15.0 addition.
+ *
+ * Unlike every other detector context, this one is **per scan, not per
+ * file**. A cross-language finding is by definition a disagreement
+ * between two files in different languages, so there is no single file
+ * to hand the detector; it gets the whole parsed corpus and picks its
+ * own anchor.
+ *
+ * Consequences worth knowing before writing one of these:
+ *
+ *  - `run()` is called **once**, after every per-language pass has
+ *    completed. Detectors must not assume any particular file is
+ *    "current".
+ *  - Each finding still needs a `file`, because fingerprints are
+ *    `<type>::<file>::<symbol>` and every downstream surface (baseline,
+ *    suppressions, triage, the file-grouped report) keys off it. Pick
+ *    the file a reader would edit first and put the rest in
+ *    `related_files`.
+ *  - The false-positive blast radius is roughly squared: two languages'
+ *    worth of source can be mismatched. The 0.3.0 IA family's rule
+ *    applies with extra force — require ≥3 disagreeing sources, and
+ *    never emit a finding whose evidence cannot be quoted verbatim.
+ */
+export interface CrossLanguageDetectorContext {
+  kind: "cross-language";
+  /** Absolute repo root. */
+  root: string;
+  /**
+   * Every file each language pack claimed and parsed, in stable path
+   * order. Empty for a pack that claimed nothing, so a detector that
+   * needs both languages should return early when either side is empty
+   * rather than reporting a one-sided "drift".
+   */
+  files: PackedFile[];
+  /** Resolved config (already merged with defaults). */
+  config: CrimesConfig;
+  /** Repo-level IA signal index, spanning every language it can read. */
+  ia?: IaIndex;
+  /** Repo-wide import graph, carrying every pack's edges. */
+  imports?: ImportGraph;
+  /** Per-file scoring context. Finalisation happens after `run()`. */
   scoring?: ScoringContext;
 }

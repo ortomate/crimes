@@ -1,4 +1,4 @@
-import type { LanguageJsDetector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, PerFileDetectorContext } from "../detector.js";
 import { ACTION_GROUPS, analyse } from "./action-label-drift.js";
 
 /**
@@ -38,7 +38,7 @@ export const copyIaDriftDetector: LanguageJsDetector = {
   },
 };
 
-function isPrimaryAnchor(ctx: DetectorContext): boolean {
+function isPrimaryAnchor(ctx: PerFileDetectorContext): boolean {
   if (!ctx.ia) return false;
   const files = Object.keys(ctx.ia.files).sort();
   return files.length > 0 && files[0] === ctx.file;

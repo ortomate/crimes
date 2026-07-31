@@ -2,6 +2,7 @@ import type { CrimesConfig, DetectorRegistry } from "./config.js";
 import type {
   AssetDetector,
   Detector,
+  CrossLanguageDetector,
   LanguageJsDetector,
   LanguagePyDetector,
   UniversalDetector,
@@ -57,6 +58,7 @@ import { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.j
 import { todoDensityDetector } from "./detectors/todo-density.js";
 import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 import { pythonDetectors } from "./detectors/py/index.js";
+import { crossLanguageDetectors } from "./detectors/cross/index.js";
 
 /**
  * Built-in source-detector slate, in priority order. Order matters for
@@ -127,6 +129,9 @@ export const builtInDetectors: Detector[] = [
   // the findings they emit carry the abstract `type` so cross-language
   // grouping still works. See `detectors/py/shared.ts`.
   ...pythonDetectors,
+  // Cross-language pack (0.15.0). Run once per scan after every
+  // per-language pass, over the whole parsed corpus.
+  ...crossLanguageDetectors,
 ];
 
 /**
@@ -263,6 +268,7 @@ export interface GroupedDetectors {
   universal?: UniversalDetector[];
   "language-js"?: LanguageJsDetector[];
   "language-py"?: LanguagePyDetector[];
+  "cross-language"?: CrossLanguageDetector[];
 }
 
 /**
@@ -295,6 +301,10 @@ export function groupDetectorsByPack(
       const bucket = grouped["language-py"] ?? [];
       bucket.push(d as LanguagePyDetector);
       grouped["language-py"] = bucket;
+    } else if (d.pack === "cross-language") {
+      const bucket = grouped["cross-language"] ?? [];
+      bucket.push(d as CrossLanguageDetector);
+      grouped["cross-language"] = bucket;
     }
   }
   return grouped;

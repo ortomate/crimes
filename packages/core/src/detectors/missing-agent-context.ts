@@ -1,4 +1,4 @@
-import type { UniversalDetector, DetectorContext } from "../detector.js";
+import type { UniversalDetector, PerFileDetectorContext } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import type { IaAgentInventory } from "../ia/types.js";
 
@@ -106,7 +106,7 @@ function missingAgentContextEvidence(agentContext: IaAgentInventory): string[] {
  * fire once per scan compare against this to choose a deterministic
  * emission point in the per-file detector loop.
  */
-function primaryAnchor(ctx: DetectorContext): string | undefined {
+function primaryAnchor(ctx: PerFileDetectorContext): string | undefined {
   if (!ctx.ia) return undefined;
   const files = Object.keys(ctx.ia.files).sort();
   return files[0];

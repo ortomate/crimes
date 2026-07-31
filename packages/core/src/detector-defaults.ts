@@ -26,6 +26,13 @@ export const DETECTOR_DEFAULTS: Record<string, DetectorDefaults> = {
   negative_flag_maze: { effort: "small", fix_shape: "invert flags to read positively; consolidate combined states" },
   return_shape_roulette: { effort: "small", fix_shape: "pick one return shape; use a discriminated union if you need both" },
 
+  // Cross-language (0.15.0) — two languages disagreeing about the
+  // same thing. Fixes are structural: align the contract, or generate
+  // one side from the other so it cannot drift again.
+  cross_language_route_drift: { effort: "small", fix_shape: "align the path, or generate the client from the route table" },
+  cross_language_type_drift: { effort: "medium", fix_shape: "generate one side from the other, or share a schema" },
+  cross_language_concept_alias_drift: { effort: "medium", fix_shape: "pick one name for the concept and rename across both languages" },
+
   // Dependency / structure
   circular_dependency: { effort: "medium", fix_shape: "extract shared types to a leaf module" },
   deep_import: { effort: "quick", fix_shape: "import from the package boundary, not the internals" },

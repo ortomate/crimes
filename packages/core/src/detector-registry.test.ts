@@ -10,9 +10,12 @@ describe("groupDetectorsByPack", () => {
     const grouped = groupDetectorsByPack(builtInDetectors);
     expect(grouped["language-js"]).toBeDefined();
     expect(grouped["language-py"]).toBeDefined();
+    expect(grouped["cross-language"]).toBeDefined();
     for (const d of grouped.universal ?? []) expect(d.pack).toBe("universal");
     for (const d of grouped["language-js"] ?? []) expect(d.pack).toBe("language-js");
     for (const d of grouped["language-py"] ?? []) expect(d.pack).toBe("language-py");
+    for (const d of grouped["cross-language"] ?? [])
+      expect(d.pack).toBe("cross-language");
   });
 
   it("includes every built-in detector in exactly one group", () => {
@@ -20,7 +23,8 @@ describe("groupDetectorsByPack", () => {
     const total =
       (grouped.universal?.length ?? 0) +
       (grouped["language-js"]?.length ?? 0) +
-      (grouped["language-py"]?.length ?? 0);
+      (grouped["language-py"]?.length ?? 0) +
+      (grouped["cross-language"]?.length ?? 0);
     expect(total).toBe(builtInDetectors.length);
   });
 

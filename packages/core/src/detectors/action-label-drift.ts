@@ -1,4 +1,4 @@
-import type { LanguageJsDetector, DetectorContext } from "../detector.js";
+import type { LanguageJsDetector, PerFileDetectorContext } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import type { IaIndex } from "../ia/types.js";
 
@@ -175,7 +175,7 @@ export function analyse(
   return findings;
 }
 
-function isPrimaryAnchor(ctx: DetectorContext): boolean {
+function isPrimaryAnchor(ctx: PerFileDetectorContext): boolean {
   if (!ctx.ia) return false;
   const files = Object.keys(ctx.ia.files).sort();
   return files.length > 0 && files[0] === ctx.file;
