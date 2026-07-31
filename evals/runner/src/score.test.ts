@@ -88,3 +88,36 @@ describe("scoreStructural — referenced_findings", () => {
     }
   });
 });
+
+describe("extractFilePaths coverage (via scoreStructural)", () => {
+  /**
+   * Guards the measurement bug found in 0.14.0: the extension list is
+   * apparatus, and an omission fails a check silently rather than
+   * erroring, so a missing language reads as an agent that cannot find
+   * files.
+   */
+  const cases: Array<[string, string]> = [
+    ["python module", "billing/ledger.py"],
+    ["python stub", "billing/ledger.pyi"],
+    ["typescript", "src/billing.ts"],
+    ["tsx", "src/App.tsx"],
+    ["markdown", "docs/readme.md"],
+    ["asset", "public/hero.png"],
+    ["toml", "pyproject.toml"],
+    ["rust", "src/main.rs"],
+    ["go", "cmd/main.go"],
+  ];
+
+  for (const [label, path] of cases) {
+    it(`credits a ${label} path the agent named`, () => {
+      const result = scoreStructural(
+        `I looked at \`${path}\` and it has no test.`,
+        { referenced_files: [path] },
+      );
+      const detail = result.details.find((d) => d.check === "referenced_files");
+      expect(detail?.passed, `${path} was not extracted from the response`).toBe(
+        true,
+      );
+    });
+  }
+});

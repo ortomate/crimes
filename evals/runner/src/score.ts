@@ -165,20 +165,55 @@ function extractReferencedDetectorIds(
 }
 
 /**
- * Find file-path-shaped tokens (anything containing `/` plus a recognised
- * source/asset/text extension). Conservative — only counts paths that
- * look like actual files an agent would name. The asset extensions
- * (`png` / `jpg` / `jpeg` / `gif` / `webp` / `avif` / `svg`) landed
- * with the 0.8.0 asset pass: scenarios referencing image files would
- * otherwise score 0 on `referenced_files` even when the agent quoted
- * the path verbatim.
+ * Extensions the file-path extractor recognises.
+ *
+ * This list is measurement apparatus, and every omission from it is a
+ * silent scoring failure rather than a visible error: a scenario whose
+ * `referenced_files` name an extension missing here scores 0 on that
+ * check **even when the agent quoted the path verbatim**.
+ *
+ * It has now bitten twice.
+ *
+ *  - 0.8.0 added the asset extensions when image-referencing scenarios
+ *    scored 0 on files the agent had named correctly.
+ *  - 0.14.0 added `py` / `pyi`. Every Python scenario's
+ *    `referenced_files` check failed automatically, and
+ *    `context-12-py-untested-module` — whose only checks are file
+ *    references — scored a hard 0.00 for *both* agents while claude's
+ *    response opened with a code block containing the exact path. The
+ *    resulting aggregate looked like codex collapsing on Python
+ *    (0.089) when it was the scorer failing to read the answer.
+ *
+ * **Adding a language pack means adding its extensions here.** The
+ * other extensions are speculative for future packs, deliberately, so
+ * the next pack fails loudly on its detectors rather than quietly on
+ * its scoring.
+ */
+const SCORED_FILE_EXTENSIONS = [
+  // JS / TS
+  "ts", "tsx", "js", "jsx", "mjs", "cjs", "cts", "mts",
+  // Python
+  "py", "pyi",
+  // Other languages, ahead of their packs
+  "rs", "go", "rb", "java", "kt", "swift", "c", "h", "cpp", "cs", "php",
+  // Config / text
+  "md", "mdx", "json", "yml", "yaml", "toml", "cfg", "ini", "css", "scss", "html",
+  // Assets (0.8.0)
+  "png", "jpg", "jpeg", "gif", "webp", "avif", "svg",
+] as const;
+
+/**
+ * Find file-path-shaped tokens (anything containing `/` plus a
+ * recognised source/asset/text extension). Conservative — only counts
+ * paths that look like actual files an agent would name.
  */
 function extractFilePaths(response: string): Set<string> {
   const found = new Set<string>();
-  const re =
-    /[\w./-]+\.(?:ts|tsx|js|jsx|mjs|cjs|md|json|yml|yaml|css|scss|html|png|jpg|jpeg|gif|webp|avif|svg)\b/g;
-  const matches = response.matchAll(re);
-  for (const m of matches) found.add(m[0]);
+  const re = new RegExp(
+    `[\\w./-]+\\.(?:${SCORED_FILE_EXTENSIONS.join("|")})\\b`,
+    "g",
+  );
+  for (const m of response.matchAll(re)) found.add(m[0]);
   return found;
 }
 
