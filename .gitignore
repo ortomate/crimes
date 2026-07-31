@@ -49,3 +49,10 @@ evals/fixtures/0[2-4]-*/**
 # results under evals/results/<version>/ are committed.
 evals/replay/
 evals/diff-summary.md
+
+# Python bytecode + virtualenvs. The repo ships Python fixtures under
+# evals/fixtures/, and anything that imports them (an editor's language
+# server, a stray `python -c`) leaves __pycache__ behind.
+__pycache__/
+*.py[cod]
+.venv/
