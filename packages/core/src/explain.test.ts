@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -68,5 +68,29 @@ describe("explain", () => {
     );
     expect(report.detector.description).toContain("per-shape line threshold");
     expect(report.why_it_matters).toContain("Functions this large");
+  });
+
+  it("describes the Python detector, not the JS one of the same type", async () => {
+    // `type` is the abstract charge and is shared across packs, so a
+    // lookup by type returns whichever pack registered first. Before
+    // 0.14.0 that was harmless; now it would tell a Python user their
+    // finding is about `getUTCHours`, which does not exist in Python.
+    const root = await mkdtemp(join(tmpdir(), "crimes-explain-py-"));
+    await mkdir(join(root, "domain"), { recursive: true });
+    await writeFile(
+      join(root, "domain", "billing.py"),
+      "from datetime import datetime\n" +
+        "start = datetime.utcnow()\n" +
+        "end = datetime.now()\n",
+      "utf8",
+    );
+    const report = await explain(
+      "mixed_utc_local_methods::domain/billing.py::",
+      { root },
+    );
+    expect(report.detector.type).toBe("mixed_utc_local_methods.py");
+    expect(report.detector.description).toContain("utcnow");
+    expect(report.detector.description).not.toContain("getUTCHours");
+    expect(report.why_it_matters).toContain("naive datetimes");
   });
 });

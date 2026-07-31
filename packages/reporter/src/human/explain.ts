@@ -150,7 +150,7 @@ function churnExplain(score: number): string {
 function testGapExplain(score: number): string {
   if (score === 0) return "a test file imports this module";
   if (score === 0.5) {
-    return "a sibling or __tests__ test file exists but does not import this module";
+    return "a test file matches this module's name but does not import it";
   }
   if (score >= 1) return "no sibling or __tests__ test file detected";
   return "partial coverage signal";

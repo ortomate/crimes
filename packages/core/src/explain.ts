@@ -105,7 +105,7 @@ export async function explain(
   const match = findFinding(findings, identifier);
   if (!match) throw new UnknownFindingError(identifier);
 
-  const detector = builtInDetectors.find((d) => d.id === match.type);
+  const detector = resolveDetectorFor(match);
   if (!detector) throw new UnknownDetectorTypeError(match.type);
 
   const fingerprint = fingerprintFinding(match);
@@ -125,6 +125,39 @@ export async function explain(
       `crimes ignore ${fingerprint} ` +
       `--reason "<one-sentence justification>"`,
   };
+}
+
+/**
+ * Resolve the detector that produced a finding.
+ *
+ * Must match on `detector_id` first, not `type`. `type` is the abstract
+ * charge and is deliberately shared across packs — a
+ * `mixed_utc_local_methods` finding from `billing.py` and one from
+ * `billing.ts` carry the same `type` — so a `type` lookup returns
+ * whichever pack registered first. Before 0.14.0 that was harmless
+ * because only one pack could produce any given type; now it means
+ * `crimes explain` on a Python finding would describe "Date receivers
+ * that mix `getUTCHours` with `getHours`", which is not a thing that
+ * exists in Python.
+ *
+ * Falls back to `type` for universal-pack findings (whose `detector_id`
+ * is unqualified and equal to their id) and for findings read from an
+ * older `--from <scan.json>` that predates `detector_id`.
+ */
+function resolveDetectorFor(finding: Finding) {
+  const qualified = (finding as Partial<Finding>).detector_id;
+  if (typeof qualified === "string" && qualified.length > 0) {
+    const exact = builtInDetectors.find((d) => d.id === qualified);
+    if (exact) return exact;
+    // A language-pack finding whose detector declares an unqualified id
+    // (the JS pack's historical form): `large_function.js` → `large_function`.
+    const unqualified = qualified.replace(/\.(js|py|x)$/, "");
+    const byPack = builtInDetectors.find(
+      (d) => d.id === unqualified && d.pack === finding.pack,
+    );
+    if (byPack) return byPack;
+  }
+  return builtInDetectors.find((d) => d.id === finding.type);
 }
 
 function likelyRemedies(finding: Finding): string[] {
