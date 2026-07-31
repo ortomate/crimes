@@ -306,6 +306,178 @@ describe("test_gap quartile pass", () => {
   });
 });
 
+/**
+ * Blocker 1 of the 0.14.0 Python pack.
+ *
+ * Python's dominant test convention is a *prefix* (`test_billing.py`
+ * covers `billing.py`) where every other language crimes supports uses a
+ * suffix. `TEST_FILE_RE` classified those files correctly all along, but
+ * the pairing logic only stripped `.test` / `.spec` suffixes — so
+ * `test_billing !== billing`, no sibling was ever found, and every
+ * Python file scored `test_gap: 1.0` regardless of how well tested it
+ * was. Since 0.13.0 that is 0.20 of `agent_risk`.
+ */
+describe("test_gap — Python naming conventions", () => {
+  it("pairs test_<name>.py with <name>.py as a sibling", async () => {
+    const dir = await makeRepo({
+      "src/billing.py": "def charge(): pass",
+      "src/test_billing.py": "from .billing import charge",
+      "src/rates.py": "STANDARD = 1",
+      "src/invoice.py": "def render(): pass",
+      "src/ledger.py": "def post(): pass",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({ root: dir, files, imports: undefined });
+
+    // Tested module: a sibling test exists → raw 0.5.
+    expect(ctx.testGap.rawForFile("src/billing.py")).toBe(0.5);
+    // Untested modules → raw 1.0.
+    expect(ctx.testGap.rawForFile("src/rates.py")).toBe(1);
+    expect(ctx.testGap.rawForFile("src/invoice.py")).toBe(1);
+    // The test file itself is not "under test".
+    expect(ctx.testGap.rawForFile("src/test_billing.py")).toBe(0);
+  });
+
+  it("pairs <name>_test.py with <name>.py", async () => {
+    const dir = await makeRepo({
+      "src/billing.py": "def charge(): pass",
+      "src/billing_test.py": "from .billing import charge",
+      "src/rates.py": "STANDARD = 1",
+      "src/invoice.py": "def render(): pass",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({ root: dir, files, imports: undefined });
+    expect(ctx.testGap.rawForFile("src/billing.py")).toBe(0.5);
+    expect(ctx.testGap.rawForFile("src/rates.py")).toBe(1);
+  });
+
+  it("puts a tested Python module in a better quartile than an untested one", async () => {
+    // The assertion that actually matters: it is not enough for the raw
+    // values to differ, they have to survive the quartile pass into a
+    // visibly different agent_risk contribution.
+    const dir = await makeRepo({
+      "src/billing.py": "def charge(): pass",
+      "src/test_billing.py": "from .billing import charge",
+      "src/rates.py": "STANDARD = 1",
+      "src/test_rates.py": "from .rates import STANDARD",
+      "src/invoice.py": "def render(): pass",
+      "src/ledger.py": "def post(): pass",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({ root: dir, files, imports: undefined });
+
+    const tested = ctx.testGap.forFile("src/billing.py");
+    const untested = ctx.testGap.forFile("src/invoice.py");
+    expect(tested).toBeLessThan(untested);
+    expect(untested).toBe(1);
+
+    // And the resulting agent_risk gap is real, not rounding noise: the
+    // whole point is that a well-tested Python module stops being ranked
+    // as if it had no test at all.
+    const riskTested = computeAgentRisk({
+      severity: "medium",
+      intrinsic: 0.5,
+      churn: 0,
+      test_gap: tested,
+      blast_radius: 0,
+    });
+    const riskUntested = computeAgentRisk({
+      severity: "medium",
+      intrinsic: 0.5,
+      churn: 0,
+      test_gap: untested,
+      blast_radius: 0,
+    });
+    expect(riskUntested - riskTested).toBeGreaterThanOrEqual(0.15);
+  });
+
+  it("scores a Python module imported by a test file at 0", async () => {
+    // The `test_gap: 0` tier needs the import graph, which Python only
+    // gained in 0.14.0. Before that the best a covered module could do
+    // was the 0.5 sibling tier.
+    const dir = await makeRepo({
+      "pkg/__init__.py": "",
+      "pkg/billing.py": "def charge(): pass",
+      "pkg/rates.py": "STANDARD = 1",
+      "pkg/invoice.py": "def render(): pass",
+      "tests/test_everything.py": "from pkg.billing import charge",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const imports = await buildImportGraph({ root: dir, files });
+    const ctx = await buildScoringContext({ root: dir, files, imports });
+
+    expect(ctx.testGap.rawForFile("pkg/billing.py")).toBe(0);
+    expect(ctx.testGap.rawForFile("pkg/rates.py")).toBe(1);
+  });
+
+  it("does not pair a test with an unrelated module", async () => {
+    const dir = await makeRepo({
+      "src/billing.py": "def charge(): pass",
+      "src/test_helpers.py": "def helper(): pass",
+      "src/rates.py": "STANDARD = 1",
+      "src/invoice.py": "def render(): pass",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({ root: dir, files, imports: undefined });
+    expect(ctx.testGap.rawForFile("src/billing.py")).toBe(1);
+  });
+
+  it("pairs tests/test_<name>.py with <name>.py by basename", async () => {
+    const dir = await makeRepo({
+      "src/billing.py": "def charge(): pass",
+      "src/rates.py": "STANDARD = 1",
+      "src/invoice.py": "def render(): pass",
+      "tests/test_billing.py": "def test_charge(): pass",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({ root: dir, files, imports: undefined });
+    expect(ctx.testGap.rawForFile("src/billing.py")).toBe(0.5);
+    expect(ctx.testGap.rawForFile("src/rates.py")).toBe(1);
+  });
+
+  it("recognises a JS tests/ directory the same way as __tests__/", async () => {
+    // The `tests/` widening applies to both languages. A JS repo that
+    // keeps tests outside src/ was previously scored as having no tests
+    // at all.
+    const dir = await makeRepo({
+      "src/a.ts": "export const a = 1;",
+      "src/b.ts": "export const b = 2;",
+      "src/c.ts": "export const c = 3;",
+      "tests/a.test.ts": "import '../src/a';",
+      "__tests__/b.test.ts": "import '../src/b';",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({ root: dir, files, imports: undefined });
+    expect(ctx.testGap.rawForFile("src/a.ts")).toBe(0.5);
+    expect(ctx.testGap.rawForFile("src/b.ts")).toBe(0.5);
+    expect(ctx.testGap.rawForFile("src/c.ts")).toBe(1);
+  });
+
+  it("leaves the JS suffix convention working unchanged", async () => {
+    const dir = await makeRepo({
+      "src/a.ts": "export const a = 1;",
+      "src/a.test.ts": "import './a';",
+      "src/b.ts": "export const b = 2;",
+      "src/c.spec.ts": "import './c';",
+      "src/c.ts": "export const c = 3;",
+      "src/d.ts": "export const d = 4;",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({ root: dir, files, imports: undefined });
+    expect(ctx.testGap.rawForFile("src/a.ts")).toBe(0.5);
+    expect(ctx.testGap.rawForFile("src/c.ts")).toBe(0.5);
+    expect(ctx.testGap.rawForFile("src/b.ts")).toBe(1);
+  });
+});
+
 describe("computeAgentRisk", () => {
   it("follows the documented unified formula", () => {
     const got = computeAgentRisk({

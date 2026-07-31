@@ -110,12 +110,37 @@ A three-tier signal derived from filesystem layout and the import graph:
 | `test_gap` | Condition                                                                       |
 | ---------- | ------------------------------------------------------------------------------- |
 | `0.0`      | The file is *itself* a test file (e.g. `foo.test.ts`), **or** at least one test file imports it. |
-| `0.5`      | A sibling test file exists (`foo.test.ts` next to `foo.ts`) **or** a `__tests__/` test file shares the basename, but no test file actually imports the target. |
+| `0.5`      | A sibling test file exists (`foo.test.ts` next to `foo.ts`) **or** a test file under `__tests__/` or `tests/` shares the basename, but no test file actually imports the target. |
 | `1.0`      | None of the above.                                                              |
 
 Test files are recognised by the standard pattern: anything under
-`__tests__/`, or any file matching `.test.{ts,tsx,js,jsx,mjs,cjs}` or
-`.spec.{…}`.
+`__tests__/` or `tests/`, any file matching
+`.test.{ts,tsx,js,jsx,mjs,cjs}` or `.spec.{…}`, and the Python / Go
+forms `test_*.py`, `*_test.py`, `*_test.go`.
+
+#### Test-naming conventions
+
+Pairing a test to the file it covers is per-language, and until 0.14.0
+only the JS convention was understood:
+
+| written as        | covers    | languages  |
+| ----------------- | --------- | ---------- |
+| `billing.test.ts` | `billing` | JS/TS      |
+| `billing.spec.ts` | `billing` | JS/TS      |
+| `billing_test.py` | `billing` | Python, Go |
+| `test_billing.py` | `billing` | Python     |
+
+Note the asymmetry: every convention except Python's dominant one is a
+*suffix*. Because the old logic only stripped `.test` / `.spec`
+suffixes, `test_billing` never matched `billing` and **every Python file
+scored `test_gap: 1.0`** regardless of how well tested it was. Since
+0.13.0 that is 0.20 of `agent_risk`, so Python findings would have been
+systematically over-ranked against JS ones.
+
+A test in a dedicated directory (`__tests__/` or `tests/`) pairs by
+basename rather than by being a sibling. `tests/` was added alongside
+the Python work in 0.14.0 and applies to **both** languages — a JS repo
+keeping its tests outside `src/` was previously scored as having none.
 
 **Only files a language pack claims carry a test_gap.** Markdown, JSON,
 YAML, and assets score `0.0` and are excluded from the quartile
@@ -142,6 +167,20 @@ per file so the per-scan cost stays O(F).
 When the import graph isn't available, `blast_radius` is `0` for every
 file. The graph is built once per scan and shared across every detector
 via `DetectorContext.imports`.
+
+The graph is **language-agnostic** and carries every pack's edges. As of
+0.14.0 Python module resolution (`__init__.py` packages, relative-dot
+levels, `src/` layouts) feeds the same structure, so a Python module
+imported by 30 others earns the same blast radius a TS one would.
+Before that, Python files scored `0` here — which mattered more than it
+looks, because `blast_radius` went from contributing nothing to the
+final score (r=0.06) to being a real signal (r=0.48) in 0.13.0.
+
+Specifiers a language cannot statically resolve are recorded as
+external rather than guessed at: bare module names on the JS side, and
+namespace packages / `importlib` / runtime `sys.path` edits on the
+Python side. A missed edge understates blast radius; a guessed one
+would invent a dependency.
 
 ## Stability guarantees
 
