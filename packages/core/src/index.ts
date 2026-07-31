@@ -37,6 +37,7 @@ export {
   countEntriesByDetector,
   FEEDBACK_GLOBAL_RELATIVE_PATH,
   FEEDBACK_RELATIVE_PATH,
+  feedbackEntryFromTriage,
   FeedbackEntrySchema,
   latestPerFingerprint,
   MalformedFeedbackEntryError,
@@ -47,6 +48,8 @@ export {
   resolveFeedbackPath,
   resolveGlobalRollupPath,
   resurfacedSuppressions,
+  verdictForDisposition,
+  WONT_FIX_FALLBACK_VERDICT,
   writeFeedbackEntry,
 } from "./feedback/index.js";
 export type {

@@ -4,14 +4,20 @@ import { isAbsolute, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import {
   emptyTriage,
+  feedbackEntryFromTriage,
   fingerprintFinding,
   loadConfig,
   loadTriage,
   parseTriage,
+  resolveFeedbackPath,
   resolveTriagePath,
   saveTriage,
   scan,
   upsertTriageEntry,
+  verdictForDisposition,
+  WONT_FIX_FALLBACK_VERDICT,
+  writeFeedbackEntry,
+  type FeedbackVerdict,
   type Finding,
   type Triage,
   type TriageDisposition,
@@ -210,6 +216,14 @@ async function runApply(
     existing.document ?? emptyTriage({ crimesVersion: __CRIMES_VERSION__ });
   for (const entry of appliedDoc.entries) {
     doc = upsertTriageEntry(doc, entry);
+    // Nothing to ask in the non-interactive path, so `wont-fix` takes
+    // the conservative fallback: it records that a human looked and
+    // declined to act, without asserting the detector was wrong.
+    await recordTriageFeedback({
+      root,
+      triage: entry,
+      explicitVerdict: WONT_FIX_FALLBACK_VERDICT,
+    });
   }
   await saveTriage(triagePath, doc, { crimesVersion: __CRIMES_VERSION__ });
 
@@ -312,7 +326,30 @@ async function runInteractive(
       };
       doc = upsertTriageEntry(doc, entry);
       await saveTriage(triagePath, doc, { crimesVersion: __CRIMES_VERSION__ });
-      process.stdout.write(`  ✓ ${disposition} · saved.\n\n`);
+
+      // `wont-fix` is the one disposition that doesn't imply a verdict:
+      // it conflates "crimes was wrong" with "crimes was right and we
+      // accept it". Ask rather than guess — this is also where the
+      // most valuable calibration signal lives.
+      let explicitVerdict: FeedbackVerdict | undefined;
+      if (verdictForDisposition(disposition) === null) {
+        const answer = (
+          await rl.question("  Was crimes wrong here? [y/N]: ")
+        )
+          .trim()
+          .toLowerCase();
+        explicitVerdict =
+          answer === "y" || answer === "yes" ? "fp" : WONT_FIX_FALLBACK_VERDICT;
+      }
+
+      const recorded = await recordTriageFeedback({
+        root,
+        triage: entry,
+        explicitVerdict,
+      });
+      process.stdout.write(
+        `  ✓ ${disposition} · saved.${recorded ? ` feedback: ${recorded}.` : ""}\n\n`,
+      );
     }
   } finally {
     rl.close();
@@ -372,5 +409,43 @@ function gitConfigEmail(): string | undefined {
     return email || undefined;
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Record the calibration verdict a triage disposition implies.
+ *
+ * Triage already makes the user look at a finding and commit to a
+ * judgement, so the verdict costs nothing extra to capture — it simply
+ * wasn't being recorded. `crimes feedback` shipped in 0.11 and had
+ * collected nothing in months of real use because it required copying a
+ * fingerprint and hand-writing a note.
+ *
+ * Unlike `crimes feedback --verdict fp`, this deliberately does NOT
+ * write a suppression. A triage entry already hides the finding from
+ * default output; adding a suppression on top would silence it twice
+ * through two different mechanisms, and unpicking that later is worse
+ * than the duplication it saves.
+ *
+ * Best-effort: a feedback write failure must never lose the triage
+ * entry, which is the thing the user actually asked for. Returns the
+ * verdict recorded, or null when nothing was written.
+ */
+async function recordTriageFeedback(args: {
+  root: string;
+  triage: TriageEntry;
+  explicitVerdict?: FeedbackVerdict | undefined;
+}): Promise<FeedbackVerdict | null> {
+  const entry = feedbackEntryFromTriage({
+    triage: args.triage,
+    crimesVersion: __CRIMES_VERSION__,
+    ...(args.explicitVerdict ? { explicitVerdict: args.explicitVerdict } : {}),
+  });
+  if (!entry) return null;
+  try {
+    await writeFeedbackEntry(resolveFeedbackPath(args.root), entry);
+    return entry.verdict;
+  } catch {
+    return null;
   }
 }

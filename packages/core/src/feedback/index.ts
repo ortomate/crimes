@@ -43,3 +43,8 @@ export type {
   AppendToGlobalRollupArgs,
   AppendToGlobalRollupResult,
 } from "./rollup.js";
+export {
+  WONT_FIX_FALLBACK_VERDICT,
+  feedbackEntryFromTriage,
+  verdictForDisposition,
+} from "./from-triage.js";

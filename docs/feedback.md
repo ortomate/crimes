@@ -59,6 +59,42 @@ already printed at the bottom of every finding in `crimes scan` /
 - `known` — "I'm aware of this, leaving it for now." Records the
   judgment without silencing.
 
+## Feedback from `crimes triage`
+
+`crimes triage` records a verdict for every disposition automatically,
+so you don't have to run `crimes feedback` a second time on findings
+you've already judged. Triage is where the thinking happens; the
+verdict is a byproduct of it.
+
+| Triage disposition | Verdict recorded |
+|--------------------|------------------|
+| `fix-now`, `fix-this-PR`, `needs-design` | `tp` — you're committing to act, so you agree it's real |
+| `scaffolding` | `known` — real pattern, intentional here |
+| `wont-fix` | **asks you** — see below |
+
+The triage `reason` carries across as the feedback note.
+
+`wont-fix` is the one disposition that doesn't imply a verdict. It
+conflates "crimes was wrong" with "crimes was right and we accept the
+risk", and those are opposite calibration signals — the first should
+retune a detector, the second must not. So interactive triage asks one
+extra question:
+
+```
+  Was crimes wrong here? [y/N]:
+```
+
+`y` records `fp`; anything else records `known`. In the non-interactive
+`--apply` path there's nobody to ask, so `wont-fix` takes the
+conservative `known`.
+
+**Triage-sourced feedback never writes a suppression**, including for
+`fp`. A triage entry already hides the finding from default output;
+adding a suppression on top would silence the same finding through two
+mechanisms, and unpicking that later is worse than the duplication it
+saves. If you want the resurface-on-next-minor behaviour, use
+`crimes feedback <fingerprint> --verdict fp --note "…"` directly.
+
 ## The auto-resurface loop
 
 A `crimes feedback ... --verdict fp` written under `crimes@0.7.x` is
