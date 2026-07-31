@@ -1,0 +1,112 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:24:04.895Z",
+  "run_id": "d9631190-70f0-4523-81d7-13918a1c04a5",
+  "response": "I’m using the `crimes-codebase-risk` workflow because this is a risk-led TypeScript refactor assessment. I’ll run the requested file context and inspect the surrounding code/tests before ranking three changes.\n\nThe fixture confirms the main hotspot, but the globally installed `crimes` binary isn’t on this environment’s PATH. I’m resolving the repository’s local CLI entry point and will use that for the requested context output.\n\n`crimes context` rates `src/billing.ts` high risk: 1 high, 4 medium, and 1 low finding. My top three changes would be:\n\n1. Split `generateInvoice` into pure, focused helpers.\n\n   The `large_function` finding is the highest-risk issue: 204 lines, 3.4× the domain threshold. Extract plan pricing, loyalty discounts, promotions, fraud scoring, tax/currency selection, and email rendering, leaving `generateInvoice` as a thin orchestrator. This also reduces the 311-line `large_file` risk. Before moving logic, replace the current weak billing tests with assertions against totals, taxes, discounts, metadata, and boundary cases.\n\n2. Inject time through the billing boundary.\n\n   The `direct_date` finding identifies seven wall-clock reads across lines 57–273. Pass a `Clock` or `now()` dependency into `generateInvoice` and `recommendUpgrade`, then derive `createdAt`, customer age, audit timestamps, and latency from it. That makes invoice generation deterministic and lets tests cover loyalty thresholds such as 90, 180, and 365 days without monkey-patching global time.\n\n3. Separate refund calculation from refund execution and encode authorization.\n\n   `calculateRefundPreview` is flagged for `name_behavior_mismatch`: despite sounding pure, it writes an audit record and sends email. I would make the preview genuinely pure, then introduce a clearly named command such as `executeRefund`. That command should enforce the nearby prose-only rule—“Only owners can refund enterprise plans unless billing support approves”—through a named guard and explicit tests. This addresses both the side-effect mismatch and the `logic_in_comments` finding instead of merely renaming the existing ambiguity.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

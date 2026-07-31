@@ -1,0 +1,78 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:26:33.502Z",
+  "run_id": "1750aeac-287c-4faa-ae56-a20f00d5edf0",
+  "response": "The scan confirms one three-way verb drift: `archive`, `delete`, and `remove` each appear across two of the three list components. Both `action_label_drift` (`crime_00009`) and `copy_ia_drift` (`crime_00010`) report the same files and evidence.\n\nI’d adopt this canonical label set:\n\n- Destructive action: **Delete**\n- Entity-specific variants: **Delete user**, **Delete team**, **Delete seat**\n- Confirmation heading: **Delete {entity}?**\n- Confirmation button: **Delete**\n- Dismissal button: **Cancel**\n\nBecause the fixture defines these operations as equivalent, `Remove` and `Archive` should disappear. In a real product, they should remain distinct only if “remove” detaches membership without deleting data or “archive” is reversible.\n\nI’d refactor `TeamList.tsx` first. It already contains both `Delete` and `Archive`, so it exposes the ambiguity within one component and provides an existing `Delete` pattern to make canonical. Then:\n\n1. `TeamList.tsx`: change `Archive` → `Delete`.\n2. `UserList.tsx`: change `Remove` → `Delete`.\n3. `SeatList.tsx`: change `Archive` and `Remove` → `Delete`.\n\nThese edits directly address `action_label_drift`: that detector is specifically concerned with inconsistent verbs for equivalent user actions. They also clear `copy_ia_drift`, but on this fixture that finding is a broader copy/IA representation of the same alias-group evidence. In other words, `action_label_drift` gives the precise diagnosis and should own the refactor; `copy_ia_drift` signals the wider consequence—that inconsistent copy makes the interface vocabulary and information architecture harder for users and agents to extend consistently.\n\nThe identical evidence here means these are overlapping detector views, not two separate defects. I would make one coordinated label refactor and verify that both findings disappear afterward.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

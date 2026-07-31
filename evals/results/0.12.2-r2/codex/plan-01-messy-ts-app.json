@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:21:07.757Z",
+  "run_id": "0a605425-d7c4-4d88-ad50-b89f05318600",
+  "response": "I’m using the repository’s crimes risk workflow to validate the supplied ranking and retrieve the missing branch verdict before proposing the triage order.\n\nThe skill’s ordering rule is to rank by `scores.agent_risk`, then temper that with evidence, severity, and branch direction. I’ll treat “top 10” as the first ten findings in the supplied JSON, which are already sorted by agent risk.\n\nThe global `crimes` binary isn’t installed in this environment. I’m falling back to the repository’s locally built CLI, which preserves the same JSON contract.\n\nThe verdict is `unchanged`: 0 new, 0 fixed, all 37 unchanged versus `origin/main`. That makes this debt triage rather than a regression response—so “fix now” should be reserved for high-confidence correctness risks and tightly related IA drift.\n\nThe branch verdict is `unchanged`: 0 new, 0 fixed, and all 37 findings unchanged versus `origin/main`. This is existing debt, not a regression. Prioritize correctness and agent-safety issues; avoid broad cleanup solely to improve the count.\n\nI’ve treated contract-shape detectors as structural and literal scatter as duplication.\n\n### Structural\n\n| Order | Finding | Response | Rationale |\n|---:|---|---|---|\n| 1 | `crime_00001` — `direct_date`, `src/date.ts` | **fix now** | High severity, highest agent risk, eight wall-clock reads, small deterministic fix. Introduce one clock boundary. |\n| 2 | `crime_00010` — `mixed_utc_local_methods`, `src/date.ts` | **fix now** | High-severity correctness risk: the same receiver mixes UTC and local methods. Address alongside `crime_00001` and add timezone-boundary tests. |\n| 6 | `crime_00005` — `large_function`, `generateInvoice` | **fix now** | High severity and 204 lines. First strengthen characterization tests, then extract pure helpers without changing behavior. |\n| 8 | `crime_00002` — `return_shape_roulette`, `resolvePaymentResult` | **defer** | Explicit return types would help, but this is low severity and changing the contract may affect callers. Handle during the next payment-result change. |\n| 9 | `crime_00008` — `sync_io_in_hotpath`, `loadPlanSchema` | **defer** | Low severity. Confirm invocation frequency before propagating `async` through callers; prioritize only if request latency shows impact. |\n| 10 | `crime_00009` — `option_bag_junk_drawer`, `describeCheckout` | **defer** | Low severity and local scope. Add a named type when this API is next modified. |\n\n### IA\n\n| Order | Finding | Response | Rationale |\n|---:|---|---|---|\n| 3 | `crime_00003` — `missing_agent_context` | **fix now** | Medium severity, high confidence, small effort. The package exposes a CLI but provides agents no commands, conventions, or safety rules. |\n| 4 | `crime_00006` — `duplicated_navigation_source` | **fix now** | `/settings/billing` has two sources and conflicting labels. Establish one canonical navigation registry. |\n| 5 | `crime_00007` — `route_metadata_drift` | **fix now** | Fix together with `crime_00006`: choose the product term—Billing, Plans, Pricing, or Subscription—and derive route, title, component, and navigation metadata from it. |\n\n### Duplication\n\n| Order | Finding | Response | Rationale |\n|---:|---|---|---|\n| 7 | `crime_00004` — `magic_domain_literal_scatter` | **defer** | Four copies of `\"enterprise\"` suggest policy duplication, but centralizing it is medium-risk and the verdict shows no new regression. Address before adding another plan type or rule. |\n\n### Git-history\n\nNo top-10 finding is driven by git history: the supplied scores show zero churn and recency, while the verdict is unchanged.\n\n### Frontend\n\nNo frontend detector appears in the supplied top 10. The two route/navigation findings belong to IA.\n\nNone should be tagged **ignore** from this evidence alone. An ignore should require confirmation that the pattern is intentional; otherwise it would conceal a supported finding rather than triage it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

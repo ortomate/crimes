@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:21:40.293Z",
+  "run_id": "9b3c6f34-79ac-4032-a0e1-4ab2dfb13e5c",
+  "response": "## What the scan actually says\n\nFive findings, but only three distinct problems — and the two the task names have very different risk profiles:\n\n| Finding | Shape | Real difficulty |\n|---|---|---|\n| `crime_00001` near-duplicate | 3 sanitise bodies, 27 lines each | **Mechanical.** Identifiers renamed, logic byte-identical |\n| `crime_00003` duplicated role check | `\"admin\"` in 4 files, **2 expression shapes** | **Semantic.** The three guards do *not* agree |\n| `crime_00002` + `00004/00005` | telemetry twins + their `Date.now()` | Adjacent, cheap rider |\n\nReading the source behind the evidence confirms the split:\n\n```ts\nassertAdminA(role)  →  role === \"admin\"                       // strict\nassertAdminB(role)  →  role === \"admin\" || role === \"owner\"   // wider — owner too\nassertAdminC(role)  →  role !== \"admin\"                       // inverted — a deny check\n```\n\n`policy.ts`'s four call sites are all shape A. So \"consolidate the three role checks\" is **not** a rename job: collapsing all three onto one `isAdmin()` silently revokes `owner` access in the B path and inverts the C path. That is the whole reason this half is `effort: medium` while the sanitise half is `small`.\n\nAlso note what the scan *doesn't* say: `test_gap: 0.5` on every finding, and the fixture has no test files at all. Both steps below are refactors of untested code.\n\n---\n\n## Step 0 — the gate (do not skip)\n\nBefore either step, pin current behaviour. Cheap, and it's what makes Step 1 provably safe and Step 2's decision visible.\n\n- **`sanitize.test.ts`** — one table run against `sanitizeUserInput`, asserting on: null/undefined → `\"\"`, the character-class strip, whitespace collapse, the 1000-char truncation boundary (999/1000/1001), empty-after-trim, `<`/`>` prefix rejection, the `\\\\x` (literal backslash-x) check, the `[!?]{3,}` count > 5 threshold, and the upper-ratio branch at length 30/31 with the `|| 1` divide guard. Then run the identical table against `sanitizeText` and `cleanMessage` — if all three pass the same table, the merge is proven, not assumed.\n- **`policy.test.ts`** — a 4×3 truth table: `\"admin\" | \"owner\" | \"member\" | \"\"` against `assertAdminA/B/C`. This table *is* the artefact that forces the Step 2 decision.\n\n**Rule for the regexes: move them by cut-and-paste, never retype.** `/[ -]/` and the `\"\\\\x\"` string literal are exactly the kind of thing that silently changes meaning when re-keyed.\n\n---\n\n## Step 1 — consolidate the sanitisers (zero decisions, one commit)\n\nPure mechanical extraction. Nothing here needs a human to choose anything.\n\n**New `src/sanitize.ts`:**\n\n```ts\nexport function sanitize(value: string): string {\n  // body moved verbatim from sanitize-a.ts:11-35, `working` kept as the local name\n}\n```\n\n**No options parameter.** The scan's `fix_shape` says \"pass the differing values as args\" — that's the detector's generic advice, and here the evidence contradicts it: the 1000 cap, the `> 5` punctuation count, the `0.9` ratio and the `30` length are identical in all three copies. There is nothing to parameterise. Resist inventing config knobs to justify the extraction.\n\n**Call sites:** replace the three bodies with re-exports so no importer moves in the same commit —\n\n```ts\n// sanitize-a.ts\nexport { sanitize as sanitizeUserInput } from \"./sanitize.js\";\n```\n\n— then delete the shims in a follow-up once importers are updated. If the fixture's importers are few enough to see at once, do it in one go; the shim step exists to keep the blast radius reviewable, and `blast_radius: 0` here says it's small either way.\n\n**Rider (same shape, separate commit):** `telemetry-a/b.ts` are byte-identical. Delete `telemetry-b.ts`, point its importers at `telemetry-a`, and while the file is open, lift `Date.now()` to an injected `now: () => number = Date.now` parameter. That clears `crime_00002` and both `direct_date` findings for a few minutes' work.\n\n**Leave `policy.ts` and the three `assertAdmin*` helpers completely untouched in this step.** They already sit outside the sanitise bodies (the fixture hoisted them deliberately), so Step 1 doesn't touch a single line Step 2 needs.\n\n**Verify:** Step 0's table passes against `sanitize`; `crimes scan --format json` no longer reports `near_duplicate_block`.\n\n---\n\n## Step 2 — consolidate the role checks (one decision, then mechanical)\n\nThe extraction is trivial; the decision isn't. Put the decision first and in writing.\n\n**The question for whoever owns this policy:** is `assertAdminB`'s `|| role === \"owner\"` an intentional widening, or drift that nobody noticed? Two branches:\n\n- **If intentional** — these are *two* policies wearing one literal. Name them apart:\n\n  ```ts\n  // src/policy.ts — sole owner of the \"admin\" literal\n  export function isAdmin(role: string): boolean { return role === \"admin\"; }\n  export function canManageWorkspace(role: string): boolean {\n    return isAdmin(role) || role === \"owner\";\n  }\n  ```\n  `assertAdminA` → `isAdmin`. `assertAdminB` → `canManageWorkspace`. `assertAdminC` → delete; its call sites become `!isAdmin(role)` — express the negation at the call site rather than shipping a confusingly-named inverse predicate.\n\n- **If drift** — the fix is a one-line behaviour change (drop `|| \"owner\"`), and it needs to ship as its own commit with its own note, *not* buried inside a refactor. Everything then collapses onto `isAdmin`.\n\nEither way, `policy.ts`'s own four functions become `return isAdmin(role);`, and the string `\"admin\"` ends up appearing in exactly one file.\n\n**Verify:** the Step 0 truth table, re-pointed at the new names, still produces the same 4×3 grid (or differs *only* in the one cell the drift decision deliberately changed). `duplicated_role_status_plan_check` clears, since the literal now lives in a single file.\n\n---\n\n## Why this order\n\nStep 1 is decision-free and independently shippable, so it lands while the policy question is still out for an answer — no blocking. It also touches a disjoint file set from Step 2 (`sanitize.ts` + telemetry vs. `policy.ts` + the guards), so the two can't conflict, and after Step 1 the three `assertAdmin*` helpers are the only content left in `sanitize-a/b/c.ts` — the disagreement between them becomes impossible to miss during review of Step 2.\n\nThe reverse order would be worse: consolidating policy first means the Step 2 diff arrives interleaved with three near-identical 27-line bodies, and the one line that actually changes behaviour (`|| role === \"owner\"`) is exactly the line a reviewer skims past.\n\n**Expected end state:** all 5 findings cleared, ~90 lines of duplicated body deleted, and one deliberate, documented decision about whether `owner` can manage workspaces.\n\nOne caveat on scope: Step 2 as written assumes the `owner` question gets answered. If it can't be, the safe partial is to consolidate `policy.ts`'s four internal call sites plus `assertAdminA` onto `isAdmin`, and leave B and C alone with a comment pointing at the open question. That still clears most of the drift risk without guessing at an access-control rule.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

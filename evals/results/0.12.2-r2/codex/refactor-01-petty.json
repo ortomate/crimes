@@ -1,0 +1,118 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:25:45.876Z",
+  "run_id": "e46c93e0-171c-4660-b663-dc6024e9bcfd",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this request is specifically about interpreting agent-risk findings. I’ll run the requested file context and inspect the source so each proposal matches the actual branches and parameters.\n\nThe fixture source confirms the three patterns, but the global `crimes` binary is not installed in this shell. I’m rerunning the same context operation through the repository’s locally built CLI, which is the documented equivalent for an unpublished checkout.\n\nThe context report identifies the three requested low-severity findings in [src/petty.ts](</Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/petty.ts>).\n\n1. `option_bag_junk_drawer` — `describeCheckout`\n\nAlthough `CheckoutOptions` is named, it still combines six unrelated values: subscription, actor, locale, status, and retry state. An agent adding another checkout concern may append another property and another position in the serialized string without understanding its contract.\n\nRefactor into cohesive records and destructure the owned fields:\n\n```ts\ninterface CheckoutDescription {\n  subscription: {\n    plan: string;\n    role: string;\n  };\n  locale: {\n    region: string;\n    currency: string;\n  };\n  execution: {\n    status: string;\n    shouldRetry: boolean;\n  };\n}\n\nexport function describeCheckout({\n  subscription: { plan, role },\n  locale: { region, currency },\n  execution: { status, shouldRetry },\n}: CheckoutDescription): string {\n  return [\n    plan,\n    role,\n    region,\n    currency,\n    status,\n    String(shouldRetry),\n  ].join(\":\");\n}\n```\n\nThis ties each new field to a specific concern and makes changes to the output ordering deliberate.\n\n2. `return_shape_roulette` — `resolvePaymentResult`\n\nThe three branches have almost unrelated shapes, including one with no `ok` property. An agent could assume `result.ok` always exists, read `value` without narrowing, or add a fourth shape that callers silently overlook.\n\nUse an explicit discriminated union:\n\n```ts\ntype PaymentResult =\n  | {\n      kind: \"error\";\n      code?: string;\n      message?: string;\n    }\n  | {\n      kind: \"redirect\";\n      url?: string;\n      permanent: boolean;\n    }\n  | {\n      kind: \"success\";\n      value?: string;\n      cached: boolean;\n    };\n\nexport function resolvePaymentResult(input: PaymentInput): PaymentResult {\n  if (input.error) {\n    return { kind: \"error\", code: input.code, message: input.message };\n  }\n\n  if (input.redirect) {\n    return { kind: \"redirect\", url: input.url, permanent: false };\n  }\n\n  return { kind: \"success\", value: input.value, cached: false };\n}\n```\n\nCallers can now switch on `kind`, and exhaustive checking exposes newly added variants.\n\n3. `negative_flag_maze` — `canRunBilling`\n\n`!disableBilling && !skipRetry` requires mentally negating both inputs. An agent extending it with another negative flag could easily invert one operand or choose the wrong `&&`/`||` combination.\n\nRename the inputs positively and return the predicate directly:\n\n```ts\nexport function canRunBilling(\n  isBillingEnabled: boolean,\n  isRetryAllowed: boolean,\n): boolean {\n  return isBillingEnabled && isRetryAllowed;\n}\n```\n\nThe inversion should happen once at the boundary where legacy flags enter:\n\n```ts\ncanRunBilling(!disableBilling, !skipRetry);\n```\n\nThis also resolves the related `boolean_naming_drift` finding for those parameters. Tests should cover all four boolean combinations during the rename, since incorrect inversion at call sites is the main migration risk.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "large_function",
+      "crime_00006": "duplicated_navigation_source",
+      "crime_00007": "route_metadata_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "option_bag_junk_drawer",
+      "crime_00010": "mixed_utc_local_methods",
+      "crime_00011": "negative_flag_maze",
+      "crime_00012": "timezone_unsafe_parse",
+      "crime_00013": "direct_date",
+      "crime_00014": "todo_density",
+      "crime_00015": "name_behavior_mismatch",
+      "crime_00016": "hardcoded_localhost",
+      "crime_00017": "hardcoded_local_path",
+      "crime_00018": "dst_naive_arithmetic",
+      "crime_00019": "concept_alias_drift",
+      "crime_00020": "logic_in_comments",
+      "crime_00022": "boolean_naming_drift",
+      "crime_00023": "direct_date",
+      "crime_00024": "singular_plural_type_mismatch",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "orphaned_destination",
+      "crime_00030": "orphaned_destination",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "svg_with_embedded_raster",
+      "crime_00033": "docs_code_drift",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "large_file",
+      "crime_00036": "raster_should_be_vector",
+      "crime_00037": "oversized_raster",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "option_bag_junk_drawer",
+        "passed": false
+      }
+    ]
+  }
+}

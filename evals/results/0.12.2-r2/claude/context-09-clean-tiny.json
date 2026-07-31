@@ -1,0 +1,34 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:17:51.823Z",
+  "run_id": "4146f4de-8152-4984-be31-130605c354f7",
+  "response": "## What `crimes context src/add.ts --format json` returned\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"findings\": [],\n\"agent_guidance\": [],\n\"related_files\": [],\n\"likely_tests\": [\"src/add.test.ts\"]\n```\n\n**Nothing was found — and crimes says why rather than staying silent:**\n\n- `agent_guidance_reason`: *\"no findings on this file and no deterministic related files\"*\n- `related_files_reason`: *\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"*\n\nSupporting clues:\n- **Churn**: 1 commit in 90 days, 1 author, last touched 2026-05-18. Cold file, no contention.\n- **Test gap**: raw 0, label `\"unknown\"` — but `likely_tests` does resolve `src/add.test.ts`, so a sibling test exists.\n- **Repo-wide scan**: 2 files total, 0 findings at any severity, both JS/TS packs loaded (`universal`, `language-js`). This is a whole-repo clean bill, not just a clean file.\n\nThe file itself is what the report implies — a 4-line pure function:\n\n```ts\nexport function add(a: number, b: number): number {\n  return a + b;\n}\n```\n\n## Is it safe to extend?\n\n**Yes.** No structural, dependency, duplication, testability, or history risk. Nothing imports it, nothing it imports, no side effects, no shared state, and there's a test file sitting next to it. Blast radius of a change here is effectively zero.\n\nTwo honest caveats:\n\n1. **Absence of findings ≠ endorsement of what you're about to write.** The clean result describes the file as it is today. If your edit adds `Date.now()`, `process.env`, I/O, or grows the function past the structural thresholds, crimes will start flagging it — re-run `crimes context` (or `crimes scan --changed`) after the edit rather than treating this pass as a standing approval.\n2. **`test_gap.label` is `\"unknown\"`, not `\"covered\"`.** crimes located a likely test file but didn't establish that `add` is actually exercised by it. Cheap to confirm yourself before relying on it as a safety net.\n\nPractically: extend freely, add a test for whatever you add.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:28:04.209Z",
+  "run_id": "944acb9c-c291-4cc8-b64c-647b78d78069",
+  "response": "I read the fixture alongside the scan output. Four files, three findings — and two of them are the same import.\n\n## The dependency graph\n\n```\napplication/billing-flow.ts ──→ domain/billing.ts\n                                      │\n                                      ▼  ← the illegal edge\n        ▲                       presentation/invoice-view.ts\n        └───────────────────────────────┘\n```\n\n`src/domain/billing.ts:2` imports `renderInvoice` from presentation. That single edge is:\n\n- the whole of **crime_00002** (`layer_violation`, `rule: domain cannotImport presentation`), and\n- one of the three edges in **crime_00001** (`circular_dependency`, agent_risk 0.43 — the highest-ranked finding).\n\nDelete it and both findings go away, because it's the only edge in the ring that runs backwards. `application → domain` is legal, and `presentation → application` is legal under the configured rules (presentation has no `cannotImport` list). Removing `domain → presentation` leaves a DAG, so there's no second cycle hiding behind the first.\n\n**crime_00003** (`deep_import`) is independent — different file, different failure mode, no interaction with the other two.\n\n## The three changes\n\n### 1. Break `domain/billing.ts → presentation/invoice-view.ts` — ties to crime_00002, resolves crime_00001\n\nBreak, don't redirect. `chargeCustomer` currently *is* `renderInvoice` — it takes an amount and returns a formatted string. The domain function is doing presentation work, so there's no collaboration to preserve behind an interface; there's a misplaced responsibility to move.\n\n```ts\n// domain/billing.ts — no imports at all\nexport function chargeCustomer(amount: number): Charge {\n  return { amount, chargedAt: /* … */ };\n}\n\n// presentation/invoice-view.ts — imports down into domain (legal), not sideways\nimport { chargeCustomer, type Charge } from \"../domain/billing.js\";\nexport function renderInvoice(amount: number): string {\n  const charge = chargeCustomer(amount);\n  return `Invoice: ${charge.amount}`;\n}\n```\n\nDomain becomes a leaf. Effort matches the finding's `medium` — it's a signature change, and `chargeCustomer`'s return type goes from `string` to a value object, so every caller moves with it.\n\n### 2. Redirect, only if the domain genuinely needs to emit — the interface case\n\nThe above assumes rendering is the only thing domain wanted from presentation. If the real system needs domain to *notify* at charge time (emit a receipt, publish an event), don't reintroduce the import — define the port in the layer that owns the contract and inject the implementation:\n\n```ts\n// domain/billing.ts\nexport interface ChargeSink { record(charge: Charge): void }\nexport function chargeCustomer(amount: number, sink: ChargeSink): Charge { … }\n```\n\nPresentation or infrastructure implements `ChargeSink`; the composition root wires it. This is the finding's own `respect_layer_boundary` action — \"move the cross-layer collaboration behind an interface owned by the domain layer.\" The dependency now points inward at compile time, so the config rule stays satisfied.\n\nOne thing the config does *not* catch: `presentation/invoice-view.ts:3` calls `runBillingFlow()` from inside a render function. That's legal under the declared rules but it means rendering a view charges a customer. Worth fixing while you're in here even though no finding names it — after change 1, `renderInvoice` shouldn't be calling into application at all.\n\n### 3. Re-point the deep import — crime_00003\n\n```ts\n// application/billing-flow.ts:4\nimport { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n```\n\n`dist/internal/private` is three markers deep past the package name. Import `internalHelper` from `some-pkg` if it's exported there. If it isn't, that's the actual signal — the symbol is private and the package author never promised it. File upstream rather than coding around it; the finding's `use_public_entry` action says the same. `effort: quick`, `risk: low` — this is a one-line change independent of the other two, so it can land separately.\n\n## How the two risks differ\n\nBoth findings have identical `blast_radius` (0.06) and `test_gap` (0.5). The agent_risk gap — 0.34 vs 0.29 — comes from severity (0.60 vs 0.35) and confidence (0.95 vs 0.85), and it reflects a real difference in how each one hurts an agent.\n\n**`layer_violation` is unrepresented intent.** The rule lives in `crimes.config.json`, not in the type system. Nothing fails at build, nothing fails at test. An agent opening `domain/billing.ts` sees a syntactically perfect relative import and has no local evidence it's forbidden — the constraint is only knowable from a config file it has no reason to read. Worse, the violation is self-propagating: the existing import reads as precedent, so the next agent asked to \"add a discount line to the invoice\" reaches for presentation again, and the architecture erodes one plausible edit at a time. Confidence is 0.95 because the rule is explicit and the edge is unambiguous. This is why it drives the higher-severity cycle finding underneath it.\n\n**`deep_import` is external volatility.** The danger is legible right in the specifier — an agent reading `dist/internal/private/helper.js` has every clue it needs, and won't be misled about what the code does. The failure isn't misunderstanding; it's that a `some-pkg` minor bump moves or drops the file and the build breaks with a resolution error, loudly, at a moment nobody connected to this change. Confidence is 0.85 because the detector is reasoning from path shape and some packages do publish legitimate deep subpath exports.\n\nShort version: layer_violation is dangerous because the agent **can't see the rule and will compound the breach**; deep_import is dangerous because **someone else can change the ground under it**. That's why layer_violation ranks higher on agent risk while deep_import ranks lower on severity yet is far cheaper to fix.\n\n**Sequence:** change 3 first (isolated, quick), then change 1 — which clears crime_00002 and crime_00001 together and is the highest-leverage single edit in the repo. Reach for change 2 only if the emit requirement is real.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

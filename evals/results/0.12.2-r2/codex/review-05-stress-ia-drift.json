@@ -1,0 +1,72 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:31:48.478Z",
+  "run_id": "d25327e6-8798-4ba8-a71c-0a0e611dd348",
+  "response": "I’m applying the repository’s change-risk review guidance to classify the scan findings by user impact and whether they should block the change.\n\nThe scan finds nine relevant IA issues across the requested surfaces. There are no automatic blockers because there are no high-severity findings, but two clusters merit blocking-quality treatment.\n\n| Findings | Assessment | Recommendation |\n|---|---|---|\n| `crime_00011` — `/admin` uses `admin`, `manager`, and `owner` across nav, guards, and docs | **Blocking-quality** | Confirm the intended access matrix before merging. Align all three surfaces or centralize the permission policy. Authorization ambiguity can produce inaccessible links or unintended access. |\n| `crime_00003`, `00005`, `00006` — parallel `/admin/billing-plans` and `/billing-plans`, both unreachable | **Blocking-quality as one cluster** | Choose a canonical billing destination. Redirect, link, or remove the alternative. Two overlapping routes with neither connected indicates unresolved IA rather than three independent defects. |\n| `crime_00002` — `organisation`, `team`, and `workspace` used for the tenant concept | **Follow-up**, unless these truly represent one entity | Establish a canonical vocabulary or explicitly document distinctions. Avoid blindly renaming: these may be legitimate domain concepts rather than aliases. |\n| `crime_00007`, `00008` — `/organisation` and `/workspace` are unreachable | **Follow-up** | Determine whether they are unfinished, intentionally deep-linked, or obsolete. Wire them into navigation/docs or retire them. Escalate to blocking if these routes were introduced by the reviewed change. |\n| `crime_00012` — docs advertise `iaq teams`, `iaq workspace`, and `iaq refresh`, but the CLI advertises only `get` and `list` | **Follow-up; blocking if docs are part of the release** | Update or remove the commands. This is definite documentation drift with high confidence, but it is adjacent to route IA rather than runtime navigation. |\n| `crime_00004` — `/admin` reported as a missing local documentation link | **Likely false positive / follow-up** | `src/routes/admin.ts` demonstrates that `/admin` is an application route, not necessarily a filesystem link. Verify the Markdown intent; if valid, report detector feedback instead of changing the link. |\n\nThe remaining scan results are outside this review’s scope: `missing_agent_context` concerns repository guidance, while `action_label_drift` and `copy_ia_drift` concern component copy and duplicate the same archive/delete/remove signal.\n\nOverall recommendation: hold approval until the `/admin` permission model and billing destination are resolved or explicitly documented. Track the vocabulary, remaining orphan routes, and stale CLI documentation as follow-ups.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      }
+    ]
+  }
+}

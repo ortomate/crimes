@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:21:29.979Z",
+  "run_id": "dbfa929e-74a4-49db-98e8-3bf55910634a",
+  "response": "I’m using the `crimes-codebase-risk` workflow to turn the scan evidence into a dependency-aware plan. I’ll inspect the six fixture files so the two steps preserve each helper’s public behavior and avoid circular imports.\n\nThe scan reports three duplication findings:\n\n- `crime_00001` — the same sanitising algorithm appears as `sanitizeUserInput`, `sanitizeText`, and `cleanMessage`.\n- `crime_00002` — `recordSanitiseEvent` is duplicated across both telemetry modules.\n- `crime_00003` — the `\"admin\"` policy is repeated across `policy.ts` and the three sanitizer modules, with differing semantics.\n\nThe two low-severity findings are wall-clock usage, not duplication.\n\n## Two-step change set\n\n1. Centralise role semantics\n\n   Add a small `role-policy.ts` module with `isAdmin(role)`. Migrate all three functions in `policy.ts` and the sanitizer guards to use it.\n\n   Preserve the current distinctions:\n\n   - `assertAdminA` → `isAdmin(role)`\n   - `assertAdminB` → `isAdmin(role) || role === \"owner\"`\n   - `assertAdminC` → `!isAdmin(role)`\n\n   This is important because `assertAdminB` admits owners and `assertAdminC` currently has inverted semantics; replacing all three with the same boolean would silently change behavior. Add characterization tests for `admin`, `owner`, and an ordinary role before migrating.\n\n2. Extract the canonical sanitizer\n\n   Move the shared body into one module, exporting a canonical `sanitize(value)` function. Preserve the existing public names through export aliases:\n\n   ```ts\n   export { sanitize as sanitizeUserInput } from \"./sanitize.js\";\n   ```\n\n   Apply the equivalent alias in `sanitize-b.ts` and `sanitize-c.ts`. This avoids duplicated wrapper bodies while keeping callers source-compatible. Add a table-driven test covering nullish input, whitespace/control characters, length truncation, angle-bracket and `\\x` rejection, punctuation rejection, and uppercase normalization.\n\nAfter each step, run the existing tests plus `crimes scan --format json`. The final scan should eliminate `crime_00001` and `crime_00003`. `crime_00002` should remain as an explicit follow-up: consolidate the telemetry helper separately, ideally together with clock injection so the two `direct_date` findings are addressed without widening this refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

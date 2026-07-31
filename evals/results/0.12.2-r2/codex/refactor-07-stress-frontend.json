@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:25:45.578Z",
+  "run_id": "2b379f2e-7a75-4b8a-828f-078cf95c648d",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a frontend refactor investigation driven by `crimes context`. I’ll inspect the actual component and its local token/style setup, then propose—not implement—a finding-by-finding refactor.\n\nThe global `crimes` binary isn’t installed in this shell. I’m switching to the repository’s locally built CLI—the documented equivalent—so the context report still comes from the product itself.\n\n`crimes context` confirms medium overall risk: one accessibility finding and two low-risk styling findings. I’d refactor [Card.tsx](/Users/andrew/dev/crimes/evals/fixtures/07-stress-frontend/src/Card.tsx) along these lines:\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  actionLabel: string;\n  onActivate: () => void;\n};\n\nexport function Card({ children, actionLabel, onActivate }: CardProps) {\n  return (\n    <article className=\"w-full max-w-4xl bg-surface p-6 text-ink shadow-sm\">\n      <div className=\"grid grid-cols-1 gap-6 @md:grid-cols-3\">\n        <div className=\"min-w-0 text-lg @md:col-span-2\">{children}</div>\n        <aside className=\"text-sm text-ink/70\">sidebar</aside>\n      </div>\n\n      <button\n        type=\"button\"\n        onClick={onActivate}\n        className=\"mt-6 text-brand focus-visible:outline-brand\"\n      >\n        {actionLabel}\n      </button>\n    </article>\n  );\n}\n```\n\nThe `@md:` notation assumes Tailwind container-query support; the card would also receive `@container`. A CSS-module container query is the fallback.\n\n- `accessible_interaction_risk`: remove `onClick` from the non-semantic `<div>` and expose an explicit `<button>`. This provides keyboard focus, Enter/Space activation, and an accessible name without manually recreating button behavior. Keeping arbitrary `children` outside the button also avoids invalid nested controls.\n\n- `design_token_escape`: replace inline hex, RGB, shadow, spacing, and typography literals with named utilities backed by [tailwind.config.ts](/Users/andrew/dev/crimes/evals/fixtures/07-stress-frontend/tailwind.config.ts). Existing `brand`, `surface`, and `ink` tokens cover the main palette; any intentionally retained border or shadow should first become a shared semantic token rather than another component-local literal.\n\n- `responsive_fragility`: replace `width: 800`, `width: 720`, fixed height, and the 240px sidebar with `w-full`, a capped `max-w-*`, automatic height, and a container-responsive grid that collapses to one column. Tokenized `text-lg`/`text-sm` replaces fixed pixel typography.\n\nBecause `crimes context` found no likely tests, I’d add a component test covering keyboard activation and accessible naming, plus a narrow-container layout test or visual story before implementing the refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

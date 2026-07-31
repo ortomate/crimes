@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:34:26.643Z",
+  "run_id": "bc3d8035-ad38-4d37-8330-fca67230b8a4",
+  "response": "I verified the doubtful claims against the fixture first. Several don't survive contact with the source.\n\n## Verdict: **0 block, 6 warn, 49 ignore**\n\nThe scan's `severity` field says block six things (6 × high). `scores.agent_risk` says block nothing — the whole report tops out at **0.46** (`lib/command.js`), and 51 of 55 findings sit below 0.40. On agent risk, that's the right read: nothing here can silently corrupt an agent's edit except one item, and it isn't any of the six \"high\"s.\n\nFraming assumption: this is Commander.js being adopted wholesale, not code we wrote. You don't block a vendored-library import on pre-existing structure. Where that changes the call, I say so.\n\n---\n\n## Block merge — none\n\nNothing crosses the bar. The bar for blocking on agent risk is *\"an agent will confidently make a wrong edit here.\"* Only one finding comes close (below), and it's a warn because the fix is a 10-line extraction that can land as a follow-up.\n\n## Warn — 6 findings\n\n| # | Finding | sev / agent_risk | Why it survives |\n|---|---|---|---|\n| 15, 16 | `choices()` duplicated in `lib/argument.js:99` and `lib/option.js:176` | medium / **0.32** | **The one real agent trap in the report.** I diffed them — byte-identical, same `InvalidArgumentError` message, same `this.variadic` / `this._concatValue` branch. Ask an agent to \"make choices case-insensitive\" or \"improve the choices error message\" and it fixes one and ships. The scanner ranks this 15th; on agent risk it's first. |\n| 1 | `lib/command.js` — 2180 lines | high / **0.46** | Highest agent_risk in the report, and legitimately so: 7.3× threshold, and an agent editing `parseOptions` has no reason to load `_executeSubCommand`. Warn, not block — it's the library's known shape, and a split is a semver-risky refactor, not a PR-gate item. |\n| 4 | `_executeSubCommand` — 120 lines | high / 0.40 | Real. Mixes arg marshalling, exec-path resolution, spawn, and signal wiring in one body — the four things most likely to be edited independently. |\n| 5, 12 | `parseOptions` 115 lines, `_parseCommand` 80 lines | medium / 0.39, 0.35 | Real, same reasoning, lower stakes. Group these with #4 as one \"split the command internals\" follow-up rather than three tickets. |\n| 41, 42 | 6 dead links in `Readme_zh-CN.md` + `docs/zh-CN/可变参数的选项.md` | low / 0.24 | Lowest severity in the warn set but the **best actionable/effort ratio in the whole report**. An agent reading the zh-CN docs follows six links to nothing. Fix is minutes. |\n| 18 | `lib/help.js` — 462 lines | medium / 0.32 | Borderline. Warn only because `Help` is the documented subclass-extension point — third parties read this file. |\n\n## Ignore — verified false positives (19 findings)\n\nThese aren't judgment calls. I read the source; the claims are wrong.\n\n**#19 `hardcoded_localhost` at `lib/command.js:2152`** — the \"dev-server URL\" is inside a comment:\n```js\n} else if ((match = arg.match(/^(--inspect(-brk|-port)?)=([^:]+):(\\d+)$/)) !== null) {\n  // e.g. --inspect=localhost:1234\n```\nIt's documenting the regex that rewrites Node's `--inspect` port for subcommands. There is no URL. Detector matched a comment.\n\n**#22–29 (8 findings) `weak_test_signal` in `command.exitOverride.test.js`** — every one of these calls `expectCommanderError(...)`, a helper holding four `expect()`s. The file even declares this to its linter on line 9:\n```js\n/* eslint jest/expect-expect: [\"error\", { \"assertFunctionNames\": [\"expect\", \"expectCommanderError\"] }] */\n```\nThe tests are fine. The scanner is 8 findings deep in a file that already told it the answer.\n\n**#30–37 (8 findings) `weak_test_signal` in `ts-imports.test.ts`** — same shape, assertions in `checkClass()`. These are deliberate import-surface smoke tests; they prove exactly what they intend to.\n\n**#3 `magic_domain_literal_scatter` \"PORT\"** — claims *\"5 production files.\"* The five are `examples/hook.js`, `examples/options-conflicts.js`, `examples/options-env.js`, `examples/options-extra.js`, `typings/index.test-d.ts`. Zero production files. Worse, the literal is `.env('PORT')` — an env-var *name* the user chooses. Centralizing it is the wrong fix.\n\n**#21 `commented_out_code`** — the flagged comment sits above `return mock.mock.calls[0][1]` and documents the two `childProcess.spawn` shapes that index has to survive. That's the rationale for a magic index, i.e. the good kind of comment.\n\n## Ignore — true but shouldn't act (30 findings)\n\n| Group | Reason |\n|---|---|\n| **#9, 10, 11** — \"God File\" on `CHANGELOG.md` (1244), `Readme.md` (1130), `Readme_zh-CN.md` (1072); sev **high** | A changelog is append-only by definition; \"split by responsibility\" is meaningless. Three of the six `high`s in this report are markdown. Also mis-tiered `\"tier\": \"domain\"`. |\n| **#7, 40** — unprefixed booleans in `typings/index.d.ts` (`required`, `variadic`, `optional`) and `lib/option.js` (`mandatory`, `hide`) | Published API surface. `required`/`variadic` are documented `Argument` properties; `mandatory`/`hide` are parameter names in `makeOptionMandatory(mandatory = true)` / `hideHelp(hide = true)`. Renaming = breaking change to satisfy a naming convention. |\n| **#8** — sync I/O in hot path | `fs.existsSync` in `findFile`, `fs.realpathSync` in `_executeSubCommand`. This is CLI startup resolving a subcommand before `spawn`. There is no event loop to block. The detector's premise doesn't apply to CLIs. |\n| **#14** — duplicate `myParseInt` across two `examples/` | Examples must be standalone and copy-pasteable. Deduplicating them into a shared import makes them worse. Contrast with #15/#16, which is the same detector finding a real one. |\n| **#43–49, 50, 51** (9) — weak matchers | `toBeTruthy()` on `program.options[0].variadic`, a genuine boolean. `toBe(true)` is marginally stricter; not worth nine review comments. |\n| **#2, 17** — `typings/index.d.ts` (892), `index.test-d.ts` (481) | Single-file `.d.ts` is the conventional shape for a package types entry point. |\n| **#20** — `lib/option.js` at 327 lines | 1.09× threshold. Noise. |\n| **#6** — 9 unprefixed booleans in `command.js` | Mostly internal locals (`displayHelp`, `allowUnknown`). Mild, but `combine` ties to the public `combineFlagAndOptionalValue`. Nit at most. |\n| **#38** — logic in comments | A \"revisit if required\" note about SIGUSR1 with a link to the Node docs. That's rationale, the thing comments are for. |\n| **#13** — `addOption` at 69 lines | 1.1× threshold. |\n| **#39, 52–55** (5) — large test callbacks | 206–349-line `describe` bodies. Test-file size is not agent risk; a 349-line `describe` is still read one `test()` at a time. |\n\n---\n\n## If this were our greenfield code\n\nTwo changes: **#15/#16 becomes a block** (shipping duplicated policy on day one is a choice, not an inheritance), and **#1** becomes a block-with-plan. Everything else holds.\n\n## Calibration note\n\nYou're the author of the tool, so: **36 of 55 findings (65%) are not actionable, and 19 are verifiably wrong.** Three specific bugs, in precision order:\n\n1. `weak_test_signal` doesn't follow assertion helpers — 16 of the 19 hard FPs. `command.exitOverride.test.js` hands you the fix in an inline eslint directive listing its `assertFunctionNames`; reading that config would kill 8 of them outright.\n2. `hardcoded_localhost` (and likely siblings) matches inside comments.\n3. `magic_domain_literal_scatter` counts `examples/` and `*.test-d.ts` as production, then says so in the evidence string — which makes a wrong finding read as a well-evidenced one.\n\nAnd the `severity` / `agent_risk` disagreement here is the product working: severity flagged three markdown files as high; agent_risk correctly buried them at 0.36 while floating `command.js` to 0.46. The default ranking is earning its keep — but `large_file` shouldn't be scoring `.md` at `tier: \"domain\"` in the first place.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "magic_domain_literal_scatter",
+      "crime_00004": "large_function",
+      "crime_00005": "large_function",
+      "crime_00006": "boolean_naming_drift",
+      "crime_00007": "boolean_naming_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "large_file",
+      "crime_00010": "large_file",
+      "crime_00011": "large_file",
+      "crime_00012": "large_function",
+      "crime_00013": "large_function",
+      "crime_00014": "exact_duplicate_block",
+      "crime_00015": "exact_duplicate_block",
+      "crime_00016": "exact_duplicate_block",
+      "crime_00017": "large_file",
+      "crime_00018": "large_file",
+      "crime_00019": "hardcoded_localhost",
+      "crime_00020": "large_file",
+      "crime_00021": "commented_out_code",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "weak_test_signal",
+      "crime_00032": "weak_test_signal",
+      "crime_00033": "weak_test_signal",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "weak_test_signal",
+      "crime_00036": "weak_test_signal",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "logic_in_comments",
+      "crime_00039": "large_function",
+      "crime_00040": "boolean_naming_drift",
+      "crime_00041": "docs_code_drift",
+      "crime_00042": "docs_code_drift",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "large_function",
+      "crime_00053": "large_function",
+      "crime_00054": "large_function",
+      "crime_00055": "large_function"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Commented-Out Corpse": "commented_out_code",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Logic in the Alibi": "logic_in_comments",
+      "Docs-Code Drift": "docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

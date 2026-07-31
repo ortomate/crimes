@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:26:06.691Z",
+  "run_id": "d0950008-b489-4071-affe-b59513956040",
+  "response": "Ran `crimes context src/Card.tsx` in the fixture. Context beyond the scan JSON:\n\n- **0 importers, low churn** (2 commits/90d, 1 author, last touched ~2 months ago) — nothing depends on this file, so all three fixes are low-blast-radius.\n- **`test_gap: 1` on all three findings** and *\"no sibling, `__tests__`, `.test`, `.spec` files matched\"* — there is no test to catch a regression, which is why the medium a11y finding carries `agent_risk 0.44` despite `blast_radius 0`.\n- `tailwind.config.ts` **does** define a token scale (`brand`, `surface`, `ink`) — so `design_token_escape` is a real escape from an existing system, not a missing one.\n\n## What the file actually does today\n\nReading `src/Card.tsx` turns up three concrete defects the detectors point at but don't spell out:\n\n1. `width: 800` and `maxWidth: 1024` (lines 12, 14) both apply — the `maxWidth` **never binds**, it's dead style.\n2. Inner regions are `720px` + `240px` = **960px inside an 800px card** with 24px padding (752px usable). The card overflows at *every* viewport, not just small ones.\n3. `outlineColor: \"#1a73e8\"` is Google blue, not the `brand` token `#0050ff` — the focus ring has already drifted off-palette.\n\n## Proposed refactor\n\n**Step 1 — `tailwind.config.ts`: name the tokens the file is reaching past** (prerequisite for `crime_00002`)\n\n```ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      \"ink-muted\": \"#333333\",   // was raw #333333 (line 24)\n      \"ink-subtle\": \"#666666\",  // was raw #666666 (line 27)\n      border: \"#cccccc\",        // was raw #cccccc (line 18)\n    },\n    extend: {\n      boxShadow: { card: \"0 2px 4px rgb(0 0 0 / 0.2)\" },\n    },\n  },\n};\n```\n\n**Step 2 — `src/Card.tsx`**\n\n```tsx\nimport type { ReactNode } from \"react\";\n\ntype CardProps = {\n  children: ReactNode;\n  aside?: ReactNode;\n  /** Primary action. Omit to render a non-interactive card. */\n  action?: { label: string; onSelect: () => void };\n};\n\nexport function Card({ children, aside, action }: CardProps) {\n  return (\n    <div className=\"@container relative w-full max-w-3xl rounded-lg border border-border bg-surface p-6 text-ink shadow-card\">\n      <div className=\"grid gap-6 @lg:grid-cols-[minmax(0,1fr)_15rem]\">\n        <div className=\"min-w-0 text-lg text-ink-muted\">{children}</div>\n        {aside ? (\n          <div className=\"min-w-0 text-sm text-ink-subtle\">{aside}</div>\n        ) : null}\n      </div>\n\n      {action ? (\n        <button\n          type=\"button\"\n          onClick={action.onSelect}\n          className=\"mt-4 rounded after:absolute after:inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand\"\n        >\n          {action.label}\n        </button>\n      ) : null}\n    </div>\n  );\n}\n```\n\n## Each change tied to its finding\n\n**`crime_00001` — Accessible Interaction Risk** (medium, conf 0.85, `effort: small`)\nEvidence: *\"line 10: `<div>` with onClick has no role / aria-label / tabIndex.\"* The suggested action offers `role=\"button\"` + `tabIndex={0}` as an alternative, but that's the wrong branch here: the clickable div **wraps `{children}`**, so adding `role=\"button\"` would either swallow any interactive children into a button's accessible name or produce nested interactive content. The fix that matches `fix_shape` (*\"use semantic elements; add ARIA only when semantics don't fit\"*) is a real `<button type=\"button\">` for the action, with `after:absolute after:inset-0` on a `relative` parent — the \"stretched link\" pattern. Full-card hit area preserved, but now with native focus, Enter/Space activation, and an accessible name from `action.label`. The `onClick={() => console.log(\"clicked\")}` also becomes a real `onSelect` prop; a console.log handler is a placeholder that no keyboard user could reach anyway. `focus-visible:outline-brand` restores a visible focus ring using the token, replacing the drifted `#1a73e8`.\n\n**`crime_00002` — Design Token Escape** (low, conf 0.75, `effort: quick`)\nEvidence: 9 raw values across `color`/`px`/`rgb`/`shadow`. Dropping the `style` object for utility classes routes every one through the theme: `#0a0a0a`→`text-ink`, `#cccccc`→`border-border`, `#333333`→`text-ink-muted`, `#666666`→`text-ink-subtle`, `#1a73e8`→`outline-brand`, `rgb(0, 0, 0)`→`shadow-card`, `padding: 24`→`p-6`. Two need a decision rather than a mechanical swap:\n\n- `background: \"#ff00aa\"` is magenta and near nothing in the palette. **I've assumed it should be `surface`** — the plausible reading is debug/placeholder color that shipped. Confirm before merging; this is the one change with product intent behind it.\n- `boxShadow: \"0 2px 4px rgb(0, 0, 0)\"` is **fully opaque black**, almost certainly a missing alpha. The `shadow-card` token above adds `/ 0.2`. That's a visual change, deliberately — flagging rather than smuggling it in.\n\nThis is the finding whose summary names the agent risk directly: *\"agents extending the file may copy them forward.\"* One raw hex in a `style` prop is a template the next agent clones.\n\n**`crime_00003` — Responsive Fragility** (low, conf 0.65, `effort: small`)\nEvidence: `width 800px`, `width 720px`, `fontSize 18px`, *\"no `@media` query found in the file.\"* The `fix_shape` says *\"drive layout from container queries or a fluid scale, not pixel media queries\"* — so no `@media` is added at all:\n\n- `width: 800` + dead `maxWidth: 1024` → `w-full max-w-3xl` (48rem cap, shrinks below it) — this is the `max-width` + `width: 100%` shape the suggested action asks for, and it kills the dead declaration.\n- Fixed `720`/`240` children → `grid` with `@lg:grid-cols-[minmax(0,1fr)_15rem]`, single column below the breakpoint. `minmax(0,1fr)` + `min-w-0` stops grid-blowout. This fixes the 960-in-800 overflow as a side effect.\n- `height: 600` → dropped. A fixed height on a children-driven container clips or leaves dead space; content should size it.\n- `fontSize: 18/14` → `text-lg`/`text-sm` (rem). px font sizes ignore the user's browser font-size setting — an accessibility consequence, but correctly charged here since the detector flags it as fixed sizing.\n- Container queries (`@container`/`@lg:`) mean the card responds to *its own* width, so it survives being dropped into a narrow column — a viewport media query wouldn't.\n\n## Sequencing and verification\n\nDo **a11y first** (it changes the element tree), then the style-object rewrite in one pass — tokens and responsive units land in the same edit, since both are deleting the same `style` object. Splitting them would mean touching every attribute twice.\n\nTwo things I'd add that the findings imply but don't state:\n\n- **A test.** All three carry `test_gap: 1` and `crimes context` found no test file. One RTL test — tab to the action, press Enter, assert `onSelect` fired — locks in `crime_00001` permanently. Without it, the next agent editing this file re-opens the finding.\n- Re-run `crimes scan --json` on the fixture; the file should drop to zero findings. If `design_token_escape` still fires, a raw value survived in an arbitrary-value class (`bg-[#...]`), which is the same escape wearing a Tailwind costume.\n\nTwo caveats: `@container`/`@lg:` needs `@tailwindcss/container-queries` on Tailwind v3 (built in on v4). And I parameterized the hardcoded `\"sidebar\"` string into an `aside` prop — that's a judgment call beyond the three findings; keep the literal if it's meant to be fixed chrome.\n\nI have **not** edited the fixture — `07-stress-frontend` exists to keep these detectors firing, so applying this would zero out its finding set and move the eval baseline.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "design_token_escape",
+        "passed": false
+      }
+    ]
+  }
+}

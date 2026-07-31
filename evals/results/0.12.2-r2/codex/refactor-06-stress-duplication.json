@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:24:19.759Z",
+  "run_id": "cea29dc0-11c8-4f49-b097-4e61c9f6b4fa",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a TypeScript refactor investigation driven by scan findings. I’ll confirm the scan, inspect the three implementations and their callers, then propose the smallest API-preserving consolidation.\n\nThe global `crimes` binary isn’t on this shell’s PATH, so I’m switching to the repository’s locally built CLI, which is the documented equivalent for an unpublished checkout. The source inspection already shows the three bodies are behaviorally identical; I’m checking the CLI evidence and file-level context before fixing the proposed module boundary.\n\nThe scan confirms one medium-severity near-duplicate finding: the same sanitisation body appears in:\n\n- `src/sanitize-a.ts:10–36` as `sanitizeUserInput`\n- `src/sanitize-b.ts:9–35` as `sanitizeText`\n- `src/sanitize-c.ts:9–35` as `cleanMessage`\n\nRecommended refactor: extract the implementation into `src/sanitize.ts` with this public API:\n\n```ts\nexport function sanitizeText(input: unknown): string;\n```\n\n`unknown` accurately reflects the current runtime behavior: nullish values become `\"\"`, while other values are converted with `String(input)`.\n\nTo preserve compatibility, the existing modules should re-export aliases:\n\n```ts\n// sanitize-a.ts\nexport { sanitizeText as sanitizeUserInput } from \"./sanitize.js\";\n\n// sanitize-b.ts\nexport { sanitizeText } from \"./sanitize.js\";\n\n// sanitize-c.ts\nexport { sanitizeText as cleanMessage } from \"./sanitize.js\";\n```\n\nThe existing `assertAdminA/B/C` exports remain in their respective files.\n\nFiles that would change:\n\n- New: `src/sanitize.ts`\n- Modified: `src/sanitize-a.ts`\n- Modified: `src/sanitize-b.ts`\n- Modified: `src/sanitize-c.ts`\n- Recommended new test: `src/sanitize.test.ts`\n\nThe admin-policy and telemetry duplication findings should be handled separately. In particular, the three admin helpers currently have different semantics, so they should not be blindly collapsed as part of this sanitisation refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:27:39.390Z",
+  "run_id": "ffeaa48b-f5a8-4e36-bda4-76449db13b87",
+  "response": "I’m using the repository’s `crimes-codebase-risk` guidance to keep the recommendation tied to the scanner’s evidence and avoid treating architecture findings as automatic code fixes.\n\nThe scan identifies two imports to change:\n\n1. `crime_00002` — break the domain → presentation dependency\n\n`src/domain/billing.ts` must stop importing `src/presentation/invoice-view.ts`. This reverses the intended dependency direction and participates in the three-file cycle reported by `crime_00001`.\n\nPrefer one of these shapes:\n\n- Best: have the domain return a presentation-neutral `Invoice` or `BillingResult`; let `src/application/billing-flow.ts` pass it to the presentation layer.\n- If callbacks are intrinsic to the workflow: define an `InvoiceOutput` interface in the domain or application layer, implement it in `invoice-view.ts`, and inject it at the composition root.\n\nThe resulting direction should resemble:\n\n```text\npresentation → domain types\napplication  → domain\napplication  → InvoiceOutput interface\ninfrastructure/composition root → concrete presentation adapter\n```\n\nRemoving `domain/billing.ts → presentation/invoice-view.ts` also breaks the known cycle:\n\n```text\nbilling-flow.ts → billing.ts → invoice-view.ts → billing-flow.ts\n```\n\nAvoid merely relocating the same import or adding a barrel that still lets the domain reach presentation.\n\n2. `crime_00003` — redirect the private package import\n\nIn `src/application/billing-flow.ts`, replace:\n\n```ts\nimport { helper } from \"some-pkg/dist/internal/private/helper.js\";\n```\n\nwith the package’s documented public entry point, such as:\n\n```ts\nimport { helper } from \"some-pkg\";\n```\n\nor an officially exported subpath.\n\nIf `helper` is not publicly exported, do not create a local re-export of the private path. Either request an upstream export or place the package integration in an infrastructure adapter implementing an application-owned interface. For example, application code depends on `BillingHelper`, while infrastructure supplies the `some-pkg` implementation.\n\nAgent-risk difference:\n\n- `layer_violation` (`agent_risk: 0.34`) is a repository architecture problem. It inverts ownership, expands the set of layers an agent must understand, and here contributes to a runtime dependency cycle. Fixing it requires architectural judgment.\n- `deep_import` (`agent_risk: 0.29`) is a package encapsulation problem. The dependency direction may be acceptable, but the imported path is private and can disappear during an upgrade. It is usually a smaller, quicker redirect—unless no public API exists.\n- `circular_dependency` (`agent_risk: 0.43`) is the highest-priority consequence. Address the domain-to-presentation edge first, verify the cycle disappears, and then replace or isolate the deep package import.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

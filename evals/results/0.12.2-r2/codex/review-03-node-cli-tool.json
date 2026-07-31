@@ -1,0 +1,116 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "codex",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:33:19.796Z",
+  "run_id": "1b0f20cb-9a88-4420-bf85-c7de0ded5c4d",
+  "response": "Merge verdict: **block**. Of the 36 findings in the requested five categories, I would block on nine: the production God file and eight assertion-free runtime tests. The remaining findings are warnings or contextual false positives; detector severity alone is not sufficient to block.\n\n### Large files\n\n| Finding | Decision | Severity / agent risk | Rationale |\n|---|---|---:|---|\n| `crime_00001` — `lib/command.js` | **Block** | high / **0.46** | 2,180 lines and 7.3× the threshold in the CLI’s central implementation. This is the strongest concrete agent-risk finding: edits require reasoning across a very large, coupled surface. |\n| `crime_00002` — `typings/index.d.ts` | Warn | high / **0.43** | 892 lines is difficult to navigate, but a public declaration file is naturally centralized and may need to mirror one API surface. Recommend organizing or generating it, not holding the PR alone. |\n| `crime_00009` — `CHANGELOG.md` | Ignore | high / **0.36** | Historical append-only prose does not have the local coupling described by the detector. Its zero test gap and blast radius support treating this as a structural false positive. |\n| `crime_00010` — `Readme_zh-CN.md` | Ignore | high / **0.36** | Long-form documentation, not an implementation module. Splitting might improve navigation but is not a merge-risk correction. |\n| `crime_00011` — `Readme.md` | Ignore | high / **0.36** | Same reasoning: high size severity, but no test gap or blast radius and little code-editing risk. |\n| `crime_00017` — `typings/index.test-d.ts` | Warn | medium / **0.32** | A 481-line type-test surface can be hard to review. Split by API area when practical, but cohesion and compile-time coverage matter more than the raw limit. |\n| `crime_00018` — `lib/help.js` | Warn | medium / **0.32** | 462 production lines is materially over the threshold. A responsibility split would reduce future edit risk, though the score does not justify blocking this initial import. |\n| `crime_00020` — `lib/option.js` | Ignore | medium / **0.29** | Only 327 lines, 1.1× the threshold, with reduced confidence. This is too close to the cutoff to demand restructuring absent evidence of mixed responsibilities. |\n\n### Tests with weak assertions\n\nThe assertion-free runtime tests are blockers as a group: they cover error and exit behavior where merely executing setup is not convincing protection.\n\n| Finding | Decision | Severity / agent risk | Rationale |\n|---|---|---:|---|\n| `crime_00022` — custom exit handler error | **Block** | medium / **0.27** | Must assert the custom error or handler outcome. |\n| `crime_00023` — `--help` CommanderError | **Block** | medium / **0.27** | Must assert rejection/throw plus relevant error properties. |\n| `crime_00024` — missing executable subcommand | **Block** | medium / **0.27** | Error-path behavior is unprotected without an explicit assertion. |\n| `crime_00025` — `--version` CommanderError | **Block** | medium / **0.27** | Must verify the promised override/error contract. |\n| `crime_00026` — successful subcommand calls override | **Block** | medium / **0.27** | The callback invocation is the behavior named by the test and should be asserted. |\n| `crime_00027` — missing mandatory option | **Block** | medium / **0.27** | Must assert error type/code/message or another observable contract. |\n| `crime_00028` — invalid option choice | **Block** | medium / **0.27** | Invalid-input handling needs a concrete assertion. |\n| `crime_00029` — invalid command-argument choice | **Block** | medium / **0.27** | Same unverified error-path contract. |\n\nThe TypeScript import cases are compile-time smoke tests. Successful compilation is itself their intended signal, so runtime `expect` calls would add little.\n\n| Findings | Decision | Severity / agent risk | Rationale |\n|---|---|---:|---|\n| `crime_00030`–`crime_00037` — `tests/ts-imports.test.ts` | Ignore | medium / **0.27 each** | These exercise whether exports can be imported and typed. Treat as compile assertions, assuming the file is included in the project’s typecheck. |\n\nThe remaining tests do contain assertions, but the matchers are weak.\n\n| Findings | Decision | Severity / agent risk | Rationale |\n|---|---|---:|---|\n| `crime_00043`–`crime_00049` — copied settings | Warn | low / **0.23 each** | Replace existence/truthiness-style checks with exact copied values or observable command behavior. Existing assertions keep these below blocking level. |\n| `crime_00050` — variadic positive case | Warn | low / **0.23** | Assert the exact boolean or parsed option shape rather than general truthiness. |\n| `crime_00051` — variadic negative case | Warn | low / **0.23** | Assert exact `false` and, ideally, the relevant parsed flags. |\n\n### Dead code\n\n| Finding | Decision | Severity / agent risk | Rationale |\n|---|---|---:|---|\n| `crime_00021` — comments in executable-subcommand search test | Ignore | low / **0.29** | The evidence looks like a platform-behavior note (“non-Win, launchWithNode”), not disabled executable code. Preserve it as rationale or rewrite it more clearly; do not block. |\n\n### Prose rules in comments\n\n| Finding | Decision | Severity / agent risk | Rationale |\n|---|---|---:|---|\n| `crime_00038` — SIGUSR1 note | Ignore | low / **0.27** | “Revisit if required” records historical test context rather than an active invariant. It should not be converted into code unless SIGUSR1 behavior is actually supported. |\n\n### Magic literals\n\n| Finding | Decision | Severity / agent risk | Rationale |\n|---|---|---:|---|\n| `crime_00003` — `\"PORT\"` across examples and typings | Ignore | medium / **0.41** | The score is elevated, but the occurrences are independent examples plus a type-test declaration. Centralizing a conventional environment-variable name would couple examples that should remain standalone. |\n\nThe actionable merge requirement is therefore narrow: reduce or explicitly justify the 2,180-line `lib/command.js` boundary, and add meaningful assertions to `crime_00022`–`crime_00029`. The other findings should become follow-up work or documented detector exceptions rather than PR blockers.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "magic_domain_literal_scatter",
+      "crime_00004": "large_function",
+      "crime_00005": "large_function",
+      "crime_00006": "boolean_naming_drift",
+      "crime_00007": "boolean_naming_drift",
+      "crime_00008": "sync_io_in_hotpath",
+      "crime_00009": "large_file",
+      "crime_00010": "large_file",
+      "crime_00011": "large_file",
+      "crime_00012": "large_function",
+      "crime_00013": "large_function",
+      "crime_00014": "exact_duplicate_block",
+      "crime_00015": "exact_duplicate_block",
+      "crime_00016": "exact_duplicate_block",
+      "crime_00017": "large_file",
+      "crime_00018": "large_file",
+      "crime_00019": "hardcoded_localhost",
+      "crime_00020": "large_file",
+      "crime_00021": "commented_out_code",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "weak_test_signal",
+      "crime_00032": "weak_test_signal",
+      "crime_00033": "weak_test_signal",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "weak_test_signal",
+      "crime_00036": "weak_test_signal",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "logic_in_comments",
+      "crime_00039": "large_function",
+      "crime_00040": "boolean_naming_drift",
+      "crime_00041": "docs_code_drift",
+      "crime_00042": "docs_code_drift",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "large_function",
+      "crime_00053": "large_function",
+      "crime_00054": "large_function",
+      "crime_00055": "large_function"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "God Function": "large_function",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Commented-Out Corpse": "commented_out_code",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Logic in the Alibi": "logic_in_comments",
+      "Docs-Code Drift": "docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  }
+}

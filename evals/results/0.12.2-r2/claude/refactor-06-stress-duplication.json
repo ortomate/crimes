@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.12.2",
+  "timestamp": "2026-07-31T02:24:43.190Z",
+  "run_id": "3540440d-878d-4746-b8fd-c2b809ff31fd",
+  "response": "Read all six fixture files to ground the proposal. Not editing anything — this is a fixture, and the ask is a proposal.\n\n## 1. Duplication confirmed\n\nThe scan's three medium findings hold up against the source, and they're three *different* problems wearing one costume:\n\n| Finding | What's actually there |\n|---|---|\n| `crime_00001` near-duplicate, 3 files | `sanitizeUserInput` / `sanitizeText` / `cleanMessage` are **token-for-token identical** apart from parameter and local names (`raw/working`, `input/cleaned`, `value/normalised`). Zero behavioural variation. |\n| `crime_00002` exact duplicate, 2 files | `recordSanitiseEvent` in `telemetry-a.ts:6-19` and `telemetry-b.ts:6-19` — byte-identical, including the `Date.now()` at line 16. |\n| `crime_00003` `\"admin\"` in 4 files | **Has genuinely drifted.** `assertAdminA` = `role === \"admin\"`, `assertAdminB` = `role === \"admin\" \\|\\| role === \"owner\"`, `assertAdminC` = `role !== \"admin\"` (inverted). `policy.ts` adds three more copies of the bare `=== \"admin\"`. |\n\nThat third row is the trap. The detector groups them under one literal, but they are not the same predicate — collapsing `assertAdminA/B/C` into a single `isAdmin` would silently grant `owner` billing access and invert the C call sites. The scan's own evidence says it: *\"2 distinct expression shapes\"* across those files.\n\n## 2. Proposed refactor\n\nThree independent extractions, ordered by risk. Do them as separate commits.\n\n**A. `src/sanitize.ts` — pure lift-and-shift (safe).** Because the bodies are identical, this is a rename-only extraction with no behavioural surface. Parameterise the four magic numbers as options with the current values as defaults — those thresholds are the most likely reason the three copies would have diverged next.\n\n```ts\nexport interface SanitizeOptions {\n  /** Truncate to this many chars before the content checks. Default 1000. */\n  maxLength?: number;\n  /** Reject if this many runs of 3+ `!`/`?` remain. Default 5. */\n  maxPunctuationRuns?: number;\n  /** Downcase when the uppercase ratio exceeds this. Default 0.9. */\n  shoutRatio?: number;\n  /** ...and the string is longer than this. Default 30. */\n  shoutMinLength?: number;\n}\n\n/** Returns \"\" for rejected input; never throws. */\nexport function sanitize(value: string, options?: SanitizeOptions): string;\n```\n\nOne rule for whoever does it: **preserve the body exactly, bugs included.** Two things in there look wrong but must not be \"fixed\" in the same commit — `replace(/[ -]/g, \"\")` is a character *range* (0x20–0x2D), so it strips every space plus `!\"#$%&'()*+,-`, which makes the following `\\s+` collapse near-dead and means the `[!?]{3,}` check can only ever see `???`. And the `raw === null` guard is unreachable under the declared `string` type but live at runtime. Both are pre-existing behaviour; changing them here would make the extraction unreviewable. File follow-ups.\n\n**B. `src/policy.ts` — three named predicates, not one.** Keep the distinct semantics visible in the names:\n\n```ts\nexport function isAdmin(role: string): boolean;              // was assertAdminA + all of policy.ts\nexport function isAdminOrOwner(role: string): boolean;       // was assertAdminB\n// assertAdminC call sites become `!isAdmin(role)` — no helper for the negation\n```\n\n`canEditBilling` / `canSeeAuditLog` / `canImpersonate` keep their names and bodies become `return isAdmin(role)`. The literal `\"admin\"` then appears exactly twice in the repo.\n\n**C. `src/telemetry.ts` — dedupe and inject the clock.** This also clears `crime_00004` and `crime_00005` in the same move, since both are the same `Date.now()` copied twice:\n\n```ts\nexport interface TelemetryDeps {\n  now?: () => number;                    // default Date.now\n  emit?: (line: string) => void;         // default console.log\n}\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  deps?: TelemetryDeps,\n): void;\n```\n\nDefaults preserve current behaviour, so existing call sites need no edit beyond the import path.\n\n## 3. Files that would change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **new** — the consolidated `sanitize()` |\n| `src/telemetry.ts` | **new** — the consolidated `recordSanitiseEvent()` |\n| `src/sanitize-a.ts` | body deleted; re-export `sanitizeUserInput` as a thin wrapper over `sanitize()`, `assertAdminA` → `isAdmin` |\n| `src/sanitize-b.ts` | same; `assertAdminB` → `isAdminOrOwner` |\n| `src/sanitize-c.ts` | same; `assertAdminC` → `!isAdmin` |\n| `src/policy.ts` | three bodies delegate to `isAdmin`; gains `isAdmin` / `isAdminOrOwner` |\n| `src/telemetry-a.ts` | deleted, or reduced to a re-export |\n| `src/telemetry-b.ts` | deleted, or reduced to a re-export |\n\nSix files touched, two added, up to two deleted. Whether the `sanitize-*` and `telemetry-*` files survive as deprecated re-export shims or get deleted outright depends on whether anything outside this fixture imports them — there are no importers here (`blast_radius_importers: 0` on every finding), so **deletion is clean** and I'd take it.\n\n## 4. The thing that should block this\n\nThere are no test files in the fixture, and every finding carries `test_gap: 0.5`. Three identical bodies collapsing into one is exactly the refactor where a silent behaviour change is invisible — and step B is a real semantic change to the admin guards, not a lift-and-shift.\n\nWrite characterization tests against the *current* three functions first: empty/whitespace, the `<`/`>` prefixes, the `\\\\x` literal, a >1000-char input, the shout-ratio boundary, and the punctuation-run threshold. They should pass unchanged against `sanitize()` afterward. That's what makes step A a mechanical commit rather than a leap.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}
