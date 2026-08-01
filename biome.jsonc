@@ -119,9 +119,16 @@
         // `noUncheckedIndexedAccess: true`, which types every indexed
         // access as `T | undefined`. Under that setting `arr[0]!` and
         // `map.get(k)!` after a `has()` guard are not a shortcut, they
-        // are the idiom the compiler forces — which is why there are
-        // 1033 of them and why they cluster in exactly the
-        // index-walking code the strict setting exists to protect.
+        // are the idiom the compiler forces.
+        //
+        // Measured across packages/, of 1035 postfix `!`:
+        //   793  directly on an indexed access, `arr[i]!`
+        //    15  on `map.get(...)!`
+        //   227  other — nearly all narrowing an optional parameter
+        //        already validated a line earlier (`idOrFingerprint!`)
+        // So 78% are the literal shape `noUncheckedIndexedAccess`
+        // creates, in exactly the index-walking code it exists to
+        // protect.
         //
         // The alternatives are both worse than the rule: relax
         // `noUncheckedIndexedAccess` (lose real type safety to satisfy
