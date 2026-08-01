@@ -1,6 +1,6 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
-import type { ImportEdge, ImportGraph } from "../imports/types.js";
+import type { ImportEdge } from "../imports/types.js";
 
 /**
  * Fires when a file imports from another package's deep internal path

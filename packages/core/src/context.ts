@@ -39,7 +39,7 @@ import type {
   SuppressionEntry,
   SuppressionForFile,
 } from "./suppressions.js";
-import { partitionFindings, suppressionsForFile } from "./suppressions.js";
+import { partitionFindings } from "./suppressions.js";
 
 export interface ContextOptions {
   /** Repo-relative or absolute path to the file to inspect. */

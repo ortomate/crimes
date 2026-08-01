@@ -17,7 +17,6 @@ import type {
   PyImport,
   PyIoCall,
   PyFunctionKind,
-  PyRoute,
 } from "./types.js";
 import { endLineOf, flatText, lineOf, maxNestingDepth } from "./utils.js";
 

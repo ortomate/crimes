@@ -7,7 +7,6 @@ import type {
   LanguagePyDetector,
   UniversalDetector,
 } from "./detector.js";
-import type { Pack } from "./pack.js";
 import { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
 import { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
 import { booleanNamingDriftDetector } from "./detectors/boolean-naming-drift.js";

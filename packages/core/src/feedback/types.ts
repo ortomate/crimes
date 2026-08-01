@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SCHEMA_VERSION } from "../finding.js";
+import type { SCHEMA_VERSION } from "../finding.js";
 
 /**
  * One verdict on one finding, captured by `crimes feedback` and stored

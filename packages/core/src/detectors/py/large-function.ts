@@ -2,7 +2,7 @@ import type { PyFunctionShape } from "@crimes/language-py";
 import { z } from "zod";
 import type { LanguagePyDetector } from "../../detector.js";
 import type { PreFinding as Finding, Severity } from "../../finding.js";
-import { intrinsicFor, round, severityScore } from "./shared.js";
+import { round, severityScore } from "./shared.js";
 
 /**
  * Per-shape line budgets.

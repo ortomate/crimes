@@ -9,12 +9,7 @@
  * here just expose ergonomic queries over that tree.
  */
 
-import type {
-  JsxAttributeValue,
-  JsxElementInfo,
-  JsxNode,
-  ParsedFile,
-} from "@crimes/language-js";
+import type { JsxElementInfo, ParsedFile } from "@crimes/language-js";
 
 export type {
   JsxAttributeValue,

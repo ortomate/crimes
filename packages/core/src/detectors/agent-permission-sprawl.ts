@@ -4,7 +4,6 @@ import type { PreFinding as Finding } from "../finding.js";
 import type {
   AgentConfigIndex,
   AgentHook,
-  AgentInstruction,
   AgentMcpServer,
   AgentPermissionRule,
 } from "../agents/types.js";

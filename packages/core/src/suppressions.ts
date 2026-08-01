@@ -1,13 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, resolve } from "node:path";
-import { z } from "zod";
-import { systemClock } from "./clock.js";
+import { isAbsolute, resolve } from "node:path";
 import type { CrimesConfig } from "./config.js";
 import { resolveSuppressionsPath } from "./config.js";
 import { fingerprintFinding } from "./fingerprint.js";
 import type { Finding } from "./finding.js";
-import { SCHEMA_VERSION } from "./finding.js";
 // Schema, types and the read path live in their own module so the write
 // path can import them without cycling back through this file.
 import {

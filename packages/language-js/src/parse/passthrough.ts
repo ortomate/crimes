@@ -1,14 +1,12 @@
 import ts from "typescript";
 import {
   calleeLabel,
-  calleeName,
   calleeTail,
   endLineOf,
   hasRestParameter,
   isExported,
   isFunctionLike,
   parameterNames,
-  pathTail,
   propertyPath,
   soleReturnedExpression,
   startLineOf,

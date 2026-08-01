@@ -3,7 +3,7 @@ import type { ParsedPyFile } from "@crimes/language-py";
 import type { z } from "zod";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
 import type { CrimesConfig } from "./config.js";
-import type { Finding, PreFinding } from "./finding.js";
+import type { PreFinding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
 import type { ImportGraph } from "./imports/types.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";

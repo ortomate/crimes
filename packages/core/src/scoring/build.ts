@@ -329,7 +329,7 @@ function transitiveImporterCount(imports: ImportGraph, start: string): number {
  * Matches the prior detector convention so the new unified formula does not
  * shift the ordering of existing findings.
  */
-const SEVERITY_NUMERIC: Record<Severity, number> = {
+const _SEVERITY_NUMERIC: Record<Severity, number> = {
   high: 0.9,
   medium: 0.7,
   low: 0.45,

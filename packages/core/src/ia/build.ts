@@ -35,7 +35,7 @@ import type {
 } from "./types.js";
 
 const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
-const MD_EXT = /\.(md|mdx)$/i;
+const _MD_EXT = /\.(md|mdx)$/i;
 
 export interface BuildIaIndexOptions {
   /** Absolute repo root. */

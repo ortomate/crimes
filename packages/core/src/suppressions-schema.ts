@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
 import { z } from "zod";
-import { SCHEMA_VERSION } from "./finding.js";
 
 /**
  * The on-disk shape of `.crimes/suppressions.json` — types, zod schemas,

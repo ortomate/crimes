@@ -10,7 +10,7 @@ import type {
   VerdictReport,
 } from "@crimes/core";
 import { describe, expect, it } from "vitest";
-import { pc, plainColour, renderRiskProfileLine } from "./human/shared.js";
+import { pc, renderRiskProfileLine } from "./human/shared.js";
 import {
   formatBaselineCheckReport,
   formatBaselineSaveReport,

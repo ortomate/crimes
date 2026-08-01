@@ -1,17 +1,10 @@
-import { readFile } from "node:fs/promises";
-import { basename, relative, resolve, sep } from "node:path";
+import { basename, relative, resolve } from "node:path";
 import { discoverFiles } from "./discovery/index.js";
-import { parseFile } from "@crimes/language-js";
-import type { BaselineEntry, FailOn } from "./baseline.js";
-import {
-  BASELINE_RELATIVE_PATH,
-  BaselineNotFoundError,
-  loadBaseline,
-  severityAtLeast,
-} from "./baseline.js";
+import type { FailOn } from "./baseline.js";
+import { severityAtLeast } from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
-import type { AssetDetector, Detector, LanguageJsDetectorContext } from "./detector.js";
+import type { AssetDetector, Detector } from "./detector.js";
 import {
   builtInAssetDetectors,
   builtInDetectors,
@@ -19,37 +12,20 @@ import {
   collectKnownIds,
   filterAssetDetectors,
   filterDetectors,
-  groupDetectorsByPack,
 } from "./detector-registry.js";
-import { buildUniversalContext } from "./discovery/universal-context.js";
-import {
-  resolveLanguagePackRouter,
-  type LanguagePackRouter,
-} from "./discovery/language-pack-router.js";
+import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import { buildCoverage } from "./discovery/coverage.js";
 import { runAssetDetectorsForRoot } from "./scan-assets.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
-import {
-  getChangedFiles,
-  NotAGitRepoError,
-  UnknownGitRefError,
-} from "./git/changed-files.js";
-import { collectResurfaced } from "./resurface.js";
-import { loadTriage, resolveTriagePath } from "./triage.js";
+import { getChangedFiles } from "./git/changed-files.js";
 // resolveAliasGroups now lives with the alias catalogue it merges into.
 // Still imported here (buildScanIndexes uses it) and re-exported
 // because it is part of the public @crimes/core API surface and
 // context.ts imports it from this module.
 import { resolveAliasGroups } from "./ia/aliases.js";
 export { resolveAliasGroups };
-import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
-import type { ImportGraph } from "./imports/types.js";
-import type { JsxShapeIndex } from "./jsx/shape-index.js";
-import type { FunctionHashIndex } from "./ast-hash/function-index.js";
-import type { PettyIndex } from "./petty/types.js";
 import { finaliseFindingScores } from "./scoring/build.js";
-import type { ScoringContext } from "./scoring/build.js";
 import type { ApplySuppressionsOptions, SuppressionEntry } from "./suppressions.js";
 import { partitionFindings } from "./suppressions.js";
 import type { TriageEntry } from "./triage.js";
@@ -58,23 +34,9 @@ import {
   assignIds as assignIdsHelper,
   tagTierAndSortByRankScore,
 } from "./context-helpers.js";
-import { assignPackAndDetectorId } from "./finding-finalise.js";
 import { safeRealpath } from "./util/realpath.js";
-import {
-  type ScanIndexes,
-  buildScanIndexes,
-  runDetectorsForFiles,
-  toRepoPath,
-} from "./scan-detect.js";
+import { buildScanIndexes, runDetectorsForFiles, toRepoPath } from "./scan-detect.js";
 import { collectResurfaceForScan } from "./scan-resurface.js";
-import {
-  safelyBuildFunctionHashIndex,
-  safelyBuildIaIndex,
-  safelyBuildImportGraph,
-  safelyBuildJsxShapeIndex,
-  safelyBuildPettyIndex,
-  safelyBuildScoringContext,
-} from "./indexes.js";
 
 export interface ScanOptions {
   /** Absolute or relative path to scan. Defaults to cwd. */
