@@ -120,7 +120,7 @@ export const svgWithEmbeddedRasterDetector: AssetDetector = {
 };
 
 function readAllowedPaths(options: Record<string, unknown> | undefined): Set<string> {
-  const raw = options?.["svg_with_embedded_raster"];
+  const raw = options?.svg_with_embedded_raster;
   if (!raw) return new Set();
   const parsed = optionsSchema.safeParse(raw);
   if (!parsed.success) return new Set();

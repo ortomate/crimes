@@ -331,10 +331,10 @@ export async function loadBaseline(path: string): Promise<Baseline> {
   if (!isObject(parsed)) {
     throw new MalformedBaselineError(path, "top-level value is not an object");
   }
-  if (parsed["report_type"] !== "baseline") {
+  if (parsed.report_type !== "baseline") {
     throw new MalformedBaselineError(
       path,
-      `expected report_type "baseline", got ${JSON.stringify(parsed["report_type"])}`,
+      `expected report_type "baseline", got ${JSON.stringify(parsed.report_type)}`,
     );
   }
   // Accept any schema_version still in the active migration window. The
@@ -344,40 +344,40 @@ export async function loadBaseline(path: string): Promise<Baseline> {
   // ACCEPTED_BASELINE_SCHEMA_VERSIONS whenever SCHEMA_VERSION bumps.
   if (
     !ACCEPTED_BASELINE_SCHEMA_VERSIONS.includes(
-      parsed["schema_version"] as AcceptedBaselineSchemaVersion,
+      parsed.schema_version as AcceptedBaselineSchemaVersion,
     )
   ) {
     throw new MalformedBaselineError(
       path,
-      `unsupported schema_version ${JSON.stringify(parsed["schema_version"])}, ` +
+      `unsupported schema_version ${JSON.stringify(parsed.schema_version)}, ` +
         `this build of crimes understands ${ACCEPTED_BASELINE_SCHEMA_VERSIONS.map(
           (v) => `"${v}"`,
         ).join(" or ")}`,
     );
   }
-  if (!Array.isArray(parsed["findings"])) {
+  if (!Array.isArray(parsed.findings)) {
     throw new MalformedBaselineError(path, "findings is not an array");
   }
-  for (const [idx, entry] of (parsed["findings"] as unknown[]).entries()) {
+  for (const [idx, entry] of (parsed.findings as unknown[]).entries()) {
     if (!isObject(entry)) {
       throw new MalformedBaselineError(path, `findings[${idx}] is not an object`);
     }
-    if (typeof entry["fingerprint"] !== "string") {
+    if (typeof entry.fingerprint !== "string") {
       throw new MalformedBaselineError(
         path,
         `findings[${idx}].fingerprint is missing or not a string`,
       );
     }
-    if (typeof entry["type"] !== "string") {
+    if (typeof entry.type !== "string") {
       throw new MalformedBaselineError(
         path,
         `findings[${idx}].type is missing or not a string`,
       );
     }
     if (
-      entry["severity"] !== "low" &&
-      entry["severity"] !== "medium" &&
-      entry["severity"] !== "high"
+      entry.severity !== "low" &&
+      entry.severity !== "medium" &&
+      entry.severity !== "high"
     ) {
       throw new MalformedBaselineError(
         path,

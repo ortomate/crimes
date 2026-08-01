@@ -132,7 +132,22 @@
         // This is not a "get to green" disable. If
         // `noUncheckedIndexedAccess` is ever turned off, turn this back
         // on the same day.
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+
+        // OFF, deliberately. 70 hits, and ~all of them are one shape:
+        // appending a trailing newline to rendered output, which every
+        // CLI command does exactly once —
+        //   process.stdout.write(formatContextReport(report, opts) + "\n")
+        // Taking the autofix was tried and reverted. It turns the
+        // multi-line renderer calls inside out:
+        //   `${formatContextReport(report, {
+        //   })}\n`
+        // which is harder to read than the concatenation it replaced,
+        // across the whole command layer. The rule is right in general
+        // (`+` chains that build a sentence should be templates) and
+        // wrong for `expr + "\n"`; Biome has no option to split those
+        // cases, so it is off rather than suppressed 70 times.
+        "useTemplate": "off"
       }
     }
   }

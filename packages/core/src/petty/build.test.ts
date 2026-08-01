@@ -17,7 +17,7 @@ describe("buildPettyIndex", () => {
     await writeFile(b, `const plan = "enterprise";\n`);
 
     const index = await buildPettyIndex({ root, files: [a, b] });
-    expect(index.domainLiterals["enterprise"]?.map((hit) => hit.file)).toEqual([
+    expect(index.domainLiterals.enterprise?.map((hit) => hit.file)).toEqual([
       "src/api.ts",
       "src/ui.ts",
     ]);

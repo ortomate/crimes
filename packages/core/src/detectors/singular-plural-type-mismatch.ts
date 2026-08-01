@@ -159,7 +159,7 @@ function parseIdentifierType(t: string): string | undefined {
 }
 
 function readAllowed(options: Record<string, unknown> | undefined): Set<string> {
-  const raw = options?.["singular_plural_type_mismatch"];
+  const raw = options?.singular_plural_type_mismatch;
   if (!raw) return new Set();
   const parsed = optionsSchema.safeParse(raw);
   if (!parsed.success) return new Set();

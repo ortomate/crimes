@@ -103,7 +103,7 @@ export const timezoneUnsafeParseDetector: LanguageJsDetector = {
 };
 
 function readAllowedLiterals(options: Record<string, unknown> | undefined): Set<string> {
-  const raw = options?.["timezone_unsafe_parse"];
+  const raw = options?.timezone_unsafe_parse;
   if (!raw) return new Set();
   // Loader already validated against optionsSchema, but in case of
   // direct programmatic callers that bypassed validation, parse

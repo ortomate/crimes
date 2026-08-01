@@ -163,7 +163,7 @@ function isWellNamed(d: TypedDeclaration, extraAllowed: Set<string>): boolean {
 }
 
 function readAllowed(options: Record<string, unknown> | undefined): Set<string> {
-  const raw = options?.["boolean_naming_drift"];
+  const raw = options?.boolean_naming_drift;
   if (!raw) return new Set();
   const parsed = optionsSchema.safeParse(raw);
   if (!parsed.success) return new Set();

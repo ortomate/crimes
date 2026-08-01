@@ -186,7 +186,7 @@ function truncate(text: string): string {
 }
 
 function readAllowedPaths(options: Record<string, unknown> | undefined): Set<string> {
-  const raw = options?.["hardcoded_local_path"];
+  const raw = options?.hardcoded_local_path;
   if (!raw) return new Set();
   const parsed = optionsSchema.safeParse(raw);
   if (!parsed.success) return new Set();

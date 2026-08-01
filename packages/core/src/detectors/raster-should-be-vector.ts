@@ -110,7 +110,7 @@ interface ParsedOptions {
 }
 
 function readOptions(options: Record<string, unknown> | undefined): ParsedOptions {
-  const raw = options?.["raster_should_be_vector"];
+  const raw = options?.raster_should_be_vector;
   if (!raw) return { allowedPaths: new Set() };
   const parsed = optionsSchema.safeParse(raw);
   if (!parsed.success) return { allowedPaths: new Set() };
