@@ -116,6 +116,43 @@ evals/
     src/judge.ts
 ```
 
+## If a run dies part-way
+
+`pnpm run evals` has **no resume**. The summary is accumulated in an
+in-memory tally and written once, at the very end
+(`buildSummary` / `writeJsonAtomic` in `runner/src/index.ts`). A run
+that is interrupted therefore leaves a directory full of valid
+per-scenario results and **no `summary.json`**.
+
+That state is dangerous, not merely incomplete. `evals:replay` and
+`evals:diff` both select the highest-versioned directory, so a partial
+directory silently becomes the pinned baseline and every later
+comparison is made against a truncated sample. **Never commit a version
+directory without a `summary.json` covering the full matrix.**
+
+Two things do *not* work:
+
+- Re-running the whole matrix is correct but expensive — it is 96 agent
+  invocations, and the ones that already succeeded are re-billed.
+- Re-running a subset (`--scenario review`) fills the missing results,
+  but then writes a `summary.json` describing **only that subset** while
+  sitting in a directory that claims to be the whole baseline. Worse
+  than no summary.
+
+What works: re-run whatever filter covers the gap, then rebuild
+`summary.json` from the per-scenario files on disk. Everything the tally
+accumulates (`structural_score.passed`, `passed + failed`, keyed by
+agent and scenario kind) is present in those files, so the summary is
+fully derivable. Verify any such rebuild by regenerating a *known-good*
+directory first and confirming it reproduces the committed
+`summary.json` byte-for-byte before trusting it on the incomplete one,
+and assert the combination count equals `scenarios × agents` before
+writing.
+
+Worth fixing properly: have the runner write `summary.json` from the
+result directory rather than from a tally that dies with the process,
+and skip work items whose output already exists so a re-run resumes.
+
 ## Retention of `results/` — PROPOSED, not yet applied
 
 `evals/results/` is **55 MB across 32 version directories** and grows by
