@@ -1,0 +1,34 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T03:54:14.334Z",
+  "run_id": "c42225e7-24b3-4446-aa14-3cbeaf8f62bc",
+  "response": "The available protection is weak. The only detected tests are four reporting tests, and none assert a result or side effect. A broken reversal could therefore pass as long as report building, exporting, and round-tripping do not raise exceptions.\n\nLikely affected surfaces, inferred from the test names, include:\n\n- Report construction\n- Report export, including JSON\n- Serialization round trips\n\nThe scan does not establish direct test coverage or importer relationships for the ledger module. The finding’s `blast_radius: 0` describes `tests/test_reporting.py`, not the ledger code, so it should not be read as “ledger changes affect nothing.”\n\nBefore changing reversal logic, I would treat it as effectively unprotected and add focused assertions for reversed amounts, signs, references, and report/export output. A `crimes context <ledger-file> --format json` run would be needed to identify the ledger file’s concrete importers and likely tests.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T03:50:15.213Z",
+  "run_id": "49b733d5-a6fb-4efb-8300-30d0b2c35b46",
+  "response": "The scan points squarely at `domain/invoicing.py`. I’m checking the clock reads and billing-period logic there so the explanation distinguishes the actual bug from the unrelated findings.\n\nThe responsible module is `domain/invoicing.py`, specifically `build_invoice()` at lines 20–21:\n\n```python\nissued = datetime.now()       # naive host-local time\nperiod_start = datetime.utcnow()  # naive UTC time\n```\n\nBoth values lack timezone information, but represent different clocks. Python therefore treats them as compatible even though their wall-clock values may differ by one or two hours on a European host.\n\nThe bug appears only near a calendar boundary. Around midnight—and especially at a month boundary—the local date and UTC date can belong to different billing periods. CI hides this because its timezone is UTC: there, `now()` and `utcnow()` produce effectively identical wall-clock values, so tests pass.\n\nFix it by using one aware instant:\n\n```python\nfrom datetime import datetime, timezone\n\nnow = datetime.now(timezone.utc)\nissued = now\nperiod_start = now\n```\n\nBetter still, inject a clock so boundary cases are deterministic in tests. If billing periods follow the customer’s local calendar, derive the period using their IANA timezone via `zoneinfo`, then store the resulting timestamp in UTC. Merely standardizing on UTC does not by itself implement customer-local billing semantics.\n\nAdd tests using fixed instants on both sides of midnight and month-end in zones such as `Europe/Paris` and `Europe/London`. Avoid relying on the CI machine’s `TZ` setting.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

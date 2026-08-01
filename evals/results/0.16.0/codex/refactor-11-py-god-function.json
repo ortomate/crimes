@@ -1,0 +1,53 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:10:07.631Z",
+  "run_id": "31d54318-96bd-4699-97bb-1d195a0a2fc5",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to ground the recommendation in both the scan and the actual function body, especially its hidden dependencies and behavioral seams.\n\nThe scan’s `agent_risk` ranking alone points to a route handler finding, but the question asks for a single function to refactor. I’m separating “highest-scored finding” from “riskiest function body”: `build_invoice` concentrates several independent risks in one modification surface.\n\nThe globally installed `crimes` binary isn’t available in this shell. I’ll use the repository’s locally built CLI against the fixture so the command is still executed as requested.\n\nThe riskiest function to modify is `build_invoice` in [domain/invoicing.py](</Users/andrew/dev/crimes/evals/fixtures/11-py-service/domain/invoicing.py:15>).\n\nAlthough `get_invoice` is attached to the highest individual `agent_risk` finding, that finding aggregates blocking calls across two route handlers. `build_invoice` is the most concentrated single-function risk.\n\nWhat makes it risky beyond its 61 lines:\n\n- Five levels of nesting encode subscription, usage-cap, quantity, and coupon rules whose interactions are easy to alter accidentally.\n- It accepts five untyped parameters and consumes undocumented dictionary shapes. Misspelled or absent keys can silently select defaults or raise only on specific branches.\n- It reads two different naive clocks: local `datetime.now()` and UTC `datetime.utcnow()`. Coupon expiry can therefore depend on host timezone, while tests cannot reliably freeze time.\n- It mixes calculation, validation, policy enforcement, taxation, presentation formatting, and response assembly.\n- It crosses module boundaries through `apply_vat` and `format_money`; the latter participates in the `domain.invoicing ↔ api.rendering` import cycle.\n- It is called directly from the HTTP layer and its returned dictionary is effectively an API contract.\n- No tests are present, while the scan estimates three importers for this module.\n\nConcrete refactor plan:\n\n1. Add characterization tests before changing structure. Cover zero/negative quantities, monthly and annual subscriptions, prepaid annual discounts, usage below/above the cap, fixed/percentage/expired/stackable coupons, unknown regions, and exact returned keys and formatting.\n\n2. Break the import cycle first. Move `LINE_ITEM_CAP` into a small leaf policy/constants module that both invoicing and rendering may import. Do not hide the cycle with a function-local import.\n\n3. Introduce typed inputs and outputs—such as `LineItem`, `Coupon`, and `Invoice` dataclasses or `TypedDict`s—while preserving the existing external dictionary contract at the route boundary.\n\n4. Extract pure helpers:\n\n   - `_price_line_item(item) -> PricedLineItem`\n   - `_calculate_subtotal(items) -> subtotal, skipped, warnings`\n   - `_calculate_discount(subtotal, coupon, now) -> discount`\n   - `_calculate_total(net, region) -> taxed_total`\n\n5. Inject a clock and standardize on timezone-aware UTC. Obtain the relevant instant explicitly and pass it into coupon-expiry logic; avoid direct clock reads inside helpers.\n\n6. Remove presentation work from the domain calculation. Have the domain return numeric totals, then add `display_total` in the API/presentation layer. Preserve the old response shape during migration.\n\n7. Leave `build_invoice` as a thin orchestrator: validate inputs, call the pure helpers, apply VAT, and construct the result.\n\n8. Run focused tests after each extraction, then rescan. The refactor should eliminate the god-function and direct-clock findings without introducing a new high-severity finding.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

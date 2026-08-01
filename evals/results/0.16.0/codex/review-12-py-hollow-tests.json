@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:22:37.057Z",
+  "run_id": "6bdad7ed-bdaa-404c-a9a5-10a88e933287",
+  "response": "I’m using the repository’s `crimes-codebase-risk` review workflow to interpret the scan conservatively—especially the distinction between “a test executes code” and “a test verifies behavior.” I’ll inspect the small fixture so I can name the genuinely asserted billing paths rather than infer them from the single finding.\n\nThe scan’s high-severity warning is borne out by the source: the reporting tests call real code but never check returned values or side effects. I’m also separating that from the ledger, which has no direct test file but is incidentally executed through reporting tests—execution alone is not behavioral protection.\n\nThe package has one genuinely protected area: `billing.rates`. The rest mostly only looks covered.\n\n| Area | Actual protection |\n|---|---|\n| `rate_for` | Meaningfully tested for GB (`0.20`), DE (`0.19`), and unknown-region fallback to `DEFAULT_RATE`. |\n| `is_zero_rated` | Partially tested: GB and FR must return false. This would not catch an incorrect nonzero rate for FR. |\n| `build_report` | Only executed. No test verifies its account, region, lines, fixed amount, or total. Incorrect output would still pass. |\n| `export_report` | CSV and JSON branches are executed, but their returned content and formatting are never checked. |\n| Unsupported report formats | Not tested; nothing checks that `ValueError` is raised. |\n| `post_entry` | Indirectly executed through `build_report`, but none of its calculated or returned fields are asserted. |\n| `reverse_entry` | Apparently not exercised at all. |\n\nThe high-severity finding is precise: all four functions in `tests/test_reporting.py` contain zero assertions. They provide a weak smoke signal—imports and these calls must not raise—but no correctness signal. For example, `build_report` could return the wrong total, CSV export could return an empty string, and JSON export could return incorrect values without failing the suite.\n\nBy contrast, `tests/test_rates.py` contains five concrete assertions, so the specific rate behaviors named above are genuinely regression-tested.\n\nOne important distinction: the scan’s `coverage.files_total: 6` means the scanner analyzed all six Python files. It is not test-coverage data. Likewise, the single finding does not imply everything else is well tested; direct inspection shows `ledger.py` has no dedicated tests.\n\nRefactoring risk is therefore:\n\n- Lower for the explicitly asserted `rate_for` cases.\n- Moderate for `is_zero_rated`, whose assertions are narrow.\n- High for reporting and ledger behavior, where passing tests mostly prove “did not crash,” not “remained correct.”",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

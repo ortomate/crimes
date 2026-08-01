@@ -1,0 +1,34 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T03:55:13.881Z",
+  "run_id": "2d33bed0-9874-4528-94eb-f6a5badcf4b3",
+  "response": "I ran the pre-edit context check rather than opening the ledger cold. Here's what `crimes` actually told me.\n\n## The scan's one finding is not in the file I'm changing — and that's the point\n\n```\nCRIME SCENE REPORT\nrepo: 12-py-tested  ·  1 finding across 1 file  ·  1 high  0 medium  0 low\n\nTop files by risk\ntests/test_reporting.py  1 finding · 1 high\n   1. Weak Test Signal · test_build_report()   4 of 4 test functions contain no assertion, `test_build_report` (lines 11–12) asserts nothing\n     Risk: churn low · test gap bottom-quartile · blast bottom-quartile (0 importers)\n     id=crime_00001\n```\n\nThe naive read is \"one finding, it's in a test file, my ledger change is fine.\" The correct read is the inverse: the only crime in this repo is that the test suite lies.\n\n## What protection I have if I get the reversal wrong: none\n\n`crimes context billing/ledger.py`:\n\n```\nCRIMES CONTEXT\nfile: billing/ledger.py\nrisk: NONE  (0 findings)\n\nLikely tests\n  (no test file matched the target basename ... and no test file imports it)\n\nClues\n  · churn: 1 commits over 90d · last touched yesterday · 1 author\n  · test gap: top-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\nThree things stack up here, and only the combination is meaningful:\n\n1. **No test file imports `billing/ledger.py` at all.** `crimes` looked for siblings, `__tests__/`, `tests/`, and the `test_` / `_test` / `.spec` conventions and found nothing. Its own closing line — \"Suspiciously clean\" — is the right instinct: zero findings on a domain file with a top-quartile test gap means unexamined, not safe.\n\n2. **`reverse_entry` has zero callers anywhere in the repo.** `grep -rn reverse_entry` returns exactly one hit: the definition itself, `billing/ledger.py:16`. `billing/reporting.py:3` imports only `post_entry`. So no test *executes* the function I'm being asked to change — not directly, not transitively, not even by accident.\n\n3. **The one indirect coverage path that exists is fake.** The chain is `test_reporting.py` → `reporting.build_report` → `ledger.post_entry` → `rates.rate_for`. Those four tests do run `post_entry`. But per the evidence: *\"0 total assertions across 4 tests (0.0 per test, expected ≥ 1)\"* and *\"They pass as long as the code under test does not raise.\"* Counted forms included bare `assert`, `self.assert*`, and `pytest.raises` — so this isn't a detector missing an idiom. If I broke `post_entry` outright, the suite would stay green. `test_round_trip` (lines 23–25) is the worst of them: the name promises the exact invariant a reversal change needs, and it checks nothing.\n\nThe only genuinely protected code in this package is `billing/rates.py` — `test_rates.py` asserts on real values, including the `DEFAULT_RATE` fallback. That's the one file I'd get honest feedback on, and `reverse_entry` doesn't touch it.\n\n## What else the change could affect\n\nBlast radius inside the repo is nil (`0 importers`), but two couplings matter more than the import graph:\n\n- **The entry dict shape is an unversioned contract.** `reverse_entry` reads `account` / `net` / `gross` / `region` — the exact keys `post_entry` emits. Any change that alters which keys a reversal carries, or how it derives them, silently breaks that pairing, and nothing in the repo will notice.\n- **Changing reversal from negation to recomputation would pull `rates.py` into the blast radius.** Today `reverse_entry` just negates `net` and `gross`, so it's rate-independent. If the new logic recomputes gross via `rate_for(entry[\"region\"])`, reversal becomes sensitive to the rate table *at reversal time* — and `rate_for` falls back to `DEFAULT_RATE = 0.2` for unknown regions (`rates.py:14`). An entry posted under one rate and reversed under another would no longer net to zero. That's a real accounting hazard, and it's the kind of thing the existing hollow tests would sail straight past.\n- **`reverse_entry` being uncalled cuts both ways.** No in-repo caller means no in-repo breakage, but it's a public module-level function in a shipped package — static analysis can't tell me whether an external consumer depends on it. Zero importers is a fact about this repo, not a licence to change the signature freely.\n\n## What I'd do before touching it\n\nWrite assertions first, in this order:\n\n1. A `tests/test_ledger.py` that doesn't exist yet, pinning the current round-trip invariant (`post_entry` then `reverse_entry` nets to zero on both `net` and `gross`, and preserves `account`/`region`). That's the characterization test that makes the change safe, and it's the gap `crimes` flagged as \"no test file imports it.\"\n2. Fix the four hollow tests in `test_reporting.py` — per the suggested action, *\"Assert on the returned value or the observable side effect.\"* Effort is marked `small`, risk `low`. Until they assert, they're worse than no tests: they'll report green and I'll believe them.\n\nI haven't changed anything yet. Want me to write the characterization tests for `reverse_entry` and repair `test_reporting.py` first, then make the reversal change against a suite that can actually fail?",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

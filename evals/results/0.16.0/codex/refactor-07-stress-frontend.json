@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:04:05.695Z",
+  "run_id": "91e5b2e1-5dce-4a43-85f0-45b7fa950b07",
+  "response": "I’m using the `crimes-codebase-risk` workflow because this request is specifically about interpreting `crimes context` findings. I’ll inspect the full Card component and nearby project conventions, then map the proposed edits one-to-one to the three finding types.\n\nThe fixture confirms the clickable wrapper also contains rigid `800/720/240px` layout assumptions and nine raw visual literals. The global binary is not installed in this shell, so I’m rerunning the required context command through this checkout’s locally built CLI and checking the fixture’s Tailwind token vocabulary before finalizing the refactor shape.\n\n`crimes context` confirms all three findings and reports no related files or likely tests. I’d refactor `Card` into a semantic control styled through centralized tokens and a container-responsive layout.\n\n```tsx\nimport styles from \"./Card.module.css\";\n\nexport function Card({ children }: { children: React.ReactNode }) {\n  return (\n    <button\n      type=\"button\"\n      className={styles.card}\n      onClick={() => console.log(\"clicked\")}\n    >\n      <span className={styles.content}>{children}</span>\n      <span className={styles.sidebar}>sidebar</span>\n    </button>\n  );\n}\n```\n\n```css\n.card {\n  container-type: inline-size;\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) minmax(10rem, 30%);\n  width: 100%;\n  max-width: var(--size-card-max);\n  min-height: var(--size-card-min-height);\n  padding: var(--space-6);\n\n  color: var(--color-ink);\n  background: var(--color-surface);\n  border: 1px solid var(--color-border);\n  box-shadow: var(--shadow-card);\n  text-align: start;\n}\n\n.card:focus-visible {\n  outline: var(--focus-ring-width) solid var(--color-brand);\n  outline-offset: var(--focus-ring-offset);\n}\n\n.content {\n  min-width: 0;\n  font-size: clamp(1rem, 0.95rem + 0.25cqi, 1.125rem);\n}\n\n.sidebar {\n  min-width: 0;\n  color: var(--color-muted);\n  font-size: var(--font-size-sm);\n}\n\n@container (width < 36rem) {\n  .card {\n    grid-template-columns: minmax(0, 1fr);\n  }\n}\n```\n\nTie-back to findings:\n\n- `accessible_interaction_risk`: replace `<div onClick>` with `<button type=\"button\">`. This provides keyboard activation, focus behavior, and button semantics without manually recreating them using `role`, `tabIndex`, and key handlers. If clicking navigates instead, use `<a href>`.\n\n- `design_token_escape`: remove all inline color, spacing, border, shadow, and focus literals. Reuse the existing `brand`, `surface`, and `ink` tokens from `tailwind.config.ts`; add centralized `border`, `muted`, shadow, spacing, sizing, and focus tokens where the design system lacks them. Merely moving literals into CSS would conceal rather than resolve the escape.\n\n- `responsive_fragility`: eliminate the fixed `800`, `720`, and `240` widths and fixed `600` height. Let the card fill its container up to a tokenized maximum, use flexible grid tracks, collapse them with a container query, and use `clamp()` for fluid typography.\n\nOne caveat: because `children` is arbitrary, it could contain links or buttons, which must not be nested inside a `<button>`. If that is a supported use case, keep an `<article>` wrapper and expose a separate semantic button or link for the card action. Add tests for keyboard activation, accessible role/name, narrow-container stacking, and absence of horizontal overflow.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

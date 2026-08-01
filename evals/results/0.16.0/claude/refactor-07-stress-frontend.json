@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:04:18.736Z",
+  "run_id": "06d447cd-52ec-4195-a8ab-73b58c49f25d",
+  "response": "## What `crimes context src/Card.tsx` adds beyond the scan\n\n```\nrisk: MEDIUM  (3 findings: 0 high, 1 medium, 2 low)\nRelated files   (no neighbourhood signal — 0 importers)\nLikely tests    (none: no sibling, __tests__/, or .test/.spec match)\nClues           · churn: 2 commits / 90d · last touched 3 months ago · 1 author\n                · test gap: top-quartile\n```\n\nTwo things that change how I'd sequence this: **blast radius is zero** (nothing imports `Card.tsx`, so all three fixes are locally contained and safe to land in one commit), and **`test_gap` is 1.0 on all three findings** — there is no test asserting any of this today, which is exactly why the a11y regression is invisible.\n\nReading the file also turns up a layout bug the detectors only hint at: the outer div is `width: 800` with children at `720 + 240 = 960`. It already overflows at desktop. And `maxWidth: 1024` on an element pinned to `width: 800` is dead code.\n\n---\n\n## The refactor\n\n### 1. `accessible_interaction_risk` → semantic element, not ARIA patches\n\n`src/Card.tsx:22` puts `onClick` on the card wrapper. The suggested action offers two doors — `<button>`, or `role=\"button\" + aria-label + tabIndex={0}` — and the finding's `fix_shape` is explicit about which to prefer: *\"use semantic elements; add ARIA only when semantics don't fit.\"*\n\nHere semantics **don't** fit the whole card, because `<Card>` takes `children`. Wrapping arbitrary children in a `<button>` produces nested interactive content, which is invalid HTML and breaks screen-reader navigation the moment someone drops a link inside. Adding `role=\"button\"` to the wrapper has the same problem, plus you'd owe it a keyboard handler for Enter *and* Space, which `tabIndex={0}` alone doesn't give you.\n\nSo: the card stops being the click target, and gains a real button.\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  title: string;\n  onSelect?: () => void;\n};\n\nexport function Card({ children, title, onSelect }: CardProps) {\n  return (\n    <article className={styles.card}>\n      <div className={styles.main}>\n        {onSelect ? (\n          <button type=\"button\" className={styles.action} onClick={onSelect}>\n            {title}\n          </button>\n        ) : (\n          <h3 className={styles.title}>{title}</h3>\n        )}\n        {children}\n      </div>\n      <aside className={styles.sidebar}>sidebar</aside>\n    </article>\n  );\n}\n```\n\nFree wins from `<button>`: focus ring, Enter/Space, `role=\"button\"` implicitly, and an accessible name from its own text content instead of a hand-maintained `aria-label` that drifts. Note also that the current handler is `console.log(\"clicked\")` — a placeholder, not behaviour. Lifting it to an `onSelect` prop is what makes the finding actually closeable rather than just relocated.\n\nIf the design genuinely requires the *entire* card surface to be clickable, don't go back to `<div onClick>` — use the stretched-link pattern: keep the real `<button>`/`<a>`, give the card `position: relative`, and expand the button's hit area with an `::after { position: absolute; inset: 0 }`. Same a11y, same click target.\n\n### 2. `design_token_escape` → tokens, and admit the scale is short\n\nNine raw values across `color`, `px`, `rgb`, and `shadow`. `tailwind.config.ts` defines the scale that these escape — but it only has three colors:\n\n| Raw value in `Card.tsx` | Token |\n|---|---|\n| `#ff00aa` (background, L16) | — no match; `#ff00aa` is magenta and `brand` is `#0050ff`. Needs a decision. |\n| `#0a0a0a` (color, L17) | `ink` (`#111111`) |\n| `#333333` (color, L24) | needs `ink-muted` |\n| `#666666` (color, L27) | needs `ink-subtle` |\n| `#cccccc` (borderColor, L18) | needs `border` |\n| `#1a73e8` (outlineColor, L20) | needs `focus` — and this one is Google blue, not the product's `#0050ff` |\n| `rgb(0, 0, 0)` (shadow, L19) | needs a `shadow` scale entry |\n| `padding: 24`, `fontSize: 18/14` | needs the spacing + type scale |\n\nThe honest move is to **extend the theme first, then reference it** — swapping nine inline hexes for nine slightly different inline hexes is not a fix. `#ff00aa` and `#1a73e8` are the two that need a human: the first has no plausible token, and the second is a third-party blue that shouldn't be the focus color regardless.\n\n```ts\n// tailwind.config.ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      \"ink-muted\": \"#333333\",\n      \"ink-subtle\": \"#666666\",\n      border: \"#cccccc\",\n      focus: \"#0050ff\",      // was #1a73e8 — align the ring with brand\n    },\n    spacing: { 6: \"1.5rem\" },\n    boxShadow: { card: \"0 2px 4px rgb(0 0 0 / 0.16)\" },\n  },\n};\n```\n\nThe `agent_risk: 0.38` here is the point of the charge — the summary says it directly: *\"agents extending the file may copy them forward without realising they bypass the tokens.\"* Every inline hex is a template the next contributor (human or agent) pattern-matches against. Killing the inline `style` object entirely is what stops the propagation; a stylesheet that only names tokens gives the next writer nothing to copy.\n\n### 3. `responsive_fragility` → fluid + container query\n\nThree fixed sizes and no `@media` anywhere. The `fix_shape` is opinionated and I agree with it: *\"drive layout from container queries or a fluid scale, not pixel media queries.\"* A card is a component — it should respond to the space it's given, not to the viewport, so it survives being dropped in a narrow sidebar on a wide screen. That's exactly the case pixel media queries get wrong.\n\n```css\n/* Card.module.css */\n.card {\n  container-type: inline-size;\n  display: grid;\n  grid-template-columns: 1fr;      /* stacked by default */\n  gap: theme(spacing.6);\n  width: 100%;                     /* was width: 800 */\n  max-width: 50rem;                /* the 800px becomes a ceiling, not a floor */\n  min-height: 20rem;               /* was height: 600 — content can exceed it */\n  padding: theme(spacing.6);\n  background: theme(colors.surface);\n  color: theme(colors.ink);\n  border: 1px solid theme(colors.border);\n  box-shadow: theme(boxShadow.card);\n}\n\n@container (min-width: 34rem) {\n  .card { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); }\n}\n\n.main    { font-size: clamp(1rem, 0.95rem + 0.25cqi, 1.125rem); }  /* was 18px */\n.sidebar { font-size: 0.875rem; color: theme(colors.ink-subtle); } /* was 14px */\n.action:focus-visible { outline: 2px solid theme(colors.focus); outline-offset: 2px; }\n```\n\n`minmax(0, …)` is what actually fixes the overflow — the `720 + 240` children now derive their width from the grid instead of dictating it. `min-height` replaces `height: 600` so a long `children` grows the card rather than spilling out of it. Container queries are native in Tailwind v4; on v3 you'd add `@tailwindcss/container-queries` or write this plain CSS as above.\n\n---\n\n## Sequencing, and one caveat\n\nLand it as one commit — zero importers means there's no coordination cost, and the three changes touch the same JSX anyway.\n\nThe gap `context` flagged is what I'd actually add first: **there is no test file**, and `test_gap` is maxed on all three findings. One RTL test (`getByRole(\"button\", { name: title })` fires on click and on `{Enter}`) pins the a11y fix so it can't silently regress into a `<div>` again. The token and responsive fixes are better served by the linter — a rule banning inline `style` in JSX is what keeps `design_token_escape` at zero going forward, since a test can't realistically assert \"no raw hex anywhere.\"\n\nCaveat: **I haven't applied any of this.** `evals/fixtures/07-stress-frontend/` is scanner input — its header comments say the crimes are deliberate (`→ should fire design_token_escape`, etc.), and fixing them would zero out the findings this fixture exists to produce and move the eval baseline. Say the word if you want it applied somewhere real, or if this fixture is meant to become a before/after pair.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T03:53:25.589Z",
+  "run_id": "ee4bc3a0-eb89-48a3-a684-820fe70af81d",
+  "response": "`crimes context src/billing.ts --format json` on the fixture:\n\n**Confirmed: zero findings.**\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"findings\": [],\n\"agent_guidance\": [],\n\"related_files\": []\n```\n\n**likely_tests:** `src/billing.test.ts`\n\nThe repo-wide scan's single finding (`dependency_provenance_gap` on `package.json`, for an undeclared `vitest` import) is attributed to `package.json` and reached only from `src/billing.test.ts` — it does not attach to `src/billing.ts`.\n\n## Why it's low risk to edit\n\n**It's small and total.** The file is 11 lines: one interface and one pure function.\n\n```ts\nexport interface Money { amount: number; currency: \"USD\" | \"EUR\" | \"GBP\" }\nexport function format(money: Money): string {\n  const { amount, currency } = money;\n  return `${currency} ${amount.toFixed(2)}`;\n}\n```\n\n**No hidden inputs.** No `Date.now()`, `Math.random()`, or `process.env` — same input, same output, every time. Nothing to stub, nothing that behaves differently in CI than on your machine.\n\n**No blast radius.** `related_files_reason` explains why the neighbourhood is empty: no finding-linked related files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings. Nothing imports it inside the fixture, so a change here can't propagate.\n\n**A test sits directly beside it.** `src/billing.test.ts` covers `format`, so an edit gets immediate feedback. Note `test_gap` is reported as `raw: 0, label: \"unknown\"` — the label is \"unknown\" because coverage data isn't wired up in this fixture, not because coverage is bad; the co-located test is the actual evidence.\n\n**Cold history.** 1 commit in 90 days, 1 author, last touched 2026-05-18. No churn hotspot, no concurrent-editor risk.\n\n**The types do the arguing.** `currency` is a closed union of three literals, so a typo is a compile error rather than a runtime string. `Money` names both fields explicitly — an agent editing this can't misread what the shape is.\n\nOne caveat worth stating since it's genuinely the file's only sharp edge: `amount` is a plain `number`, so `format` inherits float rounding on money values (`amount.toFixed(2)`). That's a correctness property of the design, not a risk of editing — but if an edit changes how amounts are computed rather than formatted, that's the part to think about.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

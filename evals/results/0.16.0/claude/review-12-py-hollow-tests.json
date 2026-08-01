@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:22:52.726Z",
+  "run_id": "e200f245-6087-4620-a60e-00b491873538",
+  "response": "Ran it. One finding, and it's real — but it answers less than half your question, so I read the package too.\n\n```\ncrimes scan --format json   →  1 finding (high): weak_test_signal in tests/test_reporting.py\n```\n\n## The three tiers\n\n**Genuinely covered — `billing/rates.py`**\n\n`tests/test_rates.py` asserts on return values across three tests. `rate_for` is protected on both branches (known region → table value, unknown → `DEFAULT_RATE`). Break the lookup or the fallback and the suite goes red.\n\nOne gap even here: `is_zero_rated` is only ever asserted *false*. No region in `RATES` has a zero rate, so the true branch has never executed. If your refactor adds a zero-rated region, nothing catches a wrong answer.\n\n**Only looks covered — `billing/reporting.py`**\n\nThis is what crimes flagged, and the shape matters: `tests/test_reporting.py` has a matching name, four sensibly-named tests, and passes. It contains **zero assertions**. Every test calls the function and discards the result.\n\nSo `build_report` and `export_report` are *executed* but nothing is *checked*. Concretely, all of these changes would leave the suite green:\n\n- `total` computed from `net` instead of `gross`\n- CSV format string changed to `%.0f`, or columns swapped\n- JSON export returning `{\"acct\": ..., \"sum\": ...}` instead of `{\"account\", \"total\"}`\n- `lines` returning `[]`\n\nAnd the `raise ValueError` on unsupported format isn't just unasserted — no test ever passes an unsupported format, so that line has never run at all.\n\n**Not covered at all — `billing/ledger.py`**\n\nNo test file exists, and crimes did *not* flag this (it has no missing-test-file detector; `test_gap` on the one finding is `0`). This is the most dangerous file in the package because of how it interacts with tier two:\n\n`post_entry` computes `gross = amount * (1 + rate_for(region))` — the actual money math. It's reached transitively through `build_report`, so a line-coverage tool would paint it as covered, but the only thing exercising it asserts nothing. Covered lines, zero verification.\n\n`reverse_entry` is worse: nothing calls it anywhere, in tests or in `billing/`. It has never executed. The sign-flipping on `net`/`gross` is completely unverified.\n\n## What this means for your refactor\n\nYour protection is roughly: rates lookup, and nothing else. The report/export/ledger path — including every arithmetic operation on money — is running under a green suite that would stay green if you got it wrong.\n\nCheapest path to actual safety before you start, in order:\n\n1. Add assertions to the four tests in `test_reporting.py` (crimes calls this `small` effort — it is). Assert on `total`, on the exact CSV string, on the JSON dict shape, and add a `pytest.raises(ValueError)` case for the unsupported format.\n2. Write `tests/test_ledger.py` covering `post_entry`'s gross math and `reverse_entry`'s sign flip. Note `gross` is a raw float (`100 * 1.19 = 118.99999999999999`) — pin the expected values now, so a later switch to `Decimal` or rounding is a visible, intentional change rather than a silent one.\n3. Optional: a zero-rate case for `is_zero_rated`.\n\nOne caveat on the tooling: crimes found the hollow tests, not the missing ones. Absence of a finding on `ledger.py` is absence of a detector, not evidence of coverage.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      }
+    ]
+  }
+}

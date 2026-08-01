@@ -1,0 +1,53 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "claude",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:10:50.283Z",
+  "run_id": "b3b174e6-cf7b-4ab1-8243-c73dd390f095",
+  "response": "## The pick: `build_invoice` (`domain/invoicing.py:15-75`)\n\nNot `get_invoice` — even though the scan ranks the hot-path finding highest at `agent_risk` 0.46 vs. `build_invoice`'s 0.35. That ranking is per-finding, and `agent_risk` isn't summed per symbol. `get_invoice` scores high because blocking the event loop is *severe*, but it's 9 lines with a mechanical fix (`httpx.AsyncClient`, `aiofiles`). An agent can't get it subtly wrong.\n\n`build_invoice` carries four of the eight findings at once (`crime_00002`, `00003`, `00005`, and one end of `00004`), it's the only money path in the repo, and it has zero tests — there are no test files in the fixture at all. That's the profile that produces a confident wrong edit.\n\n## What makes it risky beyond the 61 lines\n\n**1. Two naive clocks, and the obvious fix breaks a caller.** Line 20 `datetime.now()` → `issued_at` (local-naive); line 21 `datetime.utcnow()` → `period_start` (UTC-naive). Both are naive, so nothing in the type system distinguishes them. An agent told \"`utcnow()` is deprecated since 3.12\" does the textbook fix — `datetime.now(timezone.utc)` on line 21 — and now `period_start` is *aware* while `issued_at` is naive. Every later comparison between them raises `TypeError`. The correct-looking local edit breaks a non-local invariant, and `summarise()` (line 79) compares `issued_at` against a *fourth* `datetime.now()` read in a different module-level function. On a UTC CI runner the two families agree and nothing surfaces.\n\n**2. The import cycle isn't conditional — it's broken now, both ways.** The scan hedges (\"depending on which module the process imports first\"). In this fixture, both orders raise:\n\n```\nimport domain.invoicing → ImportError: cannot import name 'LINE_ITEM_CAP' (partially initialized)\nimport api.rendering    → ImportError: cannot import name 'format_money' (partially initialized)\n```\n\nThat's the sharpest constraint on the whole plan: **you cannot write a test for `build_invoice` until the cycle is broken.** Any agent that starts with \"add a characterization test first\" hits an `ImportError` and, in my experience, reaches for the worst available fix — moving the import inside the function body, which removes the error while keeping the cycle and hiding it from every static reader.\n\n**3. Five untyped positional params, with an inconsistent access contract.** `customer, line_items, coupon, region, options` — no annotations, no schema. Within one loop the code uses `item[\"price\"]` (lines 36, 38, 40 — `KeyError` if absent) and `item.get(\"price\", 0)` (line 48). Same for `coupon[\"value\"]` vs `coupon.get(...)`. There is no signature to check an edit against; the contract is only recoverable by reading all five branches, which is exactly what the God Function finding says an agent must do.\n\n**4. Two live money bugs sitting inside the nesting** — the reason \"just extract helpers\" isn't the whole job:\n\n- **Percent discounts are unclamped.** Line 59 clamps fixed discounts (`min(value, subtotal)`); line 57 doesn't. A 150% coupon yields a discount exceeding subtotal, and `apply_vat` happily returns a negative total.\n- **The bonus escapes the kind check.** Lines 60–61 add `coupon[\"bonus\"]` whenever `stackable` is set — even when `kind` matched neither `\"percent\"` nor `\"fixed\"`, so `discount_total` is still 0. An unknown coupon kind grants a free bonus discount.\n- Line 53 also `TypeError`s on a coupon with no `expires_at` (`None < datetime`) or an aware `expires_at` off a JSON/DB parse — the common case, not the exotic one.\n\n**5. It's the callee of a blocking async handler** (`routes.py:26`). Any I/O an agent adds inside `build_invoice` lands on the event loop for every concurrent request, and nothing in `domain/invoicing.py` signals that.\n\n## Refactor plan\n\nOrdered so each step is independently verifiable, and so the cycle unblocks testing before anything else moves.\n\n**Step 1 — break the cycle by deleting the edge, not adding a module.** The scan suggests a third leaf module. Better here: `build_invoice` returns `display_total` (line 72), which is presentation work in the domain layer. Drop that key and the `format_money` import; let `api/routes.py` render on the way out. The `invoicing → rendering` edge disappears, `rendering → invoicing` stays, no new module. Verify: both imports succeed. *This changes the return shape — it's the one step you take before tests exist, because tests are impossible until it lands.*\n\n**Step 2 — characterization tests.** Pin current behavior including the wrong bits: the unclamped percent discount, the escaping bonus, the skipped/warning accumulation, the `LINE_ITEM_CAP` clamp. These exist to make Steps 4–6 visible, not to bless the behavior.\n\n**Step 3 — one clock, injected, atomically.** Single `now: datetime` parameter (or a `Clock` protocol), timezone-aware UTC, threaded to lines 20, 21, 53 and to `summarise()` in the same commit. Do not migrate call sites one at a time — a partial migration is precisely the naive/aware mix in risk #1. Normalize `coupon[\"expires_at\"]` to aware UTC at the boundary. Convert to local only in `api/rendering.py`.\n\n**Step 4 — extract two pure helpers**, which is where the nesting actually lives:\n\n```python\ndef line_total_for(item: LineItem) -> tuple[float, str | None]:   # returns (total, warning)\ndef discount_for(coupon: Coupon, subtotal: float, now: datetime) -> float\n```\n\n`build_invoice` drops to a ~15-line orchestrator: loop, filter, sum, discount, VAT, assemble. Nesting goes 5 → 2.\n\n**Step 5 — type the inputs.** `TypedDict` or dataclasses for `LineItem` and `Coupon`. The `[]`-vs-`.get()` inconsistency becomes a type error at check time instead of a `KeyError` in production, and the helpers from Step 4 finally have a checkable contract.\n\n**Step 6 — fix the two money bugs, in their own commit**, with the Step 2 tests updated deliberately: clamp percent discounts to `subtotal`, and move the bonus inside the matched-kind branch. Separate commit so the behavior change is reviewable rather than buried in a refactor diff.\n\n**Out of scope, separate PR:** the `routes.py` blocking calls and the two deep imports (`crime_00006`, `00007`). They're real, but touching them in the same change couples an event-loop fix to a money-path refactor — and the hot-path fix is mechanical enough that it doesn't need to ride along with this one.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "mixed_utc_local_methods",
+        "passed": false
+      }
+    ]
+  }
+}

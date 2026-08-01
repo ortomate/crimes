@@ -1,0 +1,55 @@
+{
+  "scenario": "bugfix-13-polyglot-plan-drift",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T03:50:50.656Z",
+  "run_id": "6154e692-3896-40d5-a31f-2f28ee2a278d",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to interpret the scan as a contract-drift diagnosis. I’ll focus on the finding that directly explains “API accepts, web rejects,” while separating the unrelated route and dependency findings.\n\nThe web rejects the newest tier because the plan contract has drifted across languages.\n\n- The Python API’s canonical enum accepts `free | pro | team | scale` in [plans.py](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/plans.py:10).\n- The web app independently defines `Plan` as `free | pro | enterprise` in [workspace-client.ts](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:10).\n\nSo when the API returns the new `scale` plan—or `team`—the web validation/type boundary sees a value outside its closed set and rejects it. There is also a reverse latent bug: the web considers `enterprise` valid, but the API does not.\n\nTo stop this recurring, make one contract authoritative and generate the other side from it—for example, expose the Python enum in OpenAPI and generate the TypeScript type/client. Add a CI contract test that verifies every API plan value is accepted by the generated web schema, plus a scan/codegen-diff gate.\n\nThe route-drift findings are separate defects: the web also uses `PUT` where the backend exposes `POST`, and calls `/api/workspaces` where the backend declares `/api/teams`. They should be fixed, but they do not explain this particular validation error.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift",
+      "crime_00006": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T03:52:47.301Z",
+  "run_id": "5ac0118c-e856-4912-9cb5-6e293efab960",
+  "response": "I’m using the repository’s crimes risk workflow, as requested, and will run the file-specific context command from the tiny fixture so the safety assessment reflects importers, tests, and edit notes—not just the supplied repo scan.\n\nThe global `crimes` binary isn’t installed in this shell. I’m resolving the repository’s locally built CLI and will run the identical command through it; this doesn’t alter the fixture.\n\n`crimes context` found no issues in `src/add.ts`:\n\n- Risk: `none` — 0 high, medium, or low findings\n- Likely test: `src/add.test.ts`\n- Churn: 1 commit and 1 author in the last 90 days\n- No related-file or agent-guidance warnings\n\nThe file is safe to extend from a change-risk perspective. Run `src/add.test.ts` after editing. The repository-wide scan’s only finding is unrelated to `add.ts` itself: `vitest` is imported by the test but undeclared in `package.json`, so a clean install may fail until it is declared.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

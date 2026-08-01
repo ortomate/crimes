@@ -1,0 +1,61 @@
+{
+  "scenario": "review-13-polyglot-api-contract",
+  "agent": "claude",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:23:29.480Z",
+  "run_id": "f92d316a-ac17-4abc-86b7-0580014778cd",
+  "response": "All four client calls are broken against the API as written — that's the headline. `crimes scan` found 4 of the 8 real disagreements; the other 4 sit in blind spots the tool names in its own evidence, so I read the three files to close them out.\n\n## The contract, call by call\n\n| `workspace-client.ts` | `routes.py` | Agrees? |\n|---|---|---|\n| `GET /api/workspaces/` + id (L18) | `GET /api/teams/{team_id}` (L10) | ✗ path |\n| `POST /api/workspaces` (L23) | `POST /api/teams` (L15) | ✗ path, ✗ body |\n| `GET /api/teams/:id/seats` (L28) | `GET /api/teams/{team_id}/seats` (L20) | ✗ `:id` never substituted |\n| `PUT /api/teams/:id/plan` (L34) | `POST /api/teams/{team_id}/plan` (L25) | ✗ method, ✗ `:id`, ✗ `plan` param |\n\nResponse *shapes* are the one thing that does agree: `{id, plan}` matches `Workspace`, `{seats}` matches `body.seats`.\n\n## Ranked by production failure mode\n\n**1. `:id` is sent literally — silent wrong data.** `workspaceSeats.ts:28` and `changeWorkspacePlan.ts:34` both take an `id` parameter and never use it; the URL ships the literal string `\":id\"`. FastAPI happily binds `team_id=\":id\"` — this is a **200, not an error**. `team_seats` returns `seats_for(Plan.FREE)` regardless of team, so every workspace in the product displays 1 seat and no one sees a stack trace. Ranked first because it's the only defect here that fails quietly; the rest announce themselves. Not reported by crimes — it has no unsubstituted-path-template check, and the URL is a valid literal that matches a real route.\n\n**2. `GET /api/workspaces/{id}` 404s — the primary read never works** (`:18`). Larger blast radius than #1 (nothing loads), but it fails loudly on the first smoke test. Also missed by crimes: the URL is string-concatenated, and the detector states its own limit — *\"a route or URL assembled at runtime is invisible to this check.\"* Fix by pointing at `/api/teams/`.\n\n**3. `POST /api/workspaces` 404s — create flow dead** (crime_00005, `:23`). Correct path is `/api/teams`. Second defect behind it: `create_team(payload: dict)` requires a JSON body and the client sends none, so fixing only the path converts the 404 into a 422.\n\n**4. `PUT` vs `POST` on `/plan` — 405** (crime_00003, `:34`). The scan's read is right that a 405 gets misdiagnosed as a permissions problem. Two more defects hide behind it: `plan: str` is a bare scalar, so FastAPI expects it as a **query parameter**, and `changeWorkspacePlan` never sends `plan` at all. Method → 405, fix that → 422, fix that → operates on team `\":id\"` (#1). Three rounds of debugging in one four-line function.\n\n**5. `Plan` enum drift** (crime_00001) — real, but the scan's failure model is wrong in the direction that matters. It says *\"only in TypeScript: enterprise — the Python side will reject this value.\"* It won't: `change_team_plan` types the parameter as `str`, not `Plan`, so `\"enterprise\"` is accepted and echoed straight back. There is no validation at the boundary, so this drift persists garbage rather than 400ing. Inbound is the mirror problem: the backend can return `\"team\"` or `\"scale\"`, which the TS union declares impossible, so any exhaustive `switch` on `plan` falls through and plan-gated UI silently picks the wrong branch. Worth noting `Plan.TEAM = \"team\"` collides with the *entity* called a team — renaming the concept (finding 4) will make that ambiguous.\n\n**6. No status checks anywhere.** All four functions call `res.json()` without touching `res.ok`. This isn't a contract mismatch itself, it's the reason #2–#4 present as `undefined` fields deep in a component instead of an HTTP error at the call site. Fixing this first makes everything above cheap to diagnose. Not reported.\n\n**7. `team` vs `workspace` naming** (crime_00004). No runtime effect; it's the maintenance risk the scan describes — a grep for either name finds half the surface. The suggested `organization` is fine but I'd rather you pick `team` (the backend and the URL space already use it) and rename the client, which is 8 identifiers in one file versus a rename across the API and its route paths.\n\n## Two findings I'd dismiss\n\n- **crime_00002 (False Identity, `getWorkspace`)** — noise. A `fetch` inside a function named `getWorkspace` in a file named `workspace-client.ts` is the disclosed purpose, not a hidden side effect.\n- **crime_00006 (Phantom Accomplice)** — mostly a false positive with a real bug inside it. `enum` is Python stdlib, `billing.plans` is a first-party intra-package import, and both were flagged because the detector only searched `package.json` / `packages/web/package.json` — it didn't read `packages/api/pyproject.toml`. That said, `fastapi` *is* genuinely undeclared: `pyproject.toml` has a `[project]` table with no `dependencies` key at all. Right answer, wrong reasoning, and the detector applying npm resolution rules to Python files looks like a bug worth filing.\n\n## What to fix first\n\nAdd response-status checks (#6), then generate the client from the FastAPI route table. Every one of #1–#5 is a hand-maintained copy of something the backend already declares — the paths, the methods, and the plan enum are all derivable from OpenAPI, which FastAPI emits for free.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift",
+      "crime_00006": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

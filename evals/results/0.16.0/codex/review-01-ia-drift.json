@@ -1,0 +1,136 @@
+{
+  "scenario": "review-01-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:20:21.447Z",
+  "run_id": "f796cf42-9b1b-45ab-99f7-300e60726804",
+  "response": "The scan identifies three IA findings, but two describe the same underlying billing-route inconsistency.\n\n| Finding | Recommendation | Rationale |\n|---|---|---|\n| `crime_00009` — `route_metadata_drift` | **Block merge** | `/settings/billing` has four competing identities: `PricingPage`, “Plans,” “Subscription,” and “Billing.” This is concrete, user-visible drift across the route, page title, metadata, and navigation. Choose one canonical destination name and align all references. |\n| `crime_00008` — `duplicated_navigation_source` | **Warn** | The same destination is independently defined as “Plans” in `src/nav/registry.ts` and “Billing” in `src/nav/sidebar.ts`. This is a narrower symptom of `crime_00009`, so it should be fixed in the same change rather than counted as a second merge blocker. Consolidate the nav metadata or document one canonical source. |\n| `crime_00035` — `docs_code_drift` | **Warn** | `docs/teams.md:5` links to missing `./setup.md`. The evidence is definitive and the fix is small, but the impact is limited to a stale documentation path, so it does not justify blocking unrelated code. Update the link or restore the file. |\n\nNone should be ignored. If this is a repository-wide scan rather than a changed-files review, only enforce the block when the merge touches the billing route, its metadata, or either navigation source; otherwise record it as existing debt.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "contract_drift",
+      "crime_00006": "contract_drift",
+      "crime_00007": "large_function",
+      "crime_00008": "duplicated_navigation_source",
+      "crime_00009": "route_metadata_drift",
+      "crime_00010": "sync_io_in_hotpath",
+      "crime_00011": "option_bag_junk_drawer",
+      "crime_00012": "mixed_utc_local_methods",
+      "crime_00013": "negative_flag_maze",
+      "crime_00014": "timezone_unsafe_parse",
+      "crime_00015": "direct_date",
+      "crime_00016": "todo_density",
+      "crime_00017": "name_behavior_mismatch",
+      "crime_00018": "hardcoded_localhost",
+      "crime_00019": "hardcoded_local_path",
+      "crime_00020": "dst_naive_arithmetic",
+      "crime_00021": "concept_alias_drift",
+      "crime_00022": "logic_in_comments",
+      "crime_00024": "boolean_naming_drift",
+      "crime_00025": "direct_date",
+      "crime_00026": "singular_plural_type_mismatch",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "date_string_concat",
+      "crime_00029": "locale_drift",
+      "crime_00030": "boolean_naming_drift",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "orphaned_destination",
+      "crime_00033": "orphaned_destination",
+      "crime_00034": "svg_with_embedded_raster",
+      "crime_00035": "docs_code_drift",
+      "crime_00036": "weak_test_signal",
+      "crime_00037": "large_file",
+      "crime_00038": "raster_should_be_vector",
+      "crime_00039": "swallowed_error",
+      "crime_00040": "dependency_provenance_gap",
+      "crime_00041": "oversized_raster",
+      "crime_00042": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Contract Split-Brain": "contract_drift",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Catch and Release": "swallowed_error",
+      "Phantom Accomplice": "dependency_provenance_gap",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_navigation_source",
+        "observed": "duplicated_navigation_source",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "docs_code_drift",
+        "observed": "docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav/registry.ts",
+        "observed": "src/nav/registry.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/settings/billing.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/teams.md",
+        "observed": "docs/teams.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      }
+    ]
+  }
+}

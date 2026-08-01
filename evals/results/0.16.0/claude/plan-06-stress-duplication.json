@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T03:57:46.798Z",
+  "run_id": "f2828847-3e7e-4487-a959-14a4343d372b",
+  "response": "## What the scan actually says\n\nFive findings, three of which are the duplication story:\n\n| ID | Charge | Where |\n|---|---|---|\n| `crime_00001` | Near-Duplicate Block (0.85 conf) | `sanitizeUserInput` / `sanitizeText` / `cleanMessage` — 3 files, identical bodies |\n| `crime_00003` | Duplicated Role Check (0.70 conf) | `\"admin\"` in 4 files, **2 distinct expression shapes** |\n| `crime_00002` | Exact Duplicate Block (0.95 conf) | `recordSanitiseEvent` in `telemetry-a/b.ts` |\n\nI read the six source files before planning, because the two targets are not the same kind of problem and the scan hints at why:\n\n- The three sanitise bodies are **byte-identical modulo identifier names** (`working` / `cleaned` / `normalised`). Consolidation is a rename-and-delete.\n- The role checks are **not identical**. The detector's \"2 distinct expression shapes\" is the tell:\n\n```\npolicy.ts:3,8,13     role === \"admin\"                       (×3, identical)\nsanitize-a.ts:7      role === \"admin\"                       assertAdminA\nsanitize-b.ts:6      role === \"admin\" || role === \"owner\"   assertAdminB  ← wider\nsanitize-c.ts:6      role !== \"admin\"                       assertAdminC  ← inverted\n```\n\n`assertAdminC` returns `true` when the caller is **not** an admin. Collapsing all six call sites onto one `isAdmin()` silently grants `owner` nothing it had (B) and inverts a guard (C). That asymmetry is the whole reason this is two steps and not one.\n\nBlast radius is 0 on every finding and nothing in the fixture imports anything — no external call sites to update. In a real repo, step 2 would need a `grep` sweep first.\n\n---\n\n## Step 1 — Consolidate the sanitisers (mechanical, behaviour-preserving)\n\n**Change:** new `src/sanitize.ts` with a single `sanitize(input: string): string` holding the shared body verbatim. `sanitize-a/b/c.ts` keep their public names as one-line re-exports:\n\n```ts\n// sanitize-b.ts\nexport { sanitize as sanitizeText } from \"./sanitize\";\n```\n\n**Why aliases rather than deleting the names:** it keeps step 1's diff purely additive at the API surface, so review is \"is the body identical?\" and nothing else. Drop the aliases in a third cleanup commit once callers move.\n\n**What stays put:** `assertAdminA/B/C` are deliberately *not* touched here. After this step, those three functions are the only thing left in `sanitize-a/b/c.ts` — which makes their divergence visible in the step 2 diff instead of buried in 30 lines of string munging.\n\n**Verify:** characterization test over the shared body before extracting — empty string, `null`/`undefined`, `>1000` chars, leading `<`/`>`, `\\x`, `!!!!` runs, the >0.9 uppercase-ratio branch. All three functions must produce identical output on the same table; that assertion *is* the safety proof for the merge. Cost is low because there's only one behaviour to pin.\n\n**Expected re-scan:** `crime_00001` clears. `crime_00003` should stay (its four files still compare against `\"admin\"`), and `crime_00002`/`4`/`5` are untouched.\n\n---\n\n## Step 2 — Consolidate the role checks (semantic, needs a decision per call site)\n\n**Change:** `src/policy.ts` becomes the single owner of the `\"admin\"` literal:\n\n```ts\nexport type Role = \"admin\" | \"owner\" | \"member\";\n\nconst ADMIN: Role = \"admin\";\nconst OWNER: Role = \"owner\";\n\nexport function isAdmin(role: string): boolean { return role === ADMIN; }\nexport function isOwnerOrAdmin(role: string): boolean { return isAdmin(role) || role === OWNER; }\n\nexport function canEditBilling(role: string): boolean { return isAdmin(role); }\nexport function canSeeAuditLog(role: string): boolean { return isAdmin(role); }\nexport function canImpersonate(role: string): boolean { return isAdmin(role); }\n```\n\n**Call-site mapping — the part that must be done explicitly, not by find-and-replace:**\n\n| Old | New | Behaviour |\n|---|---|---|\n| `policy.ts` ×3 | `isAdmin(role)` | identical |\n| `assertAdminA` | `isAdmin(role)` | identical |\n| `assertAdminB` | `isOwnerOrAdmin(role)` | identical — **must not** become `isAdmin` |\n| `assertAdminC` | `!isAdmin(role)` | identical — **rename**, `assertAdminC` lies about its polarity |\n\n`assertAdminC` is the one to flag in review. Its name says \"assert admin\"; it returns `true` for non-admins. An agent (or a human on autopilot) consolidating by name would invert an authorisation guard and the type checker would not complain — both sides are `boolean`. Rename it to `isNotAdmin`, or better, delete it and inline `!isAdmin(role)` at its call sites.\n\n**Verify:** a table test over `{admin, owner, member, \"\", \"ADMIN\"}` × every exported predicate, written *before* the change and passing unchanged after. `\"ADMIN\"` is worth including because none of the current shapes normalise case, and the consolidated helper must not quietly start doing so.\n\n**Expected re-scan:** `crime_00003` clears — the `\"admin\"` literal exists once, and the two distinct shapes become two distinctly *named* predicates rather than two accidental variants.\n\n---\n\n## Ordering rationale\n\nStep 1 first because it is provably behaviour-preserving and shrinks the files that host step 2's real decision. Reviewing a semantic authorisation change is much easier when it is the only semantic change in the diff. The reverse order would bury the `assertAdminC` polarity question inside a 90-line deletion.\n\n## Deliberately out of scope\n\n`crime_00002` (`recordSanitiseEvent` duplicated exactly across `telemetry-a/b.ts`) and `crime_00004`/`00005` (`Date.now()` inside it) are a third, separable change: extract to `src/telemetry.ts` and take `now: () => number` as a parameter, which fixes all three findings at once. It is the same *shape* as step 1 but a different module and a different test surface — folding it in would make the two-step story a three-concern commit. I have left it out rather than silently widening the change set; it is a clean follow-up whenever you want it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

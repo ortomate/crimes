@@ -1,0 +1,80 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:06:07.670Z",
+  "run_id": "115e2c44-55cf-4547-991c-e49e180db6cf",
+  "response": "I’m using the repository’s `crimes-codebase-risk` guidance to interpret the two findings consistently. Since the complete scan JSON is supplied, I’ll treat it as the confirmed scan result rather than rerunning against a separate fixture path.\n\nThe scan confirms real destructive-action drift: `archive`, `delete`, and `remove` each appear across two of the three list components.\n\nI’d standardize on this label set:\n\n- Row/menu action: **Delete**\n- Confirmation title: **Delete user / team / seat**\n- Destructive confirmation button: **Delete**\n- Secondary button: **Cancel**\n- Completion message: **User / team / seat deleted**\n\nThis assumes the underlying operation is genuinely destructive and permanent, as the scenario states. “Archive” implies reversibility, while “Remove” can imply merely detaching membership or freeing a seat; using either would misrepresent deletion semantics.\n\nRefactor `SeatList.tsx` first. It is the primary file named by both findings and contains `archive` and `remove` but no canonical `delete`, so it has the largest local divergence. Then change `TeamList.tsx`’s `archive` occurrence and `UserList.tsx`’s `remove` occurrence. Existing `delete` labels remain unchanged.\n\nFinding mapping:\n\n- `action_label_drift` (`crime_00009`) directly justifies changing the visible controls to one verb across all three components.\n- `copy_ia_drift` (`crime_00010`) supports consolidating the associated confirmation and status copy—ideally through a shared copy helper or documented vocabulary—so future screens inherit the canonical term.\n\nOn this fixture, the detectors do not identify distinct occurrences: they have identical evidence, severity, confidence, scores, primary file, related files, and suggested action. The observable difference is framing:\n\n- `action_label_drift` describes the precise UI defect: inconsistent verbs for the same action.\n- `copy_ia_drift` frames that inconsistency as a broader copy/information-architecture problem and recommends redirecting copies to a canonical label.\n\nTherefore, these are two views of the same remediation, not two independent problems to count or fix separately. A post-refactor scan should clear both findings together.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "dependency_provenance_gap",
+      "crime_00013": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Phantom Accomplice": "dependency_provenance_gap",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

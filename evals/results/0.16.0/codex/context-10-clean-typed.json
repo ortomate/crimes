@@ -1,0 +1,38 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T03:53:35.862Z",
+  "run_id": "0991e3c1-da0f-4817-9853-7f17095eea78",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this request is specifically a `crimes context` inspection. I’ll run the command against the named fixture and report the JSON result without changing files.\n\nThe global `crimes` binary isn’t installed in this shell. I’m switching to the repository’s locally built CLI, which is the documented equivalent for an unpublished checkout.\n\n`src/billing.ts` is low risk to edit:\n\n- Findings: **none** (`risk.level: \"none\"`, total `0`)\n- Likely test: `src/billing.test.ts`\n- No related files or agent guidance were identified.\n- Churn is minimal: one commit and one author in the past 90 days.\n- The scan’s repository-level `dependency_provenance_gap` applies only to `package.json` / the test’s Vitest import, not `billing.ts`.\n\nRun the likely test after editing to verify behavior.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

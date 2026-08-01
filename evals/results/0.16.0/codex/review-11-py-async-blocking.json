@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:21:41.387Z",
+  "run_id": "ca92a3e7-e9c8-48bd-8927-c3b9e2444418",
+  "response": "The dominant cause is synchronous I/O in the HTTP request path, especially inside an `async def`. It blocks the event-loop thread, so unrelated requests queue while CPU remains mostly idle—the exact signature you’re seeing.\n\nRanked by likely contribution:\n\n1. **Blocking network call — `requests.get()`**  \n   `api/routes.py:21`, inside `get_invoice`. Network latency directly stalls the request worker/event loop. Under concurrency, one slow upstream can delay every request handled by that loop.\n\n2. **Blocking subprocess — `subprocess.run()`**  \n   `api/routes.py:31`, inside `export_invoice`. Process startup and completion happen synchronously. If this handler is async, the entire loop is unavailable until the child exits.\n\n3. **Blocking sleep — `time.sleep()`**  \n   `api/routes.py:32`, inside `export_invoice`. This guarantees that the thread/event loop does no useful work for the sleep duration. In async code it should be `await asyncio.sleep(...)`.\n\n4. **Synchronous file access — `open()`**  \n   `api/routes.py:23`, inside `get_invoice`. Usually less damaging when files are cached locally, but disk or network-backed storage can produce severe tail-latency spikes.\n\nThe scan aggregates these as `crime_00001`, `sync_io_in_hotpath`, with high severity. Exact ordering between the first three depends on their real durations and traffic per endpoint, but all four contribute to worker starvation.\n\nThe other seven findings do not explain the load-dependent latency collapse:\n\n- The import cycle may cause startup failures.\n- Clock handling may cause correctness bugs.\n- The large function and deep imports increase maintenance risk.\n- Boolean naming has negligible runtime impact.\n\nPriority fix: replace `requests` with an async HTTP client, use asynchronous file access or explicitly offload it, move subprocess work to a background worker or thread, and replace `time.sleep()` with `await asyncio.sleep()`. Also add timeouts and concurrency limits around the upstream call and subprocess work.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

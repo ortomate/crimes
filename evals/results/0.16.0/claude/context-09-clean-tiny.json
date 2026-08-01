@@ -1,0 +1,38 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T03:52:34.797Z",
+  "run_id": "4a5b456d-22c2-49c4-8bff-277a226013e1",
+  "response": "## What `crimes context src/add.ts --format json` returned\n\n**Nothing on the file itself.** The whole report is empty:\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"agent_guidance\": [],\n\"related_files\": [],\n\"findings\": [],\n\"likely_tests\": [\"src/add.test.ts\"]\n```\n\ncrimes even explains *why* it's empty rather than leaving you to guess:\n\n- `agent_guidance_reason`: \"no findings on this file and no deterministic related files\"\n- `related_files_reason`: \"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"\n\nSupporting clues: 1 commit in 90 days, 1 author, last touched 2026-05-18. `test_gap` is `{\"raw\": 0, \"label\": \"unknown\"}` — not \"well tested\", just no signal either way, though `likely_tests` does point at `src/add.test.ts`, which exists and covers `add`.\n\n## The one repo finding is not about this file\n\nThe scan surfaces `crime_00001` — **Phantom Accomplice** (`dependency_provenance_gap`, low, confidence 0.56) — and it's anchored on `package.json`, not `src/add.ts`. `vitest` is imported by `src/add.test.ts` but declared in no manifest; it resolves today through hoisting, and a clean install could fail. Confidence is discounted (`0.68 base - 0.12`) precisely because only test files are affected. `agent_risk` is 0.17.\n\nNote this is a statement about the repo's records only — no registry was contacted.\n\n## Is the file safe to extend?\n\n**Yes.** `src/add.ts` is a 4-line pure function with no I/O, no side effects, no imports, no dependents, low churn, and a direct unit test. There is no blast radius to worry about and no hidden contract to violate.\n\nTwo things to keep in mind as you edit:\n\n1. **Don't inherit the dependency gap.** If you extend the tests alongside the code, `vitest` is still undeclared. Adding `\"vitest\"` to `devDependencies` in `package.json` is the quick fix crimes suggests — worth doing before the test file grows.\n2. **\"none\" here means \"no signal,\" not \"audited clean.\"** Coverage was 2 files; `test_gap` is explicitly `unknown`. The absence of findings is a real result on a genuinely tiny, clean file — but it's a low bar to clear, so it doesn't transfer to whatever you add. Re-run `crimes context` if the file stops being a leaf.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

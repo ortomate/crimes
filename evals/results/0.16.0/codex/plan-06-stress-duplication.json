@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T03:58:02.113Z",
+  "run_id": "e62ca129-990d-4fed-82e4-a110504f0a11",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a change-risk planning task. I’ll inspect the six fixture files and anchor the two-step plan to the three duplication findings; the two `direct_date` findings will stay out of scope unless they affect the consolidation boundary.\n\nThe global `crimes` binary is not installed in this shell, so I’m switching to the repository’s locally built CLI, as the repo instructions prescribe. The source inspection also exposes an important semantic wrinkle: `assertAdminC` currently means “not admin,” while `assertAdminB` accepts both admin and owner, so those wrappers cannot all be replaced blindly with one identically interpreted boolean.\n\nThe scan reports three duplication findings:\n\n| ID | Finding | Scope |\n|---|---|---|\n| `crime_00001` | `near_duplicate_block` | `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` share the same implementation across the three `sanitize-*.ts` files. |\n| `crime_00002` | `exact_duplicate_block` | `recordSanitiseEvent` is duplicated in both telemetry files. |\n| `crime_00003` | `duplicated_role_status_plan_check` | `\"admin\"` policy logic appears across [policy.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/policy.ts) and all three sanitizer files. |\n\nThe two `direct_date` findings are not duplication findings.\n\n## Two-step change set\n\n1. Centralize role policy\n\n   Add one authoritative `isAdmin(role)` predicate to `policy.ts`. Route `canEditBilling`, `canSeeAuditLog`, `canImpersonate`, and the three `assertAdmin*` exports through it.\n\n   Preserve the current semantic differences:\n\n   - `assertAdminA(role)` → `isAdmin(role)`\n   - `assertAdminB(role)` → `isAdmin(role) || role === \"owner\"`\n   - `assertAdminC(role)` → `!isAdmin(role)`\n\n   `assertAdminC` is misleadingly named but currently implements the inverse check; changing that behavior during extraction would be unsafe. Add characterization tests for admin, owner, and ordinary roles before migrating the callers. This step should leave only one literal comparison with `\"admin\"` and eliminate `crime_00003`.\n\n2. Extract the shared sanitizer\n\n   Create a canonical module such as `src/sanitize.ts` exporting `sanitize(value: string): string`, containing the single normalization and rejection pipeline. Replace the bodies in [sanitize-a.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-a.ts), [sanitize-b.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-b.ts), and [sanitize-c.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-c.ts) with thin compatibility exports or wrappers. If those names are not public API, update callers and remove the three variant modules instead.\n\n   Use table-driven tests for nullish runtime input, whitespace/control characters, truncation, forbidden prefixes, `\\\\x`, repeated punctuation, and uppercase normalization. This should eliminate `crime_00001` without changing behavior.\n\nAfter both steps, rerun the JSON scan and confirm `crime_00001` and `crime_00003` disappear with no new high findings. `crime_00002` should remain intentionally visible: telemetry consolidation—and its associated clock injection—belongs in a separate follow-up rather than expanding this focused change set.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "direct_date",
+        "passed": false
+      }
+    ]
+  }
+}

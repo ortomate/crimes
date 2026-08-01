@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "claude",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:22:32.023Z",
+  "run_id": "f5886464-3bc7-4988-a39f-1cd29d0515a8",
+  "response": "## What's causing it\n\nAll four contributors are in `api/routes.py`, and the scan correctly groups them under one finding (`crime_00001`, `sync_io_in_hotpath`) — but it doesn't rank them, and they don't contribute equally. Both handlers are `async def`, so every blocking call inside them holds the **event loop**, not just that request's worker. That's the signature you're seeing: the process is idle-waiting, so CPU stays flat while every queued request's latency grows.\n\n### Ranked by contribution\n\n**1. `time.sleep(2)` — `export_invoice`, routes.py:32**\nThe single hardest constraint. It's unconditional, so each export parks the entire event loop for exactly 2 seconds. That caps the whole process at **0.5 exports/sec**. At even ~1 export/sec the loop is oversubscribed, the queue grows without bound, and p99 goes to infinity while CPU sits near zero. This is the \"moderate load\" cliff — it's not gradual degradation, it's a throughput ceiling.\n\n**2. `requests.get(...)` — `get_invoice`, routes.py:21**\nSynchronous HTTP on the loop, on what is almost certainly your highest-traffic route, **with no `timeout=`**. This is the collapse *feedback loop*: upstream `billing.internal` slows under load → loop is held longer per request → your queue depth grows → your own latency rises → more concurrent load on the upstream. Unlike the sleep, the hold time is unbounded — a hung upstream connection parks your entire process indefinitely with no recovery. Rank it #1 instead of #2 if exports are rare and invoice reads are your volume.\n\n**3. `subprocess.run([\"/usr/local/bin/render-pdf\", ...], check=True)` — routes.py:31**\nHolds the loop for the full PDF render, also with no `timeout=`. Note this one specifically explains the low-CPU symptom: the CPU is burned in a *child* process, so your service's own CPU metric stays clean while it's fully stalled. Compounding: `check=True` with no timeout means a wedged renderer takes the loop with it.\n\n**4. `open(\"/etc/billing/rates.json\")` — routes.py:23**\nReal but small — tens of microseconds off page cache. It matters at high RPS and it's wrong (config re-read per request), but it is not why you're falling over. Fix it for hygiene, not for latency.\n\n### One thing the scan doesn't show\n\n`/health` (routes.py:37) is a sync `def`, so FastAPI runs it in the threadpool — it's the only correctly non-blocking handler here. But its response still has to be dispatched by the stalled loop, so health checks will time out during the stall too. Your load balancer will pull instances that are merely queued, redistributing their traffic onto the remaining ones — which is likely turning a slowdown into a full outage.\n\nAlso: `export_invoice` returns `{\"status\": \"queued\"}` while doing the work synchronously. The contract already claims the fix.\n\n## Fix order\n\n1. `time.sleep(2)` → delete it, or `await asyncio.sleep(2)` if the delay is load-bearing. One line, removes the throughput ceiling.\n2. `requests.get` → `httpx.AsyncClient` with an explicit `timeout`, client reused at module scope (don't construct per request). Add the timeout even before the async migration — it bounds the worst case immediately.\n3. `subprocess.run` → make the export actually queued: hand it to a background worker and return `202`. If it must stay inline, `asyncio.create_subprocess_exec` with a timeout.\n4. `open()` → load rates once at startup, or cache with a TTL.\n\n## Not the cause\n\nThe scan's other six findings are real but unrelated to this incident — worth a separate pass, not this one:\n\n- `mixed_utc_local_methods` / `direct_date` (`domain/invoicing.py`) — correctness bugs (naive UTC vs. naive local compared at lines 53 and 79 will be wrong by your host's offset), and a testability problem. Not latency.\n- `circular_dependency` (`api/rendering.py` ↔ `domain/invoicing.py`) — a *startup* failure risk, import-order dependent. Confirmed real: `rendering.py:7` imports `LINE_ITEM_CAP` from `invoicing`, which imports `format_money` from `rendering` at line 9.\n- `large_function`, the two `deep_import`s, `boolean_naming_drift` — maintainability.\n\nOne caveat on the tool output: `crime_00001` reports `blast_radius: 0` because nothing imports `routes.py`. For an HTTP entry point that's backwards — it's the widest-blast-radius file in the repo. Don't let that score deprioritize it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      }
+    ]
+  }
+}

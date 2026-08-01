@@ -1,0 +1,58 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.16.0",
+  "timestamp": "2026-08-01T04:06:41.099Z",
+  "run_id": "da12e815-11fb-4e93-b90b-ebba8c29b494",
+  "response": "The scan reports two architecture-surface findings:\n\n- `crime_00002` — `layer_violation` (`agent_risk: 0.34`):  \n  `src/domain/billing.ts` imports `src/presentation/invoice-view.ts`, violating `domain cannotImport presentation`.\n\n- `crime_00003` — `deep_import` (`agent_risk: 0.29`):  \n  `src/application/billing-flow.ts` imports `some-pkg/dist/internal/private/helper.js`, bypassing the package’s published surface.\n\nRecommended refactor:\n\n1. Break the domain → presentation import (`crime_00002`). Keep `billing.ts` presentation-agnostic: have it return a domain result or emit domain data/event types. Let `billing-flow.ts` coordinate that result with `invoice-view.ts`. If inversion is genuinely required, define a port/interface in the domain or application layer and implement it in presentation. This should also break the three-file cycle reported by `crime_00001`.\n\n2. Redirect the private package import (`crime_00003`) to a documented public export, such as `some-pkg` or an officially exported subpath. If the helper is not publicly exported, do not preserve the deep import behind a wrapper; replace it, request an upstream export, or isolate supported package operations in an infrastructure adapter implementing an application-owned interface.\n\n3. Because the same import triggers `crime_00004`, declare `some-pkg` in the consuming package’s `dependencies`. Changing the import path alone does not fix the provenance gap.\n\nThe risks differ in scope:\n\n- `layer_violation` encodes a repository-specific architectural dependency inversion. An agent following imports may put business behavior into UI code, expand the cycle, or make domain changes require presentation changes.\n- `deep_import` crosses a package-encapsulation boundary. It may work today, but an upgrade can relocate or remove the private file even when the package’s public API remains compatible.\n\nSo the first is primarily change-direction and architectural-coupling risk; the second is upgrade fragility caused by relying on undocumented internals.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}
