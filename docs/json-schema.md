@@ -9,11 +9,47 @@ This page is the **stable product API**. Treat it as a public contract:
 any breaking change to a field name, type, or required-ness will bump
 `schema_version`.
 
-Documented as of `schema_version: "0.3.0"`. The source of truth in code
+Documented as of `schema_version: "0.4.0"`. The source of truth in code
 is [`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
 
 For how an agent should _use_ this output, see
 [`agent-usage.md`](./agent-usage.md).
+
+## Migrating from `0.3.0` to `0.4.0`
+
+`crimes@0.17.0` bumps the schema:
+
+- **New optional field on `Finding`:** `discriminator?: string`. A
+  tiebreaker for detectors that legitimately emit more than one finding
+  for the same `(type, file, symbol)` triple. Absent on findings from
+  every other detector.
+- **`fingerprint` changes shape when `discriminator` is set.** The
+  fingerprint becomes `<type>::<file>::<symbol-or-empty>::<discriminator>`.
+  Findings without a discriminator keep the three-part form they have
+  always had.
+
+Consumers that hard-checked `schema_version === "0.3.0"` must accept
+`"0.4.0"`. Consumers that parse fingerprints by splitting on `::` and
+assuming exactly three segments must accept four.
+
+**This invalidates pinned entries for three detector types.** Any
+`.crimes/baseline.json` or `.crimes/suppressions.json` entry whose
+fingerprint names `magic_domain_literal_scatter`,
+`exact_duplicate_block`, or `near_duplicate_block` stops matching: the
+old fingerprint reads as fixed, the new one reads as new. Re-run
+`crimes baseline save`, and re-record the affected suppressions with
+`crimes ignore`.
+
+That churn is the point rather than a side effect. Before `0.4.0` those
+detectors could emit several findings sharing one fingerprint, so
+`crimes ignore <fingerprint>` on one of them silently suppressed the
+others — a user got findings hidden that they never saw. Re-recording
+each entry is what makes the suppression mean the one finding its author
+actually looked at.
+
+Loaders accept the whole window (`0.1.0` through `0.4.0`), so an
+un-migrated file still reads; it just matches fewer findings for those
+three types.
 
 ## Migrating from `0.2.0` to `0.3.0`
 
@@ -89,7 +125,7 @@ two extra top-level fields documented below).
 
 ```ts
 interface ScanReport {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal `"scan"`. */
   report_type: "scan";
   repo: RepoInfo;
@@ -360,6 +396,11 @@ interface Finding {
   file: string;
   /** Function/class/method name when applicable. */
   symbol?: string;
+  /**
+   * Tiebreaker for detectors that emit several findings per
+   * `(type, file, symbol)`. Added in `schema_version: "0.4.0"`.
+   */
+  discriminator?: string;
   /** Inclusive [start, end] 1-based line range. */
   lines?: [number, number];
   /** One-line natural-language summary. */
@@ -668,6 +709,26 @@ The function, method, or accessor name when the detector pinpoints a specific
 declaration. May be `"<anonymous>"` when the detector found a function but
 couldn't infer its name.
 
+### `discriminator`
+
+Added in `schema_version: "0.4.0"`. Absent on findings from almost every
+detector, and consumers can ignore it — except when composing or parsing
+fingerprints, where it is a fourth segment.
+
+Set only by detectors that can legitimately report more than one finding
+for the same `(type, file, symbol)` triple, and only to a value derived
+from whatever makes those findings different:
+
+| Detector | Value |
+| -------- | ----- |
+| `magic_domain_literal_scatter` | the scattered literal |
+| `exact_duplicate_block` | the duplicate group's body hash (12 chars) |
+| `near_duplicate_block` | the shape group's body hash (12 chars) |
+
+The value is stable across scans of the same code — it is never a
+counter or a per-scan index, because that would change whenever an
+unrelated finding appeared and break every pinned baseline entry.
+
 ### `evidence`
 
 An array of short factual strings (typically 2–4 items). Every item is
@@ -799,7 +860,7 @@ absence as "no cross-file context for this finding".
 
 ```ts
 interface ContextReport {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal `"context"`. */
   report_type: "context";
   repo: { name: string; root: string; git_ref?: string };
@@ -972,7 +1033,7 @@ match on.
 
 ```ts
 interface HotspotsReport {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal `"hotspots"`. */
   report_type: "hotspots";
   repo: RepoInfo;
@@ -1083,7 +1144,7 @@ rather than listed flat.
 
 ```ts
 interface DiffReport {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal "diff". */
   report_type: "diff";
   repo: { name: string; root: string };
@@ -1138,13 +1199,20 @@ Findings are classified as `new` / `fixed` / `unchanged` by a stable
 fingerprint, **not** by the per-scan `id`. The fingerprint is:
 
 ```
-<type>::<file>::<symbol-or-empty>
+<type>::<file>::<symbol-or-empty>[::<discriminator>]
 ```
 
 - `type` — detector identity (`large_function`, `large_file`, …)
 - `file` — repo-relative POSIX path
 - `symbol` — function/method name when the detector pinpoints a
   declaration (e.g. `large_function`); empty for file-level detectors
+- `discriminator` — present only when the finding carries one (added in
+  `schema_version: "0.4.0"`). Set by detectors that can emit several
+  findings for one `(type, file, symbol)` triple:
+  `magic_domain_literal_scatter` uses the literal,
+  `exact_duplicate_block` and `near_duplicate_block` use the body hash.
+  The segment is omitted entirely when unset, so most fingerprints have
+  three parts.
 
 The fingerprint deliberately excludes `lines`, `evidence`, `summary`, and
 the per-scan `id`. That means a function shifting from lines 37–240 to
@@ -1178,11 +1246,14 @@ temp directories are cleaned up before the report is returned.
   fixed findings (from `a.ts`) and new findings (in `b.ts`), even if the
   underlying detector results are identical. This matches the default
   behaviour of `git diff` (without `--find-renames`).
-- **Two findings with identical `(type, file, symbol)` collide on one
-  fingerprint.** Nested helpers or overloaded function declarations with
-  the same name in the same file deduplicate to a single logical
-  finding. Rare in practice; a future schema version may add a
-  disambiguator if it becomes a problem.
+- **Two findings with identical `(type, file, symbol)` _and_
+  `discriminator` collide on one fingerprint.** Nested helpers or
+  overloaded function declarations with the same name in the same file
+  deduplicate to a single logical finding. `schema_version: "0.4.0"`
+  added the `discriminator` segment and the three detectors that
+  routinely collided now populate it; what remains is a detector-level
+  gap — the fix is for the detector to supply a discriminator that
+  separates the two, not a further schema change.
 
 ### Exit codes
 
@@ -1221,7 +1292,7 @@ runs should ignore. The schema is versioned by the same `schema_version` as
 
 ```ts
 interface Baseline {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal "baseline". */
   report_type: "baseline";
   /** ISO-8601 timestamp at which the baseline was written. */
@@ -1237,7 +1308,11 @@ interface Baseline {
 }
 
 interface BaselineEntry {
-  /** Same `<type>::<file>::<symbol-or-empty>` as `fingerprintFinding`. */
+  /**
+   * Same `<type>::<file>::<symbol-or-empty>[::<discriminator>]` string as
+   * `fingerprintFinding`. Stored verbatim — matching compares this string,
+   * so the entry never has to re-derive it from the fields below.
+   */
   fingerprint: string;
   type: string;
   charge: string;
@@ -1263,7 +1338,8 @@ By the exact same fingerprint logic as
 `<type>::<file>::<symbol-or-empty>` identity. Small line shifts from
 unrelated edits do not register as fix + new. The known limitations are
 the same too: file renames register as a fix + new pair, and two findings
-with identical `(type, file, symbol)` collide on one fingerprint.
+with identical `(type, file, symbol, discriminator)` collide on one
+fingerprint.
 
 ---
 
@@ -1271,7 +1347,7 @@ with identical `(type, file, symbol)` collide on one fingerprint.
 
 ```ts
 interface BaselineCheckReport {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal "baseline_check". */
   report_type: "baseline_check";
   repo: { name: string; root: string };
@@ -1343,7 +1419,7 @@ machinery, same fingerprint-based matching) and adds a single headline
 
 ```ts
 interface VerdictReport {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal "verdict". */
   report_type: "verdict";
   repo: { name: string; root: string };
@@ -1456,7 +1532,7 @@ detector type, no LLM, no per-finding tailoring.
 
 ```ts
 interface ExplainReport {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal `"explain"`. */
   report_type: "explain";
   /** The matched finding, verbatim from the scan it came from. */
@@ -1496,7 +1572,7 @@ annotated.
 
 ```ts
 interface Suppressions {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal `"suppressions"`. */
   report_type: "suppressions";
   /** ISO-8601 timestamp at which the file was first written. */
@@ -1509,7 +1585,7 @@ interface Suppressions {
 }
 
 interface SuppressionEntry {
-  /** Stable `<type>::<file>::<symbol>` identity. Required. */
+  /** Stable `<type>::<file>::<symbol>[::<discriminator>]` identity. Required. */
   fingerprint: string;
   /** Denormalised — same as the type segment of `fingerprint`. */
   type: string;
@@ -1565,7 +1641,7 @@ automatically when the file appears in the branch diff against
 
 ```ts
 interface Triage {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal `"triage"`. */
   report_type: "triage";
   /** ISO-8601 timestamp at which the file was first written. */
@@ -1578,7 +1654,7 @@ interface Triage {
 }
 
 interface TriageEntry {
-  /** Stable `<type>::<file>::<symbol-or-empty>` identity. Required. */
+  /** Stable `<type>::<file>::<symbol-or-empty>[::<discriminator>]` identity. Required. */
   fingerprint: string;
   /** Denormalised — same as the type segment of `fingerprint`. */
   type: string;
@@ -1637,7 +1713,7 @@ malformed file exits `2` from the CLI with no JSON output.
 
 ```ts
 interface AuditSuppressionsReport {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   /** Discriminator. Always the literal `"audit_suppressions"`. */
   report_type: "audit_suppressions";
   /** Absolute path of the suppressions file (read or not). */
@@ -1709,7 +1785,7 @@ shape (`feedback_recheck`) listed below.
 
 ```ts
 interface FeedbackReport {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   report_type: "feedback";
   scope: "repo" | "global";
   /** Absolute path of the JSONL file read. */
@@ -1754,7 +1830,7 @@ interface FeedbackSummary {
 
 ```ts
 interface FeedbackRecheckReport {
-  schema_version: "0.3.0";
+  schema_version: "0.4.0";
   report_type: "feedback_recheck";
   current_version: string;          // e.g. "0.7.0"
   current_minor: string;            // e.g. "0.7"

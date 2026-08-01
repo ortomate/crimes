@@ -3,6 +3,7 @@ import { writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SCHEMA_VERSION } from "@crimes/core";
 import { describe, expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -82,7 +83,7 @@ describe("crimes explain", () => {
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout);
     expect(parsed.report_type).toBe("explain");
-    expect(parsed.schema_version).toBe("0.3.0");
+    expect(parsed.schema_version).toBe(SCHEMA_VERSION);
     expect(parsed.finding.type).toBe("large_function");
     expect(parsed.detector.charge).toBe("God Function");
     expect(typeof parsed.why_it_matters).toBe("string");

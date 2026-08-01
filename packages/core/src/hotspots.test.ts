@@ -3,6 +3,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { SCHEMA_VERSION } from "./finding.js";
 import { computeRisk, hotspots } from "./hotspots.js";
 
 function git(cwd: string, args: string[]): Promise<void> {
@@ -72,7 +73,7 @@ describe("hotspots", () => {
 
     const report = await hotspots({ root });
     expect(report.git_available).toBe(false);
-    expect(report.schema_version).toBe("0.3.0");
+    expect(report.schema_version).toBe(SCHEMA_VERSION);
     expect(report.report_type).toBe("hotspots");
     expect(report.since).toBe("90d");
     // The huge file should still surface from scan findings.

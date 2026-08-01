@@ -45,6 +45,13 @@ export const magicDomainLiteralScatterDetector: LanguageJsDetector = {
         severity,
         confidence,
         file: anchor,
+        // This detector is file-level (no `symbol`) but emits one finding
+        // per scattered literal, so one anchor file routinely carries
+        // several. The literal is what makes them different and is stable
+        // across scans of the same code, so it is the discriminator —
+        // without it they share a fingerprint, and suppressing one would
+        // silently suppress the rest.
+        discriminator: literal,
         lines: [representatives[0]!.line, representatives[0]!.line],
         summary:
           `Domain literal "${literal}" appears in ${files.length} production files across ` +

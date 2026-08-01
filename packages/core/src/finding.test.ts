@@ -3,8 +3,8 @@ import type { Finding, ScanReport } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 
 describe("SCHEMA_VERSION", () => {
-  it("is 0.3.0 — universal pack release", () => {
-    expect(SCHEMA_VERSION).toBe("0.3.0");
+  it("is 0.4.0 — fingerprint discriminator", () => {
+    expect(SCHEMA_VERSION).toBe("0.4.0");
   });
 });
 
@@ -54,7 +54,7 @@ describe("Finding shape", () => {
 describe("ScanReport.coverage", () => {
   it("accepts a coverage block", () => {
     const report: ScanReport = {
-      schema_version: "0.3.0",
+      schema_version: SCHEMA_VERSION,
       report_type: "scan",
       repo: { name: "x", root: "/x" },
       summary: { total: 0, high: 0, medium: 0, low: 0 },
@@ -71,7 +71,7 @@ describe("ScanReport.coverage", () => {
 
   it("makes coverage optional (back-compat)", () => {
     const report: ScanReport = {
-      schema_version: "0.3.0",
+      schema_version: SCHEMA_VERSION,
       report_type: "scan",
       repo: { name: "x", root: "/x" },
       summary: { total: 0, high: 0, medium: 0, low: 0 },

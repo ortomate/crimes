@@ -3,7 +3,7 @@
  *
  * Bumping `schema_version` is a breaking change.
  */
-export const SCHEMA_VERSION = "0.3.0" as const;
+export const SCHEMA_VERSION = "0.4.0" as const;
 
 import type { Pack } from "./pack.js";
 import type { Tier } from "./scoring/tier.js";
@@ -101,6 +101,28 @@ export interface Finding {
   file: string;
   /** Optional symbol name (function/class). */
   symbol?: string;
+  /**
+   * Optional tiebreaker for detectors that can legitimately emit more
+   * than one finding for the same `(type, file, symbol)` triple — a
+   * file-level detector reporting several distinct literals, or a
+   * duplicate-block detector reporting several distinct duplicate
+   * groups anchored on the same file.
+   *
+   * Folded into {@link fingerprintFinding} when present, which is the
+   * whole point: without it those findings share one fingerprint, so
+   * `crimes diff` conflates them and `crimes ignore <fingerprint>`
+   * silently suppresses a finding the user never looked at.
+   *
+   * Detectors must pick a value that is **stable across scans of the
+   * same code** and derived from what makes the findings different — the
+   * literal for `magic_domain_literal_scatter`, the body hash for the
+   * duplicate-block family. A counter or an index is not acceptable:
+   * it changes when an unrelated finding appears.
+   *
+   * Leave it unset when `(type, file, symbol)` is already unique. Most
+   * detectors should.
+   */
+  discriminator?: string;
   /** Inclusive [start, end] 1-based line range. */
   lines?: [number, number];
   /** One-line summary. */

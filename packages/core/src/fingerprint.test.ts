@@ -102,3 +102,71 @@ describe("fingerprintFinding", () => {
     expect(fingerprintFinding(a)).not.toBe(fingerprintFinding(b));
   });
 });
+
+describe("fingerprintFinding — discriminator (schema_version 0.4.0)", () => {
+  it("omits the segment entirely when no discriminator is set", () => {
+    // Back-compat is the point: a finding that carried no discriminator
+    // before 0.4.0 must fingerprint to the same string after it, or every
+    // pinned baseline entry in the wild breaks for no reason.
+    const f = makeFinding({
+      type: "large_function",
+      file: "src/billing.ts",
+      symbol: "generateInvoice",
+    });
+    expect(fingerprintFinding(f)).toBe("large_function::src/billing.ts::generateInvoice");
+  });
+
+  it("treats an empty-string discriminator as unset", () => {
+    const f = makeFinding({ type: "large_file", file: "src/x.ts", discriminator: "" });
+    expect(fingerprintFinding(f)).toBe("large_file::src/x.ts::");
+  });
+
+  it("separates two file-level findings that differ only by discriminator", () => {
+    // This is the collision the discriminator exists to fix: before
+    // 0.4.0, `crimes ignore` on one of these silently suppressed both.
+    const subprocess = makeFinding({
+      type: "magic_domain_literal_scatter",
+      file: "src/detectors/x.ts",
+      symbol: undefined,
+      discriminator: "subprocess",
+    });
+    const property = makeFinding({
+      type: "magic_domain_literal_scatter",
+      file: "src/detectors/x.ts",
+      symbol: undefined,
+      discriminator: "property",
+    });
+    expect(fingerprintFinding(subprocess)).not.toBe(fingerprintFinding(property));
+    // The empty symbol slot is still emitted, so splitting on `::` yields
+    // four segments in a fixed order rather than an ambiguous three.
+    expect(fingerprintFinding(subprocess)).toBe(
+      "magic_domain_literal_scatter::src/detectors/x.ts::::subprocess",
+    );
+    expect(fingerprintFinding(subprocess).split("::")).toEqual([
+      "magic_domain_literal_scatter",
+      "src/detectors/x.ts",
+      "",
+      "subprocess",
+    ]);
+  });
+
+  it("appends after the symbol slot when both are present", () => {
+    const f = makeFinding({
+      type: "exact_duplicate_block",
+      file: "src/a.ts",
+      symbol: "parse",
+      discriminator: "3dbfcb76d2cc",
+    });
+    expect(fingerprintFinding(f)).toBe(
+      "exact_duplicate_block::src/a.ts::parse::3dbfcb76d2cc",
+    );
+  });
+
+  it("still collides when two findings agree on all four slots", () => {
+    // Documented residual limitation: identical in every identity slot is
+    // a detector-level gap, not something the schema can resolve.
+    const a = makeFinding({ file: "src/x.ts", symbol: "f", discriminator: "h" });
+    const b = makeFinding({ file: "src/x.ts", symbol: "f", discriminator: "h" });
+    expect(fingerprintFinding(a)).toBe(fingerprintFinding(b));
+  });
+});

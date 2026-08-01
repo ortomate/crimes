@@ -11,7 +11,8 @@ import type { Finding } from "./finding.js";
  * - `lines` (small unrelated edits shift them)
  * - `summary`, `evidence`, `scores` (derived; may drift across detector tuning)
  *
- * The fingerprint is `<type>::<file>::<symbol-or-empty>`:
+ * The fingerprint is `<type>::<file>::<symbol-or-empty>`, with
+ * `::<discriminator>` appended when the finding carries one:
  *
  * - `type` — detector identity (`large_function`, `large_file`, ...)
  * - `file` — repo-relative POSIX path. File renames register as a fix+new
@@ -20,13 +21,28 @@ import type { Finding } from "./finding.js";
  *   `large_function.symbol = "generateInvoice"`); empty for file-level
  *   detectors (`large_file`, `todo_density`, `direct_date`) where the
  *   `(type, file)` pair is already unique.
+ * - `discriminator` — optional tiebreaker (added in `schema_version` 0.4.0),
+ *   set only by detectors that can emit more than one finding per
+ *   `(type, file, symbol)` triple. See {@link Finding.discriminator} for the
+ *   rules a detector must follow when choosing one.
  *
- * Known limitation: two findings with the same `type`, `file`, and `symbol`
- * in one scan (e.g. nested helpers or overloaded function declarations with
- * identical names) collide on a single fingerprint. The diff will treat them
- * as one logical finding. This is rare in practice; if it becomes a problem,
- * a future schema version can add a disambiguator.
+ * Before 0.4.0 those detectors collided on a single fingerprint, which cost
+ * more than a conflated `crimes diff`: `crimes ignore <fingerprint>` on one
+ * of them silently suppressed the others too, so a user got a finding
+ * hidden that they never looked at.
+ *
+ * The discriminator segment is omitted entirely when unset, so findings from
+ * the overwhelming majority of detectors keep the three-part form they have
+ * always had. Only the detectors that were colliding change shape.
+ *
+ * Residual limitation: two findings that are genuinely indistinguishable —
+ * same type, file, symbol, and discriminator — still share a fingerprint.
+ * That is now a detector bug rather than a schema gap; the fix is for the
+ * detector to supply a discriminator that separates them.
  */
 export function fingerprintFinding(finding: Finding): string {
-  return `${finding.type}::${finding.file}::${finding.symbol ?? ""}`;
+  const base = `${finding.type}::${finding.file}::${finding.symbol ?? ""}`;
+  return finding.discriminator === undefined || finding.discriminator === ""
+    ? base
+    : `${base}::${finding.discriminator}`;
 }

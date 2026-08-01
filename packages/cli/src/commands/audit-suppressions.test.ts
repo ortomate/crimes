@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SCHEMA_VERSION } from "@crimes/core";
 import { describe, expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -54,6 +55,8 @@ async function seedSuppressions(root: string, entries: SeedEntry[]): Promise<str
     path,
     JSON.stringify(
       {
+        // Deliberately an older accepted version: the loader must keep
+        // reading files written before the 0.4.0 discriminator bump.
         schema_version: "0.3.0",
         report_type: "suppressions",
         created_at: "2026-01-01T00:00:00.000Z",
@@ -98,7 +101,7 @@ describe("crimes audit-suppressions", () => {
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout);
     expect(parsed.report_type).toBe("audit_suppressions");
-    expect(parsed.schema_version).toBe("0.3.0");
+    expect(parsed.schema_version).toBe(SCHEMA_VERSION);
     expect(parsed.loaded).toBe(true);
     expect(parsed.total).toBe(1);
     expect(parsed.entries[0].fingerprint).toBe("large_function::a.ts::a");

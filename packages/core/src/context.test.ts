@@ -5,6 +5,7 @@ import { dirname, join, resolve as resolvePath } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { SCHEMA_VERSION } from "./finding.js";
 import { context, findNearestPackageRoot } from "./context.js";
 
 const execAsync = promisify(exec);
@@ -66,7 +67,7 @@ describe("context", () => {
     const root = await makeRepo({ "src/x.ts": "export const x = 1;\n" });
     const report = await context({ root, file: "src/x.ts" });
 
-    expect(report.schema_version).toBe("0.3.0");
+    expect(report.schema_version).toBe(SCHEMA_VERSION);
     expect(report.report_type).toBe("context");
     expect(report.file).toBe("src/x.ts");
     expect(report.repo.root).toBe(root);

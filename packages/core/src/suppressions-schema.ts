@@ -51,7 +51,12 @@ export interface SuppressionEntry {
  * the writer always emits the current `SCHEMA_VERSION`. Update this union
  * each time `SCHEMA_VERSION` bumps to add the previous value.
  */
-const ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS = ["0.1.0", "0.2.0", "0.3.0"] as const;
+const ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS = [
+  "0.1.0",
+  "0.2.0",
+  "0.3.0",
+  "0.4.0",
+] as const;
 
 /**
  * On-disk suppressions document. Shipped as `.crimes/suppressions.json`
@@ -60,8 +65,15 @@ const ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS = ["0.1.0", "0.2.0", "0.3.0"] as con
 export interface Suppressions {
   /**
    * On-disk schema version. The loader accepts any value in
-   * `ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS` (currently `"0.1.0"`, `"0.2.0"`, or
-   * `"0.3.0"`); the writer always emits the current `SCHEMA_VERSION`.
+   * `ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS` (currently `"0.1.0"` through
+   * `"0.4.0"`); the writer always emits the current `SCHEMA_VERSION`.
+   *
+   * `schema_version` 0.4.0 added the fingerprint discriminator. Entries
+   * pinned to a `magic_domain_literal_scatter`, `exact_duplicate_block`,
+   * or `near_duplicate_block` fingerprint written before 0.4.0 stop
+   * matching and need to be re-recorded — which is the intent, since
+   * before 0.4.0 one such entry could be suppressing more findings than
+   * its author saw.
    */
   schema_version: (typeof ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS)[number];
   report_type: "suppressions";
