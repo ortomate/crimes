@@ -13,6 +13,7 @@ import { relative, sep } from "node:path";
 import { parseFile } from "@crimes/language-js";
 import type { JsxElementInfo } from "@crimes/language-js";
 import { hashJsxSubtree } from "../ast-hash/hash.js";
+import { mapWithConcurrency } from "../util/concurrency.js";
 
 export interface JsxShapeHit {
   file: string;
@@ -45,49 +46,61 @@ const SOURCE_EXT_RE = /\.(tsx|jsx)$/;
  * to read or parse are skipped silently. Performance budget: a parsed
  * JSX tree is walked once per "interesting" element; hashing reuses the
  * same source slice the existing AST walker already produced.
+ *
+ * Files are read through {@link mapWithConcurrency} rather than
+ * `Promise.all` so the in-flight descriptor count stays bounded on large
+ * repos, and their hits are inserted in sorted file order so map order
+ * does not depend on which read finished first.
  */
 export async function buildJsxShapeIndex(
   options: BuildJsxShapeIndexOptions,
 ): Promise<JsxShapeIndex> {
   const byShape = new Map<string, JsxShapeHit[]>();
-  const candidateFiles = options.files.filter((f) => SOURCE_EXT_RE.test(f));
+  const candidateFiles = options.files.filter((f) => SOURCE_EXT_RE.test(f)).sort();
 
-  await Promise.all(
-    candidateFiles.map(async (abs) => {
-      let source: string;
-      try {
-        source = await readFile(abs, "utf8");
-      } catch {
-        return;
-      }
-      let parsed: ReturnType<typeof parseFile>;
-      try {
-        parsed = parseFile({ absolutePath: abs, source });
-      } catch {
-        return;
-      }
-      const roots = parsed.jsxElements;
-      if (!roots || roots.length === 0) return;
-      const repoPath = toRepoPath(options.root, abs);
+  const perFile = await mapWithConcurrency(candidateFiles, async (abs) => {
+    const hits: Array<{ hash: string; hit: JsxShapeHit }> = [];
+    let source: string;
+    try {
+      source = await readFile(abs, "utf8");
+    } catch {
+      return hits;
+    }
+    let parsed: ReturnType<typeof parseFile>;
+    try {
+      parsed = parseFile({ absolutePath: abs, source });
+    } catch {
+      return hits;
+    }
+    const roots = parsed.jsxElements;
+    if (!roots || roots.length === 0) return hits;
+    const repoPath = toRepoPath(options.root, abs);
 
-      const visit = (el: JsxElementInfo): void => {
-        if (countNodes(el) >= MIN_SUBTREE_NODES) {
-          const hash = hashJsxSubtree(el, source);
-          if (hash.tokens >= 8) {
-            push(byShape, hash.shape, {
+    const visit = (el: JsxElementInfo): void => {
+      if (countNodes(el) >= MIN_SUBTREE_NODES) {
+        const hash = hashJsxSubtree(el, source);
+        if (hash.tokens >= 8) {
+          hits.push({
+            hash: hash.shape,
+            hit: {
               file: repoPath,
               lines: [el.lines[0], el.lines[1]],
               rootName: el.name,
-            });
-          }
+            },
+          });
         }
-        for (const child of el.children) {
-          if (child.kind === "element") visit(child.element);
-        }
-      };
-      for (const root of roots) visit(root);
-    }),
-  );
+      }
+      for (const child of el.children) {
+        if (child.kind === "element") visit(child.element);
+      }
+    };
+    for (const root of roots) visit(root);
+    return hits;
+  });
+
+  for (const hits of perFile) {
+    for (const { hash, hit } of hits) push(byShape, hash, hit);
+  }
 
   return { byShape };
 }

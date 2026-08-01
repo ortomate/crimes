@@ -29,7 +29,11 @@ export const nearDuplicateBlockDetector: LanguageJsDetector = {
   run(ctx) {
     if (!ctx.functionHashIndex) return [];
     const findings: Finding[] = [];
-    for (const [hash, hits] of ctx.functionHashIndex.byShape) {
+    // Sorted for the same reason as `exact_duplicate_block`: the emitted
+    // order should not depend on map internals.
+    for (const [hash, hits] of [...ctx.functionHashIndex.byShape].sort((a, b) =>
+      a[0].localeCompare(b[0]),
+    )) {
       const distinctFiles = new Set(hits.map((h) => h.file));
       if (distinctFiles.size < 2) continue;
       // Avoid double-reporting: if every site in this shape group also

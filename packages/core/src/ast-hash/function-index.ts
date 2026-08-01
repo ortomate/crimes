@@ -11,6 +11,7 @@ import { readFile } from "node:fs/promises";
 import { relative, sep } from "node:path";
 import { parseFile } from "@crimes/language-js";
 import type { ParsedFunction } from "@crimes/language-js";
+import { mapWithConcurrency } from "../util/concurrency.js";
 import { hashFunction } from "./hash.js";
 
 export interface FunctionHit {
@@ -34,48 +35,80 @@ const SOURCE_EXT_RE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
 const MIN_EXACT_DUPLICATE_TOKENS = 40;
 const MIN_EXACT_DUPLICATE_LINES = 8;
 
+/**
+ * One file's contribution to the index, held until every file has been
+ * read. Insertion into the shared maps is deferred so that map order is
+ * a function of the file list rather than of which `readFile` finished
+ * first — see the note on determinism below.
+ */
+interface FileHits {
+  exact: Array<{ hash: string; hit: FunctionHit }>;
+  shape: Array<{ hash: string; hit: FunctionHit }>;
+}
+
+/**
+ * Build the repo-wide function hash index.
+ *
+ * Two properties this function owes its callers:
+ *
+ * - **Bounded IO.** Candidate files are read through
+ *   {@link mapWithConcurrency}, not `Promise.all`, so the descriptor
+ *   count stays flat as the repo grows.
+ * - **Deterministic map order.** `exact_duplicate_block` anchors a
+ *   finding on the lex-first file of a duplicate set, and a function
+ *   that belongs to more than one duplicate group would otherwise pick
+ *   its group by map insertion order — which tracked `readFile`
+ *   completion order, so the evidence string a user read changed run to
+ *   run on an unchanged tree. Files are sorted and their hits inserted
+ *   in that order, so the same tree produces the same index.
+ */
 export async function buildFunctionHashIndex(
   options: BuildFunctionHashIndexOptions,
 ): Promise<FunctionHashIndex> {
   const byExact = new Map<string, FunctionHit[]>();
   const byShape = new Map<string, FunctionHit[]>();
-  const candidate = options.files.filter((f) => SOURCE_EXT_RE.test(f));
+  const candidate = options.files.filter((f) => SOURCE_EXT_RE.test(f)).sort();
 
-  await Promise.all(
-    candidate.map(async (abs) => {
-      let source: string;
-      try {
-        source = await readFile(abs, "utf8");
-      } catch {
-        return;
+  const perFile = await mapWithConcurrency(candidate, async (abs) => {
+    const hits: FileHits = { exact: [], shape: [] };
+    let source: string;
+    try {
+      source = await readFile(abs, "utf8");
+    } catch {
+      return hits;
+    }
+    let parsed: ReturnType<typeof parseFile>;
+    try {
+      parsed = parseFile({ absolutePath: abs, source });
+    } catch {
+      return hits;
+    }
+    const repoPath = toRepoPath(options.root, abs);
+    for (const fn of parsed.functions) {
+      if (skipFunction(fn)) continue;
+      const hash = hashFunction(fn, source);
+      if (
+        hash.tokens < MIN_EXACT_DUPLICATE_TOKENS ||
+        lineSpan(fn) < MIN_EXACT_DUPLICATE_LINES
+      ) {
+        continue;
       }
-      let parsed: ReturnType<typeof parseFile>;
-      try {
-        parsed = parseFile({ absolutePath: abs, source });
-      } catch {
-        return;
-      }
-      const repoPath = toRepoPath(options.root, abs);
-      for (const fn of parsed.functions) {
-        if (skipFunction(fn)) continue;
-        const hash = hashFunction(fn, source);
-        if (
-          hash.tokens < MIN_EXACT_DUPLICATE_TOKENS ||
-          lineSpan(fn) < MIN_EXACT_DUPLICATE_LINES
-        ) {
-          continue;
-        }
-        const hit: FunctionHit = {
-          file: repoPath,
-          symbol: fn.name,
-          lines: [fn.startLine, fn.endLine],
-          tokens: hash.tokens,
-        };
-        push(byExact, hash.exact, hit);
-        if (hash.tokens >= 40) push(byShape, hash.shape, hit);
-      }
-    }),
-  );
+      const hit: FunctionHit = {
+        file: repoPath,
+        symbol: fn.name,
+        lines: [fn.startLine, fn.endLine],
+        tokens: hash.tokens,
+      };
+      hits.exact.push({ hash: hash.exact, hit });
+      if (hash.tokens >= 40) hits.shape.push({ hash: hash.shape, hit });
+    }
+    return hits;
+  });
+
+  for (const hits of perFile) {
+    for (const { hash, hit } of hits.exact) push(byExact, hash, hit);
+    for (const { hash, hit } of hits.shape) push(byShape, hash, hit);
+  }
 
   return { byExact, byShape };
 }

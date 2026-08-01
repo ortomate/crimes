@@ -94,6 +94,55 @@ describe("exactDuplicateBlockDetector", () => {
     expect(findings).toEqual([]);
   });
 
+  it("carries the body hash as a discriminator matching its evidence", async () => {
+    const root = await makeRepo({ "src/a.ts": FN, "src/b.ts": FN });
+    const ctx = await ctxFor("src/a.ts", root);
+    const findings = await exactDuplicateBlockDetector.run(ctx);
+    const discriminator = findings[0]!.discriminator;
+    expect(discriminator).toMatch(/^[0-9a-f]{12}$/);
+    // Same string a reader sees in the evidence line, so a fingerprint
+    // and the finding it names can be matched up by eye.
+    expect(findings[0]!.evidence[0]).toContain(`hash ${discriminator}…`);
+  });
+
+  it("gives one anchor file a distinct fingerprint per duplicate group", async () => {
+    // `src/a.ts` is the lex-first member of two unrelated duplicate
+    // groups. Before the discriminator these two findings shared one
+    // fingerprint, so `crimes ignore` on either silenced both.
+    const other = FN.replace("compute", "tally").replace("item.legacyId", "item.oldId");
+    const root = await makeRepo({
+      "src/a.ts": `${FN}\n${other}`,
+      "src/b.ts": FN,
+      "src/c.ts": other,
+    });
+    const ctx = await ctxFor("src/a.ts", root);
+    const findings = await exactDuplicateBlockDetector.run(ctx);
+    expect(findings).toHaveLength(2);
+    const discriminators = findings.map((f) => f.discriminator);
+    expect(new Set(discriminators).size).toBe(2);
+    expect(discriminators.every((d) => d !== undefined)).toBe(true);
+  });
+
+  it("emits the same findings, in the same order, across repeated runs", async () => {
+    // Regression guard for the reported non-determinism: map insertion
+    // order used to track `readFile` completion order, so a function in
+    // more than one group picked its group differently run to run.
+    const other = FN.replace("compute", "tally").replace("item.legacyId", "item.oldId");
+    const root = await makeRepo({
+      "src/a.ts": `${FN}\n${other}`,
+      "src/b.ts": FN,
+      "src/c.ts": other,
+      "src/d.ts": `${other}\n${FN}`,
+    });
+    const runs: string[][] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const ctx = await ctxFor("src/a.ts", root);
+      const findings = await exactDuplicateBlockDetector.run(ctx);
+      runs.push(findings.map((f) => `${f.discriminator}|${f.evidence.join(";")}`));
+    }
+    for (const run of runs) expect(run).toEqual(runs[0]);
+  });
+
   it("emits nothing when ctx.functionHashIndex is absent", async () => {
     const findings = await exactDuplicateBlockDetector.run({
       kind: "language-js",

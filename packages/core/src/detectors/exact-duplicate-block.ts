@@ -27,7 +27,12 @@ export const exactDuplicateBlockDetector: LanguageJsDetector = {
   run(ctx) {
     if (!ctx.functionHashIndex) return [];
     const findings: Finding[] = [];
-    for (const [hash, hits] of ctx.functionHashIndex.byExact) {
+    // Map order is deterministic (the index inserts in sorted file
+    // order), but sorting the keys makes that independent of the index's
+    // internals rather than a property this detector has to trust.
+    for (const [hash, hits] of [...ctx.functionHashIndex.byExact].sort((a, b) =>
+      a[0].localeCompare(b[0]),
+    )) {
       const distinctFiles = new Set(hits.map((h) => h.file));
       if (distinctFiles.size < 2) continue;
       const anchor = [...distinctFiles].sort()[0]!;
@@ -88,6 +93,12 @@ export function buildFinding(args: {
     severity: "medium",
     confidence: args.confidence,
     file: args.anchor,
+    // One anchor file can be the lex-first member of several distinct
+    // duplicate groups, and these findings carry no `symbol`. The body
+    // hash is what separates the groups and is stable across scans of
+    // the same code, so it is the discriminator. Truncated to match the
+    // evidence line a reader sees.
+    discriminator: args.hash.slice(0, 12),
     summary:
       `Function appears in ${distinctFiles.length} files with the same body. ` +
       "Each fix has to land in every copy; extracting a shared helper would " +
