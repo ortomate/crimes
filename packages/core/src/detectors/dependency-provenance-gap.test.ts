@@ -183,6 +183,58 @@ describe("dependency_provenance_gap — undeclared imports", () => {
     expect(all).not.toContain("some-lib");
     expect(all).not.toContain("`react`");
   });
+
+  // Regression: a `!`-negated workspace glob was read as an ordinary
+  // glob, so a package the package manager deliberately excludes still
+  // counted as a member. Its dependencies were then compared against a
+  // lockfile that correctly does not contain them, reporting a
+  // manifest/lockfile "disagreement" that pnpm itself does not have.
+  //
+  // This is the exact shape of `crimes` own repo: a fixture under
+  // `examples/*` whose package.json declares unresolvable dependencies
+  // on purpose, excluded via `- "!examples/risky-service"`.
+  it("honours `!` negation in pnpm workspace globs", async () => {
+    const repo = await makeRepo({
+      "package.json": JSON.stringify({ name: "root", private: true }),
+      "pnpm-workspace.yaml":
+        'packages:\n  - "packages/*"\n  - "examples/*"\n  - "!examples/fixture"\n',
+      "pnpm-lock.yaml": PNPM_LOCK,
+      "packages/api/package.json": JSON.stringify({ name: "@app/api" }),
+      "packages/api/src/a.ts": "export const x = 1;\n",
+      // Excluded by the negation — its deliberately unresolvable
+      // dependencies are not the lockfile's business.
+      "examples/fixture/package.json": JSON.stringify({
+        name: "fixture",
+        dependencies: { "anything-goes": "*" },
+      }),
+      "examples/fixture/src/a.ts": "export const y = 2;\n",
+    });
+    const all = (await runOn(repo)).map((f) => f.evidence.join("\n")).join("\n");
+    expect(all).not.toContain("anything-goes");
+  });
+
+  it("still reports a sibling the negation does not cover", async () => {
+    const repo = await makeRepo({
+      "package.json": JSON.stringify({ name: "root", private: true }),
+      "pnpm-workspace.yaml": 'packages:\n  - "examples/*"\n  - "!examples/fixture"\n',
+      "pnpm-lock.yaml": PNPM_LOCK,
+      // Sits under the same include glob but is not the excluded one, so
+      // it remains a member and its missing dependency is real.
+      "examples/real/package.json": JSON.stringify({
+        name: "real",
+        dependencies: { "missing-dep": "^1.0.0" },
+      }),
+      "examples/real/src/a.ts": "export const y = 2;\n",
+      "examples/fixture/package.json": JSON.stringify({
+        name: "fixture",
+        dependencies: { "anything-goes": "*" },
+      }),
+      "examples/fixture/src/a.ts": "export const z = 3;\n",
+    });
+    const all = (await runOn(repo)).map((f) => f.evidence.join("\n")).join("\n");
+    expect(all).toContain("missing-dep");
+    expect(all).not.toContain("anything-goes");
+  });
 });
 
 describe("dependency_provenance_gap — lockfile gaps", () => {

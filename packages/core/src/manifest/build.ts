@@ -77,11 +77,39 @@ export async function buildManifestIndex(
       ...draft.flatMap((m) => (m.dir === "" ? m.workspaceGlobs : [])),
     ]),
   ].sort();
-  const matchers = globs.map(globToRegExp);
+
+  // A leading `!` excludes. Both pnpm's `packages:` and npm/yarn's
+  // `workspaces` support it, and it is the normal way to keep a fixture
+  // or example out of the install while it still sits under a directory
+  // the positive globs cover:
+  //
+  //   packages:
+  //     - "examples/*"
+  //     - "!examples/risky-service"
+  //
+  // Reading the negation as an ordinary glob makes the excluded package
+  // look like a workspace member, so its dependencies get compared
+  // against a lockfile that deliberately does not contain them — a
+  // manifest/lockfile "disagreement" the package manager does not have.
+  const includeMatchers: RegExp[] = [];
+  const excludeMatchers: RegExp[] = [];
+  for (const glob of globs) {
+    if (glob.startsWith("!")) {
+      const body = glob.slice(1);
+      if (body.length > 0) excludeMatchers.push(globToRegExp(body));
+      continue;
+    }
+    includeMatchers.push(globToRegExp(glob));
+  }
 
   const manifests = draft.map((manifest) => ({
     ...manifest,
-    inWorkspace: manifest.dir === "" || matchers.some((re) => re.test(manifest.dir)),
+    // The root manifest is always a member; it is what declares the
+    // workspace. Otherwise: matched by an include and by no exclude.
+    inWorkspace:
+      manifest.dir === "" ||
+      (includeMatchers.some((re) => re.test(manifest.dir)) &&
+        !excludeMatchers.some((re) => re.test(manifest.dir))),
   }));
 
   const workspaceNames = new Set<string>();
@@ -94,7 +122,8 @@ export async function buildManifestIndex(
     }
   }
 
-  const declaresWorkspaces = globs.length > 0;
+  // A file containing only exclusions declares no workspace.
+  const declaresWorkspaces = includeMatchers.length > 0;
 
   return {
     manifests,
