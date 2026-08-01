@@ -62,7 +62,8 @@ That writes `.claude/skills/crimes/SKILL.md` and
     },
     "largeFile": {
       "domain": 300,
-      "test_file": 1500
+      "test_file": 1500,
+      "docs": 1000
     }
   },
 
@@ -161,11 +162,20 @@ Per-shape `large_file` overrides (new in 0.6.0). Any subset is fine
 | ----------- | ----------------- |
 | `domain`    | 300               |
 | `test_file` | 1500              |
+| `docs`      | 1000              |
 
 The `test_file` shape matches `**/*.{test,spec}.[jt]sx?` and files
 under `__tests__/`. Test suites legitimately grow large with many
 small `it()` blocks, so the budget is much higher and severity caps
 at `low` / `medium`.
+
+The `docs` shape (new in 0.17.0) matches `.md`, `.mdx`, `.markdown`,
+`.rst`, `.adoc`, `.asciidoc`, and `.txt`. Reference documentation is
+supposed to be long, so measuring prose against the domain-code budget
+produced findings nobody could act on. Severity caps at `low` /
+`medium`, same as `test_file`. Data formats — `.json`, `.yaml`, `.csv`
+— are deliberately *not* docs: a 3000-line config file is still a
+finding worth having.
 
 `thresholds.largeFile.domain` wins over the legacy
 `thresholds.largeFileLines` when both are set.

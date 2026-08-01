@@ -1,9 +1,9 @@
 {
-  "schema_version": "0.3.0",
+  "schema_version": "0.4.0",
   "report_type": "triage",
   "created_at": "2026-08-01",
-  "updated_at": "2026-08-01",
-  "crimes_version": "0.16.0",
+  "updated_at": "2026-08-02T00:00:00.000Z",
+  "crimes_version": "0.17.0",
   "entries": [
     {
       "fingerprint": "large_function::packages/core/src/context-indexes.ts::runDetectorsOnTarget",
@@ -806,16 +806,6 @@
       "file": "packages/core/src/baseline.ts",
       "disposition": "wont-fix",
       "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
-      "owner": "@ortomate/maintainers",
-      "date": "2026-08-01"
-    },
-    {
-      "fingerprint": "dependency_provenance_gap::package.json::unpinned specifiers",
-      "type": "dependency_provenance_gap",
-      "file": "package.json",
-      "symbol": "unpinned specifiers",
-      "disposition": "needs-design",
-      "reason": "Carried from the 0.16.0 slate and not yet dispositioned. Left as an explicit open decision rather than silently accepted.",
       "owner": "@ortomate/maintainers",
       "date": "2026-08-01"
     },

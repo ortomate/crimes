@@ -93,11 +93,19 @@ Counts non-empty lines so generated whitespace can't lower the count.
 | ----------- | ---------------------- | --------------------- | -------------- |
 | `domain`    | config (default 300)   | medium                | high           |
 | `test_file` | 1500                   | low                   | medium         |
+| `docs`      | 1000                   | low                   | medium         |
 
 The `test_file` shape (new in 0.6.0) matches `**/*.{test,spec}.[jt]sx?`
 and files under `__tests__/`. Tests legitimately grow large with many
 small `it()` blocks, so the budget is much higher and severity caps
 at `low` / `medium`.
+
+The `docs` shape (new in 0.17.0) matches `.md`, `.mdx`, `.markdown`,
+`.rst`, `.adoc`, `.asciidoc`, and `.txt`. Without it, prose was scored
+against the domain-code budget, so a schema reference or a
+configuration guide was charged as a God File for being thorough. Data
+formats stay on the `domain` budget — a 3000-line `.json` is a finding,
+not a document.
 
 **Example evidence.**
 

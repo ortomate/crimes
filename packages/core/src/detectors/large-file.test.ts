@@ -134,6 +134,88 @@ describe("largeFileDetector — test_file shape", () => {
   });
 });
 
+describe("largeFileDetector — docs shape", () => {
+  it("does not flag a 900-line reference doc (under the 1000 default)", async () => {
+    const findings = await largeFileDetector.run(
+      makeCtx(900, { file: "docs/configuration.md" }),
+    );
+    expect(findings).toEqual([]);
+  });
+
+  it("would have flagged that same doc as high under the domain budget", async () => {
+    // The point of the shape: 900 lines of prose is 3× the 300-line
+    // domain budget, which is why prose used to need a suppression.
+    const findings = await largeFileDetector.run(
+      makeCtx(900, { file: "docs/config.ts" }),
+    );
+    expect(findings[0]!.severity).toBe("high");
+  });
+
+  it("flags a 1800-line doc as low (between 1× and 2× threshold)", async () => {
+    const findings = await largeFileDetector.run(
+      makeCtx(1800, { file: "docs/json-schema.md" }),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.severity).toBe("low");
+    expect(findings[0]!.evidence.join(" ")).toContain("shape: document");
+    expect(findings[0]!.fix_shape).toContain("per-topic pages");
+  });
+
+  it("escalates a 2500-line doc to medium (≥2× threshold)", async () => {
+    const findings = await largeFileDetector.run(
+      makeCtx(2500, { file: "docs/everything.md" }),
+    );
+    expect(findings[0]!.severity).toBe("medium");
+  });
+
+  it("covers the prose extensions but not data formats", async () => {
+    for (const file of [
+      "README.md",
+      "docs/guide.mdx",
+      "notes.markdown",
+      "docs/index.rst",
+      "docs/manual.adoc",
+      "CHANGES.txt",
+    ]) {
+      expect(await largeFileDetector.run(makeCtx(900, { file }))).toEqual([]);
+    }
+    // Data, not prose — a 900-line config still earns the domain budget.
+    for (const file of ["package.json", "config.yaml", "data.csv"]) {
+      const findings = await largeFileDetector.run(makeCtx(900, { file }));
+      expect(findings, file).toHaveLength(1);
+    }
+  });
+
+  it("docs agent_risk sits between test_file and domain at the same size", async () => {
+    const size = 2000;
+    const docs = await largeFileDetector.run(makeCtx(size, { file: "docs/a.md" }));
+    const test = await largeFileDetector.run(makeCtx(size, { file: "src/a.test.ts" }));
+    const domain = await largeFileDetector.run(makeCtx(size, { file: "src/a.ts" }));
+    expect(test[0]!.scores.agent_risk!).toBeLessThan(docs[0]!.scores.agent_risk!);
+    expect(docs[0]!.scores.agent_risk!).toBeLessThan(domain[0]!.scores.agent_risk!);
+  });
+
+  it("honours `thresholds.largeFile.docs` override", async () => {
+    const config: CrimesConfig = {
+      ...DEFAULT_CONFIG,
+      thresholds: {
+        ...DEFAULT_CONFIG.thresholds,
+        largeFile: { docs: 400 },
+      },
+    };
+    const findings = await largeFileDetector.run(
+      makeCtx(500, { file: "docs/short.md", config }),
+    );
+    expect(findings).toHaveLength(1);
+  });
+
+  it("summary talks about reading fragments, not about coupling", async () => {
+    const findings = await largeFileDetector.run(makeCtx(1500, { file: "PRD.md" }));
+    expect(findings[0]!.summary).toMatch(/fragment|section/i);
+    expect(findings[0]!.summary).not.toMatch(/coupling/i);
+  });
+});
+
 describe("largeFileDetector — universal pack", () => {
   it("fires on a 1200-line .rs file", async () => {
     const _source = Array.from({ length: 1200 }, () => "x").join("\n");

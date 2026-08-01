@@ -3,18 +3,40 @@ import type { UniversalDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
-type LargeFileShape = "domain" | "test_file";
+type LargeFileShape = "domain" | "test_file" | "docs";
+
+/**
+ * Prose and markup files: reference documentation, not modules.
+ *
+ * Kept deliberately narrow — extensions whose whole purpose is prose.
+ * `.json`, `.yaml`, and friends are data, and a 3000-line config is a
+ * finding worth keeping.
+ */
+const DOCS_EXT_RE = /\.(md|mdx|markdown|rst|adoc|asciidoc|txt)$/i;
+
+/**
+ * Default line budget for the `docs` shape.
+ *
+ * Reference documentation is supposed to be long: a schema reference or
+ * a configuration guide earns its length, and measuring it against the
+ * 300-line domain-code budget says nothing useful. 1000 is where a
+ * single document stops being one thing a reader (or an agent) can hold
+ * at once and wants to become a directory of pages — which is exactly
+ * the split this detector asks for.
+ */
+const DEFAULT_DOCS_THRESHOLD = 1000;
 
 /**
  * Per-shape size policy. `domain` reads the configured threshold so existing
  * `crimes.config.json` setups keep working; the `test_file` shape uses a much
  * higher threshold because test suites legitimately grow with many small
- * `it()` blocks.
+ * `it()` blocks, and `docs` higher still because prose is not code.
  *
  *   shape      | threshold | sev @ thr | sev @ 2× thr
  *   -----------+-----------+-----------+-------------
  *   domain     | config    | medium    | high
  *   test_file  |   1500    | low       | medium
+ *   docs       |   1000    | low       | medium
  */
 interface LargeFilePolicy {
   threshold: number;
@@ -27,9 +49,10 @@ interface LargeFilePolicy {
 /**
  * Resolve the size policy for one file. The `domain` threshold comes from
  * `thresholds.largeFile.domain` when set, else the legacy
- * `thresholds.largeFileLines` (kept for back-compat). The `test_file`
- * threshold honours `thresholds.largeFile.test_file` when present; otherwise
- * the built-in 1500-line default applies.
+ * `thresholds.largeFileLines` (kept for back-compat). The `test_file` and
+ * `docs` thresholds honour `thresholds.largeFile.test_file` /
+ * `thresholds.largeFile.docs` when present; otherwise the built-in
+ * defaults apply.
  */
 export function policyForFile(
   shape: LargeFileShape,
@@ -45,6 +68,18 @@ export function policyForFile(
       agentRiskScale: 0.5,
     };
   }
+  if (shape === "docs") {
+    return {
+      threshold: overrides?.docs ?? DEFAULT_DOCS_THRESHOLD,
+      severityAtThreshold: "low",
+      severityAtTwoX: "medium",
+      label: "document",
+      // Above the test-file scale: an oversized document is still a real
+      // context cost, because an agent asked to follow it has to load the
+      // whole thing to find the paragraph that applies.
+      agentRiskScale: 0.6,
+    };
+  }
   return {
     threshold: overrides?.domain ?? config.thresholds.largeFileLines,
     severityAtThreshold: "medium",
@@ -54,7 +89,15 @@ export function policyForFile(
   };
 }
 
+/**
+ * Classify a file into a size-policy shape.
+ *
+ * `docs` is checked first: nothing that matches {@link DOCS_EXT_RE} is a
+ * test module, and checking prose first keeps the two rules from having
+ * to know about each other.
+ */
 export function shapeForFile(file: string): LargeFileShape {
+  if (DOCS_EXT_RE.test(file)) return "docs";
   return isTestFile(file) ? "test_file" : "domain";
 }
 
@@ -90,7 +133,9 @@ export const largeFileDetector: UniversalDetector = {
     const isDomain = shape === "domain";
     const summary = isDomain
       ? `File is ${lines} lines (threshold ${policy.threshold}). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.`
-      : `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.`;
+      : shape === "docs"
+        ? `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Documents this long are read in fragments: a reader or agent looking for one rule loads the whole file and may act on the wrong section.`
+        : `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.`;
     const thresholdEvidence = isDomain
       ? `${ratio.toFixed(1)}× the configured ${policy.threshold}-line threshold`
       : `${ratio.toFixed(1)}× the configured ${policy.threshold}-line ${policy.label} threshold`;
@@ -110,9 +155,15 @@ export const largeFileDetector: UniversalDetector = {
         ...(shape === "test_file"
           ? ["shape: test file (matches **/*.{test,spec}.[jt]sx? or __tests__/)"]
           : []),
+        ...(shape === "docs"
+          ? ["shape: document (matches .md/.mdx/.markdown/.rst/.adoc/.txt)"]
+          : []),
       ],
       effort: "medium",
-      fix_shape: "split by responsibility; one concern per module",
+      fix_shape:
+        shape === "docs"
+          ? "split into per-topic pages; one subject per document"
+          : "split by responsibility; one concern per module",
       scores: {
         severity: severityScore(severity),
         confidence: round(confidence),
@@ -138,6 +189,12 @@ function suggestedActionFor(shape: LargeFileShape): string {
     return (
       "Split the suite into per-feature or per-scenario files so each " +
       "behaviour can be discovered, run, and diffed in isolation."
+    );
+  }
+  if (shape === "docs") {
+    return (
+      "Split into per-topic pages with an index, so a reader can find " +
+      "the section that applies without loading the whole document."
     );
   }
   return (

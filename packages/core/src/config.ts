@@ -81,6 +81,7 @@ export interface CrimesConfig {
     largeFile?: {
       domain?: number;
       test_file?: number;
+      docs?: number;
     };
     /**
      * Severity thresholds for `oversized_raster`. Sizes are in KB
@@ -304,6 +305,7 @@ const largeFileShapesSchema = z
   .object({
     domain: z.number().int().positive().optional(),
     test_file: z.number().int().positive().optional(),
+    docs: z.number().int().positive().optional(),
   })
   .strict();
 
