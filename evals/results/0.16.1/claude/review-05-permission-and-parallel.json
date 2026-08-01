@@ -1,0 +1,92 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "claude",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T20:18:38.079Z",
+  "run_id": "46b2aed7-dab5-4bb0-b09d-c88d05c5751c",
+  "response": "## The three IA drifts\n\n### 1. `/admin` permission drift — **block merge**\n\n`crime_00011` (`permission_ia_drift`, medium/0.7). One destination, three role tokens across three sources:\n\n| Source | Claim |\n|---|---|\n| `src/nav.ts:10` | `role: \"admin\"` |\n| `src/routes/admin.ts:4` | `requiredRole = \"owner\"` |\n| `docs/routes.md:14` | \"reachable only by a manager\" |\n\nReading the file rather than the finding turns up something the scan understates: the guard contradicts *itself*. `loadAdminPanel` (`src/routes/admin.ts:9`) returns `{ ok: true, legacy: true }` for `role === \"manager\"` **before** the `!== \"owner\"` check on line 10. So the exported `requiredRole = \"owner\"` is not what the function enforces — managers get in through a legacy branch. This isn't a documentation inconsistency; it's a live authorization bypass with a doc that reads as if it were intentional. Block.\n\n### 2. `/admin/billing-plans` ∥ `/billing-plans` — **warn**\n\n`crime_00003` (`parallel_destination`, medium/0.6), reinforced by `crime_00005` + `crime_00006` flagging *both* halves as `orphaned_destination`. That pairing is the interesting part: two mirrored surfaces, neither reachable from nav, docs, or any in-repo import, both returning `[]`. Real duplication risk — an agent adding plan filtering to one will not find the other — but currently inert, and choosing which is canonical is a product call, not a mechanical one. Warn, with the fix deferred to whoever owns billing.\n\n### 3. `iaq` subcommands in docs — **warn** (not ignore)\n\n`crime_00013`, confidence 0.8, and it's exactly right: `bin/iaq.ts` registers only `list` and `get`, while `docs/routes.md` documents `iaq teams`, `iaq workspace`, `iaq refresh` (lines 23/27/31). Three of five documented commands don't exist.\n\nI'd stop short of ignore. The human failure mode is loud and self-correcting (\"command not found\"), but the agent failure mode isn't: an agent told to \"make the docs work\" is as likely to *implement* three speculative subcommands as to delete three lines. Cheap to fix, so fix it — just don't gate the merge on it.\n\n## Highest agent-risk: the permission drift\n\nNot close. The other two are discoverable by an agent that keeps reading — the billing duplicate shows up in any glob of `routes/`, the missing commands announce themselves at runtime. The `/admin` drift has no such backstop:\n\n- **Every source is individually plausible.** Nothing in `nav.ts` looks stale. Nothing in `routes.md` looks stale. An agent asked to \"tighten admin access\" reads whichever it lands on first and edits that one, leaving two contradicting sources behind — and the diff will look correct in review.\n- **The failure is silent and security-shaped.** A wrong role token doesn't throw; it grants or denies access to the wrong population. The manager fallback on line 9 means the repo is *already* in that state.\n- **Fixing it correctly requires knowing which token is authoritative**, and the repo contains no answer. An agent will have to guess, and its guess becomes the new canonical.\n\nOne caveat on the scan itself: `crimes` ranks this finding **last** of the three by `agent_risk` (0.25, below `orphaned_destination` at 0.27 and `docs_code_drift` at 0.27), despite giving it the highest severity in the set (0.65). Since agent-risk is meant to be the differentiator, a multi-source authority conflict landing below an unreferenced stub route looks like a scoring miscalibration worth chasing in `scoring/` — the \"3 tokens × 3 files, one of them a security boundary\" shape should be pushing `agent_risk` up, not leaving it flat.\n\n## Two scan-quality notes\n\n- **`crime_00004` is a false positive.** It reports `docs/routes.md:14 → /admin (not found)` as a broken local link, but `[admin console](/admin)` is a site-relative route URL, not a file path — and the route exists at `src/routes/admin.ts`. `docs_code_drift` is treating route hrefs as filesystem paths.\n- **`crime_00009` and `crime_00010` are the same finding twice.** Identical file, summary, evidence, and scores, emitted under both `action_label_drift.js` and `copy_ia_drift.js`. One of those detectors should defer to the other, or they should dedupe before ranking — it inflates the `total: 13` and pushes real findings down the list.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "dependency_provenance_gap",
+      "crime_00013": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Phantom Accomplice": "dependency_provenance_gap",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 7,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": "src/routes/admin.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": "src/nav.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  }
+}

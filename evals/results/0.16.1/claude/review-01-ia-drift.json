@@ -1,0 +1,136 @@
+{
+  "scenario": "review-01-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T20:18:47.359Z",
+  "run_id": "8de849cc-8bf3-46ff-823e-8b712700a5a6",
+  "response": "## The three IA findings\n\n| # | Finding | Type | Sev / Conf | Verdict |\n|---|---|---|---|---|\n| `crime_00009` | `/settings/billing` labelled 4 ways | `route_metadata_drift` | medium / 0.65 | **Warn** |\n| `crime_00008` | `/settings/billing` in 2 nav sources | `duplicated_navigation_source` | medium / 0.70 | **Warn** — same defect as #9, one fix |\n| `crime_00035` | `docs/teams.md:5 → ./setup.md` missing | `docs_code_drift` | low / 0.90 | **Block** if the PR touches `docs/`, else warn |\n\n---\n\n### 1. `route_metadata_drift` — warn\n\nOne destination, four competing names. The evidence resolves to exactly four distinct concepts:\n\n- **Billing** — route path, file path, sidebar nav\n- **Pricing** — component `PricingPage`\n- **Plans** — `metadata.title`, registry nav\n- **Subscription** — `<title>`\n\nNothing here is broken at runtime, which is why it isn't a block. The cost is agent-facing: an agent asked to \"update the Plans page\" will grep for `Plans`, land in `src/nav/registry.ts`, and never reach `billing.tsx`. Confidence is 0.65 — the lowest of the three — because the detector is inferring that these five strings *should* agree, and a team can legitimately show \"Billing\" in a sidebar while the `<title>` reads \"Subscription\".\n\n**Escalate to block** if the diff under review edits any one of those labels. Changing one of four out-of-sync copies is how the fourth copy gets forgotten permanently.\n\n### 2. `duplicated_navigation_source` — warn, but don't count it twice\n\nThis is the *mechanism* behind #9, not an independent problem. The registry-vs-sidebar label conflict (`Plans` / `Billing`) appears verbatim in both findings' evidence. Two nav files both claim ownership of `/settings/billing`, so the labels drifted.\n\nTreat #8 and #9 as one review item with one fix: pick a canonical nav source, have the route derive its label from it, and delete the other copy. Fixing #8 properly collapses two of the four names in #9. Filing them as two separate tickets means the second one gets closed as \"already done\" and the reviewer learns to distrust the tool.\n\nIts `suggested_action` risk is `medium` for a reason — consolidating nav sources means deciding which file wins, and the losing file's other entries have to move.\n\n### 3. `docs_code_drift` — block (conditionally)\n\nThe strongest of the three on evidence quality: confidence 0.90, and it's a mechanically checkable claim — `docs/teams.md:5` links to `./setup.md`, which is not on disk. No judgement call, no false-positive surface. Severity is low only because a dead doc link doesn't break the build.\n\nI'd block on it, with a scope condition: **if the PR touches `docs/`, block** — the fix is one line, zero risk, and a broken-link check belongs in CI where it costs nothing. If the dead link is pre-existing and unrelated to the change under review, drop to warn; blocking someone's unrelated PR on ambient rot trains people to bypass the gate.\n\nThe agent-risk argument is real but modest: an agent reading `docs/teams.md` follows the link, gets nothing, and proceeds on partial context. It won't produce a confidently wrong edit the way #9 will.\n\n---\n\n### One thing worth noting beyond the three\n\nThe scan shows the nav sources reference `/settings/billing` and apparently little else — three routes come back as `orphaned_destination` (`/account/subscription`, `/team`, `/workspace/members`, `crime_00031`–`33`), and `concept_alias_drift` (`crime_00021`) flags `account` / `team` / `workspace` / `organisation` as four aliases for one concept across those exact directories.\n\nSo the IA picture is: one over-labelled destination that two nav files fight over, and three destinations no nav file claims at all. Consolidating nav to a single source — the fix for #8 — is also where you'd discover whether those three routes are in-flight work or dead. Worth saying in the review comment so the author fixes the cause once rather than the symptoms four times.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "return_shape_roulette",
+      "crime_00003": "missing_agent_context",
+      "crime_00004": "magic_domain_literal_scatter",
+      "crime_00005": "contract_drift",
+      "crime_00006": "contract_drift",
+      "crime_00007": "large_function",
+      "crime_00008": "duplicated_navigation_source",
+      "crime_00009": "route_metadata_drift",
+      "crime_00010": "sync_io_in_hotpath",
+      "crime_00011": "option_bag_junk_drawer",
+      "crime_00012": "mixed_utc_local_methods",
+      "crime_00013": "negative_flag_maze",
+      "crime_00014": "timezone_unsafe_parse",
+      "crime_00015": "direct_date",
+      "crime_00016": "todo_density",
+      "crime_00017": "name_behavior_mismatch",
+      "crime_00018": "hardcoded_localhost",
+      "crime_00019": "hardcoded_local_path",
+      "crime_00020": "dst_naive_arithmetic",
+      "crime_00021": "concept_alias_drift",
+      "crime_00022": "logic_in_comments",
+      "crime_00024": "boolean_naming_drift",
+      "crime_00025": "direct_date",
+      "crime_00026": "singular_plural_type_mismatch",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "date_string_concat",
+      "crime_00029": "locale_drift",
+      "crime_00030": "boolean_naming_drift",
+      "crime_00031": "orphaned_destination",
+      "crime_00032": "orphaned_destination",
+      "crime_00033": "orphaned_destination",
+      "crime_00034": "svg_with_embedded_raster",
+      "crime_00035": "docs_code_drift",
+      "crime_00036": "weak_test_signal",
+      "crime_00037": "large_file",
+      "crime_00038": "raster_should_be_vector",
+      "crime_00039": "swallowed_error",
+      "crime_00040": "dependency_provenance_gap",
+      "crime_00041": "oversized_raster",
+      "crime_00042": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Missing Agent Context": "missing_agent_context",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Contract Split-Brain": "contract_drift",
+      "God Function": "large_function",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Unfinished Business": "todo_density",
+      "False Identity": "name_behavior_mismatch",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Test That Proves Nothing": "weak_test_signal",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "God File": "large_file",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Catch and Release": "swallowed_error",
+      "Phantom Accomplice": "dependency_provenance_gap",
+      "Oversized Raster": "oversized_raster"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_navigation_source",
+        "observed": "duplicated_navigation_source",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "docs_code_drift",
+        "observed": "docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav/registry.ts",
+        "observed": "src/nav/registry.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/settings/billing.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/teams.md",
+        "observed": "docs/teams.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      }
+    ]
+  }
+}

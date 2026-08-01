@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "claude",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T20:01:54.000Z",
+  "run_id": "4169cf8a-9d5d-40e7-aed6-a1ceca3a9100",
+  "response": "Scan output above reproduces exactly. I read all three source files — the code changes the triage in a few places, so I'll flag where.\n\n# Extraction plan: billing API → standalone service\n\n## The sorting principle\n\nThe split changes one thing that matters: **today every one of these problems is fixable in a single PR; after the split each one needs a coordinated release across two repos and two teams.** So the line is not severity — it's:\n\n> Fix before the split if fixing it after requires both teams to ship in lockstep, or if the split would freeze the mistake into a public contract.\n\nThat cuts the six findings cleanly, and it does *not* follow crimes' severity ordering.\n\n## Triage\n\n| # | Finding | crimes sev | Verdict | Why |\n|---|---|---|---|---|\n| 1 | Plan enum drift | high | **Before** | Two-repo lockstep + live data question |\n| 6 | Undeclared deps | high | **Before** | New repo has no reproducible build |\n| 3 | PUT vs POST on `/plan` | medium | **Before** | Worse than reported — see below |\n| 5 | `POST /api/workspaces` 404 | medium | **Before** | Same root cause as #3 |\n| 4 | team vs workspace | low | **Split** | Decide before, rename after |\n| 2 | `getWorkspace` name/behavior | medium | **Drop** | False positive in context |\n\n## Before the split\n\n### 1. Reconcile the `Plan` closed set (blocker)\n\n`plans.py:13-16` has `[free, pro, team, scale]`; `workspace-client.ts:10` has `[free, pro, enterprise]`. Reading the code, this is worse than a type mismatch:\n\n- `routes.py:26` types the parameter `plan: str`, not `plan: Plan` — the backend **does not validate it**. `enterprise` is accepted and written through.\n- `plans.py:28` is `SEATS_INCLUDED.get(plan, 1)` — an unrecognized plan silently resolves to **1 seat** instead of raising.\n\nSo the live failure isn't a 422, it's a customer on `enterprise` being provisioned one seat. Crimes says \"whichever side is narrower rejects values the other produces\" — in this code, nothing rejects anything. That's a revenue bug, and it's the single strongest reason to fix this before ownership splits.\n\nSequence:\n1. Query production for the plan values actually present. That decides whether `enterprise` is a fourth tier, a rename of `team`/`scale`, or dead.\n2. Make the enum authoritative on the Python side: `plan: Plan` in the route signature, and `seats_for` raises on unknown rather than defaulting to 1.\n3. Emit the tier list from one source. Take crimes' `unify_closed_set` action, but for the extraction specifically: FastAPI already produces an OpenAPI document — generate the TS union from it in the web repo's build. That's the codegen step you want to exist *before* the repos separate, because after the split it's the only mechanism keeping them honest.\n\n### 2. Give the API real dependency declarations (blocker)\n\nCrimes calls this \"Phantom Accomplice, high\" and lists three packages. Two are noise: `enum` is Python stdlib and `billing.plans` is the package's own module — the detector is `package.json`-shaped and doesn't model Python imports well.\n\nBut the finding is pointing at something true: `packages/api/pyproject.toml` has `[project]` with name, version, description and **no `dependencies` key at all**. `fastapi` resolves today because it's in someone's ambient environment. The moment this becomes its own repo with its own CI, it doesn't build. Add the real dependency list with pinned constraints and a lockfile before you move a single file.\n\n### 3. Fix the client's URLs (blocker — larger than crimes could see)\n\nCrimes reports two route problems. The code has more, and they're one problem:\n\n```\nline 18  getWorkspace        GET  \"/api/workspaces/\" + id   → backend has /api/teams/{id}\nline 23  createWorkspace     POST /api/workspaces           → backend has POST /api/teams   [crime_00005]\nline 28  workspaceSeats      GET  \"/api/teams/:id/seats\"    → literal \":id\", never interpolated\nline 34  changeWorkspacePlan PUT  \"/api/teams/:id/plan\"     → wrong method + literal \":id\" + `plan` never sent  [crime_00003]\n```\n\n**All four calls are broken.** Crimes caught two. Line 18 is invisible to it because the URL is concatenated — the tool says so explicitly in crime_00005's evidence (\"a route or URL assembled at runtime is invisible to this check\"), and that caveat is load-bearing here. Lines 28 and 34 send a literal `:id` path segment, and `changeWorkspacePlan` accepts a `plan` argument it never puts in the request at all, while the backend expects it as a query parameter.\n\nThis forces a question you must answer **before** planning the split: *is there a rewrite layer?* Either\n\n- a proxy maps `/api/workspaces` → `/api/teams`, in which case **that proxy is undocumented shared infrastructure and the split has to assign an owner to it**, or\n- this client is not exercised in production, in which case its state tells you nothing about the real contract and you need to find the client that is.\n\nDon't design the service boundary until you know which. If it's the proxy, its rewrite table *is* the actual public API of the billing service and belongs in the extraction spec.\n\n### 4. Write contract tests (blocker, not a finding)\n\nEvery code finding scores `test_gap: 1.0`. There are no tests on the boundary you are about to convert from a function call into a network hop. Before the split, you need request/response tests against the four endpoints — otherwise there is no way to tell whether the extracted service still behaves like the old one, and no regression signal for the other team afterward.\n\nTwo scores here are *not* usable for sequencing: `blast_radius: 0` reflects a 3-file fixture, not safety; `churn: 0.05` / `recency: 1` are floor values from thin git history. Don't read either as evidence.\n\n## The split itself\n\n**Phase A — stabilize in place (all four blockers above).** Everything lands in the current monorepo, where one PR can touch both sides. Exit criterion: contract tests green, TS types generated from the API's OpenAPI doc, clean install from `pyproject.toml` in a fresh container.\n\n**Phase B — decide the boundary vocabulary.** Pick `team` or `workspace` now and write it into the extraction spec, even though you won't execute the rename yet. Crimes suggests a third name, `organization` — **reject that.** Its `unify_concept_name` action is reasonable for internal code, but this is about to become a versioned public API owned by another team. Renaming the wire format after the split costs a deprecation cycle across two orgs; renaming internal identifiers costs a mechanical PR. So: pick whichever name already appears in the database schema and any external-facing API, and let the internal code catch up later.\n\n**Phase C — extract.** Move `packages/api/` to its own repo. The web repo keeps a generated client, pulled from the published OpenAPI spec rather than hand-written. This is the step where the codegen from Phase A pays for itself — after it, the drift crimes found in #1 and #3/#5 becomes structurally impossible rather than a thing you promise to watch for.\n\n**Phase D — hand off.** New team owns the repo, its deploy pipeline, and the contract tests. Establish a versioning policy for the plan enum specifically: adding a tier is additive and safe; removing or renaming one is breaking and needs a deprecation window.\n\n## After the split\n\n- **crime_00004, the team/workspace rename.** Decided in Phase B, executed here. Once the wire name is fixed, renaming internals is a mechanical per-repo change each team can do on its own schedule. Crimes' real argument for this one is the agent-risk framing — an agent grepping `workspace` finds half the code — which is a genuine ongoing cost but not a split blocker.\n- **The `Plan.FREE` hardcoding** in `routes.py:12,17,22`. Every handler returns the free tier regardless of input. Reads as fixture stubbing rather than a shipped bug, but confirm it against the real implementation; crimes doesn't flag it.\n\n## Dropped\n\n**crime_00002, `getWorkspace` \"False Identity\" (medium).** The detector fired because a `get*` function calls `fetch`. In an HTTP client module that is the correct design — every function there does I/O, and the module name discloses it. Crimes' `name_behavior_mismatch` is valuable in domain code; in a transport layer it's a false positive. It's also in `packages/web/`, which isn't moving. No action.\n\n---\n\n**Net:** four blockers, not the two crimes marks high. The dependency finding is a blocker for a different reason than its headline says, the route findings are the visible part of a client where all four calls are broken, and the enum drift is a live seat-provisioning bug rather than a typing inconvenience. The lowest-severity finding is the one that needs a decision before the split even though its work happens after.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift",
+      "crime_00006": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

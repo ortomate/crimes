@@ -1,0 +1,61 @@
+{
+  "scenario": "review-13-polyglot-api-contract",
+  "agent": "claude",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T20:21:56.118Z",
+  "run_id": "9eb59293-f353-47fd-829d-13d5c13b2fbc",
+  "response": "All four client functions disagree with the backend. Here's the review, grounded against the source rather than the scan alone.\n\n## The underlying story\n\n`packages/web/src/workspace-client.ts:4-6` admits it: someone renamed the concept from **team** to **workspace** on the client. That rename was applied to 2 of 4 call sites and 0 backend routes, and the plan list was hand-copied instead of generated. Every defect below is a shard of that one half-finished rename.\n\nBackend declares exactly four routes (`routes.py:10,15,20,25`); the client makes exactly four calls (`workspace-client.ts:18,23,28,34`). **Zero of them match cleanly.**\n\n## Ranked by production failure mode\n\nOrdering principle: silent wrong answers first, then wrong-but-loud, then can't-possibly-reach-production. A 404 is bad but it fails in dev; a 200 with the wrong number bills the wrong customer for a quarter.\n\n| # | Disagreement | Where | Fails as | Why ranked here |\n|---|---|---|---|---|\n| 1 | `:id` sent as a literal path segment on the seats call | `workspace-client.ts:28` | **HTTP 200, wrong data** | No error surface at all |\n| 2 | Backend takes `plan: str`, never validates against its own `Plan` enum | `routes.py:26` | **200, invalid tier persisted** | Silently accepts values that don't exist |\n| 3 | `changeWorkspacePlan` never transmits its `plan` argument | `workspace-client.ts:33-35` | 422 missing query param | Write path, but loud |\n| 4 | `PUT` vs declared `POST` on the plan route | `:34` vs `routes.py:25` | 405 — reads like an auth bug | Masks #3 behind it |\n| 5 | `GET /api/workspaces/{id}` — no such route | `:18` | 404 | Breaks instantly in dev |\n| 6 | `POST /api/workspaces` — no such route | `:23` | 404 | Breaks instantly in dev |\n| 7 | `Plan` closed set diverged by 3 values | `plans.py:13-16` vs `:10` | Latent 422 / silent seat downgrade | Fires only when a non-`free`/`pro` tier is used |\n| 8 | `team` vs `workspace` for the same concept | 3 files, 9 sites | No runtime failure | Maintenance and agent risk only |\n\n## The three the scan didn't catch\n\n**#1 — the `:id` literal (worst defect in the repo).** `fetch(\"/api/teams/:id/seats\")` sends the string `:id`, never interpolating the `id` parameter. FastAPI happily binds `team_id = \":id\"` and returns **200 with seats for a nonexistent team**. The `id` argument is dead. There is no error, no log, no alarm — the UI renders a confident, wrong seat count. This is the one that survives to production, because nothing tells you it's broken.\n\n**#2 — the backend doesn't enforce its own enum.** `change_team_plan(team_id: str, plan: str)` annotates `plan` as a bare `str`, not `Plan`. FastAPI validates nothing, and the handler echoes it straight back. Chain this with #7: the client is typed to send `\"enterprise\"`, the backend accepts and stores it, and then `seats_for` hits `SEATS_INCLUDED.get(plan, 1)` (`plans.py:28`) — an unknown plan **silently falls back to 1 seat**. A customer on the highest tier gets provisioned like a free account, with a successful HTTP response the whole way.\n\n**#3 — the payload contract.** `changeWorkspacePlan(id, plan)` accepts `plan` and then issues a bodyless, queryless `fetch`. The scan compared method and path; it never compared what's *in* the request against what the handler requires. Note the layering: fix the method (#4) and you immediately hit the 422 (#3), fix that and you hit the `:id` bug — three rounds of \"fixed it, still broken.\"\n\n## Scan accuracy\n\nGenuine and well-evidenced: the type drift (crime_00001), the method drift (crime_00003), the alias drift (crime_00004).\n\n- **crime_00005 undercounts.** It reports \"1 frontend call reaches a path no backend route declares\"; there are **2**. Line 18's `\"/api/workspaces/\" + id` is a concatenation, and the finding's own evidence discloses the blind spot: *\"matched on literal path strings — a route or URL assembled at runtime is invisible to this check.\"* Honest, but the count reads as complete when it isn't.\n- **crime_00006 is mostly noise.** `enum` is Python stdlib and `billing.plans` is a first-party module in this repo — neither is an external package. The one real hit is `fastapi`: `packages/api/pyproject.toml` has no `dependencies` table at all. The detector is applying npm resolution semantics to Python imports.\n- **crime_00002 is off-contract.** \"`getWorkspace` does I/O\" is true of every function in an HTTP client module. Not a client/server disagreement.\n\nAlso worth flagging: `test_gap` is **1.0 on all six findings**. Nothing tests this boundary from either side, which is why eight disagreements accumulated in ~60 lines of code.\n\n## Fix\n\nOrdered so each step is independently verifiable:\n\n1. Interpolate the two template paths (`:28`, `:34`) — one-line change, kills the silent failure.\n2. Change `plan: str` → `plan: Plan` in `routes.py:26` and send the plan in the request body. Now invalid tiers 422 instead of corrupting.\n3. `PUT` → `POST`, and repoint `/api/workspaces*` → `/api/teams*` (or add the aliases server-side and rename properly later).\n4. Delete the hand-written TS `Plan` union. Emit an OpenAPI schema from FastAPI and generate the client types — steps 1-3 are symptoms; two hand-maintained copies of one contract is the cause, and it will drift again by the next release.\n5. One contract test per route. Eight defects in four functions is what zero boundary tests buys you.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift",
+      "crime_00006": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": "packages/web/src/workspace-client.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

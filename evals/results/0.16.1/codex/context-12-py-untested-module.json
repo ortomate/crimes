@@ -1,0 +1,34 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T19:55:35.563Z",
+  "run_id": "ed396f3f-94c7-4260-b1db-4b1d5c10e813",
+  "response": "I’m using the `crimes-codebase-risk` workflow because this is explicitly a pre-edit risk check. I’ll identify the ledger module, inspect its file-specific context, and report test protection plus likely downstream impact without changing anything.\n\nThe standalone `crimes` binary isn’t on this shell’s PATH, so I’m switching to the repository’s locally built CLI—the same analyzer, invoked directly. No source files are being modified.\n\nProtection is effectively absent for `billing/ledger.py`.\n\n`crimes context billing/ledger.py` reported:\n\n> risk: NONE (0 findings)  \n> Likely tests: no matching or importing test file  \n> test gap: top-quartile  \n> No findings on this file. Suspiciously clean.\n\nSpecifically:\n\n- `reverse_entry` has no direct or likely tests, so an incorrect sign, field, or return-shape change could pass unnoticed.\n- The repository’s only scan finding is high-severity `weak_test_signal`: all four tests in `tests/test_reporting.py` contain zero assertions. Those tests only prove execution does not raise.\n- Crimes identified `billing/__init__.py`, `billing/rates.py`, and `billing/reporting.py` as related files, though only by directory proximity.\n- `billing/reporting.py` imports `post_entry`, not `reverse_entry`; crimes found no direct importer of the reversal function. That limits known in-repo blast radius, but external callers may still depend on its current dictionary shape and negation semantics.\n- The file was touched recently—one commit by one author in the last 90 days—but has the highest test-gap percentile.\n\nBottom line: before changing reversal behavior, I would first add focused assertions covering every returned field, sign behavior, and ideally reversing an entry produced by `post_entry`. No files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

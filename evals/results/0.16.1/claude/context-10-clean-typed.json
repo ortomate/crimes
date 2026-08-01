@@ -1,0 +1,38 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T19:53:58.413Z",
+  "run_id": "c0dec090-ce1e-4691-a41a-9238eb7f4460",
+  "response": "`crimes context src/billing.ts --format json` confirms the file is clean.\n\n## Result\n\n```\nrisk.level:  none\nrisk.total:  0   (high 0 / medium 0 / low 0)\nfindings:    []\n```\n\nZero findings on `src/billing.ts`. The one finding in the repo-wide scan (`crime_00001`, Phantom Accomplice) is filed against `package.json` for an undeclared `vitest` import in `src/billing.test.ts` — it does not touch `src/billing.ts`.\n\n## likely_tests\n\n```\nsrc/billing.test.ts\n```\n\nThat's the sole entry — the conventional sibling `<name>.test.ts` next to the module. So the file has a directly co-located test to run after any edit.\n\n## Why it's low risk to edit\n\nThe module is 11 lines: a `Money` interface and one pure `format` function.\n\n- **No findings, none suppressed** — nothing structural, duplicative, or testability-related fired.\n- **Zero blast radius.** `related_files` is empty, and the reason field is explicit: `no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings`. Nothing else in the fixture imports it, so a change can't cascade.\n- **Pure function.** `format` destructures its argument and returns a template string. No `Date.now()`, no `process.env`, no I/O, no mutation — output is a function of input alone, which makes behaviour easy to verify and easy for an agent to reason about.\n- **Types constrain the surface.** `currency` is a closed union (`\"USD\" | \"EUR\" | \"GBP\"`), so the compiler catches the obvious misuse class at edit time.\n- **Cold and single-owner.** `clues.churn` shows 1 commit in 90 days, 1 unique author, last touched 2026-05-18 — no concurrent-edit or merge-conflict pressure.\n- **A test exists and is adjacent.** `test_gap.raw` is 0 (label `unknown` — the fixture has no coverage data, so this is \"no measured gap\", not \"proven covered\"), but `likely_tests` gives you a concrete file to run.\n\n`agent_guidance` is empty for the same reason risk is `none`: `no findings on this file and no deterministic related files`. There's nothing an agent needs warned about before editing — change it, run `src/billing.test.ts`, done.\n\nOne caveat worth carrying: the `vitest` provenance gap means a clean install could fail to resolve the test's own import. That affects your ability to *run* the test, not the safety of editing `billing.ts`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

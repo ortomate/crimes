@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T20:04:18.116Z",
+  "run_id": "9845ee7f-084a-4248-926e-441b5da78fdc",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to inspect the three implementations and base the proposed shared API on their actual differences. The supplied scan already confirms the duplication, so I’ll keep this read-only and focus on a concrete refactor plan.\n\nThe scan confirms one medium-severity near-duplicate spanning all three sanitizers:\n\n- `src/sanitize-a.ts:10–36` — `sanitizeUserInput`\n- `src/sanitize-b.ts:9–35` — `sanitizeText`\n- `src/sanitize-c.ts:9–35` — `cleanMessage`\n\nTheir behavior is identical; only identifiers differ.\n\nI’d add `src/sanitize.ts` with this public API:\n\n```ts\nexport function sanitizeText(\n  value: string | null | undefined,\n): string;\n```\n\nThen preserve the existing exports as thin compatibility wrappers:\n\n```ts\n// sanitize-a.ts\nexport function sanitizeUserInput(raw: string): string {\n  return sanitizeText(raw);\n}\n\n// sanitize-c.ts\nexport function cleanMessage(value: string): string {\n  return sanitizeText(value);\n}\n```\n\n`sanitize-b.ts` can directly re-export the shared function:\n\n```ts\nexport { sanitizeText } from \"./sanitize.js\";\n```\n\nFiles changed:\n\n- Add `src/sanitize.ts` — canonical implementation.\n- Edit `src/sanitize-a.ts` — delegate `sanitizeUserInput`.\n- Edit `src/sanitize-b.ts` — re-export or delegate `sanitizeText`.\n- Edit `src/sanitize-c.ts` — delegate `cleanMessage`.\n- Add a shared sanitizer test file if this fixture gains tests.\n\nThis consolidates future behavioral changes while avoiding a breaking rename for existing callers. The admin-role helpers should remain untouched in this refactor; they belong to the separate duplicated-policy finding.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

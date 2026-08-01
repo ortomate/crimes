@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T19:58:38.707Z",
+  "run_id": "0dbb4d58-58b2-48f6-9ab3-52f35b45442b",
+  "response": "Read the six fixture files to ground the plan against the actual code.\n\n## What the scan is actually reporting\n\nFive findings, three of which are the duplication cluster:\n\n| id | charge | where | agent_risk |\n|---|---|---|---|\n| `crime_00001` | Near-Duplicate Block | `sanitize-a/b/c.ts` — 3 bodies, one hash `289f7da71f3a` | 0.34 |\n| `crime_00003` | Duplicated Role/Status/Plan Check | `\"admin\"` across 4 files, 2 expression shapes | 0.33 |\n| `crime_00002` | Exact Duplicate Block | `telemetry-a/b.ts` — `recordSanitiseEvent`, byte-identical | 0.33 |\n| `crime_00004/5` | Temporal Recklessness | `Date.now()` at `telemetry-a.ts:16` and `telemetry-b.ts:16` | 0.29 |\n\nThe two `direct_date` findings are not independent work — they are one bug that got copy-pasted along with the block in `crime_00002`. Dedup the telemetry block and the clock injection becomes a single edit instead of two.\n\n**The trap in `crime_00003`.** The detector reports *2 distinct expression shapes*, but there are **3 distinct behaviours**:\n\n- `policy.ts:3,8,13` + `sanitize-a.ts:7` → `role === \"admin\"`\n- `sanitize-b.ts:6` → `role === \"admin\" || role === \"owner\"` — **strictly wider**\n- `sanitize-c.ts:6` → `role !== \"admin\"` — **inverted**\n\nShape-counting normalises each comparison independently, so `b`'s `||` collapses into the same bucket as plain equality. Anything that \"consolidates the three role checks\" by pointing them at one predicate silently grants `owner` billing access and flips `assertAdminC`'s polarity. That constraint drives the step split below.\n\nNote also: `policy.ts`'s three functions are identical *implementations* of three different *capabilities*. The right move is one primitive with three named capability predicates over it — not one function with three call sites.\n\n## Prerequisite: there are no tests\n\nThe fixture has six `src/` files and a `package.json`, no test suite. Every finding carries `test_gap: 0.5`. Both steps are pure refactors with no behavioural intent, so land characterization tests first — table-driven cases over `sanitizeUserInput` pinning the empty/null path, the 1000-char truncation, the `<`/`>` and `\\x` rejections, the `!?{3,}` punctuation threshold, and the `upperRatio > 0.9 && length > 30` lowercasing branch; plus a 3×N role matrix asserting each guard's *current* answer for `admin` / `owner` / `viewer`. Write them against the current three copies so they fail loudly if consolidation changes an answer. Without this the \"no behaviour change\" claim in both steps is an assertion, not a fact.\n\n## Step 1 — collapse the sanitise family (mechanical, no semantic change)\n\nScope: `crime_00001`, `crime_00002`, `crime_00004`, `crime_00005`.\n\n1. Create `src/sanitize.ts` exporting one `sanitizeText(input: string): string`, body lifted verbatim from `sanitize-a.ts:10-36`. The three copies differ only in identifier names (`working` / `cleaned` / `normalised`) and the function name — there are no differing values to parameterise, so `fix_shape`'s \"pass the differing values as args\" doesn't apply here. It's a rename-only trio; take one body as-is.\n2. Create `src/telemetry.ts` with the single `recordSanitiseEvent`, changing exactly one thing: `timestamp: Date.now()` becomes an injected `now: () => number = Date.now` parameter (or a `Clock` arg if you prefer symmetry with the rest of the repo). Delete `telemetry-a.ts` and `telemetry-b.ts`. This is where the 2-for-1 lands — one injection point instead of two.\n3. **Relocate** `assertAdminA` / `assertAdminB` / `assertAdminC` into `policy.ts` byte-identical, names and bodies untouched. They currently live in the sanitize files purely as fixture staging; the files have to die for step 1 to complete, and the guards need a home. Moving them without touching them keeps this step's diff semantically empty.\n4. Delete `sanitize-a.ts`, `sanitize-b.ts`, `sanitize-c.ts`. If anything outside the fixture imports the old names, add one-line re-export aliases (`export { sanitizeText as cleanMessage }`) and mark them deprecated rather than rewriting call sites inside this step.\n\nExit check: characterization tests green, `crimes scan --format json` shows `crime_00001`, `crime_00002`, and one of the two `direct_date` findings gone. Effort: small — matches the finding's own `effort: \"small\"`.\n\n## Step 2 — collapse the role checks (semantic, needs decisions)\n\nScope: `crime_00003`. Now a single-file diff against `policy.ts`, because step 1 already moved everything there. That's the reason for the ordering: reviewing a policy change is much easier when the diff isn't tangled with four file deletions.\n\n1. Define the one primitive: `const ADMIN_ROLE = \"admin\"` and `export function isAdmin(role: string): boolean { return role === ADMIN_ROLE }`.\n2. Rewrite `canEditBilling`, `canSeeAuditLog`, `canImpersonate` as `return isAdmin(role)`. Keep all three names — they encode three distinct capabilities and will diverge the first time someone adds a non-admin auditor role. Collapsing them to one function is the over-consolidation to avoid.\n3. Re-express the three relocated guards **without merging them**:\n   - `assertAdminA` → `isAdmin(role)`, then delete the alias and point its callers at `isAdmin`.\n   - `assertAdminB` → a separately named `isAdminOrOwner(role) { return isAdmin(role) || role === \"owner\" }`. Do not fold `owner` into `isAdmin` — that's a privilege widening at three call sites.\n   - `assertAdminC` → delete it; callers use `!isAdmin(role)`. A named predicate for the negation of another predicate is what let the polarity hide in the first place.\n4. Grep for surviving raw `\"admin\"` string comparisons. After this step the literal should appear exactly once, in `ADMIN_ROLE`.\n\nExit check: the 3×N role matrix from the prerequisite still returns *identical* answers per guard — especially `isAdminOrOwner(\"owner\") === true` and the `assertAdminC` inversion. `crime_00003` clears. Effort: medium, matching the finding, and the medium sits entirely in the `owner`/negation judgement rather than in the mechanics.\n\n## Why this order\n\nStep 1 is verifiable by diff inspection alone — it moves code, it doesn't decide anything. Step 2 is where every real decision lives (does `owner` get billing access, does the negation survive as a named function), and it lands as one small diff in one file that a reviewer can hold in their head. Running it in the other order means making authorization decisions inside a changeset that is simultaneously deleting five files.\n\nThe one thing I'd flag as needing a human answer rather than an assumption: `assertAdminB`'s `owner` branch. I've preserved it as-is under a distinct name, which is the safe default, but if `owner` was a copy-paste accident rather than intent, that's a live authorization bug the dedup would otherwise cement in place.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

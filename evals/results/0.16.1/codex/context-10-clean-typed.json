@@ -1,0 +1,38 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "codex",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T19:54:12.843Z",
+  "run_id": "0aa123f1-ddee-4213-a1d9-db51c2c947af",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is a `crimes context` investigation; I’ll follow its context-check workflow and report the JSON evidence directly.\n\nThe global `crimes` binary isn’t installed in this shell. I’m locating the repository-built CLI and will run the same command through that local executable, as the project instructions prescribe.\n\n`src/billing.ts` has no findings: risk level `none` with 0 high, medium, low, or total findings.\n\n- Likely test: `src/billing.test.ts`\n- Low edit risk because it has no detected issues, no related-file or neighborhood signals, and low churn—1 commit from 1 author in the past 90 days.\n- The nearby test provides a clear validation target, though `crimes` labels measured test coverage as `unknown`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

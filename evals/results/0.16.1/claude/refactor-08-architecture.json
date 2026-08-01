@@ -1,0 +1,58 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T20:09:36.249Z",
+  "run_id": "177e3fb5-340f-4b03-a3c1-b2f99da69141",
+  "response": "I read the four fixture files to ground this. I'm **not editing the fixture** — it's scanner input for the eval suite, so this is a proposal.\n\n## The actual graph\n\n```\npresentation/invoice-view.ts ──▶ application/billing-flow.ts   ✅ allowed\napplication/billing-flow.ts  ──▶ domain/billing.ts             ✅ allowed\napplication/billing-flow.ts  ──▶ some-pkg/dist/internal/…      ⚠️ crime_00003\ndomain/billing.ts            ──▶ presentation/invoice-view.ts  ❌ crime_00002 + closes crime_00001\ninfrastructure/db.ts         ── (leaf, unimported)\n```\n\n**The first thing to notice: crime_00001 and crime_00002 are the same edge.** One line — `src/domain/billing.ts:2` — is both the layer violation and the edge that closes the three-file ring. The scan is right to file two findings (different rules, different rationale), but there is one defect and one fix.\n\nSecond thing: this cycle isn't theoretical re-entry risk. `chargeCustomer(100)` → `renderInvoice(100)` → `runBillingFlow()` → `chargeCustomer(100)` is unbounded recursion. The fixture stack-overflows on first call.\n\n## Change 1 — break `domain → presentation` (fixes crime_00002 and crime_00001)\n\n**Break, don't redirect.** Domain has no business rendering. Make it return a value and let the caller format it.\n\n```ts\n// src/domain/billing.ts — now a true leaf, zero imports\nexport interface Charge {\n  amount: number;\n}\n\nexport function chargeCustomer(amount: number): Charge {\n  return { amount };\n}\n```\n\n```ts\n// src/application/billing-flow.ts\nimport { chargeCustomer, type Charge } from \"../domain/billing.js\";\nimport { internalHelper } from \"some-pkg\";\n\nexport function runBillingFlow(amount: number): Charge {\n  internalHelper();\n  return chargeCustomer(amount);\n}\n```\n\n```ts\n// src/presentation/invoice-view.ts\nimport { runBillingFlow } from \"../application/billing-flow.js\";\n\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${runBillingFlow(amount).amount}`;\n}\n```\n\nRemaining edges are `presentation → application → domain`. Acyclic, zero rule violations, and `runBillingFlow` stops being a void side-effect.\n\n**Do not apply crime_00001's suggested action here.** It offers \"convert one direction to `import type`\" — that doesn't work, because `renderInvoice` is *called*, not referenced as a type, and even if it did work it would launder the cycle while leaving the boundary breach standing. Fix the layer violation; the cycle finding resolves as a consequence. That ordering matters generally: when a cycle and a layer violation name the same edge, the layer rule is the one with declared intent behind it.\n\nIf domain genuinely needs to trigger rendering later (it doesn't here), the correct shape is crime_00002's own suggested action — a port owned by domain (`interface InvoicePresenter { render(c: Charge): string }`) injected from application. That's over-engineering for this code. Reach for it only when the call must originate in domain.\n\n## Change 2 — redirect the deep import (fixes crime_00003, and crime_00004 with it)\n\n```diff\n- import { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n+ import { internalHelper } from \"some-pkg\";\n```\n\nTwo caveats the finding is right to raise:\n- If `internalHelper` isn't in `some-pkg`'s exports, **don't code around it** — no re-exporting the deep path from a local shim, which just moves the breakage to a file with a friendlier name. File upstream and pin the version meanwhile.\n- crime_00004 (`dependency_provenance_gap`) is the same line's other half: `package.json` declares no dependencies at all, so `some-pkg` resolves purely by hoisting today. Add it to `dependencies` in the same commit. Fixing the specifier without declaring the package leaves a clean install broken.\n\n## How the two risks differ for an agent\n\nBoth are sub-high severity with identical `blast_radius` (0.06, 3 importers) and `test_gap` (0.5). The `agent_risk` gap — **0.34 vs 0.29** — comes entirely from where the danger lives and whether it spreads.\n\n**`layer_violation` — internal, propagating, self-authorizing.**\nNothing in `domain/billing.ts` is wrong on its own terms. It compiles, it type-checks, the import resolves. The rule it breaks lives in `crimes.config.json`, a file an agent editing billing logic has no reason to open. So the failure mode is *imitation*: an agent reading this file learns \"domain imports presentation here,\" and reproduces it in the next domain module. The violation is its own precedent. It also inverts the direction of change — a presentation edit can now break domain, the layer that's supposed to be the stable core everything else is tested against. Repair cost grows with every copy, and the fix is architectural rather than local: `effort: medium`, action `risk: medium`, because you're moving code across boundaries, not editing a line.\n\nNote the `confidence: 0.95`. That's high because crimes isn't inferring the architecture — the team declared it. There's a written rule and a concrete edge that breaks it.\n\n**`deep_import` — external, contained, latent.**\nThis file is internally coherent and the import works today. The risk is entirely offshore and time-delayed: it breaks at some future `npm update` when the vendor rearranges `dist/internal/`, with no signal from your compiler, your tests, or your repo. For an agent the specific hazards are (a) it can't judge whether the path is legitimate without reading `node_modules`, and (b) when it does break, the fix may not exist locally — the symbol might simply not be exported at the boundary. But it teaches nothing and spreads nowhere: one file, one line. `effort: quick`, action `risk: low`.\n\n`confidence: 0.85` rather than 0.95 because \"is this path private?\" is a heuristic — segment depth past the package name plus a `private`/`internal` marker — not a declared rule.\n\n**The compressed version:** layer violations are risky because an agent will *copy* them and the authority they break isn't in the file; deep imports are risky because an agent *can't fix* them and the thing that breaks them isn't in the repo. That's why the architectural finding outranks the packaging one on agent risk even though the packaging one is a one-line fix and the architectural one takes an afternoon.\n\n**Suggested order:** Change 2 first (quick, isolated, unblocks a clean install), then Change 1 (touches three files, deserves its own commit and a test that `chargeCustomer` terminates).",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "deep_import",
+        "passed": false
+      }
+    ]
+  }
+}

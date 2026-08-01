@@ -1,0 +1,80 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T20:08:22.664Z",
+  "run_id": "b42087cb-3aca-44bf-b469-3a5ba818ed29",
+  "response": "## Confirming the drift\n\nReproduced the scan; the two relevant findings are `crime_00009` (`action_label_drift`) and `crime_00010` (`copy_ia_drift`), both anchored on `src/components/SeatList.tsx`. The actual source:\n\n| File | Label | href |\n|---|---|---|\n| `UserList.tsx:7` | \"**Delete** user\" | `/users/manage` |\n| `UserList.tsx:8` | \"**Remove** member\" | `/users/manage` |\n| `TeamList.tsx:6` | \"**Archive** team\" | `/teams/manage` |\n| `TeamList.tsx:7` | \"**Delete** the seat\" | `/seats/manage` |\n| `SeatList.tsx:6` | \"**Remove** member\" | `/seats/manage` |\n| `SeatList.tsx:7` | \"**Archive** member\" | `/seats/manage` |\n\nTwo things the finding evidence doesn't say, both visible in the source:\n\n1. **In `UserList` and `SeatList`, the two differently-verbed items point at the *same* href.** Same destination, different verb, same file — that's not a cross-view naming difference, it's two buttons for one operation.\n2. **`TeamList.tsx:7` is a seat action living in the team component** (`/seats/manage` inside `TeamList`). That's a placement problem, not a copy problem, and neither detector models it.\n\nAlso worth naming: the *object* nouns drift too — user / member / seat, used interchangeably across the same three files. Neither detector fires on it, because the `user` group needs 3 aliases each appearing in ≥2 files and only \"member\" clears that bar (`user` and `seat` appear in one file each). The scan under-reports here.\n\n## Proposed canonical set\n\nThe detector's `delete` group treats `delete / remove / archive / trash / destroy` as synonyms (`action-label-drift.ts:53`). That's a lexical heuristic, not a semantic claim — so \"pick one verb\" is the wrong instruction to follow literally. In a seats/teams/members domain these are three *distinct* operations, and collapsing them would be a worse bug than the drift:\n\n**Verbs**\n| Intent | Canonical verb | Phrasing | Reversible |\n|---|---|---|---|\n| Destroy the record | **Delete** | `Delete {object}` | no |\n| Detach from a container | **Remove** | `Remove {object} from {container}` | yes — the account survives |\n| Soft-hide, recoverable | **Archive** | `Archive {object}` | yes |\n\n**Objects** — one noun per entity, since the fixture drifts here too:\n- **member** — a person's membership in a team/org (what you *remove*)\n- **user** — the account (what you *delete*)\n- **seat** — the billing unit (what you *release*, not delete)\n\nBecause each file's pair shares one href, every pair is genuinely one operation, so each file collapses to a single item.\n\n**Target state:**\n\n```tsx\n// UserList.tsx  — /users/manage is account-level\n<NavItem label=\"Delete user\" href=\"/users/manage\" />\n\n// SeatList.tsx  — /seats/manage is membership-level\n<NavItem label=\"Remove member from team\" href=\"/seats/manage\" />\n\n// TeamList.tsx  — team-level only\n<NavItem label=\"Archive team\" href=\"/teams/manage\" />\n```\n\nwith `TeamList`'s `\"Delete the seat\"` item **moved to `SeatList`** and merged into the `Remove member` item it duplicates.\n\n## Which component first: `TeamList.tsx`\n\nNot the finding's anchor file. The anchor is `SeatList.tsx` only because `analyse()` picks `allFiles[0]` after a lexicographic sort (`action-label-drift.ts:126-127`) — it's alphabetical, not risk-ranked. Don't read a work order off it.\n\n`TeamList.tsx` goes first because it's the only file whose problem is structural rather than lexical: line 7 puts a `/seats/manage` action inside the team component. Fixing it forces the canonical decision (is `archive` a synonym for `delete`, or a separate operation?) that the other two files then just apply, and it relocates the item into `SeatList`, which resolves `SeatList`'s duplicate as a side effect. Then `UserList` (pure copy edit), then `SeatList` (absorb the moved item, delete its duplicate).\n\n**One trap worth flagging:** fixing `SeatList` *alone* would clear both findings — dropping `archive` to 1 file and `remove` to 1 file leaves only `delete` qualifying, below the 3-alias threshold at `action-label-drift.ts:124`. The report would go green while `UserList` still says \"Remove member\" and `TeamList` still says \"Archive team\". Clearing the finding is not the same as fixing the copy.\n\n## How the two detectors differ — and why they don't here\n\nThey share one implementation. `copy_ia_drift` is a thin wrapper (`copy-ia-drift.ts:30-37`) that calls the same `analyse()` with `restrictToJsxLabel: true`, which (a) skips label signals whose `kind` isn't `jsx_*` and (b) skips nav-entry signals entirely (`action-label-drift.ts:91`, `:99`).\n\n- **`action_label_drift`** — the same action is *named* differently anywhere the IA index reaches: JSX text, string-valued props, nav manifests, config.\n- **`copy_ia_drift`** — the user-visible *copy* disagrees. JSX label literals only.\n\n**On this fixture they are indistinguishable.** Byte-identical evidence, same anchor, same `related_files`, same scores; the only differences are `type`, `charge`, and `fix_shape`. Both hits come from `<NavItem label=\"…\">` JSX literals, and `src/nav.ts` contains no delete-group token at all (it's `Teams` / `Workspaces` / `Organisations` / `Admin Console`), so `action_label_drift`'s extra inputs contribute exactly zero additional hits. Neither carries a `discriminator`.\n\nThey'd diverge if a verb lived somewhere non-JSX — e.g. a `NAV` entry labelled `\"Archive workspace\"`, a `<Button aria-label=\"Remove seat\">`, or an action-name constant. Then `action_label_drift` would fire on the wider set and `copy_ia_drift` would stay silent or report fewer files.\n\nMapping the refactor to the findings: since all three edits are to JSX label text, **every change clears both findings simultaneously**. There is no change here that satisfies one and not the other. The `TeamList` item *move* is invisible to both.\n\nTwo product observations, since this is the crimes repo scanning its own fixture: this is one problem billed as 2 of 13 findings with identical evidence — a candidate for `discriminator`-based dedupe (added in schema 0.4.0) or for suppressing the broad variant when the restricted one produces an identical fingerprint. And the object-noun drift (user/member/seat) going unreported while the verb drift fires twice suggests the `≥3 aliases × ≥2 files` gate is tuned tighter than the real signal warrants on small surfaces. I haven't changed anything — flagging, not fixing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "dependency_provenance_gap",
+      "crime_00013": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Phantom Accomplice": "dependency_provenance_gap",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": "src/components/SeatList.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

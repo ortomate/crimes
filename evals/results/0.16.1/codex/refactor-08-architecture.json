@@ -1,0 +1,58 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.16.1",
+  "timestamp": "2026-08-01T20:08:33.250Z",
+  "run_id": "c2b2c81f-eed3-4786-9f5f-e1bfec88c5e0",
+  "response": "The scan reports two relevant findings:\n\n1. `crime_00002` — `layer_violation` in `src/domain/billing.ts`\n   - Forbidden import: `src/domain/billing.ts` → `src/presentation/invoice-view.ts`\n   - Rule: `domain cannotImport presentation`\n   - Agent risk: `0.34`\n\n   Break this import entirely. The domain should define the required contract—such as an `InvoicePresenter` or `InvoiceOutput` interface—without referencing presentation code. The presentation layer can implement that interface, while `src/application/billing-flow.ts` wires the implementation into the domain operation.\n\n   This also removes one edge from the reported three-file circular dependency (`crime_00001`), so the refactor should verify that the entire `application → domain → presentation → application` cycle disappears.\n\n2. `crime_00003` — `deep_import` in `src/application/billing-flow.ts`\n   - Private import: `some-pkg/dist/internal/private/helper.js`\n   - Agent risk: `0.29`\n\n   Redirect this import to `some-pkg` or a documented exported subpath, for example:\n\n   ```ts\n   import { helper } from \"some-pkg\";\n   ```\n\n   If `helper` is not publicly exported, do not reproduce the private path behind a local wrapper. Either use a supported API, replace the dependency, or request an upstream export. Because `crime_00004` also shows that `some-pkg` is undeclared, add it to this package’s runtime `dependencies` if it remains in use.\n\nThe risks differ in scope:\n\n- `layer_violation` is an architectural-direction failure. It confuses ownership and encourages future agents to place domain behavior in presentation code or introduce more reverse dependencies. Here, it also participates in a runtime cycle, increasing its practical impact.\n- `deep_import` violates a package’s publication boundary rather than the repository’s layer model. The dependency direction may be architecturally valid, but the imported path is unstable because an upgrade can reorganize private files without treating that as a breaking public-API change.\n\nAfter refactoring, rerun the scan and expect `crime_00002` and `crime_00003` to disappear; ideally `crime_00001` should disappear as a consequence as well.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}
