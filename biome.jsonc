@@ -27,20 +27,24 @@
       // thresholds, and their deliberate mess is what the detectors are
       // tuned against. Reformatting them would silently change what the
       // product reports.
-      "!examples/**",
-      "!evals/fixtures/**",
+      "!examples",
+      "!evals/fixtures",
 
       // Pinned expected outputs — byte-compared against live scans.
-      "!docs/fixtures/**",
+      "!docs/fixtures",
 
       // Recorded eval runs. Machine-written, never hand-edited.
-      "!evals/results/**",
-      "!evals/replay/**",
+      "!evals/results",
+      "!evals/replay",
 
       // --- Never format: not ours --------------------------------------
-      "!packages/language-py/vendor/**",
-      "!**/dist/**",
-      "!**/node_modules/**",
+      // `.planning/` is a write-once archive of milestone prompts and
+      // throwaway prototypes. It is never built, tested, or shipped;
+      // reformatting it would churn files nobody maintains.
+      "!.planning",
+      "!packages/language-py/vendor",
+      "!**/dist",
+      "!**/node_modules",
       "!pnpm-lock.yaml"
     ]
   },
@@ -107,7 +111,29 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+
+      "style": {
+        // OFF, deliberately — and this is the only rule silenced
+        // wholesale. `tsconfig.base.json` sets
+        // `noUncheckedIndexedAccess: true`, which types every indexed
+        // access as `T | undefined`. Under that setting `arr[0]!` and
+        // `map.get(k)!` after a `has()` guard are not a shortcut, they
+        // are the idiom the compiler forces — which is why there are
+        // 1033 of them and why they cluster in exactly the
+        // index-walking code the strict setting exists to protect.
+        //
+        // The alternatives are both worse than the rule: relax
+        // `noUncheckedIndexedAccess` (lose real type safety to satisfy
+        // a lint rule), or add 1033 runtime guards to paths the
+        // compiler has already proven. Suppressing per-site would mean
+        // 1033 biome-ignore comments.
+        //
+        // This is not a "get to green" disable. If
+        // `noUncheckedIndexedAccess` is ever turned off, turn this back
+        // on the same day.
+        "noNonNullAssertion": "off"
+      }
     }
   }
 }
