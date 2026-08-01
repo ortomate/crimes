@@ -1,0 +1,103 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
+
+  // Biome is the single formatter *and* linter for this repo. Do not add
+  // ESLint or Prettier alongside it — CLAUDE.md locks this to "pick one,
+  // don't run both".
+  //
+  // Settings below deliberately track the style that was already in the
+  // tree before Biome arrived (2-space, double quotes, semicolons,
+  // trailing commas, ~80 columns), not Biome's own defaults. The point of
+  // adopting a formatter here was to freeze the existing house style, not
+  // to restyle the codebase.
+
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+
+  "files": {
+    "includes": [
+      "**",
+
+      // --- Never format: scanner input ---------------------------------
+      // `crimes` scans these directories as *fixtures*. Their formatting
+      // is the test data: line counts feed `large_file` / `large_function`
+      // thresholds, and their deliberate mess is what the detectors are
+      // tuned against. Reformatting them would silently change what the
+      // product reports.
+      "!examples/**",
+      "!evals/fixtures/**",
+
+      // Pinned expected outputs — byte-compared against live scans.
+      "!docs/fixtures/**",
+
+      // Recorded eval runs. Machine-written, never hand-edited.
+      "!evals/results/**",
+      "!evals/replay/**",
+
+      // --- Never format: not ours --------------------------------------
+      "!packages/language-py/vendor/**",
+      "!**/dist/**",
+      "!**/node_modules/**",
+      "!pnpm-lock.yaml"
+    ]
+  },
+
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    // The tree was hand-wrapped to roughly 80 columns before Biome
+    // (p95 line length 75, p99 91). 80 keeps the existing wrapping
+    // largely intact; Biome's default is also 80.
+    "lineWidth": 80
+  },
+
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always",
+      "bracketSpacing": true
+    }
+  },
+
+  "json": {
+    "formatter": {
+      "enabled": true,
+      "trailingCommas": "none",
+      // Biome's JSON default expands every multi-element array onto its
+      // own lines, which would rewrite `"files": ["dist"]` in each
+      // package.json into a three-line block for no reason. "auto"
+      // respects how the author wrote it.
+      "expand": "auto"
+    },
+    "parser": {
+      // biome.jsonc and tsconfig*.json carry comments.
+      "allowComments": true
+    }
+  },
+
+  "assist": {
+    "actions": {
+      "source": {
+        // OFF, deliberately. Import order in this repo is meaningful to
+        // read (language pack -> core -> local) but not mechanically
+        // derivable, and sorting every import block would bury the
+        // mechanical-reformat commit in churn that no reviewer can check.
+        // Revisit as its own change if we ever want it.
+        "organizeImports": "off"
+      }
+    }
+  },
+
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  }
+}
