@@ -333,5 +333,10 @@ These are non-negotiable inside this repo:
   the GitHub Actions recipe.
 - [`docs/skills.md`](./docs/skills.md) — what's bundled for Claude Code and
   Codex.
+- [`docs/calibration-followups.md`](./docs/calibration-followups.md) —
+  open calibration questions and the decisions taken, including the
+  reasoning behind every entry in `.crimes/suppressions.json` and
+  `.crimes/triage.json`. **Read this before "fixing" a noisy detector**
+  — the noise may already have been examined and deliberately kept.
 - [`docs/roadmap.md`](./docs/roadmap.md) — what currently ships vs what
   is planned.

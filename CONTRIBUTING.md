@@ -222,6 +222,15 @@ the offending line, and the whole reason must fit on that one line — a
 wrapped `//` block silently stops suppressing, though Biome will tell
 you via `suppressions/unused`.
 
+### Before you tune a detector because it looks noisy
+
+Read [`docs/calibration-followups.md`](./docs/calibration-followups.md)
+first. It records the calibration questions that have already been
+examined and the reasoning behind every entry in
+`.crimes/suppressions.json` and `.crimes/triage.json` — including which
+detector-widening changes were deliberately *rejected*, and why. A
+"no change" decision there is a decision, not an oversight.
+
 ### Known lint debt
 
 `apps/website/landing/index.html` builds two comparison tables from
