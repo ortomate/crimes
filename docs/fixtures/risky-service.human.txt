@@ -1,0 +1,42 @@
+CRIME SCENE REPORT
+repo: risky-service  ·  19 findings across 12 files  ·  7 high  11 medium  1 low
+
+Top files by risk
+src/contracts/user.ts  3 findings · 1 high, 2 medium
+   1. String Sprinkles   literal: "admin", appears in 4 production files across src/contracts, src/repo, src/routes, src/services
+   2. String Sprinkles   literal: "free", appears in 4 production files across src/contracts, src/repo, src/routes, src/services
+   3. Contract Split-Brain · User()   A: `User` (interface) — src/contracts/user.ts:5, 6 field(s), B: `UserSchema` (zod) — src/repo/user-schema.ts:4, 6 field(s)
+     Risk: churn low · test gap ~median · blast bottom-quartile (0 importers)
+     id=crime_00001 … crime_00004
+
+src/repo/orders.ts  2 findings · 2 medium
+   1. Catch and Release · persistOrder → insert   protected operation: await db.orders.insert(order);, calls inside the protected region: db.orders.insert
+   2. Catch and Release · loadOrder → findUnique   protected operation: return await db.orders.findUnique(id);, calls inside the protected region: db.orders.findUnique
+     Risk: churn low · test gap ~median · blast bottom-quartile (0 importers)
+     id=crime_00006 … crime_00010
+
+src/jobs/reconcile.ts  2 findings · 2 medium
+   1. Catch and Release · reconcile → publish   protected operation: queue.publish(order), calls inside the protected region: queue.publish
+   2. Catch and Release · archiveOld → updateMany   protected operation: await db.orders.updateMany({ archived: true });, calls inside the protected region: db.orders.updateMany
+     Risk: churn low · test gap ~median · blast bottom-quartile (0 importers)
+     id=crime_00008 … crime_00011
+
+.claude/settings.json  2 findings · 2 high
+   1. Loaded Agent · hooks()   hook configuration: .claude/settings.json, 1 hook command(s) with an execution hazard:
+   2. Loaded Agent · permissions.allow   settings file: .claude/settings.json, 2 allow-rule(s) granting more than a scoped command:
+     Risk: churn low · test gap bottom-quartile · blast bottom-quartile (0 importers)
+     id=crime_00013 … crime_00015
+
+src/services/payments.ts  2 findings · 1 high, 1 medium
+   1. Double Jeopardy · refundPayment → create   retry construct: retry helper: withRetry(…) (line 26),   retried mutation — stripe.refunds.create at line 26 (name suggests a write)
+   2. Double Jeopardy · submitPayment → post   retry construct: attempt loop: for (let attempt = 0; attempt < 3; attempt++) (line 12),   retried mutation — api.post at line 14 (HTTP POST)
+     Risk: churn low · test gap bottom-quartile · blast bottom-quartile (2 importers)
+     id=crime_00012 … crime_00016
+
+Showing 5 of 11 files. Run with --all for every finding.
+
+Also flagged elsewhere
+  tests/  1 finding
+  Run with --all to see them.
+
+→ Start with `crimes context src/contracts/user.ts` — it concentrates the most risk in this scan.

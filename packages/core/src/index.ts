@@ -146,6 +146,92 @@ export { syncIoInHotpathDetector } from "./detectors/sync-io-in-hotpath.js";
 export { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
 export { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
+// 0.16.0 detector slate.
+export { agentPermissionSprawlDetector } from "./detectors/agent-permission-sprawl.js";
+export { configDriftDetector } from "./detectors/config-drift.js";
+export { contractDriftDetector } from "./detectors/contract-drift.js";
+export { dependencyProvenanceGapDetector } from "./detectors/dependency-provenance-gap.js";
+export { duplicatedPolicyDetector } from "./detectors/duplicated-policy.js";
+export { mockSaturationDetector } from "./detectors/mock-saturation.js";
+export { passThroughAbstractionDetector } from "./detectors/pass-through-abstraction.js";
+export { swallowedErrorDetector } from "./detectors/swallowed-error.js";
+export { unboundedAsyncFanoutDetector } from "./detectors/unbounded-async-fanout.js";
+export { unsafeRetryDetector } from "./detectors/unsafe-retry.js";
+// 0.16.0 shared analysis infrastructure. Exported because the detectors
+// above are exported: a consumer assembling a custom detector list needs
+// to be able to build the indexes those detectors read.
+export { buildRiskIndex } from "./risk/build.js";
+export type { BuildRiskIndexOptions } from "./risk/build.js";
+export { discoverEnvInventoryFiles } from "./risk/env-inventory.js";
+export { conceptKeyOf, isProjectionPair } from "./risk/concept.js";
+export type { ConceptKey } from "./risk/concept.js";
+export type {
+  ContractDisagreement,
+  ContractDisagreementKind,
+  ContractDriftPair,
+  ContractIndex,
+  ContractOccurrence,
+  EnvIndex,
+  EnvOccurrence,
+  EnvVariableRecord,
+  PassThroughChain,
+  PassThroughCluster,
+  PassThroughEdge,
+  PassThroughIndex,
+  PolicyCloneGroup,
+  PolicyIndex,
+  PolicyNearCloneFamily,
+  PolicyOccurrence,
+  RiskIndex,
+} from "./risk/types.js";
+export { buildManifestIndex, classifySpecifier, isPinnedGitSpecifier } from "./manifest/build.js";
+export type {
+  DeclaredDependency,
+  DependencyKind,
+  Lockfile,
+  ManifestIndex,
+  PackageManifest,
+  SpecifierShape,
+} from "./manifest/types.js";
+export { buildAgentConfigIndex, quoteFragment, redactSecrets } from "./agents/build.js";
+export type {
+  AgentArtefactKind,
+  AgentConfigIndex,
+  AgentHook,
+  AgentInstruction,
+  AgentMcpServer,
+  AgentPermissionRule,
+  AgentPlatform,
+} from "./agents/types.js";
+export {
+  classifyScope,
+  isNeverReportable,
+  isProductionScope,
+  looksGeneratedSource,
+  scopeConfidenceMultiplier,
+} from "./util/scope-class.js";
+export type { ScopeClass } from "./util/scope-class.js";
+export {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreFromSeverity,
+  severityFromScore,
+} from "./scoring/confidence.js";
+export type { ConfidenceSignal } from "./scoring/confidence.js";
+export {
+  DOMAIN_CONCEPTS,
+  MUTATING_OPERATION_WORDS,
+  RISKY_BOUNDARIES,
+  classifyBoundary,
+  conceptsIn,
+  domainTokensAcross,
+  domainTokensIn,
+  isCriticalField,
+  criticalFieldReason,
+  isDomainBearing,
+  looksMutating,
+  splitIdentifier,
+} from "./domain/vocabulary.js";
 export {
   applyDiffFailOn,
   classifyDiff,

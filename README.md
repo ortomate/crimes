@@ -129,11 +129,42 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.15.0`
+## Status — `crimes@0.16.0`
 
-`crimes@0.15.0` is the latest published version on npm. It is
-**polyglot IA + monorepo coverage** — the release where `crimes` starts
-reporting problems that no single-language tool can see.
+`crimes@0.16.0` is the latest version. It is **the correctness and
+authority slate** — ten detectors that ask a different question from
+everything before them: *what does this code do when something goes
+wrong, and where does it disagree with itself?*
+
+Earlier families asked whether code is hard to change. These ask
+whether it is safe on a bad day. A retry that replays a payment, a
+catch that erases the only evidence a write failed, a `Promise.all`
+that opens one socket per database row, a test that stays green through
+any refactor because every collaborator was replaced with a double —
+each is correct today, passes review, and passes CI.
+
+The other half is **authority**: the same authorization rule
+implemented in two files, one record described by two disagreeing
+declarations, one environment variable parsed three ways. Nothing keeps
+those copies in agreement, so the next edit to either one is
+unobserved by the other. An agent asked to change a permission rule
+edits the site it was shown and has no reason to suspect a second copy
+exists three directories away.
+
+Three boundaries this release holds deliberately: **no registry calls**
+(`dependency_provenance_gap` reports what this repository's own records
+say, never what npm says), **nothing is executed**
+(`agent_permission_sprawl` reads hooks as text), and **no values are
+reported** (`config_drift` reports names and locations; a real `.env`
+is never opened).
+
+Schema stays `0.3.0` — new `type` values are additive, fingerprints and
+existing detector meanings are unchanged. Release notes:
+[`docs/releases/v0.16.0.md`](./docs/releases/v0.16.0.md).
+
+Earlier `0.15.0` work (_polyglot IA + monorepo coverage_) remains
+shipped — the release where `crimes` starts reporting problems that no
+single-language tool can see.
 
 Three cross-language detectors report disagreements *between* Python
 and TypeScript: `cross_language_route_drift` (the frontend calls a path
@@ -831,9 +862,56 @@ for the long-form reference (quorum rules, false-positive notes, suggested
 fixes) and the `related_files` field on every IA finding for the other
 paths that contributed evidence.
 
+### Correctness-risk detectors (shipped in `0.16.0`)
+
+| Detector                 | Charge               | What it does                                                                                                  |
+| ------------------------ | -------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `swallowed_error`        | Catch and Release    | A failure caught and discarded, or turned into an ambiguous fallback — no rethrow, no record, no discrimination |
+| `unsafe_retry`           | Double Jeopardy      | A retry around a potentially-mutating operation with no idempotency or deduplication key visible                |
+| `unbounded_async_fanout` | Concurrency Stampede | `Promise.all` over a runtime-sized collection doing per-element I/O with no visible concurrency bound            |
+| `mock_saturation`        | Mock Alibi           | A test that replaces every collaborator with a behaviourless double and asserts only on those doubles           |
+
+These are file-local, so `crimes context <file>` reports them on a
+single file. Long-form reference:
+[`docs/finding-types/correctness.md`](./docs/finding-types/correctness.md).
+
+### Cross-file authority detectors (shipped in `0.16.0`)
+
+| Detector                   | Charge                 | What it does                                                                                             |
+| -------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| `duplicated_policy`        | Policy Doppelgänger    | The same business / authorization / pricing / state-transition rule implemented independently in ≥2 files  |
+| `contract_drift`           | Contract Split-Brain   | Two declarations of one record that disagree — interfaces, type literals, Zod, and Valibot                 |
+| `config_drift`             | Environment Roulette   | One environment variable parsed, defaulted, or required differently across call sites, or client-exposed   |
+| `pass_through_abstraction` | Abstraction Laundering | A chain or cluster of wrapper functions that forward their arguments and add nothing                       |
+
+All four read one cross-file index built in a single parse pass.
+`duplicated_policy` gates on a narrow tier of business vocabulary, so
+`items.length > 0` in fifty files is never a finding. Long-form
+reference: [`docs/finding-types/authority.md`](./docs/finding-types/authority.md).
+
+### Agent-hygiene detectors (shipped in `0.16.0`)
+
+| Detector                    | Charge             | What it does                                                                                                    |
+| --------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `dependency_provenance_gap` | Phantom Accomplice | An import with no declaring manifest, a manifest/lockfile disagreement, or a specifier that resolves differently between installs |
+| `agent_permission_sprawl`   | Loaded Agent       | Repository-local agent settings, hooks, and MCP servers granting unrestricted execution or running fetched code   |
+
+Both are strictly local. `dependency_provenance_gap` contacts no
+registry and never claims a package is malicious, hallucinated, or
+unknown — only that this repository cannot account for it.
+`agent_permission_sprawl` never executes a hook it discovers, quotes
+only the minimal fragment needed, and redacts anything token-shaped.
+Prose directives in `AGENTS.md`-style files are reported as **advisory
+only**, capped below the medium severity band. Long-form reference:
+[`docs/finding-types/agent-hygiene.md`](./docs/finding-types/agent-hygiene.md).
+
 Every finding includes **evidence** (raw facts the detector observed) and
 **scores** (`severity`, `confidence`, `agent_risk`) so downstream tools can
-rank or filter without re-running heuristics.
+rank or filter without re-running heuristics. From `0.16.0` the newer
+detectors also render their **scoring arithmetic** into evidence —
+`confidence 0.88 = 0.60 base + 0.12 (domain vocabulary: …) + 0.10
+(spans 2 layers)` — so a number you disagree with is a number you can
+argue with.
 
 ---
 

@@ -85,6 +85,24 @@ export const DETECTOR_DEFAULTS: Record<string, DetectorDefaults> = {
   design_token_escape: { effort: "quick", fix_shape: "replace raw values with the design token" },
   responsive_fragility: { effort: "small", fix_shape: "drive layout from container queries or a fluid scale, not pixel media queries" },
 
+  // Correctness risk (0.16.0). Fix shapes name the *shape* of the change,
+  // never the change itself — a detector that dictates the fix stops being
+  // evidence and starts being an opinion.
+  swallowed_error: { effort: "small", fix_shape: "propagate, or record the error with enough context to act on" },
+  unsafe_retry: { effort: "medium", fix_shape: "pass a stable idempotency key, or make the retry read-only" },
+  unbounded_async_fanout: { effort: "small", fix_shape: "bound the concurrency, or page the source and process in batches" },
+  mock_saturation: { effort: "medium", fix_shape: "add one test that asserts an outcome, not a call" },
+
+  // Cross-file authority (0.16.0).
+  duplicated_policy: { effort: "medium", fix_shape: "extract one authoritative policy function; every site calls it" },
+  contract_drift: { effort: "medium", fix_shape: "derive one declaration from the other, or share one schema" },
+  config_drift: { effort: "small", fix_shape: "parse each setting once, in one module; everyone imports it" },
+  pass_through_abstraction: { effort: "medium", fix_shape: "collapse the empty layers; keep the one boundary that earns its place" },
+
+  // Agent hygiene (0.16.0).
+  dependency_provenance_gap: { effort: "quick", fix_shape: "declare each imported package in the manifest that uses it" },
+  agent_permission_sprawl: { effort: "quick", fix_shape: "narrow each rule to the specific commands the work needs" },
+
   // Asset detectors
   oversized_raster: { effort: "quick", fix_shape: "downscale or convert to WebP/AVIF; budget the size" },
   raster_should_be_vector: { effort: "quick", fix_shape: "ship the SVG source; rasters lose at any scale" },

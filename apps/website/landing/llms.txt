@@ -34,7 +34,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.15.0)
+## Commands (latest v0.16.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -340,7 +340,48 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.15.0 — polyglot IA + monorepo coverage (current release)
+## 0.16.0 — the correctness and authority slate (current release)
+
+Ten detectors that ask what code does when something goes wrong, and
+where a repository keeps its truth twice.
+
+Correctness risk (file-local):
+- `swallowed_error` (Catch and Release) — a failure caught and discarded,
+  or turned into an ambiguous fallback, with no propagation and no record.
+- `unsafe_retry` (Double Jeopardy) — a retry around a potentially-mutating
+  operation with no idempotency or deduplication key visible.
+- `unbounded_async_fanout` (Concurrency Stampede) — `Promise.all` over a
+  runtime-sized collection doing per-element I/O with no visible bound.
+- `mock_saturation` (Mock Alibi) — a test that replaces every collaborator
+  with a behaviourless double and asserts only on those doubles.
+
+Cross-file authority:
+- `duplicated_policy` (Policy Doppelgänger) — the same business rule
+  implemented independently in two or more production locations.
+- `contract_drift` (Contract Split-Brain) — two declarations of one record
+  that disagree. Reads TypeScript interfaces, object type aliases, Zod,
+  and Valibot.
+- `config_drift` (Environment Roulette) — one environment variable parsed,
+  defaulted, or required differently across call sites, read past a central
+  config boundary, or exposed to a client bundle.
+- `pass_through_abstraction` (Abstraction Laundering) — a chain or cluster
+  of wrapper functions that forward arguments and add nothing.
+
+Agent hygiene:
+- `dependency_provenance_gap` (Phantom Accomplice) — an import with no
+  declaring manifest, a manifest/lockfile disagreement, or a specifier that
+  resolves differently between installs. Entirely local: no registry is
+  contacted, and no claim is made about the packages themselves.
+- `agent_permission_sprawl` (Loaded Agent) — repository-local agent
+  settings, hooks, and MCP servers granting unrestricted execution or
+  running fetched code. Nothing discovered is ever executed; quoted
+  fragments are redacted.
+
+Schema stays 0.3.0 — new `type` values are additive and fingerprints are
+unchanged.
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.16.0.md
+
+## 0.15.0 — polyglot IA + monorepo coverage
 
 The release where crimes reports problems no single-language tool can
 see. Three cross-language detectors report disagreements *between*

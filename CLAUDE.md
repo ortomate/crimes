@@ -45,7 +45,24 @@ packages/core/             # detectors, scoring, finding schema — language-agn
 packages/language-js/      # TS/JS parsing, symbols, imports (first language pack)
 packages/reporter/         # human/json/markdown reporters over core's schema
 examples/messy-ts-app/     # intentional-mess fixture for detector tuning
+examples/risky-service/    # 0.16.0 correctness + authority fixture
 ```
+
+Shared analysis infrastructure inside `core` (added 0.16.0) — reach for
+these before writing a new one:
+
+- `risk/` — one-pass cross-file index: policy clones, object contracts,
+  environment reads, pass-through chains. Bucketed matching, never
+  global pairwise.
+- `domain/vocabulary.ts` — two-tier domain vocabulary. The broad tier
+  raises confidence; the narrow `strongDomainTokensIn` tier decides
+  whether a finding is emitted at all. Never gate on the broad tier.
+- `scoring/confidence.ts` — `ConfidenceLadder` / `SeverityLadder`. Every
+  score is a base plus named deltas, rendered into evidence.
+- `util/scope-class.ts` — one answer to generated / vendored /
+  migration / fixture / test / config / production.
+- `manifest/`, `agents/` — package-manifest and agent-config
+  inventories for the repo-level detectors.
 
 Key boundaries:
 

@@ -146,6 +146,23 @@ Commander-style registrar wrappers and `.action(...)` callbacks.
 `crimes hotspots <subdir>` walks upward to the enclosing git repo.
 Full docs site at [`crimes.sh/docs/`](https://crimes.sh/docs/).
 
+**Shipped in `0.16.0`** — no new commands. Ten detectors across three
+new finding families: correctness risk (`swallowed_error`,
+`unsafe_retry`, `unbounded_async_fanout`, `mock_saturation` —
+[`finding-types/correctness.md`](./docs/finding-types/correctness.md)),
+cross-file authority (`duplicated_policy`, `contract_drift`,
+`config_drift`, `pass_through_abstraction` —
+[`finding-types/authority.md`](./docs/finding-types/authority.md)), and
+agent hygiene (`dependency_provenance_gap`, `agent_permission_sprawl` —
+[`finding-types/agent-hygiene.md`](./docs/finding-types/agent-hygiene.md)).
+Schema stays `0.3.0`. New shared infrastructure lives in
+`packages/core/src/risk/` (one-pass cross-file index),
+`packages/core/src/domain/vocabulary.ts` (two-tier domain vocabulary),
+`packages/core/src/scoring/confidence.ts` (explainable score ladders),
+and `packages/core/src/util/scope-class.ts` (one generated/vendored/
+fixture/test classifier). New fixture:
+`examples/risky-service/`.
+
 **Not yet implemented** — do not invoke or reference these in generated docs:
 `crimes ask`. See [`docs/agent-usage.md`](./docs/agent-usage.md) for the
 full shipped/deferred matrix and
@@ -260,6 +277,17 @@ These are non-negotiable inside this repo:
    `crimes` is positioned as change-risk and agent-risk, not style or
    security. If a detector is "could be a linter rule", push back before
    building it.
+6b. **Three boundaries the 0.16.0 slate holds, and you must too.**
+   (a) **No network.** `dependency_provenance_gap` reports what this
+   repo's own records say; it never contacts a registry and never
+   claims a package is malicious, hallucinated, or unknown.
+   (b) **Never execute discovered configuration.** `agent_permission_sprawl`
+   reads hooks, MCP launch commands, and settings as text. Running one
+   to analyse it would make this tool an RCE vector.
+   (c) **Never put a configuration value in a finding.** `config_drift`
+   reports names, locations, and literal defaults from committed
+   source. A real `.env` is never opened — enforced at discovery in
+   `risk/env-inventory.ts`, with a second independent filter.
 7. **Treat the JSON schema as a public API.** New optional fields are OK;
    removing or repurposing existing ones is a breaking change requiring a
    `schema_version` bump.

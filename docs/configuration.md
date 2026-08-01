@@ -274,6 +274,68 @@ The keys each detector understands are documented alongside that
 detector under [`finding-types/`](./finding-types/). Detectors
 that don't appear in those docs accept no options.
 
+#### Options added in 0.16.0
+
+Every detector in the 0.16.0 slate accepts options. Full descriptions
+live in [`finding-types/authority.md`](./finding-types/authority.md),
+[`finding-types/correctness.md`](./finding-types/correctness.md), and
+[`finding-types/agent-hygiene.md`](./finding-types/agent-hygiene.md);
+this is the index.
+
+| detector                    | key                             | type       | default | what it does |
+| --------------------------- | ------------------------------- | ---------- | ------- | ------------ |
+| `duplicated_policy`         | `minFiles`                      | int ≥2     | `2`     | Distinct production files a clone must span |
+|                             | `minTokens`                     | int ≥3     | `3`     | Normalised-token floor; raise to report only compound rules |
+|                             | `reportNearClones`              | boolean    | `true`  | Report families of one-value rule variants |
+|                             | `ignorePaths`                   | string[]   | `[]`    | Property-path tails to skip entirely |
+| `contract_drift`            | `minOverlap`                    | 0.3-1      | `0.6`   | Field-set overlap required before two declarations pair |
+|                             | `minDisagreements`              | int ≥1     | `1`     | Disagreements required before reporting |
+|                             | `ignoreNames`                   | string[]   | `[]`    | Contract names to exclude (case-insensitive, exact) |
+|                             | `reportRequiredness`            | boolean    | `true`  | Report optional-vs-required differences |
+| `config_drift`              | `reportUndocumented`            | boolean    | `true`  | Report variables absent from `.env.example` |
+|                             | `reportUnused`                  | boolean    | `false` | Report documented-but-unread variables |
+|                             | `reportBoundaryBypass`          | boolean    | `true`  | Report direct reads past a central config module |
+|                             | `ignoreNames`                   | string[]   | `[]`    | Variable names to ignore entirely |
+|                             | `publicPrefixes`                | string[]   | `[]`    | Extra client-exposing prefixes beyond the built-ins |
+| `pass_through_abstraction`  | `minChainLength`                | int 2-20   | `3`     | Wrappers in a chain before it is reported |
+|                             | `minChainFiles`                 | int 1-20   | `2`     | Distinct files a chain must span |
+|                             | `minClusterSize`                | int 3-50   | `4`     | Wrappers sharing one receiver before a cluster is reported |
+|                             | `boundaryPaths`                 | string[]   | `[]`    | Extra path fragments marking a deliberate boundary |
+| `swallowed_error`           | `reportLogWithoutError`         | boolean    | `true`  | Report handlers that log without passing the error |
+|                             | `reportFallbackReturns`         | boolean    | `true`  | Report handlers returning a bland fallback |
+|                             | `treatCommentAsIntent`          | boolean    | `false` | Treat a comment-only handler as deliberate and skip it |
+|                             | `allowedFunctions`              | string[]   | `[]`    | Enclosing function names to exempt |
+| `unsafe_retry`              | `transactionCountsAsIdempotent` | boolean    | `false` | Accept a visible transaction as sufficient on its own |
+|                             | `reportDelete`                  | boolean    | `true`  | Report retried HTTP `DELETE` |
+|                             | `mutatingCalls`                 | string[]   | `[]`    | Extra callee names to treat as writes |
+|                             | `idempotentCalls`               | string[]   | `[]`    | Callee names known safe to replay |
+| `unbounded_async_fanout`    | `staticallySmall`               | int 1-100  | `8`     | Array-literal size treated as bounded by construction |
+|                             | `reportUnclassifiedWork`        | boolean    | `false` | Report fan-outs whose callback work could not be classified |
+|                             | `boundedHelpers`                | string[]   | `[]`    | Project helpers that bound concurrency |
+| `mock_saturation`           | `minMockedRatio`                | 0.1-1      | `0.8`   | Fraction of collaborators mocked before saturation is considered |
+|                             | `minMockedCollaborators`        | int 1-50   | `2`     | Distinct collaborators that must be mocked |
+|                             | `reportInteractionOnlyTests`    | boolean    | `false` | Report interaction-only assertions below the ratio threshold |
+|                             | `alwaysAllowedMocks`            | string[]   | `[]`    | Specifiers whose mocking never counts toward saturation |
+| `dependency_provenance_gap` | `reportUndeclaredImports`       | boolean    | `true`  | Report imports with no declaring manifest |
+|                             | `reportMissingFromLock`         | boolean    | `true`  | Report declared dependencies absent from the lockfile |
+|                             | `reportUnpinnedSpecifiers`      | boolean    | `true`  | Report mutable git / URL / wildcard specifiers |
+|                             | `allowedPackages`               | string[]   | `[]`    | Packages to treat as always available |
+| `agent_permission_sprawl`   | `reportPermissions`             | boolean    | `true`  | Report broad permission grants |
+|                             | `reportHooks`                   | boolean    | `true`  | Report hook and MCP execution hazards |
+|                             | `reportInstructionProse`        | boolean    | `true`  | Report advisory prose directives |
+|                             | `allowedRules`                  | string[]   | `[]`    | Permission rules to accept verbatim |
+
+All values are validated at config load. An out-of-range number, a
+wrong type, or an unrecognised key exits `2` with a message naming the
+detector and the offending path.
+
+**Two limits are not configurable**, deliberately:
+
+- The cross-file risk index truncates at **5000 source files** and
+  reports itself `limited` rather than spending unbounded time.
+- Bucketed matching caps at **400 comparisons per bucket**. Both are
+  regression guards against pathological repos, not tuning knobs.
+
 ### `scopeTiers.nonDomain` (since 0.10.0)
 
 Glob patterns whose findings are classified as `tier: "nonDomain"`.

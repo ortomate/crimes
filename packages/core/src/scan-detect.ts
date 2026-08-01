@@ -23,12 +23,19 @@ import type { ImportGraph } from "./imports/types.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import type { PettyIndex } from "./petty/types.js";
 import type { ScoringContext } from "./scoring/build.js";
+import type { AgentConfigIndex } from "./agents/types.js";
+import type { ManifestIndex } from "./manifest/types.js";
+import type { RiskIndex } from "./risk/types.js";
+import { discoverEnvInventoryFiles } from "./risk/env-inventory.js";
 import {
+  safelyBuildAgentConfigIndex,
   safelyBuildFunctionHashIndex,
   safelyBuildIaIndex,
   safelyBuildImportGraph,
   safelyBuildJsxShapeIndex,
+  safelyBuildManifestIndex,
   safelyBuildPettyIndex,
+  safelyBuildRiskIndex,
   safelyBuildScoringContext,
 } from "./indexes.js";
 
@@ -48,6 +55,12 @@ export interface ScanIndexes {
   jsxShapeIndex?: JsxShapeIndex;
   functionHashIndex?: FunctionHashIndex;
   scoring?: ScoringContext;
+  /** Cross-file policy / contract / env / indirection inventory (0.16.0). */
+  risk?: RiskIndex;
+  /** package.json + lockfile inventory (0.16.0). */
+  manifest?: ManifestIndex;
+  /** Repo-local agent configuration inventory (0.16.0). */
+  agentConfig?: AgentConfigIndex;
 }
 
 export async function buildScanIndexes(args: {
@@ -68,8 +81,22 @@ export async function buildScanIndexes(args: {
   const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
   const functionHashIndex = await safelyBuildFunctionHashIndex({ root, allFiles });
   const scoring = await safelyBuildScoringContext({ root, allFiles, imports });
+  const envInventoryFiles = await discoverEnvInventoryFiles(root);
+  const risk = await safelyBuildRiskIndex({ root, allFiles, envInventoryFiles });
+  const manifest = await safelyBuildManifestIndex({ root });
+  const agentConfig = await safelyBuildAgentConfigIndex({ root });
 
-  return { ia, petty, imports, jsxShapeIndex, functionHashIndex, scoring };
+  return {
+    ia,
+    petty,
+    imports,
+    jsxShapeIndex,
+    functionHashIndex,
+    scoring,
+    risk,
+    manifest,
+    agentConfig,
+  };
 }
 
 export async function runDetectorsForFiles(args: {

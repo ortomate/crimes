@@ -10,6 +10,12 @@ import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
 import { buildScoringContext } from "./scoring/build.js";
 import type { ScoringContext } from "./scoring/build.js";
+import { buildRiskIndex } from "./risk/build.js";
+import type { RiskIndex } from "./risk/types.js";
+import { buildManifestIndex } from "./manifest/build.js";
+import type { ManifestIndex } from "./manifest/types.js";
+import { buildAgentConfigIndex } from "./agents/build.js";
+import type { AgentConfigIndex } from "./agents/types.js";
 
 /**
  * Cross-file index builders shared by `scan()` and `context()`. Each is
@@ -95,6 +101,44 @@ export async function safelyBuildScoringContext(args: {
       files: args.allFiles,
       imports: args.imports,
     });
+  } catch {
+    return undefined;
+  }
+}
+
+export async function safelyBuildRiskIndex(args: {
+  root: string;
+  allFiles: string[];
+  envInventoryFiles?: string[];
+}): Promise<RiskIndex | undefined> {
+  try {
+    return await buildRiskIndex({
+      root: args.root,
+      files: args.allFiles,
+      ...(args.envInventoryFiles !== undefined
+        ? { envInventoryFiles: args.envInventoryFiles }
+        : {}),
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+export async function safelyBuildManifestIndex(args: {
+  root: string;
+}): Promise<ManifestIndex | undefined> {
+  try {
+    return await buildManifestIndex({ root: args.root });
+  } catch {
+    return undefined;
+  }
+}
+
+export async function safelyBuildAgentConfigIndex(args: {
+  root: string;
+}): Promise<AgentConfigIndex | undefined> {
+  try {
+    return await buildAgentConfigIndex({ root: args.root });
   } catch {
     return undefined;
   }

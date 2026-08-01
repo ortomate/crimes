@@ -105,6 +105,27 @@ export function nonDomainCountsLine(findings: Finding[]): string {
     .join("    ");
 }
 
+/**
+ * Render `Finding.symbol` for the human report.
+ *
+ * The historical convention appends `()` because `symbol` used to hold
+ * a function name in every case. From 0.16.0 several detectors use it
+ * to carry a **stable identity** instead — `persistOrder → insert`,
+ * `admin plan "admin" "free" rule`, `REQUEST_TIMEOUT_MS`,
+ * `permissions.allow` — and `persistOrder → insert()` reads as though
+ * the arrow were part of a call.
+ *
+ * So the parentheses are appended only when the symbol looks callable:
+ * a plain identifier that is not SCREAMING_SNAKE. Every symbol emitted
+ * before 0.16.0 is a plain function or class name, so this leaves all
+ * existing output byte-identical.
+ */
+function formatSymbol(symbol: string): string {
+  const looksCallable =
+    /^[A-Za-z_$][\w$]*$/.test(symbol) && !/^[A-Z0-9_$]+$/.test(symbol);
+  return looksCallable ? `${symbol}()` : symbol;
+}
+
 function renderResurfacedFinding(
   lines: string[],
   finding: Finding,
@@ -113,7 +134,7 @@ function renderResurfacedFinding(
   isColorDisabled: boolean,
 ): void {
   const marker = isColorDisabled ? "*" : "▼";
-  const symbol = finding.symbol ? ` · ${colour.cyan(`${finding.symbol}()`)}` : "";
+  const symbol = finding.symbol ? ` · ${colour.cyan(formatSymbol(finding.symbol))}` : "";
   lines.push(
     `   ${colour.bold(`${idx + 1}.`)} ${colour.bold(marker)} ${finding.charge}${symbol}`,
   );
@@ -191,7 +212,7 @@ function formatFindingCompactLine(
   n: number,
   colour: ColourFns,
 ): string {
-  const symbol = f.symbol ? ` · ${colour.cyan(`${f.symbol}()`)}` : "";
+  const symbol = f.symbol ? ` · ${colour.cyan(formatSymbol(f.symbol))}` : "";
   const evidence = compactEvidence(f);
   const evidenceSegment = evidence ? `   ${colour.dim(evidence)}` : "";
   const triagedPrefix = f.triaged

@@ -366,6 +366,322 @@ export interface StringUnionType {
   line: number;
 }
 
+/* ------------------------------------------------------------------ *
+ * 0.16.0 risk surfaces
+ *
+ * Everything below is consumed by the detector families added in
+ * 0.16.0. They share one property worth stating once: each surface
+ * records *structure and location*, never a judgement. "This catch block
+ * returns null" is a fact; "this catch block is wrong" is policy, and
+ * policy lives in `packages/core`.
+ * ------------------------------------------------------------------ */
+
+/** What kind of construct a policy expression was extracted from. */
+export type PolicyKind =
+  | "boolean_predicate"
+  | "guard_clause"
+  | "conditional"
+  | "switch_case";
+
+/**
+ * One business-rule-shaped expression, rendered into a canonical form
+ * that two independent implementations of the same rule agree on. See
+ * `parse/policy.ts` for exactly what normalisation keeps and drops.
+ */
+export interface PolicyExpression {
+  kind: PolicyKind;
+  /** Canonical form — the clone key. */
+  normalized: string;
+  /** Readable rendering of the original, whitespace-collapsed and capped. */
+  readable: string;
+  /** Enclosing function name, when the expression sits inside a named one. */
+  enclosing?: string;
+  /** 1-based line of the construct. */
+  line: number;
+  /** 1-based end line of the construct. */
+  endLine: number;
+  /** Full dotted property paths referenced, deduplicated. */
+  paths: string[];
+  /** String / numeric literal values participating in the rule. */
+  literals: string[];
+  /** Callee names invoked by the rule, tail form. */
+  calls: string[];
+  /** Operators in traversal order — the rule's shape. */
+  operators: string[];
+  /** Normalised token count. Complexity gate for the detector. */
+  tokens: number;
+}
+
+/** Which syntax an object contract was declared in. */
+export type ContractSource =
+  | "interface"
+  | "type_literal"
+  | "zod"
+  | "valibot";
+
+/** One field of an object contract. */
+export interface ContractField {
+  name: string;
+  /** Normalised type text — `"string"`, `"number[]"`, `"{a,b}"`. */
+  type: string;
+  /** Declared with `?` (TS) or `.optional()` (schema). */
+  optional: boolean;
+  /** Admits `null` / `undefined` as a value. */
+  nullable: boolean;
+  /** Closed set of string members, when the type is one. */
+  enumMembers?: string[];
+  /** True when the field's type is an inline object. */
+  nested: boolean;
+  line: number;
+}
+
+/**
+ * A declaration that pins down the shape of a record. Consumed by
+ * `contract_drift` to find two representations of one contract that
+ * disagree.
+ */
+export interface ObjectContract {
+  name: string;
+  source: ContractSource;
+  exported: boolean;
+  line: number;
+  endLine: number;
+  fields: ContractField[];
+  /**
+   * True when the declaration extends, intersects, or spreads something
+   * the collector did not expand. A `partial` contract may hold fields
+   * that are not in `fields`, so no "missing field" claim may be made
+   * against it.
+   */
+  partial: boolean;
+}
+
+export type ErrorHandlerKind = "catch_clause" | "promise_catch" | "fire_and_forget";
+
+/** What a handler body does with the failure it received. */
+export interface ErrorHandlerBody {
+  /** No statements at all. */
+  empty: boolean;
+  /** Comments only — the author wrote something, but not code. */
+  commentOnly: boolean;
+  /** Rethrows, or returns a rejected promise. */
+  rethrows: boolean;
+  /** Calls an observability API **with** the error value. */
+  reportsError: boolean;
+  /** Calls an observability API without passing the error along. */
+  reportsWithoutError: boolean;
+  /** Bland fallback value returned, rendered for evidence. */
+  fallback?: string;
+  /** Converts the failure into a typed, discriminable result. */
+  typedResult: boolean;
+  /** Inspects the error (instanceof / `.code` / `isFooError`) before deciding. */
+  discriminates: boolean;
+  /** Handler calls a named no-op (`noop`, `ignore`) — a deliberate choice. */
+  intentionalNoop?: boolean;
+  /** Statement count in the handler body. */
+  statements: number;
+  /** Comment text found in an otherwise-empty handler. */
+  comment?: string;
+}
+
+/** A place where a failure is caught, with what happens to it. */
+export interface ErrorHandler {
+  kind: ErrorHandlerKind;
+  line: number;
+  endLine: number;
+  /** Condensed source of the operation the handler protects. */
+  protectedOperation: string;
+  /** Callee names invoked inside the protected region. */
+  protectedCalls: string[];
+  body: ErrorHandlerBody;
+  /** Name bound to the error, when there is one. */
+  errorBinding?: string;
+  enclosing?: string;
+  /** Comment found inside an empty handler, condensed. */
+  comment?: string;
+}
+
+/** How a retry construct was recognised. */
+export type RetryKind = "loop" | "helper" | "recursion" | "sdk_config";
+
+/** A safety control that makes retrying a mutation defensible. */
+export type RetrySafeguardKind =
+  | "idempotency_key"
+  | "transaction"
+  | "bounded_attempts"
+  | "delay"
+  | "jitter"
+  | "error_classification"
+  | "timeout";
+
+export interface RetrySafeguard {
+  kind: RetrySafeguardKind;
+  /** Quotable fragment explaining how the safeguard was recognised. */
+  evidence: string;
+  line: number;
+}
+
+/** A call inside a retry that appears to change state somewhere. */
+export interface MutatingCall {
+  /** Callee as written, e.g. `stripe.charges.create`. */
+  callee: string;
+  line: number;
+  /** `http` when recognised by verb; `call` when recognised by name. */
+  via: "http" | "call";
+  /** Upper-case HTTP verb when `via === "http"`. */
+  method?: string;
+}
+
+/** A retry construct wrapping potentially-mutating work. */
+export interface RetrySite {
+  kind: RetryKind;
+  /** Human-readable description of how the retry was recognised. */
+  construct: string;
+  line: number;
+  endLine: number;
+  mutations: MutatingCall[];
+  safeguards: RetrySafeguard[];
+  /**
+   * Every callee invoked inside the retry, deduplicated and capped.
+   *
+   * `mutations` is the parser's own judgement about which of these write
+   * something. This list is the raw material behind that judgement, and
+   * exists so a detector can apply *project-specific* knowledge the
+   * parser cannot have — `unsafe_retry`'s `mutatingCalls` option widens
+   * the set against this list, not against `mutations`.
+   */
+  calls: string[];
+  /** Statically-visible attempt bound, when there is one. */
+  maxAttempts?: number;
+  enclosing?: string;
+}
+
+/** How an environment variable was reached. */
+export type EnvReadVia =
+  | "process.env"
+  | "import.meta.env"
+  | "destructured"
+  | "dynamic";
+
+/** One read of one environment variable, with how the value is handled. */
+export interface EnvRead {
+  /** Variable name. `"*"` for a computed key. */
+  name: string;
+  via: EnvReadVia;
+  line: number;
+  /** Coercion applied at the read site, when visible. */
+  parser?: "number" | "int" | "float" | "boolean" | "json" | "string";
+  /**
+   * Rendered default. String / numeric literals verbatim (a committed
+   * constant, not a secret); anything else as a shape.
+   */
+  defaultValue?: string;
+  /** The read is asserted non-empty (`!`, a throwing guard, a schema parse). */
+  required: boolean;
+  /** Unit implied by the variable name (`_MS` → `milliseconds`). */
+  unit?: string;
+  /** Client-exposing prefix on the name (`NEXT_PUBLIC_`, `VITE_`). */
+  publicPrefix?: string;
+  enclosing?: string;
+}
+
+/** Category of potentially-expensive per-element work in a fan-out. */
+export interface FanOutWork {
+  kind: "network" | "database" | "filesystem" | "subprocess" | "queue";
+  callee: string;
+  line: number;
+}
+
+/** A visible constraint on how much work a fan-out starts at once. */
+export interface FanOutBound {
+  kind: "slice" | "limit_option" | "batch" | "semaphore" | "library";
+  evidence: string;
+  line: number;
+}
+
+/** A `Promise.all` / `Promise.allSettled` over a mapped collection. */
+export interface FanOutSite {
+  kind: "promise_all" | "promise_all_settled";
+  line: number;
+  endLine: number;
+  /** Rendered collection expression. */
+  collection: string;
+  /** Where the collection appears to come from. */
+  collectionSource?: "await_call" | "parameter" | "literal" | "property" | "unknown";
+  /** Callee that produced the collection, when statically visible. */
+  producer?: string;
+  /** True when the collection is a statically-sized small literal. */
+  staticallyBounded: boolean;
+  /** Element count when statically sized. */
+  staticSize?: number;
+  work: FanOutWork[];
+  bounds: FanOutBound[];
+  enclosing?: string;
+}
+
+/** What an assertion actually proves. */
+export type AssertionCategory =
+  | "mock_interaction"
+  | "value"
+  | "error"
+  | "snapshot"
+  | "type"
+  | "truthiness"
+  | "unknown";
+
+export interface TestAssertion {
+  category: AssertionCategory;
+  /** Matcher name as written (`toHaveBeenCalledWith`). */
+  matcher: string;
+  line: number;
+}
+
+/** One `it` / `test` block. */
+export interface TestCase {
+  title: string;
+  line: number;
+  endLine: number;
+  /** Enclosing `describe` titles, outermost first. */
+  suite: string[];
+  assertions: TestAssertion[];
+  /** Count of `mockReturnValue`-style calls programming the doubles. */
+  mockConfigurations: number;
+}
+
+/** One test double declared in a test file. */
+export interface MockDeclaration {
+  kind: "module" | "spy" | "stub" | "fn" | "timers";
+  /** Module specifier for module mocks; the target expression otherwise. */
+  target: string;
+  line: number;
+  /** The replacement has no behaviour — every member returns `undefined`. */
+  hollow: boolean;
+  /** Declared with no factory at all, so the framework auto-mocks. */
+  autoMocked: boolean;
+}
+
+/** How faithfully a wrapper forwards its arguments. */
+export type PassThroughForwarding = "identical" | "reordered" | "partial";
+
+/** A function whose whole body is one forwarded call. */
+export interface PassThroughFunction {
+  name: string;
+  line: number;
+  endLine: number;
+  exported: boolean;
+  /** Callee as written, e.g. `this.repo.save`. */
+  target: string;
+  /** Last segment of `target` — the chain-building key. */
+  targetTail: string;
+  forwarding: PassThroughForwarding;
+  /** Everything the wrapper contributes beyond forwarding. Empty is the crime. */
+  adds: string[];
+  /** Receiver when the call is a member access (`this.repo`). */
+  viaMember?: string;
+  /** The wrapper and its target share a name. */
+  sameName?: true;
+}
+
 export interface ParsedFile {
   /** Total non-empty line count (1-based). */
   lineCount: number;
@@ -424,6 +740,27 @@ export interface ParsedFile {
    * the file declares none. Consumed only by the cross-language pack.
    */
   stringUnionTypes?: StringUnionType[];
+
+  /* --- 0.16.0 risk surfaces. Each absent when the file has none. --- */
+
+  /** Business-rule-shaped expressions, in canonical form. */
+  policyExpressions?: PolicyExpression[];
+  /** Interface / type-literal / Zod / Valibot record shapes. */
+  objectContracts?: ObjectContract[];
+  /** Catch clauses, `.catch()` handlers, and discarded rejections. */
+  errorHandlers?: ErrorHandler[];
+  /** Retry constructs wrapping potentially-mutating work. */
+  retrySites?: RetrySite[];
+  /** Environment-variable reads with their parsing and defaults. */
+  envReads?: EnvRead[];
+  /** `Promise.all` / `allSettled` fan-outs over mapped collections. */
+  fanOutSites?: FanOutSite[];
+  /** `it` / `test` blocks with categorised assertions. Test files only. */
+  testCases?: TestCase[];
+  /** Test doubles declared in the file. Test files only. */
+  mockDeclarations?: MockDeclaration[];
+  /** Functions whose whole body forwards one call. */
+  passThroughFunctions?: PassThroughFunction[];
 }
 
 export interface ParseInput {

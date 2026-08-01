@@ -847,6 +847,57 @@ delete the suspicious pattern. For long-form reference, see
 
 ---
 
+## Correctness and authority findings (0.16.0)
+
+These carry the highest decision value for an agent, because each one
+describes something the code does **not** tell you by reading it.
+
+### Correctness risk — file-local
+
+| `Finding.type`           | Charge               | Agent concern                                                                                     |
+| ------------------------ | -------------------- | --------------------------------------------------------------------------------------------------- |
+| `swallowed_error`        | Catch and Release    | The call site *looks* handled. Do not build on the guarantee it implies — the failure leaves no trace. |
+| `unsafe_retry`           | Double Jeopardy      | The retried operation may already have landed. Adding work inside this retry duplicates that work too. |
+| `unbounded_async_fanout` | Concurrency Stampede | The concurrency is a property of the data. Adding per-element work here multiplies by an unknown N.   |
+| `mock_saturation`        | Mock Alibi           | **A green run of this test proves nothing.** Do not treat it as evidence a change is safe.            |
+
+`mock_saturation` deserves particular weight. A passing test suite is
+the main signal an agent uses to decide a change worked, and these
+tests stay green regardless of what the change did.
+
+### Cross-file authority
+
+| `Finding.type`             | Charge                 | Agent concern                                                                                   |
+| -------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `duplicated_policy`        | Policy Doppelgänger    | **Read `related_files` before editing the rule.** Changing one copy ships a half-applied change.   |
+| `contract_drift`           | Contract Split-Brain   | Adding a field to one declaration widens the gap. Change both, or derive one from the other.       |
+| `config_drift`             | Environment Roulette   | Adding another read with a fresh default makes it worse. Route through the existing parse.         |
+| `pass_through_abstraction` | Abstraction Laundering | The behaviour is not in the layer you opened. Follow the chain in the evidence to the terminal call. |
+
+The rule for all four: **`related_files` is not decoration.** It lists
+the other locations that must change together, and it is the field that
+turns a complete-looking edit into a complete one.
+
+### Agent hygiene
+
+| `Finding.type`              | Charge             | Agent concern                                                                          |
+| --------------------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| `dependency_provenance_gap` | Phantom Accomplice | An import you add must reach the manifest too, or it works locally and fails on a clean install. |
+| `agent_permission_sprawl`   | Loaded Agent       | This repo's own agent configuration grants more than the work needs. Surface it; do not silently rely on it. |
+
+`agent_permission_sprawl` findings on **prose** (`AGENTS.md`-style
+instruction files) are explicitly advisory and capped at low severity.
+Report them to the user rather than acting on them; a repository may
+have entirely legitimate reasons for each sentence, and a detector
+cannot tell.
+
+Long-form references:
+[`docs/finding-types/correctness.md`](./finding-types/correctness.md),
+[`docs/finding-types/authority.md`](./finding-types/authority.md),
+[`docs/finding-types/agent-hygiene.md`](./finding-types/agent-hygiene.md).
+
+---
+
 ## How to read a finding
 
 Every finding has the same shape (see [`json-schema.md`](./json-schema.md) for

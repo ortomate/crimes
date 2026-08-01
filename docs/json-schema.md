@@ -552,6 +552,35 @@ should treat unknown values defensively. The currently shipped values are:
 | `exact_duplicate_block`         | `Exact Duplicate Block`      | yes         | Two or more function bodies / statement blocks share an identical AST hash                       |
 | `near_duplicate_block`          | `Near-Duplicate Block`       | yes         | Two function bodies share a high-similarity AST-hash bag with a small delta                      |
 | `duplicated_role_status_plan_check` | `Duplicated Policy Logic` | no         | The same domain concept (role, status, plan tier) is checked in multiple files with different shapes |
+| `duplicated_policy`             | `Policy Doppelgänger`        | yes         | The same business / authorization / pricing rule implemented independently in two or more production files |
+| `contract_drift`                | `Contract Split-Brain`       | yes         | Two declarations (interface, type literal, Zod, Valibot) describing one record disagree about a field |
+| `config_drift`                  | `Environment Roulette`       | yes         | One environment variable parsed, defaulted, or required differently across call sites; or exposed to client bundles |
+| `pass_through_abstraction`      | `Abstraction Laundering`     | yes         | A chain or cluster of wrapper functions that forward arguments and add nothing |
+| `swallowed_error`               | `Catch and Release`          | yes         | A failure caught and discarded, or turned into an ambiguous fallback, with no propagation and no record |
+| `unsafe_retry`                  | `Double Jeopardy`            | yes         | A retry around a potentially-mutating operation with no visible idempotency or deduplication key |
+| `unbounded_async_fanout`        | `Concurrency Stampede`       | yes         | `Promise.all` over a runtime-sized collection doing per-element I/O with no visible concurrency bound |
+| `mock_saturation`               | `Mock Alibi`                 | yes         | A test that replaces every collaborator with a behaviourless double and asserts only on those doubles |
+| `dependency_provenance_gap`     | `Phantom Accomplice`         | yes         | An import with no declaring manifest, a manifest/lockfile disagreement, or an unpinned specifier |
+| `agent_permission_sprawl`       | `Loaded Agent`               | yes         | Repository-local agent settings, hooks, or MCP servers that grant unrestricted execution or run fetched code |
+
+The 0.16.0 additions (`duplicated_policy`, `contract_drift`,
+`config_drift`, `pass_through_abstraction`, `swallowed_error`,
+`unsafe_retry`, `unbounded_async_fanout`, `mock_saturation`,
+`dependency_provenance_gap`, `agent_permission_sprawl`) all set
+`symbol`, and several use it to carry a **stable identity** rather than
+a declaration name — a rule key for `duplicated_policy`, a variable
+name for `config_drift`, `<enclosing> → <operation>` for
+`swallowed_error` / `unsafe_retry` / `unbounded_async_fanout`, and a
+finding-category label for `dependency_provenance_gap` /
+`agent_permission_sprawl`. This is deliberate: `symbol` participates in
+the fingerprint (`<type>::<file>::<symbol>`), and a declaration name
+alone would collide whenever one function contains two instances of the
+same crime. Existing detectors keep their historical `symbol`
+semantics unchanged.
+
+Adding these `type` values does **not** bump `schema_version`: new
+detector types are an additive change to a documented-open enumeration,
+and every field they populate already exists in the `Finding` shape.
 
 Information-architecture findings (`missing_agent_context`,
 `route_metadata_drift`, `duplicated_navigation_source`,
@@ -563,6 +592,16 @@ path, and `related_files` lists the other files involved.
 `magic_domain_literal_scatter`, the duplication detectors, the
 dependency-graph detectors, and the frontend duplicate-component
 detector follow the same cross-file pattern.
+
+The 0.16.0 cross-file detectors (`duplicated_policy`,
+`contract_drift`, `config_drift`, `pass_through_abstraction`) do the
+same, anchoring on the lexicographically first file of each group so
+the `file` field is stable when unrelated files change.
+`dependency_provenance_gap` and `agent_permission_sprawl` are
+repo-level: they emit once per scan, and their `file` points at the
+artefact a reader would open (`package.json`, `.claude/settings.json`)
+rather than at the source file the detector loop happened to be
+visiting.
 
 ### `detector_id`
 

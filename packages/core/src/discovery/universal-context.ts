@@ -1,7 +1,11 @@
 import type { CrimesConfig } from "../config.js";
 import type { UniversalDetectorContext } from "../detector.js";
+import type { AgentConfigIndex } from "../agents/types.js";
 import type { IaIndex } from "../ia/types.js";
+import type { ImportGraph } from "../imports/types.js";
+import type { ManifestIndex } from "../manifest/types.js";
 import type { PettyIndex } from "../petty/types.js";
+import type { RiskIndex } from "../risk/types.js";
 import type { ScoringContext } from "../scoring/build.js";
 import { buildUniversalFile } from "./universal-file.js";
 
@@ -14,6 +18,10 @@ export async function buildUniversalContext(args: {
     ia?: IaIndex;
     petty?: PettyIndex;
     scoring?: ScoringContext;
+    imports?: ImportGraph;
+    risk?: RiskIndex;
+    manifest?: ManifestIndex;
+    agentConfig?: AgentConfigIndex;
   };
 }): Promise<UniversalDetectorContext> {
   const uf = await buildUniversalFile({
@@ -37,5 +45,9 @@ export async function buildUniversalContext(args: {
     ia: args.indexes.ia,
     petty: args.indexes.petty,
     scoring: args.indexes.scoring,
+    imports: args.indexes.imports,
+    risk: args.indexes.risk,
+    manifest: args.indexes.manifest,
+    agentConfig: args.indexes.agentConfig,
   };
 }

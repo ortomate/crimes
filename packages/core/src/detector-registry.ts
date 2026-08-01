@@ -15,16 +15,21 @@ import { circularDependencyDetector } from "./detectors/circular-dependency.js";
 import { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
 import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 import { commentedOutCodeUniversalDetector } from "./detectors/commented-out-code-universal.js";
+import { agentPermissionSprawlDetector } from "./detectors/agent-permission-sprawl.js";
 import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
+import { configDriftDetector } from "./detectors/config-drift.js";
+import { contractDriftDetector } from "./detectors/contract-drift.js";
 import { copyIaDriftDetector } from "./detectors/copy-ia-drift.js";
 import { dateStringConcatDetector } from "./detectors/date-string-concat.js";
 import { deepImportDetector } from "./detectors/deep-import.js";
+import { dependencyProvenanceGapDetector } from "./detectors/dependency-provenance-gap.js";
 import { designTokenEscapeDetector } from "./detectors/design-token-escape.js";
 import { directDateDetector } from "./detectors/direct-date.js";
 import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
 import { dstNaiveArithmeticDetector } from "./detectors/dst-naive-arithmetic.js";
 import { duplicateComponentShapeDetector } from "./detectors/duplicate-component-shape.js";
 import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
+import { duplicatedPolicyDetector } from "./detectors/duplicated-policy.js";
 import { duplicatedRoleStatusPlanCheckDetector } from "./detectors/duplicated-role-status-plan-check.js";
 import { exactDuplicateBlockDetector } from "./detectors/exact-duplicate-block.js";
 import { finderDuplicateFilenameDetector } from "./detectors/finder-duplicate-filename.js";
@@ -38,6 +43,7 @@ import { localeDriftDetector } from "./detectors/locale-drift.js";
 import { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
 import { magicDomainLiteralScatterDetector } from "./detectors/magic-domain-literal-scatter.js";
 import { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
+import { mockSaturationDetector } from "./detectors/mock-saturation.js";
 import { mixedUtcLocalMethodsDetector } from "./detectors/mixed-utc-local-methods.js";
 import { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
 import { nearDuplicateBlockDetector } from "./detectors/near-duplicate-block.js";
@@ -46,6 +52,7 @@ import { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.
 import { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
 import { oversizedRasterDetector } from "./detectors/oversized-raster.js";
 import { parallelDestinationDetector } from "./detectors/parallel-destination.js";
+import { passThroughAbstractionDetector } from "./detectors/pass-through-abstraction.js";
 import { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
 import { rasterShouldBeVectorDetector } from "./detectors/raster-should-be-vector.js";
 import { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
@@ -53,9 +60,12 @@ import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.j
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 import { singularPluralTypeMismatchDetector } from "./detectors/singular-plural-type-mismatch.js";
 import { svgWithEmbeddedRasterDetector } from "./detectors/svg-with-embedded-raster.js";
+import { swallowedErrorDetector } from "./detectors/swallowed-error.js";
 import { syncIoInHotpathDetector } from "./detectors/sync-io-in-hotpath.js";
 import { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
+import { unboundedAsyncFanoutDetector } from "./detectors/unbounded-async-fanout.js";
+import { unsafeRetryDetector } from "./detectors/unsafe-retry.js";
 import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 import { pythonDetectors } from "./detectors/py/index.js";
 import { crossLanguageDetectors } from "./detectors/cross/index.js";
@@ -124,6 +134,21 @@ export const builtInDetectors: Detector[] = [
   exactDuplicateBlockDetector,
   nearDuplicateBlockDetector,
   duplicatedRoleStatusPlanCheckDetector,
+  // Correctness-risk tier (0.16.0). File-local detectors first — they
+  // read `ctx.parsed` alone and are the cheapest to evaluate.
+  swallowedErrorDetector,
+  unsafeRetryDetector,
+  unboundedAsyncFanoutDetector,
+  mockSaturationDetector,
+  // Cross-file authority + hygiene (0.16.0). These need `ctx.risk`,
+  // `ctx.manifest`, or `ctx.agentConfig`, so they run after the
+  // file-local slate for the same reason the IA detectors do.
+  duplicatedPolicyDetector,
+  contractDriftDetector,
+  configDriftDetector,
+  passThroughAbstractionDetector,
+  dependencyProvenanceGapDetector,
+  agentPermissionSprawlDetector,
   // Python pack (0.14.0). Ids are qualified (`large_function.py`) so
   // they are separately addressable in `detectors.enable` / `disable`;
   // the findings they emit carry the abstract `type` so cross-language

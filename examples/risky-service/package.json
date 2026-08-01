@@ -1,0 +1,19 @@
+{
+  "name": "risky-service",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Intentionally risky TypeScript service used as a fixture for the crimes 0.16.0 detector slate.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "risky": "src/index.ts"
+  },
+  "scripts": {
+    "scan": "crimes scan"
+  },
+  "dependencies": {
+    "zod": "^3.22.4",
+    "legacy-utils": "git+https://github.com/example/legacy-utils.git#main",
+    "anything-goes": "*"
+  }
+}

@@ -9,6 +9,9 @@ import type { ImportGraph } from "./imports/types.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import type { PettyIndex } from "./petty/types.js";
 import type { ScoringContext } from "./scoring/build.js";
+import type { AgentConfigIndex } from "./agents/types.js";
+import type { ManifestIndex } from "./manifest/types.js";
+import type { RiskIndex } from "./risk/types.js";
 
 /**
  * Common fields shared by every detector variant. The narrowed `Detector`
@@ -236,6 +239,31 @@ export interface UniversalDetectorContext {
    * scoring signal.
    */
   scoring?: ScoringContext;
+  /**
+   * Optional repo-level import graph. Present on the universal context
+   * from 0.16.0 so `dependency_provenance_gap` can compare imports
+   * against manifests without needing a language pack — the graph
+   * already carries every pack's edges, including external specifiers.
+   */
+  imports?: ImportGraph;
+  /**
+   * Optional cross-file risk inventory (0.16.0): policy clones, object
+   * contracts, environment reads, and pass-through chains. Populated by
+   * `scan` and `context`; absent in unit-test stubs and when the build
+   * fails. Detectors that need it treat absence as "skip", never as
+   * fatal.
+   */
+  risk?: RiskIndex;
+  /**
+   * Optional package-manifest + lockfile inventory (0.16.0). Read from
+   * disk, never from a registry.
+   */
+  manifest?: ManifestIndex;
+  /**
+   * Optional repository-local agent-configuration inventory (0.16.0).
+   * Hooks and settings are read as text and never executed.
+   */
+  agentConfig?: AgentConfigIndex;
 }
 
 /**
@@ -306,6 +334,24 @@ export interface LanguageJsDetectorContext {
    * scoring signal.
    */
   scoring?: ScoringContext;
+  /**
+   * Optional cross-file risk inventory (0.16.0): policy clones, object
+   * contracts, environment reads, and pass-through chains. Populated by
+   * `scan` and `context`; absent in unit-test stubs and when the build
+   * fails. Detectors that need it treat absence as "skip", never as
+   * fatal.
+   */
+  risk?: RiskIndex;
+  /**
+   * Optional package-manifest + lockfile inventory (0.16.0). Read from
+   * disk, never from a registry.
+   */
+  manifest?: ManifestIndex;
+  /**
+   * Optional repository-local agent-configuration inventory (0.16.0).
+   * Hooks and settings are read as text and never executed.
+   */
+  agentConfig?: AgentConfigIndex;
 }
 
 /**

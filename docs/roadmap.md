@@ -4,6 +4,17 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
+- **Current version:** `crimes@0.16.0` ✅ shipped — the correctness
+  and authority slate. Ten detectors that ask what code does when
+  something goes wrong (`swallowed_error`, `unsafe_retry`,
+  `unbounded_async_fanout`, `mock_saturation`) and where a repo keeps
+  its truth twice (`duplicated_policy`, `contract_drift`,
+  `config_drift`, `pass_through_abstraction`), plus two agent-hygiene
+  detectors that stay strictly local (`dependency_provenance_gap`
+  contacts no registry; `agent_permission_sprawl` executes nothing).
+  Schema stays `0.3.0`; fingerprints and existing detector meanings
+  unchanged. Release notes:
+  [`docs/releases/v0.16.0.md`](./releases/v0.16.0.md).
 - **Last published version:** `crimes@0.15.0` (npm) ✅ shipped —
   polyglot IA + monorepo coverage, and the release the whole
   wider-codebase-support arc was building toward. Three cross-language
@@ -75,6 +86,49 @@ mirror, not a planning doc.
 | M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
 | M5 — Public launch            | ✅ completed in `0.6.0` — full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/) via Astro + Starlight; landing page unchanged. |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
+
+---
+
+## ✅ Shipped in `crimes@0.16.0`
+
+> **Theme: correctness and authority** — the first slate whose question
+> is not "is this hard to change?" but "what happens when this fails,
+> and where does the repo disagree with itself?"
+>
+> Release notes: [`docs/releases/v0.16.0.md`](./releases/v0.16.0.md).
+
+- **Four correctness-risk detectors.** `swallowed_error` (Catch and
+  Release), `unsafe_retry` (Double Jeopardy), `unbounded_async_fanout`
+  (Concurrency Stampede), `mock_saturation` (Mock Alibi). All
+  file-local, so `crimes context` reports them on a single file.
+  Reference:
+  [`docs/finding-types/correctness.md`](./finding-types/correctness.md).
+- **Four cross-file authority detectors.** `duplicated_policy` (Policy
+  Doppelgänger), `contract_drift` (Contract Split-Brain),
+  `config_drift` (Environment Roulette), `pass_through_abstraction`
+  (Abstraction Laundering). All read one cross-file risk index built in
+  a single parse pass. Reference:
+  [`docs/finding-types/authority.md`](./finding-types/authority.md).
+- **Two agent-hygiene detectors.** `dependency_provenance_gap` (Phantom
+  Accomplice) and `agent_permission_sprawl` (Loaded Agent). Both
+  strictly local: no registry lookups, nothing executed, values
+  redacted. Reference:
+  [`docs/finding-types/agent-hygiene.md`](./finding-types/agent-hygiene.md).
+- **Shared infrastructure.** A one-pass cross-file risk index
+  (`packages/core/src/risk/`), a two-tier domain vocabulary that
+  separates confidence signals from emission gates, explainable
+  confidence/severity ladders rendered into evidence, and one shared
+  scope classifier so two detectors never disagree about whether a file
+  is generated. Eight new `language-js` parser surfaces collected in
+  the existing AST walk.
+- **New fixture.** `examples/risky-service/` carries at least one
+  instance of every new crime plus interactions between them.
+  `examples/messy-ts-app/` is untouched, so eval baselines are
+  unaffected.
+- **Overlap resolved, not duplicated.** `duplicated_policy` cedes the
+  bare role/status/plan divergence shape to the existing
+  `duplicated_role_status_plan_check`, so one crime never produces two
+  findings.
 
 ---
 
