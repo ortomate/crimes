@@ -2,4 +2,11 @@ packages:
   - "packages/*"
   - "apps/*"
   - "examples/*"
+  # `examples/risky-service` is a *fixture*, not a package. Its
+  # `package.json` is input data for `dependency_provenance_gap`, which
+  # reads manifests as text and deliberately declares dependencies that
+  # do not resolve (`anything-goes: "*"`, a fake `legacy-utils` git URL).
+  # As a workspace member it broke `pnpm install --frozen-lockfile` for
+  # the whole repo. It is only ever scanned, never installed or built.
+  - "!examples/risky-service"
   - "evals/runner"
