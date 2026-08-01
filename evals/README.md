@@ -153,13 +153,45 @@ Worth fixing properly: have the runner write `summary.json` from the
 result directory rather than from a tally that dies with the process,
 and skip work items whose output already exists so a re-run resumes.
 
-## Retention of `results/` — PROPOSED, not yet applied
+## Retention of `results/` — measured, decision: keep everything
 
-`evals/results/` is **55 MB across 32 version directories** and grows by
-one directory per baseline bump. This section is a proposal. Nothing has
-been deleted; bring it to a decision before acting on it.
+`evals/results/` is 56 MB in the working tree across 32 version
+directories. That number invites a cleanup. **Don't do one** — it is a
+working-tree number, not a repo-weight number, and the difference is the
+whole argument.
 
-### What is actually load-bearing
+### The measurement that settles it
+
+```
+evals/results/   56 MB   (working tree)
+.git/            12 MB   (entire repository history)
+size-pack       9.6 MiB
+```
+
+These are agent transcripts: highly repetitive JSON that compresses by
+roughly an order of magnitude. A fresh clone is ~12 MB, not 56 MB. There
+is no download problem to solve.
+
+Deleting old results in a new commit would also reclaim **nothing** from
+a clone — the blobs stay in history. Actually reclaiming them needs
+`git filter-repo` or BFG plus a force-push, which
+[`AGENTS.md`](../AGENTS.md) safety rule 2 forbids on `main` and which
+breaks every existing clone and every published release tag's ancestry.
+That is a large, irreversible operation to reclaim single-digit
+megabytes of packfile.
+
+The growth is also historical, not ongoing. The heavy directories
+(`0.9.3`, `0.9.4`, `0.9.5`, `0.10.0` — 38 MB between them) date from
+when full `codex` transcripts were recorded. Recent baselines are ~900 KB
+each, so the trajectory is about +1 MB per bump against a 12 MB
+repository.
+
+**Decision: keep everything, including raw transcripts.** Revisit only
+if `.git` — not the working tree — becomes a real problem. If it ever
+does, archive to object storage and use `EVALS_RESULTS_DIR` to redirect
+the results directory, rather than rewriting history.
+
+### What is load-bearing, if you ever do prune
 
 Exactly **one** directory. Both consumers pick the newest and read
 nothing else:
@@ -169,50 +201,12 @@ nothing else:
 - `evals:diff` — `readPinnedSummary()` in `runner/src/diff.ts` sorts
   descending and returns the first directory that has a `summary.json`.
 
-No command reads the other 31. They are historical evidence, not
-inputs.
+No command reads the other 31; they are historical evidence, not inputs.
+The `summary.json` files (128 KB for all 32 combined) carry every number
+this README's narrative sections cite, so those are the part that must
+never be lost.
 
-### Where the bytes are
-
-| | |
-|---|---|
-| total | 55 MB |
-| in `0.9.3`, `0.9.4`, `0.9.5`, `0.10.0` | 38 MB (69%) |
-| all 32 `summary.json` files combined | 128 KB |
-| result files | 2084 |
-
-The weight is entirely the `response` field — the raw agent transcript.
-One file, `0.9.5/codex/bugfix-04-weak-tests.json`, is 4.1 MB, of which
-`response` is 4,283,791 bytes and `structural_score` — the part that is
-actually scored — is 232 bytes. The four heavy directories are from the
-era when full `codex` transcripts were recorded.
-
-**Stripping `response` from every result file takes 50.9 MB to 5.11 MB,
-a 90% reduction, while preserving every scored number.**
-
-### Proposed policy
-
-1. **Keep whole:** the current baseline and the one before it. Two
-   directories, ~1.8 MB. That is what `evals:replay` and `evals:diff`
-   need, plus one to compare against.
-2. **Keep scored-only:** every older directory keeps its `summary.json`
-   and each result file's `scenario` / `agent` / `crimes_version` /
-   `timestamp` / `structural_score`, with `response` dropped. This
-   preserves every number the narrative sections of this README cite —
-   the 0.7.1 baseline understating both agents, the 0.12.0 measurement
-   regression — which would otherwise become unverifiable claims.
-3. **Do not keep in git:** the raw transcripts. They are never read by
-   any command, and they are not reproducible anyway — each is the
-   record of one non-deterministic agent run.
-
-Estimated result: **55 MB → ~3 MB.**
-
-If the full transcripts must be preserved, do not solve it by deleting
-selectively — move them out of the repository. `EVALS_RESULTS_DIR`
-already exists to redirect the results directory; archive the
-transcripts to object storage and record the URL in each `summary.json`.
-
-### Fix this first, whatever is decided
+### Fix this regardless
 
 The version comparator in both `diff.ts` and `replay.ts` parses with
 `Number.parseInt`, so a `-rN` suffix is discarded:
@@ -221,8 +215,7 @@ The version comparator in both `diff.ts` and `replay.ts` parses with
 equal**, and which one counts as "latest" falls to directory iteration
 order. Since re-run samples (`-r2`, `-r3`, `-judge`) are exactly the
 directories that supersede their base, this can silently replay the
-*first* sample rather than the corrected one. "Keep the latest baseline"
-is ambiguous until this is fixed.
+*first* sample rather than the corrected one.
 
 ## Running
 
