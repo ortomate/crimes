@@ -64,7 +64,8 @@ export async function buildPettyIndex(
         lineText: literal.lineText,
         exportedConstant: isExportedConstantLine(literal.lineText),
       };
-      (domainLiterals[literal.value] ??= []).push(hit);
+      domainLiterals[literal.value] ??= [];
+      domainLiterals[literal.value]!.push(hit);
     }
   }
 

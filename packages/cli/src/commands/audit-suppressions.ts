@@ -38,7 +38,7 @@ export function registerAuditSuppressionsCommand(program: Command): void {
           return;
         }
 
-        let config;
+        let config: ReturnType<typeof loadConfig>;
         try {
           config = loadConfig(root);
         } catch (error) {
@@ -49,7 +49,7 @@ export function registerAuditSuppressionsCommand(program: Command): void {
           throw error;
         }
 
-        let report;
+        let report: ReturnType<typeof auditSuppressions>;
         try {
           report = auditSuppressions({ root, config });
         } catch (error) {

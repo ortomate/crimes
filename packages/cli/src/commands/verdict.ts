@@ -71,7 +71,7 @@ export function registerVerdictCommand(program: Command): void {
         return;
       }
 
-      let report;
+      let report: Awaited<ReturnType<typeof verdict>>;
       try {
         report = await verdict({
           root,

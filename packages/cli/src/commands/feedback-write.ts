@@ -49,7 +49,7 @@ export async function handleFeedbackWrite(
   const root = resolve(process.cwd());
   const resolved = await resolveFingerprintTarget(targetRef, options);
 
-  let config;
+  let config: ReturnType<typeof loadConfig>;
   try {
     config = loadConfig(root);
   } catch (error) {

@@ -77,7 +77,7 @@ export function registerExplainCommand(program: Command): void {
         }
       }
 
-      let report;
+      let report: Awaited<ReturnType<typeof explain>>;
       try {
         report = await explain(idOrFingerprint, {
           root,

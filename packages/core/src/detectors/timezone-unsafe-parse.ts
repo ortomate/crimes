@@ -16,8 +16,6 @@ const optionsSchema = z
   })
   .strict();
 
-type TimezoneUnsafeParseOptions = z.infer<typeof optionsSchema>;
-
 /**
  * `new Date("…")` with a string literal that carries no timezone
  * marker. The Date constructor interprets such strings either as UTC

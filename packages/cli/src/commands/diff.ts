@@ -93,7 +93,7 @@ export function registerDiffCommand(program: Command): void {
       }
 
       const noColor = resolveNoColor(options);
-      let report;
+      let report: Awaited<ReturnType<typeof diff>>;
       try {
         try {
           const config = loadConfig(root);

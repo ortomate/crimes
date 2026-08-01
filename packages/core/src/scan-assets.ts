@@ -106,7 +106,6 @@ async function runDetectorsForAssetFile(args: {
       // Per-detector failure on one file should not abort the scan.
       // Skip and continue — same posture as the IA / scoring
       // builders' `safely*` wrappers.
-      continue;
     }
   }
   return findings;

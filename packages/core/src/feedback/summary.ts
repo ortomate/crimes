@@ -35,10 +35,8 @@ export function buildFeedbackSummary(entries: FeedbackEntry[]): FeedbackSummary 
 
   for (const e of latest.values()) {
     summary.by_verdict[e.verdict] += 1;
-    const detectorBucket =
-      summary.by_detector[e.finding_type] ??
-      (summary.by_detector[e.finding_type] = { tp: 0, fp: 0, known: 0 });
-    detectorBucket[e.verdict] += 1;
+    summary.by_detector[e.finding_type] ??= { tp: 0, fp: 0, known: 0 };
+    summary.by_detector[e.finding_type]![e.verdict] += 1;
     summary.by_version[e.crimes_version] =
       (summary.by_version[e.crimes_version] ?? 0) + 1;
     if (summary.by_repo && e.repo) {

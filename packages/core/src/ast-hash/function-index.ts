@@ -49,7 +49,7 @@ export async function buildFunctionHashIndex(
       } catch {
         return;
       }
-      let parsed;
+      let parsed: ReturnType<typeof parseFile>;
       try {
         parsed = parseFile({ absolutePath: abs, source });
       } catch {

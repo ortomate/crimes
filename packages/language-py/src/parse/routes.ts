@@ -126,12 +126,12 @@ export function extractClassMembers(bodyNode: Node): PyClassMember[] {
   const members: PyClassMember[] = [];
   for (let i = 0; i < bodyNode.namedChildCount; i += 1) {
     const stmt = bodyNode.namedChild(i);
-    if (!stmt || stmt.type !== "expression_statement") continue;
+    if (stmt?.type !== "expression_statement") continue;
     const assignment = stmt.namedChild(0);
-    if (!assignment || assignment.type !== "assignment") continue;
+    if (assignment?.type !== "assignment") continue;
 
     const left = assignment.childForFieldName("left");
-    if (!left || left.type !== "identifier") continue;
+    if (left?.type !== "identifier") continue;
     const name = flatText(left);
     if (name.length === 0 || name.startsWith("__")) continue;
 
@@ -154,9 +154,9 @@ export function extractClassMembers(bodyNode: Node): PyClassMember[] {
  */
 export function extractDocstring(bodyNode: Node): string | undefined {
   const first = bodyNode.namedChild(0);
-  if (!first || first.type !== "expression_statement") return undefined;
+  if (first?.type !== "expression_statement") return undefined;
   const inner = first.namedChild(0);
-  if (!inner || inner.type !== "string") return undefined;
+  if (inner?.type !== "string") return undefined;
   const content = stringContent(inner);
   if (content === undefined) return undefined;
   const line = content

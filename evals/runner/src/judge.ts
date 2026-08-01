@@ -123,16 +123,16 @@ function extractJsonObjects(text: string): string[] {
   let depth = 0;
   let start = -1;
   let inString = false;
-  let escape = false;
+  let escaped = false;
   for (let i = 0; i < text.length; i += 1) {
     const ch = text[i]!;
     if (inString) {
-      if (escape) {
-        escape = false;
+      if (escaped) {
+        escaped = false;
         continue;
       }
       if (ch === "\\") {
-        escape = true;
+        escaped = true;
         continue;
       }
       if (ch === '"') inString = false;

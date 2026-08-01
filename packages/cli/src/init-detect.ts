@@ -1,3 +1,4 @@
+import type { Dirent } from "node:fs";
 import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -52,7 +53,9 @@ async function scanForJsFamilyAbsence(root: string): Promise<boolean> {
   let visited = 0;
   while (queue.length > 0 && visited < 1000) {
     const dir = queue.shift()!;
-    let entries;
+    // `readdir` is overloaded; name the element type rather than
+    // reaching through ReturnType, which resolves to the Buffer overload.
+    let entries: Dirent[];
     try {
       entries = await readdir(dir, { withFileTypes: true });
     } catch {

@@ -351,10 +351,9 @@ function classifyWork(call: ts.CallExpression): FanOutWork["kind"] | undefined {
   // has it adjacent. Testing only the nearest segment misses the first
   // shape, which is the one every ORM produces.
   const path = calleeName(call);
-  const receiverSegments =
-    path !== undefined && path.includes(".")
-      ? path.slice(0, path.lastIndexOf(".")).split(".")
-      : [];
+  const receiverSegments = path?.includes(".")
+    ? path.slice(0, path.lastIndexOf(".")).split(".")
+    : [];
   const receiverMatches = (re: RegExp): boolean =>
     receiverSegments.some((segment) => re.test(segment));
 

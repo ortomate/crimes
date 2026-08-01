@@ -254,7 +254,7 @@ const DEFERRED_HINT_RE =
  *   - https://docs.github.com/en/repositories/working-with-files/using-files/working-with-non-code-files#about-relative-links
  */
 const GITHUB_RELATIVE_RE =
-  /^\.\.\/\.\.\/(?:issues|pull|pulls|discussions|wiki|actions|releases|projects|security|sponsors|compare|blob|tree|commit|commits|raw)(?:[\/?#].*)?$/i;
+  /^\.\.\/\.\.\/(?:issues|pull|pulls|discussions|wiki|actions|releases|projects|security|sponsors|compare|blob|tree|commit|commits|raw)(?:[/?#].*)?$/i;
 
 /**
  * Parse a markdown document into headings, local links, and code-fenced
@@ -319,6 +319,7 @@ export function parseMarkdown(source: string, file: RepoPath): IaDocSignal {
 
     MD_LINK_RE.lastIndex = 0;
     let linkMatch: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: canonical stateful `exec` loop — the assignment in the condition is what advances `lastIndex`; `matchAll` would change parser behaviour, which must stay stable for detector output.
     while ((linkMatch = MD_LINK_RE.exec(stripped)) !== null) {
       const target = linkMatch[2]!;
       const isLocal = isLocalLink(target);
@@ -413,6 +414,7 @@ export function extractReferencedCommands(
   for (const bin of bins) {
     const re = new RegExp("`(" + escapeRegex(bin) + ")(?:\\s+([a-z][a-z0-9-]*))?", "g");
     let m: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: canonical stateful `exec` loop; see the note on the markdown-link loop above.
     while ((m = re.exec(rawSource)) !== null) {
       const sub = m[2];
       if (sub) result.add(`${m[1]} ${sub}`);

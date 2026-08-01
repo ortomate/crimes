@@ -48,7 +48,7 @@ export function registerUnignoreCommand(program: Command): void {
         return;
       }
 
-      let config;
+      let config: ReturnType<typeof loadConfig>;
       try {
         config = loadConfig(root);
       } catch (error) {
@@ -73,7 +73,7 @@ export function registerUnignoreCommand(program: Command): void {
 
       // Preview path: read-only lookup so --dry-run never writes and the
       // not-found error fires before any disk mutation in the live path.
-      let loaded;
+      let loaded: ReturnType<typeof loadSuppressions>;
       try {
         loaded = loadSuppressions(path);
       } catch (error) {

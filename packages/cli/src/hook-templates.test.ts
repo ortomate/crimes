@@ -98,7 +98,7 @@ describe("hook-templates", () => {
     const result = mergeClaudeHook(existing);
     expect(result.action).toBe("merged");
     expect(result.document.hooks?.PreToolUse).toHaveLength(2);
-    expect(result.document.hooks?.PreToolUse?.[0]!.matcher).toBe("Bash");
+    expect(result.document.hooks!.PreToolUse![0]!.matcher).toBe("Bash");
   });
 
   it("mergeClaudeHook merges into a same-matcher entry instead of creating a duplicate", () => {
@@ -119,7 +119,7 @@ describe("hook-templates", () => {
     const result = mergeClaudeHook(existing);
     expect(result.action).toBe("merged");
     expect(result.document.hooks?.PreToolUse).toHaveLength(1);
-    const entry = result.document.hooks?.PreToolUse?.[0]!;
+    const entry = result.document.hooks!.PreToolUse![0]!;
     expect(entry.matcher).toBe("Edit|Write|NotebookEdit");
     expect(entry.hooks).toHaveLength(2);
     expect(entry.hooks[0]!.command).toBe("echo user-hook");
@@ -142,8 +142,8 @@ describe("hook-templates", () => {
     // Different matcher string — crimes lands as a new entry; the narrow
     // user matcher is preserved verbatim.
     expect(result.document.hooks?.PreToolUse).toHaveLength(2);
-    expect(result.document.hooks?.PreToolUse?.[0]!.matcher).toBe("Edit");
-    expect(result.document.hooks?.PreToolUse?.[1]!.matcher).toBe(
+    expect(result.document.hooks!.PreToolUse![0]!.matcher).toBe("Edit");
+    expect(result.document.hooks!.PreToolUse![1]!.matcher).toBe(
       "Edit|Write|NotebookEdit",
     );
   });

@@ -19,6 +19,7 @@ describe("extractStringLiterals", () => {
 
   it("ignores interpolated templates but keeps plain templates", () => {
     const literals = extractStringLiterals(
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: this string IS source code handed to the parser; the ${id} must stay unexpanded.
       "const a = `plain.key`;\nconst b = `user.${id}`;\n",
     );
     expect(literals.map((l) => l.value)).toEqual(["plain.key"]);

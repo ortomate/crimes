@@ -82,7 +82,7 @@ export function registerIgnoreCommand(program: Command): void {
         return;
       }
 
-      let config;
+      let config: ReturnType<typeof loadConfig>;
       try {
         config = loadConfig(root);
       } catch (error) {
@@ -105,7 +105,7 @@ export function registerIgnoreCommand(program: Command): void {
       if (ID_PATTERN.test(idOrFingerprint)) {
         // Resolve a per-scan id to its stable fingerprint by re-running
         // scan. Ids are reassigned every scan — they are useless on disk.
-        let report;
+        let report: Awaited<ReturnType<typeof scan>>;
         try {
           report = await scan({ root, config });
         } catch (error) {
@@ -138,7 +138,7 @@ export function registerIgnoreCommand(program: Command): void {
         // Verify the fingerprint resolves to a real finding when --no-verify
         // is off. Catches silent typos before they land in the file.
         if (!options.noVerify) {
-          let report;
+          let report: Awaited<ReturnType<typeof scan>>;
           try {
             report = await scan({ root, config });
           } catch (error) {

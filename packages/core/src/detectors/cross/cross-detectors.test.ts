@@ -75,6 +75,7 @@ describe("normalisePath", () => {
       "/api/users/{user_id}",
       "/api/users/<int:user_id>",
       "/api/users/:userId",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: fixture route template; the literal ${userId} is the path segment under test.
       "/api/users/${userId}",
     ];
     const normalised = forms.map(normalisePath);

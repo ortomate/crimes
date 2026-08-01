@@ -32,8 +32,7 @@ import type { Command } from "commander";
 // Hand-declared shape — picomatch ships no .d.ts and we don't carry
 // @types/picomatch as a direct dep. The runtime returns a matcher
 // function; that's all we use.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore -- no shipped types
+// @ts-expect-error -- picomatch ships no types
 import picomatch from "picomatch";
 type PicomatchFactory = (pattern: string) => (str: string) => boolean;
 

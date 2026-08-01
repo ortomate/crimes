@@ -140,8 +140,8 @@ export function registerScanCommand(program: Command): void {
         return;
       }
 
-      let report;
-      let config;
+      let report: Awaited<ReturnType<typeof scan>>;
+      let config: ReturnType<typeof loadConfig>;
       try {
         config = loadConfig(root);
         const noColor = resolveNoColor(options);

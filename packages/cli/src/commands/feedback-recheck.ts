@@ -42,7 +42,7 @@ export function registerFeedbackRecheckSubcommand(parent: Command): void {
       }
 
       const root = resolve(process.cwd());
-      let config;
+      let config: ReturnType<typeof loadConfig>;
       try {
         config = loadConfig(root);
       } catch (error) {

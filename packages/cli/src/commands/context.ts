@@ -82,7 +82,7 @@ export function registerContextCommand(program: Command): void {
       // report. We pre-resolve the scan root here so we can load
       // suppressions before calling context() — mirroring the same walk
       // that context() does internally (nearest enclosing package.json).
-      let report;
+      let report: Awaited<ReturnType<typeof context>>;
       try {
         const noColor = resolveNoColor(options);
         // Pre-resolve root so we can load suppressions before context().

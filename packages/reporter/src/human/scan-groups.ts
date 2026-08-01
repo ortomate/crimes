@@ -82,9 +82,9 @@ export function renderResurfaceBlock(
     const tally = fileTally(toFileGroup(file, findings));
     const glyph = severityGlyph(maxSeverityOf(findings), isColorDisabled);
     lines.push(`${glyph}${colour.bold(file)}  ${colour.dim(tally)}`);
-    findings.forEach((f, idx) =>
-      renderResurfacedFinding(lines, f, idx, colour, isColorDisabled),
-    );
+    findings.forEach((f, idx) => {
+      renderResurfacedFinding(lines, f, idx, colour, isColorDisabled);
+    });
     lines.push(
       `     ${colour.dim(`Touch this disposition: crimes triage --retriage ${file}`)}`,
     );

@@ -73,7 +73,7 @@ describe("unsafe_retry — positive cases", () => {
     `);
     expect(finding!.severity).toBe("high");
     expect(finding!.evidence.join("\n")).toContain("boundary: payment");
-    expect(finding!.suggested_actions?.[0]!.description).toContain(
+    expect(finding!.suggested_actions![0]!.description).toContain(
       "idempotency key derived from the business operation",
     );
   });

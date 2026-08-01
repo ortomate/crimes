@@ -136,6 +136,7 @@ describe("agent_permission_sprawl — hooks", () => {
       ...SOURCE,
       ".claude/settings.json": JSON.stringify({
         hooks: {
+          // biome-ignore lint/suspicious/noTemplateCurlyInString: fixture data — the literal ${CLAUDE_TOOL_INPUT} is the unexpanded shell interpolation the detector must read as text.
           PreToolUse: [{ hooks: [{ command: "echo ${CLAUDE_TOOL_INPUT} >> /tmp/log" }] }],
         },
       }),

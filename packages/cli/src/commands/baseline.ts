@@ -74,7 +74,7 @@ export function registerBaselineCommand(program: Command): void {
         return;
       }
 
-      let result;
+      let result: Awaited<ReturnType<typeof saveBaseline>>;
       try {
         result = await saveBaseline({
           root,
@@ -150,7 +150,7 @@ export function registerBaselineCommand(program: Command): void {
         // inside `checkBaseline()` below.
       }
 
-      let report;
+      let report: Awaited<ReturnType<typeof checkBaseline>>;
       try {
         report = await checkBaseline({
           root,

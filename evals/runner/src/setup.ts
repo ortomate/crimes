@@ -86,7 +86,6 @@ async function main(): Promise<void> {
         `evals:setup: clone failed for ${meta.upstream}@${meta.sha} — ${message}\n`,
       );
       process.exitCode = 1;
-      continue;
     }
   }
 }

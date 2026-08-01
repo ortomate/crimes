@@ -268,7 +268,9 @@ function buildTestGapIndex(args: {
   const rawValues = sourcePaths.map((p) => rawFor(p));
   const quartiles = quartileScores(rawValues);
   const quartileByPath = new Map<string, number>();
-  sourcePaths.forEach((p, i) => quartileByPath.set(p, quartiles[i]!));
+  sourcePaths.forEach((p, i) => {
+    quartileByPath.set(p, quartiles[i]!);
+  });
 
   return {
     forFile(repoPath) {
