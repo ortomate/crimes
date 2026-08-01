@@ -24,6 +24,20 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
   large_file: {
     "0.6":
       "test_file shape added — test suites get a 1500-line budget. Likely resolved for *.test.ts / __tests__/ findings.",
+    "0.17":
+      "docs shape added — .md/.mdx/.rst/.adoc/.txt get a 1000-line budget at low/medium severity. Likely resolved for prose findings.",
+  },
+  magic_domain_literal_scatter: {
+    "0.17":
+      "Fingerprints now carry the literal as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that could cover several literals — re-record it against the one you meant.",
+  },
+  exact_duplicate_block: {
+    "0.17":
+      "Fingerprints now carry the duplicate group's body hash as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that could cover several groups — re-record it against the one you meant. Evidence strings are also reproducible run-to-run now.",
+  },
+  near_duplicate_block: {
+    "0.17":
+      "Fingerprints now carry the shape group's body hash as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that could cover several groups — re-record it against the one you meant.",
   },
 };
 

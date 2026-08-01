@@ -459,7 +459,7 @@ Five dispositions:
 | `scaffolding`  | hidden                | yes — "still intentional?"   |
 
 Entries persist to `.crimes/triage.json`, intended to be committed.
-The schema is the same `<type>::<file>::<symbol-or-empty>` fingerprint
+The schema is the same `<type>::<file>::<symbol-or-empty>[::<discriminator>]` fingerprint
 as baseline + suppressions; small line shifts don't invalidate an
 entry. `reason`, `owner`, and `date` are required at the schema level.
 
@@ -673,7 +673,7 @@ How to use the fields:
   them in the diff conversation — they were there before the branch.
 
 How findings are matched across the two refs: stable fingerprint
-`<type>::<file>::<symbol-or-empty>`, not the per-scan `id`. Small line
+`<type>::<file>::<symbol-or-empty>[::<discriminator>]`, not the per-scan `id`. Small line
 shifts from unrelated edits do **not** register as fix + new. See
 [`docs/json-schema.md`](./json-schema.md#diffreport-output-of-crimes-diff-basehead)
 for the full fingerprint rationale and known limitations (file renames
@@ -758,7 +758,7 @@ Exit codes:
 | `2`  | Missing or malformed `.crimes/baseline.json`, or a bad flag.                  |
 
 Findings are matched by the same stable fingerprint
-`<type>::<file>::<symbol-or-empty>` as `crimes diff` — small line shifts
+`<type>::<file>::<symbol-or-empty>[::<discriminator>]` as `crimes diff` — small line shifts
 don't register as fix + new. See
 [`docs/json-schema.md`](./json-schema.md#baseline-on-disk-shape-of-crimesbaselinejson)
 for the full schema and known limitations.

@@ -152,6 +152,16 @@ Commander-style registrar wrappers and `.action(...)` callbacks.
 `crimes hotspots <subdir>` walks upward to the enclosing git repo.
 Full docs site at [`crimes.sh/docs/`](https://crimes.sh/docs/).
 
+**Unreleased, on `main`** — `schema_version` is **`0.4.0`** as of the
+0.16.1 patch bump. `Finding` gained an optional `discriminator` that
+`fingerprintFinding` folds in when present, so `crimes ignore` can name
+one of several findings a detector reports for the same file. Pinned
+baseline / suppression entries for `magic_domain_literal_scatter`,
+`exact_duplicate_block`, and `near_duplicate_block` need re-recording;
+everything else is unaffected. `large_file` gained a `docs` policy shape
+so prose is no longer measured against the domain-code budget. See
+[`docs/calibration-followups.md`](./docs/calibration-followups.md).
+
 **Shipped in `0.16.0`** — no new commands. Ten detectors across three
 new finding families: correctness risk (`swallowed_error`,
 `unsafe_retry`, `unbounded_async_fanout`, `mock_saturation` —

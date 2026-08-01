@@ -31,7 +31,7 @@ crimes feedback <fingerprint> --verdict tp --note 'Yep, real cycle I had been ig
 crimes feedback recheck
 ```
 
-Where `<fingerprint>` is the stable `<type>::<file>::<symbol>` shape
+Where `<fingerprint>` is the stable `<type>::<file>::<symbol>[::<discriminator>]` shape
 already printed at the bottom of every finding in `crimes scan` /
 `crimes context` human output:
 

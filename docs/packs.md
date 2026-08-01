@@ -29,7 +29,7 @@ domain-code scope or the non-domain scope".
 the same string regardless of which language produced it. Everything
 that groups or matches findings keys off `type`: the reporter,
 baselines, suppressions, triage, and feedback. Fingerprints are
-`<type>::<file>::<symbol>`, which is why adding a language pack never
+`<type>::<file>::<symbol>[::<discriminator>]`, which is why adding a language pack never
 invalidates anything already on disk.
 
 `Finding.detector_id` is the **qualified** form — `large_function.js`,
@@ -185,7 +185,7 @@ whole parsed corpus (`ctx.files`, each entry tagged with its pack) and
 picks its own anchor.
 
 Findings still carry a `file`, because fingerprints are
-`<type>::<file>::<symbol>` and baselines, suppressions, triage and the
+`<type>::<file>::<symbol>[::<discriminator>]` and baselines, suppressions, triage and the
 file-grouped report all key off it. The anchor is the file a reader
 would edit first; the rest goes in `related_files`.
 

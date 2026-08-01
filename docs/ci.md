@@ -118,7 +118,7 @@ Behaviour:
 
 - Loads `<repo>/.crimes/baseline.json`, runs a full repo scan, and
   partitions the result into `new` / `fixed` / `unchanged` by stable
-  fingerprint (`<type>::<file>::<symbol-or-empty>`). Small line shifts
+  fingerprint (`<type>::<file>::<symbol-or-empty>[::<discriminator>]`). Small line shifts
   from unrelated edits don't register as fix + new.
 - `--fail-on` accepts `low | medium | high`. Default is `medium`.
 - Exits `1` when at least one **new** finding has severity ≥ the

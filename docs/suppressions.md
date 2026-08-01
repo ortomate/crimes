@@ -37,7 +37,18 @@ crimes ignore crime_00005 --reason "…"
 
 `crimes ignore` always persists by **fingerprint**, never by id. Ids
 are reassigned every scan; the fingerprint
-(`<type>::<file>::<symbol>`) is stable across scans.
+(`<type>::<file>::<symbol>[::<discriminator>]`) is stable across scans.
+
+The trailing `discriminator` segment appears only on findings from
+detectors that can report several results for one file — today
+`magic_domain_literal_scatter`, `exact_duplicate_block`, and
+`near_duplicate_block`. It was added in `schema_version: "0.4.0"`
+because without it those findings shared a fingerprint, so suppressing
+one of them silently suppressed the others as well. **Entries for those
+three types written before `0.4.0` stop matching and need re-recording**
+with a fresh `crimes ignore` — which is the point: the new entry names
+the single finding you actually looked at. Every other type is
+unaffected and its fingerprints are byte-identical to before.
 
 `--reason` is required and non-empty. The CLI refuses to write
 without one.
