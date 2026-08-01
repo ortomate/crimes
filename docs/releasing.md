@@ -128,15 +128,45 @@ page is the canonical changelog surface.
 These should all succeed before you push:
 
 ```bash
-pnpm build
-pnpm typecheck
-pnpm test
+pnpm verify                # format:check + lint + build + typecheck + test
 
 pnpm scan:example          # human report against the bundled fixture
 pnpm scan:example:json     # JSON report against the bundled fixture
 
 pnpm --filter crimes smoke # pack + install in a temp dir + run every command
 ```
+
+`pnpm verify` is the same gate CI runs. If `format:check` fails, run
+`pnpm format` — never hand-edit to satisfy it, and never publish from a
+tree that has not been formatted, since the packed tarball reflects
+what is on disk.
+
+### Biome and the self-scan
+
+Worth knowing before touching `biome.jsonc` during a release:
+**formatting settings change what `crimes` reports about itself.**
+`large_function` and `large_file` are line-count thresholds, and
+duplicate-block detection gates on an 8-line span, so `lineWidth` moves
+the self-scan. It is pinned at 90 to match how the tree was already
+wrapped; Biome's default of 80 shifts the self-scan by +18 findings and
++5 high.
+
+Three detector families read formatting on purpose and will move if the
+formatter config changes: `large_function` / `large_file`,
+`exact_duplicate_block` / `near_duplicate_block`, and
+`magic_domain_literal_scatter` (whose literal filter in
+`petty/build.ts` regexes the *line text* a literal sits on). Every other
+detector is formatting-independent — if one of those moves after a
+formatting-only change, that is a bug, not a re-measurement.
+
+### Known lint debt
+
+`apps/website/landing/index.html` is excluded from the linter in
+`biome.jsonc`. It carries 90 real a11y diagnostics from two
+`<div role="table">` pseudo-tables; the fix needs `<table>` markup plus
+CSS work on the `display: grid` layout and a browser check. The
+exclusion is one file wide and should be deleted along with the fix. It
+does not block a release, but do not let it grow.
 
 Optional spot-check of the tarball contents:
 

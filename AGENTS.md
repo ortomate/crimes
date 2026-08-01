@@ -49,11 +49,17 @@ Run from the repo root. These three commands are the canonical "is the
 workspace healthy" check — run them after any non-trivial change.
 
 ```bash
-pnpm build       # tsup across every package
-pnpm typecheck   # tsc --noEmit across every package
-pnpm test        # vitest run across every package
-pnpm verify      # all three, sequentially (matches CI)
+pnpm format:check # biome format .   (read-only)
+pnpm lint         # biome lint .
+pnpm build        # tsup across every package
+pnpm typecheck    # tsc --noEmit across every package
+pnpm test         # vitest run across every package
+pnpm verify       # all five, sequentially (matches CI)
 ```
+
+`pnpm format` and `pnpm lint:fix` write fixes. `pnpm verify` runs the
+read-only forms first, so a formatting slip fails in seconds rather
+than after a full build and test pass.
 
 Note: it is `pnpm verify`, not `pnpm ci`. pnpm reserves `ci` as a
 built-in command, so `pnpm ci` fails with
@@ -196,11 +202,24 @@ Rules of thumb:
 
 ## Coding style
 
-- **TypeScript, ESM, Node ≥ 18.** Strict mode is on.
-- Format/lint: nothing wired up yet (Biome or ESLint/Prettier is a "pick one
-  later" decision per [`CLAUDE.md`](./CLAUDE.md)). Match the surrounding
-  style — generally 2-space indent, double quotes, semicolons, trailing
-  commas on multi-line literals.
+- **TypeScript, ESM, Node ≥ 18.** Strict mode is on, plus
+  `noUncheckedIndexedAccess` — which is why `arr[0]!` and
+  `map.get(k)!`-after-`has()` are everywhere. That is the idiom here, not
+  a smell.
+- **Format/lint: Biome, and only Biome.** Config in
+  [`biome.jsonc`](./biome.jsonc). Never add ESLint or Prettier alongside
+  it. Run `pnpm format` before committing, or let `pnpm verify` catch you.
+  2-space indent, double quotes, semicolons, trailing commas, 90 columns
+  — all enforced, so match the formatter rather than hand-wrapping.
+- **Never reformat `examples/`, `evals/fixtures/`, `docs/fixtures/`, or
+  `evals/results/`.** Biome already excludes them. They are scanner
+  *input*: line counts feed `large_function` / `large_file` thresholds,
+  and `docs/fixtures/` is byte-compared against live scans. Reformatting
+  them changes what the product reports.
+- To silence a lint rule, prefer a one-line
+  `// biome-ignore lint/<rule>: <reason>` immediately above the line over
+  widening a config disable. The reason must fit on that single line; a
+  wrapped `//` block stops suppressing.
 - Imports use `.js` extensions even from `.ts` source (ESM/NodeNext
   resolution).
 - Tests sit next to source files (`detector.ts` + `detector.test.ts`),

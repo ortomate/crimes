@@ -166,17 +166,72 @@ walking.
 ## Running checks locally
 
 ```bash
+pnpm format      # biome format --write .  (rewrites files)
+pnpm format:check # biome format .         (read-only, what CI runs)
+pnpm lint        # biome lint .
+pnpm lint:fix    # biome lint --write .
+pnpm check       # format + lint + assists in one pass
+pnpm check:fix   # ...and apply what it can
+
 pnpm typecheck   # tsc --noEmit everywhere
 pnpm test        # vitest run everywhere
 pnpm build       # tsup everywhere
 
-pnpm verify      # all three, sequentially — the gate CI enforces
+pnpm verify      # all of the above, sequentially — the gate CI enforces
 ```
 
 Note it is `pnpm verify`, not `pnpm ci`: pnpm reserves `ci` as a
 built-in, so that form fails before reaching the workspace script.
 
-CI runs the same on Node 20 and Node 22.
+CI runs the same on Node 20 and Node 22. Formatting and lint run once,
+on the Node 22 leg only — Biome's output does not vary by Node version.
+
+## Formatting and linting
+
+**Biome is the only formatter and the only linter.** Do not add ESLint,
+Prettier, or a second formatter alongside it. Config lives in
+[`biome.jsonc`](./biome.jsonc), which is commented throughout.
+
+Two things about it are worth knowing before you change it.
+
+**Fixtures are never formatted.** `examples/`, `evals/fixtures/`,
+`docs/fixtures/`, and `evals/results/` are excluded in
+`files.includes`. Those directories are *scanner input* — their
+formatting is the test data. Reformatting them would silently change
+what the detectors report and invalidate the pinned expected outputs.
+
+**`lineWidth` is a measurement decision, not a taste one.** It is 90,
+matching how the tree was already hand-wrapped (p98 line length 86).
+`large_function` and `large_file` are line-count thresholds and
+duplicate detection gates on an 8-line span, so re-wrapping the repo
+changes what `crimes` reports about itself. Dropping to Biome's default
+80 moves the self-scan by +18 findings and +5 high. If you change this
+number, re-run the self-scan and say what moved.
+
+Three rules are turned off, each with the reasoning recorded inline in
+`biome.jsonc`: `style/noNonNullAssertion` (the codebase runs
+`noUncheckedIndexedAccess`, which makes `arr[0]!` the compiler-mandated
+idiom, 1033 times), `style/useTemplate` (fires almost entirely on
+`expr + "\n"`, where the autofix is worse than the input), and the
+linter as a whole on `apps/website/landing/index.html` (90 real a11y
+findings deferred pending a markup + CSS change — see below).
+
+Prefer a targeted `// biome-ignore lint/<rule>: <reason>` over widening
+a config disable. The directive must be on the line *immediately* above
+the offending line, and the whole reason must fit on that one line — a
+wrapped `//` block silently stops suppressing, though Biome will tell
+you via `suppressions/unused`.
+
+### Known lint debt
+
+`apps/website/landing/index.html` builds two comparison tables from
+`<div role="table">` / `<span role="cell">`. `a11y/useSemanticElements`
+and `a11y/useFocusableInteractive` are right to flag them. The fix is
+real `<table>` markup, which is not a lint fix: `.detector-table` is
+`display: grid` with `grid-template-columns` on `.row`, and a real
+table gets an auto-inserted `<tbody>` between the grid container and
+its rows. It needs CSS work and a browser check. The override in
+`biome.jsonc` is scoped to that single file; delete it with the fix.
 
 ## Commit style
 

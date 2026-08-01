@@ -82,7 +82,12 @@ Each finding carries six scores (see `PRD.md` §10): `severity`, `confidence`, `
 - Build: tsup
 - Tests: Vitest
 - CLI framework: Commander.js (not oclif — keep it light)
-- Lint/format: Biome (or ESLint/Prettier — pick one, don't run both)
+- Lint/format: **Biome** — resolved, config in `biome.jsonc`. Never add
+  ESLint or Prettier alongside it. `lineWidth` is 90 and is a
+  *measurement* setting: line-count detectors mean re-wrapping the repo
+  changes what the scanner reports about itself. Fixtures
+  (`examples/`, `evals/fixtures/`, `docs/fixtures/`, `evals/results/`)
+  are excluded from formatting because they are scanner input.
 - Versioning: Changesets
 - AST: ts-morph or `@typescript-eslint/typescript-estree` for TS/JS
 - File walking: fast-glob + `ignore` (respect `.gitignore`)

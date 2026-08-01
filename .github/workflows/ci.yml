@@ -33,6 +33,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Formatting and lint run before the build so a style-only failure
+      # reports in seconds instead of after the full tsup + vitest pass.
+      # Biome is platform-independent, so running it on one matrix leg is
+      # enough — the other leg would produce identical output.
+      - name: Format check
+        if: matrix.node == '22'
+        run: pnpm run format:check
+
+      - name: Lint
+        if: matrix.node == '22'
+        run: pnpm run lint
+
       - name: Build
         run: pnpm run build
 
