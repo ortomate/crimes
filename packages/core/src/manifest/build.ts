@@ -68,7 +68,9 @@ export async function buildManifestIndex(
     if (lock) lockfiles.push(lock);
   }
 
-  const pnpmWorkspace = await readPnpmWorkspace(join(options.root, "pnpm-workspace.yaml"));
+  const pnpmWorkspace = await readPnpmWorkspace(
+    join(options.root, "pnpm-workspace.yaml"),
+  );
   const globs = [
     ...new Set([
       ...pnpmWorkspace,
@@ -79,8 +81,7 @@ export async function buildManifestIndex(
 
   const manifests = draft.map((manifest) => ({
     ...manifest,
-    inWorkspace:
-      manifest.dir === "" || matchers.some((re) => re.test(manifest.dir)),
+    inWorkspace: manifest.dir === "" || matchers.some((re) => re.test(manifest.dir)),
   }));
 
   const workspaceNames = new Set<string>();
@@ -165,7 +166,10 @@ async function readManifest(
   }
 
   const file = toRepoPath(root, absolutePath);
-  const dir = toRepoPath(root, dirname(absolutePath)) === "." ? "" : toRepoPath(root, dirname(absolutePath));
+  const dir =
+    toRepoPath(root, dirname(absolutePath)) === "."
+      ? ""
+      : toRepoPath(root, dirname(absolutePath));
   const lines = raw.split(/\r?\n/);
 
   const dependencies: DeclaredDependency[] = [];
@@ -210,11 +214,12 @@ async function readManifest(
   const workspaces = parsed.workspaces;
   const workspaceGlobs: string[] = Array.isArray(workspaces)
     ? workspaces.filter((w): w is string => typeof w === "string")
-    : typeof workspaces === "object" && workspaces !== null &&
+    : typeof workspaces === "object" &&
+        workspaces !== null &&
         Array.isArray((workspaces as { packages?: unknown }).packages)
-      ? ((workspaces as { packages: unknown[] }).packages.filter(
+      ? (workspaces as { packages: unknown[] }).packages.filter(
           (w): w is string => typeof w === "string",
-        ))
+        )
       : [];
 
   const manifest: PackageManifest = {
@@ -343,7 +348,8 @@ async function readLockfile(
  */
 function parsePnpmLock(raw: string): Set<string> {
   const names = new Set<string>();
-  const entry = /(?:^|[\s/'"])(@[a-z0-9][\w.-]*\/[a-z0-9][\w.-]*|[a-z0-9][\w.-]*)@[\d^~><=*]/gim;
+  const entry =
+    /(?:^|[\s/'"])(@[a-z0-9][\w.-]*\/[a-z0-9][\w.-]*|[a-z0-9][\w.-]*)@[\d^~><=*]/gim;
   for (const match of raw.matchAll(entry)) {
     const name = match[1];
     if (name !== undefined && name.length > 0) names.add(name);

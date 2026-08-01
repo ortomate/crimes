@@ -28,9 +28,7 @@ describe("fingerprintFinding", () => {
       file: "src/billing.ts",
       symbol: "generateInvoice",
     });
-    expect(fingerprintFinding(f)).toBe(
-      "large_function::src/billing.ts::generateInvoice",
-    );
+    expect(fingerprintFinding(f)).toBe("large_function::src/billing.ts::generateInvoice");
   });
 
   it("leaves the symbol slot empty when no symbol is present", () => {

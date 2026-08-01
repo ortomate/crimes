@@ -157,14 +157,19 @@ function buildChainFinding(chain: PassThroughChain): Finding {
   const severity = new SeverityLadder(0.22)
     .add(chain.edges.length >= 4, "four or more layers obscure ownership", 0.2)
     .add(chain.files.length >= 4, "the chain crosses four or more files", 0.12)
-    .add(chain.edges.length >= 3 && chain.files.length >= 3, "three files, three layers", 0.08);
+    .add(
+      chain.edges.length >= 3 && chain.files.length >= 3,
+      "three files, three layers",
+      0.08,
+    );
 
   const evidence: string[] = [
     `call chain, ${chain.edges.length} layers across ${chain.files.length} files:`,
   ];
   chain.edges.forEach((edge, i) => {
     const indent = "  ".repeat(i + 1);
-    const adds = edge.adds.length > 0 ? ` — adds: ${edge.adds.join(", ")}` : " — adds nothing";
+    const adds =
+      edge.adds.length > 0 ? ` — adds: ${edge.adds.join(", ")}` : " — adds nothing";
     evidence.push(
       `${indent}${edge.file}:${edge.line} \`${edge.name}(…)\` → \`${edge.target}(…)\`${adds}`,
     );
@@ -236,13 +241,21 @@ function buildClusterFinding(
 
   const confidence = new ConfidenceLadder(0.6)
     .add(ratio === 1, "every member forwards and adds nothing", 0.12)
-    .add(sameNameCount >= empty.length - 1, "members reuse the collaborator's own method names", 0.12)
+    .add(
+      sameNameCount >= empty.length - 1,
+      "members reuse the collaborator's own method names",
+      0.12,
+    )
     .add(empty.length >= 6, `${empty.length} forwarding members`, 0.06)
     .add(ratio < 0.8, "some members do real work", -0.12);
 
   const severity = new SeverityLadder(0.22)
     .add(empty.length >= 6, "six or more forwarding members", 0.14)
-    .add(sameNameCount === empty.length, "the type is a verbatim restatement of its collaborator", 0.1);
+    .add(
+      sameNameCount === empty.length,
+      "the type is a verbatim restatement of its collaborator",
+      0.1,
+    );
 
   const evidence: string[] = [
     `${empty.length} function(s) in this file forward to \`${cluster.receiver}\` and add nothing:`,

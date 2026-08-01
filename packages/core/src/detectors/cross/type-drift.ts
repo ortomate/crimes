@@ -168,8 +168,7 @@ function buildFinding(args: {
   // Both sides having exclusive members means they drifted apart in two
   // directions, which is materially worse than one side simply being
   // behind.
-  const severity: Severity =
-    onlyPy.length > 0 && onlyJs.length > 0 ? "high" : "medium";
+  const severity: Severity = onlyPy.length > 0 && onlyJs.length > 0 ? "high" : "medium";
 
   const evidence: string[] = [
     `${pySet.file}:${pySet.line} — ${pySet.name} declares [${pySet.members.join(", ")}]`,

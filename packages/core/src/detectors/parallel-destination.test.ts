@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
 import type { LanguageJsDetectorContext } from "../detector.js";
-import type {
-  IaFileSignals,
-  IaIndex,
-  IaNavSignal,
-  IaRouteSignal,
-} from "../ia/types.js";
+import type { IaFileSignals, IaIndex, IaNavSignal, IaRouteSignal } from "../ia/types.js";
 import { parallelDestinationDetector } from "./parallel-destination.js";
 
 interface BuildOptions {

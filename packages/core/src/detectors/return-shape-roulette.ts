@@ -5,7 +5,8 @@ import { isTestFile } from "../util/test-files.js";
 export const returnShapeRouletteDetector: LanguageJsDetector = {
   id: "return_shape_roulette",
   name: "Return Shape Roulette",
-  description: "Flags functions that return substantially different object shapes across branches.",
+  description:
+    "Flags functions that return substantially different object shapes across branches.",
   whyItMatters:
     "Functions that return different object shapes depending on input force " +
     "every caller to discriminate at runtime. Adding a branch or changing " +
@@ -52,7 +53,9 @@ export const returnShapeRouletteDetector: LanguageJsDetector = {
         scores: {
           severity: 0.3,
           confidence: round(Math.min(0.64 + shapes.length * 0.03, 0.82)),
-          agent_risk: round(Math.min(0.56 + shapes.length * 0.04 + (1 - weakest.overlap) * 0.15, 0.82)),
+          agent_risk: round(
+            Math.min(0.56 + shapes.length * 0.04 + (1 - weakest.overlap) * 0.15, 0.82),
+          ),
         },
         suggested_actions: [
           {
@@ -87,9 +90,9 @@ function extractKeys(body: string): string[] {
   return Array.from(keys).sort();
 }
 
-function weakestOverlap(shapes: string[][]):
-  | { overlap: number; left: string[]; right: string[] }
-  | undefined {
+function weakestOverlap(
+  shapes: string[][],
+): { overlap: number; left: string[]; right: string[] } | undefined {
   let weakest: { overlap: number; left: string[]; right: string[] } | undefined;
   for (let i = 0; i < shapes.length; i++) {
     for (let j = i + 1; j < shapes.length; j++) {

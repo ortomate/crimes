@@ -95,10 +95,7 @@ export type LanguagePyDetector = Extract<Detector, { pack: "language-py" }>;
  * Convenience alias for the cross-language branch of the `Detector`
  * union. These detectors run once per scan rather than once per file.
  */
-export type CrossLanguageDetector = Extract<
-  Detector,
-  { pack: "cross-language" }
->;
+export type CrossLanguageDetector = Extract<Detector, { pack: "cross-language" }>;
 
 /**
  * An asset detector inspects files that aren't TS/JS source — images,

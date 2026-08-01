@@ -47,10 +47,7 @@ describe("mixedUtcLocalMethodsDetector", () => {
 
   it("fires high when one receiver mixes families", async () => {
     const findings = await mixedUtcLocalMethodsDetector.run(
-      makeCtx([
-        utc("d", "getUTCFullYear", 3),
-        local("d", "getMonth", 5),
-      ]),
+      makeCtx([utc("d", "getUTCFullYear", 3), local("d", "getMonth", 5)]),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("high");
@@ -63,10 +60,7 @@ describe("mixedUtcLocalMethodsDetector", () => {
 
   it("treats different receivers independently", async () => {
     const findings = await mixedUtcLocalMethodsDetector.run(
-      makeCtx([
-        utc("a", "getUTCFullYear", 1),
-        local("b", "getMonth", 2),
-      ]),
+      makeCtx([utc("a", "getUTCFullYear", 1), local("b", "getMonth", 2)]),
     );
     // Neither a nor b mixes — different receivers.
     expect(findings).toEqual([]);
@@ -91,9 +85,7 @@ describe("mixedUtcLocalMethodsDetector", () => {
   it("skips test files", async () => {
     const calls = [utc("d", "getUTCHours", 1), local("d", "getHours", 2)];
     expect(
-      await mixedUtcLocalMethodsDetector.run(
-        makeCtx(calls, { file: "src/foo.test.ts" }),
-      ),
+      await mixedUtcLocalMethodsDetector.run(makeCtx(calls, { file: "src/foo.test.ts" })),
     ).toEqual([]);
   });
 });

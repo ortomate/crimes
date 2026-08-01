@@ -33,8 +33,8 @@ export function extractComments(source: string): SourceComment[] {
       continue;
     }
 
-    if (state === "code" && (ch === "'" || ch === "\"" || ch === "`")) {
-      state = ch === "'" ? "single" : ch === "\"" ? "double" : "template";
+    if (state === "code" && (ch === "'" || ch === '"' || ch === "`")) {
+      state = ch === "'" ? "single" : ch === '"' ? "double" : "template";
       cursor.index += 1;
       continue;
     }
@@ -61,7 +61,7 @@ function advanceStringState(
 ): { state: ScannerState; advance: number } | undefined {
   if (state === "code") return undefined;
   if (ch === "\\") return { state, advance: 2 };
-  if ((state === "single" && ch === "'") || (state === "double" && ch === "\"")) {
+  if ((state === "single" && ch === "'") || (state === "double" && ch === '"')) {
     return { state: "code", advance: 1 };
   }
   if (state === "template" && ch === "`") return { state: "code", advance: 1 };

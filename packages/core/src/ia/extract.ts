@@ -42,7 +42,8 @@ const ROUTE_EXTS = /\.(tsx|ts|jsx|js|mjs|cjs)$/;
  * Next.js App Router conventional file names that contribute the route path
  * but should be stripped from the URL.
  */
-const APP_ROUTER_TERMINALS = /\/(page|layout|route|template|loading|error|not-found|default)$/;
+const APP_ROUTER_TERMINALS =
+  /\/(page|layout|route|template|loading|error|not-found|default)$/;
 
 /**
  * Given a repo-relative POSIX path, return the canonical route path if the
@@ -110,8 +111,7 @@ export function routeFromFilePath(repoRel: RepoPath): string | undefined {
  */
 const BARE_ROLE_LITERAL =
   /["'](owner|admin|administrator|manager|founder|member|viewer|editor|super_admin|superuser|guest)["']/g;
-const DOTTED_PERMISSION_LITERAL =
-  /["']([a-z][a-z0-9_]+(?:\.[a-z][a-z0-9_]+){1,3})["']/g;
+const DOTTED_PERMISSION_LITERAL = /["']([a-z][a-z0-9_]+(?:\.[a-z][a-z0-9_]+){1,3})["']/g;
 
 export function extractPermissions(source: string): IaPermissionSignal[] {
   const out: IaPermissionSignal[] = [];
@@ -141,14 +141,38 @@ export function extractPermissions(source: string): IaPermissionSignal[] {
 }
 
 const TRANSLATION_KEY_PREFIXES = new Set([
-  "common", "ui", "i18n", "intl", "messages", "translation", "translations",
-  "errors", "form", "validation", "labels", "buttons",
+  "common",
+  "ui",
+  "i18n",
+  "intl",
+  "messages",
+  "translation",
+  "translations",
+  "errors",
+  "form",
+  "validation",
+  "labels",
+  "buttons",
 ]);
 
 const PERMISSION_VERBS = new Set([
-  "manage", "create", "read", "write", "update", "delete", "edit",
-  "view", "admin", "own", "invite", "remove", "list", "access",
-  "approve", "publish", "archive",
+  "manage",
+  "create",
+  "read",
+  "write",
+  "update",
+  "delete",
+  "edit",
+  "view",
+  "admin",
+  "own",
+  "invite",
+  "remove",
+  "list",
+  "access",
+  "approve",
+  "publish",
+  "archive",
 ]);
 
 function looksLikeTranslationKey(s: string): boolean {

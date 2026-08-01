@@ -1,19 +1,9 @@
-export const DESTINATION_KEYS = new Set([
-  "href",
-  "path",
-  "to",
-  "url",
-  "route",
-]);
+export const DESTINATION_KEYS = new Set(["href", "path", "to", "url", "route"]);
 
-export const LABEL_KEYS = new Set([
-  "label",
-  "title",
-  "name",
-  "text",
-]);
+export const LABEL_KEYS = new Set(["label", "title", "name", "text"]);
 
-export const UI_LABEL_TAGS = /^(Breadcrumb|Breadcrumbs|Nav|NavItem|NavLink|Sidebar|SidebarItem|Menu|MenuItem|Tab|TabItem)/;
+export const UI_LABEL_TAGS =
+  /^(Breadcrumb|Breadcrumbs|Nav|NavItem|NavLink|Sidebar|SidebarItem|Menu|MenuItem|Tab|TabItem)/;
 
 export const TITLE_HOOK_CALLEES = new Set([
   "useTitle",

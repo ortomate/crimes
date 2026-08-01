@@ -16,9 +16,7 @@ export type InvokeCodexOptions = InvokeClaudeOptions;
  * A single-envelope form (`result` / `output` / `response`) is still
  * accepted for older CLI versions.
  */
-export async function invokeCodex(
-  options: InvokeCodexOptions,
-): Promise<AgentRunResult> {
+export async function invokeCodex(options: InvokeCodexOptions): Promise<AgentRunResult> {
   const args = ["exec", "--json", options.prompt];
   if (options.model) args.push("--model", options.model);
   const { stdout, stderr, exitCode } = await runProcess(

@@ -9,10 +9,7 @@ import {
 import type { CrimesConfig } from "../config.js";
 import type { PreFinding } from "../finding.js";
 
-async function runOn(
-  repo: TestRepo,
-  config?: CrimesConfig,
-): Promise<PreFinding[]> {
+async function runOn(repo: TestRepo, config?: CrimesConfig): Promise<PreFinding[]> {
   const out: PreFinding[] = [];
   for (const absolutePath of repo.files) {
     const file = absolutePath.slice(repo.root.length + 1);
@@ -57,7 +54,9 @@ describe("pass_through_abstraction — chains", () => {
   it("renders the call chain and says what each layer adds", async () => {
     const evidence = (await runOn(await makeRepo(CHAIN)))[0]!.evidence.join("\n");
     expect(evidence).toContain("call chain, 4 layers across 4 files:");
-    expect(evidence).toContain("src/api/users.ts:3 `createUser(…)` → `saveUser(…)` — adds nothing");
+    expect(evidence).toContain(
+      "src/api/users.ts:3 `createUser(…)` → `saveUser(…)` — adds nothing",
+    );
     expect(evidence).toContain("`persistUser(…)` → `writeUser(…)` — adds nothing");
     expect(evidence).toContain("⇒ db.users.insert(…)");
     expect(evidence).toContain(
@@ -105,7 +104,9 @@ describe("pass_through_abstraction — clusters", () => {
     const [finding] = await runOn(repo);
     expect(finding!.symbol).toBe("this.repo");
     const evidence = finding!.evidence.join("\n");
-    expect(evidence).toContain("4 function(s) in this file forward to `this.repo` and add nothing");
+    expect(evidence).toContain(
+      "4 function(s) in this file forward to `this.repo` and add nothing",
+    );
     expect(evidence).toContain("share a name with the method they call");
     expect(evidence).toContain(
       "every caller of this type could call `this.repo` directly with no change in behaviour",
@@ -190,7 +191,10 @@ describe("pass_through_abstraction — configuration", () => {
     const repo = await makeRepo(CHAIN);
     expect(await runOn(repo)).toHaveLength(1);
     expect(
-      await runOn(repo, configWithOptions("pass_through_abstraction", { minChainLength: 6 })),
+      await runOn(
+        repo,
+        configWithOptions("pass_through_abstraction", { minChainLength: 6 }),
+      ),
     ).toHaveLength(0);
   });
 
@@ -209,16 +213,22 @@ describe("pass_through_abstraction — configuration", () => {
     const repo = await makeRepo(cluster);
     expect(await runOn(repo)).toHaveLength(1);
     expect(
-      await runOn(repo, configWithOptions("pass_through_abstraction", { minClusterSize: 8 })),
+      await runOn(
+        repo,
+        configWithOptions("pass_through_abstraction", { minClusterSize: 8 }),
+      ),
     ).toHaveLength(0);
   });
 
   it("honours boundaryPaths", async () => {
     const repo = await makeRepo(CHAIN);
     expect(
-      await runOn(repo, configWithOptions("pass_through_abstraction", {
-        boundaryPaths: ["src/repo/"],
-      })),
+      await runOn(
+        repo,
+        configWithOptions("pass_through_abstraction", {
+          boundaryPaths: ["src/repo/"],
+        }),
+      ),
     ).toHaveLength(0);
   });
 

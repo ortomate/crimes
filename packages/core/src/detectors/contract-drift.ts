@@ -2,10 +2,7 @@ import { z } from "zod";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
-import type {
-  ContractDisagreement,
-  ContractDriftPair,
-} from "../risk/types.js";
+import type { ContractDisagreement, ContractDriftPair } from "../risk/types.js";
 
 /**
  * Contract Split-Brain — two declarations that describe the same record
@@ -99,9 +96,7 @@ export const contractDriftDetector: LanguageJsDetector = {
     const options = readOptions(ctx.config);
     const minOverlap = options.minOverlap ?? 0.6;
     const minDisagreements = options.minDisagreements ?? 1;
-    const ignore = new Set(
-      (options.ignoreNames ?? []).map((n) => n.toLowerCase()),
-    );
+    const ignore = new Set((options.ignoreNames ?? []).map((n) => n.toLowerCase()));
 
     const findings: Finding[] = [];
     for (const pair of risk.contracts.pairs) {
@@ -144,11 +139,19 @@ function buildFinding(
       `${Math.round(pair.overlap * 100)}% field overlap`,
       0.06,
     )
-    .add(critical.length > 0, `${critical.length} disagreement(s) on critical field(s)`, 0.1)
+    .add(
+      critical.length > 0,
+      `${critical.length} disagreement(s) on critical field(s)`,
+      0.1,
+    )
     .add(differentForms, "declared in different forms, so no checker compares them", 0.08)
     .add(bothExported, "both declarations are exported", 0.05)
     .add(sameFile, "both declarations live in the same file (may be deliberate)", -0.12)
-    .add(pair.left.partial || pair.right.partial, "one side extends an unexpanded type", -0.08);
+    .add(
+      pair.left.partial || pair.right.partial,
+      "one side extends an unexpanded type",
+      -0.08,
+    );
 
   // A *type* disagreement on a critical field is the most consequential
   // shape this detector finds: one side will reject values the other
@@ -211,11 +214,10 @@ function buildFinding(
       },
       {
         kind: "resolve_field_disagreements",
-        description:
-          `Decide the correct shape for ${disagreements
-            .slice(0, 3)
-            .map((d) => `\`${d.field}\``)
-            .join(", ")} and apply it to both declarations in one change.`,
+        description: `Decide the correct shape for ${disagreements
+          .slice(0, 3)
+          .map((d) => `\`${d.field}\``)
+          .join(", ")} and apply it to both declarations in one change.`,
         risk: "medium",
       },
     ],

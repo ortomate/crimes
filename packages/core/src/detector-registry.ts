@@ -99,8 +99,8 @@ export const builtInDetectors: Detector[] = [
   hardcodedLocalhostDetector,
   finderDuplicateFilenameDetector,
   // Petty crimes (small local patterns that increase agent confusion).
-  commentedOutCodeDetector,                // language-js variant (AST)
-  commentedOutCodeUniversalDetector,       // universal variant (regex, non-JS only)
+  commentedOutCodeDetector, // language-js variant (AST)
+  commentedOutCodeUniversalDetector, // universal variant (regex, non-JS only)
   logicInCommentsDetector,
   nameBehaviorMismatchDetector,
   magicDomainLiteralScatterDetector,
@@ -309,9 +309,7 @@ export interface GroupedDetectors {
  * The return type is a {@link GroupedDetectors} with narrowed arrays per
  * pack, so the orchestrator can call `detector.run(ctx)` without casts.
  */
-export function groupDetectorsByPack(
-  detectors: readonly Detector[],
-): GroupedDetectors {
+export function groupDetectorsByPack(detectors: readonly Detector[]): GroupedDetectors {
   const grouped: GroupedDetectors = {};
   for (const d of detectors) {
     if (d.pack === "universal") {

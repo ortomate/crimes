@@ -39,9 +39,7 @@ describe("splitTokens", () => {
 
 describe("normaliseTokens", () => {
   it("filters stop words", () => {
-    expect(normaliseTokens(["pages", "settings", "billing"])).toEqual([
-      "billing",
-    ]);
+    expect(normaliseTokens(["pages", "settings", "billing"])).toEqual(["billing"]);
   });
 
   it("singularises whitelisted plurals", () => {
@@ -91,16 +89,11 @@ describe("stripRepoPrefix", () => {
 
 describe("tokenisePath", () => {
   it("strips extensions and conventional terminals", () => {
-    expect(tokenisePath("src/routes/settings/billing/index.tsx")).toEqual([
-      "billing",
-    ]);
+    expect(tokenisePath("src/routes/settings/billing/index.tsx")).toEqual(["billing"]);
   });
 
   it("captures meaningful path tokens", () => {
-    expect(tokenisePath("src/team/permissions.ts")).toEqual([
-      "team",
-      "permission",
-    ]);
+    expect(tokenisePath("src/team/permissions.ts")).toEqual(["team", "permission"]);
   });
 
   it("handles markdown paths", () => {

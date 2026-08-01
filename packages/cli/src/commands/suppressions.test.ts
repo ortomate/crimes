@@ -26,10 +26,7 @@ async function git(cwd: string, ...args: string[]): Promise<void> {
 }
 
 function largeFunctionSource(name = "generateInvoice"): string {
-  const body = Array.from(
-    { length: 200 },
-    (_, i) => `  const v${i} = ${i};`,
-  ).join("\n");
+  const body = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join("\n");
   return `export function ${name}() {\n${body}\n  return 0;\n}\n`;
 }
 
@@ -85,11 +82,7 @@ async function writeSuppression(
       },
     ],
   };
-  await writeFile(
-    join(dir, "suppressions.json"),
-    JSON.stringify(doc, null, 2),
-    "utf8",
-  );
+  await writeFile(join(dir, "suppressions.json"), JSON.stringify(doc, null, 2), "utf8");
 }
 
 describe("crimes scan respects suppressions", () => {
@@ -102,26 +95,19 @@ describe("crimes scan respects suppressions", () => {
       "tracked in #1234",
     );
 
-    const result = await runCli(
-      ["scan", "--format", "json", "--no-color"],
-      root,
-    );
+    const result = await runCli(["scan", "--format", "json", "--no-color"], root);
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout);
     expect(parsed.suppressed_count).toBe(1);
-    expect(parsed.findings.find((f: { type: string }) =>
-      f.type === "large_function"
-    )).toBeUndefined();
+    expect(
+      parsed.findings.find((f: { type: string }) => f.type === "large_function"),
+    ).toBeUndefined();
   });
 
   it("--show-suppressed re-surfaces the finding annotated", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-scan-show-supp-"));
     await writeFile(join(root, "billing.ts"), largeFunctionSource(), "utf8");
-    await writeSuppression(
-      root,
-      "large_function::billing.ts::generateInvoice",
-      "legacy",
-    );
+    await writeSuppression(root, "large_function::billing.ts::generateInvoice", "legacy");
 
     const result = await runCli(
       ["scan", "--show-suppressed", "--format", "json", "--no-color"],
@@ -140,11 +126,7 @@ describe("crimes scan respects suppressions", () => {
   it("--fail-on high with the only high finding suppressed exits 0", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-scan-supp-fail-on-"));
     await writeFile(join(root, "billing.ts"), largeFunctionSource(), "utf8");
-    await writeSuppression(
-      root,
-      "large_function::billing.ts::generateInvoice",
-      "ok",
-    );
+    await writeSuppression(root, "large_function::billing.ts::generateInvoice", "ok");
     await git(root, "init", "--initial-branch=main", "--quiet");
     await git(root, "add", "-A");
     await git(root, "commit", "-m", "init", "--quiet");
@@ -152,15 +134,7 @@ describe("crimes scan respects suppressions", () => {
     // The new untracked trigger.ts plus the suppressed billing.ts: gate
     // should not fire because the only finding is suppressed.
     const result = await runCli(
-      [
-        "scan",
-        "--changed",
-        "--fail-on",
-        "high",
-        "--format",
-        "json",
-        "--no-color",
-      ],
+      ["scan", "--changed", "--fail-on", "high", "--format", "json", "--no-color"],
       root,
     );
     // The suppressed billing.ts isn't in the changed set anyway, but

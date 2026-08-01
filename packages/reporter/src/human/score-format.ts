@@ -9,11 +9,7 @@
  * label alone.
  */
 
-export type QuartileLabel =
-  | "top-quartile"
-  | "median"
-  | "bottom-quartile"
-  | "unknown";
+export type QuartileLabel = "top-quartile" | "median" | "bottom-quartile" | "unknown";
 
 function quartileFromScore(score: number): QuartileLabel {
   if (score >= 0.75) return "top-quartile";
@@ -29,10 +25,7 @@ function quartileFromScore(score: number): QuartileLabel {
  * - `formatBlastRadius(0.85, 11)` → `"top-quartile (11 importers)"`
  * - `formatBlastRadius(0.85, 1)` → `"top-quartile (1 importer)"`
  */
-export function formatBlastRadius(
-  score: number,
-  importerCount?: number,
-): string {
+export function formatBlastRadius(score: number, importerCount?: number): string {
   const label = quartileFromScore(score);
   if (importerCount === undefined) return label;
   const noun = importerCount === 1 ? "importer" : "importers";
@@ -77,10 +70,7 @@ export function formatChurn(
  * - `formatTestGap(0.5)` → `"median"`
  * - `formatTestGap(0)` → `"bottom-quartile"`
  */
-export function formatTestGap(
-  score: number,
-  label?: QuartileLabel,
-): string {
+export function formatTestGap(score: number, label?: QuartileLabel): string {
   if (label && label !== "unknown") return label;
   return quartileFromScore(score);
 }

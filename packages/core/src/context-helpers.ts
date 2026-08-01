@@ -11,14 +11,10 @@ import { makeTierClassifier } from "./scoring/tier.js";
  * "don't make it worse" before the agent edits.
  */
 const GUIDANCE: Record<string, string> = {
-  large_function:
-    "Prefer extracting pure helpers before adding more branches.",
-  large_file:
-    "Read the whole file before editing — propose splits in their own change.",
-  direct_date:
-    "Avoid adding more direct clock access; inject time where possible.",
-  todo_density:
-    "Review TODOs before relying on comments as current intent.",
+  large_function: "Prefer extracting pure helpers before adding more branches.",
+  large_file: "Read the whole file before editing — propose splits in their own change.",
+  direct_date: "Avoid adding more direct clock access; inject time where possible.",
+  todo_density: "Review TODOs before relying on comments as current intent.",
   commented_out_code:
     "Do not copy disabled code from comments; verify whether it should be deleted or explained as rationale.",
   logic_in_comments:

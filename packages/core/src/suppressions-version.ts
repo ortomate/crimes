@@ -80,4 +80,3 @@ export function findFuturePinnedSuppressions(
       compareMinor(e.crimes_version_pinned, currentVersion) > 0,
   );
 }
-

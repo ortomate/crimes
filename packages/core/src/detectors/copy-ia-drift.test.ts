@@ -1,16 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
 import type { LanguageJsDetectorContext } from "../detector.js";
-import type {
-  IaFileSignals,
-  IaIndex,
-  IaLabelSignal,
-} from "../ia/types.js";
+import type { IaFileSignals, IaIndex, IaLabelSignal } from "../ia/types.js";
 import { copyIaDriftDetector } from "./copy-ia-drift.js";
 
-function buildIndex(
-  fileLabels: Record<string, IaLabelSignal[]>,
-): IaIndex {
+function buildIndex(fileLabels: Record<string, IaLabelSignal[]>): IaIndex {
   const files: Record<string, IaFileSignals> = {};
   for (const [file, labels] of Object.entries(fileLabels)) {
     files[file] = {

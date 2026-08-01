@@ -24,9 +24,7 @@ export function formatAuditSuppressionsReport(
   const lines: string[] = [];
 
   lines.push(colour.bold("CRIMES AUDIT-SUPPRESSIONS"));
-  lines.push(
-    colour.dim(`file: ${report.suppressions_path}`),
-  );
+  lines.push(colour.dim(`file: ${report.suppressions_path}`));
 
   if (!report.loaded) {
     lines.push("");
@@ -40,9 +38,7 @@ export function formatAuditSuppressionsReport(
 
   if (report.total === 0) {
     lines.push("");
-    lines.push(
-      colour.green("Suppressions file is empty. Nothing to audit."),
-    );
+    lines.push(colour.green("Suppressions file is empty. Nothing to audit."));
     return lines.join("\n");
   }
 

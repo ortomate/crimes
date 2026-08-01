@@ -33,11 +33,16 @@ describe("magicDomainLiteralScatterDetector", () => {
       },
     };
 
-    const findings = await magicDomainLiteralScatterDetector.run(makeCtx("src/api/billing.ts", petty));
+    const findings = await magicDomainLiteralScatterDetector.run(
+      makeCtx("src/api/billing.ts", petty),
+    );
     expect(findings).toHaveLength(1);
     expect(findings[0]!.type).toBe("magic_domain_literal_scatter");
     expect(findings[0]!.charge).toBe("String Sprinkles");
-    expect(findings[0]!.related_files).toEqual(["src/jobs/sync.ts", "src/ui/pricing.tsx"]);
+    expect(findings[0]!.related_files).toEqual([
+      "src/jobs/sync.ts",
+      "src/ui/pricing.tsx",
+    ]);
   });
 
   it("does not emit from non-anchor files", async () => {
@@ -52,7 +57,9 @@ describe("magicDomainLiteralScatterDetector", () => {
       },
     };
 
-    const findings = await magicDomainLiteralScatterDetector.run(makeCtx("src/jobs/sync.ts", petty));
+    const findings = await magicDomainLiteralScatterDetector.run(
+      makeCtx("src/jobs/sync.ts", petty),
+    );
     expect(findings).toEqual([]);
   });
 
@@ -69,17 +76,14 @@ describe("magicDomainLiteralScatterDetector", () => {
       },
     };
 
-    const findings = await magicDomainLiteralScatterDetector.run(makeCtx("src/api/billing.ts", petty));
+    const findings = await magicDomainLiteralScatterDetector.run(
+      makeCtx("src/api/billing.ts", petty),
+    );
     expect(findings).toEqual([]);
   });
 });
 
-function hit(
-  value: string,
-  file: string,
-  line: number,
-  exportedConstant = false,
-) {
+function hit(value: string, file: string, line: number, exportedConstant = false) {
   return {
     value,
     file,

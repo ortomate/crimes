@@ -159,6 +159,9 @@ export function extractDocstring(bodyNode: Node): string | undefined {
   if (!inner || inner.type !== "string") return undefined;
   const content = stringContent(inner);
   if (content === undefined) return undefined;
-  const line = content.split("\n").map((l) => l.trim()).find((l) => l.length > 0);
+  const line = content
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l.length > 0);
   return line;
 }

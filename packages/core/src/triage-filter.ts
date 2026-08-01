@@ -55,10 +55,7 @@ export function applyTriageFilter(
     // here by fingerprint match would defeat the resurface UX. Pass
     // through unchanged; the renderer's resurface block keys off
     // `previously_triaged` / `previously_baselined`.
-    if (
-      finding.previously_triaged === true ||
-      finding.previously_baselined === true
-    ) {
+    if (finding.previously_triaged === true || finding.previously_baselined === true) {
       out.push(finding);
       continue;
     }

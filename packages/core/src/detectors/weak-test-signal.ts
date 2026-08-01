@@ -3,7 +3,8 @@ import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 const TEST_CALL = /\b(?:it|test)\s*\(\s*(["'`])([^"'`]+)\1/g;
 const ASSERTION = /\b(?:expect|assert(?:\.[A-Za-z_$][\w$]*)?)\s*\(/g;
-const WEAK_ASSERTION = /\.(?:toBeDefined|toBeTruthy|toBeFalsy|toMatchSnapshot|toMatchInlineSnapshot)\s*\(/g;
+const WEAK_ASSERTION =
+  /\.(?:toBeDefined|toBeTruthy|toBeFalsy|toMatchSnapshot|toMatchInlineSnapshot)\s*\(/g;
 
 export const weakTestSignalDetector: LanguageJsDetector = {
   id: "weak_test_signal",
@@ -105,7 +106,11 @@ function extractTestBlocks(source: string): TestBlock[] {
   return blocks;
 }
 
-function findCallbackBodyStart(source: string, callOpen: number, callClose: number): number {
+function findCallbackBodyStart(
+  source: string,
+  callOpen: number,
+  callClose: number,
+): number {
   const call = source.slice(callOpen + 1, callClose);
   const patterns = [
     /(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*{/g,
@@ -135,7 +140,11 @@ function findMatchingParen(source: string, open: number): number {
         i += 1;
         continue;
       }
-      if ((state === "single" && ch === "'") || (state === "double" && ch === "\"") || (state === "template" && ch === "`")) {
+      if (
+        (state === "single" && ch === "'") ||
+        (state === "double" && ch === '"') ||
+        (state === "template" && ch === "`")
+      ) {
         state = "code";
       }
       continue;
@@ -144,7 +153,7 @@ function findMatchingParen(source: string, open: number): number {
       state = "single";
       continue;
     }
-    if (ch === "\"") {
+    if (ch === '"') {
       state = "double";
       continue;
     }
@@ -171,7 +180,11 @@ function findMatchingBrace(source: string, open: number): number {
         i += 1;
         continue;
       }
-      if ((state === "single" && ch === "'") || (state === "double" && ch === "\"") || (state === "template" && ch === "`")) {
+      if (
+        (state === "single" && ch === "'") ||
+        (state === "double" && ch === '"') ||
+        (state === "template" && ch === "`")
+      ) {
         state = "code";
       }
       continue;
@@ -180,7 +193,7 @@ function findMatchingBrace(source: string, open: number): number {
       state = "single";
       continue;
     }
-    if (ch === "\"") {
+    if (ch === '"') {
       state = "double";
       continue;
     }
@@ -198,8 +211,10 @@ function findMatchingBrace(source: string, open: number): number {
 }
 
 function looksTypeOnlyTest(file: string, source: string): boolean {
-  return /(?:typecheck|tsd|types?)\.(?:test|spec)\./.test(file) ||
-    /\b(?:expectTypeOf|expectAssignable|expectError)\s*\(/.test(source);
+  return (
+    /(?:typecheck|tsd|types?)\.(?:test|spec)\./.test(file) ||
+    /\b(?:expectTypeOf|expectAssignable|expectError)\s*\(/.test(source)
+  );
 }
 
 function pickSeverity(assertionCount: number, onlyWeak: boolean): Severity {

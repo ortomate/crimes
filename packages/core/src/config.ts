@@ -445,10 +445,7 @@ export const CrimesConfigSchema = z
  * omitted, options-level validation is skipped — useful for tests and
  * for direct programmatic callers that don't carry a detector list.
  */
-export function loadConfig(
-  root: string,
-  registry?: DetectorRegistry,
-): CrimesConfig {
+export function loadConfig(root: string, registry?: DetectorRegistry): CrimesConfig {
   return loadConfigDetailed(root, registry).config;
 }
 
@@ -629,10 +626,7 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
  * `config.suppressions.path` when set. Relative paths resolve against the
  * repo root; absolute paths win unchanged.
  */
-export function resolveSuppressionsPath(
-  root: string,
-  config: CrimesConfig,
-): string {
+export function resolveSuppressionsPath(root: string, config: CrimesConfig): string {
   const override = config.suppressions?.path;
   if (!override) return resolve(root, DEFAULT_SUPPRESSIONS_PATH);
   return resolve(root, override);

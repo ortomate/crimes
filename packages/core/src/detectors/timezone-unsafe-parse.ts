@@ -29,7 +29,7 @@ export const timezoneUnsafeParseDetector: LanguageJsDetector = {
   id: "timezone_unsafe_parse",
   name: "Timezone Roulette",
   description:
-    "Flags `new Date(\"…\")` calls whose string argument has no timezone marker " +
+    'Flags `new Date("…")` calls whose string argument has no timezone marker ' +
     "(no `Z` and no `±HH:MM` offset).",
   whyItMatters:
     "JavaScript parses date strings differently depending on their shape: " +
@@ -102,9 +102,7 @@ export const timezoneUnsafeParseDetector: LanguageJsDetector = {
   },
 };
 
-function readAllowedLiterals(
-  options: Record<string, unknown> | undefined,
-): Set<string> {
+function readAllowedLiterals(options: Record<string, unknown> | undefined): Set<string> {
   const raw = options?.["timezone_unsafe_parse"];
   if (!raw) return new Set();
   // Loader already validated against optionsSchema, but in case of

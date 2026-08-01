@@ -34,9 +34,6 @@ export const RELEASE_NOTES_FALLBACK =
  * Look up the release-notes hint for a (detector_id, target_minor)
  * pair. Returns {@link RELEASE_NOTES_FALLBACK} when there's no entry.
  */
-export function releaseNoteFor(
-  detectorId: string,
-  targetMinor: string,
-): string {
+export function releaseNoteFor(detectorId: string, targetMinor: string): string {
   return RELEASE_NOTES[detectorId]?.[targetMinor] ?? RELEASE_NOTES_FALLBACK;
 }

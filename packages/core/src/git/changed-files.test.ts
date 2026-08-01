@@ -107,10 +107,7 @@ describe("getChangedFiles", () => {
 
     const changed = await getChangedFiles({ root: repo, base: "main" });
     expect(new Set(changed)).toEqual(
-      new Set([
-        join(repo, "added-on-branch.ts"),
-        join(repo, "kept.ts"),
-      ]),
+      new Set([join(repo, "added-on-branch.ts"), join(repo, "kept.ts")]),
     );
   });
 

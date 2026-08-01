@@ -58,7 +58,5 @@ export async function discoverEnvInventoryFiles(root: string): Promise<string[]>
     followSymbolicLinks: false,
     suppressErrors: true,
   });
-  return entries
-    .filter((path) => !FORBIDDEN.test(path.replace(/\\/g, "/")))
-    .sort();
+  return entries.filter((path) => !FORBIDDEN.test(path.replace(/\\/g, "/"))).sort();
 }

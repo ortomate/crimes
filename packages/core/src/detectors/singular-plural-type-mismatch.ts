@@ -85,7 +85,8 @@ export const singularPluralTypeMismatchDetector: LanguageJsDetector = {
         `v1 detector — type aliases and generic types are silently skipped`,
       ],
       effort: "quick",
-      fix_shape: "make the name agree with the type — `users` for array, `user` for scalar",
+      fix_shape:
+        "make the name agree with the type — `users` for array, `user` for scalar",
       scores: {
         severity: severity === "medium" ? 0.55 : 0.3,
         confidence: 0.7,
@@ -157,9 +158,7 @@ function parseIdentifierType(t: string): string | undefined {
   return undefined;
 }
 
-function readAllowed(
-  options: Record<string, unknown> | undefined,
-): Set<string> {
+function readAllowed(options: Record<string, unknown> | undefined): Set<string> {
   const raw = options?.["singular_plural_type_mismatch"];
   if (!raw) return new Set();
   const parsed = optionsSchema.safeParse(raw);

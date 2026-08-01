@@ -7,10 +7,7 @@ import {
   verdict,
 } from "@crimes/core";
 import type { VerdictFailOn } from "@crimes/core";
-import {
-  formatVerdictJsonReport,
-  formatVerdictReport,
-} from "@crimes/reporter";
+import { formatVerdictJsonReport, formatVerdictReport } from "@crimes/reporter";
 import type { Command } from "commander";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
 
@@ -23,11 +20,7 @@ interface VerdictCommandOptions {
   showSuppressed: boolean;
 }
 
-const VALID_FAIL_ON = new Set<VerdictFailOn>([
-  "worse",
-  "new-high",
-  "new-medium",
-]);
+const VALID_FAIL_ON = new Set<VerdictFailOn>(["worse", "new-high", "new-medium"]);
 
 function isFailOn(value: string): value is VerdictFailOn {
   return VALID_FAIL_ON.has(value as VerdictFailOn);

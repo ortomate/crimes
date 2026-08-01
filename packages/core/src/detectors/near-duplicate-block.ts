@@ -51,8 +51,7 @@ export const nearDuplicateBlockDetector: LanguageJsDetector = {
           hash,
           hits,
           anchor,
-          fixShape:
-            "consolidate into one helper; pass the differing values as args",
+          fixShape: "consolidate into one helper; pass the differing values as args",
         }),
       );
     }

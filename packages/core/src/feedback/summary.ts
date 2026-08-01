@@ -10,9 +10,7 @@ import { latestPerFingerprint } from "./read.js";
  * returned summary includes a `by_repo` breakdown grouped by latest
  * verdict per (repo, fingerprint) pair.
  */
-export function buildFeedbackSummary(
-  entries: FeedbackEntry[],
-): FeedbackSummary {
+export function buildFeedbackSummary(entries: FeedbackEntry[]): FeedbackSummary {
   const hasRepo = entries.some((e) => e.repo !== undefined);
 
   // Per-repo, latest-per-fingerprint when scope is global. Per-fingerprint
@@ -59,9 +57,7 @@ export { latestPerFingerprint };
  * the inline "Give feedback:" hint for a given detector — after 5+
  * entries the user doesn't need the prompt anymore.
  */
-export function countEntriesByDetector(
-  entries: FeedbackEntry[],
-): Record<string, number> {
+export function countEntriesByDetector(entries: FeedbackEntry[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const e of entries) {
     counts[e.finding_type] = (counts[e.finding_type] ?? 0) + 1;

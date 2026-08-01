@@ -167,8 +167,11 @@ describe("unbounded_async_fanout — configuration", () => {
     // Ten elements is above the default bound of 8, so it reports.
     expect(run(source)).toHaveLength(1);
     expect(
-      run(source, "src/a.ts",
-        configWithOptions("unbounded_async_fanout", { staticallySmall: 20 })),
+      run(
+        source,
+        "src/a.ts",
+        configWithOptions("unbounded_async_fanout", { staticallySmall: 20 }),
+      ),
     ).toHaveLength(0);
   });
 
@@ -181,8 +184,11 @@ describe("unbounded_async_fanout — configuration", () => {
     `;
     expect(run(source)).toHaveLength(1);
     expect(
-      run(source, "src/a.ts",
-        configWithOptions("unbounded_async_fanout", { boundedHelpers: ["mapWithLimit"] })),
+      run(
+        source,
+        "src/a.ts",
+        configWithOptions("unbounded_async_fanout", { boundedHelpers: ["mapWithLimit"] }),
+      ),
     ).toHaveLength(0);
   });
 
@@ -194,8 +200,11 @@ describe("unbounded_async_fanout — configuration", () => {
     `;
     expect(run(source)).toHaveLength(0);
     expect(
-      run(source, "src/a.ts",
-        configWithOptions("unbounded_async_fanout", { reportUnclassifiedWork: true })),
+      run(
+        source,
+        "src/a.ts",
+        configWithOptions("unbounded_async_fanout", { reportUnclassifiedWork: true }),
+      ),
     ).toHaveLength(1);
   });
 

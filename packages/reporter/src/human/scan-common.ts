@@ -8,10 +8,7 @@ export function summaryLine(report: ScanReport, colour: ColourFns): string {
   );
 }
 
-export function severityCountsLine(
-  report: ScanReport,
-  colour: ColourFns,
-): string {
+export function severityCountsLine(report: ScanReport, colour: ColourFns): string {
   const { high, medium, low } = report.summary;
   return `${colour.red(`${high} high`)}  ${colour.yellow(`${medium} medium`)}  ${colour.dim(`${low} low`)}`;
 }

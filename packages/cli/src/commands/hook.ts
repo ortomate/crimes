@@ -151,8 +151,7 @@ async function readStdinIfAvailable(): Promise<string | undefined> {
 }
 
 async function buildHookContext(absolute: string): Promise<ContextReport> {
-  const scanRoot =
-    (await findNearestPackageRoot(dirname(absolute))) ?? process.cwd();
+  const scanRoot = (await findNearestPackageRoot(dirname(absolute))) ?? process.cwd();
   const config = loadConfig(scanRoot);
   const suppressions = loadSuppressionsForRoot(scanRoot, config);
   const report = await context({
@@ -168,9 +167,7 @@ async function buildHookContext(absolute: string): Promise<ContextReport> {
 function formatCompactHookReport(report: ContextReport): string {
   const lines: string[] = [];
   const counts = `${report.risk.high} high, ${report.risk.medium} medium, ${report.risk.low} low`;
-  lines.push(
-    `crimes context ${report.file}: ${report.risk.level} risk (${counts})`,
-  );
+  lines.push(`crimes context ${report.file}: ${report.risk.level} risk (${counts})`);
 
   if (report.findings.length > 0) {
     lines.push("Top findings:");
@@ -199,9 +196,7 @@ function formatCompactHookReport(report: ContextReport): string {
 }
 
 function formatCompactFinding(finding: Finding): string {
-  const location = finding.lines
-    ? `:${finding.lines[0]}-${finding.lines[1]}`
-    : "";
+  const location = finding.lines ? `:${finding.lines[0]}-${finding.lines[1]}` : "";
   return `${finding.severity.toUpperCase()} ${finding.charge} ${finding.file}${location} (${finding.id})`;
 }
 

@@ -11,12 +11,16 @@ describe("extractStringLiterals", () => {
   });
 
   it("ignores comment text", () => {
-    const literals = extractStringLiterals("// \"old\"\n/* 'stale' */\nconst x = \"live\";\n");
+    const literals = extractStringLiterals(
+      '// "old"\n/* \'stale\' */\nconst x = "live";\n',
+    );
     expect(literals.map((l) => l.value)).toEqual(["live"]);
   });
 
   it("ignores interpolated templates but keeps plain templates", () => {
-    const literals = extractStringLiterals("const a = `plain.key`;\nconst b = `user.${id}`;\n");
+    const literals = extractStringLiterals(
+      "const a = `plain.key`;\nconst b = `user.${id}`;\n",
+    );
     expect(literals.map((l) => l.value)).toEqual(["plain.key"]);
   });
 });

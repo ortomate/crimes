@@ -9,10 +9,7 @@ import {
 import type { CrimesConfig } from "../config.js";
 import type { PreFinding } from "../finding.js";
 
-async function runOn(
-  repo: TestRepo,
-  config?: CrimesConfig,
-): Promise<PreFinding[]> {
+async function runOn(repo: TestRepo, config?: CrimesConfig): Promise<PreFinding[]> {
   const out: PreFinding[] = [];
   for (const absolutePath of repo.files) {
     const file = absolutePath.slice(repo.root.length + 1);
@@ -68,7 +65,9 @@ describe("contract_drift — positive cases", () => {
     // Value set.
     expect(evidence).toMatch(/role: A is .*admin.* B is .*owner.*\(value set\)/);
     // Type, with the critical-field annotation.
-    expect(evidence).toMatch(/createdAt: A is Date, B is string \(type\) \[timestamp field\]/);
+    expect(evidence).toMatch(
+      /createdAt: A is Date, B is string \(type\) \[timestamp field\]/,
+    );
   });
 
   it("states why the two were matched", async () => {
@@ -77,7 +76,9 @@ describe("contract_drift — positive cases", () => {
       "src/db/user.ts": DB_USER_SCHEMA,
     });
     const evidence = (await runOn(repo))[0]!.evidence.join("\n");
-    expect(evidence).toContain('matched because: both names reduce to the concept "user"');
+    expect(evidence).toContain(
+      'matched because: both names reduce to the concept "user"',
+    );
     expect(evidence).toMatch(/matched because: 4 shared field\(s\), 100% of the smaller/);
     expect(evidence).toContain(
       "declared in different forms (interface vs zod), so no type checker compares them",
@@ -254,7 +255,10 @@ describe("contract_drift — configuration", () => {
       "src/db/user.ts": DB_USER_SCHEMA,
     });
     expect(
-      await runOn(repo, configWithOptions("contract_drift", { ignoreNames: ["UserSchema"] })),
+      await runOn(
+        repo,
+        configWithOptions("contract_drift", { ignoreNames: ["UserSchema"] }),
+      ),
     ).toHaveLength(0);
   });
 
@@ -265,7 +269,10 @@ describe("contract_drift — configuration", () => {
     });
     expect(await runOn(repo)).toHaveLength(1);
     expect(
-      await runOn(repo, configWithOptions("contract_drift", { reportRequiredness: false })),
+      await runOn(
+        repo,
+        configWithOptions("contract_drift", { reportRequiredness: false }),
+      ),
     ).toHaveLength(0);
   });
 
@@ -283,9 +290,7 @@ describe("contract_drift — stability", () => {
       "src/api/user.ts": API_USER,
       "src/db/user.ts": DB_USER_SCHEMA,
     });
-    expect(JSON.stringify(await runOn(repo))).toBe(
-      JSON.stringify(await runOn(repo)),
-    );
+    expect(JSON.stringify(await runOn(repo))).toBe(JSON.stringify(await runOn(repo)));
   });
 
   it("orders the pair deterministically regardless of which file is scanned first", async () => {

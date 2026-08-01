@@ -95,7 +95,7 @@ describe("crimes init", () => {
     expect(existsSync(skillPath)).toBe(true);
     const raw = readFileSync(skillPath, "utf8");
     expect(raw).toContain("crimes context <file> --format json");
-    expect(raw).toContain("severity: \"high\"");
+    expect(raw).toContain('severity: "high"');
   });
 
   it("--codex-skill writes a Codex skill file", async () => {
@@ -108,7 +108,7 @@ describe("crimes init", () => {
     expect(existsSync(skillPath)).toBe(true);
     const raw = readFileSync(skillPath, "utf8");
     expect(raw).toContain("crimes context <file> --format json");
-    expect(raw).toContain("severity: \"high\"");
+    expect(raw).toContain('severity: "high"');
   });
 
   it("--agents writes Claude Code and Codex skill files", async () => {
@@ -118,12 +118,8 @@ describe("crimes init", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain(".claude/skills/crimes/SKILL.md");
     expect(result.stdout).toContain(".agents/skills/crimes/SKILL.md");
-    expect(
-      existsSync(join(root, ".claude", "skills", "crimes", "SKILL.md")),
-    ).toBe(true);
-    expect(
-      existsSync(join(root, ".agents", "skills", "crimes", "SKILL.md")),
-    ).toBe(true);
+    expect(existsSync(join(root, ".claude", "skills", "crimes", "SKILL.md"))).toBe(true);
+    expect(existsSync(join(root, ".agents", "skills", "crimes", "SKILL.md"))).toBe(true);
   });
 
   it("--agents keeps an existing config while adding missing skill files", async () => {
@@ -137,12 +133,8 @@ describe("crimes init", () => {
     expect(readFileSync(join(root, "crimes.config.json"), "utf8")).toBe(
       `{ "include": ["custom"] }`,
     );
-    expect(
-      existsSync(join(root, ".claude", "skills", "crimes", "SKILL.md")),
-    ).toBe(true);
-    expect(
-      existsSync(join(root, ".agents", "skills", "crimes", "SKILL.md")),
-    ).toBe(true);
+    expect(existsSync(join(root, ".claude", "skills", "crimes", "SKILL.md"))).toBe(true);
+    expect(existsSync(join(root, ".agents", "skills", "crimes", "SKILL.md"))).toBe(true);
   });
 
   it("--agent-skill refuses to overwrite an existing skill without --force", async () => {
@@ -203,9 +195,7 @@ describe("crimes init", () => {
     const parsed = JSON.parse(readFileSync(settingsPath, "utf8"));
     expect(parsed.hooks.PreToolUse).toHaveLength(1);
     expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write|NotebookEdit");
-    expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain(
-      "crimes hook",
-    );
+    expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain("crimes hook");
   });
 
   it("--agents writes the Codex placeholder at .agents/settings.local.json", async () => {
@@ -225,19 +215,11 @@ describe("crimes init", () => {
     const result = await runCli(["init", "--agents", "--no-hooks"], root);
 
     expect(result.exitCode).toBe(0);
-    expect(existsSync(join(root, ".claude", "settings.local.json"))).toBe(
-      false,
-    );
-    expect(existsSync(join(root, ".agents", "settings.local.json"))).toBe(
-      false,
-    );
+    expect(existsSync(join(root, ".claude", "settings.local.json"))).toBe(false);
+    expect(existsSync(join(root, ".agents", "settings.local.json"))).toBe(false);
     // SKILL.md files should still be written.
-    expect(
-      existsSync(join(root, ".claude", "skills", "crimes", "SKILL.md")),
-    ).toBe(true);
-    expect(
-      existsSync(join(root, ".agents", "skills", "crimes", "SKILL.md")),
-    ).toBe(true);
+    expect(existsSync(join(root, ".claude", "skills", "crimes", "SKILL.md"))).toBe(true);
+    expect(existsSync(join(root, ".agents", "skills", "crimes", "SKILL.md"))).toBe(true);
   });
 
   it("--agents merges into existing .claude/settings.local.json without losing other hooks", async () => {
@@ -288,8 +270,7 @@ describe("crimes init", () => {
       (entry: { hooks: Array<{ command: string }> }) =>
         entry.hooks.some(
           (h) =>
-            h.command.includes("crimes hook") ||
-            h.command.includes("crimes context"),
+            h.command.includes("crimes hook") || h.command.includes("crimes context"),
         ),
     );
     expect(crimesEntries).toHaveLength(1);
@@ -325,12 +306,8 @@ describe("crimes init", () => {
     const result = await runCli(["init", "--codex-skill"], root);
 
     expect(result.exitCode).toBe(0);
-    expect(existsSync(join(root, ".agents", "settings.local.json"))).toBe(
-      true,
-    );
-    expect(existsSync(join(root, ".claude", "settings.local.json"))).toBe(
-      false,
-    );
+    expect(existsSync(join(root, ".agents", "settings.local.json"))).toBe(true);
+    expect(existsSync(join(root, ".claude", "settings.local.json"))).toBe(false);
   });
 
   it("--agents writes SKILL.md with pack coverage explanation", async () => {

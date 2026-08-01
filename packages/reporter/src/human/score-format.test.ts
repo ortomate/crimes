@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatBlastRadius,
-  formatChurn,
-  formatTestGap,
-} from "./score-format.js";
+import { formatBlastRadius, formatChurn, formatTestGap } from "./score-format.js";
 
 describe("formatBlastRadius", () => {
   it("returns top-quartile + importer count when both present", () => {

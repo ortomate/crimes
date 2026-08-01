@@ -74,12 +74,7 @@ const SUBPROCESS_METHODS = new Set([
   "Popen",
 ]);
 
-const FILE_METHODS = new Set([
-  "read_text",
-  "write_text",
-  "read_bytes",
-  "write_bytes",
-]);
+const FILE_METHODS = new Set(["read_text", "write_text", "read_bytes", "write_bytes"]);
 
 /**
  * Recognise a blocking I/O call.
@@ -90,7 +85,9 @@ const FILE_METHODS = new Set([
  * `sync_io_in_hotpath.py` charges. `aiofiles.open` and `httpx.AsyncClient`
  * are the async escapes and are not matched.
  */
-export function matchIoCall(callNode: Node): Omit<PyIoCall, "enclosingFunctions"> | undefined {
+export function matchIoCall(
+  callNode: Node,
+): Omit<PyIoCall, "enclosingFunctions"> | undefined {
   const callee = calleeText(callNode);
   if (callee.length === 0) return undefined;
   const method = lastSegment(callee);

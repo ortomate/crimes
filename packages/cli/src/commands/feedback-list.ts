@@ -20,9 +20,7 @@ interface FeedbackListOptions {
 export function registerFeedbackListSubcommand(parent: Command): void {
   parent
     .command("list")
-    .description(
-      "List captured feedback entries (latest verdict per fingerprint).",
-    )
+    .description("List captured feedback entries (latest verdict per fingerprint).")
     .option("--format <format>", "output format: human | json", "human")
     .option(
       "--global",
@@ -51,9 +49,7 @@ export function registerFeedbackListSubcommand(parent: Command): void {
         return;
       }
       if (options.verdict !== undefined && !isVerdict(options.verdict)) {
-        process.stderr.write(
-          'crimes: --verdict must be one of "tp", "fp", "known".\n',
-        );
+        process.stderr.write('crimes: --verdict must be one of "tp", "fp", "known".\n');
         process.exit(2);
         return;
       }
@@ -63,9 +59,7 @@ export function registerFeedbackListSubcommand(parent: Command): void {
         : resolveFeedbackPath(resolve(process.cwd()));
       const read = await readFeedback(path);
 
-      const sinceCutoff = options.since
-        ? parseSinceDuration(options.since)
-        : undefined;
+      const sinceCutoff = options.since ? parseSinceDuration(options.since) : undefined;
       if (options.since !== undefined && sinceCutoff === undefined) {
         process.stderr.write(
           `crimes: --since "${options.since}" not understood. Use e.g. 30d, 2w, 6h, 90m.\n`,
@@ -126,9 +120,7 @@ function formatFeedbackList(
   for (const e of entries) {
     const note = e.note ? ` "${e.note}"` : "";
     const resurfaced =
-      e.resurfaced_from !== null
-        ? ` [resurfaced from ${e.resurfaced_from}]`
-        : "";
+      e.resurfaced_from !== null ? ` [resurfaced from ${e.resurfaced_from}]` : "";
     lines.push(
       `  [${e.verdict.padEnd(5)}] ${e.timestamp}  ${e.fingerprint}${resurfaced}${note}`,
     );

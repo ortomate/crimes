@@ -120,9 +120,7 @@ export const dependencyProvenanceGapDetector: UniversalDetector = {
     if (anchor === undefined) return [];
 
     const options = readOptions(ctx.config);
-    const allowed = new Set(
-      (options.allowedPackages ?? []).map((p) => p.toLowerCase()),
-    );
+    const allowed = new Set((options.allowedPackages ?? []).map((p) => p.toLowerCase()));
 
     const findings: Finding[] = [];
 
@@ -202,15 +200,25 @@ function reportUndeclared(
   const entries = [...undeclared.values()].sort((a, b) =>
     a.packageName.localeCompare(b.packageName),
   );
-  const productionEntries = entries.filter(
-    (e) => classifyScope(e.file) === "production",
-  );
+  const productionEntries = entries.filter((e) => classifyScope(e.file) === "production");
   const runtimeEntries = productionEntries.filter((e) => !e.typeOnly);
 
   const confidence = new ConfidenceLadder(0.68)
-    .add(runtimeEntries.length > 0, `${runtimeEntries.length} runtime import(s) affected`, 0.14)
-    .add(manifest.isMonorepo, "monorepo — resolution walks up through parent manifests", -0.08)
-    .add(entries.every((e) => e.typeOnly), "every affected import is type-only", -0.18)
+    .add(
+      runtimeEntries.length > 0,
+      `${runtimeEntries.length} runtime import(s) affected`,
+      0.14,
+    )
+    .add(
+      manifest.isMonorepo,
+      "monorepo — resolution walks up through parent manifests",
+      -0.08,
+    )
+    .add(
+      entries.every((e) => e.typeOnly),
+      "every affected import is type-only",
+      -0.18,
+    )
     .add(
       productionEntries.length === 0,
       "only test or fixture files are affected",
@@ -220,7 +228,11 @@ function reportUndeclared(
   const severity = new SeverityLadder(0.4)
     .add(runtimeEntries.length > 0, "runtime imports are affected", 0.22)
     .add(runtimeEntries.length >= 3, "three or more runtime packages", 0.08)
-    .add(entries.every((e) => e.typeOnly), "type-only imports", -0.2)
+    .add(
+      entries.every((e) => e.typeOnly),
+      "type-only imports",
+      -0.2,
+    )
     .add(productionEntries.length === 0, "test-only imports", -0.15);
 
   const evidence: string[] = [
@@ -234,7 +246,10 @@ function reportUndeclared(
   }
   if (entries.length > 8) evidence.push(`  +${entries.length - 8} more`);
   evidence.push(
-    `manifests searched: ${manifest.manifests.map((m) => m.file).slice(0, 6).join(", ")}` +
+    `manifests searched: ${manifest.manifests
+      .map((m) => m.file)
+      .slice(0, 6)
+      .join(", ")}` +
       (manifest.manifests.length > 6 ? `, +${manifest.manifests.length - 6} more` : ""),
   );
   evidence.push(
@@ -278,11 +293,10 @@ function reportUndeclared(
     suggested_actions: [
       {
         kind: "declare_dependency",
-        description:
-          `Add ${entries
-            .slice(0, 3)
-            .map((e) => `\`${e.packageName}\``)
-            .join(", ")} to the dependencies of the package that imports them.`,
+        description: `Add ${entries
+          .slice(0, 3)
+          .map((e) => `\`${e.packageName}\``)
+          .join(", ")} to the dependencies of the package that imports them.`,
         risk: "low",
       },
     ],
@@ -340,16 +354,26 @@ function reportLockGaps(
 
   if (missing.length === 0) return undefined;
   missing.sort((a, b) =>
-    a.manifest === b.manifest ? a.name.localeCompare(b.name) : a.manifest.localeCompare(b.manifest),
+    a.manifest === b.manifest
+      ? a.name.localeCompare(b.name)
+      : a.manifest.localeCompare(b.manifest),
   );
 
   const confidence = new ConfidenceLadder(0.7)
     .add(usable.length === 1, `single lockfile (${usable[0]!.file})`, 0.1)
-    .add(usable.length > 1, `${usable.length} lockfiles present — mixed package managers`, -0.05)
+    .add(
+      usable.length > 1,
+      `${usable.length} lockfiles present — mixed package managers`,
+      -0.05,
+    )
     .add(missing.length >= 5, `${missing.length} declarations affected`, 0.05);
 
   const severity = new SeverityLadder(0.45)
-    .add(missing.some((d) => d.kind === "dependencies"), "runtime dependencies affected", 0.18)
+    .add(
+      missing.some((d) => d.kind === "dependencies"),
+      "runtime dependencies affected",
+      0.18,
+    )
     .add(missing.length >= 5, "five or more declarations affected", 0.08);
 
   const workspaceCount = manifest.manifests.filter((m) => m.inWorkspace).length;
@@ -418,10 +442,7 @@ function reportLockGaps(
  * Unpinned specifiers
  * ------------------------------------------------------------------ */
 
-function reportUnpinned(
-  manifest: ManifestIndex,
-  anchor: PackageManifest,
-): Finding[] {
+function reportUnpinned(manifest: ManifestIndex, anchor: PackageManifest): Finding[] {
   const mutable: Array<{ dep: DeclaredDependency; reason: string }> = [];
 
   for (const pkg of manifest.manifests) {
@@ -510,7 +531,10 @@ function reportUnpinned(
       severity: severity.severity(),
       confidence: confidence.value(),
       file: anchor.file,
-      lines: [mutable[0]!.dep.manifest === anchor.file ? mutable[0]!.dep.line : 1, mutable[0]!.dep.manifest === anchor.file ? mutable[0]!.dep.line : 1],
+      lines: [
+        mutable[0]!.dep.manifest === anchor.file ? mutable[0]!.dep.line : 1,
+        mutable[0]!.dep.manifest === anchor.file ? mutable[0]!.dep.line : 1,
+      ],
       symbol: "unpinned specifiers",
       summary:
         `${mutable.length} dependency specifier(s) are not pinned to immutable ` +
@@ -551,11 +575,7 @@ function reportUnpinned(
  * dependency declared at the workspace root satisfies an import in a
  * child package.
  */
-function isDeclaredFor(
-  file: string,
-  packageName: string,
-  index: ManifestIndex,
-): boolean {
+function isDeclaredFor(file: string, packageName: string, index: ManifestIndex): boolean {
   for (const manifest of index.manifests) {
     if (!governs(manifest.dir, file)) continue;
     if (manifest.dependencies.some((d) => d.name === packageName)) return true;

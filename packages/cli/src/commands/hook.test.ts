@@ -38,112 +38,98 @@ function runHookCli(
       resolvePromise({ stdout, stderr, exitCode: code ?? 0 });
     });
     child.on("error", (err) => {
-      resolvePromise({ stdout, stderr: `${stderr}\nspawn error: ${err.message}`, exitCode: -1 });
+      resolvePromise({
+        stdout,
+        stderr: `${stderr}\nspawn error: ${err.message}`,
+        exitCode: -1,
+      });
     });
     child.stdin.end(stdinPayload);
   });
 }
 
 function largeFunctionSource(): string {
-  const body = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join(
-    "\n",
-  );
+  const body = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join("\n");
   return `export function generateInvoice() {\n${body}\n  return 0;\n}\n`;
 }
 
 describe("crimes hook", () => {
-  it(
-    "reads PreToolUse JSON from stdin and prints compact context for tool_input.file_path",
-    { timeout: 30_000 },
-    async () => {
-      const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-"));
-      await writeFile(join(root, "src.ts"), largeFunctionSource(), "utf8");
+  it("reads PreToolUse JSON from stdin and prints compact context for tool_input.file_path", {
+    timeout: 30_000,
+  }, async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-"));
+    await writeFile(join(root, "src.ts"), largeFunctionSource(), "utf8");
 
-      const payload = JSON.stringify({
-        hook_event_name: "PreToolUse",
-        tool_name: "Edit",
-        tool_input: {
-          file_path: "src.ts",
-          old_string: "x",
-          new_string: "y",
-        },
-      });
+    const payload = JSON.stringify({
+      hook_event_name: "PreToolUse",
+      tool_name: "Edit",
+      tool_input: {
+        file_path: "src.ts",
+        old_string: "x",
+        new_string: "y",
+      },
+    });
 
-      const result = await runHookCli(payload, root);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("crimes context src.ts:");
-      expect(result.stdout).toContain("Top findings:");
-      expect(result.stdout).toContain("God Function");
-    },
-  );
+    const result = await runHookCli(payload, root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("crimes context src.ts:");
+    expect(result.stdout).toContain("Top findings:");
+    expect(result.stdout).toContain("God Function");
+  });
 
-  it(
-    "keeps full context JSON available behind --format json",
-    { timeout: 30_000 },
-    async () => {
-      const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-json-"));
-      await writeFile(join(root, "src.ts"), largeFunctionSource(), "utf8");
+  it("keeps full context JSON available behind --format json", {
+    timeout: 30_000,
+  }, async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-json-"));
+    await writeFile(join(root, "src.ts"), largeFunctionSource(), "utf8");
 
-      const payload = JSON.stringify({
-        tool_input: { file_path: "src.ts" },
-      });
+    const payload = JSON.stringify({
+      tool_input: { file_path: "src.ts" },
+    });
 
-      const result = await runHookCli(payload, root, ["--format", "json"]);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('"report_type": "context"');
-      expect(result.stdout).toContain('"file": "src.ts"');
-    },
-  );
+    const result = await runHookCli(payload, root, ["--format", "json"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('"report_type": "context"');
+    expect(result.stdout).toContain('"file": "src.ts"');
+  });
 
-  it(
-    "exits 0 quietly when the stdin payload has no tool_input.file_path",
-    { timeout: 15_000 },
-    async () => {
-      const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-nopath-"));
-      const payload = JSON.stringify({
-        hook_event_name: "PreToolUse",
-        tool_name: "Bash",
-        tool_input: { command: "ls" },
-      });
-      const result = await runHookCli(payload, root);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toBe("");
-    },
-  );
+  it("exits 0 quietly when the stdin payload has no tool_input.file_path", {
+    timeout: 15_000,
+  }, async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-nopath-"));
+    const payload = JSON.stringify({
+      hook_event_name: "PreToolUse",
+      tool_name: "Bash",
+      tool_input: { command: "ls" },
+    });
+    const result = await runHookCli(payload, root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("");
+  });
 
-  it(
-    "exits 0 quietly when stdin is empty",
-    { timeout: 15_000 },
-    async () => {
-      const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-empty-"));
-      const result = await runHookCli("", root);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toBe("");
-    },
-  );
+  it("exits 0 quietly when stdin is empty", { timeout: 15_000 }, async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-empty-"));
+    const result = await runHookCli("", root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("");
+  });
 
-  it(
-    "exits 0 quietly when stdin is malformed JSON",
-    { timeout: 15_000 },
-    async () => {
-      const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-bad-"));
-      const result = await runHookCli("not json{{{", root);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toBe("");
-    },
-  );
+  it("exits 0 quietly when stdin is malformed JSON", { timeout: 15_000 }, async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-bad-"));
+    const result = await runHookCli("not json{{{", root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("");
+  });
 
-  it(
-    "exits 0 quietly when tool_input.file_path points at a non-existent file",
-    { timeout: 15_000 },
-    async () => {
-      const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-missing-"));
-      const payload = JSON.stringify({
-        tool_input: { file_path: "does-not-exist.ts" },
-      });
-      const result = await runHookCli(payload, root);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toBe("");
-    },
-  );
+  it("exits 0 quietly when tool_input.file_path points at a non-existent file", {
+    timeout: 15_000,
+  }, async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-hook-missing-"));
+    const payload = JSON.stringify({
+      tool_input: { file_path: "does-not-exist.ts" },
+    });
+    const result = await runHookCli(payload, root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("");
+  });
 });

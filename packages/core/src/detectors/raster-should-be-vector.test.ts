@@ -7,8 +7,13 @@ import { rasterShouldBeVectorDetector } from "./raster-should-be-vector.js";
 function makePng(width: number, height: number): Buffer {
   const buf = Buffer.alloc(24);
   buf[0] = 0x89;
-  buf[1] = 0x50; buf[2] = 0x4e; buf[3] = 0x47;
-  buf[4] = 0x0d; buf[5] = 0x0a; buf[6] = 0x1a; buf[7] = 0x0a;
+  buf[1] = 0x50;
+  buf[2] = 0x4e;
+  buf[3] = 0x47;
+  buf[4] = 0x0d;
+  buf[5] = 0x0a;
+  buf[6] = 0x1a;
+  buf[7] = 0x0a;
   buf.writeUInt32BE(13, 8);
   buf.write("IHDR", 12, "ascii");
   buf.writeUInt32BE(width, 16);
@@ -16,14 +21,12 @@ function makePng(width: number, height: number): Buffer {
   return buf;
 }
 
-function makeCtx(
-  args: {
-    buffer: Buffer;
-    file?: string;
-    extension?: string;
-    config?: CrimesConfig;
-  },
-): AssetDetectorContext {
+function makeCtx(args: {
+  buffer: Buffer;
+  file?: string;
+  extension?: string;
+  config?: CrimesConfig;
+}): AssetDetectorContext {
   return {
     file: args.file ?? "src/assets/icon.png",
     absolutePath: `/tmp/${args.file ?? "src/assets/icon.png"}`,

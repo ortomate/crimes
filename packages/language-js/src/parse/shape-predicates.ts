@@ -110,11 +110,7 @@ export function bodyContainsJsx(node: ts.Node): boolean {
   let found = false;
   const visit = (n: ts.Node): void => {
     if (found) return;
-    if (
-      ts.isJsxElement(n) ||
-      ts.isJsxSelfClosingElement(n) ||
-      ts.isJsxFragment(n)
-    ) {
+    if (ts.isJsxElement(n) || ts.isJsxSelfClosingElement(n) || ts.isJsxFragment(n)) {
       found = true;
       return;
     }

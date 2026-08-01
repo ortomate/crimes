@@ -143,10 +143,7 @@ const DESTRUCTIVE_RE =
 const WRITE_TOOL_RE = /^(Write|Edit|MultiEdit|NotebookEdit|Create)\(/i;
 const OUTSIDE_REPO_RE = /(^|[("\s])(\/(?!\/)|~\/|\.\.\/\.\.)/;
 
-function reportPermissions(
-  index: AgentConfigIndex,
-  allowed: Set<string>,
-): Finding[] {
+function reportPermissions(index: AgentConfigIndex, allowed: Set<string>): Finding[] {
   const hazards: PermissionHazard[] = [];
 
   for (const rule of index.permissions) {
@@ -276,7 +273,8 @@ const ENV_EXFIL_RE =
 const NETWORK_RE = /\b(curl|wget|nc|netcat|ssh|scp|rsync|npm\s+publish|git\s+push)\b/i;
 
 /** Events that fire around an edit, where an unattended network call is unexpected. */
-const EDIT_EVENT_RE = /^(PreToolUse|PostToolUse|PreEdit|PostEdit|PreWrite|PostWrite|UserPromptSubmit)$/i;
+const EDIT_EVENT_RE =
+  /^(PreToolUse|PostToolUse|PreEdit|PostEdit|PreWrite|PostWrite|UserPromptSubmit)$/i;
 
 function reportHooks(index: AgentConfigIndex): Finding[] {
   const hazards: HookHazard[] = [];
@@ -448,9 +446,7 @@ function reportMcpServers(index: AgentConfigIndex): Finding[] {
       );
     }
   }
-  evidence.push(
-    "MCP servers start with the agent session and inherit its environment",
-  );
+  evidence.push("MCP servers start with the agent session and inherit its environment");
   evidence.push(confidence.explain());
   const escalation = severity.explain();
   if (escalation !== undefined) evidence.push(escalation);
@@ -570,7 +566,7 @@ function reportInstructions(index: AgentConfigIndex): Finding | undefined {
         kind: "review_agent_directives",
         description:
           "Confirm each directive is deliberate. If one exists to work around " +
-          "a slow check, say so inline — an unexplained \"skip the tests\" " +
+          'a slow check, say so inline — an unexplained "skip the tests" ' +
           "reads the same whether it was added by a maintainer or a drive-by PR.",
         risk: "low",
       },

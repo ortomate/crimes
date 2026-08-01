@@ -37,20 +37,19 @@ export async function runAssetDetectorsForRoot(args: {
 
   const findings: Finding[] = [];
   for (const absolutePath of assetFiles) {
-    findings.push(...(await runDetectorsForAssetFile({
-      root: args.root,
-      absolutePath,
-      config: args.config,
-      byExtension,
-    })));
+    findings.push(
+      ...(await runDetectorsForAssetFile({
+        root: args.root,
+        absolutePath,
+        config: args.config,
+        byExtension,
+      })),
+    );
   }
   return findings;
 }
 
-async function discoverAssetFiles(
-  root: string,
-  config: CrimesConfig,
-): Promise<string[]> {
+async function discoverAssetFiles(root: string, config: CrimesConfig): Promise<string[]> {
   const includes = config.assets?.include;
   // No `assets.include` means the user explicitly cleared the
   // discovery pattern — treat that as "skip the asset pass entirely".

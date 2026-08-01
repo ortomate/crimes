@@ -59,9 +59,7 @@ export const layerViolationDetector: LanguageJsDetector = {
 
     if (violations.length === 0) return [];
 
-    const distinctRules = new Set(
-      violations.map((v) => `${v.rule.from}→${v.toLayer}`),
-    );
+    const distinctRules = new Set(violations.map((v) => `${v.rule.from}→${v.toLayer}`));
     const severity: Severity = violations.length >= 3 ? "high" : "medium";
     const confidence = 0.95;
 
@@ -142,10 +140,7 @@ function severityScore(s: Severity): number {
  * pattern matches — those files are silently skipped from the finding
  * pipeline rather than mis-attributed.
  */
-function assignLayer(
-  file: string,
-  layers: LayerDef[],
-): string | undefined {
+function assignLayer(file: string, layers: LayerDef[]): string | undefined {
   for (const layer of layers) {
     if (matchPattern(layer.pattern, file)) return layer.name;
   }

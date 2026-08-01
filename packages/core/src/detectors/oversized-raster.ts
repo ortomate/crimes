@@ -104,9 +104,7 @@ export const oversizedRasterDetector: AssetDetector = {
   },
 };
 
-function readAllowedPaths(
-  options: Record<string, unknown> | undefined,
-): Set<string> {
+function readAllowedPaths(options: Record<string, unknown> | undefined): Set<string> {
   const raw = options?.["oversized_raster"];
   if (!raw) return new Set();
   const parsed = optionsSchema.safeParse(raw);

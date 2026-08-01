@@ -134,9 +134,7 @@ export const duplicatedPolicyDetector: LanguageJsDetector = {
     const options = readOptions(ctx.config);
     const minFiles = options.minFiles ?? DEFAULT_MIN_FILES;
     const minTokens = options.minTokens ?? DEFAULT_MIN_TOKENS;
-    const ignorePaths = new Set(
-      (options.ignorePaths ?? []).map((p) => p.toLowerCase()),
-    );
+    const ignorePaths = new Set((options.ignorePaths ?? []).map((p) => p.toLowerCase()));
 
     const findings: Finding[] = [];
 
@@ -198,10 +196,18 @@ function buildCloneFinding(group: PolicyCloneGroup): Finding | undefined {
 
   const confidence = new ConfidenceLadder(0.6)
     .add(group.files.length >= 3, `appears in ${group.files.length} files`, 0.1)
-    .add(vocabulary.length > 0, `domain vocabulary: ${vocabulary.slice(0, 4).join(", ")}`, 0.12)
+    .add(
+      vocabulary.length > 0,
+      `domain vocabulary: ${vocabulary.slice(0, 4).join(", ")}`,
+      0.12,
+    )
     .add(crossBoundary.length > 0, crossBoundary[0] ?? "", 0.1)
     .add(distinctOwners >= 2, `${distinctOwners} distinct enclosing functions`, 0.06)
-    .add(group.occurrences[0]!.tokens >= 8, "substantial rule (8+ normalised tokens)", 0.04);
+    .add(
+      group.occurrences[0]!.tokens >= 8,
+      "substantial rule (8+ normalised tokens)",
+      0.04,
+    );
 
   const severity = new SeverityLadder(0.42)
     .add(concepts.includes("authorization"), "authorization rule", 0.18)
@@ -301,9 +307,7 @@ function cloneEvidence(
  * Near clones
  * ------------------------------------------------------------------ */
 
-function buildNearCloneFinding(
-  family: PolicyNearCloneFamily,
-): Finding | undefined {
+function buildNearCloneFinding(family: PolicyNearCloneFamily): Finding | undefined {
   const occurrences = family.variants.flatMap((v) => v.occurrences);
   // Same hard gate as the exact-clone path: without business vocabulary
   // this is a set of similar comparisons, which is not evidence of anything.
@@ -319,7 +323,11 @@ function buildNearCloneFinding(
     .add(true, `domain vocabulary: ${strong.slice(0, 4).join(", ")}`, 0.12)
     .add(crossBoundary.length > 0, crossBoundary[0] ?? "", 0.1)
     .add(files.length >= 3, `spans ${files.length} files`, 0.06)
-    .add(family.variants.length >= 3, `${family.variants.length} distinct variants`, 0.06);
+    .add(
+      family.variants.length >= 3,
+      `${family.variants.length} distinct variants`,
+      0.06,
+    );
 
   const severity = new SeverityLadder(0.5)
     .add(concepts.includes("authorization"), "authorization rule", 0.18)
@@ -328,8 +336,7 @@ function buildNearCloneFinding(
     .add(crossBoundary.length > 0, "spans an architectural boundary", 0.08)
     .add(family.variants.length >= 3, "three or more variants of one rule", 0.08);
 
-  const anchor =
-    occurrences.find((o) => o.file === family.anchorFile) ?? occurrences[0]!;
+  const anchor = occurrences.find((o) => o.file === family.anchorFile) ?? occurrences[0]!;
 
   const evidence: string[] = [
     `${family.variants.length} variants of one rule shape, differing only in value`,
@@ -343,7 +350,9 @@ function buildNearCloneFinding(
       evidence.push(`  ${label} — ${occ.file}:${occ.line}${where}: ${occ.readable}`);
     }
     if (variant.occurrences.length > 3) {
-      evidence.push(`  ${label} — +${variant.occurrences.length - 3} further occurrence(s)`);
+      evidence.push(
+        `  ${label} — +${variant.occurrences.length - 3} further occurrence(s)`,
+      );
     }
   });
   for (const difference of family.differences.slice(0, 4)) {
@@ -398,7 +407,9 @@ function buildNearCloneFinding(
  * Shared helpers
  * ------------------------------------------------------------------ */
 
-function readOptions(config: { detectors?: { options?: Record<string, unknown> } }): Options {
+function readOptions(config: {
+  detectors?: { options?: Record<string, unknown> };
+}): Options {
   const raw = config.detectors?.options?.duplicated_policy;
   if (raw === undefined) return {};
   const parsed = optionsSchema.safeParse(raw);
@@ -461,17 +472,9 @@ function ownedByRoleStatusPlanCheck(family: PolicyNearCloneFamily): boolean {
   );
 }
 
-const COMPARISON_OPERATORS: ReadonlySet<string> = new Set([
-  "===",
-  "!==",
-  "==",
-  "!=",
-]);
+const COMPARISON_OPERATORS: ReadonlySet<string> = new Set(["===", "!==", "==", "!="]);
 
-function isIgnored(
-  occurrences: PolicyOccurrence[],
-  ignorePaths: Set<string>,
-): boolean {
+function isIgnored(occurrences: PolicyOccurrence[], ignorePaths: Set<string>): boolean {
   if (ignorePaths.size === 0) return false;
   return occurrences.some((occ) =>
     occ.paths.some((path) => {
@@ -545,9 +548,7 @@ function boundaryCrossings(files: string[]): string[] {
   }
 
   const layers = new Set(
-    files
-      .map((f) => LAYER_RE.exec(f)?.[1])
-      .filter((l): l is string => l !== undefined),
+    files.map((f) => LAYER_RE.exec(f)?.[1]).filter((l): l is string => l !== undefined),
   );
   if (layers.size >= 2) {
     out.push(`spans ${layers.size} layers: ${[...layers].sort().join(", ")}`);
@@ -559,9 +560,7 @@ const LAYER_RE =
   /(?:^|\/)(routes?|controllers?|handlers?|middlewares?|services?|repositories|models?|components?|pages?|api|workers?|jobs?)\//;
 
 function distinctEnclosing(occurrences: PolicyOccurrence[]): number {
-  return new Set(
-    occurrences.map((o) => `${o.file}::${o.enclosing ?? "<module>"}`),
-  ).size;
+  return new Set(occurrences.map((o) => `${o.file}::${o.enclosing ?? "<module>"}`)).size;
 }
 
 /**
@@ -572,9 +571,7 @@ function distinctEnclosing(occurrences: PolicyOccurrence[]): number {
 function authorityRationale(occurrences: PolicyOccurrence[]): string {
   const enclosings = [
     ...new Set(
-      occurrences
-        .map((o) => o.enclosing)
-        .filter((e): e is string => e !== undefined),
+      occurrences.map((o) => o.enclosing).filter((e): e is string => e !== undefined),
     ),
   ].sort();
   if (enclosings.length >= 2) {
@@ -615,9 +612,7 @@ function describeKind(kind: PolicyOccurrence["kind"]): string {
  */
 function ruleIdentity(occurrences: PolicyOccurrence[], suffix: string): string {
   const tokens = strongVocabularyOf(occurrences).slice(0, 2);
-  const literals = [
-    ...new Set(occurrences.flatMap((o) => o.literals)),
-  ]
+  const literals = [...new Set(occurrences.flatMap((o) => o.literals))]
     .sort()
     .slice(0, 2);
   const parts = [...tokens, ...literals.map((l) => JSON.stringify(l))];
@@ -626,14 +621,9 @@ function ruleIdentity(occurrences: PolicyOccurrence[], suffix: string): string {
 
 /** A plausible name for the extracted helper, from the rule's vocabulary. */
 function suggestName(occurrence: PolicyOccurrence): string {
-  const tokens = domainTokensAcross([
-    ...occurrence.paths,
-    ...occurrence.literals,
-  ]);
+  const tokens = domainTokensAcross([...occurrence.paths, ...occurrence.literals]);
   if (tokens.length === 0) return "checkPolicy";
-  const parts = tokens
-    .slice(0, 2)
-    .map((t) => t.charAt(0).toUpperCase() + t.slice(1));
+  const parts = tokens.slice(0, 2).map((t) => t.charAt(0).toUpperCase() + t.slice(1));
   return `is${parts.join("")}Allowed`;
 }
 

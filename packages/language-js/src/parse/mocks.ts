@@ -206,7 +206,13 @@ export function collectMockDeclaration(
       // factory instead, so they are not double-recorded here.
       const bound = boundName(node);
       if (bound === undefined) return;
-      out.push({ kind: "fn", target: bound, line, hollow: node.arguments.length === 0, autoMocked: false });
+      out.push({
+        kind: "fn",
+        target: bound,
+        line,
+        hollow: node.arguments.length === 0,
+        autoMocked: false,
+      });
       return;
     }
 
@@ -259,7 +265,10 @@ function returnedObject(factory: ts.Node): ts.ObjectLiteralExpression | undefine
   if (!body) return undefined;
   if (ts.isObjectLiteralExpression(body)) return body;
   // `() => ({ … })` parses the object inside parentheses.
-  if (ts.isParenthesizedExpression(body) && ts.isObjectLiteralExpression(body.expression)) {
+  if (
+    ts.isParenthesizedExpression(body) &&
+    ts.isObjectLiteralExpression(body.expression)
+  ) {
     return body.expression;
   }
   if (ts.isBlock(body)) {
@@ -304,7 +313,10 @@ function boundName(call: ts.CallExpression): string | undefined {
   return undefined;
 }
 
-function renderTarget(node: ts.Expression, sourceFile: ts.SourceFile): string | undefined {
+function renderTarget(
+  node: ts.Expression,
+  sourceFile: ts.SourceFile,
+): string | undefined {
   if (ts.isIdentifier(node)) return node.text;
   const literal = stringLiteralText(node);
   if (literal !== undefined) return literal;

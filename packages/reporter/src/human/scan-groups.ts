@@ -46,9 +46,7 @@ export function groupByFile(findings: Finding[]): FileGroup[] {
       });
     }
   }
-  return Array.from(groups.values()).sort(
-    (a, b) => b.totalRankScore - a.totalRankScore,
-  );
+  return Array.from(groups.values()).sort((a, b) => b.totalRankScore - a.totalRankScore);
 }
 
 export function renderFileGroups(
@@ -169,11 +167,7 @@ function toFileGroup(file: string, findings: Finding[]): FileGroup {
     findings,
     severityCounts,
     maxSeverity:
-      severityCounts.high > 0
-        ? "high"
-        : severityCounts.medium > 0
-          ? "medium"
-          : "low",
+      severityCounts.high > 0 ? "high" : severityCounts.medium > 0 ? "medium" : "low",
     totalRankScore: findings.reduce((total, f) => total + rankScore(f), 0),
   };
 }
@@ -197,7 +191,8 @@ function fileTally(group: FileGroup): string {
   const total = group.findings.length;
   const parts: string[] = [];
   if (group.severityCounts.high > 0) parts.push(`${group.severityCounts.high} high`);
-  if (group.severityCounts.medium > 0) parts.push(`${group.severityCounts.medium} medium`);
+  if (group.severityCounts.medium > 0)
+    parts.push(`${group.severityCounts.medium} medium`);
   if (group.severityCounts.low > 0) parts.push(`${group.severityCounts.low} low`);
   return `${total} finding${total === 1 ? "" : "s"} · ${parts.join(", ")}`;
 }
@@ -207,11 +202,7 @@ function idRange(findings: Finding[]): string {
   return `id=${findings[0]!.id} … ${findings[findings.length - 1]!.id}`;
 }
 
-function formatFindingCompactLine(
-  f: Finding,
-  n: number,
-  colour: ColourFns,
-): string {
+function formatFindingCompactLine(f: Finding, n: number, colour: ColourFns): string {
   const symbol = f.symbol ? ` · ${colour.cyan(formatSymbol(f.symbol))}` : "";
   const evidence = compactEvidence(f);
   const evidenceSegment = evidence ? `   ${colour.dim(evidence)}` : "";

@@ -13,10 +13,7 @@ import {
 import type { CrimesConfig } from "../config.js";
 import type { PreFinding } from "../finding.js";
 
-async function runOn(
-  repo: TestRepo,
-  config?: CrimesConfig,
-): Promise<PreFinding[]> {
+async function runOn(repo: TestRepo, config?: CrimesConfig): Promise<PreFinding[]> {
   const anchor = await repoAnchorFile(repo);
   const ctx = await universalContext(repo, anchor, config);
   return dependencyProvenanceGapDetector.run(ctx) as Promise<PreFinding[]>;
@@ -72,7 +69,9 @@ describe("dependency_provenance_gap — undeclared imports", () => {
     expect(finding!.file).toBe("package.json");
 
     const evidence = finding!.evidence.join("\n");
-    expect(evidence).toContain("1 external package(s) imported with no declaring manifest");
+    expect(evidence).toContain(
+      "1 external package(s) imported with no declaring manifest",
+    );
     expect(evidence).toContain('`chalk` — imported at src/a.ts as "chalk"');
     expect(evidence).not.toContain("`zod`");
   });
@@ -110,7 +109,10 @@ describe("dependency_provenance_gap — undeclared imports", () => {
 
   it("counts a subpath import against its package", async () => {
     const repo = await makeRepo({
-      "package.json": JSON.stringify({ name: "app", dependencies: { lodash: "4.17.21" } }),
+      "package.json": JSON.stringify({
+        name: "app",
+        dependencies: { lodash: "4.17.21" },
+      }),
       "pnpm-lock.yaml": PNPM_LOCK,
       "src/a.ts": `import fp from "lodash/fp";\nexport const x = fp;\n`,
     });
@@ -146,7 +148,11 @@ describe("dependency_provenance_gap — undeclared imports", () => {
 
   it("treats workspace package names as internal", async () => {
     const repo = await makeRepo({
-      "package.json": JSON.stringify({ name: "root", private: true, workspaces: ["packages/*"] }),
+      "package.json": JSON.stringify({
+        name: "root",
+        private: true,
+        workspaces: ["packages/*"],
+      }),
       "packages/core/package.json": JSON.stringify({ name: "@app/core" }),
       "packages/core/src/index.ts": "export const core = 1;\n",
       "packages/api/package.json": JSON.stringify({ name: "@app/api" }),
@@ -157,7 +163,11 @@ describe("dependency_provenance_gap — undeclared imports", () => {
 
   it("ignores manifests outside the workspace", async () => {
     const repo = await makeRepo({
-      "package.json": JSON.stringify({ name: "root", private: true, workspaces: ["packages/*"] }),
+      "package.json": JSON.stringify({
+        name: "root",
+        private: true,
+        workspaces: ["packages/*"],
+      }),
       "pnpm-lock.yaml": PNPM_LOCK,
       "packages/api/package.json": JSON.stringify({ name: "@app/api" }),
       "packages/api/src/a.ts": "export const x = 1;\n",
@@ -189,7 +199,9 @@ describe("dependency_provenance_gap — lockfile gaps", () => {
     expect(finding).toBeDefined();
     const evidence = finding!.evidence.join("\n");
     expect(evidence).toContain("pnpm-lock.yaml (pnpm, 2 entries)");
-    expect(evidence).toContain("`missing-pkg`@^2.0.0 — declared in package.json:1 (dependencies)");
+    expect(evidence).toContain(
+      "`missing-pkg`@^2.0.0 — declared in package.json:1 (dependencies)",
+    );
     expect(evidence).not.toContain("`zod`@");
   });
 
@@ -258,7 +270,8 @@ describe("dependency_provenance_gap — unpinned specifiers", () => {
           tarball: "https://example.com/pkg.tgz",
           anything: "*",
           escaping: "file:../../outside/pkg",
-          pinned: "git+https://github.com/o/r.git#0123456789abcdef0123456789abcdef01234567",
+          pinned:
+            "git+https://github.com/o/r.git#0123456789abcdef0123456789abcdef01234567",
           normal: "^1.2.3",
         },
       }),
@@ -298,17 +311,23 @@ describe("dependency_provenance_gap — configuration and stability", () => {
     expect(bySymbol(await runOn(repo), "undeclared imports")).toBeDefined();
     expect(
       bySymbol(
-        await runOn(repo, configWithOptions("dependency_provenance_gap", {
-          reportUndeclaredImports: false,
-        })),
+        await runOn(
+          repo,
+          configWithOptions("dependency_provenance_gap", {
+            reportUndeclaredImports: false,
+          }),
+        ),
         "undeclared imports",
       ),
     ).toBeUndefined();
     expect(
       bySymbol(
-        await runOn(repo, configWithOptions("dependency_provenance_gap", {
-          reportUnpinnedSpecifiers: false,
-        })),
+        await runOn(
+          repo,
+          configWithOptions("dependency_provenance_gap", {
+            reportUnpinnedSpecifiers: false,
+          }),
+        ),
         "unpinned specifiers",
       ),
     ).toBeUndefined();
@@ -318,9 +337,12 @@ describe("dependency_provenance_gap — configuration and stability", () => {
     const repo = await makeRepo(REPO);
     expect(
       bySymbol(
-        await runOn(repo, configWithOptions("dependency_provenance_gap", {
-          allowedPackages: ["chalk"],
-        })),
+        await runOn(
+          repo,
+          configWithOptions("dependency_provenance_gap", {
+            allowedPackages: ["chalk"],
+          }),
+        ),
         "undeclared imports",
       ),
     ).toBeUndefined();

@@ -98,9 +98,7 @@ describe("buildRetriageMatcher", () => {
     const m = buildRetriageMatcher(fp, [entry]);
     expect(m(makeFinding("src/foo.ts"), entry)).toBe(true);
     expect(m(makeFinding("src/foo.ts"), undefined)).toBe(false);
-    expect(
-      m(makeFinding("src/foo.ts"), makeEntry("other::x::y", "x")),
-    ).toBe(false);
+    expect(m(makeFinding("src/foo.ts"), makeEntry("other::x::y", "x"))).toBe(false);
   });
 
   it("matches by exact file path when target is not a known fingerprint", () => {
@@ -197,10 +195,7 @@ describe("crimes triage --list", () => {
         },
       ]),
     );
-    const result = await runCli(
-      ["triage", "--list", "--format", "json"],
-      tmp,
-    );
+    const result = await runCli(["triage", "--list", "--format", "json"], tmp);
     expect(result.exitCode).toBe(0);
     const doc = JSON.parse(result.stdout);
     expect(Array.isArray(doc.entries)).toBe(true);
@@ -231,9 +226,7 @@ describe("crimes triage --apply", () => {
     const result = await runCli(["triage", "--apply", applyFile], tmp);
     expect(result.exitCode).toBe(0);
     expect(existsSync(join(tmp, ".crimes", "triage.json"))).toBe(true);
-    const written = JSON.parse(
-      readFileSync(join(tmp, ".crimes", "triage.json"), "utf8"),
-    );
+    const written = JSON.parse(readFileSync(join(tmp, ".crimes", "triage.json"), "utf8"));
     expect(written.entries).toHaveLength(1);
     expect(written.entries[0].disposition).toBe("wont-fix");
   });
@@ -251,10 +244,7 @@ describe("crimes triage --apply", () => {
 
   it("rejects missing --apply file with exit 2", async () => {
     const tmp = await mkdtemp(join(tmpdir(), "crimes-triage-applymiss-"));
-    const result = await runCli(
-      ["triage", "--apply", join(tmp, "nope.json")],
-      tmp,
-    );
+    const result = await runCli(["triage", "--apply", join(tmp, "nope.json")], tmp);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("not found");
   });
@@ -306,15 +296,10 @@ describe("crimes triage --clear", () => {
         },
       ]),
     );
-    const result = await runCli(
-      ["triage", "--clear", "x::src/a.ts::fn"],
-      tmp,
-    );
+    const result = await runCli(["triage", "--clear", "x::src/a.ts::fn"], tmp);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Cleared");
-    const written = JSON.parse(
-      readFileSync(join(tmp, ".crimes", "triage.json"), "utf8"),
-    );
+    const written = JSON.parse(readFileSync(join(tmp, ".crimes", "triage.json"), "utf8"));
     expect(written.entries).toHaveLength(0);
   });
 

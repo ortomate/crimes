@@ -11,10 +11,7 @@ import {
   readFeedback,
   resolveFeedbackPath,
 } from "@crimes/core";
-import {
-  formatContextHumanReport,
-  formatContextJsonReport,
-} from "@crimes/reporter";
+import { formatContextHumanReport, formatContextJsonReport } from "@crimes/reporter";
 import type { Command } from "commander";
 import {
   emitDetectorsDisabledBreadcrumb,
@@ -92,16 +89,13 @@ export function registerContextCommand(program: Command): void {
         const earlyRoot =
           options.root !== undefined
             ? resolve(options.root)
-            : ((await findNearestPackageRoot(dirname(absoluteFile))) ??
-              lookupRoot);
+            : ((await findNearestPackageRoot(dirname(absoluteFile))) ?? lookupRoot);
         const config = loadConfig(earlyRoot);
         emitDetectorsDisabledBreadcrumb(config, { noColor });
         const suppressions = loadSuppressionsForRoot(earlyRoot, config);
-        emitFuturePinnedSuppressionsWarnings(
-          suppressions.entries,
-          __CRIMES_VERSION__,
-          { noColor },
-        );
+        emitFuturePinnedSuppressionsWarnings(suppressions.entries, __CRIMES_VERSION__, {
+          noColor,
+        });
         report = await context({
           ...(options.root !== undefined ? { root: options.root } : {}),
           file: absoluteFile,
@@ -129,9 +123,7 @@ export function registerContextCommand(program: Command): void {
         const effectiveNoColor = options.noColor || !process.stdout.isTTY;
         const feedbackEntries = effectiveNoColor
           ? []
-          : (
-              await readFeedback(resolveFeedbackPath(report.repo.root))
-            ).entries;
+          : (await readFeedback(resolveFeedbackPath(report.repo.root))).entries;
         process.stdout.write(
           formatContextHumanReport(report, {
             noColor: effectiveNoColor,

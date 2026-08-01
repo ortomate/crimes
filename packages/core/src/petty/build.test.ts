@@ -10,7 +10,10 @@ describe("buildPettyIndex", () => {
     await mkdir(join(root, "src"));
     const a = join(root, "src/ui.ts");
     const b = join(root, "src/api.ts");
-    await writeFile(a, `export const label = "enterprise";\nconst cls = "flex items-center";\n`);
+    await writeFile(
+      a,
+      `export const label = "enterprise";\nconst cls = "flex items-center";\n`,
+    );
     await writeFile(b, `const plan = "enterprise";\n`);
 
     const index = await buildPettyIndex({ root, files: [a, b] });

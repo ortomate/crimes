@@ -310,10 +310,7 @@ function toPosixRelative(gitRoot: string, target: string): string {
  * scan directory (empty when scan root == git root). Returns
  * `undefined` when the file is outside `scanPath`.
  */
-function rebaseChurnFile(
-  file: string,
-  scanPath: string,
-): string | undefined {
+function rebaseChurnFile(file: string, scanPath: string): string | undefined {
   if (scanPath.length === 0) return file;
   if (file === scanPath) return "";
   const prefix = `${scanPath}/`;

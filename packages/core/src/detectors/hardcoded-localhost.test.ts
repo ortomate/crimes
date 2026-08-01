@@ -79,8 +79,8 @@ describe("hardcodedLocalhostDetector", () => {
     const findings = await hardcodedLocalhostDetector.run(
       makeCtx(
         'const a = "http://localhost:3000/a";\n' +
-        'const b = "http://localhost:3001/b";\n' +
-        'const c = "http://127.0.0.1:8080/c";\n',
+          'const b = "http://localhost:3001/b";\n' +
+          'const c = "http://127.0.0.1:8080/c";\n',
       ),
     );
     expect(findings).toHaveLength(1);
@@ -164,8 +164,7 @@ describe("hardcodedLocalhostDetector", () => {
   it("emits one file-level finding aggregating multiple hits", async () => {
     const findings = await hardcodedLocalhostDetector.run(
       makeCtx(
-        'const a = "http://localhost:3000";\n' +
-        'const b = "http://127.0.0.1:8080";\n',
+        'const a = "http://localhost:3000";\n' + 'const b = "http://127.0.0.1:8080";\n',
       ),
     );
     expect(findings).toHaveLength(1);

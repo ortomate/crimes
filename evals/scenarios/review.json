@@ -5,12 +5,8 @@
     "kind": "review",
     "prompt": "A PR adds a `tomorrowMs` helper to src/date.ts that adds 86_400_000 to a timestamp. Use `crimes scan src/date.ts --format json` to find the DST-naive arithmetic finding. Explain whether you'd block the PR or request changes, citing the finding's evidence verbatim. Identify which two dates per year the helper would produce a wrong answer.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "dst_naive_arithmetic"
-      ],
-      "referenced_files": [
-        "src/date.ts"
-      ],
+      "referenced_findings": ["dst_naive_arithmetic"],
+      "referenced_files": ["src/date.ts"],
       "expected_priority": "dst_naive_arithmetic"
     },
     "judge_questions": [
@@ -24,11 +20,7 @@
     "kind": "review",
     "prompt": "Imagine a PR added the current state of this repo on top of an empty baseline. Use `crimes scan --format json` to enumerate findings and categorise each as: block merge / warn / ignore. Justify each category with the finding's severity + scores.agent_risk.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "large_function",
-        "direct_date",
-        "todo_density"
-      ],
+      "referenced_findings": ["large_function", "direct_date", "todo_density"],
       "expected_priority": "large_function"
     },
     "judge_questions": [
@@ -42,10 +34,7 @@
     "kind": "review",
     "prompt": "Review the IA consistency across src/routes/, src/nav.ts, and docs/routes.md using `crimes scan --format json`. Identify the drift findings and recommend whether they're blocking-quality issues or follow-ups.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "concept_alias_drift",
-        "orphaned_destination"
-      ],
+      "referenced_findings": ["concept_alias_drift", "orphaned_destination"],
       "referenced_files": [
         "src/routes/teams.ts",
         "src/routes/workspace.ts",
@@ -147,12 +136,8 @@
     "kind": "review",
     "prompt": "A PR adds an `adminUrl()` helper to src/api/files.ts that returns the admin dashboard URL. Use `crimes scan src/api/files.ts --format json` to find the `hardcoded_localhost` finding. Quote the literal URL from the finding's evidence and explain whether you'd block the PR or request changes. Recommend the specific configuration mechanism (env var name, settings module location, framework runtime-config slot) the URL should move to — don't stop at 'use config'.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "hardcoded_localhost"
-      ],
-      "referenced_files": [
-        "src/api/files.ts"
-      ],
+      "referenced_findings": ["hardcoded_localhost"],
+      "referenced_files": ["src/api/files.ts"],
       "expected_priority": "hardcoded_localhost"
     },
     "judge_questions": [
@@ -166,12 +151,8 @@
     "kind": "review",
     "prompt": "A PR adds `src/assets/hero-banner.png` as the new landing-page hero. Use `crimes scan --format json` to find the `oversized_raster` finding. Quote the file size from the finding evidence and decide whether to block the PR or request changes. Recommend the specific transformation — target dimensions for the visible render area, and which modern format (WebP vs AVIF) you'd use for re-encode and why.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "oversized_raster"
-      ],
-      "referenced_files": [
-        "src/assets/hero-banner.png"
-      ],
+      "referenced_findings": ["oversized_raster"],
+      "referenced_files": ["src/assets/hero-banner.png"],
       "expected_priority": "oversized_raster"
     },
     "judge_questions": [
@@ -185,12 +166,8 @@
     "kind": "review",
     "prompt": "This service falls over under moderate load: p99 latency collapses even though CPU stays low. Use `crimes scan --format json` to review the HTTP layer and identify what is causing it. Rank what you find by how much it contributes to the problem.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "sync_io_in_hotpath"
-      ],
-      "referenced_files": [
-        "api/routes.py"
-      ],
+      "referenced_findings": ["sync_io_in_hotpath"],
+      "referenced_files": ["api/routes.py"],
       "expected_priority": "sync_io_in_hotpath"
     },
     "judge_questions": [
@@ -205,13 +182,8 @@
     "kind": "review",
     "prompt": "We are about to refactor this billing package and want to know how much the existing test suite actually protects us. Run `crimes scan --format json` and report which parts of the package are genuinely covered and which only look covered. Be specific about the difference.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "weak_test_signal"
-      ],
-      "referenced_files": [
-        "tests/test_reporting.py",
-        "billing/reporting.py"
-      ],
+      "referenced_findings": ["weak_test_signal"],
+      "referenced_files": ["tests/test_reporting.py", "billing/reporting.py"],
       "expected_priority": "weak_test_signal"
     },
     "judge_questions": [
@@ -226,10 +198,7 @@
     "kind": "review",
     "prompt": "Review the contract between the web client and the billing API in this monorepo. Use `crimes scan --format json`. Report every place the two sides disagree, and rank them by how they would fail in production.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "cross_language_route_drift",
-        "cross_language_type_drift"
-      ],
+      "referenced_findings": ["cross_language_route_drift", "cross_language_type_drift"],
       "referenced_files": [
         "packages/web/src/workspace-client.ts",
         "packages/api/billing/routes.py"

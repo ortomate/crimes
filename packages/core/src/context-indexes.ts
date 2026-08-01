@@ -16,10 +16,7 @@ import { buildJsxShapeIndex } from "./jsx/shape-index.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
-import {
-  buildScoringContext,
-  finaliseFindingScores,
-} from "./scoring/build.js";
+import { buildScoringContext, finaliseFindingScores } from "./scoring/build.js";
 import type { ScoringContext } from "./scoring/build.js";
 import { assignPackAndDetectorId } from "./finding-finalise.js";
 
@@ -81,9 +78,7 @@ export async function runDetectorsOnTarget(args: {
   // full of nothing rather than an error, which is how the Python pack
   // came to be silently absent from `crimes context` — see the
   // language-py branch below.
-  const parsed = claimsJs
-    ? parseFile({ absolutePath: targetAbs, source })
-    : undefined;
+  const parsed = claimsJs ? parseFile({ absolutePath: targetAbs, source }) : undefined;
   const parsedPy = claimsPy
     ? await parsePyFile({ absolutePath: targetAbs, source })
     : undefined;
@@ -99,7 +94,9 @@ export async function runDetectorsOnTarget(args: {
         extension: extname(targetAbs).toLowerCase(),
         byteSize,
         readSource: async () => source,
-        get lineCount() { return lineCount; },
+        get lineCount() {
+          return lineCount;
+        },
         config,
         ia,
         petty,

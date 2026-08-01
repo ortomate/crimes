@@ -1,9 +1,6 @@
 import { resolve } from "node:path";
 import { hotspots, type HotspotsReport } from "@crimes/core";
-import {
-  formatHotspotsJsonReport,
-  formatHotspotsReport,
-} from "@crimes/reporter";
+import { formatHotspotsJsonReport, formatHotspotsReport } from "@crimes/reporter";
 import type { Command } from "commander";
 
 interface HotspotsCommandOptions {
@@ -18,9 +15,7 @@ const DEFAULT_JSON_TOP_N = 20;
 export function registerHotspotsCommand(program: Command): void {
   program
     .command("hotspots")
-    .description(
-      "Rank files by change risk using Git churn and current scan findings.",
-    )
+    .description("Rank files by change risk using Git churn and current scan findings.")
     .argument("[path]", "directory to inspect (defaults to current directory)")
     .option(
       "--since <window>",
@@ -46,8 +41,7 @@ export function registerHotspotsCommand(program: Command): void {
 
       if (format === "json") {
         process.stdout.write(
-          formatHotspotsJsonReport(capHotspotsReport(report, options.all)) +
-            "\n",
+          formatHotspotsJsonReport(capHotspotsReport(report, options.all)) + "\n",
         );
         return;
       }

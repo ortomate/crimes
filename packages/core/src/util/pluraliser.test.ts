@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  isUncountable,
-  looksPlural,
-  pluralise,
-  singularise,
-} from "./pluraliser.js";
+import { isUncountable, looksPlural, pluralise, singularise } from "./pluraliser.js";
 
 describe("pluraliser", () => {
   it("handles regular -s plurals", () => {

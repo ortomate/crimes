@@ -27,10 +27,7 @@ export type {
  * for forward compatibility with detectors that may want to slice raw
  * source text alongside the structured tree.
  */
-export function walkJsx(args: {
-  source: string;
-  ast: ParsedFile;
-}): JsxElementInfo[] {
+export function walkJsx(args: { source: string; ast: ParsedFile }): JsxElementInfo[] {
   // The `source` parameter is intentionally unused today — the parser
   // already captures every statically representable JSX value into
   // `ast.jsxElements`. Detectors that need raw expression text read it

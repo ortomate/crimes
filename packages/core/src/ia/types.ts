@@ -48,12 +48,7 @@ export interface IaLabelSignal {
   value: string;
   line: number;
   /** AST context that produced the literal. */
-  kind:
-    | "jsx_title"
-    | "document_title"
-    | "metadata_title"
-    | "use_title"
-    | "jsx_label";
+  kind: "jsx_title" | "document_title" | "metadata_title" | "use_title" | "jsx_label";
   /** Tag / hook / property that surfaced the literal. */
   source?: string;
 }

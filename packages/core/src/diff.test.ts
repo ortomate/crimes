@@ -14,10 +14,7 @@ import {
 import type { DiffReport } from "./diff.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import type { Finding } from "./finding.js";
-import {
-  NotAGitRepoError,
-  UnknownGitRefError,
-} from "./git/changed-files.js";
+import { NotAGitRepoError, UnknownGitRefError } from "./git/changed-files.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -63,9 +60,7 @@ async function makeRepo(): Promise<string> {
 
 function bigFunctionSource(name: string): string {
   // 80-line function body, well past the 60-line default threshold.
-  const body = Array.from({ length: 80 }, (_, i) => `  let v${i} = ${i};`).join(
-    "\n",
-  );
+  const body = Array.from({ length: 80 }, (_, i) => `  let v${i} = ${i};`).join("\n");
   return `export function ${name}() {\n${body}\n  return null;\n}\n`;
 }
 
@@ -123,9 +118,7 @@ describe("parseDiffRange", () => {
   });
 
   it("rejects a second triple-dot separator", () => {
-    expect(() => parseDiffRange("main...HEAD...other")).toThrow(
-      InvalidDiffRangeError,
-    );
+    expect(() => parseDiffRange("main...HEAD...other")).toThrow(InvalidDiffRangeError);
   });
 });
 
@@ -233,30 +226,20 @@ describe("diff (end-to-end against a real git repo)", () => {
     await rm(repo, { recursive: true, force: true });
   });
 
-  it("reports new, fixed, and unchanged findings across two commits", { timeout: 30000 }, async () => {
+  it("reports new, fixed, and unchanged findings across two commits", {
+    timeout: 30000,
+  }, async () => {
     // BASE: one large function that survives, one large function that gets
     // deleted in head.
-    await writeFile(
-      join(repo, "stable.ts"),
-      bigFunctionSource("stableFn"),
-      "utf8",
-    );
-    await writeFile(
-      join(repo, "deleted.ts"),
-      bigFunctionSource("deletedFn"),
-      "utf8",
-    );
+    await writeFile(join(repo, "stable.ts"), bigFunctionSource("stableFn"), "utf8");
+    await writeFile(join(repo, "deleted.ts"), bigFunctionSource("deletedFn"), "utf8");
     await git(repo, "add", "-A");
     await git(repo, "commit", "-m", "base", "--quiet");
 
     // HEAD: delete one file (its finding should be "fixed"), keep the
     // stable one (should be "unchanged"), and add a brand-new offender.
     await rm(join(repo, "deleted.ts"));
-    await writeFile(
-      join(repo, "new.ts"),
-      bigFunctionSource("freshFn"),
-      "utf8",
-    );
+    await writeFile(join(repo, "new.ts"), bigFunctionSource("freshFn"), "utf8");
     await git(repo, "add", "-A");
     await git(repo, "commit", "-m", "head", "--quiet");
 
@@ -288,19 +271,11 @@ describe("diff (end-to-end against a real git repo)", () => {
 
   it("does not mutate the working tree", { timeout: 30000 }, async () => {
     // Set up two commits.
-    await writeFile(
-      join(repo, "f.ts"),
-      bigFunctionSource("base"),
-      "utf8",
-    );
+    await writeFile(join(repo, "f.ts"), bigFunctionSource("base"), "utf8");
     await git(repo, "add", "-A");
     await git(repo, "commit", "-m", "base", "--quiet");
 
-    await writeFile(
-      join(repo, "f.ts"),
-      bigFunctionSource("head"),
-      "utf8",
-    );
+    await writeFile(join(repo, "f.ts"), bigFunctionSource("head"), "utf8");
     await git(repo, "add", "-A");
     await git(repo, "commit", "-m", "head", "--quiet");
 
@@ -323,11 +298,7 @@ describe("diff (end-to-end against a real git repo)", () => {
   });
 
   it("returns an empty report when nothing differs", { timeout: 30000 }, async () => {
-    await writeFile(
-      join(repo, "f.ts"),
-      bigFunctionSource("only"),
-      "utf8",
-    );
+    await writeFile(join(repo, "f.ts"), bigFunctionSource("only"), "utf8");
     await git(repo, "add", "-A");
     await git(repo, "commit", "-m", "init", "--quiet");
 
@@ -418,9 +389,7 @@ describe("applyDiffFailOn", () => {
 
   it("ignores suppressed findings on the gate", () => {
     const r = applyDiffFailOn(
-      makeReport([
-        makeFinding({ severity: "high", suppressed: true }),
-      ]),
+      makeReport([makeFinding({ severity: "high", suppressed: true })]),
       "new-high",
     );
     expect(r.failed).toBe(false);

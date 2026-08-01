@@ -133,9 +133,7 @@ export function collectDateMethodCall(
       ? "local"
       : undefined;
   if (!family) return;
-  const { line } = sourceFile.getLineAndCharacterOfPosition(
-    node.getStart(sourceFile),
-  );
+  const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
   out.push({
     receiver: node.expression.expression.text,
     method,
@@ -171,18 +169,12 @@ export function collectDateArithmetic(
 ): void {
   if (!ts.isBinaryExpression(node)) return;
   const op = node.operatorToken.kind;
-  if (
-    op !== ts.SyntaxKind.PlusToken &&
-    op !== ts.SyntaxKind.MinusToken
-  ) return;
-  const operand =
-    foldNumericLiteral(node.left) ?? foldNumericLiteral(node.right);
+  if (op !== ts.SyntaxKind.PlusToken && op !== ts.SyntaxKind.MinusToken) return;
+  const operand = foldNumericLiteral(node.left) ?? foldNumericLiteral(node.right);
   if (operand === undefined) return;
   const unit = DAY_CONSTANT_BY_VALUE.get(operand);
   if (!unit) return;
-  const { line } = sourceFile.getLineAndCharacterOfPosition(
-    node.getStart(sourceFile),
-  );
+  const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
   out.push({
     kind: op === ts.SyntaxKind.PlusToken ? "add" : "subtract",
     line: line + 1,
@@ -208,17 +200,12 @@ export function collectDateStringConcat(
   const dateSide = leftIsStr ? right : left;
   const method = dateMethodCallName(dateSide);
   if (!method) return;
-  const { line } = sourceFile.getLineAndCharacterOfPosition(
-    node.getStart(sourceFile),
-  );
+  const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
   out.push({ line: line + 1, method });
 }
 
 function isStringLiteralLike(node: ts.Expression): boolean {
-  return (
-    ts.isStringLiteral(node) ||
-    ts.isNoSubstitutionTemplateLiteral(node)
-  );
+  return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
 }
 
 function dateMethodCallName(node: ts.Expression): string | undefined {

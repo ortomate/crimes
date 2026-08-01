@@ -4,15 +4,9 @@ import { fingerprintFinding } from "./fingerprint.js";
 import type { Finding } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { withRefCheckout } from "./git/archive.js";
-import {
-  isGitRepo,
-  NotAGitRepoError,
-} from "./git/changed-files.js";
+import { isGitRepo, NotAGitRepoError } from "./git/changed-files.js";
 import { scan } from "./scan.js";
-import {
-  loadSuppressionsForRoot,
-  partitionFindings,
-} from "./suppressions.js";
+import { loadSuppressionsForRoot, partitionFindings } from "./suppressions.js";
 
 export interface DiffOptions {
   /** Absolute or relative path to the repo. Defaults to cwd. */
@@ -134,10 +128,7 @@ export function parseDiffRange(range: string): {
 
   // Reject 4+ dots in a row (e.g. "main....HEAD") and a second triple-dot.
   if (range.indexOf("...", idx + 3) !== -1) {
-    throw new InvalidDiffRangeError(
-      range,
-      "exactly one '...' separator is allowed",
-    );
+    throw new InvalidDiffRangeError(range, "exactly one '...' separator is allowed");
   }
   if (range[idx + 3] === ".") {
     throw new InvalidDiffRangeError(range, "expected exactly three dots");
@@ -272,10 +263,7 @@ export async function diff(options: DiffOptions): Promise<DiffReport> {
  * report carrying `fail_on` + `failed`. Suppressed entries in
  * `new_findings` are ignored — gate semantics are independent of display.
  */
-export function applyDiffFailOn(
-  report: DiffReport,
-  failOn: DiffFailOn,
-): DiffReport {
+export function applyDiffFailOn(report: DiffReport, failOn: DiffFailOn): DiffReport {
   const failed = report.new_findings.some((f) => {
     if (f.suppressed === true) return false;
     if (failOn === "new-high") return f.severity === "high";
@@ -284,15 +272,9 @@ export function applyDiffFailOn(
   return { ...report, fail_on: failOn, failed };
 }
 
-async function scanRef(args: {
-  root: string;
-  ref: string;
-}): Promise<Finding[]> {
-  return withRefCheckout(
-    { repoRoot: args.root, ref: args.ref },
-    async (tmpDir) => {
-      const report = await scan({ root: tmpDir });
-      return report.findings;
-    },
-  );
+async function scanRef(args: { root: string; ref: string }): Promise<Finding[]> {
+  return withRefCheckout({ repoRoot: args.root, ref: args.ref }, async (tmpDir) => {
+    const report = await scan({ root: tmpDir });
+    return report.findings;
+  });
 }

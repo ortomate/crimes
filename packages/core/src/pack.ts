@@ -7,11 +7,7 @@
  * `scoring/tier.ts`, which describes a finding's **file scope** rather
  * than the detector capability that produced it.
  */
-export type Pack =
-  | "universal"
-  | "language-js"
-  | "language-py"
-  | "cross-language";
+export type Pack = "universal" | "language-js" | "language-py" | "cross-language";
 
 export const PACK_IDS = [
   "universal",

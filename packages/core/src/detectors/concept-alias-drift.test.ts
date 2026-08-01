@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
 import type { LanguageJsDetectorContext } from "../detector.js";
 import { DEFAULT_ALIAS_GROUPS } from "../ia/aliases.js";
-import type {
-  IaConceptAliasGroup,
-  IaFileSignals,
-  IaIndex,
-} from "../ia/types.js";
+import type { IaConceptAliasGroup, IaFileSignals, IaIndex } from "../ia/types.js";
 import { conceptAliasDriftDetector } from "./concept-alias-drift.js";
 
 interface BuildOptions {
@@ -35,19 +31,20 @@ function buildIndex(opts: BuildOptions): IaIndex {
         line: 1,
         kind: l.kind ?? "metadata_title",
       })),
-      navEntries: sig.navLabels && sig.navLabels.length > 0
-        ? [
-            {
-              identifier: "items",
-              line: 1,
-              entries: sig.navLabels.map((n) => ({
-                destination: n.destination,
-                label: n.label,
-                attributes: {},
-              })),
-            },
-          ]
-        : [],
+      navEntries:
+        sig.navLabels && sig.navLabels.length > 0
+          ? [
+              {
+                identifier: "items",
+                line: 1,
+                entries: sig.navLabels.map((n) => ({
+                  destination: n.destination,
+                  label: n.label,
+                  attributes: {},
+                })),
+              },
+            ]
+          : [],
       permissions: [],
       isNavSource: (sig.navLabels?.length ?? 0) > 0,
     };
@@ -178,9 +175,7 @@ describe("conceptAliasDriftDetector", () => {
         "src/__tests__/organisation.test.ts": { tokens: ["organisation"] },
       },
     });
-    const findings = await conceptAliasDriftDetector.run(
-      ctxFor("src/a.ts", ia),
-    );
+    const findings = await conceptAliasDriftDetector.run(ctxFor("src/a.ts", ia));
     expect(findings).toEqual([]);
   });
 

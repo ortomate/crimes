@@ -3,17 +3,10 @@ import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { systemClock } from "./clock.js";
 import { loadConfig } from "./config.js";
 import { fingerprintFinding } from "./fingerprint.js";
-import type {
-  Finding,
-  ScanSummary,
-  Severity,
-} from "./finding.js";
+import type { Finding, ScanSummary, Severity } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { scan } from "./scan.js";
-import {
-  loadSuppressionsForRoot,
-  partitionFindings,
-} from "./suppressions.js";
+import { loadSuppressionsForRoot, partitionFindings } from "./suppressions.js";
 
 /**
  * Repo-relative path under which `crimes` writes the on-disk baseline.
@@ -367,10 +360,7 @@ export async function loadBaseline(path: string): Promise<Baseline> {
   }
   for (const [idx, entry] of (parsed["findings"] as unknown[]).entries()) {
     if (!isObject(entry)) {
-      throw new MalformedBaselineError(
-        path,
-        `findings[${idx}] is not an object`,
-      );
+      throw new MalformedBaselineError(path, `findings[${idx}] is not an object`);
     }
     if (typeof entry["fingerprint"] !== "string") {
       throw new MalformedBaselineError(
@@ -424,11 +414,10 @@ export async function checkBaseline(
   const baseline = await loadBaseline(baselinePath);
   const report = await scan({ root });
 
-  const { new_findings, fixed_findings, unchanged_findings } =
-    classifyAgainstBaseline({
-      baseline: baseline.findings,
-      current: report.findings,
-    });
+  const { new_findings, fixed_findings, unchanged_findings } = classifyAgainstBaseline({
+    baseline: baseline.findings,
+    current: report.findings,
+  });
 
   // Suppressions apply only to the **new** set — baseline entries are
   // already a "this is fine" snapshot, so suppressing them is a no-op.

@@ -37,9 +37,7 @@ export interface RunJudgeResult {
  * Returns `undefined` when the scenario has no `judge_questions`
  * (nothing to ask).
  */
-export async function runJudge(
-  args: RunJudgeArgs,
-): Promise<RunJudgeResult | undefined> {
+export async function runJudge(args: RunJudgeArgs): Promise<RunJudgeResult | undefined> {
   const questions = args.scenario.judge_questions ?? [];
   if (questions.length === 0) return undefined;
 

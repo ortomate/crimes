@@ -338,7 +338,11 @@ describe("boolean_naming_drift.py", () => {
 
   it("leaves module-level SHOUTED constants alone", async () => {
     expect(
-      await run(booleanNamingDriftPyDetector, "src/a.py", "DEBUG = True\nSTRICT = False\n"),
+      await run(
+        booleanNamingDriftPyDetector,
+        "src/a.py",
+        "DEBUG = True\nSTRICT = False\n",
+      ),
     ).toEqual([]);
   });
 
@@ -415,7 +419,9 @@ describe("weak_test_signal.py", () => {
       ].join("\n"),
     );
     expect(found).toHaveLength(1);
-    expect(found[0]!.evidence.join(" ")).toMatch(/2 of 3 test functions contain no assertion/);
+    expect(found[0]!.evidence.join(" ")).toMatch(
+      /2 of 3 test functions contain no assertion/,
+    );
   });
 
   it("counts unittest assert* methods as real assertions", async () => {
@@ -485,8 +491,12 @@ describe("circular_dependency.py", () => {
       ["pkg/a.py", "pkg/b.py"],
       ["pkg/b.py", "pkg/a.py"],
     ]);
-    const fromAnchor = await run(circularDependencyPyDetector, "pkg/a.py", "", { imports });
-    const fromOther = await run(circularDependencyPyDetector, "pkg/b.py", "", { imports });
+    const fromAnchor = await run(circularDependencyPyDetector, "pkg/a.py", "", {
+      imports,
+    });
+    const fromOther = await run(circularDependencyPyDetector, "pkg/b.py", "", {
+      imports,
+    });
     expect(fromAnchor).toHaveLength(1);
     expect(fromOther).toEqual([]);
     expect(fromAnchor[0]!.related_files).toEqual(["pkg/b.py"]);
@@ -516,9 +526,9 @@ describe("circular_dependency.py", () => {
       ["pkg/a.py", "src/x.ts"],
       ["src/x.ts", "pkg/a.py"],
     ]);
-    expect(
-      await run(circularDependencyPyDetector, "pkg/a.py", "", { imports }),
-    ).toEqual([]);
+    expect(await run(circularDependencyPyDetector, "pkg/a.py", "", { imports })).toEqual(
+      [],
+    );
   });
 
   it("does nothing without an import graph", async () => {
@@ -544,13 +554,21 @@ describe("deep_import.py", () => {
   });
 
   it("flags a long relative climb", async () => {
-    const found = await run(deepImportPyDetector, "a/b/c/d.py", "from ... import thing\n");
+    const found = await run(
+      deepImportPyDetector,
+      "a/b/c/d.py",
+      "from ... import thing\n",
+    );
     expect(found).toHaveLength(1);
     expect(found[0]!.evidence.join(" ")).toMatch(/climb 3\+ package levels/);
   });
 
   it("calls out a wildcard import as unbounded coupling", async () => {
-    const found = await run(deepImportPyDetector, "src/a.py", "from a.b.c.d.e import *\n");
+    const found = await run(
+      deepImportPyDetector,
+      "src/a.py",
+      "from a.b.c.d.e import *\n",
+    );
     expect(found[0]!.evidence.join(" ")).toMatch(/wildcard import/);
   });
 
@@ -578,11 +596,26 @@ describe("deep_import.py", () => {
  */
 describe("every Python detector sets an intrinsic agent_risk", () => {
   const SAMPLES: Array<[string, string]> = [
-    ["src/billing.py", `import datetime\ndef compute(a, b):\n${body(60)}\n    return datetime.datetime.now()`],
-    ["src/mixed.py", "import datetime\na = datetime.utcnow()\nb = datetime.datetime.now()\n"],
-    ["src/api.py", '@app.get("/x")\nasync def handler():\n    a = requests.get("http://x")\n    b = open("/f")\n    return a\n'],
-    ["src/naming.py", "def go(x):\n    retry = x > 1\n    stale = x < 1\n    return retry\n"],
-    ["tests/test_thing.py", "def test_a():\n    compute(1)\n\ndef test_b():\n    compute(2)\n"],
+    [
+      "src/billing.py",
+      `import datetime\ndef compute(a, b):\n${body(60)}\n    return datetime.datetime.now()`,
+    ],
+    [
+      "src/mixed.py",
+      "import datetime\na = datetime.utcnow()\nb = datetime.datetime.now()\n",
+    ],
+    [
+      "src/api.py",
+      '@app.get("/x")\nasync def handler():\n    a = requests.get("http://x")\n    b = open("/f")\n    return a\n',
+    ],
+    [
+      "src/naming.py",
+      "def go(x):\n    retry = x > 1\n    stale = x < 1\n    return retry\n",
+    ],
+    [
+      "tests/test_thing.py",
+      "def test_a():\n    compute(1)\n\ndef test_b():\n    compute(2)\n",
+    ],
     ["src/deep.py", "from a.b.c.d.e import helper\n"],
   ];
 
@@ -626,9 +659,7 @@ describe("every Python detector sets an intrinsic agent_risk", () => {
       "src/api.py",
       '@app.get("/x")\nasync def handler():\n    a = requests.get("http://x")\n    b = open("/f")\n    return a\n',
     );
-    expect(naming[0]!.scores.agent_risk!).toBeLessThan(
-      blocking[0]!.scores.agent_risk!,
-    );
+    expect(naming[0]!.scores.agent_risk!).toBeLessThan(blocking[0]!.scores.agent_risk!);
   });
 
   it("scales the intrinsic with the amount of evidence found", async () => {

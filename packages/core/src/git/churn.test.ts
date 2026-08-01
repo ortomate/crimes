@@ -127,7 +127,12 @@ describe("parseGitLog", () => {
     ].join("\n");
     const parsed = parseGitLog(output);
     expect(parsed).toEqual([
-      { file: "src/a.ts", changeCount: 1, latestChange: "2026-05-10T09:00:00+00:00", uniqueAuthors: 0 },
+      {
+        file: "src/a.ts",
+        changeCount: 1,
+        latestChange: "2026-05-10T09:00:00+00:00",
+        uniqueAuthors: 0,
+      },
     ]);
   });
 
@@ -301,22 +306,40 @@ describe("collectChurn — author tracking", () => {
     // Three commits, two distinct authors.
     await gitBare(
       root,
-      "-c", "user.name=Alice", "-c", "user.email=alice@example.com",
-      "commit", "-m", "c1", "--quiet",
+      "-c",
+      "user.name=Alice",
+      "-c",
+      "user.email=alice@example.com",
+      "commit",
+      "-m",
+      "c1",
+      "--quiet",
     );
     await writeFile(join(root, "src/a.ts"), "y");
     await gitBare(root, "add", "-A");
     await gitBare(
       root,
-      "-c", "user.name=Bob", "-c", "user.email=bob@example.com",
-      "commit", "-m", "c2", "--quiet",
+      "-c",
+      "user.name=Bob",
+      "-c",
+      "user.email=bob@example.com",
+      "commit",
+      "-m",
+      "c2",
+      "--quiet",
     );
     await writeFile(join(root, "src/a.ts"), "z");
     await gitBare(root, "add", "-A");
     await gitBare(
       root,
-      "-c", "user.name=Alice", "-c", "user.email=alice@example.com",
-      "commit", "-m", "c3", "--quiet",
+      "-c",
+      "user.name=Alice",
+      "-c",
+      "user.email=alice@example.com",
+      "commit",
+      "-m",
+      "c3",
+      "--quiet",
     );
 
     const r = await collectChurn({ root, since: "1y" });

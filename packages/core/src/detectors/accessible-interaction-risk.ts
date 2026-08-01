@@ -68,7 +68,7 @@ export const accessibleInteractionRiskDetector: LanguageJsDetector = {
           kind: "switch_to_button_or_add_aria",
           description:
             "Use a `<button>` (or `<a href>`) when the element is " +
-            "interactive, or add `role=\"button\"`, `aria-label`, and `tabIndex={0}`.",
+            'interactive, or add `role="button"`, `aria-label`, and `tabIndex={0}`.',
           risk: "low",
         },
       ],

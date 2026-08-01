@@ -98,7 +98,12 @@ export type {
   ContextRelatedFile,
   FindRelatedFilesOptions,
 } from "./context-related-files.js";
-export type { AssetDetector, AssetDetectorContext, Detector, DetectorContext } from "./detector.js";
+export type {
+  AssetDetector,
+  AssetDetectorContext,
+  Detector,
+  DetectorContext,
+} from "./detector.js";
 export { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
 export { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
 export { booleanNamingDriftDetector } from "./detectors/boolean-naming-drift.js";
@@ -184,7 +189,11 @@ export type {
   PolicyOccurrence,
   RiskIndex,
 } from "./risk/types.js";
-export { buildManifestIndex, classifySpecifier, isPinnedGitSpecifier } from "./manifest/build.js";
+export {
+  buildManifestIndex,
+  classifySpecifier,
+  isPinnedGitSpecifier,
+} from "./manifest/build.js";
 export type {
   DeclaredDependency,
   DependencyKind,
@@ -318,9 +327,7 @@ export { classifyTier, makeTierClassifier } from "./scoring/tier.js";
 export type { Tier } from "./scoring/tier.js";
 export { buildPettyIndex } from "./petty/build.js";
 export { extractStringLiterals } from "./petty/literals.js";
-export type {
-  BuildPettyIndexOptions,
-} from "./petty/build.js";
+export type { BuildPettyIndexOptions } from "./petty/build.js";
 export type {
   PettyIndex,
   PettyLiteralHit,

@@ -34,7 +34,10 @@ describe("buildRiskIndex — inventories", () => {
 
   it("records a repo anchor for findings with no natural file", async () => {
     const index = await build(
-      await makeRepo({ "src/zzz.ts": "export const z = 1;\n", "src/aaa.ts": "export const a = 1;\n" }),
+      await makeRepo({
+        "src/zzz.ts": "export const z = 1;\n",
+        "src/aaa.ts": "export const a = 1;\n",
+      }),
     );
     expect(index.anchorFile).toBe("src/aaa.ts");
   });
@@ -109,9 +112,7 @@ describe("buildRiskIndex — determinism", () => {
       expect(clone.anchorFile).toBe([...clone.files].sort()[0]);
     }
     for (const pair of index.contracts.pairs) {
-      expect(pair.anchorFile).toBe(
-        [pair.left.file, pair.right.file].sort()[0],
-      );
+      expect(pair.anchorFile).toBe([pair.left.file, pair.right.file].sort()[0]);
     }
   });
 });
@@ -163,7 +164,8 @@ describe("buildRiskIndex — scale", () => {
     // still deterministic.
     const files: Record<string, string> = {};
     for (let i = 0; i < 120; i++) {
-      files[`src/v${i}.ts`] = `export function v${i}(u) { if (u.role === "r${i}" && u.plan !== "free") return 1; return 0; }`;
+      files[`src/v${i}.ts`] =
+        `export function v${i}(u) { if (u.role === "r${i}" && u.plan !== "free") return 1; return 0; }`;
     }
     const repo = await makeRepo(files, "crimes-risk-bucket-");
     const first = await buildRiskIndex({ root: repo.root, files: repo.files });

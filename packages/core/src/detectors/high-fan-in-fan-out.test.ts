@@ -72,9 +72,7 @@ describe("highFanInFanOutDetector", () => {
   });
 
   it("returns nothing on a tiny graph (no meaningful percentile)", async () => {
-    const graph = makeGraph([
-      { from: "src/a.ts", to: "src/b.ts" },
-    ]);
+    const graph = makeGraph([{ from: "src/a.ts", to: "src/b.ts" }]);
     const findings = await highFanInFanOutDetector.run(makeCtx("src/b.ts", graph));
     expect(findings).toEqual([]);
   });

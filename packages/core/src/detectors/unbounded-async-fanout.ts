@@ -82,7 +82,7 @@ export const unboundedAsyncFanoutDetector: LanguageJsDetector = {
     "rows, and the failure surfaces in the dependency rather than here. " +
     "Nothing about the code changed; the data did. Agents reproduce this " +
     "shape constantly because `await Promise.all(xs.map(f))` is the most " +
-    "idiomatic way to express \"do this for each\".",
+    'idiomatic way to express "do this for each".',
 
   pack: "language-js",
   optionsSchema,
@@ -145,12 +145,28 @@ function buildFinding(file: string, site: FanOutSite): Finding {
     site.collectionSource === "await_call" || site.collectionSource === "property";
 
   const confidence = new ConfidenceLadder(0.6)
-    .add(runtimeSourced, `collection comes from ${describeSource(site.collectionSource)}`, 0.14)
+    .add(
+      runtimeSourced,
+      `collection comes from ${describeSource(site.collectionSource)}`,
+      0.14,
+    )
     .add(site.producer !== undefined, `produced by \`${site.producer}\``, 0.08)
-    .add(site.work.length >= 2, `${site.work.length} expensive operations per element`, 0.06)
+    .add(
+      site.work.length >= 2,
+      `${site.work.length} expensive operations per element`,
+      0.06,
+    )
     .add(kinds.includes("database") || kinds.includes("network"), "per-element I/O", 0.06)
-    .add(site.collectionSource === "unknown", "collection source not statically visible", -0.12)
-    .add(site.collectionSource === "parameter", "collection is a parameter with no visible bound", 0.04);
+    .add(
+      site.collectionSource === "unknown",
+      "collection source not statically visible",
+      -0.12,
+    )
+    .add(
+      site.collectionSource === "parameter",
+      "collection is a parameter with no visible bound",
+      0.04,
+    );
 
   const severity = new SeverityLadder(0.38)
     .add(kinds.includes("database"), "per-element database work", 0.2)
@@ -228,7 +244,9 @@ function buildEvidence(
 
   evidence.push(`per-element work (${site.work.length}):`);
   for (const work of site.work.slice(0, 6)) {
-    evidence.push(`  ${describeWorkKind(work.kind)} — ${work.callee} at line ${work.line}`);
+    evidence.push(
+      `  ${describeWorkKind(work.kind)} — ${work.callee} at line ${work.line}`,
+    );
   }
   if (site.work.length > 6) {
     evidence.push(`  +${site.work.length - 6} more`);

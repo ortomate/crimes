@@ -3,10 +3,7 @@ import { systemClock } from "./clock.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig, resolveSuppressionsPath } from "./config.js";
 import { SCHEMA_VERSION } from "./finding.js";
-import {
-  loadSuppressions,
-  type SuppressionEntry,
-} from "./suppressions.js";
+import { loadSuppressions, type SuppressionEntry } from "./suppressions.js";
 
 /**
  * Days after which a suppression is flagged as stale. Aligned with the
@@ -45,10 +42,7 @@ const LAZY_FIRST_WORDS = new Set([
 
 const LAZY_PHRASES: RegExp[] = [/^too\s+noisy\b/, /^we\s+know\b/];
 
-export type AuditConcern =
-  | "stale"
-  | "short_reason"
-  | "vague_reason";
+export type AuditConcern = "stale" | "short_reason" | "vague_reason";
 
 export interface AuditSuppressionEntry extends SuppressionEntry {
   /** Whole-number days between `created_at` and `generated_at`. */
@@ -118,10 +112,7 @@ export function auditSuppressions(
   );
   entries.sort((a, b) => b.age_days - a.age_days);
 
-  const flagged_count = entries.reduce(
-    (n, e) => (e.concerns.length > 0 ? n + 1 : n),
-    0,
-  );
+  const flagged_count = entries.reduce((n, e) => (e.concerns.length > 0 ? n + 1 : n), 0);
 
   return {
     schema_version: SCHEMA_VERSION,
@@ -140,9 +131,7 @@ function classifyEntry(
   generatedMs: number,
 ): AuditSuppressionEntry {
   const createdMs = Date.parse(entry.created_at);
-  const ageMs = Number.isFinite(createdMs)
-    ? Math.max(0, generatedMs - createdMs)
-    : 0;
+  const ageMs = Number.isFinite(createdMs) ? Math.max(0, generatedMs - createdMs) : 0;
   const ageDays = Math.floor(ageMs / DAY_MS);
 
   const concerns: AuditConcern[] = [];

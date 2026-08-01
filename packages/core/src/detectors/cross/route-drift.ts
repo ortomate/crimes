@@ -159,10 +159,7 @@ function collectFrontendCalls(files: PackedFile[]): FrontendCall[] {
  * share a cause — the two sides drifted — and a reader wants the list,
  * not N copies of the same charge.
  */
-function buildOrphanFinding(
-  orphans: FrontendCall[],
-  backend: BackendRoute[],
-): Finding {
+function buildOrphanFinding(orphans: FrontendCall[], backend: BackendRoute[]): Finding {
   const severity: Severity = orphans.length >= 3 ? "high" : "medium";
   const anchor = orphans[0]!;
   const shown = orphans.slice(0, 8);
@@ -170,12 +167,8 @@ function buildOrphanFinding(
   const evidence: string[] = [
     `${orphans.length} frontend ${plural(orphans.length, "call")} ` +
       `${orphans.length === 1 ? "reaches" : "reach"} a path no backend route declares`,
-    ...shown.map(
-      (o) => `${o.file}:${o.line} — ${o.method.toUpperCase()} ${o.url}`,
-    ),
-    ...(orphans.length > shown.length
-      ? [`…+${orphans.length - shown.length} more`]
-      : []),
+    ...shown.map((o) => `${o.file}:${o.line} — ${o.method.toUpperCase()} ${o.url}`),
+    ...(orphans.length > shown.length ? [`…+${orphans.length - shown.length} more`] : []),
     `${backend.length} backend ${plural(backend.length, "route")} declared across ` +
       `${new Set(backend.map((b) => b.file)).size} ${plural(new Set(backend.map((b) => b.file)).size, "file")}`,
     "matched on literal path strings — a route or URL assembled at runtime is invisible to this check",
@@ -228,10 +221,7 @@ function buildOrphanFinding(
   };
 }
 
-function buildMethodFinding(
-  call: FrontendCall,
-  routes: BackendRoute[],
-): Finding {
+function buildMethodFinding(call: FrontendCall, routes: BackendRoute[]): Finding {
   const declared = [...new Set(routes.map((r) => r.method.toUpperCase()))].sort();
   return {
     id: "",
@@ -273,8 +263,6 @@ function buildMethodFinding(
         risk: "low",
       },
     ],
-    related_files: [...new Set(routes.map((r) => r.file))].filter(
-      (f) => f !== call.file,
-    ),
+    related_files: [...new Set(routes.map((r) => r.file))].filter((f) => f !== call.file),
   };
 }

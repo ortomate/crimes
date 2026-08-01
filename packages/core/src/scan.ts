@@ -11,11 +11,7 @@ import {
 } from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
-import type {
-  AssetDetector,
-  Detector,
-  LanguageJsDetectorContext,
-} from "./detector.js";
+import type { AssetDetector, Detector, LanguageJsDetectorContext } from "./detector.js";
 import {
   builtInAssetDetectors,
   builtInDetectors,
@@ -54,10 +50,7 @@ import type { FunctionHashIndex } from "./ast-hash/function-index.js";
 import type { PettyIndex } from "./petty/types.js";
 import { finaliseFindingScores } from "./scoring/build.js";
 import type { ScoringContext } from "./scoring/build.js";
-import type {
-  ApplySuppressionsOptions,
-  SuppressionEntry,
-} from "./suppressions.js";
+import type { ApplySuppressionsOptions, SuppressionEntry } from "./suppressions.js";
 import { partitionFindings } from "./suppressions.js";
 import type { TriageEntry } from "./triage.js";
 import { applyTriageFilter, type ApplyTriageFilterOptions } from "./triage-filter.js";
@@ -117,14 +110,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   const root = resolve(options.root ?? process.cwd());
   const config =
     options.config ??
-    loadConfig(
-      root,
-      buildDetectorRegistry(builtInDetectors, builtInAssetDetectors),
-    );
+    loadConfig(root, buildDetectorRegistry(builtInDetectors, builtInAssetDetectors));
   const allKnownIds = collectKnownIds(builtInDetectors, builtInAssetDetectors);
   const detectors =
-    options.detectors ??
-    filterDetectors(builtInDetectors, config, allKnownIds);
+    options.detectors ?? filterDetectors(builtInDetectors, config, allKnownIds);
   const assetDetectors =
     options.assetDetectors ??
     filterAssetDetectors(builtInAssetDetectors, config, allKnownIds);
@@ -162,7 +151,9 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     finaliseFindingScores(f, indexes.scoring);
   }
 
-  tagTierAndSortByRankScore(findings, config, { recencyEnabled: options.recencyEnabled ?? true });
+  tagTierAndSortByRankScore(findings, config, {
+    recencyEnabled: options.recencyEnabled ?? true,
+  });
   assignIdsHelper(findings);
 
   const report: ScanReport = {
@@ -199,8 +190,6 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   return report;
 }
 
-
-
 interface ScanInputs {
   allFiles: string[];
   files: string[];
@@ -230,10 +219,6 @@ async function resolveScanInputs(args: {
     changedAll: restricted.allChangedRepoPaths,
   };
 }
-
-
-
-
 
 /**
  * Filter a {@link ScanReport} through the suppressions list. Returns a
@@ -275,11 +260,7 @@ export function applyTriageToScan(
   triage: TriageEntry[],
   options: ApplyTriageFilterOptions,
 ): ScanReport {
-  const { findings, hiddenCount } = applyTriageFilter(
-    report.findings,
-    triage,
-    options,
-  );
+  const { findings, hiddenCount } = applyTriageFilter(report.findings, triage, options);
   const next: ScanReport = {
     ...report,
     summary: summariseVisible(findings),
@@ -294,12 +275,6 @@ function summariseVisible(findings: Finding[]): ScanSummary {
   for (const f of findings) summary[f.severity] += 1;
   return summary;
 }
-
-
-
-
-
-
 
 /**
  * Build the IA index, but never let a failure here break the scan.
@@ -374,8 +349,6 @@ async function restrictToChanged(args: {
   return { scanFiles, allChangedRepoPaths };
 }
 
-
-
 function summarise(findings: Finding[]): ScanSummary {
   const summary: ScanSummary = { total: findings.length, high: 0, medium: 0, low: 0 };
   for (const f of findings) summary[f.severity] += 1;
@@ -424,10 +397,7 @@ export function applyScanFailOn(
       return false;
     }
     if (f.hidden_triage !== undefined) {
-      if (
-        f.hidden_triage.disposition === "needs-design" &&
-        options.gateNeedsDesign
-      ) {
+      if (f.hidden_triage.disposition === "needs-design" && options.gateNeedsDesign) {
         // fall through to severity check
       } else {
         return false;

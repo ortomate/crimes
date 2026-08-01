@@ -47,10 +47,7 @@ interface SeedEntry {
   created_by?: string;
 }
 
-async function seedSuppressions(
-  root: string,
-  entries: SeedEntry[],
-): Promise<string> {
+async function seedSuppressions(root: string, entries: SeedEntry[]): Promise<string> {
   await mkdir(join(root, ".crimes"), { recursive: true });
   const path = join(root, ".crimes", "suppressions.json");
   await writeFile(
@@ -74,10 +71,7 @@ async function seedSuppressions(
 describe("crimes audit-suppressions", () => {
   it("reports loaded:false when the file is missing (human)", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-audit-missing-"));
-    const result = await runCli(
-      ["audit-suppressions", "--no-color"],
-      root,
-    );
+    const result = await runCli(["audit-suppressions", "--no-color"], root);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("No suppressions file found");
   });
@@ -85,10 +79,7 @@ describe("crimes audit-suppressions", () => {
   it("reports an empty suppressions file (human)", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-audit-empty-"));
     await seedSuppressions(root, []);
-    const result = await runCli(
-      ["audit-suppressions", "--no-color"],
-      root,
-    );
+    const result = await runCli(["audit-suppressions", "--no-color"], root);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Suppressions file is empty");
   });
@@ -103,10 +94,7 @@ describe("crimes audit-suppressions", () => {
         created_at: "2026-05-01T12:00:00.000Z",
       },
     ]);
-    const result = await runCli(
-      ["audit-suppressions", "--format", "json"],
-      root,
-    );
+    const result = await runCli(["audit-suppressions", "--format", "json"], root);
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout);
     expect(parsed.report_type).toBe("audit_suppressions");
@@ -128,10 +116,7 @@ describe("crimes audit-suppressions", () => {
         created_at: "2026-05-01T12:00:00.000Z",
       },
     ]);
-    const result = await runCli(
-      ["audit-suppressions", "--no-color"],
-      root,
-    );
+    const result = await runCli(["audit-suppressions", "--no-color"], root);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Flagged");
     expect(result.stdout).toContain("reason shorter than 16 characters");
@@ -140,11 +125,7 @@ describe("crimes audit-suppressions", () => {
   it("malformed suppressions file exits 2", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-audit-bad-"));
     await mkdir(join(root, ".crimes"), { recursive: true });
-    await writeFile(
-      join(root, ".crimes", "suppressions.json"),
-      "not json",
-      "utf8",
-    );
+    await writeFile(join(root, ".crimes", "suppressions.json"), "not json", "utf8");
     const result = await runCli(["audit-suppressions"], root);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("malformed");

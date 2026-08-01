@@ -19,7 +19,9 @@ export function formatContextHumanReport(
 
   lines.push(colour.bold("CRIMES CONTEXT"));
   lines.push(colour.dim(`file: ${report.file}`));
-  lines.push(`risk: ${riskLabel(report.risk, colour)}  ${riskCounts(report.risk, colour)}`);
+  lines.push(
+    `risk: ${riskLabel(report.risk, colour)}  ${riskCounts(report.risk, colour)}`,
+  );
 
   // Agent guidance — the field agents read first. Comes before findings
   // so a human running the human report sees the actionable summary line
@@ -27,8 +29,7 @@ export function formatContextHumanReport(
   lines.push("");
   lines.push(colour.bold("Agent guidance"));
   if (report.agent_guidance.length === 0) {
-    const reason =
-      report.agent_guidance_reason ?? "no specific guidance for this file";
+    const reason = report.agent_guidance_reason ?? "no specific guidance for this file";
     lines.push(colour.dim(`  (${reason})`));
   } else {
     for (const g of report.agent_guidance) {
@@ -41,22 +42,17 @@ export function formatContextHumanReport(
   lines.push("");
   lines.push(colour.bold("Related files"));
   if (report.related_files.length === 0) {
-    const reason =
-      report.related_files_reason ?? "no related files found by convention";
+    const reason = report.related_files_reason ?? "no related files found by convention";
     lines.push(colour.dim(`  (${reason})`));
   } else {
     const RELATED_DISPLAY_CAP = 5;
     const shown = report.related_files.slice(0, RELATED_DISPLAY_CAP);
     const hidden = report.related_files.length - shown.length;
     for (const r of shown) {
-      lines.push(
-        `  · ${colour.cyan(r.file)}  ${colour.dim(`— ${r.reason}`)}`,
-      );
+      lines.push(`  · ${colour.cyan(r.file)}  ${colour.dim(`— ${r.reason}`)}`);
     }
     if (hidden > 0) {
-      lines.push(
-        colour.dim(`  … and ${hidden} more (see JSON output)`),
-      );
+      lines.push(colour.dim(`  … and ${hidden} more (see JSON output)`));
     }
   }
 
@@ -64,8 +60,7 @@ export function formatContextHumanReport(
   lines.push("");
   lines.push(colour.bold("Likely tests"));
   if (report.likely_tests.length === 0) {
-    const reason =
-      report.likely_tests_reason ?? "no likely tests found by convention";
+    const reason = report.likely_tests_reason ?? "no likely tests found by convention";
     lines.push(colour.dim(`  (${reason})`));
   } else {
     for (const t of report.likely_tests) {
@@ -74,7 +69,10 @@ export function formatContextHumanReport(
   }
 
   // Clues — context-only signals beyond the per-file findings list.
-  if (report.clues && (report.clues.churn || report.clues.suppressions || report.clues.test_gap)) {
+  if (
+    report.clues &&
+    (report.clues.churn || report.clues.suppressions || report.clues.test_gap)
+  ) {
     lines.push("");
     lines.push(colour.bold("Clues"));
     if (report.clues.churn) {

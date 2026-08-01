@@ -1,8 +1,4 @@
-import type {
-  Baseline,
-  BaselineCheckReport,
-  BaselineEntry,
-} from "@crimes/core";
+import type { Baseline, BaselineCheckReport, BaselineEntry } from "@crimes/core";
 import type { ColourFns, FeedbackHintOptions } from "./shared.js";
 import { HUMAN_GLYPHS, pc, plainColour, renderFinding } from "./shared.js";
 
@@ -82,9 +78,7 @@ export function formatBaselineCheckReport(
   lines.push("");
 
   if (report.new_findings.length > 0) {
-    lines.push(
-      colour.bold(`${newPrefix}New findings (${report.new_findings.length})`),
-    );
+    lines.push(colour.bold(`${newPrefix}New findings (${report.new_findings.length})`));
     report.new_findings.forEach((finding, idx) => {
       // Baseline check has no --all knob; fall back to the default notable
       // gate (renderRiskProfileLine hides the line when all three signals
@@ -124,9 +118,7 @@ export function formatBaselineCheckReport(
   } else {
     lines.push(
       colour.green(
-        colour.bold(
-          `OK: no new findings at or above "${report.fail_on}" severity.`,
-        ),
+        colour.bold(`OK: no new findings at or above "${report.fail_on}" severity.`),
       ),
     );
   }
@@ -141,11 +133,7 @@ function renderBaselineEntry(
 ): string[] {
   const symbol = entry.symbol ? ` (${entry.symbol})` : "";
   const out: string[] = [];
-  out.push(
-    `  ${colour.bold(`${n}.`)} ${colour.cyan(entry.file)}${colour.dim(symbol)}`,
-  );
-  out.push(
-    `     ${colour.bold("Charge:")} ${entry.charge} (${entry.severity})`,
-  );
+  out.push(`  ${colour.bold(`${n}.`)} ${colour.cyan(entry.file)}${colour.dim(symbol)}`);
+  out.push(`     ${colour.bold("Charge:")} ${entry.charge} (${entry.severity})`);
   return out;
 }

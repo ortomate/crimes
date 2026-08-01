@@ -38,9 +38,7 @@ export const duplicatedNavigationSourceDetector: LanguageJsDetector = {
     const findings: Finding[] = [];
     for (const [destination, entries] of groups) {
       if (!shouldEmit(entries)) continue;
-      const anchor = entries
-        .map((e) => e.file)
-        .sort()[0]!;
+      const anchor = entries.map((e) => e.file).sort()[0]!;
       if (anchor !== ctx.file) continue;
 
       findings.push(buildFinding(destination, entries));
@@ -85,9 +83,7 @@ function shouldEmit(entries: NavHit[]): boolean {
 }
 
 function buildFinding(destination: string, entries: NavHit[]): Finding {
-  const sortedEntries = [...entries].sort((a, b) =>
-    a.file.localeCompare(b.file),
-  );
+  const sortedEntries = [...entries].sort((a, b) => a.file.localeCompare(b.file));
   const distinctLabels = new Set(sortedEntries.map((e) => normaliseLabel(e.label)));
   const anchor = sortedEntries[0]!;
 

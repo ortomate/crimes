@@ -6,14 +6,8 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  exportRefToTempDir,
-  withRefCheckout,
-} from "./archive.js";
-import {
-  NotAGitRepoError,
-  UnknownGitRefError,
-} from "./changed-files.js";
+import { exportRefToTempDir, withRefCheckout } from "./archive.js";
+import { NotAGitRepoError, UnknownGitRefError } from "./changed-files.js";
 
 const execFileAsync = promisify(execFile);
 

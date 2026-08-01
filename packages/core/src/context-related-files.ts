@@ -86,9 +86,7 @@ export interface FindRelatedFilesOptions {
  * list of related files. Deterministic — repeated calls over the same
  * inputs produce identical output.
  */
-export function findRelatedFiles(
-  options: FindRelatedFilesOptions,
-): ContextRelatedFile[] {
+export function findRelatedFiles(options: FindRelatedFilesOptions): ContextRelatedFile[] {
   const { fileRel, allFilesRel, ia, findings, likelyTests } = options;
   const targetDir = dirname(fileRel);
   const likelyTestSet = new Set(likelyTests);
@@ -99,10 +97,7 @@ export function findRelatedFiles(
   // Accumulator keyed by repo-relative path. Reasons compound; score
   // accumulates with a per-entry cap so a file that hits three weak
   // heuristics doesn't beat one that hits a single strong one.
-  const accumulator = new Map<
-    string,
-    { reasons: string[]; score: number }
-  >();
+  const accumulator = new Map<string, { reasons: string[]; score: number }>();
 
   const add = (file: string, reason: string, weight: number): void => {
     if (file === fileRel) return;

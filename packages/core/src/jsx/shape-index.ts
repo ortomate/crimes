@@ -101,11 +101,7 @@ function countNodes(el: JsxElementInfo): number {
   return n;
 }
 
-function push(
-  map: Map<string, JsxShapeHit[]>,
-  key: string,
-  hit: JsxShapeHit,
-): void {
+function push(map: Map<string, JsxShapeHit[]>, key: string, hit: JsxShapeHit): void {
   const list = map.get(key);
   if (list) list.push(hit);
   else map.set(key, [hit]);

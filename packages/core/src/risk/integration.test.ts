@@ -14,7 +14,12 @@ import { diff } from "../diff.js";
 import { fingerprintFinding } from "../fingerprint.js";
 import { SCHEMA_VERSION, type Finding, type ScanReport } from "../finding.js";
 import { hotspots } from "../hotspots.js";
-import { applyScanFailOn, applySuppressionsToScan, applyTriageToScan, scan } from "../scan.js";
+import {
+  applyScanFailOn,
+  applySuppressionsToScan,
+  applyTriageToScan,
+  scan,
+} from "../scan.js";
 import type { SuppressionEntry } from "../suppressions.js";
 import type { TriageEntry } from "../triage.js";
 import { verdict } from "../verdict.js";
@@ -317,7 +322,9 @@ describe("0.16.0 slate — suppressions and triage", () => {
     });
     expect(filtered.suppressed_count).toBe(1);
     expect(
-      filtered.findings.some((f) => fingerprintFinding(f) === suppressions[0]!.fingerprint),
+      filtered.findings.some(
+        (f) => fingerprintFinding(f) === suppressions[0]!.fingerprint,
+      ),
     ).toBe(false);
     expect(filtered.summary.total).toBe(report.summary.total - 1);
   });

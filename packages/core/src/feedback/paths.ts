@@ -9,8 +9,7 @@ import { resolve } from "node:path";
 export const FEEDBACK_RELATIVE_PATH = ".crimes/feedback.jsonl" as const;
 
 /** Per-machine cross-project rollup. Not intended to be committed anywhere. */
-export const FEEDBACK_GLOBAL_RELATIVE_PATH =
-  ".crimes/feedback-rollup.jsonl" as const;
+export const FEEDBACK_GLOBAL_RELATIVE_PATH = ".crimes/feedback-rollup.jsonl" as const;
 
 export function resolveFeedbackPath(root: string): string {
   return resolve(root, FEEDBACK_RELATIVE_PATH);
@@ -33,7 +32,6 @@ export function resolveGlobalRollupPath(
   options: ResolveGlobalRollupPathOptions = {},
 ): string {
   const fromEnv = process.env.CRIMES_HOME;
-  const home =
-    options.home ?? (fromEnv && fromEnv.length > 0 ? fromEnv : homedir());
+  const home = options.home ?? (fromEnv && fromEnv.length > 0 ? fromEnv : homedir());
   return resolve(home, FEEDBACK_GLOBAL_RELATIVE_PATH);
 }

@@ -59,7 +59,9 @@ describe("swallowed_error — positive cases", () => {
       }
     `);
     expect(finding!.severity).toBe("high");
-    expect(finding!.evidence.join("\n")).toMatch(/severity raised by:.*payment operation/);
+    expect(finding!.evidence.join("\n")).toMatch(
+      /severity raised by:.*payment operation/,
+    );
   });
 
   it("reports a comment-only catch and quotes the comment", () => {
@@ -94,9 +96,7 @@ describe("swallowed_error — positive cases", () => {
       }
     `);
     const evidence = finding!.evidence.join("\n");
-    expect(evidence).toContain(
-      "the handler returns `null` without inspecting the error",
-    );
+    expect(evidence).toContain("the handler returns `null` without inspecting the error");
     const actions = finding!.suggested_actions ?? [];
     expect(actions.some((a) => a.kind === "return_typed_result")).toBe(true);
   });
@@ -120,17 +120,13 @@ describe("swallowed_error — positive cases", () => {
     const [finding] = run(`
       export async function persist(o) { try { await db.orders.insert(o); } catch {} }
     `);
-    expect(finding!.evidence.join("\n")).toContain(
-      "the catch declares no binding",
-    );
+    expect(finding!.evidence.join("\n")).toContain("the catch declares no binding");
   });
 });
 
 describe("swallowed_error — complete defences", () => {
   it("says nothing when the handler rethrows", () => {
-    expect(
-      run(`function f() { try { go(); } catch (e) { throw e; } }`),
-    ).toHaveLength(0);
+    expect(run(`function f() { try { go(); } catch (e) { throw e; } }`)).toHaveLength(0);
   });
 
   it("says nothing when the handler logs with the error", () => {
@@ -237,18 +233,26 @@ describe("swallowed_error — configuration", () => {
   it("honours reportLogWithoutError", () => {
     expect(run(LOG_ONLY)).toHaveLength(1);
     expect(
-      run(LOG_ONLY, "src/a.ts", configWithOptions("swallowed_error", {
-        reportLogWithoutError: false,
-      })),
+      run(
+        LOG_ONLY,
+        "src/a.ts",
+        configWithOptions("swallowed_error", {
+          reportLogWithoutError: false,
+        }),
+      ),
     ).toHaveLength(0);
   });
 
   it("honours reportFallbackReturns", () => {
     expect(run(FALLBACK)).toHaveLength(1);
     expect(
-      run(FALLBACK, "src/a.ts", configWithOptions("swallowed_error", {
-        reportFallbackReturns: false,
-      })),
+      run(
+        FALLBACK,
+        "src/a.ts",
+        configWithOptions("swallowed_error", {
+          reportFallbackReturns: false,
+        }),
+      ),
     ).toHaveLength(0);
   });
 
@@ -256,9 +260,13 @@ describe("swallowed_error — configuration", () => {
     const source = `function f() { try { go(); } catch (e) { /* known flaky */ } }`;
     expect(run(source)).toHaveLength(1);
     expect(
-      run(source, "src/a.ts", configWithOptions("swallowed_error", {
-        treatCommentAsIntent: true,
-      })),
+      run(
+        source,
+        "src/a.ts",
+        configWithOptions("swallowed_error", {
+          treatCommentAsIntent: true,
+        }),
+      ),
     ).toHaveLength(0);
   });
 
@@ -266,9 +274,13 @@ describe("swallowed_error — configuration", () => {
     const source = `export function drain() { try { go(); } catch (e) {} }`;
     expect(run(source)).toHaveLength(1);
     expect(
-      run(source, "src/a.ts", configWithOptions("swallowed_error", {
-        allowedFunctions: ["drain"],
-      })),
+      run(
+        source,
+        "src/a.ts",
+        configWithOptions("swallowed_error", {
+          allowedFunctions: ["drain"],
+        }),
+      ),
     ).toHaveLength(0);
   });
 

@@ -10,11 +10,7 @@
  * not convenience.
  */
 
-export type PyFunctionKind =
-  | "function"
-  | "async_function"
-  | "method"
-  | "async_method";
+export type PyFunctionKind = "function" | "async_function" | "method" | "async_method";
 
 /**
  * Coarse semantic shape of a Python function, used by `large_function.py`

@@ -1,9 +1,5 @@
 import ts from "typescript";
-import type {
-  EnclosingFunction,
-  ParsedFunction,
-  SyncIoCall,
-} from "./types.js";
+import type { EnclosingFunction, ParsedFunction, SyncIoCall } from "./types.js";
 
 /**
  * Synchronous Node.js I/O API surface. Coverage is intentionally
@@ -123,8 +119,7 @@ function buildEnclosingChain(
     if (isFunctionLike(cur)) {
       const startLine =
         sourceFile.getLineAndCharacterOfPosition(cur.getStart(sourceFile)).line + 1;
-      const endLine =
-        sourceFile.getLineAndCharacterOfPosition(cur.getEnd()).line + 1;
+      const endLine = sourceFile.getLineAndCharacterOfPosition(cur.getEnd()).line + 1;
       const match = functions.find(
         (f) => f.startLine === startLine && f.endLine === endLine,
       );
@@ -152,9 +147,7 @@ export function collectSyncIoCall(
   if (!ts.isCallExpression(node)) return;
   const calleeInfo = extractCallee(node.expression);
   if (!calleeInfo) return;
-  const { line } = sourceFile.getLineAndCharacterOfPosition(
-    node.getStart(sourceFile),
-  );
+  const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
   const call: SyncIoCall = {
     callee: calleeInfo.callee,
     method: calleeInfo.method,

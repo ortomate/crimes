@@ -228,18 +228,12 @@ describe("triage", () => {
     });
     const doc = parseTriage(raw);
     expect(doc.entries).toHaveLength(1);
-    expect(doc.entries[0]!.fingerprint).toBe(
-      "large_function::src/foo.ts::doStuff",
-    );
+    expect(doc.entries[0]!.fingerprint).toBe("large_function::src/foo.ts::doStuff");
   });
 
   it("parseTriage throws MalformedTriageError on invalid JSON", () => {
-    expect(() => parseTriage("{ not json", "my-file.json")).toThrow(
-      MalformedTriageError,
-    );
-    expect(() => parseTriage("{ not json", "my-file.json")).toThrow(
-      /my-file\.json/,
-    );
+    expect(() => parseTriage("{ not json", "my-file.json")).toThrow(MalformedTriageError);
+    expect(() => parseTriage("{ not json", "my-file.json")).toThrow(/my-file\.json/);
   });
 
   it("parseTriage throws MalformedTriageError on shape mismatch", () => {

@@ -82,15 +82,11 @@ const DEFAULT_POLICIES: Record<Exclude<FunctionShape, "domain">, ShapePolicy> = 
  * honour `thresholds.largeFunction.<shape>` overrides when present;
  * otherwise they use the built-in defaults.
  */
-export function policyFor(
-  shape: FunctionShape,
-  config: CrimesConfig,
-): ShapePolicy {
+export function policyFor(shape: FunctionShape, config: CrimesConfig): ShapePolicy {
   const overrides = config.thresholds.largeFunction;
   if (shape === "domain") {
     return {
-      threshold:
-        overrides?.domain ?? config.thresholds.largeFunctionLines,
+      threshold: overrides?.domain ?? config.thresholds.largeFunctionLines,
       severityAtThreshold: "medium",
       severityAtTwoX: "high",
       label: "domain function",
@@ -131,8 +127,7 @@ export const largeFunctionDetector: LanguageJsDetector = {
       if (length <= policy.threshold) continue;
 
       const ratio = length / policy.threshold;
-      const severity =
-        ratio >= 2 ? policy.severityAtTwoX : policy.severityAtThreshold;
+      const severity = ratio >= 2 ? policy.severityAtTwoX : policy.severityAtThreshold;
       const confidence = Math.min(0.8 + (ratio - 1) * 0.1, 0.95);
       const symbol = symbolFor(fn);
 
@@ -153,10 +148,7 @@ export const largeFunctionDetector: LanguageJsDetector = {
           severity: severityScore(severity),
           confidence: round(confidence),
           agent_risk: round(
-            Math.min(
-              0.55 * policy.agentRiskScale + (ratio - 1) * 0.2,
-              0.95,
-            ),
+            Math.min(0.55 * policy.agentRiskScale + (ratio - 1) * 0.2, 0.95),
           ),
         },
         suggested_actions: [
@@ -198,8 +190,7 @@ function buildSummary(args: {
   policy: ShapePolicy;
 }): string {
   const { symbol, length, policy } = args;
-  const subject =
-    symbol === "<anonymous>" ? `An anonymous ${policy.label}` : symbol;
+  const subject = symbol === "<anonymous>" ? `An anonymous ${policy.label}` : symbol;
   return (
     `${subject} is ${length} lines long ` +
     `(${policy.label} threshold ${policy.threshold}). ` +

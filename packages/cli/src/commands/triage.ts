@@ -68,10 +68,7 @@ export function registerTriageCommand(program: Command): void {
       "Walk findings and assign per-finding dispositions (fix-now / fix-this-PR / needs-design / wont-fix / scaffolding).",
     )
     .argument("[path]", "directory to scan (defaults to current directory)")
-    .option(
-      "--apply <file>",
-      "non-interactive: merge triage entries from a JSON file",
-    )
+    .option("--apply <file>", "non-interactive: merge triage entries from a JSON file")
     .option("--list", "show existing triage entries and exit", false)
     .option("--clear <fingerprint>", "remove one entry by fingerprint")
     .option(
@@ -143,9 +140,7 @@ async function runList(root: string, options: TriageOptions): Promise<void> {
   const path = resolveTriagePath(root);
   const triage = await loadTriage(path);
   if (options.format === "json") {
-    process.stdout.write(
-      JSON.stringify({ entries: triage.entries }, null, 2) + "\n",
-    );
+    process.stdout.write(JSON.stringify({ entries: triage.entries }, null, 2) + "\n");
     return;
   }
   if (triage.entries.length === 0) {
@@ -228,9 +223,7 @@ async function runApply(
   await saveTriage(triagePath, doc, { crimesVersion: __CRIMES_VERSION__ });
 
   if (options.format === "json") {
-    process.stdout.write(
-      JSON.stringify({ applied: appliedDoc.entries.length }) + "\n",
-    );
+    process.stdout.write(JSON.stringify({ applied: appliedDoc.entries.length }) + "\n");
   } else {
     process.stdout.write(
       `Applied ${appliedDoc.entries.length} entries to .crimes/triage.json.\n`,
@@ -238,10 +231,7 @@ async function runApply(
   }
 }
 
-async function runInteractive(
-  root: string,
-  options: TriageOptions,
-): Promise<void> {
+async function runInteractive(root: string, options: TriageOptions): Promise<void> {
   const config = loadConfig(root);
   const report = await scan({ root, config });
 
@@ -254,10 +244,7 @@ async function runInteractive(
   const triagePath = resolveTriagePath(root);
   const existing = await loadTriage(triagePath);
   const existingPrints = new Set(existing.entries.map((e) => e.fingerprint));
-  const retriageMatcher = buildRetriageMatcher(
-    options.retriage,
-    existing.entries,
-  );
+  const retriageMatcher = buildRetriageMatcher(options.retriage, existing.entries);
 
   const queue = findings.filter((f) => {
     const print = fingerprintFinding(f);
@@ -302,9 +289,7 @@ async function runInteractive(
 
       const reason = (await rl.question("  Reason (one line): ")).trim();
       if (reason === "") {
-        process.stdout.write(
-          "  · empty reason — skipping (no entry written)\n\n",
-        );
+        process.stdout.write("  · empty reason — skipping (no entry written)\n\n");
         continue;
       }
       const ownerPrompt = defaultOwner
@@ -333,9 +318,7 @@ async function runInteractive(
       // most valuable calibration signal lives.
       let explicitVerdict: FeedbackVerdict | undefined;
       if (verdictForDisposition(disposition) === null) {
-        const answer = (
-          await rl.question("  Was crimes wrong here? [y/N]: ")
-        )
+        const answer = (await rl.question("  Was crimes wrong here? [y/N]: "))
           .trim()
           .toLowerCase();
         explicitVerdict =
@@ -385,13 +368,8 @@ export function todayYmd(now: Date = new Date()): string {
   return `${now.getFullYear()}-${m}-${day}`;
 }
 
-function renderFindingHeader(
-  f: Finding,
-  index: number,
-  total: number,
-): void {
-  const glyph =
-    f.severity === "high" ? "🚨" : f.severity === "medium" ? "⚠️" : "🔎";
+function renderFindingHeader(f: Finding, index: number, total: number): void {
+  const glyph = f.severity === "high" ? "🚨" : f.severity === "medium" ? "⚠️" : "🔎";
   process.stdout.write(
     `[${index}/${total}] ${glyph} ${f.file}\n` +
       `  ${f.charge}${f.symbol ? ` · ${f.symbol}()` : ""}\n` +

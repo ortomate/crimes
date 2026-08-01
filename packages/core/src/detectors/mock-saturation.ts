@@ -2,11 +2,7 @@ import { z } from "zod";
 import { basename, dirname } from "node:path";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
-import type {
-  AssertionCategory,
-  MockDeclaration,
-  TestCase,
-} from "@crimes/language-js";
+import type { AssertionCategory, MockDeclaration, TestCase } from "@crimes/language-js";
 import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
 import { isTestFile, testBaseCovers } from "../util/test-files.js";
 import { classifyBoundary } from "../domain/vocabulary.js";
@@ -187,9 +183,7 @@ function assess(
     reportInteractionOnly: boolean;
   },
 ): Verdict {
-  const categories = [
-    ...new Set(testCase.assertions.map((a) => a.category)),
-  ].sort();
+  const categories = [...new Set(testCase.assertions.map((a) => a.category))].sort();
   const interaction = testCase.assertions.filter(
     (a) => a.category === "mock_interaction",
   ).length;
@@ -217,8 +211,7 @@ function assess(
     return { ...base, report: false, reason: "" };
   }
 
-  const saturated =
-    ctx.mockedRatio >= ctx.minRatio && ctx.hollowCount >= 1;
+  const saturated = ctx.mockedRatio >= ctx.minRatio && ctx.hollowCount >= 1;
   if (!saturated && !ctx.reportInteractionOnly) {
     return { ...base, report: false, reason: "" };
   }
@@ -264,15 +257,35 @@ function buildFinding(args: {
   const title = [...testCase.suite, testCase.title].join(" › ");
 
   const confidence = new ConfidenceLadder(0.6)
-    .add(args.mockedRatio >= 0.9, `${Math.round(args.mockedRatio * 100)}% of collaborators mocked`, 0.12)
-    .add(args.hollow.length >= 2, `${args.hollow.length} doubles have no implementation`, 0.1)
-    .add(verdict.interaction >= 2, `${verdict.interaction} mock-interaction assertions, 0 behavioural`, 0.08)
+    .add(
+      args.mockedRatio >= 0.9,
+      `${Math.round(args.mockedRatio * 100)}% of collaborators mocked`,
+      0.12,
+    )
+    .add(
+      args.hollow.length >= 2,
+      `${args.hollow.length} doubles have no implementation`,
+      0.1,
+    )
+    .add(
+      verdict.interaction >= 2,
+      `${verdict.interaction} mock-interaction assertions, 0 behavioural`,
+      0.08,
+    )
     .add(args.subjectMocked, "the subject under test appears to be mocked", 0.1)
-    .add(testCase.mockConfigurations >= 3, `${testCase.mockConfigurations} calls program the doubles`, 0.05)
+    .add(
+      testCase.mockConfigurations >= 3,
+      `${testCase.mockConfigurations} calls program the doubles`,
+      0.05,
+    )
     .add(args.subject === undefined, "subject under test could not be identified", -0.1);
 
   const severity = new SeverityLadder(0.35)
-    .add(args.boundaries.length > 0, `mocks stand in for ${args.boundaries.join(", ")}`, 0.18)
+    .add(
+      args.boundaries.length > 0,
+      `mocks stand in for ${args.boundaries.join(", ")}`,
+      0.18,
+    )
     .add(args.subjectMocked, "the subject itself is mocked", 0.2)
     .add(args.boundaries.length >= 2, "multiple consequential boundaries mocked", 0.08)
     .add(args.hollow.length >= 3, "three or more behaviourless doubles", 0.06);
@@ -342,7 +355,9 @@ function buildEvidence(
   const evidence: string[] = [];
   const title = [...args.testCase.suite, args.testCase.title].join(" › ");
 
-  evidence.push(`test case: "${title}" (lines ${args.testCase.line}-${args.testCase.endLine})`);
+  evidence.push(
+    `test case: "${title}" (lines ${args.testCase.line}-${args.testCase.endLine})`,
+  );
   evidence.push(
     args.subject !== undefined
       ? `subject under test: ${args.subject}`
@@ -351,7 +366,10 @@ function buildEvidence(
 
   evidence.push(
     `mocked collaborators (${args.meaningful.length}): ` +
-      args.meaningful.slice(0, 6).map((m) => `${m.target}${m.hollow ? " (no implementation)" : ""}`).join(", ") +
+      args.meaningful
+        .slice(0, 6)
+        .map((m) => `${m.target}${m.hollow ? " (no implementation)" : ""}`)
+        .join(", ") +
       (args.meaningful.length > 6 ? `, +${args.meaningful.length - 6} more` : ""),
   );
   if (args.mockedRatio > 0) {
@@ -374,7 +392,9 @@ function buildEvidence(
       `(${args.verdict.interaction} mock-interaction, ${args.verdict.behavioural} behavioural)`,
   );
   for (const assertion of args.testCase.assertions.slice(0, 5)) {
-    evidence.push(`  line ${assertion.line}: ${assertion.matcher} → ${assertion.category}`);
+    evidence.push(
+      `  line ${assertion.line}: ${assertion.matcher} → ${assertion.category}`,
+    );
   }
   if (args.testCase.mockConfigurations > 0) {
     evidence.push(
@@ -529,7 +549,9 @@ function collaboratorMockRatio(
       mocked += 1;
       continue;
     }
-    const base = basename(specifier).replace(/\.[cm]?[jt]sx?$/, "").toLowerCase();
+    const base = basename(specifier)
+      .replace(/\.[cm]?[jt]sx?$/, "")
+      .toLowerCase();
     if (spyTargets.has(base)) mocked += 1;
   }
   return mocked / collaborators.size;
@@ -547,10 +569,14 @@ function boundariesCovered(mocks: MockDeclaration[]): string[] {
 
 /** Did the test mock the very module it is named after? */
 function mocksSubject(mocks: MockDeclaration[], subject: string): boolean {
-  const subjectBase = basename(subject).replace(/\.[cm]?[jt]sx?$/, "").toLowerCase();
+  const subjectBase = basename(subject)
+    .replace(/\.[cm]?[jt]sx?$/, "")
+    .toLowerCase();
   return mocks.some((mock) => {
     if (mock.target === subject) return true;
-    const base = basename(mock.target).replace(/\.[cm]?[jt]sx?$/, "").toLowerCase();
+    const base = basename(mock.target)
+      .replace(/\.[cm]?[jt]sx?$/, "")
+      .toLowerCase();
     return base === subjectBase;
   });
 }

@@ -4,10 +4,7 @@ import { promisify } from "node:util";
 import { diff } from "./diff.js";
 import type { Finding, Severity } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
-import {
-  isGitRepo,
-  NotAGitRepoError,
-} from "./git/changed-files.js";
+import { isGitRepo, NotAGitRepoError } from "./git/changed-files.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -130,8 +127,7 @@ export function judgeVerdict(args: {
   const summary = summariseVerdict(args);
   const reasons: string[] = [];
 
-  const hasAnyChange =
-    args.newFindings.length > 0 || args.fixedFindings.length > 0;
+  const hasAnyChange = args.newFindings.length > 0 || args.fixedFindings.length > 0;
   const hasNewHigh = summary.new_by_severity.high > 0;
   const hasFixedHigh = summary.fixed_by_severity.high > 0;
 
@@ -174,9 +170,7 @@ export function judgeVerdict(args: {
     // weights are equal — net-zero change. Or one side is empty and weights
     // happen to match (only possible when both are zero, already handled).
     verdict = "mixed";
-    reasons.push(
-      `new and fixed weighted severity tied at ${summary.new_weighted}`,
-    );
+    reasons.push(`new and fixed weighted severity tied at ${summary.new_weighted}`);
   }
 
   return { verdict, reasons, summary };
@@ -198,16 +192,12 @@ export function recommendActions(args: {
   }
 
   if (args.verdict === "worse") {
-    out.push(
-      "review the new findings — they outweigh the cleanups on this branch.",
-    );
+    out.push("review the new findings — they outweigh the cleanups on this branch.");
     return out;
   }
 
   if (args.verdict === "cleaner") {
-    out.push(
-      "ship it — this branch removes more crime weight than it adds.",
-    );
+    out.push("ship it — this branch removes more crime weight than it adds.");
     return out;
   }
 
@@ -288,9 +278,7 @@ async function refExists(cwd: string, ref: string): Promise<boolean> {
  *   `origin/main` nor `main` resolves.
  * - {@link UnknownGitRefError} when an explicit ref fails to resolve.
  */
-export async function verdict(
-  options: VerdictOptions = {},
-): Promise<VerdictReport> {
+export async function verdict(options: VerdictOptions = {}): Promise<VerdictReport> {
   const root = resolve(options.root ?? process.cwd());
   const head = options.head ?? "HEAD";
 
@@ -308,9 +296,7 @@ export async function verdict(
 
   // Gate logic must always evaluate against the unsuppressed slice of
   // the new set, regardless of whether annotated entries are visible.
-  const gateNewFindings = diffReport.new_findings.filter(
-    (f) => f.suppressed !== true,
-  );
+  const gateNewFindings = diffReport.new_findings.filter((f) => f.suppressed !== true);
   const judged = judgeVerdict({
     newFindings: gateNewFindings,
     fixedFindings: diffReport.fixed_findings,
@@ -360,10 +346,7 @@ export async function verdict(
  * - `"new-medium"` — fail when any new finding is `severity: "medium"` or
  *   `"high"`.
  */
-export function shouldFailVerdict(
-  report: VerdictReport,
-  failOn: VerdictFailOn,
-): boolean {
+export function shouldFailVerdict(report: VerdictReport, failOn: VerdictFailOn): boolean {
   switch (failOn) {
     case "worse":
       return report.verdict === "worse";

@@ -3,11 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import {
-  isGitRepo,
-  NotAGitRepoError,
-  UnknownGitRefError,
-} from "./changed-files.js";
+import { isGitRepo, NotAGitRepoError, UnknownGitRefError } from "./changed-files.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -152,9 +148,7 @@ function runArchive(args: {
       }
       if (extractCode !== 0) {
         rejectPromise(
-          new Error(
-            `tar extract failed (exit ${extractCode}): ${extractStderr.trim()}`,
-          ),
+          new Error(`tar extract failed (exit ${extractCode}): ${extractStderr.trim()}`),
         );
         return;
       }

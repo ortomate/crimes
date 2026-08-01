@@ -66,10 +66,7 @@ describe("assignPackAndDetectorId", () => {
 
   it("does not double-suffix a detector id that already ends in .js", () => {
     const f = makeFinding("circular_dependency");
-    assignPackAndDetectorId(
-      f,
-      makeDetector("circular_dependency.js", "language-js"),
-    );
+    assignPackAndDetectorId(f, makeDetector("circular_dependency.js", "language-js"));
     expect(f.detector_id).toBe("circular_dependency.js");
   });
 });

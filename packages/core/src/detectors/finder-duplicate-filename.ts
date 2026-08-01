@@ -6,8 +6,7 @@ const FINDER_DUPLICATE_RE = /(?:^|\/)([^/]+) ([2-9])(\.[^/.]+)$/;
 export const finderDuplicateFilenameDetector: UniversalDetector = {
   id: "finder_duplicate_filename",
   name: "Finder Duplicate Filename",
-  description:
-    "Flags macOS Finder-style duplicate filenames such as `Button 2.tsx`.",
+  description: "Flags macOS Finder-style duplicate filenames such as `Button 2.tsx`.",
   whyItMatters:
     "Finder and iCloud append ` 2` when resolving local filename conflicts. " +
     "Those duplicate files often slip into repos as accidental copies, then " +

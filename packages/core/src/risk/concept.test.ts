@@ -3,9 +3,14 @@ import { conceptKeyOf, isProjectionPair } from "./concept.js";
 
 describe("conceptKeyOf", () => {
   it("strips meaningless affixes so spellings of one concept agree", () => {
-    const keys = ["User", "UserDTO", "UserModel", "UserSchema", "UserEntity", "user_type"].map(
-      (n) => conceptKeyOf(n).key,
-    );
+    const keys = [
+      "User",
+      "UserDTO",
+      "UserModel",
+      "UserSchema",
+      "UserEntity",
+      "user_type",
+    ].map((n) => conceptKeyOf(n).key);
     expect(new Set(keys).size).toBe(1);
     expect(keys[0]).toBe("user");
   });
@@ -47,8 +52,12 @@ describe("isProjectionPair", () => {
   });
 
   it("treats a marked name and an unmarked one as a projection", () => {
-    expect(isProjectionPair(conceptKeyOf("User"), conceptKeyOf("UserSummary"))).toBe(true);
-    expect(isProjectionPair(conceptKeyOf("User"), conceptKeyOf("CreateUserInput"))).toBe(true);
+    expect(isProjectionPair(conceptKeyOf("User"), conceptKeyOf("UserSummary"))).toBe(
+      true,
+    );
+    expect(isProjectionPair(conceptKeyOf("User"), conceptKeyOf("CreateUserInput"))).toBe(
+      true,
+    );
   });
 
   it("treats two identically-marked names as the same projection", () => {
@@ -58,8 +67,8 @@ describe("isProjectionPair", () => {
   });
 
   it("treats differently-marked names as unrelated projections", () => {
-    expect(
-      isProjectionPair(conceptKeyOf("UserSummary"), conceptKeyOf("UserPatch")),
-    ).toBe(true);
+    expect(isProjectionPair(conceptKeyOf("UserSummary"), conceptKeyOf("UserPatch"))).toBe(
+      true,
+    );
   });
 });

@@ -68,8 +68,8 @@ export const syncIoInHotpathDetector: LanguageJsDetector = {
 
     const offenders = calls
       .map((call) => ({ call, hot: classifyCall(call) }))
-      .filter((x): x is { call: SyncIoCall; hot: EnclosingFunction } =>
-        x.hot !== undefined,
+      .filter(
+        (x): x is { call: SyncIoCall; hot: EnclosingFunction } => x.hot !== undefined,
       );
     if (offenders.length === 0) return [];
 
@@ -80,9 +80,10 @@ export const syncIoInHotpathDetector: LanguageJsDetector = {
       const where = o.hot.name ? ` in \`${o.hot.name}\`` : "";
       return `\`${o.call.callee}\` @L${o.call.line}${where} (${labelFor(o.hot.shape)})`;
     });
-    const overflow = offenders.length > sampleCount
-      ? `…and ${offenders.length - sampleCount} more`
-      : undefined;
+    const overflow =
+      offenders.length > sampleCount
+        ? `…and ${offenders.length - sampleCount} more`
+        : undefined;
 
     const finding: Finding = {
       id: "",
@@ -144,9 +145,7 @@ function classifyCall(call: SyncIoCall): EnclosingFunction | undefined {
   return undefined;
 }
 
-function pickSeverity(
-  offenders: ReadonlyArray<{ hot: EnclosingFunction }>,
-): Severity {
+function pickSeverity(offenders: ReadonlyArray<{ hot: EnclosingFunction }>): Severity {
   // Route handlers and React renders are the highest-impact surfaces —
   // every request / render eats the sync stall. Multiple calls in
   // one file compound it. Pure-`domain` findings stay low: the call
@@ -165,20 +164,23 @@ function pickSeverity(
   return "low";
 }
 
-function describeShapes(
-  offenders: ReadonlyArray<{ hot: EnclosingFunction }>,
-): string {
+function describeShapes(offenders: ReadonlyArray<{ hot: EnclosingFunction }>): string {
   const unique = new Set(offenders.map((o) => labelFor(o.hot.shape)));
   return [...unique].join(" / ");
 }
 
 function labelFor(shape: FunctionShape): string {
   switch (shape) {
-    case "route_handler": return "route handler";
-    case "page_export": return "page export";
-    case "react_component": return "React component";
-    case "domain": return "domain function";
-    default: return shape;
+    case "route_handler":
+      return "route handler";
+    case "page_export":
+      return "page export";
+    case "react_component":
+      return "React component";
+    case "domain":
+      return "domain function";
+    default:
+      return shape;
   }
 }
 

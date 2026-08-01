@@ -59,10 +59,7 @@ describe("duplicateComponentShapeDetector", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]!.type).toBe("duplicate_component_shape");
     expect(findings[0]!.severity).toBe("medium");
-    expect(findings[0]!.related_files).toEqual([
-      "src/b/Card.tsx",
-      "src/c/Card.tsx",
-    ]);
+    expect(findings[0]!.related_files).toEqual(["src/b/Card.tsx", "src/c/Card.tsx"]);
   });
 
   it("does not fire when only two files share the shape", async () => {

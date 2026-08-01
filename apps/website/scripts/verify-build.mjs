@@ -66,9 +66,11 @@ if (match[1] !== pkgVersion) {
   process.stderr.write(
     `verify-build: landing page advertises crimes ${match[1]}, ` +
       `but packages/cli/package.json is ${pkgVersion}.\n` +
-      "  Update \"softwareVersion\" in apps/website/landing/index.html.\n" +
+      '  Update "softwareVersion" in apps/website/landing/index.html.\n' +
       "  See docs/releasing.md step 2 (website surfaces).\n",
   );
   process.exit(1);
 }
-console.log(`verify-build: landing page advertises crimes ${pkgVersion} (matches package.json)`);
+console.log(
+  `verify-build: landing page advertises crimes ${pkgVersion} (matches package.json)`,
+);

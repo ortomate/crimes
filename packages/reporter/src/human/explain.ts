@@ -56,13 +56,16 @@ function explainHeaderBlock(finding: Finding, colour: ColourFns): string[] {
   ];
   if (finding.symbol) lines.push(`${colour.bold("symbol:")}    ${finding.symbol}`);
   if (finding.lines) {
-    const span = finding.lines[0] === finding.lines[1]
-      ? `${finding.lines[0]}`
-      : `${finding.lines[0]}–${finding.lines[1]}`;
+    const span =
+      finding.lines[0] === finding.lines[1]
+        ? `${finding.lines[0]}`
+        : `${finding.lines[0]}–${finding.lines[1]}`;
     lines.push(`${colour.bold("lines:")}     ${span}`);
   }
   if (finding.suppressed === true) {
-    lines.push(`${colour.bold("suppressed:")} ${finding.suppression_reason ?? "(no reason)"}`);
+    lines.push(
+      `${colour.bold("suppressed:")} ${finding.suppression_reason ?? "(no reason)"}`,
+    );
   }
   return lines;
 }
@@ -91,10 +94,7 @@ function suggestedActionsBlock(finding: Finding, colour: ColourFns): string[] {
   return lines;
 }
 
-function likelyRemediesBlock(
-  report: ExplainReport,
-  colour: ColourFns,
-): string[] {
+function likelyRemediesBlock(report: ExplainReport, colour: ColourFns): string[] {
   if (report.likely_remedies.length === 0) return [];
   return [
     colour.bold("Likely remedies"),
@@ -116,10 +116,7 @@ function relatedFilesBlock(finding: Finding, colour: ColourFns): string[] {
  * test-coverage hint) so the user sees *why* the score is what it is.
  * Returns an empty list when no scoring signal is present.
  */
-function explainRiskProfileBlock(
-  finding: Finding,
-  colour: ColourFns,
-): string[] {
+function explainRiskProfileBlock(finding: Finding, colour: ColourFns): string[] {
   const { churn, test_gap, blast_radius } = finding.scores;
   if (churn === undefined && test_gap === undefined && blast_radius === undefined) {
     return [];
@@ -127,12 +124,10 @@ function explainRiskProfileBlock(
   const lines: string[] = [];
   lines.push(colour.bold("Risk profile"));
   lines.push(
-    `  · churn:        ${(churn ?? 0).toFixed(2)} — ` +
-      churnExplain(churn ?? 0),
+    `  · churn:        ${(churn ?? 0).toFixed(2)} — ` + churnExplain(churn ?? 0),
   );
   lines.push(
-    `  · test gap:     ${(test_gap ?? 0).toFixed(2)} — ` +
-      testGapExplain(test_gap ?? 0),
+    `  · test gap:     ${(test_gap ?? 0).toFixed(2)} — ` + testGapExplain(test_gap ?? 0),
   );
   lines.push(
     `  · blast radius: ${(blast_radius ?? 0).toFixed(2)} — ` +

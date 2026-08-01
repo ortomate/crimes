@@ -169,7 +169,10 @@ export class SeverityLadder {
   explain(): string | undefined {
     const raised = this.ladder.applied.filter((s) => s.delta > 0);
     if (raised.length === 0) return undefined;
-    return `severity raised by: ${raised.map((s) => s.label).sort().join(", ")}`;
+    return `severity raised by: ${raised
+      .map((s) => s.label)
+      .sort()
+      .join(", ")}`;
   }
 }
 

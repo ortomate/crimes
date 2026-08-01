@@ -1,17 +1,11 @@
 import { resolve } from "node:path";
 import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
-import {
-  builtInDetectors,
-  filterDetectors,
-} from "./detector-registry.js";
+import { builtInDetectors, filterDetectors } from "./detector-registry.js";
 import { fingerprintFinding } from "./fingerprint.js";
 import type { Finding, ScanReport } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
-import {
-  applySuppressionsToScan,
-  scan,
-} from "./scan.js";
+import { applySuppressionsToScan, scan } from "./scan.js";
 import { loadSuppressionsForRoot } from "./suppressions.js";
 
 /**
@@ -122,8 +116,7 @@ export async function explain(
     why_it_matters: detector.whyItMatters,
     likely_remedies: likelyRemedies(match),
     suggested_suppression_command:
-      `crimes ignore ${fingerprint} ` +
-      `--reason "<one-sentence justification>"`,
+      `crimes ignore ${fingerprint} ` + `--reason "<one-sentence justification>"`,
   };
 }
 

@@ -137,9 +137,7 @@ describe("largeFileDetector — test_file shape", () => {
 describe("largeFileDetector — universal pack", () => {
   it("fires on a 1200-line .rs file", async () => {
     const source = Array.from({ length: 1200 }, () => "x").join("\n");
-    const findings = await largeFileDetector.run(
-      makeCtx(1200, { file: "src/main.rs" }),
-    );
+    const findings = await largeFileDetector.run(makeCtx(1200, { file: "src/main.rs" }));
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("high");
     expect(findings[0]!.file).toBe("src/main.rs");

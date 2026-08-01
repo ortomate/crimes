@@ -11,9 +11,7 @@ export {
   resolveFeedbackPath,
   resolveGlobalRollupPath,
 } from "./paths.js";
-export {
-  writeFeedbackEntry,
-} from "./write.js";
+export { writeFeedbackEntry } from "./write.js";
 export type {
   WriteFeedbackOptions,
   WriteFeedbackResult,

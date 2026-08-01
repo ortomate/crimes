@@ -48,7 +48,7 @@ export function extractStringLiterals(source: string): SourceStringLiteral[] {
       continue;
     }
 
-    if (ch === "\"" || ch === "'" || ch === "`") {
+    if (ch === '"' || ch === "'" || ch === "`") {
       const read = readLiteral(source, i, ch, line, lineStart);
       if (read.literal) literals.push(read.literal);
       i = read.nextIndex;

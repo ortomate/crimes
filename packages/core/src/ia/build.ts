@@ -142,11 +142,12 @@ function routeSignal(
     routePath,
     componentName: parsed.defaultExport,
     titles: labels
-      .filter((l) =>
-        l.kind === "jsx_title" ||
-        l.kind === "metadata_title" ||
-        l.kind === "document_title" ||
-        l.kind === "use_title",
+      .filter(
+        (l) =>
+          l.kind === "jsx_title" ||
+          l.kind === "metadata_title" ||
+          l.kind === "document_title" ||
+          l.kind === "use_title",
       )
       .map((l) => l.value),
     labels: labels.map((l) => l.value),
@@ -225,25 +226,20 @@ async function collectAgentInventory(
   const agentsMdPath = existsSync(agentsMdAbs) ? "AGENTS.md" : undefined;
   const claudeMdPath = existsSync(claudeMdAbs) ? "CLAUDE.md" : undefined;
 
-  const skillGlobs = [
-    ".claude/skills/*/SKILL.md",
-    ".agents/skills/*/SKILL.md",
-  ];
+  const skillGlobs = [".claude/skills/*/SKILL.md", ".agents/skills/*/SKILL.md"];
   const [claudeSkills = [], codexSkills = []] = await Promise.all(
-    skillGlobs.map((glob) => fg([glob], {
-      cwd: root,
-      onlyFiles: true,
-      dot: true,
-      followSymbolicLinks: false,
-      suppressErrors: true,
-    })),
+    skillGlobs.map((glob) =>
+      fg([glob], {
+        cwd: root,
+        onlyFiles: true,
+        dot: true,
+        followSymbolicLinks: false,
+        suppressErrors: true,
+      }),
+    ),
   );
-  const claudeSkillPaths = claudeSkills
-    .map((p) => toPosix(p))
-    .sort();
-  const codexSkillPaths = codexSkills
-    .map((p) => toPosix(p))
-    .sort();
+  const claudeSkillPaths = claudeSkills.map((p) => toPosix(p)).sort();
+  const codexSkillPaths = codexSkills.map((p) => toPosix(p)).sort();
 
   // package.json at repo root only -- monorepo workspace traversal can come
   // later. The Missing Agent Context detector will document this scope.

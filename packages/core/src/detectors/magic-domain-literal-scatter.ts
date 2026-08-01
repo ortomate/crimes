@@ -33,7 +33,9 @@ export const magicDomainLiteralScatterDetector: LanguageJsDetector = {
       if (buckets.length < 2) continue;
 
       const severity = pickSeverity(files.length, buckets.length);
-      const confidence = round(Math.min(0.66 + files.length * 0.03 + buckets.length * 0.02, 0.85));
+      const confidence = round(
+        Math.min(0.66 + files.length * 0.03 + buckets.length * 0.02, 0.85),
+      );
       const representatives = representativeHits(productionHits);
 
       findings.push({
@@ -57,7 +59,9 @@ export const magicDomainLiteralScatterDetector: LanguageJsDetector = {
         scores: {
           severity: severityScore(severity),
           confidence,
-          agent_risk: round(Math.min(0.52 + files.length * 0.04 + buckets.length * 0.03, 0.8)),
+          agent_risk: round(
+            Math.min(0.52 + files.length * 0.04 + buckets.length * 0.03, 0.8),
+          ),
         },
         suggested_actions: [
           {
@@ -82,7 +86,9 @@ function representativeHits(hits: PettyLiteralHit[]): PettyLiteralHit[] {
   for (const hit of hits) {
     if (!byFile.has(hit.file)) byFile.set(hit.file, hit);
   }
-  return Array.from(byFile.values()).sort((a, b) => a.file.localeCompare(b.file)).slice(0, 5);
+  return Array.from(byFile.values())
+    .sort((a, b) => a.file.localeCompare(b.file))
+    .slice(0, 5);
 }
 
 function dirBucket(file: string): string {

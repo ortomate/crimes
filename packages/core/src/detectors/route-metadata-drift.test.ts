@@ -101,7 +101,9 @@ describe("routeMetadataDriftDetector", () => {
             {
               identifier: "sidebar",
               line: 1,
-              entries: [{ destination: "/settings/billing", label: "Plans", attributes: {} }],
+              entries: [
+                { destination: "/settings/billing", label: "Plans", attributes: {} },
+              ],
             },
           ],
         },
@@ -151,7 +153,9 @@ describe("routeMetadataDriftDetector", () => {
             {
               identifier: "sidebar",
               line: 1,
-              entries: [{ destination: "/settings/billing", label: "Billing", attributes: {} }],
+              entries: [
+                { destination: "/settings/billing", label: "Billing", attributes: {} },
+              ],
             },
           ],
         },
@@ -216,19 +220,17 @@ describe("routeMetadataDriftDetector", () => {
             {
               identifier: "sidebar",
               line: 1,
-              entries: [{ destination: "/settings/billing", label: "Plans", attributes: {} }],
+              entries: [
+                { destination: "/settings/billing", label: "Plans", attributes: {} },
+              ],
             },
           ],
         },
       ],
     });
     const otherFile = "src/nav/sidebar.ts";
-    expect(
-      await routeMetadataDriftDetector.run(ctxFor(otherFile, ia)),
-    ).toEqual([]);
-    expect(
-      await routeMetadataDriftDetector.run(ctxFor(routeFile, ia)),
-    ).toHaveLength(1);
+    expect(await routeMetadataDriftDetector.run(ctxFor(otherFile, ia))).toEqual([]);
+    expect(await routeMetadataDriftDetector.run(ctxFor(routeFile, ia))).toHaveLength(1);
   });
 
   it("ignores routes with fewer than 3 evidence sources", async () => {

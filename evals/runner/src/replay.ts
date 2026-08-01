@@ -6,23 +6,13 @@ import { fileURLToPath } from "node:url";
 import { extractCodexResponse } from "./agents/codex-transcript.js";
 import { buildScanContext, runScan } from "./scan-helpers.js";
 import { scoreStructural } from "./score.js";
-import type {
-  FixturesRegistry,
-  ScanContext,
-  Scenario,
-  ScoreResult,
-} from "./types.js";
+import type { FixturesRegistry, ScanContext, Scenario, ScoreResult } from "./types.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "..", "..", "..");
 const RESULTS_DIR = resolve(REPO_ROOT, "evals", "results");
 const SCENARIOS_DIR = resolve(REPO_ROOT, "evals", "scenarios");
-const FIXTURES_REGISTRY = resolve(
-  REPO_ROOT,
-  "evals",
-  "fixtures",
-  "fixtures.meta.json",
-);
+const FIXTURES_REGISTRY = resolve(REPO_ROOT, "evals", "fixtures", "fixtures.meta.json");
 const REPLAY_DIR = resolve(REPO_ROOT, "evals", "replay");
 
 /**

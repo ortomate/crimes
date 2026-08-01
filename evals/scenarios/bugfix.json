@@ -5,12 +5,8 @@
     "kind": "bugfix",
     "prompt": "Imagine the billing tests are failing on a date-boundary edge case. Use `crimes scan src/billing.ts --format json` to find risk factors that could explain the flakiness. Identify the most likely cause and propose a fix.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "direct_date"
-      ],
-      "referenced_files": [
-        "src/billing.ts"
-      ],
+      "referenced_findings": ["direct_date"],
+      "referenced_files": ["src/billing.ts"],
       "expected_priority": "direct_date"
     },
     "judge_questions": [
@@ -24,9 +20,7 @@
     "kind": "bugfix",
     "prompt": "A circular-dependency runtime error is suspected. Use `crimes scan --format json` to find the cycle, then propose which import to break and why.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "circular_dependency"
-      ],
+      "referenced_findings": ["circular_dependency"],
       "referenced_files": [
         "src/domain/billing.ts",
         "src/presentation/invoice-view.ts",
@@ -45,12 +39,8 @@
     "kind": "bugfix",
     "prompt": "A promo window test passes in CI (UTC server) but in production the promo opens a day early for European users. Use `crimes scan src/date.ts --format json` to find the parse-time timezone bug, name the literal that's responsible, and propose the smallest change that makes the production behaviour match the CI behaviour without renaming the function.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "timezone_unsafe_parse"
-      ],
-      "referenced_files": [
-        "src/date.ts"
-      ],
+      "referenced_findings": ["timezone_unsafe_parse"],
+      "referenced_files": ["src/date.ts"],
       "expected_priority": "timezone_unsafe_parse"
     },
     "judge_questions": [
@@ -64,9 +54,7 @@
     "kind": "bugfix",
     "prompt": "A user is reporting that an esbuild plugin regression slipped through CI even though the relevant test still passes. Use `crimes scan test --format json` to find tests that may not actually be asserting anything, then explain which test you'd strengthen first and what specific assertion you'd add. Don't paraphrase the finding evidence — quote it.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "weak_test_signal"
-      ],
+      "referenced_findings": ["weak_test_signal"],
       "expected_priority": "weak_test_signal"
     },
     "judge_questions": [
@@ -80,12 +68,8 @@
     "kind": "bugfix",
     "prompt": "A production handler that used to respond in milliseconds is now stalling under concurrent load — p99 latency spiked and the event loop is reporting lag. Use `crimes scan src/api/files.ts --format json` to find the per-request blocking call(s) responsible. Quote the finding's evidence verbatim, name the specific sync method(s) involved, and propose the smallest async migration that preserves the function's public signature. Don't paper over the symptom with caching — fix the blocking call itself.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "sync_io_in_hotpath"
-      ],
-      "referenced_files": [
-        "src/api/files.ts"
-      ],
+      "referenced_findings": ["sync_io_in_hotpath"],
+      "referenced_files": ["src/api/files.ts"],
       "expected_priority": "sync_io_in_hotpath"
     },
     "judge_questions": [
@@ -99,13 +83,8 @@
     "kind": "bugfix",
     "prompt": "Customers in Europe report that invoices created late in the evening are stamped with the wrong billing period — but only sometimes, and never on our CI runner. Run `crimes scan --format json` on this repo and work out which module is responsible and why the bug is invisible in CI. Explain the mechanism, then propose a fix.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "mixed_utc_local_methods",
-        "direct_date"
-      ],
-      "referenced_files": [
-        "domain/invoicing.py"
-      ],
+      "referenced_findings": ["mixed_utc_local_methods", "direct_date"],
+      "referenced_files": ["domain/invoicing.py"],
       "expected_priority": "mixed_utc_local_methods"
     },
     "judge_questions": [
@@ -120,9 +99,7 @@
     "kind": "bugfix",
     "prompt": "Users on our newest plan tier are being rejected by the web app with a validation error, but the API accepts them fine. Run `crimes scan --format json` and work out why. Explain the mechanism and say what would stop it recurring.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "cross_language_type_drift"
-      ],
+      "referenced_findings": ["cross_language_type_drift"],
       "referenced_files": [
         "packages/api/billing/plans.py",
         "packages/web/src/workspace-client.ts"

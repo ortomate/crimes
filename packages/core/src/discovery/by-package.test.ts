@@ -122,9 +122,6 @@ describe("buildByPackage", () => {
     await write("packages/alpha/package.json", "{}");
     await write("packages/alpha/a.ts", "export const a = 1;");
 
-    expect(build()?.map((p) => p.path)).toEqual([
-      "packages/alpha",
-      "packages/zebra",
-    ]);
+    expect(build()?.map((p) => p.path)).toEqual(["packages/alpha", "packages/zebra"]);
   });
 });

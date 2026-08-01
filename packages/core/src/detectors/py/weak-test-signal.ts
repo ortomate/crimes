@@ -38,7 +38,8 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     if (ctx.parsed.hasSyntaxErrors) return [];
 
     const tests = ctx.parsed.functions.filter(
-      (fn) => fn.shape === "test_function" && fn.name !== undefined && /^test/.test(fn.name),
+      (fn) =>
+        fn.shape === "test_function" && fn.name !== undefined && /^test/.test(fn.name),
     );
     if (tests.length === 0) return [];
 
@@ -70,7 +71,9 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     const shown = silent.slice(0, 8);
     const evidence: string[] = [
       `${silent.length} of ${tests.length} test ${plural(tests.length, "function")} contain no assertion`,
-      ...shown.map((fn) => `\`${fn.name}\` (lines ${fn.startLine}–${fn.endLine}) asserts nothing`),
+      ...shown.map(
+        (fn) => `\`${fn.name}\` (lines ${fn.startLine}–${fn.endLine}) asserts nothing`,
+      ),
       ...(silent.length > shown.length ? [`…+${silent.length - shown.length} more`] : []),
       `${totalAssertions} total ${plural(totalAssertions, "assertion")} across ${tests.length} ` +
         `${plural(tests.length, "test")} (${ratio.toFixed(1)} per test, expected ≥ ${minPerTest})`,

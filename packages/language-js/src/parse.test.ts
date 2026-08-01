@@ -111,8 +111,7 @@ describe("parseFile", () => {
 
   it("collects day-level arithmetic with magic constants", () => {
     const src =
-      "const tomorrow = now + 86400000;\n" +
-      "const lastWeek = ts - 604800000;\n";
+      "const tomorrow = now + 86400000;\n" + "const lastWeek = ts - 604800000;\n";
     const result = parse(src);
     expect(result.dateArithmetic).toEqual([
       { kind: "add", line: 1, operand: 86400000, unit: "day" },
@@ -142,7 +141,7 @@ describe("parseFile", () => {
     expect(result.dateStringConcats).toBeUndefined();
   });
 
-  it("captures `\"…\" + d.dateMethod()` string concatenation", () => {
+  it('captures `"…" + d.dateMethod()` string concatenation', () => {
     const src =
       "const d = new Date();\n" +
       'const s = "year-" + d.getUTCFullYear();\n' +
@@ -169,21 +168,49 @@ describe("parseFile", () => {
   it("captures typed const/let declarations with annotation text and initializer kind", () => {
     const src =
       "const isReady: boolean = false;\n" +
-      'let count: number = 1;\n' +
+      "let count: number = 1;\n" +
       "const users: User[] = [];\n";
     const result = parse(src);
     expect(result.typedDeclarations).toEqual([
-      { name: "isReady", declarationKind: "const", type: "boolean", initializerKind: "boolean_literal", exported: false, line: 1 },
-      { name: "count", declarationKind: "let", type: "number", initializerKind: "number", exported: false, line: 2 },
-      { name: "users", declarationKind: "const", type: "User[]", initializerKind: "array", exported: false, line: 3 },
+      {
+        name: "isReady",
+        declarationKind: "const",
+        type: "boolean",
+        initializerKind: "boolean_literal",
+        exported: false,
+        line: 1,
+      },
+      {
+        name: "count",
+        declarationKind: "let",
+        type: "number",
+        initializerKind: "number",
+        exported: false,
+        line: 2,
+      },
+      {
+        name: "users",
+        declarationKind: "const",
+        type: "User[]",
+        initializerKind: "array",
+        exported: false,
+        line: 3,
+      },
     ]);
   });
 
   it("marks top-level export modifiers on variable statements", () => {
-    const src = "export const KEY: string = \"x\";\n";
+    const src = 'export const KEY: string = "x";\n';
     const result = parse(src);
     expect(result.typedDeclarations).toEqual([
-      { name: "KEY", declarationKind: "const", type: "string", initializerKind: "string", exported: true, line: 1 },
+      {
+        name: "KEY",
+        declarationKind: "const",
+        type: "string",
+        initializerKind: "string",
+        exported: true,
+        line: 1,
+      },
     ]);
   });
 
@@ -215,21 +242,44 @@ describe("parseFile", () => {
     const src = "function f(loading: boolean, name: string): void {}\n";
     const result = parse(src);
     expect(result.typedDeclarations).toEqual([
-      { name: "loading", declarationKind: "param", type: "boolean", exported: false, line: 1 },
-      { name: "name", declarationKind: "param", type: "string", exported: false, line: 1 },
+      {
+        name: "loading",
+        declarationKind: "param",
+        type: "boolean",
+        exported: false,
+        line: 1,
+      },
+      {
+        name: "name",
+        declarationKind: "param",
+        type: "string",
+        exported: false,
+        line: 1,
+      },
     ]);
   });
 
   it("captures class properties as typed declarations", () => {
     const src =
-      "class X {\n" +
-      "  active: boolean = true;\n" +
-      "  label: string = \"hi\";\n" +
-      "}\n";
+      "class X {\n" + "  active: boolean = true;\n" + '  label: string = "hi";\n' + "}\n";
     const result = parse(src);
     expect(result.typedDeclarations).toEqual([
-      { name: "active", declarationKind: "property", type: "boolean", initializerKind: "boolean_literal", exported: false, line: 2 },
-      { name: "label", declarationKind: "property", type: "string", initializerKind: "string", exported: false, line: 3 },
+      {
+        name: "active",
+        declarationKind: "property",
+        type: "boolean",
+        initializerKind: "boolean_literal",
+        exported: false,
+        line: 2,
+      },
+      {
+        name: "label",
+        declarationKind: "property",
+        type: "string",
+        initializerKind: "string",
+        exported: false,
+        line: 3,
+      },
     ]);
   });
 
@@ -275,9 +325,7 @@ describe("parseFile — sync I/O calls", () => {
         method: "readFileSync",
         receiver: "fs",
         line: 3,
-        enclosingFunctions: [
-          { name: "load", shape: "domain", startLine: 2, endLine: 4 },
-        ],
+        enclosingFunctions: [{ name: "load", shape: "domain", startLine: 2, endLine: 4 }],
       },
     ]);
   });
@@ -341,16 +389,14 @@ describe("parseFile — sync I/O calls", () => {
   });
 
   it("ignores chained-receiver sync calls (foo.fs.readFileSync())", () => {
-    const src =
-      "function f() { return obj.fs.readFileSync('/x'); }\n";
+    const src = "function f() { return obj.fs.readFileSync('/x'); }\n";
     const result = parse(src);
     expect(result.syncIoCalls).toBeUndefined();
   });
 
   it("captures top-level sync calls with empty enclosingFunctions", () => {
     const src =
-      "import fs from 'node:fs';\n" +
-      "const data = fs.readFileSync('/etc/x', 'utf8');\n";
+      "import fs from 'node:fs';\n" + "const data = fs.readFileSync('/etc/x', 'utf8');\n";
     const result = parse(src);
     expect(result.syncIoCalls).toEqual([
       {
@@ -415,10 +461,7 @@ describe("parseFile — nav literals", () => {
     expect(result.navLiterals).toHaveLength(1);
     const nav = result.navLiterals![0]!;
     expect(nav.identifier).toBe("sidebar");
-    expect(nav.entries.map((e) => e.destination)).toEqual([
-      "/settings/billing",
-      "/team",
-    ]);
+    expect(nav.entries.map((e) => e.destination)).toEqual(["/settings/billing", "/team"]);
     expect(nav.entries.map((e) => e.label)).toEqual(["Billing", "Team"]);
   });
 
@@ -481,7 +524,10 @@ describe("parseFile — nav literals", () => {
 
 describe("parseFile — UI string literals", () => {
   it("captures <title>X</title>", () => {
-    const result = parse(`export const Head = () => (<title>Subscription</title>);\n`, ".tsx");
+    const result = parse(
+      `export const Head = () => (<title>Subscription</title>);\n`,
+      ".tsx",
+    );
     expect(result.uiStringLiterals).toContainEqual(
       expect.objectContaining({ value: "Subscription", context: "jsx_title" }),
     );
@@ -542,10 +588,7 @@ describe("parseFile — UI string literals", () => {
   });
 
   it("skips JSX titles with mixed content", () => {
-    const result = parse(
-      `const X = <title>Settings — {productName}</title>;\n`,
-      ".tsx",
-    );
+    const result = parse(`const X = <title>Settings — {productName}</title>;\n`, ".tsx");
     expect(result.uiStringLiterals).toEqual([]);
   });
 });
@@ -617,9 +660,7 @@ export function registerFeedbackListSubcommand(parent: Command): void {
 }
 `;
     const result = parse(src);
-    const fn = result.functions.find(
-      (f) => f.name === "registerFeedbackListSubcommand",
-    );
+    const fn = result.functions.find((f) => f.name === "registerFeedbackListSubcommand");
     expect(fn).toBeDefined();
     expect(fn!.shape).toBe("cli_command_registrar");
   });

@@ -21,7 +21,10 @@ function makeCtx(file: string, source: string): UniversalDetectorContext {
 describe("commentedOutCodeUniversalDetector", () => {
   it("skips JS files (the AST variant handles those)", async () => {
     const findings = await commentedOutCodeUniversalDetector.run(
-      makeCtx("src/x.ts", "// const x = 1;\n// const y = 2;\n// const z = 3;\n// const a = 4;"),
+      makeCtx(
+        "src/x.ts",
+        "// const x = 1;\n// const y = 2;\n// const z = 3;\n// const a = 4;",
+      ),
     );
     expect(findings).toEqual([]);
   });

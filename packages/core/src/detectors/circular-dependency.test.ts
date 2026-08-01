@@ -73,8 +73,13 @@ describe("circularDependencyDetector", () => {
     const findings = await circularDependencyDetector.run(makeCtx("src/a.ts", graph));
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("high");
-    expect(new Set(findings[0]!.evidence.filter((e) => e.startsWith("member:")).map((e) => e.replace("member: ", ""))))
-      .toEqual(new Set(["src/a.ts", "src/b.ts", "src/c.ts"]));
+    expect(
+      new Set(
+        findings[0]!.evidence
+          .filter((e) => e.startsWith("member:"))
+          .map((e) => e.replace("member: ", "")),
+      ),
+    ).toEqual(new Set(["src/a.ts", "src/b.ts", "src/c.ts"]));
   });
 
   it("skips type-only cycles", async () => {

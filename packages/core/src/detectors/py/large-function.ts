@@ -117,7 +117,7 @@ export const largeFunctionPyDetector: LanguagePyDetector = {
           // tracks both, not length alone.
           agent_risk: round(
             Math.min(
-              0.40 + Math.min(overage - 1, 1.5) * 0.22 + (tooDeep ? 0.12 : 0),
+              0.4 + Math.min(overage - 1, 1.5) * 0.22 + (tooDeep ? 0.12 : 0),
               0.88,
             ),
           ),
@@ -161,9 +161,7 @@ function readOptions(
   return parsed.data.thresholds ?? {};
 }
 
-type LanguagePyDetectorConfig = Parameters<
-  LanguagePyDetector["run"]
->[0]["config"];
+type LanguagePyDetectorConfig = Parameters<LanguagePyDetector["run"]>[0]["config"];
 
 /** Exported for the unit tests, which assert the shipped budgets. */
 export const PY_LARGE_FUNCTION_THRESHOLDS = SHAPE_THRESHOLDS;

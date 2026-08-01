@@ -114,10 +114,10 @@ export function renderFinding(
   const out: string[] = [];
   const noColor = options.noColor === true;
   const glyph = severityGlyph(finding.severity, noColor);
-  const chargeLabel = noColor
-    ? "Charge:"
-    : `${HUMAN_GLYPHS.charge} Charge:`;
-  out.push(`  ${glyph}${colour.bold(`${n}.`)} ${colour.cyan(location)}${colour.dim(symbol)}`);
+  const chargeLabel = noColor ? "Charge:" : `${HUMAN_GLYPHS.charge} Charge:`;
+  out.push(
+    `  ${glyph}${colour.bold(`${n}.`)} ${colour.cyan(location)}${colour.dim(symbol)}`,
+  );
   out.push(`     ${colour.bold(chargeLabel)} ${finding.charge}`);
   const riskLine = renderRiskProfileLine(finding, colour, options);
   if (riskLine) out.push(riskLine);
@@ -139,9 +139,7 @@ export function renderFinding(
       out.push(`       · ${colour.cyan(rel)}`);
     }
     if (hidden > 0) {
-      out.push(
-        `       ${colour.dim(`… and ${hidden} more (see JSON output)`)}`,
-      );
+      out.push(`       ${colour.dim(`… and ${hidden} more (see JSON output)`)}`);
     }
   }
   if (finding.suppressed === true) {
@@ -206,15 +204,12 @@ export function renderRiskProfileLine(
   colour: ColourFns,
   options: { alwaysShowRiskProfile?: boolean },
 ): string | undefined {
-  const { churn, test_gap, blast_radius, blast_radius_importers } =
-    finding.scores;
+  const { churn, test_gap, blast_radius, blast_radius_importers } = finding.scores;
   if (churn === undefined && test_gap === undefined && blast_radius === undefined) {
     return undefined;
   }
   const notable =
-    (churn ?? 0) > 0.5 ||
-    (test_gap ?? 0) >= 0.75 ||
-    (blast_radius ?? 0) > 0.5;
+    (churn ?? 0) > 0.5 || (test_gap ?? 0) >= 0.75 || (blast_radius ?? 0) > 0.5;
   if (!notable && !options.alwaysShowRiskProfile) return undefined;
   const parts = [
     `churn ${formatChurn(churn ?? 0)}`,

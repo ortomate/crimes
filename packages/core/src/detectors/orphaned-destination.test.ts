@@ -148,9 +148,7 @@ describe("orphanedDestinationDetector", () => {
 
   it("returns nothing for non-route files", async () => {
     const ia = buildIndex({ routes: [] });
-    const findings = await orphanedDestinationDetector.run(
-      ctxFor("src/lib/util.ts", ia),
-    );
+    const findings = await orphanedDestinationDetector.run(ctxFor("src/lib/util.ts", ia));
     expect(findings).toEqual([]);
   });
 

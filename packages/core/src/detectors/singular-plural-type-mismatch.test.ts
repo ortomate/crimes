@@ -122,10 +122,7 @@ describe("singularPluralTypeMismatchDetector", () => {
   });
 
   it("honours detectors.options.allowedNames", async () => {
-    const ctx = makeCtx([
-      decl("users", "User", 1),
-      decl("posts", "Post", 2),
-    ]);
+    const ctx = makeCtx([decl("users", "User", 1), decl("posts", "Post", 2)]);
     ctx.config = {
       ...ctx.config,
       detectors: {

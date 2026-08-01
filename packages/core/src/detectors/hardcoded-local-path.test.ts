@@ -39,7 +39,9 @@ describe("hardcodedLocalPathDetector", () => {
     expect(findings[0]!.type).toBe("hardcoded_local_path");
     expect(findings[0]!.charge).toBe("Localhost-on-Disk");
     expect(findings[0]!.severity).toBe("medium");
-    expect(findings[0]!.evidence.join(" ")).toContain("/Users/andrew/dev/app/config.json");
+    expect(findings[0]!.evidence.join(" ")).toContain(
+      "/Users/andrew/dev/app/config.json",
+    );
   });
 
   it("flags a single Linux user-home path", async () => {
@@ -47,7 +49,9 @@ describe("hardcodedLocalPathDetector", () => {
       makeCtx('const cfg = "/home/alex/projects/app/config.json";\n'),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0]!.evidence.join(" ")).toContain("/home/alex/projects/app/config.json");
+    expect(findings[0]!.evidence.join(" ")).toContain(
+      "/home/alex/projects/app/config.json",
+    );
   });
 
   it("flags a Windows user-home path in backslash form", async () => {
@@ -70,8 +74,8 @@ describe("hardcodedLocalPathDetector", () => {
     const findings = await hardcodedLocalPathDetector.run(
       makeCtx(
         'const a = "/Users/andrew/a";\n' +
-        'const b = "/Users/andrew/b";\n' +
-        'const c = "/Users/andrew/c";\n',
+          'const b = "/Users/andrew/b";\n' +
+          'const c = "/Users/andrew/c";\n',
       ),
     );
     expect(findings).toHaveLength(1);
@@ -96,9 +100,9 @@ describe("hardcodedLocalPathDetector", () => {
     const findings = await hardcodedLocalPathDetector.run(
       makeCtx(
         'const a = "/tmp/cache";\n' +
-        'const b = "/var/log/app";\n' +
-        'const c = "/etc/hosts";\n' +
-        'const d = "/usr/local/bin/node";\n',
+          'const b = "/var/log/app";\n' +
+          'const c = "/etc/hosts";\n' +
+          'const d = "/usr/local/bin/node";\n',
       ),
     );
     expect(findings).toEqual([]);
@@ -146,17 +150,14 @@ describe("hardcodedLocalPathDetector", () => {
 
   it("captures path in comments too — the literal is still a portability bug", async () => {
     const findings = await hardcodedLocalPathDetector.run(
-      makeCtx('// see /Users/andrew/dev/app for the live copy\n'),
+      makeCtx("// see /Users/andrew/dev/app for the live copy\n"),
     );
     expect(findings).toHaveLength(1);
   });
 
   it("emits one file-level finding aggregating multiple paths", async () => {
     const findings = await hardcodedLocalPathDetector.run(
-      makeCtx(
-        'const a = "/Users/andrew/a";\n' +
-        'const b = "/home/alex/b";\n',
-      ),
+      makeCtx('const a = "/Users/andrew/a";\n' + 'const b = "/home/alex/b";\n'),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]!.lines).toEqual([1, 2]);

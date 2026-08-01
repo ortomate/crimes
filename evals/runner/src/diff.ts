@@ -52,8 +52,7 @@ async function main(): Promise<void> {
   let regressionCount = 0;
   for (const [agent, rollup] of replayByAgent.entries()) {
     const replayRate = rollup.total === 0 ? 0 : rollup.pass / rollup.total;
-    const pinnedRate =
-      pinnedSummary?.per_agent[agent]?.structural_pass_rate ?? null;
+    const pinnedRate = pinnedSummary?.per_agent[agent]?.structural_pass_rate ?? null;
     const delta = pinnedRate === null ? null : replayRate - pinnedRate;
     const verdict = classify(delta);
     if (verdict === "regression") regressionCount += 1;
@@ -75,9 +74,7 @@ async function main(): Promise<void> {
   }
 
   await writeFile(DIFF_SUMMARY, lines.join("\n") + "\n", "utf8");
-  process.stdout.write(
-    `evals:diff: summary written to ${DIFF_SUMMARY}\n`,
-  );
+  process.stdout.write(`evals:diff: summary written to ${DIFF_SUMMARY}\n`);
 }
 
 function collectAgentRollups(dir: string): Map<string, AgentRollup> {

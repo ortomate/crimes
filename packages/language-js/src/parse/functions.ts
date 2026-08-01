@@ -14,10 +14,7 @@ export function collectFunction(
     pushFunction(node, sourceFile, out, "method", methodName(node), absolutePath);
   } else if (ts.isConstructorDeclaration(node)) {
     pushFunction(node, sourceFile, out, "constructor", "constructor", absolutePath);
-  } else if (
-    ts.isArrowFunction(node) ||
-    ts.isFunctionExpression(node)
-  ) {
+  } else if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
     const kind: FunctionKind = ts.isArrowFunction(node) ? "arrow" : "function_expression";
     pushFunction(node, sourceFile, out, kind, inferAssignedName(node), absolutePath);
   } else if (ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node)) {
@@ -33,7 +30,9 @@ function pushFunction(
   name: string | undefined,
   absolutePath: string,
 ): void {
-  const { line: startLine } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+  const { line: startLine } = sourceFile.getLineAndCharacterOfPosition(
+    node.getStart(sourceFile),
+  );
   const { line: endLine } = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
   const { shape, shapeEvidence } = classifyShape({
     node,

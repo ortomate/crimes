@@ -49,9 +49,7 @@ describe("finderDuplicateFilenameDetector — universal pack", () => {
       makeCtx("src/Button 2.rs"),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0]!.evidence.some((e) => e.includes("Button 2.rs"))).toBe(
-      true,
-    );
+    expect(findings[0]!.evidence.some((e) => e.includes("Button 2.rs"))).toBe(true);
   });
 
   it("fires on `notes 3.md`", async () => {

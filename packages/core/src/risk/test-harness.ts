@@ -3,10 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { parseFile } from "@crimes/language-js";
 import { DEFAULT_CONFIG, type CrimesConfig } from "../config.js";
-import type {
-  LanguageJsDetectorContext,
-  UniversalDetectorContext,
-} from "../detector.js";
+import type { LanguageJsDetectorContext, UniversalDetectorContext } from "../detector.js";
 import { discoverFiles } from "../discovery/index.js";
 import { buildAgentConfigIndex } from "../agents/build.js";
 import { buildIaIndex } from "../ia/build.js";
@@ -130,10 +127,7 @@ export async function repoAnchorFile(repo: TestRepo): Promise<string> {
 }
 
 /** Build a config carrying options for one detector. */
-export function configWithOptions(
-  detectorId: string,
-  options: unknown,
-): CrimesConfig {
+export function configWithOptions(detectorId: string, options: unknown): CrimesConfig {
   return {
     ...DEFAULT_CONFIG,
     detectors: { options: { [detectorId]: options } },

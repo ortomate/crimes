@@ -42,7 +42,9 @@ describe("policy expressions", () => {
 
   it("keeps distinct property tails apart", () => {
     const role = parse(`function f(u) { if (u.role === "admin") return 1; return 0; }`);
-    const status = parse(`function f(u) { if (u.status === "admin") return 1; return 0; }`);
+    const status = parse(
+      `function f(u) { if (u.status === "admin") return 1; return 0; }`,
+    );
     expect(role.policyExpressions?.[0]?.normalized).not.toBe(
       status.policyExpressions?.[0]?.normalized,
     );
@@ -120,9 +122,7 @@ describe("policy expressions", () => {
     `);
     const policy = parsed.policyExpressions?.[0];
     expect(policy?.calls).toContain("includes");
-    expect(policy?.literals).toEqual(
-      expect.arrayContaining(["billing.admin", "free"]),
-    );
+    expect(policy?.literals).toEqual(expect.arrayContaining(["billing.admin", "free"]));
   });
 });
 
@@ -538,12 +538,7 @@ describe("test surfaces", () => {
       TEST_PATH,
     );
     const categories = parsed.testCases?.[0]?.assertions.map((a) => a.category);
-    expect(categories).toEqual([
-      "mock_interaction",
-      "value",
-      "error",
-      "truthiness",
-    ]);
+    expect(categories).toEqual(["mock_interaction", "value", "error", "truthiness"]);
   });
 
   it("records enclosing describe titles outermost first", () => {
@@ -667,9 +662,7 @@ describe("pass-through functions", () => {
 
 describe("parser resilience", () => {
   it("does not throw on malformed source", () => {
-    expect(() =>
-      parse(`function broken( { if (x === ) { return`),
-    ).not.toThrow();
+    expect(() => parse(`function broken( { if (x === ) { return`)).not.toThrow();
   });
 
   it("produces no risk surfaces for an empty file", () => {

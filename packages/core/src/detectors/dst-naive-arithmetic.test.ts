@@ -53,18 +53,14 @@ describe("dstNaiveArithmeticDetector", () => {
       "packages/cron/digest.ts",
       "src/payment/refund.ts",
     ]) {
-      const findings = await dstNaiveArithmeticDetector.run(
-        makeCtx([day(5)], { file }),
-      );
+      const findings = await dstNaiveArithmeticDetector.run(makeCtx([day(5)], { file }));
       expect(findings[0]!.severity).toBe("high");
     }
   });
 
   it("evidence quotes the operand and unit", async () => {
     const findings = await dstNaiveArithmeticDetector.run(
-      makeCtx([
-        { kind: "add", line: 5, operand: 604800000, unit: "week" },
-      ]),
+      makeCtx([{ kind: "add", line: 5, operand: 604800000, unit: "week" }]),
     );
     const evidence = findings[0]!.evidence.join(" ");
     expect(evidence).toContain("604800000");

@@ -200,12 +200,7 @@ export interface SyncIoCall {
  * What kind of construct the declaration came from. Detectors that
  * care about scope (e.g. only flag exported names) consume this.
  */
-export type DeclarationKind =
-  | "const"
-  | "let"
-  | "var"
-  | "param"
-  | "property";
+export type DeclarationKind = "const" | "let" | "var" | "param" | "property";
 
 /**
  * Best-effort classification of the right-hand-side initializer
@@ -413,11 +408,7 @@ export interface PolicyExpression {
 }
 
 /** Which syntax an object contract was declared in. */
-export type ContractSource =
-  | "interface"
-  | "type_literal"
-  | "zod"
-  | "valibot";
+export type ContractSource = "interface" | "type_literal" | "zod" | "valibot";
 
 /** One field of an object contract. */
 export interface ContractField {
@@ -557,11 +548,7 @@ export interface RetrySite {
 }
 
 /** How an environment variable was reached. */
-export type EnvReadVia =
-  | "process.env"
-  | "import.meta.env"
-  | "destructured"
-  | "dynamic";
+export type EnvReadVia = "process.env" | "import.meta.env" | "destructured" | "dynamic";
 
 /** One read of one environment variable, with how the value is handled. */
 export interface EnvRead {

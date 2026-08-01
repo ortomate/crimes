@@ -43,13 +43,8 @@ function isDiffFailOn(value: string): value is DiffFailOn {
 export function registerDiffCommand(program: Command): void {
   program
     .command("diff")
-    .description(
-      "Report new, fixed, and unchanged crimes between two Git refs.",
-    )
-    .argument(
-      "<range>",
-      "git range, e.g. main...HEAD or origin/main...HEAD (triple-dot)",
-    )
+    .description("Report new, fixed, and unchanged crimes between two Git refs.")
+    .argument("<range>", "git range, e.g. main...HEAD or origin/main...HEAD (triple-dot)")
     .option("--format <format>", "output format: human | json", "human")
     .option("--no-color", "disable ANSI colour output")
     .option(
@@ -107,11 +102,9 @@ export function registerDiffCommand(program: Command): void {
           // heads-up about file state, not about anything specific to
           // the new findings.
           const suppressions = loadSuppressionsForRoot(root, config);
-          emitFuturePinnedSuppressionsWarnings(
-            suppressions.entries,
-            __CRIMES_VERSION__,
-            { noColor },
-          );
+          emitFuturePinnedSuppressionsWarnings(suppressions.entries, __CRIMES_VERSION__, {
+            noColor,
+          });
         } catch {
           // A bad config will surface a clearer error inside `diff()`;
           // the breadcrumb is best-effort and shouldn't mask that.
@@ -128,10 +121,7 @@ export function registerDiffCommand(program: Command): void {
           { noColor },
         );
       } catch (error) {
-        if (
-          error instanceof NotAGitRepoError ||
-          error instanceof UnknownGitRefError
-        ) {
+        if (error instanceof NotAGitRepoError || error instanceof UnknownGitRefError) {
           process.stderr.write(`crimes: ${error.message}\n`);
           process.exit(2);
           return;

@@ -1,17 +1,9 @@
 import type { Node } from "web-tree-sitter";
-import {
-  matchAssertionCall,
-  matchDateCall,
-  matchIoCall,
-} from "./calls.js";
+import { matchAssertionCall, matchDateCall, matchIoCall } from "./calls.js";
 import { extractAssignment } from "./declarations.js";
 import { ensurePythonParser } from "./grammar.js";
 import { extractImport } from "./imports.js";
-import {
-  extractClassMembers,
-  extractDocstring,
-  routeFromDecorator,
-} from "./routes.js";
+import { extractClassMembers, extractDocstring, routeFromDecorator } from "./routes.js";
 import { classifyShape, decoratorText } from "./shapes.js";
 import type {
   ParsedPyClass,
@@ -94,18 +86,11 @@ interface Frame {
  * nest deeply enough to blow the call stack, and a stack overflow here
  * would take out the whole scan rather than degrading one file.
  */
-function collectWithScope(
-  root: Node,
-  filePath: string,
-  result: ParsedPyFile,
-): void {
+function collectWithScope(root: Node, filePath: string, result: ParsedPyFile): void {
   // Decorators attach to the wrapping `decorated_definition`, but shape
   // classification happens on the inner definition. Stash them by node
   // id on the way past rather than walking back up the tree.
-  const decoratorsByDefinition = new Map<
-    number,
-    { texts: string[]; nodes: Node[] }
-  >();
+  const decoratorsByDefinition = new Map<number, { texts: string[]; nodes: Node[] }>();
   const stack: Frame[] = [{ node: root, classStack: [], funcStack: [] }];
 
   while (stack.length > 0) {
@@ -119,10 +104,7 @@ function collectWithScope(
         break;
 
       case "class_definition": {
-        const cls = buildClass(
-          node,
-          decoratorsByDefinition.get(node.id)?.texts ?? [],
-        );
+        const cls = buildClass(node, decoratorsByDefinition.get(node.id)?.texts ?? []);
         result.classes.push(cls);
         childClassStack = [...classStack, cls];
         break;
@@ -335,10 +317,7 @@ function readParameters(node: Node): {
   for (let i = 0; i < params.namedChildCount; i += 1) {
     const child = params.namedChild(i);
     if (!child) continue;
-    if (
-      child.type === "positional_separator" ||
-      child.type === "keyword_separator"
-    ) {
+    if (child.type === "positional_separator" || child.type === "keyword_separator") {
       continue;
     }
     const paramName = parameterName(child);
@@ -375,8 +354,7 @@ function hasAsyncKeyword(node: Node): boolean {
  * reads as a bug — sort once here rather than in eight detectors.
  */
 function sortByLine(result: ParsedPyFile): void {
-  const byLine = <T extends { line: number }>(a: T, b: T): number =>
-    a.line - b.line;
+  const byLine = <T extends { line: number }>(a: T, b: T): number => a.line - b.line;
   result.imports.sort(byLine);
   result.routes.sort(byLine);
   result.dateCalls.sort(byLine);

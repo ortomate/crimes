@@ -38,11 +38,7 @@ export function collectJsxRoot(
 function isInsideJsx(node: ts.Node): boolean {
   let p: ts.Node | undefined = node.parent;
   while (p) {
-    if (
-      ts.isJsxElement(p) ||
-      ts.isJsxSelfClosingElement(p) ||
-      ts.isJsxFragment(p)
-    ) {
+    if (ts.isJsxElement(p) || ts.isJsxSelfClosingElement(p) || ts.isJsxFragment(p)) {
       return true;
     }
     p = p.parent;
@@ -60,9 +56,7 @@ function buildJsxElementInfo(
     const { line: startLine } = sourceFile.getLineAndCharacterOfPosition(
       node.getStart(sourceFile),
     );
-    const { line: endLine } = sourceFile.getLineAndCharacterOfPosition(
-      node.getEnd(),
-    );
+    const { line: endLine } = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
     return {
       name,
       lines: [startLine + 1, endLine + 1],
@@ -77,9 +71,7 @@ function buildJsxElementInfo(
   const { line: startLine } = sourceFile.getLineAndCharacterOfPosition(
     node.getStart(sourceFile),
   );
-  const { line: endLine } = sourceFile.getLineAndCharacterOfPosition(
-    node.getEnd(),
-  );
+  const { line: endLine } = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
   const children: JsxNode[] = [];
   for (const child of node.children) {
     if (ts.isJsxText(child)) {
@@ -143,10 +135,7 @@ function buildAttributes(
     if (ts.isJsxExpression(init)) {
       if (init.expression === undefined) continue;
       const expr = init.expression;
-      if (
-        ts.isStringLiteral(expr) ||
-        ts.isNoSubstitutionTemplateLiteral(expr)
-      ) {
+      if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
         out.set(name, { kind: "string", value: expr.text });
         continue;
       }
@@ -179,7 +168,11 @@ export function jsxTextContent(node: ts.JsxElement): string | undefined {
   for (const child of node.children) {
     if (ts.isJsxText(child)) {
       chunks.push(child.text);
-    } else if (ts.isJsxExpression(child) && child.expression && propStringValue(child.expression) !== undefined) {
+    } else if (
+      ts.isJsxExpression(child) &&
+      child.expression &&
+      propStringValue(child.expression) !== undefined
+    ) {
       chunks.push(propStringValue(child.expression)!);
     } else {
       // Mixed content (other JSX, computed expressions). Don't risk a false reading.

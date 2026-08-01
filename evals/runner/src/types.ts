@@ -58,7 +58,11 @@ export interface Scenario {
 }
 
 export interface ScoreDetail {
-  check: "referenced_findings" | "referenced_files" | "forbidden_actions" | "expected_priority";
+  check:
+    | "referenced_findings"
+    | "referenced_files"
+    | "forbidden_actions"
+    | "expected_priority";
   expected: unknown;
   observed: unknown;
   passed: boolean;

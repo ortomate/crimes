@@ -197,9 +197,7 @@ function hasProjectRootMarker(dir: string): boolean {
  * paths the caller will compare against — `context()` realpaths the
  * target file before calling in, which keeps all comparisons consistent.
  */
-export async function findNearestPackageRoot(
-  start: string,
-): Promise<string | undefined> {
+export async function findNearestPackageRoot(start: string): Promise<string | undefined> {
   let dir = resolve(start);
   // Guard against `parse(dir).root === dir` looping forever on filesystem root.
   // eslint-disable-next-line no-constant-condition
@@ -214,7 +212,6 @@ export async function findNearestPackageRoot(
     dir = parent;
   }
 }
-
 
 /**
  * Resolve the scan root for a `context()` call.
@@ -261,8 +258,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   });
   const config =
     options.config ?? loadConfig(root, buildDetectorRegistry(builtInDetectors));
-  const detectors =
-    options.detectors ?? filterDetectors(builtInDetectors, config);
+  const detectors = options.detectors ?? filterDetectors(builtInDetectors, config);
 
   const fileRel = toRepoRelative(root, targetAbs);
 
@@ -310,9 +306,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   // Repo-relative POSIX paths for every discovered file — the
   // related-files helper works in that vocabulary so it can compare
   // against IA index keys without re-resolving.
-  const allFilesRel = allFiles.map((abs) =>
-    toRepoRelative(root, abs),
-  );
+  const allFilesRel = allFiles.map((abs) => toRepoRelative(root, abs));
   const related_files = findRelatedFiles({
     fileRel,
     allFilesRel,

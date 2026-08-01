@@ -134,9 +134,7 @@ export const swallowedErrorDetector: LanguageJsDetector = {
     }
 
     const options = readOptions(ctx.config);
-    const allowed = new Set(
-      (options.allowedFunctions ?? []).map((f) => f.toLowerCase()),
-    );
+    const allowed = new Set((options.allowedFunctions ?? []).map((f) => f.toLowerCase()));
 
     const findings: Finding[] = [];
     for (const handler of handlers) {
@@ -259,7 +257,10 @@ function looksDeliberate(handler: ErrorHandler): boolean {
   if (handler.enclosing !== undefined && CLEANUP_FUNCTION_RE.test(handler.enclosing)) {
     return true;
   }
-  if (handler.enclosing !== undefined && BEST_EFFORT_FUNCTION_RE.test(handler.enclosing)) {
+  if (
+    handler.enclosing !== undefined &&
+    BEST_EFFORT_FUNCTION_RE.test(handler.enclosing)
+  ) {
     return true;
   }
   if (DELIBERATE_RE.test(handler.protectedOperation)) return true;
@@ -284,7 +285,11 @@ function buildFinding(
     .add(verdict.kind === "comment_only", "handler contains only a comment", 0.06)
     .add(verdict.kind === "log_without_error", "log call omits the error value", -0.06)
     .add(boundary !== undefined, `protected operation touches ${boundary?.label}`, 0.06)
-    .add(verdict.deliberate, "suppression appears deliberate (documented or cleanup path)", -0.2)
+    .add(
+      verdict.deliberate,
+      "suppression appears deliberate (documented or cleanup path)",
+      -0.2,
+    )
     .add(scope === "fixture", "file is fixture material", -0.15);
 
   const severity = new SeverityLadder(0.35)
@@ -324,12 +329,8 @@ function buildSummary(
   verdict: Verdict,
   boundary: ReturnType<typeof classifyBoundary>,
 ): string {
-  const what =
-    boundary !== undefined
-      ? `A ${boundary.label} failure`
-      : "A failure";
-  const where =
-    handler.enclosing !== undefined ? ` in \`${handler.enclosing}\`` : "";
+  const what = boundary !== undefined ? `A ${boundary.label} failure` : "A failure";
+  const where = handler.enclosing !== undefined ? ` in \`${handler.enclosing}\`` : "";
   return (
     `${what}${where} is caught and discarded — ${verdict.disposition}. ` +
     "The caller sees success and there is no record the operation failed."
@@ -351,7 +352,9 @@ function buildEvidence(
       `calls inside the protected region: ${handler.protectedCalls.slice(0, 6).join(", ")}`,
     );
   }
-  evidence.push(`handler kind: ${describeHandlerKind(handler.kind)} (line ${handler.line})`);
+  evidence.push(
+    `handler kind: ${describeHandlerKind(handler.kind)} (line ${handler.line})`,
+  );
   evidence.push(`what happens to the failure: ${verdict.disposition}`);
 
   if (boundary !== undefined) {
@@ -372,7 +375,8 @@ function buildEvidence(
         : "no logging, telemetry, or error-wrapping call",
     );
   }
-  if (!handler.body.typedResult) missing.push("no typed error result the caller could branch on");
+  if (!handler.body.typedResult)
+    missing.push("no typed error result the caller could branch on");
   if (!handler.body.discriminates) missing.push("the error is never inspected");
   evidence.push(`missing signal: ${missing.join("; ")}`);
 

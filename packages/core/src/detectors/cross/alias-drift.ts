@@ -129,8 +129,7 @@ function collectHits(files: PackedFile[], group: IaConceptAliasGroup): AliasHit[
   // first would make the outcome depend on the order aliases happen to
   // be listed in the group, and would report a clean language split
   // where the text plainly documents the mapping.
-  const match = (text: string): string[] =>
-    aliases.filter((a) => containsToken(text, a));
+  const match = (text: string): string[] => aliases.filter((a) => containsToken(text, a));
 
   for (const entry of files) {
     if (entry.pack === "language-py") {
@@ -241,9 +240,7 @@ function buildFinding(args: {
     `concept group "${group.id}" is named differently on each side of the boundary`,
     `Python uses: ${onlyPy.sort().join(", ")}`,
     `TypeScript uses: ${onlyJs.sort().join(", ")}`,
-    ...sorted
-      .slice(0, 8)
-      .map((h) => `${h.file}:${h.line} — ${h.source} (${h.alias})`),
+    ...sorted.slice(0, 8).map((h) => `${h.file}:${h.line} — ${h.source} (${h.alias})`),
     ...(sorted.length > 8 ? [`…+${sorted.length - 8} more`] : []),
   ];
   if (group.preferred) {
@@ -287,6 +284,9 @@ function buildFinding(args: {
         risk: "medium",
       },
     ],
-    related_files: [...files].filter((f) => f !== anchor.file).sort().slice(0, 8),
+    related_files: [...files]
+      .filter((f) => f !== anchor.file)
+      .sort()
+      .slice(0, 8),
   };
 }

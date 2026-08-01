@@ -97,8 +97,6 @@ describe("looksGeneratedSource", () => {
   });
 
   it("does not match ordinary source", () => {
-    expect(looksGeneratedSource("export function generate() { return 1; }")).toBe(
-      false,
-    );
+    expect(looksGeneratedSource("export function generate() { return 1; }")).toBe(false);
   });
 });

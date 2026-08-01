@@ -23,10 +23,7 @@ describe("hashSlice", () => {
   it("ignores whitespace and comments for both hashes", () => {
     const a = hashSlice(`function foo() { return 1; }`);
     const b = hashSlice(
-      `function   foo() {\n` +
-        `  // comment\n` +
-        `  return /* inline */ 1;\n` +
-        `}`,
+      `function   foo() {\n` + `  // comment\n` + `  return /* inline */ 1;\n` + `}`,
     );
     expect(a.exact).toBe(b.exact);
     expect(a.shape).toBe(b.shape);
@@ -43,14 +40,10 @@ describe("hashSlice", () => {
 describe("hashFunction", () => {
   it("produces identical exact + shape hashes for identical functions", async () => {
     const { source: src1, ast: ast1 } = await parseTs(
-      `function plus(a: number, b: number) {\n` +
-        `  return a + b;\n` +
-        `}\n`,
+      `function plus(a: number, b: number) {\n` + `  return a + b;\n` + `}\n`,
     );
     const { source: src2, ast: ast2 } = await parseTs(
-      `function plus(a: number, b: number) {\n` +
-        `  return a + b;\n` +
-        `}\n`,
+      `function plus(a: number, b: number) {\n` + `  return a + b;\n` + `}\n`,
     );
     const h1 = hashFunction(ast1.functions[0]!, src1);
     const h2 = hashFunction(ast2.functions[0]!, src2);
@@ -101,9 +94,7 @@ describe("hashFunction", () => {
   });
 
   it("counts tokens — useful for filtering trivially short candidates", async () => {
-    const { source, ast } = await parseTs(
-      `function tiny() { return 1; }\n`,
-    );
+    const { source, ast } = await parseTs(`function tiny() { return 1; }\n`);
     const h = hashFunction(ast.functions[0]!, source);
     expect(h.tokens).toBeGreaterThan(0);
     expect(h.tokens).toBeLessThan(20);

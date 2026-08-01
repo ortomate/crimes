@@ -117,15 +117,17 @@ function highestOf(findings: Finding[]): HighestSeverity {
   return worst;
 }
 
-export async function hotspots(
-  options: HotspotsOptions = {},
-): Promise<HotspotsReport> {
+export async function hotspots(options: HotspotsOptions = {}): Promise<HotspotsReport> {
   const root = resolve(options.root ?? process.cwd());
   const config = options.config ?? loadConfig(root);
   const since = options.since ?? "90d";
 
   const [scanReport, churn] = await Promise.all([
-    scan({ root, config, ...(options.detectors ? { detectors: options.detectors } : {}) }),
+    scan({
+      root,
+      config,
+      ...(options.detectors ? { detectors: options.detectors } : {}),
+    }),
     collectChurn({ root, since }),
   ]);
 

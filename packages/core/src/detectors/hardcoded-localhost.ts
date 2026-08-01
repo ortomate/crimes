@@ -177,9 +177,7 @@ function isAllowed(text: string, allowed: Set<string>): boolean {
   return false;
 }
 
-function readAllowedUrls(
-  options: Record<string, unknown> | undefined,
-): Set<string> {
+function readAllowedUrls(options: Record<string, unknown> | undefined): Set<string> {
   const raw = options?.["hardcoded_localhost"];
   if (!raw) return new Set();
   const parsed = optionsSchema.safeParse(raw);

@@ -13,8 +13,7 @@ import {
  * `isTestFile` / `testBaseCovers` in `util/test-files.js`, which know
  * every supported language's convention rather than only this one.
  */
-export const TEST_EXT =
-  /(?:\.(?:test|spec)|_(?:test|spec))\.(ts|tsx|js|jsx|mjs|cjs)$/;
+export const TEST_EXT = /(?:\.(?:test|spec)|_(?:test|spec))\.(ts|tsx|js|jsx|mjs|cjs)$/;
 
 /**
  * Source extensions `likely_tests` reasons about. Python joined in

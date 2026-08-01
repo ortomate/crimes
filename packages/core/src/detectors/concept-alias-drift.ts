@@ -48,9 +48,7 @@ function analyse(ia: IaIndex): Finding[] {
   const groups = ia.aliasGroups.length > 0 ? ia.aliasGroups : [];
   if (groups.length === 0) return [];
 
-  const evaluated = groups
-    .map((g) => evaluateGroup(g, ia))
-    .filter((e) => e.fired);
+  const evaluated = groups.map((g) => evaluateGroup(g, ia)).filter((e) => e.fired);
 
   // Rank by strength: more aliases × more directories × more product hits.
   evaluated.sort((a, b) => b.strength - a.strength);
@@ -64,10 +62,7 @@ interface GroupEvaluation {
   finding: Finding;
 }
 
-function evaluateGroup(
-  group: IaConceptAliasGroup,
-  ia: IaIndex,
-): GroupEvaluation {
+function evaluateGroup(group: IaConceptAliasGroup, ia: IaIndex): GroupEvaluation {
   const hits = collectHits(group, ia);
 
   // Per-alias directory count.
@@ -108,21 +103,15 @@ function evaluateGroup(
     evidence.push(`"${alias}" in ${files.length} file(s): ${display}${suffix}`);
   }
 
-  const allFiles = Array.from(
-    new Set(hits.map((h) => h.file)),
-  ).sort();
+  const allFiles = Array.from(new Set(hits.map((h) => h.file))).sort();
 
   // Anchor on the lexicographically first file with a product-surface hit.
-  const anchorFiles = Array.from(
-    new Set(productSurface.map((h) => h.file)),
-  ).sort();
+  const anchorFiles = Array.from(new Set(productSurface.map((h) => h.file))).sort();
   const anchorFile = anchorFiles[0]!;
 
   // Strength signal: total distinct aliases + total distinct files + product-surface count.
   const strength =
-    qualifyingAliases.length * 100 +
-    allFiles.length * 10 +
-    productSurface.length;
+    qualifyingAliases.length * 100 + allFiles.length * 10 + productSurface.length;
 
   // Confidence sits in the 0.6-0.75 band per the plan. Lift slightly when
   // product-surface signal is high.

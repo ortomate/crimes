@@ -62,7 +62,9 @@ function calculateInvoice(order: Order) {
   sendInvoiceEmail(order);
 }
 `;
-    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source, "src/billing.test.ts"));
+    const findings = await nameBehaviorMismatchDetector.run(
+      makeCtx(source, "src/billing.test.ts"),
+    );
     expect(findings).toEqual([]);
   });
 });

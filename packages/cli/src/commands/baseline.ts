@@ -58,9 +58,7 @@ export function registerBaselineCommand(program: Command): void {
 
   baseline
     .command("save")
-    .description(
-      "Run a scan and write the current findings to .crimes/baseline.json.",
-    )
+    .description("Run a scan and write the current findings to .crimes/baseline.json.")
     .argument("[path]", "directory to scan (defaults to current directory)")
     .option("--format <format>", "output format: human | json", "human")
     .option("--no-color", "disable ANSI colour output")
@@ -91,9 +89,7 @@ export function registerBaselineCommand(program: Command): void {
       }
 
       if (format === "json") {
-        process.stdout.write(
-          formatBaselineJsonReport(result.baseline) + "\n",
-        );
+        process.stdout.write(formatBaselineJsonReport(result.baseline) + "\n");
         return;
       }
 
@@ -122,95 +118,85 @@ export function registerBaselineCommand(program: Command): void {
       "include findings filtered by .crimes/suppressions.json, annotated as suppressed",
       false,
     )
-    .action(
-      async (
-        path: string | undefined,
-        options: BaselineCheckCommandOptions,
-      ) => {
-        const root = resolve(path ?? process.cwd());
-        const format = options.format;
+    .action(async (path: string | undefined, options: BaselineCheckCommandOptions) => {
+      const root = resolve(path ?? process.cwd());
+      const format = options.format;
 
-        if (format !== "human" && format !== "json") {
-          process.stderr.write(
-            `crimes: unknown --format "${String(format)}". Expected "human" or "json".\n`,
-          );
+      if (format !== "human" && format !== "json") {
+        process.stderr.write(
+          `crimes: unknown --format "${String(format)}". Expected "human" or "json".\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      if (!isFailOn(options.failOn)) {
+        process.stderr.write(
+          `crimes: unknown --fail-on "${options.failOn}". Expected "low", "medium", or "high".\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      const noColor = resolveNoColor(options);
+      try {
+        const config = loadConfig(root);
+        const suppressions = loadSuppressionsForRoot(root, config);
+        emitFuturePinnedSuppressionsWarnings(suppressions.entries, __CRIMES_VERSION__, {
+          noColor,
+        });
+      } catch {
+        // Best-effort: a bad config will surface a clearer error
+        // inside `checkBaseline()` below.
+      }
+
+      let report;
+      try {
+        report = await checkBaseline({
+          root,
+          failOn: options.failOn,
+          showSuppressed: options.showSuppressed,
+          crimesVersion: __CRIMES_VERSION__,
+        });
+        emitResurfacedSuppressionsBreadcrumb(
+          countResurfacedByPinnedMinor(report.new_findings),
+          { noColor },
+        );
+      } catch (error) {
+        if (
+          error instanceof BaselineNotFoundError ||
+          error instanceof MalformedBaselineError
+        ) {
+          process.stderr.write(`crimes: ${error.message}\n`);
           process.exit(2);
           return;
         }
-
-        if (!isFailOn(options.failOn)) {
-          process.stderr.write(
-            `crimes: unknown --fail-on "${options.failOn}". Expected "low", "medium", or "high".\n`,
-          );
-          process.exit(2);
+        if (isUserSetupError(error)) {
+          fatalUserError(error);
           return;
         }
+        throw error;
+      }
 
-        const noColor = resolveNoColor(options);
-        try {
-          const config = loadConfig(root);
-          const suppressions = loadSuppressionsForRoot(root, config);
-          emitFuturePinnedSuppressionsWarnings(
-            suppressions.entries,
-            __CRIMES_VERSION__,
-            { noColor },
-          );
-        } catch {
-          // Best-effort: a bad config will surface a clearer error
-          // inside `checkBaseline()` below.
-        }
+      if (format === "json") {
+        process.stdout.write(formatBaselineCheckJsonReport(report) + "\n");
+      } else {
+        const effectiveNoColor = options.noColor || !process.stdout.isTTY;
+        const feedbackEntries = effectiveNoColor
+          ? []
+          : (await readFeedback(resolveFeedbackPath(root))).entries;
+        process.stdout.write(
+          formatBaselineCheckReport(report, {
+            noColor: effectiveNoColor,
+            feedbackHints: {
+              entriesByDetector: countEntriesByDetector(feedbackEntries),
+            },
+          }) + "\n",
+        );
+      }
 
-        let report;
-        try {
-          report = await checkBaseline({
-            root,
-            failOn: options.failOn,
-            showSuppressed: options.showSuppressed,
-            crimesVersion: __CRIMES_VERSION__,
-          });
-          emitResurfacedSuppressionsBreadcrumb(
-            countResurfacedByPinnedMinor(report.new_findings),
-            { noColor },
-          );
-        } catch (error) {
-          if (
-            error instanceof BaselineNotFoundError ||
-            error instanceof MalformedBaselineError
-          ) {
-            process.stderr.write(`crimes: ${error.message}\n`);
-            process.exit(2);
-            return;
-          }
-          if (isUserSetupError(error)) {
-            fatalUserError(error);
-            return;
-          }
-          throw error;
-        }
-
-        if (format === "json") {
-          process.stdout.write(
-            formatBaselineCheckJsonReport(report) + "\n",
-          );
-        } else {
-          const effectiveNoColor =
-            options.noColor || !process.stdout.isTTY;
-          const feedbackEntries = effectiveNoColor
-            ? []
-            : (await readFeedback(resolveFeedbackPath(root))).entries;
-          process.stdout.write(
-            formatBaselineCheckReport(report, {
-              noColor: effectiveNoColor,
-              feedbackHints: {
-                entriesByDetector: countEntriesByDetector(feedbackEntries),
-              },
-            }) + "\n",
-          );
-        }
-
-        if (report.failed) {
-          process.exit(1);
-        }
-      },
-    );
+      if (report.failed) {
+        process.exit(1);
+      }
+    });
 }

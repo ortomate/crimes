@@ -31,8 +31,8 @@ describe("svgWithEmbeddedRasterDetector", () => {
     const findings = await svgWithEmbeddedRasterDetector.run(
       makeCtx(
         '<svg xmlns="http://www.w3.org/2000/svg">' +
-        '<image href="data:image/png;base64,iVBORw0KGgo=" x="0" y="0"/>' +
-        '</svg>',
+          '<image href="data:image/png;base64,iVBORw0KGgo=" x="0" y="0"/>' +
+          "</svg>",
       ),
     );
     expect(findings).toHaveLength(1);
@@ -45,8 +45,8 @@ describe("svgWithEmbeddedRasterDetector", () => {
     const findings = await svgWithEmbeddedRasterDetector.run(
       makeCtx(
         '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">' +
-        '<image xlink:href="data:image/jpeg;base64,/9j/4AAQ"/>' +
-        '</svg>',
+          '<image xlink:href="data:image/jpeg;base64,/9j/4AAQ"/>' +
+          "</svg>",
       ),
     );
     expect(findings).toHaveLength(1);
@@ -56,10 +56,10 @@ describe("svgWithEmbeddedRasterDetector", () => {
   it("upgrades to high severity at 2+ embedded rasters", async () => {
     const findings = await svgWithEmbeddedRasterDetector.run(
       makeCtx(
-        '<svg>' +
-        '<image href="data:image/png;base64,AAAA"/>' +
-        '<image href="data:image/jpeg;base64,BBBB"/>' +
-        '</svg>',
+        "<svg>" +
+          '<image href="data:image/png;base64,AAAA"/>' +
+          '<image href="data:image/jpeg;base64,BBBB"/>' +
+          "</svg>",
       ),
     );
     expect(findings).toHaveLength(1);
@@ -71,9 +71,9 @@ describe("svgWithEmbeddedRasterDetector", () => {
     // A pattern or feImage texture isn't the same anti-pattern.
     const findings = await svgWithEmbeddedRasterDetector.run(
       makeCtx(
-        '<svg>' +
-        '<defs><pattern id="p"><use href="data:image/png;base64,X"/></pattern></defs>' +
-        '</svg>',
+        "<svg>" +
+          '<defs><pattern id="p"><use href="data:image/png;base64,X"/></pattern></defs>' +
+          "</svg>",
       ),
     );
     expect(findings).toEqual([]);
@@ -90,10 +90,10 @@ describe("svgWithEmbeddedRasterDetector", () => {
       },
     };
     const findings = await svgWithEmbeddedRasterDetector.run(
-      makeCtx(
-        '<svg><image href="data:image/png;base64,X"/></svg>',
-        { file: "src/assets/brand-logos/partner.svg", config },
-      ),
+      makeCtx('<svg><image href="data:image/png;base64,X"/></svg>', {
+        file: "src/assets/brand-logos/partner.svg",
+        config,
+      }),
     );
     expect(findings).toEqual([]);
   });

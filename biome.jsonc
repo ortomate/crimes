@@ -49,10 +49,20 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    // The tree was hand-wrapped to roughly 80 columns before Biome
-    // (p95 line length 75, p99 91). 80 keeps the existing wrapping
-    // largely intact; Biome's default is also 80.
-    "lineWidth": 80
+    // 90, not Biome's default 80. Measured over every non-comment
+    // source line in packages/, evals/runner and apps/website/src:
+    // p95 77, p98 86, p99 92. The tree was hand-wrapped just under ~90,
+    // and 80 would have rewrapped it hard — a swept comparison showed
+    // 80 adding +2522 net lines against 90's -857.
+    //
+    // That difference is not cosmetic here. `large_function` and
+    // `large_file` are line-count thresholds and
+    // `exact_duplicate_block` gates on MIN_EXACT_DUPLICATE_LINES = 8,
+    // so line width directly moves what this repo's own scanner
+    // reports about itself: 80 produced +18 findings and +5 high, 90
+    // produces -2 net. Width is a measurement decision, not a taste
+    // one. See docs/releasing.md § "Biome and the self-scan".
+    "lineWidth": 90
   },
 
   "javascript": {

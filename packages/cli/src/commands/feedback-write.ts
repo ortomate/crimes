@@ -134,10 +134,7 @@ function validateInputs(
       process.exit(2);
     }
   }
-  if (
-    !ID_PATTERN.test(idOrFingerprint!) &&
-    !FINGERPRINT_PATTERN.test(idOrFingerprint!)
-  ) {
+  if (!ID_PATTERN.test(idOrFingerprint!) && !FINGERPRINT_PATTERN.test(idOrFingerprint!)) {
     process.stderr.write(
       `crimes: "${idOrFingerprint!}" is neither a per-scan id (crime_00001) ` +
         `nor a stable fingerprint (<type>::<file>::<symbol>).\n`,
@@ -179,7 +176,9 @@ async function resolveFingerprintTarget(
       throw err; // unreachable; keeps narrowing happy
     }
     const scanHash = "sha256:" + createHash("sha256").update(raw).digest("hex");
-    let scanJson: { findings?: Array<{ id: string; type: string; file: string; symbol?: string }> };
+    let scanJson: {
+      findings?: Array<{ id: string; type: string; file: string; symbol?: string }>;
+    };
     try {
       scanJson = JSON.parse(raw);
     } catch (err) {
@@ -241,7 +240,9 @@ interface SuppressionSideEffectArgs {
   priorEntry: { source?: string } | undefined;
 }
 
-async function applySuppressionSideEffect(args: SuppressionSideEffectArgs): Promise<void> {
+async function applySuppressionSideEffect(
+  args: SuppressionSideEffectArgs,
+): Promise<void> {
   const { verdict, resolved, options, suppressionsPath, priorEntry } = args;
   if (verdict === "fp") {
     const reason = options.note!.trim();

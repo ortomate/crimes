@@ -100,11 +100,7 @@ const POLICY_NAMES = new Set([
   "state",
 ]);
 
-function scanFile(
-  file: string,
-  source: string,
-  out: Map<string, CheckHit[]>,
-): void {
+function scanFile(file: string, source: string, out: Map<string, CheckHit[]>): void {
   let lineStart = 0;
   let line = 1;
   for (const match of source.matchAll(COMPARISON_RE)) {
@@ -133,11 +129,7 @@ function scanFile(
   }
 }
 
-function buildFinding(
-  literalKey: string,
-  hits: CheckHit[],
-  anchor: string,
-): Finding {
+function buildFinding(literalKey: string, hits: CheckHit[], anchor: string): Finding {
   const [_field, literal] = literalKey.split("::");
   const distinctFiles = Array.from(new Set(hits.map((h) => h.file))).sort();
   const distinctExpressions = Array.from(new Set(hits.map((h) => h.expression))).sort();
@@ -184,7 +176,6 @@ function buildFinding(
     related_files: distinctFiles.filter((f) => f !== anchor),
   };
 }
-
 
 function isPrimaryAnchor(ctx: PerFileDetectorContext): boolean {
   if (!ctx.ia) return false;

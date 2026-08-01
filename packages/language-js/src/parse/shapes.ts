@@ -127,10 +127,7 @@ function tryRouteHandler({
       shapeEvidence: [`named export "${name}"`, `App Router route file`],
     };
   }
-  if (
-    isDefaultExportFunction(node) &&
-    PAGES_ROUTER_API_RE.test(absolutePath)
-  ) {
+  if (isDefaultExportFunction(node) && PAGES_ROUTER_API_RE.test(absolutePath)) {
     return {
       shape: "route_handler",
       shapeEvidence: ["default export", "Pages Router API route"],
@@ -144,10 +141,7 @@ function tryRouteHandler({
  *    App Router (`app/**\/page.tsx` etc.) or Pages Router (`pages/**`
  *    excluding `pages/api/`).
  */
-function tryPageExport({
-  node,
-  absolutePath,
-}: ClassifyArgs): ClassifyResult | null {
+function tryPageExport({ node, absolutePath }: ClassifyArgs): ClassifyResult | null {
   if (!isDefaultExportFunction(node)) return null;
   if (
     APP_ROUTER_DIR_RE.test(absolutePath) &&
@@ -172,11 +166,7 @@ function tryPageExport({
  *    outside route directories (page_export already handled). Methods
  *    and constructors can't be React components.
  */
-function tryReactComponent({
-  node,
-  kind,
-  name,
-}: ClassifyArgs): ClassifyResult | null {
+function tryReactComponent({ node, kind, name }: ClassifyArgs): ClassifyResult | null {
   if (
     name &&
     isPascalCase(name) &&

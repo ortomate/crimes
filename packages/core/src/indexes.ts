@@ -37,9 +37,7 @@ export async function safelyBuildIaIndex(args: {
     return await buildIaIndex({
       root: args.root,
       files: args.allFiles,
-      ...(args.aliasGroups !== undefined
-        ? { aliasGroups: args.aliasGroups }
-        : {}),
+      ...(args.aliasGroups !== undefined ? { aliasGroups: args.aliasGroups } : {}),
     });
   } catch {
     return undefined;

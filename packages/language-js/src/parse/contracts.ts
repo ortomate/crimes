@@ -8,11 +8,7 @@ import {
   stringLiteralText,
   unwrap,
 } from "./ast-util.js";
-import type {
-  ContractField,
-  ContractSource,
-  ObjectContract,
-} from "./types.js";
+import type { ContractField, ContractSource, ObjectContract } from "./types.js";
 
 /**
  * Object-contract extraction — the parser half of `contract_drift`.
@@ -231,7 +227,9 @@ function renderType(node: ts.TypeNode, sourceFile: ts.SourceFile): RenderedType 
 
   if (ts.isTypeLiteralNode(node)) {
     const keys = node.members
-      .map((m) => (ts.isPropertySignature(m) ? memberName(m.name, sourceFile) : undefined))
+      .map((m) =>
+        ts.isPropertySignature(m) ? memberName(m.name, sourceFile) : undefined,
+      )
       .filter((n): n is string => n !== undefined)
       .sort();
     return { text: `{${keys.join(",")}}`, nullable: false, nested: true };
@@ -462,7 +460,10 @@ function describeSchemaField(
   if (base !== undefined) {
     result.type = SCHEMA_TYPE_ALIASES[base] ?? base;
   } else if (result.enumMembers) {
-    result.type = result.enumMembers.map((m) => JSON.stringify(m)).sort().join(" | ");
+    result.type = result.enumMembers
+      .map((m) => JSON.stringify(m))
+      .sort()
+      .join(" | ");
   }
 
   if (chain.includes("array")) result.type = `${result.type}[]`;

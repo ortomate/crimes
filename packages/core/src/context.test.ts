@@ -25,9 +25,7 @@ async function initRepo(dir: string): Promise<void> {
  * Make a repo with git history: creates the files, initializes git, and
  * makes multiple commits with different author emails so uniqueAuthors > 1.
  */
-async function makeRepoWithGitHistory(
-  files: Record<string, string>,
-): Promise<string> {
+async function makeRepoWithGitHistory(files: Record<string, string>): Promise<string> {
   const dir = await makeRepo(files);
   await execAsync("git init", { cwd: dir });
   await execAsync('git config user.email "author1@example.com"', { cwd: dir });
@@ -48,14 +46,7 @@ async function makeRepoWithGitHistory(
 // depends on how it was invoked (`pnpm test` from root vs from the
 // package); going via `import.meta.url` keeps the path correct either way.
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE_ROOT = resolvePath(
-  HERE,
-  "..",
-  "..",
-  "..",
-  "examples",
-  "messy-ts-app",
-);
+const FIXTURE_ROOT = resolvePath(HERE, "..", "..", "..", "examples", "messy-ts-app");
 
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const raw = await mkdtemp(join(tmpdir(), "crimes-context-test-"));
@@ -175,9 +166,7 @@ describe("context", () => {
     const report = await context({ root, file: "src/billing.ts" });
 
     expect(report.findings.some((f) => f.type === "direct_date")).toBe(true);
-    expect(
-      report.agent_guidance.some((g) => /clock|inject time/i.test(g)),
-    ).toBe(true);
+    expect(report.agent_guidance.some((g) => /clock|inject time/i.test(g))).toBe(true);
   });
 
   it("dedupes guidance to one line per finding type", async () => {
@@ -191,9 +180,7 @@ describe("context", () => {
     const fns = report.findings.filter((f) => f.type === "large_function");
     expect(fns.length).toBeGreaterThanOrEqual(2);
 
-    const helperLines = report.agent_guidance.filter((g) =>
-      /helpers/i.test(g),
-    );
+    const helperLines = report.agent_guidance.filter((g) => /helpers/i.test(g));
     expect(helperLines).toHaveLength(1);
   });
 
@@ -244,7 +231,8 @@ describe("context", () => {
     it("recognises the Python test_<name>.py prefix as a sibling test", async () => {
       const root = await makeRepo({
         "billing/rates.py": "DEFAULT = 0.2\n",
-        "billing/test_rates.py": "from .rates import DEFAULT\n\ndef test_d():\n    assert DEFAULT\n",
+        "billing/test_rates.py":
+          "from .rates import DEFAULT\n\ndef test_d():\n    assert DEFAULT\n",
       });
       const report = await context({ root, file: "billing/rates.py" });
       expect(report.likely_tests).toContain("billing/test_rates.py");
@@ -329,9 +317,7 @@ describe("context", () => {
       });
       expect(report.repo.root).toBe(join(monorepo, "packages/app"));
       expect(report.file).toBe("src/big.ts");
-      expect(
-        report.findings.some((f) => f.type === "large_function"),
-      ).toBe(true);
+      expect(report.findings.some((f) => f.type === "large_function")).toBe(true);
     });
 
     it("honours an explicit --root over the nearest package.json", async () => {
@@ -378,9 +364,7 @@ describe("context", () => {
       });
       // Strip the per-scan repo metadata (root absolute path differs by
       // assignment, not by content) and compare the substantive shape.
-      const stripIds = (
-        r: typeof monorepoReport,
-      ): { file: string; types: string[] } => ({
+      const stripIds = (r: typeof monorepoReport): { file: string; types: string[] } => ({
         file: r.file,
         types: r.findings.map((f) => f.type).sort(),
       });
@@ -400,9 +384,7 @@ describe("context", () => {
       const navPaths = report.related_files.map((r) => r.file);
       expect(navPaths).toContain("src/nav/registry.ts");
       expect(navPaths).toContain("src/nav/sidebar.ts");
-      const registry = report.related_files.find(
-        (r) => r.file === "src/nav/registry.ts",
-      );
+      const registry = report.related_files.find((r) => r.file === "src/nav/registry.ts");
       expect(registry?.reason).toContain("Route Metadata Drift");
     });
 
@@ -459,8 +441,7 @@ describe("context", () => {
       const root = await makeRepo({
         "package.json": JSON.stringify({ name: "app" }),
         "src/billing/invoice.ts": "export const x = 1;\n",
-        "src/billing/invoice.test.ts":
-          "import { x } from './invoice';\n",
+        "src/billing/invoice.test.ts": "import { x } from './invoice';\n",
         "src/billing/tax.ts": "export const y = 2;\n",
       });
       const report = await context({
@@ -655,12 +636,9 @@ describe("context — clues", () => {
     expect(result.clues?.test_gap).toBeDefined();
     expect(result.clues!.test_gap!.raw).toBeGreaterThanOrEqual(0);
     expect(result.clues!.test_gap!.percentile).toBeGreaterThanOrEqual(0);
-    expect([
-      "top-quartile",
-      "median",
-      "bottom-quartile",
-      "unknown",
-    ]).toContain(result.clues!.test_gap!.label);
+    expect(["top-quartile", "median", "bottom-quartile", "unknown"]).toContain(
+      result.clues!.test_gap!.label,
+    );
   });
 
   it("emits label='unknown' and omits percentile when fewer than 4 files are scanned", async () => {
@@ -771,9 +749,9 @@ describe("context — universal pack on unsupported extensions", () => {
   it("notes 'universal-pack findings only' when a universal detector fires", async () => {
     const root = await makeRepo({ "Button 2.rs": "// dup\n" });
     const report = await context({ root, file: "Button 2.rs" });
-    expect(
-      report.findings.some((f) => f.type === "finder_duplicate_filename"),
-    ).toBe(true);
+    expect(report.findings.some((f) => f.type === "finder_duplicate_filename")).toBe(
+      true,
+    );
     expect(report.agent_guidance_reason).toMatch(/no language pack claims \.rs files/);
     expect(report.agent_guidance_reason).toMatch(/universal-pack findings only/i);
   });

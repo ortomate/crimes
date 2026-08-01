@@ -14,7 +14,7 @@ export const dateStringConcatDetector: LanguageJsDetector = {
     "Flags string concatenation of Date method results — manual date " +
     "formatting that almost always misses padding, locale, or timezone.",
   whyItMatters:
-    "Hand-rolled date string building (`year + \"-\" + (month+1) + \"-\" + day`) " +
+    'Hand-rolled date string building (`year + "-" + (month+1) + "-" + day`) ' +
     "skips zero-padding, ignores timezones, and forgets that months are " +
     "zero-indexed. The output looks fine in dev and fails on day 1 of " +
     "January in production. `toISOString()` or `Intl.DateTimeFormat` give " +
@@ -27,9 +27,7 @@ export const dateStringConcatDetector: LanguageJsDetector = {
     if (!hits || hits.length === 0) return [];
 
     const severity: Severity = hits.length >= 3 ? "medium" : "low";
-    const sample = hits
-      .slice(0, 3)
-      .map((h) => `\`"…" + .${h.method}()\` @L${h.line}`);
+    const sample = hits.slice(0, 3).map((h) => `\`"…" + .${h.method}()\` @L${h.line}`);
     const lineList = hits.map((h) => h.line).slice(0, 10);
 
     const finding: Finding = {

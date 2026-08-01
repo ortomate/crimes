@@ -52,7 +52,9 @@ export function collectUiStringLiteral(
   ) {
     const value = propStringValue(node.right);
     if (value !== undefined) {
-      const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      const { line } = sourceFile.getLineAndCharacterOfPosition(
+        node.getStart(sourceFile),
+      );
       out.push({
         value,
         line: line + 1,
@@ -69,7 +71,9 @@ export function collectUiStringLiteral(
       const first = node.arguments[0];
       const value = first ? propStringValue(first) : undefined;
       if (value !== undefined) {
-        const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+        const { line } = sourceFile.getLineAndCharacterOfPosition(
+          node.getStart(sourceFile),
+        );
         out.push({
           value,
           line: line + 1,
@@ -94,7 +98,9 @@ export function collectUiStringLiteral(
       if (key !== "title") continue;
       const value = propStringValue(prop.initializer);
       if (value === undefined) continue;
-      const { line } = sourceFile.getLineAndCharacterOfPosition(prop.getStart(sourceFile));
+      const { line } = sourceFile.getLineAndCharacterOfPosition(
+        prop.getStart(sourceFile),
+      );
       out.push({
         value,
         line: line + 1,

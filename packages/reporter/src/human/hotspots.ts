@@ -1,8 +1,4 @@
-import type {
-  HighestSeverity,
-  Hotspot,
-  HotspotsReport,
-} from "@crimes/core";
+import type { HighestSeverity, Hotspot, HotspotsReport } from "@crimes/core";
 import type { ColourFns } from "./shared.js";
 import { pc, plainColour } from "./shared.js";
 
@@ -37,16 +33,13 @@ export function formatHotspotsReport(
 
   if (!report.git_available) {
     lines.push(
-      colour.yellow(
-        "  (not a git repo — ranking by findings only; no churn signal)",
-      ),
+      colour.yellow("  (not a git repo — ranking by findings only; no churn signal)"),
     );
   } else if (report.history_limited) {
     // Same warning line position as the not-a-git-repo notice — agents
     // and humans look here first when the ranking feels off.
     const reason =
-      report.history_limited_reason ??
-      "shallow clone — older commits are unavailable";
+      report.history_limited_reason ?? "shallow clone — older commits are unavailable";
     lines.push(colour.yellow(`  (history limited: ${reason})`));
   }
 
@@ -79,11 +72,7 @@ export function formatHotspotsReport(
   return lines.join("\n");
 }
 
-function renderHotspot(
-  h: Hotspot,
-  n: number,
-  colour: ColourFns,
-): string[] {
+function renderHotspot(h: Hotspot, n: number, colour: ColourFns): string[] {
   const out: string[] = [];
   out.push(
     `  ${colour.bold(`${n}.`)} ${colour.cyan(h.file)}  ${riskBadge(h.risk, colour)}`,

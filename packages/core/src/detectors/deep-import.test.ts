@@ -53,9 +53,7 @@ function makeCtx(file: string, graph: ImportGraph): LanguageJsDetectorContext {
 
 describe("deepImportDetector", () => {
   it("fires on an unscoped package's deep dist path", async () => {
-    const graph = makeGraph([
-      { from: "src/a.ts", specifier: "lib/dist/internal/x" },
-    ]);
+    const graph = makeGraph([{ from: "src/a.ts", specifier: "lib/dist/internal/x" }]);
     const findings = await deepImportDetector.run(makeCtx("src/a.ts", graph));
     expect(findings).toHaveLength(1);
     expect(findings[0]!.type).toBe("deep_import");
@@ -76,16 +74,19 @@ describe("deepImportDetector", () => {
   });
 
   it("does not fire on a shallow sub-export (`@scope/pkg/feature`)", async () => {
-    const graph = makeGraph([
-      { from: "src/a.ts", specifier: "@scope/pkg/feature" },
-    ]);
+    const graph = makeGraph([{ from: "src/a.ts", specifier: "@scope/pkg/feature" }]);
     const findings = await deepImportDetector.run(makeCtx("src/a.ts", graph));
     expect(findings).toEqual([]);
   });
 
   it("ignores relative imports", async () => {
     const graph = makeGraph([
-      { from: "src/a.ts", specifier: "./deep/path/to/file", external: false, to: "src/deep/path/to/file.ts" },
+      {
+        from: "src/a.ts",
+        specifier: "./deep/path/to/file",
+        external: false,
+        to: "src/deep/path/to/file.ts",
+      },
     ]);
     const findings = await deepImportDetector.run(makeCtx("src/a.ts", graph));
     expect(findings).toEqual([]);

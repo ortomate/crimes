@@ -55,7 +55,9 @@ describe("mock_saturation — positive cases", () => {
     const evidence = run(SATURATED)[0]!.evidence.join("\n");
     expect(evidence).toContain('test case: "chargeCustomer › charges the customer"');
     expect(evidence).toContain("subject under test: ./billing.js");
-    expect(evidence).toMatch(/mocked collaborators \(2\):.*\.\/db\.js \(no implementation\)/);
+    expect(evidence).toMatch(
+      /mocked collaborators \(2\):.*\.\/db\.js \(no implementation\)/,
+    );
     expect(evidence).toContain("mocked boundaries: database write, payment");
     expect(evidence).toContain(
       "assertion categories observed: mock_interaction (2 mock-interaction, 0 behavioural)",
@@ -202,22 +204,33 @@ describe("mock_saturation — configuration", () => {
   it("honours minMockedCollaborators", () => {
     expect(run(SATURATED)).toHaveLength(1);
     expect(
-      run(SATURATED, "src/services/billing.test.ts",
-        configWithOptions("mock_saturation", { minMockedCollaborators: 5 })),
+      run(
+        SATURATED,
+        "src/services/billing.test.ts",
+        configWithOptions("mock_saturation", { minMockedCollaborators: 5 }),
+      ),
     ).toHaveLength(0);
   });
 
   it("honours minMockedRatio", () => {
     expect(
-      run(SATURATED, "src/services/billing.test.ts",
-        configWithOptions("mock_saturation", { minMockedRatio: 1 })),
+      run(
+        SATURATED,
+        "src/services/billing.test.ts",
+        configWithOptions("mock_saturation", { minMockedRatio: 1 }),
+      ),
     ).toHaveLength(1);
   });
 
   it("honours alwaysAllowedMocks", () => {
     expect(
-      run(SATURATED, "src/services/billing.test.ts",
-        configWithOptions("mock_saturation", { alwaysAllowedMocks: ["./db.js", "./stripe.js"] })),
+      run(
+        SATURATED,
+        "src/services/billing.test.ts",
+        configWithOptions("mock_saturation", {
+          alwaysAllowedMocks: ["./db.js", "./stripe.js"],
+        }),
+      ),
     ).toHaveLength(0);
   });
 

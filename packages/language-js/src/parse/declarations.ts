@@ -1,9 +1,5 @@
 import ts from "typescript";
-import type {
-  DeclarationKind,
-  InitializerKind,
-  TypedDeclaration,
-} from "./types.js";
+import type { DeclarationKind, InitializerKind, TypedDeclaration } from "./types.js";
 
 /**
  * Walk every variable declaration, function parameter, and class
@@ -81,9 +77,7 @@ function typeText(annotation: ts.TypeNode | undefined): string | undefined {
   return annotation.getText().replace(/\s+/g, " ").trim();
 }
 
-function initializerKindOf(
-  expr: ts.Expression | undefined,
-): InitializerKind | undefined {
+function initializerKindOf(expr: ts.Expression | undefined): InitializerKind | undefined {
   if (!expr) return undefined;
   // Unwrap parens — `(true)` is still a boolean literal.
   let node: ts.Expression = expr;

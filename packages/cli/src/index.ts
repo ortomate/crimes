@@ -28,10 +28,7 @@ program
   )
   .version(__CRIMES_VERSION__)
   .option("--no-init", "suppress the first-run auto-init prompt")
-  .option(
-    "--init",
-    "force the first-run auto-init prompt even if config exists",
-  )
+  .option("--init", "force the first-run auto-init prompt even if config exists")
   .hook("preAction", async (_thisCommand, actionCommand) => {
     const name = actionCommand.name();
     const opts = program.opts<{ init?: boolean; noInit?: boolean }>();

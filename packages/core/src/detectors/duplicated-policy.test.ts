@@ -14,10 +14,7 @@ import type { CrimesConfig } from "../config.js";
  * lexicographically first file of each clone group. `runOn` scans every
  * file so a test never has to know which file that is.
  */
-async function runOn(
-  repo: TestRepo,
-  config?: CrimesConfig,
-): Promise<PreFinding[]> {
+async function runOn(repo: TestRepo, config?: CrimesConfig): Promise<PreFinding[]> {
   const out: PreFinding[] = [];
   for (const absolutePath of repo.files) {
     const file = absolutePath.slice(repo.root.length + 1);
@@ -107,7 +104,9 @@ describe("duplicated_policy — positive cases", () => {
 
     const evidence = findings[0]!.evidence.join("\n");
     expect(evidence).toContain("3 variants of one rule shape");
-    expect(evidence).toMatch(/difference: one side tests "admin", the other tests "member"/);
+    expect(evidence).toMatch(
+      /difference: one side tests "admin", the other tests "member"/,
+    );
     expect(findings[0]!.related_files).toEqual(["src/b.ts", "src/c.ts"]);
   });
 

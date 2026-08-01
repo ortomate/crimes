@@ -38,7 +38,9 @@ export interface BuildPettyIndexOptions {
   files: string[];
 }
 
-export async function buildPettyIndex(options: BuildPettyIndexOptions): Promise<PettyIndex> {
+export async function buildPettyIndex(
+  options: BuildPettyIndexOptions,
+): Promise<PettyIndex> {
   const root = resolve(options.root);
   const domainLiterals: Record<string, PettyLiteralHit[]> = {};
 
@@ -107,7 +109,10 @@ function looksLikeImportOrPath(value: string, lineText: string): boolean {
 function looksLikeClassName(value: string, lineText: string): boolean {
   if (/className\s*=/.test(lineText)) return true;
   const parts = value.split(/\s+/);
-  return parts.length >= 2 && parts.every((part) => /^[a-z][a-z0-9-]*(?::[a-z0-9-]+)?$/.test(part));
+  return (
+    parts.length >= 2 &&
+    parts.every((part) => /^[a-z][a-z0-9-]*(?::[a-z0-9-]+)?$/.test(part))
+  );
 }
 
 function looksLikeProse(value: string): boolean {
@@ -118,12 +123,16 @@ function looksLikeProse(value: string): boolean {
 }
 
 function isExportedConstantLine(lineText: string): boolean {
-  return /^\s*export\s+const\s+[A-Z0-9_]+\s*=/.test(lineText) ||
+  return (
+    /^\s*export\s+const\s+[A-Z0-9_]+\s*=/.test(lineText) ||
     /^\s*export\s+const\s+[a-zA-Z_$][\w$]*\s*=/.test(lineText) ||
-    /^\s*export\s+enum\s+/.test(lineText);
+    /^\s*export\s+enum\s+/.test(lineText)
+  );
 }
 
-function sortLiteralHits(hits: Record<string, PettyLiteralHit[]>): Record<string, PettyLiteralHit[]> {
+function sortLiteralHits(
+  hits: Record<string, PettyLiteralHit[]>,
+): Record<string, PettyLiteralHit[]> {
   const sorted: Record<string, PettyLiteralHit[]> = {};
   for (const key of Object.keys(hits).sort()) {
     sorted[key] = hits[key]!.sort((a, b) => {

@@ -100,9 +100,7 @@ export function collectEnvRead(
     line: startLineOf(node, sourceFile),
     required: context.required,
     ...(context.parser !== undefined ? { parser: context.parser } : {}),
-    ...(context.defaultValue !== undefined
-      ? { defaultValue: context.defaultValue }
-      : {}),
+    ...(context.defaultValue !== undefined ? { defaultValue: context.defaultValue } : {}),
     ...unitOf(access.name),
     ...publicOf(access.name),
     ...enclosingName(node, sourceFile, functions),
@@ -204,10 +202,7 @@ function describeContext(node: ts.Node, sourceFile: ts.SourceFile): ReadContext 
       continue;
     }
 
-    if (
-      ts.isPrefixUnaryExpression(cur) &&
-      cur.operator === ts.SyntaxKind.PlusToken
-    ) {
+    if (ts.isPrefixUnaryExpression(cur) && cur.operator === ts.SyntaxKind.PlusToken) {
       // Unary `+process.env.PORT` is a numeric coercion.
       context.parser ??= "number";
       child = cur;

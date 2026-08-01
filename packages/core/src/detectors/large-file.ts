@@ -84,8 +84,7 @@ export const largeFileDetector: UniversalDetector = {
     if (lines <= policy.threshold) return [];
 
     const ratio = lines / policy.threshold;
-    const severity =
-      ratio >= 2 ? policy.severityAtTwoX : policy.severityAtThreshold;
+    const severity = ratio >= 2 ? policy.severityAtTwoX : policy.severityAtThreshold;
     const confidence = Math.min(0.7 + (ratio - 1) * 0.15, 0.95);
 
     const isDomain = shape === "domain";
@@ -118,10 +117,7 @@ export const largeFileDetector: UniversalDetector = {
         severity: severityScore(severity),
         confidence: round(confidence),
         agent_risk: round(
-          Math.min(
-            0.45 * policy.agentRiskScale + (ratio - 1) * 0.18,
-            0.9,
-          ),
+          Math.min(0.45 * policy.agentRiskScale + (ratio - 1) * 0.18, 0.9),
         ),
       },
       suggested_actions: [

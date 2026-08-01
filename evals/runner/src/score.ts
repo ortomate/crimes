@@ -191,15 +191,49 @@ function extractReferencedDetectorIds(
  */
 const SCORED_FILE_EXTENSIONS = [
   // JS / TS
-  "ts", "tsx", "js", "jsx", "mjs", "cjs", "cts", "mts",
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "mjs",
+  "cjs",
+  "cts",
+  "mts",
   // Python
-  "py", "pyi",
+  "py",
+  "pyi",
   // Other languages, ahead of their packs
-  "rs", "go", "rb", "java", "kt", "swift", "c", "h", "cpp", "cs", "php",
+  "rs",
+  "go",
+  "rb",
+  "java",
+  "kt",
+  "swift",
+  "c",
+  "h",
+  "cpp",
+  "cs",
+  "php",
   // Config / text
-  "md", "mdx", "json", "yml", "yaml", "toml", "cfg", "ini", "css", "scss", "html",
+  "md",
+  "mdx",
+  "json",
+  "yml",
+  "yaml",
+  "toml",
+  "cfg",
+  "ini",
+  "css",
+  "scss",
+  "html",
   // Assets (0.8.0)
-  "png", "jpg", "jpeg", "gif", "webp", "avif", "svg",
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "avif",
+  "svg",
 ] as const;
 
 /**
@@ -209,10 +243,7 @@ const SCORED_FILE_EXTENSIONS = [
  */
 function extractFilePaths(response: string): Set<string> {
   const found = new Set<string>();
-  const re = new RegExp(
-    `[\\w./-]+\\.(?:${SCORED_FILE_EXTENSIONS.join("|")})\\b`,
-    "g",
-  );
+  const re = new RegExp(`[\\w./-]+\\.(?:${SCORED_FILE_EXTENSIONS.join("|")})\\b`, "g");
   for (const m of response.matchAll(re)) found.add(m[0]);
   return found;
 }

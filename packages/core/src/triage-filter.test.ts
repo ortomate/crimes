@@ -45,11 +45,9 @@ describe("applyTriageFilter", () => {
 
   it("annotates visible findings with fix-now disposition", () => {
     const findings = [makeFinding()];
-    const result = applyTriageFilter(
-      findings,
-      [makeEntry({ disposition: "fix-now" })],
-      { showTriaged: false },
-    );
+    const result = applyTriageFilter(findings, [makeEntry({ disposition: "fix-now" })], {
+      showTriaged: false,
+    });
     expect(result.findings).toHaveLength(1);
     expect(result.findings[0]!.triaged?.disposition).toBe("fix-now");
     expect(result.findings[0]!.triaged?.reason).toBe("legacy");
@@ -96,10 +94,7 @@ describe("applyTriageFilter", () => {
   });
 
   it("counts multiple hidden findings correctly", () => {
-    const findings = [
-      makeFinding({ symbol: "a" }),
-      makeFinding({ symbol: "b" }),
-    ];
+    const findings = [makeFinding({ symbol: "a" }), makeFinding({ symbol: "b" })];
     const entries = [
       makeEntry({ fingerprint: "large_function::src/foo.ts::a", symbol: "a" }),
       makeEntry({ fingerprint: "large_function::src/foo.ts::b", symbol: "b" }),

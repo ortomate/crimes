@@ -4,7 +4,9 @@ import type { LanguageJsDetectorContext } from "../detector.js";
 import type { ImportEdge, ImportGraph } from "../imports/types.js";
 import { layerViolationDetector } from "./layer-violation.js";
 
-function makeGraph(edges: Omit<ImportEdge, "external" | "typeOnly" | "dynamic">[]): ImportGraph {
+function makeGraph(
+  edges: Omit<ImportEdge, "external" | "typeOnly" | "dynamic">[],
+): ImportGraph {
   const out = new Map<string, ImportEdge[]>();
   const inMap = new Map<string, ImportEdge[]>();
   const files = new Set<string>();

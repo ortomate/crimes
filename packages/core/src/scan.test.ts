@@ -120,9 +120,7 @@ describe("scan", () => {
       description: "test-only detector that captures ctx.ia state",
       whyItMatters: "",
       pack: "language-js" as const,
-      run(ctx: {
-        ia?: { routes: { routePath: string }[] };
-      }) {
+      run(ctx: { ia?: { routes: { routePath: string }[] } }) {
         seen.push({
           hasIa: ctx.ia !== undefined,
           routes: (ctx.ia?.routes ?? []).map((r) => r.routePath),
@@ -131,8 +129,7 @@ describe("scan", () => {
       },
     } as const;
     const root = await makeRepo({
-      "src/pages/settings/billing.tsx":
-        `export default function PricingPage() { return null; }\n`,
+      "src/pages/settings/billing.tsx": `export default function PricingPage() { return null; }\n`,
     });
     await scan({ root, detectors: [sniffer] });
     expect(seen.length).toBe(1);
@@ -295,10 +292,7 @@ describe("scan", () => {
   });
 });
 
-function makeFinding(
-  severity: Finding["severity"],
-  i = 1,
-): Finding {
+function makeFinding(severity: Finding["severity"], i = 1): Finding {
   return {
     id: `crime_${String(i).padStart(5, "0")}`,
     type: "large_function",
@@ -379,50 +373,46 @@ async function commitFile(
 }
 
 describe("scan — tier tagging and rank_score order", () => {
-  it(
-    "tags findings with tier based on scopeTiers and sorts by rank_score desc",
-    { timeout: 30_000 },
-    async () => {
-      const dir = await makeRepo({
-        "src/hot.ts": longFunctionFixture("hotFn"),
-        "scripts/probe.ts": longFunctionFixture("probeFn"),
-        "src/cold.ts": longFunctionFixture("coldFn"),
-        "crimes.config.json": JSON.stringify({
-          scopeTiers: { nonDomain: ["scripts/**"] },
-        }),
-      });
-      await initRepo(dir);
-      // Touch hot.ts with a fresh commit to bump its recency.
-      await commitFile(
-        dir,
-        "src/hot.ts",
-        longFunctionFixture("hotFn") + "\n// touch\n",
-        "touch hot",
-      );
+  it("tags findings with tier based on scopeTiers and sorts by rank_score desc", {
+    timeout: 30_000,
+  }, async () => {
+    const dir = await makeRepo({
+      "src/hot.ts": longFunctionFixture("hotFn"),
+      "scripts/probe.ts": longFunctionFixture("probeFn"),
+      "src/cold.ts": longFunctionFixture("coldFn"),
+      "crimes.config.json": JSON.stringify({
+        scopeTiers: { nonDomain: ["scripts/**"] },
+      }),
+    });
+    await initRepo(dir);
+    // Touch hot.ts with a fresh commit to bump its recency.
+    await commitFile(
+      dir,
+      "src/hot.ts",
+      longFunctionFixture("hotFn") + "\n// touch\n",
+      "touch hot",
+    );
 
-      const config = loadConfig(dir);
-      const report = await scan({ root: dir, config });
+    const config = loadConfig(dir);
+    const report = await scan({ root: dir, config });
 
-      const hot = report.findings.find((f) => f.file === "src/hot.ts");
-      const probe = report.findings.find((f) => f.file === "scripts/probe.ts");
-      const cold = report.findings.find((f) => f.file === "src/cold.ts");
+    const hot = report.findings.find((f) => f.file === "src/hot.ts");
+    const probe = report.findings.find((f) => f.file === "scripts/probe.ts");
+    const cold = report.findings.find((f) => f.file === "src/cold.ts");
 
-      expect(hot?.tier).toBe("domain");
-      expect(probe?.tier).toBe("nonDomain");
-      expect(cold?.tier).toBe("domain");
+    expect(hot?.tier).toBe("domain");
+    expect(probe?.tier).toBe("nonDomain");
+    expect(cold?.tier).toBe("domain");
 
-      // hot.ts was committed recently → recency 1.0 → rank_score = agent_risk * 1.5
-      // cold.ts was only in the back-dated init commit → recency 0 → rank_score = agent_risk * 1.0
-      // Hot must appear before cold even if agent_risks were equal.
-      const hotIdx = report.findings.findIndex((f) => f.file === "src/hot.ts");
-      const coldIdx = report.findings.findIndex(
-        (f) => f.file === "src/cold.ts",
-      );
-      expect(hotIdx).toBeGreaterThanOrEqual(0);
-      expect(coldIdx).toBeGreaterThanOrEqual(0);
-      expect(hotIdx).toBeLessThan(coldIdx);
-    },
-  );
+    // hot.ts was committed recently → recency 1.0 → rank_score = agent_risk * 1.5
+    // cold.ts was only in the back-dated init commit → recency 0 → rank_score = agent_risk * 1.0
+    // Hot must appear before cold even if agent_risks were equal.
+    const hotIdx = report.findings.findIndex((f) => f.file === "src/hot.ts");
+    const coldIdx = report.findings.findIndex((f) => f.file === "src/cold.ts");
+    expect(hotIdx).toBeGreaterThanOrEqual(0);
+    expect(coldIdx).toBeGreaterThanOrEqual(0);
+    expect(hotIdx).toBeLessThan(coldIdx);
+  });
 });
 
 describe("applyScanFailOn", () => {
@@ -449,21 +439,19 @@ describe("applyScanFailOn", () => {
     expect(applyScanFailOn(makeReport([makeFinding("low")]), "medium").failed).toBe(
       false,
     );
-    expect(
-      applyScanFailOn(makeReport([makeFinding("medium")]), "medium").failed,
-    ).toBe(true);
-    expect(
-      applyScanFailOn(makeReport([makeFinding("high")]), "medium").failed,
-    ).toBe(true);
+    expect(applyScanFailOn(makeReport([makeFinding("medium")]), "medium").failed).toBe(
+      true,
+    );
+    expect(applyScanFailOn(makeReport([makeFinding("high")]), "medium").failed).toBe(
+      true,
+    );
   });
 
   it("threshold 'high' only fails on high findings", () => {
-    expect(
-      applyScanFailOn(makeReport([makeFinding("medium")]), "high").failed,
-    ).toBe(false);
-    expect(
-      applyScanFailOn(makeReport([makeFinding("high")]), "high").failed,
-    ).toBe(true);
+    expect(applyScanFailOn(makeReport([makeFinding("medium")]), "high").failed).toBe(
+      false,
+    );
+    expect(applyScanFailOn(makeReport([makeFinding("high")]), "high").failed).toBe(true);
   });
 
   it("returns failed=false when the report has no findings", () => {
@@ -485,11 +473,7 @@ describe("applyScanFailOn", () => {
 
 describe("tagTierAndSortByRankScore — recencyEnabled: false", () => {
   /** Synthetic finding with explicit agent_risk and recency scores. */
-  function makeScoredFinding(
-    file: string,
-    agentRisk: number,
-    recency: number,
-  ): Finding {
+  function makeScoredFinding(file: string, agentRisk: number, recency: number): Finding {
     return {
       id: "crime_00001",
       type: "large_function",
@@ -517,7 +501,7 @@ describe("tagTierAndSortByRankScore — recencyEnabled: false", () => {
   const emptyConfig = loadConfig("/nonexistent/path");
 
   it("recencyEnabled: true (default) ranks high-recency finding above low-recency when agent_risk equal", () => {
-    const hot = makeScoredFinding("hot.ts", 0.8, 1.0);  // rank = 0.8 * 1.5 = 1.2
+    const hot = makeScoredFinding("hot.ts", 0.8, 1.0); // rank = 0.8 * 1.5 = 1.2
     const cold = makeScoredFinding("cold.ts", 0.8, 0.0); // rank = 0.8 * 1.0 = 0.8
     const findings = [cold, hot];
     tagTierAndSortByRankScore(findings, emptyConfig, { recencyEnabled: true });
@@ -526,7 +510,7 @@ describe("tagTierAndSortByRankScore — recencyEnabled: false", () => {
   });
 
   it("recencyEnabled: false collapses multiplier — findings with equal agent_risk sort by tiebreaker (file asc)", () => {
-    const hot = makeScoredFinding("hot.ts", 0.8, 1.0);  // rank = 0.8 * 1.0 = 0.8
+    const hot = makeScoredFinding("hot.ts", 0.8, 1.0); // rank = 0.8 * 1.0 = 0.8
     const cold = makeScoredFinding("cold.ts", 0.8, 0.0); // rank = 0.8 * 1.0 = 0.8
     const findings = [hot, cold];
     tagTierAndSortByRankScore(findings, emptyConfig, { recencyEnabled: false });
@@ -537,200 +521,192 @@ describe("tagTierAndSortByRankScore — recencyEnabled: false", () => {
 });
 
 describe("scan — resurfacing", () => {
-  it(
-    "emits previously_triaged findings at the start of findings[] on a touched file",
-    { timeout: 30_000 },
-    async () => {
-      const root = await makeRepo({
-        "src/big.ts": longFunctionFixture("doStuff"),
-      });
-      await git(root, "init", "--initial-branch=main", "--quiet");
-      await git(root, "add", "-A");
-      await git(root, "commit", "-m", "init", "--quiet");
+  it("emits previously_triaged findings at the start of findings[] on a touched file", {
+    timeout: 30_000,
+  }, async () => {
+    const root = await makeRepo({
+      "src/big.ts": longFunctionFixture("doStuff"),
+    });
+    await git(root, "init", "--initial-branch=main", "--quiet");
+    await git(root, "add", "-A");
+    await git(root, "commit", "-m", "init", "--quiet");
 
-      // Run a scan to find the fingerprint of the target finding.
-      const initial = await scan({ root });
-      const target = initial.findings.find(
-        (f) => f.file === "src/big.ts" && f.symbol === "doStuff",
-      );
-      expect(target).toBeDefined();
-      const print = `${target!.type}::${target!.file}::${target!.symbol ?? ""}`;
+    // Run a scan to find the fingerprint of the target finding.
+    const initial = await scan({ root });
+    const target = initial.findings.find(
+      (f) => f.file === "src/big.ts" && f.symbol === "doStuff",
+    );
+    expect(target).toBeDefined();
+    const print = `${target!.type}::${target!.file}::${target!.symbol ?? ""}`;
 
-      // Write .crimes/triage.json with that fingerprint marked wont-fix.
-      const triagePath = join(root, ".crimes", "triage.json");
-      await mkdir(dirname(triagePath), { recursive: true });
-      await writeFile(
-        triagePath,
-        JSON.stringify({
-          schema_version: "0.2.0",
-          report_type: "triage",
-          created_at: "2026-05-20T14:00:00Z",
-          updated_at: "2026-05-20T14:00:00Z",
-          entries: [
-            {
-              fingerprint: print,
-              type: target!.type,
-              file: target!.file,
-              symbol: target!.symbol,
-              disposition: "wont-fix",
-              reason: "legacy billing",
-              owner: "@amayfield",
-              date: "2026-04-12",
-            },
-          ],
-        }),
-        "utf8",
-      );
+    // Write .crimes/triage.json with that fingerprint marked wont-fix.
+    const triagePath = join(root, ".crimes", "triage.json");
+    await mkdir(dirname(triagePath), { recursive: true });
+    await writeFile(
+      triagePath,
+      JSON.stringify({
+        schema_version: "0.2.0",
+        report_type: "triage",
+        created_at: "2026-05-20T14:00:00Z",
+        updated_at: "2026-05-20T14:00:00Z",
+        entries: [
+          {
+            fingerprint: print,
+            type: target!.type,
+            file: target!.file,
+            symbol: target!.symbol,
+            disposition: "wont-fix",
+            reason: "legacy billing",
+            owner: "@amayfield",
+            date: "2026-04-12",
+          },
+        ],
+      }),
+      "utf8",
+    );
 
-      // Switch to a feature branch and touch the file (so it's in the diff).
-      await git(root, "checkout", "-b", "feature", "--quiet");
-      await writeFile(
-        join(root, "src/big.ts"),
-        longFunctionFixture("doStuff") + "\n// touched\n",
-        "utf8",
-      );
+    // Switch to a feature branch and touch the file (so it's in the diff).
+    await git(root, "checkout", "-b", "feature", "--quiet");
+    await writeFile(
+      join(root, "src/big.ts"),
+      longFunctionFixture("doStuff") + "\n// touched\n",
+      "utf8",
+    );
 
-      const report = await scan({ root });
-      expect(report.findings[0]!.previously_triaged).toBe(true);
-      expect(report.findings[0]!.previous_triage?.disposition).toBe("wont-fix");
-      expect(report.findings[0]!.previous_triage?.reason).toBe("legacy billing");
-    },
-  );
+    const report = await scan({ root });
+    expect(report.findings[0]!.previously_triaged).toBe(true);
+    expect(report.findings[0]!.previous_triage?.disposition).toBe("wont-fix");
+    expect(report.findings[0]!.previous_triage?.reason).toBe("legacy billing");
+  });
 
-  it(
-    "skips resurfacing silently when not in a git repo",
-    { timeout: 15_000 },
-    async () => {
-      const root = await makeRepo({
-        "src/big.ts": longFunctionFixture("doStuff"),
-      });
-      // No git init — scan should still work and the report should NOT
-      // contain previously_triaged annotations.
-      const triagePath = join(root, ".crimes", "triage.json");
-      await mkdir(dirname(triagePath), { recursive: true });
-      await writeFile(
-        triagePath,
-        JSON.stringify({
-          schema_version: "0.2.0",
-          report_type: "triage",
-          created_at: "2026-05-20T14:00:00Z",
-          updated_at: "2026-05-20T14:00:00Z",
-          entries: [], // empty, but the file exists
-        }),
-        "utf8",
-      );
-      const report = await scan({ root });
-      expect(report.findings.every((f) => !f.previously_triaged)).toBe(true);
-    },
-  );
+  it("skips resurfacing silently when not in a git repo", {
+    timeout: 15_000,
+  }, async () => {
+    const root = await makeRepo({
+      "src/big.ts": longFunctionFixture("doStuff"),
+    });
+    // No git init — scan should still work and the report should NOT
+    // contain previously_triaged annotations.
+    const triagePath = join(root, ".crimes", "triage.json");
+    await mkdir(dirname(triagePath), { recursive: true });
+    await writeFile(
+      triagePath,
+      JSON.stringify({
+        schema_version: "0.2.0",
+        report_type: "triage",
+        created_at: "2026-05-20T14:00:00Z",
+        updated_at: "2026-05-20T14:00:00Z",
+        entries: [], // empty, but the file exists
+      }),
+      "utf8",
+    );
+    const report = await scan({ root });
+    expect(report.findings.every((f) => !f.previously_triaged)).toBe(true);
+  });
 
-  it(
-    "skips resurfacing when config.triage.resurfaceBase is empty string",
-    { timeout: 30_000 },
-    async () => {
-      // Setup: git repo with a triage entry on a touched file, but
-      // crimes.config.json explicitly sets triage.resurfaceBase = "".
-      const root = await makeRepo({
-        "src/big.ts": longFunctionFixture("doStuff"),
-        "crimes.config.json": JSON.stringify({
-          triage: { resurfaceBase: "" },
-        }),
-      });
-      await git(root, "init", "--initial-branch=main", "--quiet");
-      await git(root, "add", "-A");
-      await git(root, "commit", "-m", "init", "--quiet");
+  it("skips resurfacing when config.triage.resurfaceBase is empty string", {
+    timeout: 30_000,
+  }, async () => {
+    // Setup: git repo with a triage entry on a touched file, but
+    // crimes.config.json explicitly sets triage.resurfaceBase = "".
+    const root = await makeRepo({
+      "src/big.ts": longFunctionFixture("doStuff"),
+      "crimes.config.json": JSON.stringify({
+        triage: { resurfaceBase: "" },
+      }),
+    });
+    await git(root, "init", "--initial-branch=main", "--quiet");
+    await git(root, "add", "-A");
+    await git(root, "commit", "-m", "init", "--quiet");
 
-      const initial = await scan({ root });
-      const target = initial.findings[0]!;
-      const print = `${target.type}::${target.file}::${target.symbol ?? ""}`;
+    const initial = await scan({ root });
+    const target = initial.findings[0]!;
+    const print = `${target.type}::${target.file}::${target.symbol ?? ""}`;
 
-      const triagePath = join(root, ".crimes", "triage.json");
-      await mkdir(dirname(triagePath), { recursive: true });
-      await writeFile(
-        triagePath,
-        JSON.stringify({
-          schema_version: "0.2.0",
-          report_type: "triage",
-          created_at: "2026-05-20T14:00:00Z",
-          updated_at: "2026-05-20T14:00:00Z",
-          entries: [
-            {
-              fingerprint: print,
-              type: target.type,
-              file: target.file,
-              ...(target.symbol ? { symbol: target.symbol } : {}),
-              disposition: "wont-fix",
-              reason: "ok",
-              owner: "@a",
-              date: "2026-05-20",
-            },
-          ],
-        }),
-        "utf8",
-      );
+    const triagePath = join(root, ".crimes", "triage.json");
+    await mkdir(dirname(triagePath), { recursive: true });
+    await writeFile(
+      triagePath,
+      JSON.stringify({
+        schema_version: "0.2.0",
+        report_type: "triage",
+        created_at: "2026-05-20T14:00:00Z",
+        updated_at: "2026-05-20T14:00:00Z",
+        entries: [
+          {
+            fingerprint: print,
+            type: target.type,
+            file: target.file,
+            ...(target.symbol ? { symbol: target.symbol } : {}),
+            disposition: "wont-fix",
+            reason: "ok",
+            owner: "@a",
+            date: "2026-05-20",
+          },
+        ],
+      }),
+      "utf8",
+    );
 
-      await git(root, "checkout", "-b", "feature", "--quiet");
-      await writeFile(
-        join(root, "src/big.ts"),
-        longFunctionFixture("doStuff") + "\n// touched\n",
-        "utf8",
-      );
+    await git(root, "checkout", "-b", "feature", "--quiet");
+    await writeFile(
+      join(root, "src/big.ts"),
+      longFunctionFixture("doStuff") + "\n// touched\n",
+      "utf8",
+    );
 
-      const report = await scan({ root });
-      expect(report.findings.every((f) => !f.previously_triaged)).toBe(true);
-    },
-  );
+    const report = await scan({ root });
+    expect(report.findings.every((f) => !f.previously_triaged)).toBe(true);
+  });
 
-  it(
-    "drops resurfaced entries whose re-detect produces no match",
-    { timeout: 30_000 },
-    async () => {
-      // Triage entry references a fingerprint that doesn't exist in the
-      // file's current findings (e.g. symbol renamed). collectResurfaced
-      // drops it silently — no annotation in the report.
-      const root = await makeRepo({
-        "src/big.ts": longFunctionFixture("renamedFunction"),
-      });
-      await git(root, "init", "--initial-branch=main", "--quiet");
-      await git(root, "add", "-A");
-      await git(root, "commit", "-m", "init", "--quiet");
+  it("drops resurfaced entries whose re-detect produces no match", {
+    timeout: 30_000,
+  }, async () => {
+    // Triage entry references a fingerprint that doesn't exist in the
+    // file's current findings (e.g. symbol renamed). collectResurfaced
+    // drops it silently — no annotation in the report.
+    const root = await makeRepo({
+      "src/big.ts": longFunctionFixture("renamedFunction"),
+    });
+    await git(root, "init", "--initial-branch=main", "--quiet");
+    await git(root, "add", "-A");
+    await git(root, "commit", "-m", "init", "--quiet");
 
-      const triagePath = join(root, ".crimes", "triage.json");
-      await mkdir(dirname(triagePath), { recursive: true });
-      await writeFile(
-        triagePath,
-        JSON.stringify({
-          schema_version: "0.2.0",
-          report_type: "triage",
-          created_at: "2026-05-20T14:00:00Z",
-          updated_at: "2026-05-20T14:00:00Z",
-          entries: [
-            {
-              fingerprint: "large_function::src/big.ts::oldFunctionName",
-              type: "large_function",
-              file: "src/big.ts",
-              symbol: "oldFunctionName",
-              disposition: "wont-fix",
-              reason: "ok",
-              owner: "@a",
-              date: "2026-05-20",
-            },
-          ],
-        }),
-        "utf8",
-      );
+    const triagePath = join(root, ".crimes", "triage.json");
+    await mkdir(dirname(triagePath), { recursive: true });
+    await writeFile(
+      triagePath,
+      JSON.stringify({
+        schema_version: "0.2.0",
+        report_type: "triage",
+        created_at: "2026-05-20T14:00:00Z",
+        updated_at: "2026-05-20T14:00:00Z",
+        entries: [
+          {
+            fingerprint: "large_function::src/big.ts::oldFunctionName",
+            type: "large_function",
+            file: "src/big.ts",
+            symbol: "oldFunctionName",
+            disposition: "wont-fix",
+            reason: "ok",
+            owner: "@a",
+            date: "2026-05-20",
+          },
+        ],
+      }),
+      "utf8",
+    );
 
-      await git(root, "checkout", "-b", "feature", "--quiet");
-      await writeFile(
-        join(root, "src/big.ts"),
-        longFunctionFixture("renamedFunction") + "\n// touched\n",
-        "utf8",
-      );
+    await git(root, "checkout", "-b", "feature", "--quiet");
+    await writeFile(
+      join(root, "src/big.ts"),
+      longFunctionFixture("renamedFunction") + "\n// touched\n",
+      "utf8",
+    );
 
-      const report = await scan({ root });
-      expect(report.findings.every((f) => !f.previously_triaged)).toBe(true);
-    },
-  );
+    const report = await scan({ root });
+    expect(report.findings.every((f) => !f.previously_triaged)).toBe(true);
+  });
 });
 
 describe("applyTriageToScan", () => {
@@ -751,77 +727,71 @@ describe("applyTriageToScan", () => {
     return entry;
   }
 
-  it(
-    "removes findings matched by a silencing disposition and decrements summary",
-    { timeout: 30_000 },
-    async () => {
-      const root = await makeRepo({
-        "src/big.ts": longFunctionFixture("doStuff"),
-      });
-      const report = await scan({ root });
-      expect(report.findings.length).toBeGreaterThan(0);
+  it("removes findings matched by a silencing disposition and decrements summary", {
+    timeout: 30_000,
+  }, async () => {
+    const root = await makeRepo({
+      "src/big.ts": longFunctionFixture("doStuff"),
+    });
+    const report = await scan({ root });
+    expect(report.findings.length).toBeGreaterThan(0);
 
-      const target = report.findings[0]!;
-      const triage: TriageEntry[] = [triageEntryFor(target, "wont-fix")];
+    const target = report.findings[0]!;
+    const triage: TriageEntry[] = [triageEntryFor(target, "wont-fix")];
 
-      const filtered = applyTriageToScan(report, triage, { showTriaged: false });
-      const stillThere = filtered.findings.find(
-        (f) => fingerprintFinding(f) === fingerprintFinding(target),
-      );
-      expect(stillThere).toBeUndefined();
-      expect(filtered.summary.total).toBe(report.summary.total - 1);
-      expect(filtered.triage_hidden_count).toBe(1);
-    },
-  );
+    const filtered = applyTriageToScan(report, triage, { showTriaged: false });
+    const stillThere = filtered.findings.find(
+      (f) => fingerprintFinding(f) === fingerprintFinding(target),
+    );
+    expect(stillThere).toBeUndefined();
+    expect(filtered.summary.total).toBe(report.summary.total - 1);
+    expect(filtered.triage_hidden_count).toBe(1);
+  });
 
-  it(
-    "showTriaged: true keeps silenced findings visible with hidden_triage and no count",
-    { timeout: 30_000 },
-    async () => {
-      const root = await makeRepo({
-        "src/big.ts": longFunctionFixture("doStuff"),
-      });
-      const report = await scan({ root });
-      expect(report.findings.length).toBeGreaterThan(0);
+  it("showTriaged: true keeps silenced findings visible with hidden_triage and no count", {
+    timeout: 30_000,
+  }, async () => {
+    const root = await makeRepo({
+      "src/big.ts": longFunctionFixture("doStuff"),
+    });
+    const report = await scan({ root });
+    expect(report.findings.length).toBeGreaterThan(0);
 
-      const target = report.findings[0]!;
-      const triage: TriageEntry[] = [triageEntryFor(target, "needs-design")];
+    const target = report.findings[0]!;
+    const triage: TriageEntry[] = [triageEntryFor(target, "needs-design")];
 
-      const filtered = applyTriageToScan(report, triage, { showTriaged: true });
-      const stillThere = filtered.findings.find(
-        (f) => fingerprintFinding(f) === fingerprintFinding(target),
-      );
-      expect(stillThere).toBeDefined();
-      expect(stillThere!.hidden_triage?.disposition).toBe("needs-design");
-      expect(filtered.summary.total).toBe(report.summary.total);
-      // triage_hidden_count only set when entries were actually hidden;
-      // showTriaged: true preserves them so the count stays absent.
-      expect(filtered.triage_hidden_count).toBeUndefined();
-    },
-  );
+    const filtered = applyTriageToScan(report, triage, { showTriaged: true });
+    const stillThere = filtered.findings.find(
+      (f) => fingerprintFinding(f) === fingerprintFinding(target),
+    );
+    expect(stillThere).toBeDefined();
+    expect(stillThere!.hidden_triage?.disposition).toBe("needs-design");
+    expect(filtered.summary.total).toBe(report.summary.total);
+    // triage_hidden_count only set when entries were actually hidden;
+    // showTriaged: true preserves them so the count stays absent.
+    expect(filtered.triage_hidden_count).toBeUndefined();
+  });
 
-  it(
-    "keeps fix-now findings visible with the triaged annotation",
-    { timeout: 30_000 },
-    async () => {
-      const root = await makeRepo({
-        "src/big.ts": longFunctionFixture("doStuff"),
-      });
-      const report = await scan({ root });
-      expect(report.findings.length).toBeGreaterThan(0);
+  it("keeps fix-now findings visible with the triaged annotation", {
+    timeout: 30_000,
+  }, async () => {
+    const root = await makeRepo({
+      "src/big.ts": longFunctionFixture("doStuff"),
+    });
+    const report = await scan({ root });
+    expect(report.findings.length).toBeGreaterThan(0);
 
-      const target = report.findings[0]!;
-      const triage: TriageEntry[] = [triageEntryFor(target, "fix-now")];
+    const target = report.findings[0]!;
+    const triage: TriageEntry[] = [triageEntryFor(target, "fix-now")];
 
-      const filtered = applyTriageToScan(report, triage, { showTriaged: false });
-      const annotated = filtered.findings.find(
-        (f) => fingerprintFinding(f) === fingerprintFinding(target),
-      );
-      expect(annotated).toBeDefined();
-      expect(annotated!.triaged?.disposition).toBe("fix-now");
-      expect(filtered.summary.total).toBe(report.summary.total);
-    },
-  );
+    const filtered = applyTriageToScan(report, triage, { showTriaged: false });
+    const annotated = filtered.findings.find(
+      (f) => fingerprintFinding(f) === fingerprintFinding(target),
+    );
+    expect(annotated).toBeDefined();
+    expect(annotated!.triaged?.disposition).toBe("fix-now");
+    expect(filtered.summary.total).toBe(report.summary.total);
+  });
 
   it("does not mutate the input report", () => {
     const report = makeReport([makeFinding("high")]);

@@ -70,7 +70,6 @@ export function aliasToGroupId(
   return map;
 }
 
-
 /**
  * Merge user-configured alias groups on top of the built-in defaults.
  * Overrides extend rather than replace — a repo naming one extra concept
@@ -80,9 +79,7 @@ export function aliasToGroupId(
  * context.ts to import scan.ts purely for this function, and blocked
  * scan.ts's index builders from being extracted without a cycle.
  */
-export function resolveAliasGroups(
-  config: CrimesConfig,
-): IaConceptAliasGroup[] {
+export function resolveAliasGroups(config: CrimesConfig): IaConceptAliasGroup[] {
   const overrides = config.ia?.aliasGroups ?? [];
   if (overrides.length === 0) return DEFAULT_ALIAS_GROUPS;
   return [...DEFAULT_ALIAS_GROUPS, ...overrides];

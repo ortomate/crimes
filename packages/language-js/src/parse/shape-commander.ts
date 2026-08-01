@@ -26,10 +26,7 @@ export function bodyContainsCommanderChain(node: ts.Node): boolean {
 
   if (ts.isBlock(body)) {
     for (const stmt of body.statements) {
-      if (
-        ts.isExpressionStatement(stmt) &&
-        chainIncludesCommandCall(stmt.expression)
-      ) {
+      if (ts.isExpressionStatement(stmt) && chainIncludesCommandCall(stmt.expression)) {
         return true;
       }
       if (

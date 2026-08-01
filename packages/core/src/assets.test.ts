@@ -3,11 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "./config.js";
-import type {
-  AssetDetector,
-  AssetDetectorContext,
-  CrimesConfig,
-} from "./index.js";
+import type { AssetDetector, AssetDetectorContext, CrimesConfig } from "./index.js";
 import {
   buildDetectorRegistry,
   builtInAssetDetectors,
@@ -17,9 +13,7 @@ import {
 } from "./detector-registry.js";
 import { scan } from "./scan.js";
 
-async function makeRepo(
-  files: Record<string, string | Buffer>,
-): Promise<string> {
+async function makeRepo(files: Record<string, string | Buffer>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-assets-test-"));
   for (const [path, content] of Object.entries(files)) {
     const full = join(dir, path);

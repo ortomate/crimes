@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { parsePyFile } from "./parse/index.js";
 import type { ParsedPyFile } from "./parse/types.js";
 
-async function parse(source: string, path = "/repo/src/billing.py"): Promise<ParsedPyFile> {
+async function parse(
+  source: string,
+  path = "/repo/src/billing.py",
+): Promise<ParsedPyFile> {
   return parsePyFile({ absolutePath: path, source });
 }
 
@@ -95,7 +98,7 @@ def legacy():
     for (const fn of parsed.functions) {
       expect(fn.shape).toBe("route_handler");
     }
-    expect(parsed.functions[0]!.shapeEvidence).toEqual(['decorated @app.get']);
+    expect(parsed.functions[0]!.shapeEvidence).toEqual(["decorated @app.get"]);
   });
 
   it("classifies Click and Typer commands", async () => {
@@ -108,10 +111,7 @@ def build(target):
 def serve(port):
     pass
 `);
-    expect(parsed.functions.map((f) => f.shape)).toEqual([
-      "cli_command",
-      "cli_command",
-    ]);
+    expect(parsed.functions.map((f) => f.shape)).toEqual(["cli_command", "cli_command"]);
   });
 
   it("classifies pytest and unittest tests", async () => {
@@ -146,10 +146,7 @@ class UserList(ListView):
 def profile(request, user_id):
     return user_id
 `);
-    expect(parsed.functions.map((f) => f.shape)).toEqual([
-      "django_view",
-      "django_view",
-    ]);
+    expect(parsed.functions.map((f) => f.shape)).toEqual(["django_view", "django_view"]);
   });
 
   it("classifies dunder methods, but framework shape wins over dunder", async () => {
@@ -368,7 +365,9 @@ class A:
         self.ready = True
         count: int = 0
 `);
-    expect(parsed.assignments.map((x) => [x.name, x.attributeTarget, x.annotation])).toEqual([
+    expect(
+      parsed.assignments.map((x) => [x.name, x.attributeTarget, x.annotation]),
+    ).toEqual([
       ["ready", true, undefined],
       ["count", false, "int"],
     ]);

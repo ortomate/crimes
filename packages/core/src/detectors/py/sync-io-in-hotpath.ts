@@ -8,11 +8,7 @@ import { intrinsicFor, lineList, plural, severityScore } from "./shared.js";
  * Shapes where a blocking call runs per request / per render and so
  * costs real latency or a blocked worker.
  */
-const HOT_SHAPES = new Set<PyFunctionShape>([
-  "route_handler",
-  "django_view",
-  "domain",
-]);
+const HOT_SHAPES = new Set<PyFunctionShape>(["route_handler", "django_view", "domain"]);
 
 /**
  * Shapes that make a blocking call fine. A CLI command is *supposed* to

@@ -6,9 +6,9 @@ import { defineConfig } from "tsup";
 import { copyWasmAssets } from "../language-py/scripts/copy-wasm.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(
-  readFileSync(resolve(here, "package.json"), "utf8"),
-) as { version: string };
+const pkg = JSON.parse(readFileSync(resolve(here, "package.json"), "utf8")) as {
+  version: string;
+};
 
 export default defineConfig({
   entry: ["src/index.ts"],
@@ -25,14 +25,7 @@ export default defineConfig({
   // runtime benefit. It is declared as a real dependency so `npm install -g
   // crimes` resolves it. Everything not listed here stays external (node
   // builtins, typescript), so be explicit when adding new runtime deps.
-  noExternal: [
-    /^@crimes\//,
-    "commander",
-    "fast-glob",
-    "picocolors",
-    "picomatch",
-    "zod",
-  ],
+  noExternal: [/^@crimes\//, "commander", "fast-glob", "picocolors", "picomatch", "zod"],
   // Some bundled deps (commander) are CJS and assume CommonJS globals —
   // `require`, `__filename`, `__dirname` — exist at runtime. The output is
   // ESM, where they don't. We polyfill all three so esbuild's CJS interop

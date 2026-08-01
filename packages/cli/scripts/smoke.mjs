@@ -35,9 +35,7 @@ function run(cmd, args, opts = {}) {
   if (result.status !== 0) {
     process.stderr.write(result.stdout ?? "");
     process.stderr.write(result.stderr ?? "");
-    throw new Error(
-      `command failed (${result.status}): ${cmd} ${args.join(" ")}`,
-    );
+    throw new Error(`command failed (${result.status}): ${cmd} ${args.join(" ")}`);
   }
   return result;
 }
@@ -53,7 +51,10 @@ function assert(condition, message) {
 }
 
 step("Sanity check");
-assert(expectedName === "crimes", `package name must be "crimes" (got "${expectedName}")`);
+assert(
+  expectedName === "crimes",
+  `package name must be "crimes" (got "${expectedName}")`,
+);
 assert(expectedBin === "crimes", `binary name must be "crimes" (got "${expectedBin}")`);
 
 step("Build workspace");
@@ -86,18 +87,12 @@ for (const must of expectedFiles) {
   assert(filePaths.includes(must), `tarball is missing ${must}`);
 }
 for (const path of filePaths) {
-  assert(
-    !path.endsWith(".map"),
-    `tarball should not ship sourcemaps (found ${path})`,
-  );
+  assert(!path.endsWith(".map"), `tarball should not ship sourcemaps (found ${path})`);
   assert(
     path === "scripts/postinstall.mjs" || !path.startsWith("scripts/"),
     `tarball should not ship dev scripts (found ${path})`,
   );
-  assert(
-    !path.startsWith("src/"),
-    `tarball should not ship raw sources (found ${path})`,
-  );
+  assert(!path.startsWith("src/"), `tarball should not ship raw sources (found ${path})`);
 }
 
 step("Install tarball into temp dir");
@@ -141,10 +136,7 @@ try {
     diffHelpOut.includes("<range>"),
     "diff --help did not mention the <range> argument",
   );
-  assert(
-    diffHelpOut.includes("--format"),
-    "diff --help did not list --format",
-  );
+  assert(diffHelpOut.includes("--format"), "diff --help did not list --format");
 
   step("crimes diff in a non-git dir (should exit 2)");
   // Run the binary from the smoke install root, which is just a temp dir
@@ -238,20 +230,12 @@ try {
   );
 
   step("crimes hotspots --format json");
-  const hotJsonOut = run(installedBin, [
-    "hotspots",
-    fixture,
-    "--format",
-    "json",
-  ]).stdout;
+  const hotJsonOut = run(installedBin, ["hotspots", fixture, "--format", "json"]).stdout;
   const hotReport = JSON.parse(hotJsonOut);
   for (const key of ["schema_version", "since", "git_available", "hotspots"]) {
     assert(key in hotReport, `hotspots JSON missing required key "${key}"`);
   }
-  assert(
-    Array.isArray(hotReport.hotspots),
-    "hotspots JSON: hotspots is not an array",
-  );
+  assert(Array.isArray(hotReport.hotspots), "hotspots JSON: hotspots is not an array");
   assert(
     hotReport.since === "90d",
     `hotspots JSON: default since should be "90d", got "${hotReport.since}"`,
@@ -284,12 +268,7 @@ try {
   // the installed tarball and require that the pack actually claimed it.
   step("crimes scan on a Python fixture (exercises the vendored WASM grammar)");
   const pyFixture = resolve(repoRoot, "evals", "fixtures", "11-py-service");
-  const pyJsonOut = run(installedBin, [
-    "scan",
-    pyFixture,
-    "--format",
-    "json",
-  ]).stdout;
+  const pyJsonOut = run(installedBin, ["scan", pyFixture, "--format", "json"]).stdout;
   const pyReport = JSON.parse(pyJsonOut);
   assert(
     pyReport.coverage?.packs_loaded?.includes("language-py"),

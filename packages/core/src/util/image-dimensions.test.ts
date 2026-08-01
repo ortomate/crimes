@@ -9,8 +9,13 @@ import { readImageDimensions } from "./image-dimensions.js";
 function makePng(width: number, height: number): Buffer {
   const buf = Buffer.alloc(24);
   buf[0] = 0x89;
-  buf[1] = 0x50; buf[2] = 0x4e; buf[3] = 0x47;
-  buf[4] = 0x0d; buf[5] = 0x0a; buf[6] = 0x1a; buf[7] = 0x0a;
+  buf[1] = 0x50;
+  buf[2] = 0x4e;
+  buf[3] = 0x47;
+  buf[4] = 0x0d;
+  buf[5] = 0x0a;
+  buf[6] = 0x1a;
+  buf[7] = 0x0a;
   // 4-byte length (13 = IHDR data length) — value ignored by reader.
   buf.writeUInt32BE(13, 8);
   buf.write("IHDR", 12, "ascii");
@@ -31,8 +36,10 @@ function makeJpeg(width: number, height: number): Buffer {
   // SOI marker, then an SOF0 segment with the requested dimensions.
   // Segment length = 8 (2 length bytes + 1 precision + 2 height + 2 width + 1 components).
   const buf = Buffer.alloc(11);
-  buf[0] = 0xff; buf[1] = 0xd8; // SOI
-  buf[2] = 0xff; buf[3] = 0xc0; // SOF0 marker
+  buf[0] = 0xff;
+  buf[1] = 0xd8; // SOI
+  buf[2] = 0xff;
+  buf[3] = 0xc0; // SOF0 marker
   buf.writeUInt16BE(8, 4); // segment length
   buf[6] = 8; // precision (bits per sample) — ignored
   buf.writeUInt16BE(height, 7);

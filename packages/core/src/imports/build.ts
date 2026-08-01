@@ -67,15 +67,13 @@ export async function buildImportGraph(
   const sourceFiles = options.files
     .filter((abs) => SOURCE_EXT_RE.test(abs))
     .slice(0, maxFiles);
-  const limited = options.files.filter((abs) => SOURCE_EXT_RE.test(abs)).length >
-    sourceFiles.length;
+  const limited =
+    options.files.filter((abs) => SOURCE_EXT_RE.test(abs)).length > sourceFiles.length;
 
   // The "known set" — files we can resolve to. Used so that out-of-tree
   // resolved paths (e.g. the import landed outside the file set) are
   // demoted to "external" rather than producing dangling edges.
-  const knownSet = new Set<string>(
-    sourceFiles.map((abs) => toRepoPath(root, abs)),
-  );
+  const knownSet = new Set<string>(sourceFiles.map((abs) => toRepoPath(root, abs)));
 
   const edges: ImportEdge[] = [];
   const out = new Map<string, ImportEdge[]>();
@@ -366,9 +364,7 @@ function resolveTsconfigAlias(args: {
     if (match === undefined) continue;
     for (const sub of substitutions) {
       const subStar = sub.includes("*") ? sub.replace("*", match) : sub;
-      const candidate = isAbsolute(subStar)
-        ? subStar
-        : resolve(tsPaths.baseUrl, subStar);
+      const candidate = isAbsolute(subStar) ? subStar : resolve(tsPaths.baseUrl, subStar);
       const resolved = resolveOnDisk(candidate);
       if (resolved) {
         const rel = toRepoPath(root, resolved);
@@ -418,11 +414,7 @@ function loadTsconfigPaths(root: string): TsconfigPaths | undefined {
   };
 }
 
-function pushEdge(
-  map: Map<string, ImportEdge[]>,
-  key: string,
-  edge: ImportEdge,
-): void {
+function pushEdge(map: Map<string, ImportEdge[]>, key: string, edge: ImportEdge): void {
   const existing = map.get(key);
   if (existing) existing.push(edge);
   else map.set(key, [edge]);

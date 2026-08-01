@@ -1,9 +1,5 @@
 import { resolve } from "node:path";
-import {
-  auditSuppressions,
-  loadConfig,
-  MalformedSuppressionsError,
-} from "@crimes/core";
+import { auditSuppressions, loadConfig, MalformedSuppressionsError } from "@crimes/core";
 import {
   formatAuditSuppressionsJsonReport,
   formatAuditSuppressionsReport,
@@ -30,10 +26,7 @@ export function registerAuditSuppressionsCommand(program: Command): void {
     .option("--format <format>", "output format: human | json", "human")
     .option("--no-color", "disable ANSI colour output")
     .action(
-      async (
-        path: string | undefined,
-        options: AuditSuppressionsCommandOptions,
-      ) => {
+      async (path: string | undefined, options: AuditSuppressionsCommandOptions) => {
         const root = resolve(path ?? process.cwd());
         const format = options.format;
 
@@ -69,9 +62,7 @@ export function registerAuditSuppressionsCommand(program: Command): void {
         }
 
         if (format === "json") {
-          process.stdout.write(
-            formatAuditSuppressionsJsonReport(report) + "\n",
-          );
+          process.stdout.write(formatAuditSuppressionsJsonReport(report) + "\n");
         } else {
           process.stdout.write(
             formatAuditSuppressionsReport(report, {

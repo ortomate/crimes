@@ -18,16 +18,21 @@ const PURE_PREFIXES = [
   "parse",
 ];
 
-const DISCLOSES_MUTATION = /^(getOrCreate|findOrCreate|create|save|update|delete|remove|send|emit|publish|track|charge|refund|write|set)/;
-const SIDE_EFFECT_CALL = /\b(?:save|create|update|delete|remove|insert|send|emit|publish|track|charge|refund|write|set|mutate|dispatch)[A-Z_]\w*\s*\(/g;
-const STRONG_SIDE_EFFECT = /\b(?:charge|refund|delete|remove|sendEmail|sendInvoice|publish|emit|track)[A-Z_]\w*\s*\(/g;
-const API_SIDE_EFFECT = /\b(?:fetch|localStorage\.setItem|sessionStorage\.setItem|writeFile|appendFile|unlink|mkdir|rm|rmdir)\s*\(/g;
+const DISCLOSES_MUTATION =
+  /^(getOrCreate|findOrCreate|create|save|update|delete|remove|send|emit|publish|track|charge|refund|write|set)/;
+const SIDE_EFFECT_CALL =
+  /\b(?:save|create|update|delete|remove|insert|send|emit|publish|track|charge|refund|write|set|mutate|dispatch)[A-Z_]\w*\s*\(/g;
+const STRONG_SIDE_EFFECT =
+  /\b(?:charge|refund|delete|remove|sendEmail|sendInvoice|publish|emit|track)[A-Z_]\w*\s*\(/g;
+const API_SIDE_EFFECT =
+  /\b(?:fetch|localStorage\.setItem|sessionStorage\.setItem|writeFile|appendFile|unlink|mkdir|rm|rmdir)\s*\(/g;
 const ASSIGNMENT = /(?:^|[^=!<>])=(?!=)|\+\+|--/g;
 
 export const nameBehaviorMismatchDetector: LanguageJsDetector = {
   id: "name_behavior_mismatch",
   name: "Name / Behaviour Mismatch",
-  description: "Flags functions whose names imply safe reads or calculations while their bodies perform side effects.",
+  description:
+    "Flags functions whose names imply safe reads or calculations while their bodies perform side effects.",
   whyItMatters:
     "A function whose name reads as a pure getter but does I/O, or a " +
     "setter that fires side effects, surprises every caller. Agents triage " +
@@ -105,12 +110,15 @@ function scoreBody(body: string): BodyScore | undefined {
     ...matches(body, STRONG_SIDE_EFFECT),
     ...matches(body, API_SIDE_EFFECT),
   ];
-  const uniqueCalls = Array.from(new Set(calls.map((call) => call.replace(/\s*\($/, ""))));
+  const uniqueCalls = Array.from(
+    new Set(calls.map((call) => call.replace(/\s*\($/, ""))),
+  );
   const signals = [...uniqueCalls];
 
   const assignmentCount = matches(body, ASSIGNMENT).length;
   if (assignmentCount >= 2) signals.push(`${assignmentCount} assignments`);
-  if (/\bawait\b/.test(body) && uniqueCalls.length > 0) signals.push("await with side-effect-like call");
+  if (/\bawait\b/.test(body) && uniqueCalls.length > 0)
+    signals.push("await with side-effect-like call");
 
   const hasStrongSideEffect = matches(body, STRONG_SIDE_EFFECT).length > 0;
   if (signals.length < 2 && !hasStrongSideEffect) return undefined;
@@ -137,7 +145,13 @@ function prefixMeaning(name: string): string {
   if (prefix === "is" || prefix === "has" || prefix === "can" || prefix === "should") {
     return "a predicate";
   }
-  if (prefix === "build" || prefix === "format" || prefix === "calculate" || prefix === "derive" || prefix === "parse") {
+  if (
+    prefix === "build" ||
+    prefix === "format" ||
+    prefix === "calculate" ||
+    prefix === "derive" ||
+    prefix === "parse"
+  ) {
     return "a pure transformation";
   }
   return "a read";

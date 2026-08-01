@@ -56,7 +56,10 @@ function collectRiskSummary(findings: Finding[]): RiskSummary {
   return summary;
 }
 
-function maxOptional(current: number | undefined, next: number | undefined): number | undefined {
+function maxOptional(
+  current: number | undefined,
+  next: number | undefined,
+): number | undefined {
   if (next === undefined) return current;
   return current === undefined ? next : Math.max(current, next);
 }

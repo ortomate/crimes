@@ -90,11 +90,7 @@ function lineSpan(fn: ParsedFunction): number {
   return fn.endLine - fn.startLine + 1;
 }
 
-function push(
-  map: Map<string, FunctionHit[]>,
-  key: string,
-  hit: FunctionHit,
-): void {
+function push(map: Map<string, FunctionHit[]>, key: string, hit: FunctionHit): void {
   const list = map.get(key);
   if (list) list.push(hit);
   else map.set(key, [hit]);

@@ -61,7 +61,11 @@ export function extractDefaultExport(node: ts.Node): string | undefined {
   }
 
   // `export { Foo as default }`
-  if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
+  if (
+    ts.isExportDeclaration(node) &&
+    node.exportClause &&
+    ts.isNamedExports(node.exportClause)
+  ) {
     for (const spec of node.exportClause.elements) {
       if (spec.name.text === "default" && spec.propertyName) {
         return spec.propertyName.text;
@@ -72,9 +76,7 @@ export function extractDefaultExport(node: ts.Node): string | undefined {
   return undefined;
 }
 
-function hasDefaultModifier(
-  node: ts.FunctionDeclaration | ts.ClassDeclaration,
-): boolean {
+function hasDefaultModifier(node: ts.FunctionDeclaration | ts.ClassDeclaration): boolean {
   const modifiers = ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined;
   if (!modifiers) return false;
   return modifiers.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword);

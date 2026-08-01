@@ -109,21 +109,14 @@ describe("syncIoInHotpathDetector", () => {
 
   it("skips calls inside test_callback ancestors anywhere in the chain", async () => {
     const findings = await syncIoInHotpathDetector.run(
-      makeCtx([
-        call("readFileSync", [
-          encl("unknown"),
-          encl("test_callback"),
-        ]),
-      ]),
+      makeCtx([call("readFileSync", [encl("unknown"), encl("test_callback")])]),
     );
     expect(findings).toEqual([]);
   });
 
   it("skips calls inside cli_command_registrar ancestors", async () => {
     const findings = await syncIoInHotpathDetector.run(
-      makeCtx([
-        call("readFileSync", [encl("cli_command_registrar", "action")]),
-      ]),
+      makeCtx([call("readFileSync", [encl("cli_command_registrar", "action")])]),
     );
     expect(findings).toEqual([]);
   });
@@ -144,12 +137,7 @@ describe("syncIoInHotpathDetector", () => {
 
   it("fires when an unknown-shape callback is nested inside a domain function", async () => {
     const findings = await syncIoInHotpathDetector.run(
-      makeCtx([
-        call("readFileSync", [
-          encl("unknown"),
-          encl("domain", "loadAll"),
-        ]),
-      ]),
+      makeCtx([call("readFileSync", [encl("unknown"), encl("domain", "loadAll")])]),
     );
     expect(findings).toHaveLength(1);
     const evidence = findings[0]!.evidence.join(" ");
@@ -159,10 +147,9 @@ describe("syncIoInHotpathDetector", () => {
 
   it("skips test files entirely", async () => {
     const findings = await syncIoInHotpathDetector.run(
-      makeCtx(
-        [call("readFileSync", [encl("route_handler", "GET")])],
-        { file: "src/handler.test.ts" },
-      ),
+      makeCtx([call("readFileSync", [encl("route_handler", "GET")])], {
+        file: "src/handler.test.ts",
+      }),
     );
     expect(findings).toEqual([]);
   });

@@ -66,9 +66,7 @@ describe("timezoneUnsafeParseDetector", () => {
       "2026-12-25T07:00:00-08:00",
       "2026-12-25T07:00:00+0530",
     ]) {
-      const findings = await timezoneUnsafeParseDetector.run(
-        makeCtx([unsafe(value, 1)]),
-      );
+      const findings = await timezoneUnsafeParseDetector.run(makeCtx([unsafe(value, 1)]));
       expect(findings).toEqual([]);
     }
   });
@@ -190,9 +188,7 @@ describe("timezoneUnsafeParseDetector", () => {
     );
     const many = await timezoneUnsafeParseDetector.run(
       makeCtx(
-        Array.from({ length: 10 }, (_, i) =>
-          unsafe(`2026-01-0${i + 1}T12:00:00`, i + 1),
-        ),
+        Array.from({ length: 10 }, (_, i) => unsafe(`2026-01-0${i + 1}T12:00:00`, i + 1)),
       ),
     );
     expect(single[0]!.scores!.agent_risk).toBeLessThan(many[0]!.scores!.agent_risk!);

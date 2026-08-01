@@ -73,7 +73,8 @@ const RETRY_HELPERS: ReadonlySet<string> = new Set([
 ]);
 
 /** Identifier fragments that mark a loop as an attempt loop. */
-const ATTEMPT_WORDS = /\b(attempt|attempts|retry|retries|tries|try_count|trycount|maxattempts|maxretries)\b/i;
+const ATTEMPT_WORDS =
+  /\b(attempt|attempts|retry|retries|tries|try_count|trycount|maxattempts|maxretries)\b/i;
 
 /** Object-literal keys that configure SDK-level retrying. */
 const RETRY_CONFIG_KEYS: ReadonlySet<string> = new Set([
@@ -169,10 +170,12 @@ const DELAY_TAILS: ReadonlySet<string> = new Set([
   "backoff",
 ]);
 
-const DELAY_KEYS = /\b(delay|mintimeout|maxtimeout|waitms|backoff|interval|pause|initialdelay)\b/i;
+const DELAY_KEYS =
+  /\b(delay|mintimeout|maxtimeout|waitms|backoff|interval|pause|initialdelay)\b/i;
 const JITTER_KEYS = /\bjitter|randomize|randomise\b/i;
 const TIMEOUT_KEYS = /\b(timeout|deadline|abortsignal|signal|abortcontroller)\b/i;
-const CLASSIFY_KEYS = /\b(shouldretry|isretryable|retryable|retryif|retryon|iserrorretryable)\b/i;
+const CLASSIFY_KEYS =
+  /\b(shouldretry|isretryable|retryable|retryif|retryon|iserrorretryable)\b/i;
 
 export function collectRetrySite(
   node: ts.Node,
@@ -277,7 +280,13 @@ function collectHelperCall(
   }
 
   const safeguards = collectSafeguards(node, sourceFile);
-  const bound = optionNumber(node, ["retries", "maxRetries", "attempts", "maxAttempts", "numOfAttempts"]);
+  const bound = optionNumber(node, [
+    "retries",
+    "maxRetries",
+    "attempts",
+    "maxAttempts",
+    "numOfAttempts",
+  ]);
   if (bound !== undefined) {
     safeguards.push({
       kind: "bounded_attempts",
@@ -474,7 +483,8 @@ function classifyCall(
   return undefined;
 }
 
-const HTTP_RECEIVER_RE = /^(axios|http|https|client|api|request|fetcher|got|ky|superagent|instance)$/i;
+const HTTP_RECEIVER_RE =
+  /^(axios|http|https|client|api|request|fetcher|got|ky|superagent|instance)$/i;
 
 function httpMethodFromOptions(call: ts.CallExpression): string | undefined {
   const options = call.arguments[1];
@@ -608,7 +618,9 @@ function dedupeSafeguards(list: RetrySafeguard[]): RetrySafeguard[] {
   }
   // Stable order so evidence lines don't shuffle between runs.
   return out.sort((a, b) =>
-    a.kind === b.kind ? a.evidence.localeCompare(b.evidence) : a.kind.localeCompare(b.kind),
+    a.kind === b.kind
+      ? a.evidence.localeCompare(b.evidence)
+      : a.kind.localeCompare(b.kind),
   );
 }
 

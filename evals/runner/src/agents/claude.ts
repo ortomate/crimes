@@ -83,9 +83,7 @@ function runProcess(
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
       rejectPromise(
-        new AgentInvocationError(
-          `agent invocation timed out after ${timeoutMs}ms`,
-        ),
+        new AgentInvocationError(`agent invocation timed out after ${timeoutMs}ms`),
       );
     }, timeoutMs);
     child.stdout?.on("data", (chunk: Buffer) => {
@@ -96,9 +94,7 @@ function runProcess(
     });
     child.on("error", (err) => {
       clearTimeout(timer);
-      rejectPromise(
-        new AgentInvocationError(`spawn ${command} failed: ${err.message}`),
-      );
+      rejectPromise(new AgentInvocationError(`spawn ${command} failed: ${err.message}`));
     });
     child.on("close", (code) => {
       clearTimeout(timer);

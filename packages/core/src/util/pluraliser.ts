@@ -54,9 +54,7 @@ const IRREGULARS: Array<[singular: string, plural: string]> = [
 ];
 
 const SINGULAR_TO_PLURAL = new Map<string, string>(IRREGULARS);
-const PLURAL_TO_SINGULAR = new Map<string, string>(
-  IRREGULARS.map(([s, p]) => [p, s]),
-);
+const PLURAL_TO_SINGULAR = new Map<string, string>(IRREGULARS.map(([s, p]) => [p, s]));
 
 export function isUncountable(word: string): boolean {
   return UNCOUNTABLE.has(word.toLowerCase());

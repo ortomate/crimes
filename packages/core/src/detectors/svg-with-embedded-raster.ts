@@ -46,7 +46,7 @@ export const svgWithEmbeddedRasterDetector: AssetDetector = {
   id: "svg_with_embedded_raster",
   name: "SVG With Embedded Raster",
   description:
-    "Flags SVG files containing `<image href=\"data:image/...;base64,...\">` " +
+    'Flags SVG files containing `<image href="data:image/...;base64,...">` ' +
     "— the SVG ships, but its content is a raster blob.",
   whyItMatters:
     "An SVG with an embedded base64 raster is the worst of both " +
@@ -119,9 +119,7 @@ export const svgWithEmbeddedRasterDetector: AssetDetector = {
   },
 };
 
-function readAllowedPaths(
-  options: Record<string, unknown> | undefined,
-): Set<string> {
+function readAllowedPaths(options: Record<string, unknown> | undefined): Set<string> {
   const raw = options?.["svg_with_embedded_raster"];
   if (!raw) return new Set();
   const parsed = optionsSchema.safeParse(raw);

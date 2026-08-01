@@ -19,12 +19,8 @@ describe("hook-templates", () => {
     // Regression: the original 0.11.0 draft assumed a non-existent
     // $CLAUDE_TOOL_INPUT_file_path env var that always expanded to "".
     // `crimes hook` reads tool_input.file_path from stdin JSON instead.
-    expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).not.toContain(
-      "$CLAUDE_TOOL_INPUT",
-    );
-    expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).not.toContain(
-      "$CODEX_TOOL_INPUT",
-    );
+    expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).not.toContain("$CLAUDE_TOOL_INPUT");
+    expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).not.toContain("$CODEX_TOOL_INPUT");
     expect(CODEX_HOOK_DOCUMENT).not.toContain("$CLAUDE_TOOL_INPUT");
     expect(CODEX_HOOK_DOCUMENT).not.toContain("$CODEX_TOOL_INPUT");
   });
@@ -34,9 +30,7 @@ describe("hook-templates", () => {
     expect(parsed._note).toMatch(/Codex/);
     expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write|NotebookEdit");
     expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain("crimes hook");
-    expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain(
-      "--format compact",
-    );
+    expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain("--format compact");
   });
 
   it("mergeClaudeHook creates a new document when input is undefined", () => {

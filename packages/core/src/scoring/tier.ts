@@ -34,10 +34,7 @@ function expandAllBraces(patterns: string[]): string[] {
  * patterns. O(P) per call where P = pattern count. Use makeTierClassifier
  * for repeated lookups.
  */
-export function classifyTier(
-  repoRelPath: string,
-  nonDomainPatterns: string[],
-): Tier {
+export function classifyTier(repoRelPath: string, nonDomainPatterns: string[]): Tier {
   if (nonDomainPatterns.length === 0) return "domain";
   const expanded = expandAllBraces(nonDomainPatterns);
   for (const pattern of expanded) {

@@ -134,9 +134,7 @@ describe("detectors.enable / disable wiring", () => {
     await writeConfig(root, { detectors: { disable: ["todo_density"] } });
 
     const report = await scan({ root });
-    const todoFindings = report.findings.filter(
-      (f) => f.type === "todo_density",
-    );
+    const todoFindings = report.findings.filter((f) => f.type === "todo_density");
     expect(todoFindings).toEqual([]);
   });
 
@@ -178,18 +176,12 @@ describe("ia.aliasGroups merges with defaults", () => {
     // contributes to the catalogue.
     await writeConfig(root, {
       ia: {
-        aliasGroups: [
-          { id: "dataset", aliases: ["dataset", "corpus", "collection"] },
-        ],
+        aliasGroups: [{ id: "dataset", aliases: ["dataset", "corpus", "collection"] }],
       },
     });
     // Reach into scan's resolveAliasGroups via a fresh scan with no source
     // files — IA index build still records the resolved alias group list.
-    await writeFile(
-      join(root, "noop.ts"),
-      "export const ok = 1;\n",
-      "utf8",
-    );
+    await writeFile(join(root, "noop.ts"), "export const ok = 1;\n", "utf8");
     const report = await scan({ root });
     // The scan succeeded — the merge didn't crash.
     expect(report.report_type).toBe("scan");
@@ -265,9 +257,7 @@ describe("detectors.options validation", () => {
     await writeConfig(root, {
       detectors: { options: { not_a_detector: { foo: 1 } } },
     });
-    const registry = [
-      { id: "example_detector", optionsSchema: z.object({}) },
-    ];
+    const registry = [{ id: "example_detector", optionsSchema: z.object({}) }];
     expect(() => loadConfig(root, registry)).toThrowError(
       /detectors\.options\.not_a_detector: unknown detector id/,
     );
@@ -307,29 +297,21 @@ describe("detectors.options validation", () => {
   it("registry: empty options block passes registry validation", async () => {
     const root = await makeTempDir();
     await writeConfig(root, { detectors: { options: {} } });
-    const registry = [
-      { id: "example_detector", optionsSchema: z.object({}) },
-    ];
+    const registry = [{ id: "example_detector", optionsSchema: z.object({}) }];
     expect(() => loadConfig(root, registry)).not.toThrow();
   });
 
   it("registry: omitted options field passes registry validation", async () => {
     const root = await makeTempDir();
     await writeConfig(root, { detectors: { enable: ["large_file"] } });
-    const registry = [
-      { id: "example_detector", optionsSchema: z.object({}) },
-    ];
+    const registry = [{ id: "example_detector", optionsSchema: z.object({}) }];
     const config = loadConfig(root, registry);
     expect(config.detectors?.options).toBeUndefined();
   });
 
   it("scan passes the built-in registry through loadConfig (live integration)", async () => {
     const root = await makeTempDir();
-    await writeFile(
-      join(root, "noop.ts"),
-      "export const ok = 1;\n",
-      "utf8",
-    );
+    await writeFile(join(root, "noop.ts"), "export const ok = 1;\n", "utf8");
     await writeConfig(root, {
       detectors: { options: { not_a_detector_xyz: {} } },
     });
@@ -393,9 +375,7 @@ describe("scopeTiers", () => {
     await writeConfig(root, {
       scopeTiers: { nonDomain: ["packages/legacy/**"] },
     });
-    expect(loadConfig(root).scopeTiers.nonDomain).toEqual([
-      "packages/legacy/**",
-    ]);
+    expect(loadConfig(root).scopeTiers.nonDomain).toEqual(["packages/legacy/**"]);
   });
 
   it("rejects non-string entries", async () => {

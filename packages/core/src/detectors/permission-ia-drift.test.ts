@@ -80,9 +80,7 @@ describe("permissionIaDriftDetector", () => {
         },
       ],
       permissions: {
-        "src/pages/admin/users.tsx": [
-          { value: "owner", line: 12, kind: "role" },
-        ],
+        "src/pages/admin/users.tsx": [{ value: "owner", line: 12, kind: "role" }],
       },
       navSources: [
         {
@@ -139,9 +137,7 @@ describe("permissionIaDriftDetector", () => {
         },
       ],
       permissions: {
-        "src/pages/admin/users.tsx": [
-          { value: "admin", line: 12, kind: "role" },
-        ],
+        "src/pages/admin/users.tsx": [{ value: "admin", line: 12, kind: "role" }],
       },
       navSources: [
         {
@@ -178,9 +174,7 @@ describe("permissionIaDriftDetector", () => {
         },
       ],
       permissions: {
-        "src/pages/admin/users.tsx": [
-          { value: "owner", line: 12, kind: "role" },
-        ],
+        "src/pages/admin/users.tsx": [{ value: "owner", line: 12, kind: "role" }],
       },
       navSources: [
         {

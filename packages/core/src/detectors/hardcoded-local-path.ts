@@ -29,7 +29,8 @@ const MAC_HOME_RE = /\/Users\/[A-Za-z][A-Za-z0-9._-]*\/[A-Za-z0-9._-]/g;
  * a token (preceded by string-quote, whitespace, or another path
  * separator) so a substring like `at/home/page` doesn't match.
  */
-const LINUX_HOME_RE = /(?:^|[\s"'`(,{<\\])\/home\/[A-Za-z][A-Za-z0-9._-]*\/[A-Za-z0-9._-]/g;
+const LINUX_HOME_RE =
+  /(?:^|[\s"'`(,{<\\])\/home\/[A-Za-z][A-Za-z0-9._-]*\/[A-Za-z0-9._-]/g;
 
 /**
  * Windows home directory subpath: `C:\Users\<name>\...` (back-slashed,
@@ -37,15 +38,15 @@ const LINUX_HOME_RE = /(?:^|[\s"'`(,{<\\])\/home\/[A-Za-z][A-Za-z0-9._-]*\/[A-Za
  * (forward-slashed, the form some tools and editors show). Matches
  * any drive letter, not just `C:`.
  */
-const WIN_HOME_RE = /[A-Za-z]:[\\/]+Users[\\/]+[A-Za-z][A-Za-z0-9._-]*[\\/]+[A-Za-z0-9._-]/g;
+const WIN_HOME_RE =
+  /[A-Za-z]:[\\/]+Users[\\/]+[A-Za-z][A-Za-z0-9._-]*[\\/]+[A-Za-z0-9._-]/g;
 
 /**
  * Files where a developer-specific path is intentional rather than
  * accidental — local scripts, examples meant to be copied, test
  * fixtures with hard-coded inputs.
  */
-const NON_PRODUCTION_DIR_RE =
-  /(?:^|\/)(?:scripts|examples|fixtures|test|tests)\//;
+const NON_PRODUCTION_DIR_RE = /(?:^|\/)(?:scripts|examples|fixtures|test|tests)\//;
 
 interface PathHit {
   text: string;
@@ -156,9 +157,8 @@ function collectMatches(
   for (const m of line.matchAll(re)) {
     const matchStart = m.index ?? 0;
     const matchEnd = matchStart + m[0]!.length;
-    const adjustedStart = trimLeadingNonPathChar && !m[0]!.startsWith("/")
-      ? matchStart + 1
-      : matchStart;
+    const adjustedStart =
+      trimLeadingNonPathChar && !m[0]!.startsWith("/") ? matchStart + 1 : matchStart;
     const text = expandToFullPath(line, adjustedStart, matchEnd);
     if (isAllowed(text, allowed)) continue;
     out.push({ text, line: lineNumber });
@@ -167,11 +167,7 @@ function collectMatches(
 
 const PATH_DELIMITER_RE = /[\s"'`)\],}<>;]/;
 
-function expandToFullPath(
-  line: string,
-  start: number,
-  initialEnd: number,
-): string {
+function expandToFullPath(line: string, start: number, initialEnd: number): string {
   let end = initialEnd;
   while (end < line.length && !PATH_DELIMITER_RE.test(line[end]!)) end++;
   return line.slice(start, end);
@@ -189,9 +185,7 @@ function truncate(text: string): string {
   return text.length > 60 ? `${text.slice(0, 57)}...` : text;
 }
 
-function readAllowedPaths(
-  options: Record<string, unknown> | undefined,
-): Set<string> {
+function readAllowedPaths(options: Record<string, unknown> | undefined): Set<string> {
   const raw = options?.["hardcoded_local_path"];
   if (!raw) return new Set();
   const parsed = optionsSchema.safeParse(raw);

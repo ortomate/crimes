@@ -148,8 +148,7 @@ export function partitionFindings(
       resurfacedCount += 1;
       const pin = entry.crimes_version_pinned!;
       const key = minorKey(pin);
-      resurfacedByPinnedMinor[key] =
-        (resurfacedByPinnedMinor[key] ?? 0) + 1;
+      resurfacedByPinnedMinor[key] = (resurfacedByPinnedMinor[key] ?? 0) + 1;
       visible.push({
         ...f,
         previously_suppressed: true,
@@ -271,9 +270,7 @@ export function suppressionsForFile(
   currentFindings: Finding[],
 ): SuppressionForFile[] {
   // Build a set of fingerprints present in currentFindings for O(1) lookup.
-  const currentPrints = new Set(
-    currentFindings.map((f) => fingerprintFinding(f)),
-  );
+  const currentPrints = new Set(currentFindings.map((f) => fingerprintFinding(f)));
 
   const results: SuppressionForFile[] = [];
   for (const entry of entries) {

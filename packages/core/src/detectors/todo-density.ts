@@ -13,7 +13,8 @@ const SELF_REFERENCE_PATTERN = /TODO\s*\|\s*FIXME\s*\|\s*XXX\s*\|\s*HACK/;
 export const todoDensityDetector: UniversalDetector = {
   id: "todo_density",
   name: "TODO/FIXME Density",
-  description: "Flags files with a high concentration of TODO, FIXME, XXX, or HACK markers.",
+  description:
+    "Flags files with a high concentration of TODO, FIXME, XXX, or HACK markers.",
   whyItMatters:
     "A high density of TODO/FIXME comments tells readers the code does " +
     "not match its intent. Agents tend to act on visible code without " +

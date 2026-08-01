@@ -85,17 +85,13 @@ describe("commandDriftDocsCodeDriftDetector", () => {
         {
           file: "docs/agent-usage.md",
           headings: [],
-          fencedCommands: [
-            { command: "crimes ask", line: 42, deferred: false },
-          ],
+          fencedCommands: [{ command: "crimes ask", line: 42, deferred: false }],
           links: [],
         },
       ],
     });
     const anchor = Object.keys(ia.files).sort()[0]!;
-    const findings = await commandDriftDocsCodeDriftDetector.run(
-      ctxFor(anchor, ia),
-    );
+    const findings = await commandDriftDocsCodeDriftDetector.run(ctxFor(anchor, ia));
     const drift = findings.find((f) => f.type === "command_drift_docs_code_drift");
     expect(drift).toBeDefined();
     expect(drift!.evidence.some((e) => e.includes("crimes ask"))).toBe(true);
@@ -123,17 +119,13 @@ describe("commandDriftDocsCodeDriftDetector", () => {
         {
           file: "docs/agent-usage.md",
           headings: [],
-          fencedCommands: [
-            { command: "crimes scan", line: 1, deferred: false },
-          ],
+          fencedCommands: [{ command: "crimes scan", line: 1, deferred: false }],
           links: [],
         },
       ],
     });
     const anchor = Object.keys(ia.files).sort()[0]!;
-    const findings = await commandDriftDocsCodeDriftDetector.run(
-      ctxFor(anchor, ia),
-    );
+    const findings = await commandDriftDocsCodeDriftDetector.run(ctxFor(anchor, ia));
     expect(findings).toEqual([]);
   });
 
@@ -158,17 +150,13 @@ describe("commandDriftDocsCodeDriftDetector", () => {
         {
           file: "docs/agent-usage.md",
           headings: [],
-          fencedCommands: [
-            { command: "crimes ask", line: 1, deferred: true },
-          ],
+          fencedCommands: [{ command: "crimes ask", line: 1, deferred: true }],
           links: [],
         },
       ],
     });
     const anchor = Object.keys(ia.files).sort()[0]!;
-    const findings = await commandDriftDocsCodeDriftDetector.run(
-      ctxFor(anchor, ia),
-    );
+    const findings = await commandDriftDocsCodeDriftDetector.run(ctxFor(anchor, ia));
     expect(findings).toEqual([]);
   });
 
@@ -189,17 +177,13 @@ describe("commandDriftDocsCodeDriftDetector", () => {
         {
           file: "docs/agent-usage.md",
           headings: [],
-          fencedCommands: [
-            { command: "crimes ask", line: 1, deferred: false },
-          ],
+          fencedCommands: [{ command: "crimes ask", line: 1, deferred: false }],
           links: [],
         },
       ],
     });
     const anchor = Object.keys(ia.files).sort()[0]!;
-    const findings = await commandDriftDocsCodeDriftDetector.run(
-      ctxFor(anchor, ia),
-    );
+    const findings = await commandDriftDocsCodeDriftDetector.run(ctxFor(anchor, ia));
     expect(findings).toEqual([]);
   });
 

@@ -23,7 +23,6 @@ const CONFIG_FILENAME = "crimes.config.json";
 const CLAUDE_SKILL_PATH = ".claude/skills/crimes/SKILL.md";
 const CODEX_SKILL_PATH = ".agents/skills/crimes/SKILL.md";
 
-
 const AGENT_SKILL = `---
 name: crimes-codebase-risk
 description: Use when editing, reviewing, or investigating a TypeScript / JavaScript codebase that ships with the crimes CLI. Helps agents run pre-edit context checks, post-edit scans, and interpret findings before risky changes.
@@ -87,9 +86,7 @@ Do not paraphrase the whole JSON payload in your own voice unless you need a sho
 export function registerInitCommand(program: Command): void {
   program
     .command("init")
-    .description(
-      "Write a starter crimes.config.json to the current directory.",
-    )
+    .description("Write a starter crimes.config.json to the current directory.")
     .option(
       "--agent-skill",
       `also write ${CLAUDE_SKILL_PATH} so Claude Code discovers crimes in this repo`,
@@ -105,19 +102,9 @@ export function registerInitCommand(program: Command): void {
       "also write Claude Code and Codex skill files for future agents",
       false,
     )
-    .option(
-      "--force",
-      "overwrite existing generated files instead of failing",
-      false,
-    )
-    .option(
-      "--no-detect",
-      "skip repo detection and write the static template",
-    )
-    .option(
-      "--no-hooks",
-      "skip writing PreToolUse hook config with --agents",
-    )
+    .option("--force", "overwrite existing generated files instead of failing", false)
+    .option("--no-detect", "skip repo detection and write the static template")
+    .option("--no-hooks", "skip writing PreToolUse hook config with --agents")
     .action(async (options: InitCommandOptions) => {
       const path = resolve(process.cwd(), CONFIG_FILENAME);
       const writeClaudeSkill = options.agents || options.agentSkill;
@@ -129,8 +116,7 @@ export function registerInitCommand(program: Command): void {
 
       if (configExists && !options.force && !writeAgentSkills) {
         process.stderr.write(
-          `crimes: ${CONFIG_FILENAME} already exists. ` +
-            `Pass --force to overwrite.\n`,
+          `crimes: ${CONFIG_FILENAME} already exists. ` + `Pass --force to overwrite.\n`,
         );
         process.exit(2);
         return;
@@ -145,8 +131,7 @@ export function registerInitCommand(program: Command): void {
       }
       if (writeCodexSkill && existsSync(codexSkillPath) && !options.force) {
         process.stderr.write(
-          `crimes: ${CODEX_SKILL_PATH} already exists. ` +
-            `Pass --force to overwrite.\n`,
+          `crimes: ${CODEX_SKILL_PATH} already exists. ` + `Pass --force to overwrite.\n`,
         );
         process.exit(2);
         return;
@@ -175,10 +160,7 @@ export function registerInitCommand(program: Command): void {
       if (writeAgentSkills && options.hooks !== false) {
         // Claude hook
         if (writeClaudeSkill) {
-          const settingsPath = resolve(
-            process.cwd(),
-            ".claude/settings.local.json",
-          );
+          const settingsPath = resolve(process.cwd(), ".claude/settings.local.json");
           let existing: ClaudeSettings | undefined;
           if (existsSync(settingsPath)) {
             try {
@@ -209,28 +191,17 @@ export function registerInitCommand(program: Command): void {
           }
           if (merge.action !== "skipped") {
             mkdirSync(dirname(settingsPath), { recursive: true });
-            writeFileSync(
-              settingsPath,
-              serializeClaudeSettings(merge.document),
-              "utf8",
-            );
+            writeFileSync(settingsPath, serializeClaudeSettings(merge.document), "utf8");
             written.push(".claude/settings.local.json");
           }
         }
 
         // Codex placeholder
         if (writeCodexSkill) {
-          const codexSettingsPath = resolve(
-            process.cwd(),
-            ".agents/settings.local.json",
-          );
+          const codexSettingsPath = resolve(process.cwd(), ".agents/settings.local.json");
           if (!existsSync(codexSettingsPath) || options.force) {
             mkdirSync(dirname(codexSettingsPath), { recursive: true });
-            writeFileSync(
-              codexSettingsPath,
-              CODEX_HOOK_DOCUMENT + "\n",
-              "utf8",
-            );
+            writeFileSync(codexSettingsPath, CODEX_HOOK_DOCUMENT + "\n", "utf8");
             written.push(".agents/settings.local.json");
           }
         }
@@ -238,8 +209,7 @@ export function registerInitCommand(program: Command): void {
 
       if (written.includes(CONFIG_FILENAME)) {
         process.stdout.write(
-          `Wrote ${CONFIG_FILENAME}. ` +
-            `Tweak include/exclude/thresholds and commit.\n`,
+          `Wrote ${CONFIG_FILENAME}. ` + `Tweak include/exclude/thresholds and commit.\n`,
         );
       } else if (configExists) {
         process.stdout.write(`Kept existing ${CONFIG_FILENAME}.\n`);

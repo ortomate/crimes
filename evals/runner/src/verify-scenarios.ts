@@ -26,12 +26,7 @@ import type { FixturesRegistry, ScanContext, Scenario } from "./types.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "..", "..", "..");
-const FIXTURES_REGISTRY = resolve(
-  REPO_ROOT,
-  "evals",
-  "fixtures",
-  "fixtures.meta.json",
-);
+const FIXTURES_REGISTRY = resolve(REPO_ROOT, "evals", "fixtures", "fixtures.meta.json");
 const SCENARIOS_DIR = resolve(REPO_ROOT, "evals", "scenarios");
 const CLI_DIST = resolve(REPO_ROOT, "packages", "cli", "dist", "index.js");
 
@@ -157,9 +152,7 @@ function loadScenarios(): Scenario[] {
       if (Array.isArray(data)) out.push(...data);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      process.stderr.write(
-        `verify-scenarios: failed to parse ${file} — ${message}\n`,
-      );
+      process.stderr.write(`verify-scenarios: failed to parse ${file} — ${message}\n`);
     }
   }
   return out;

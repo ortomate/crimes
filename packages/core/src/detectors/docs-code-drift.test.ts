@@ -80,9 +80,7 @@ describe("docsCodeDriftDetector", () => {
       docs: [
         {
           file: "docs/billing.md",
-          links: [
-            { target: "./setup.md", line: 5, isLocal: true, brokenLocal: true },
-          ],
+          links: [{ target: "./setup.md", line: 5, isLocal: true, brokenLocal: true }],
         },
       ],
     });
@@ -143,18 +141,12 @@ describe("docsCodeDriftDetector", () => {
       docs: [
         {
           file: "docs/x.md",
-          links: [
-            { target: "./gone.md", line: 1, isLocal: true, brokenLocal: true },
-          ],
+          links: [{ target: "./gone.md", line: 1, isLocal: true, brokenLocal: true }],
         },
       ],
     });
-    expect(
-      (await docsCodeDriftDetector.run(ctxFor("src/a.ts", ia))).length,
-    ).toBe(1);
-    expect(
-      await docsCodeDriftDetector.run(ctxFor("src/b.ts", ia)),
-    ).toEqual([]);
+    expect((await docsCodeDriftDetector.run(ctxFor("src/a.ts", ia))).length).toBe(1);
+    expect(await docsCodeDriftDetector.run(ctxFor("src/b.ts", ia))).toEqual([]);
   });
 
   it("emits one finding per doc with broken links, with multi-link evidence", async () => {
@@ -169,9 +161,7 @@ describe("docsCodeDriftDetector", () => {
         },
         {
           file: "docs/b.md",
-          links: [
-            { target: "./broken.md", line: 3, isLocal: true, brokenLocal: true },
-          ],
+          links: [{ target: "./broken.md", line: 3, isLocal: true, brokenLocal: true }],
         },
       ],
     });

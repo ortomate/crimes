@@ -181,9 +181,7 @@ describe("formatHumanReport", () => {
       ],
     };
     const out = formatHumanReport(report, { noColor: true });
-    const resurfaceHeader = out.indexOf(
-      "You're editing files you previously triaged",
-    );
+    const resurfaceHeader = out.indexOf("You're editing files you previously triaged");
     const topFiles = out.indexOf("Top files by risk");
     expect(resurfaceHeader).toBeGreaterThan(-1);
     expect(topFiles).toBeGreaterThan(-1);
@@ -274,17 +272,8 @@ describe("formatJsonReport", () => {
   });
 
   it("includes top-level discriminator keys agents rely on", () => {
-    const parsed = JSON.parse(formatJsonReport(sampleReport)) as Record<
-      string,
-      unknown
-    >;
-    for (const key of [
-      "schema_version",
-      "report_type",
-      "repo",
-      "summary",
-      "findings",
-    ]) {
+    const parsed = JSON.parse(formatJsonReport(sampleReport)) as Record<string, unknown>;
+    for (const key of ["schema_version", "report_type", "repo", "summary", "findings"]) {
       expect(parsed).toHaveProperty(key);
     }
     expect(parsed.report_type).toBe("scan");
@@ -418,9 +407,7 @@ describe("formatContextJsonReport", () => {
         },
       ],
     };
-    const parsed = JSON.parse(
-      formatContextJsonReport(withRelated),
-    ) as ContextReport;
+    const parsed = JSON.parse(formatContextJsonReport(withRelated)) as ContextReport;
     expect(parsed.related_files).toHaveLength(1);
     expect(parsed.related_files[0]!.file).toBe("src/nav/sidebar.ts");
     expect(parsed.related_files[0]!.reason).toContain("Route Metadata Drift");
@@ -435,13 +422,14 @@ describe("formatContextJsonReport", () => {
       agent_guidance: [],
       related_files: [],
       likely_tests: [],
-      agent_guidance_reason: "no findings on this file and no deterministic related files",
-      related_files_reason: "no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings",
-      likely_tests_reason: "no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename",
+      agent_guidance_reason:
+        "no findings on this file and no deterministic related files",
+      related_files_reason:
+        "no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings",
+      likely_tests_reason:
+        "no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename",
     };
-    const parsed = JSON.parse(
-      formatContextJsonReport(clean),
-    ) as ContextReport;
+    const parsed = JSON.parse(formatContextJsonReport(clean)) as ContextReport;
     expect(parsed.agent_guidance_reason).toMatch(/no findings/);
     expect(parsed.related_files_reason).toMatch(/no neighbourhood signal/);
     expect(parsed.likely_tests_reason).toMatch(/no sibling/);
@@ -509,9 +497,11 @@ describe("formatContextHumanReport", () => {
       likely_tests: [],
       agent_guidance: [],
       related_files: [],
-      agent_guidance_reason: "no findings on this file and no deterministic related files",
+      agent_guidance_reason:
+        "no findings on this file and no deterministic related files",
       related_files_reason: "no neighbourhood signal found",
-      likely_tests_reason: "no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename",
+      likely_tests_reason:
+        "no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename",
     };
     const out = formatContextHumanReport(clean, { noColor: true });
     expect(out).toContain("Related files");
@@ -747,9 +737,7 @@ describe("formatVerdictJsonReport", () => {
   });
 
   it("round-trips the summary with severity buckets", () => {
-    const parsed = JSON.parse(
-      formatVerdictJsonReport(sampleVerdict),
-    ) as VerdictReport;
+    const parsed = JSON.parse(formatVerdictJsonReport(sampleVerdict)) as VerdictReport;
     expect(parsed.summary.new_by_severity).toEqual({
       high: 1,
       medium: 1,
@@ -904,9 +892,10 @@ describe("formatHotspotsReport", () => {
 
 describe("formatHotspotsJsonReport", () => {
   it("includes every required key", () => {
-    const parsed = JSON.parse(
-      formatHotspotsJsonReport(sampleHotspots),
-    ) as Record<string, unknown>;
+    const parsed = JSON.parse(formatHotspotsJsonReport(sampleHotspots)) as Record<
+      string,
+      unknown
+    >;
     for (const key of [
       "schema_version",
       "report_type",
@@ -922,14 +911,10 @@ describe("formatHotspotsJsonReport", () => {
   });
 
   it("round-trips hotspot rows", () => {
-    const parsed = JSON.parse(
-      formatHotspotsJsonReport(sampleHotspots),
-    ) as HotspotsReport;
+    const parsed = JSON.parse(formatHotspotsJsonReport(sampleHotspots)) as HotspotsReport;
     expect(parsed.hotspots).toHaveLength(2);
     expect(parsed.hotspots[0]!.risk).toBe(0.82);
-    expect(parsed.hotspots[0]!.latest_change).toBe(
-      "2026-05-12T14:30:00+00:00",
-    );
+    expect(parsed.hotspots[0]!.latest_change).toBe("2026-05-12T14:30:00+00:00");
   });
 });
 
@@ -976,9 +961,10 @@ describe("formatBaselineSaveReport", () => {
 
 describe("formatBaselineJsonReport", () => {
   it("includes the baseline discriminator keys", () => {
-    const parsed = JSON.parse(
-      formatBaselineJsonReport(sampleBaseline),
-    ) as Record<string, unknown>;
+    const parsed = JSON.parse(formatBaselineJsonReport(sampleBaseline)) as Record<
+      string,
+      unknown
+    >;
     for (const key of [
       "schema_version",
       "report_type",
@@ -1088,9 +1074,7 @@ describe("formatBaselineCheckJsonReport", () => {
   });
 });
 
-function stubContextReport(
-  overrides: Partial<ContextReport>,
-): ContextReport {
+function stubContextReport(overrides: Partial<ContextReport>): ContextReport {
   return {
     schema_version: "0.3.0",
     report_type: "context",
@@ -1109,9 +1093,19 @@ describe("formatContextHumanReport — clues block", () => {
   it("renders a Clues section with churn / suppressions / test_gap when present", () => {
     const report: ContextReport = stubContextReport({
       clues: {
-        churn: { commits_90d: 14, last_commit_at: "2026-05-18T12:30:00Z", unique_authors_90d: 3 },
+        churn: {
+          commits_90d: 14,
+          last_commit_at: "2026-05-18T12:30:00Z",
+          unique_authors_90d: 3,
+        },
         suppressions: [
-          { fingerprint: "abc", detector: "large_function", reason: "legacy", pinned_version: "0.9.x", matches_current_finding: false },
+          {
+            fingerprint: "abc",
+            detector: "large_function",
+            reason: "legacy",
+            pinned_version: "0.9.x",
+            matches_current_finding: false,
+          },
         ],
         test_gap: { raw: 1, percentile: 0.85, label: "top-quartile" },
         related_signals: [],
@@ -1483,8 +1477,12 @@ describe("inline feedback hints (0.7.0)", () => {
       showAll: true,
       feedbackHints: { entriesByDetector: {} },
     });
-    expect(out).toContain("Give feedback: crimes feedback large_function::src/billing.ts::generateInvoice --verdict {tp|fp}");
-    expect(out).toContain("Give feedback: crimes feedback todo_density::src/todo.ts:: --verdict {tp|fp}");
+    expect(out).toContain(
+      "Give feedback: crimes feedback large_function::src/billing.ts::generateInvoice --verdict {tp|fp}",
+    );
+    expect(out).toContain(
+      "Give feedback: crimes feedback todo_density::src/todo.ts:: --verdict {tp|fp}",
+    );
   });
 
   it("is suppressed when noColor is true (piped / --no-color path)", () => {

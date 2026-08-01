@@ -38,7 +38,8 @@ const PYTEST_DECORATORS = /^pytest\.(fixture|mark)\b/;
 const DJANGO_VIEW_BASES =
   /(^|\.)(View|TemplateView|ListView|DetailView|CreateView|UpdateView|DeleteView|FormView|RedirectView|APIView|ViewSet|ModelViewSet|GenericAPIView)$/;
 
-const UNITTEST_BASES = /(^|\.)(TestCase|IsolatedAsyncioTestCase|SimpleTestCase|TransactionTestCase)$/;
+const UNITTEST_BASES =
+  /(^|\.)(TestCase|IsolatedAsyncioTestCase|SimpleTestCase|TransactionTestCase)$/;
 
 export interface ShapeInput {
   name: string | undefined;
@@ -64,8 +65,7 @@ export interface ShapeResult {
  * signal here — plenty of non-view functions take a `request`.
  */
 export function classifyShape(input: ShapeInput): ShapeResult {
-  const { name, decorators, firstParam, className, classBases, filePath } =
-    input;
+  const { name, decorators, firstParam, className, classBases, filePath } = input;
 
   // 1. Tests. Both the pytest naming convention and unittest inheritance.
   if (name !== undefined && /^test_/.test(name)) {

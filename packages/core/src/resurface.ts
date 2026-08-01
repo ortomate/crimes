@@ -48,9 +48,7 @@ const RESURFACING_DISPOSITIONS: ReadonlySet<TriageDisposition> = new Set([
  *
  * Pure (modulo the `reDetect` callback's side effects).
  */
-export async function collectResurfaced(
-  input: ResurfaceInput,
-): Promise<Finding[]> {
+export async function collectResurfaced(input: ResurfaceInput): Promise<Finding[]> {
   if (input.diffFiles.size === 0) return [];
 
   // Last-wins on duplicate fingerprints within each source list (matches

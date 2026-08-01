@@ -67,7 +67,9 @@ async function collectResurfaceForScan(args: {
   const diffFiles = new Set<string>(
     await Promise.all(
       diffPaths.map(async (abs) =>
-        relative(rootReal, await safeRealpath(abs)).split(sep).join("/"),
+        relative(rootReal, await safeRealpath(abs))
+          .split(sep)
+          .join("/"),
       ),
     ),
   );
@@ -91,7 +93,9 @@ async function collectResurfaceForScan(args: {
   const allFilesReal = await Promise.all(
     args.allFiles.map(async (abs) => ({
       abs,
-      relPath: relative(rootReal, await safeRealpath(abs)).split(sep).join("/"),
+      relPath: relative(rootReal, await safeRealpath(abs))
+        .split(sep)
+        .join("/"),
     })),
   );
   const absByRelPath = new Map<string, string>();
@@ -141,9 +145,7 @@ async function collectResurfaceForScan(args: {
   });
 }
 
-async function loadBaselineEntriesIfPresent(
-  root: string,
-): Promise<BaselineEntry[]> {
+async function loadBaselineEntriesIfPresent(root: string): Promise<BaselineEntry[]> {
   try {
     const baseline = await loadBaseline(resolve(root, BASELINE_RELATIVE_PATH));
     return baseline.findings;

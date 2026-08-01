@@ -269,11 +269,7 @@ const INSTRUCTION_PATTERNS: ReadonlyArray<{ id: string; re: RegExp }> = [
   },
 ];
 
-function readInstructionProse(
-  file: string,
-  raw: string,
-  out: AgentInstruction[],
-): void {
+function readInstructionProse(file: string, raw: string, out: AgentInstruction[]): void {
   const lines = raw.split(/\r?\n/);
   for (let i = 0; i < lines.length && out.length < 100; i++) {
     const line = lines[i]!;
@@ -319,7 +315,10 @@ export function redactSecrets(text: string): string {
       )
       .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, "$1 <redacted>")
       // Common provider token prefixes.
-      .replace(/\b(sk|pk|ghp|gho|ghs|ghu|ghr|xox[abposr])[-_][A-Za-z0-9_-]{8,}/g, "<redacted-token>")
+      .replace(
+        /\b(sk|pk|ghp|gho|ghs|ghu|ghr|xox[abposr])[-_][A-Za-z0-9_-]{8,}/g,
+        "<redacted-token>",
+      )
       // Long opaque base64-ish runs.
       .replace(/\b[A-Za-z0-9+/]{40,}={0,2}\b/g, "<redacted>")
   );
@@ -343,10 +342,7 @@ function findLine(lines: string[], needle: string): number {
   return 1;
 }
 
-function compareLocated<T extends { file: string; line: number }>(
-  a: T,
-  b: T,
-): number {
+function compareLocated<T extends { file: string; line: number }>(a: T, b: T): number {
   return a.file === b.file ? a.line - b.line : a.file.localeCompare(b.file);
 }
 

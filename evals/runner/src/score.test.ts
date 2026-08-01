@@ -110,14 +110,11 @@ describe("extractFilePaths coverage (via scoreStructural)", () => {
 
   for (const [label, path] of cases) {
     it(`credits a ${label} path the agent named`, () => {
-      const result = scoreStructural(
-        `I looked at \`${path}\` and it has no test.`,
-        { referenced_files: [path] },
-      );
+      const result = scoreStructural(`I looked at \`${path}\` and it has no test.`, {
+        referenced_files: [path],
+      });
       const detail = result.details.find((d) => d.check === "referenced_files");
-      expect(detail?.passed, `${path} was not extracted from the response`).toBe(
-        true,
-      );
+      expect(detail?.passed, `${path} was not extracted from the response`).toBe(true);
     });
   }
 });

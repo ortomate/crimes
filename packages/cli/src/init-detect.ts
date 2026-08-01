@@ -18,18 +18,13 @@ const DIR_PATTERNS: Array<[string, string]> = [
   ["__tests__", "**/__tests__/**"],
 ];
 
-const STATIC_TEST_GLOBS = [
-  "**/*.test.{ts,tsx,js,jsx}",
-  "**/*.spec.{ts,tsx,js,jsx}",
-];
+const STATIC_TEST_GLOBS = ["**/*.test.{ts,tsx,js,jsx}", "**/*.spec.{ts,tsx,js,jsx}"];
 
 export async function detectRepoShape(root: string): Promise<RepoShape> {
   const exists = (path: string) => existsSync(join(root, path));
 
   const isMonorepo =
-    exists("pnpm-workspace.yaml") ||
-    exists("turbo.json") ||
-    exists("lerna.json");
+    exists("pnpm-workspace.yaml") || exists("turbo.json") || exists("lerna.json");
 
   const isNextJs =
     exists("next.config.js") ||
@@ -38,9 +33,7 @@ export async function detectRepoShape(root: string): Promise<RepoShape> {
     exists("next.config.ts");
 
   const isVite =
-    exists("vite.config.js") ||
-    exists("vite.config.mjs") ||
-    exists("vite.config.ts");
+    exists("vite.config.js") || exists("vite.config.mjs") || exists("vite.config.ts");
 
   const isTsOnly = await scanForJsFamilyAbsence(root);
 
@@ -66,7 +59,8 @@ async function scanForJsFamilyAbsence(root: string): Promise<boolean> {
       continue;
     }
     for (const e of entries) {
-      if (e.name.startsWith(".") || e.name === "node_modules" || e.name === "dist") continue;
+      if (e.name.startsWith(".") || e.name === "node_modules" || e.name === "dist")
+        continue;
       const path = join(dir, e.name);
       if (e.isDirectory()) {
         queue.push(path);
@@ -87,13 +81,23 @@ export interface GenerateConfigOptions {
 export async function generateConfig(options: GenerateConfigOptions): Promise<string> {
   const include = ["**/*.{ts,tsx,js,jsx,mjs,cjs}"];
   const exclude = [
-    "**/node_modules/**", "**/dist/**", "**/build/**",
-    "**/.next/**", "**/out/**", "**/coverage/**",
-    "**/*.min.js", "**/*.generated.*", "**/.crimes/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.next/**",
+    "**/out/**",
+    "**/coverage/**",
+    "**/*.min.js",
+    "**/*.generated.*",
+    "**/.crimes/**",
   ];
   let scopeTiers = [
-    "scripts/**", "examples/**", "fixtures/**", "public/**",
-    "**/__tests__/**", ...STATIC_TEST_GLOBS,
+    "scripts/**",
+    "examples/**",
+    "fixtures/**",
+    "public/**",
+    "**/__tests__/**",
+    ...STATIC_TEST_GLOBS,
   ];
 
   if (options.detect) {

@@ -109,9 +109,7 @@ describe("collectResurfaced", () => {
       diffFiles: new Set(["src/foo.ts"]),
       triageEntries: [makeTriage()],
       baselineEntries: [],
-      reDetect: vi.fn().mockResolvedValue([
-        makeFinding({ symbol: "differentFunction" }),
-      ]),
+      reDetect: vi.fn().mockResolvedValue([makeFinding({ symbol: "differentFunction" })]),
     };
     const result = await collectResurfaced(input);
     expect(result).toHaveLength(0);
@@ -151,10 +149,9 @@ describe("collectResurfaced", () => {
   });
 
   it("calls reDetect once per touched file even when multiple entries match", async () => {
-    const reDetect = vi.fn().mockResolvedValue([
-      makeFinding({ symbol: "a" }),
-      makeFinding({ symbol: "b" }),
-    ]);
+    const reDetect = vi
+      .fn()
+      .mockResolvedValue([makeFinding({ symbol: "a" }), makeFinding({ symbol: "b" })]);
     const input: ResurfaceInput = {
       diffFiles: new Set(["src/foo.ts"]),
       triageEntries: [
@@ -170,15 +167,20 @@ describe("collectResurfaced", () => {
   });
 
   it("preserves detector order in the output", async () => {
-    const reDetect = vi.fn().mockResolvedValue([
-      makeFinding({ symbol: "second" }),
-      makeFinding({ symbol: "first" }),
-    ]);
+    const reDetect = vi
+      .fn()
+      .mockResolvedValue([
+        makeFinding({ symbol: "second" }),
+        makeFinding({ symbol: "first" }),
+      ]);
     const input: ResurfaceInput = {
       diffFiles: new Set(["src/foo.ts"]),
       triageEntries: [
         makeTriage({ fingerprint: "large_function::src/foo.ts::first", symbol: "first" }),
-        makeTriage({ fingerprint: "large_function::src/foo.ts::second", symbol: "second" }),
+        makeTriage({
+          fingerprint: "large_function::src/foo.ts::second",
+          symbol: "second",
+        }),
       ],
       baselineEntries: [],
       reDetect,

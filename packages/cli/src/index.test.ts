@@ -7,9 +7,8 @@ import { welcomeBanner } from "./banner.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CLI = resolve(here, "..", "dist", "index.js");
-const PKG_VERSION = JSON.parse(
-  readFileSync(resolve(here, "..", "package.json"), "utf8"),
-).version as string;
+const PKG_VERSION = JSON.parse(readFileSync(resolve(here, "..", "package.json"), "utf8"))
+  .version as string;
 
 interface CliResult {
   stdout: string;

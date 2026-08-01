@@ -41,10 +41,7 @@ async function runCli(args: string[], cwd: string): Promise<CliResult> {
 }
 
 function largeFunctionSource(name = "generateInvoice"): string {
-  const body = Array.from(
-    { length: 200 },
-    (_, i) => `  const v${i} = ${i};`,
-  ).join("\n");
+  const body = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join("\n");
   return `export function ${name}() {\n${body}\n  return 0;\n}\n`;
 }
 
@@ -68,12 +65,7 @@ describe("crimes ignore", () => {
   it("empty --reason exits 2", async () => {
     const root = await makeRepo();
     const result = await runCli(
-      [
-        "ignore",
-        "large_function::billing.ts::generateInvoice",
-        "--reason",
-        "",
-      ],
+      ["ignore", "large_function::billing.ts::generateInvoice", "--reason", ""],
       root,
     );
     expect(result.exitCode).toBe(2);
@@ -82,10 +74,7 @@ describe("crimes ignore", () => {
 
   it("invalid id / fingerprint shape exits 2", async () => {
     const root = await makeRepo();
-    const result = await runCli(
-      ["ignore", "garbage", "--reason", "ok"],
-      root,
-    );
+    const result = await runCli(["ignore", "garbage", "--reason", "ok"], root);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("neither a per-scan id");
   });
@@ -114,10 +103,7 @@ describe("crimes ignore", () => {
   it("crime_NNNNN id resolves to a fingerprint via a fresh scan", async () => {
     const root = await makeRepo();
     // crime_00001 will be the largest-severity finding — large_function on billing.ts.
-    const result = await runCli(
-      ["ignore", "crime_00001", "--reason", "legacy"],
-      root,
-    );
+    const result = await runCli(["ignore", "crime_00001", "--reason", "legacy"], root);
     expect(result.exitCode).toBe(0);
 
     const raw = JSON.parse(
@@ -131,21 +117,11 @@ describe("crimes ignore", () => {
   it("re-ignoring the same fingerprint updates the entry, doesn't append", async () => {
     const root = await makeRepo();
     await runCli(
-      [
-        "ignore",
-        "large_function::billing.ts::generateInvoice",
-        "--reason",
-        "original",
-      ],
+      ["ignore", "large_function::billing.ts::generateInvoice", "--reason", "original"],
       root,
     );
     const second = await runCli(
-      [
-        "ignore",
-        "large_function::billing.ts::generateInvoice",
-        "--reason",
-        "revised",
-      ],
+      ["ignore", "large_function::billing.ts::generateInvoice", "--reason", "revised"],
       root,
     );
     expect(second.exitCode).toBe(0);
@@ -196,12 +172,7 @@ describe("crimes ignore", () => {
   it("unknown fingerprint rejects with exit 2 (without --no-verify)", async () => {
     const root = await makeRepo();
     const result = await runCli(
-      [
-        "ignore",
-        "large_function::doesnotexist.ts::nope",
-        "--reason",
-        "ok",
-      ],
+      ["ignore", "large_function::doesnotexist.ts::nope", "--reason", "ok"],
       root,
     );
     expect(result.exitCode).toBe(2);

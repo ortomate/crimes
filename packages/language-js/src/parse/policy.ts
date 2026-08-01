@@ -296,7 +296,10 @@ function render(
     return `(${left} ${op} ${right})`;
   }
 
-  if (ts.isPrefixUnaryExpression(expr) && expr.operator === ts.SyntaxKind.ExclamationToken) {
+  if (
+    ts.isPrefixUnaryExpression(expr) &&
+    expr.operator === ts.SyntaxKind.ExclamationToken
+  ) {
     state.operators.push("!");
     state.tokens += 1;
     return `!${render(expr.operand as ts.Expression, sourceFile, state, locals)}`;

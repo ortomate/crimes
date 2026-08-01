@@ -143,7 +143,8 @@ function isBooleanish(d: TypedDeclaration): boolean {
     d.initializerKind === "boolean_literal" ||
     d.initializerKind === "negation" ||
     d.initializerKind === "comparison"
-  ) return true;
+  )
+    return true;
   return false;
 }
 
@@ -161,9 +162,7 @@ function isWellNamed(d: TypedDeclaration, extraAllowed: Set<string>): boolean {
   return false;
 }
 
-function readAllowed(
-  options: Record<string, unknown> | undefined,
-): Set<string> {
+function readAllowed(options: Record<string, unknown> | undefined): Set<string> {
   const raw = options?.["boolean_naming_drift"];
   if (!raw) return new Set();
   const parsed = optionsSchema.safeParse(raw);

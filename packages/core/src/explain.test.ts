@@ -7,10 +7,7 @@ import { scan } from "./scan.js";
 
 async function makeRepo(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "crimes-explain-test-"));
-  const body = Array.from(
-    { length: 200 },
-    (_, i) => `  const v${i} = ${i};`,
-  ).join("\n");
+  const body = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join("\n");
   await writeFile(
     join(root, "billing.ts"),
     `export function generateInvoice() {\n${body}\n  return 0;\n}\n`,
@@ -22,10 +19,7 @@ async function makeRepo(): Promise<string> {
 describe("explain", () => {
   it("resolves a finding by stable fingerprint via fresh scan", async () => {
     const root = await makeRepo();
-    const report = await explain(
-      "large_function::billing.ts::generateInvoice",
-      { root },
-    );
+    const report = await explain("large_function::billing.ts::generateInvoice", { root });
     expect(report.report_type).toBe("explain");
     expect(report.detector.type).toBe("large_function");
     expect(report.detector.charge).toBe("God Function");
@@ -48,9 +42,9 @@ describe("explain", () => {
 
   it("throws UnknownFindingError for an id that does not exist", async () => {
     const root = await makeRepo();
-    await expect(
-      explain("crime_99999", { root }),
-    ).rejects.toBeInstanceOf(UnknownFindingError);
+    await expect(explain("crime_99999", { root })).rejects.toBeInstanceOf(
+      UnknownFindingError,
+    );
   });
 
   it("throws UnknownFindingError for a fingerprint that does not exist", async () => {
@@ -62,10 +56,7 @@ describe("explain", () => {
 
   it("ExplainReport carries detector description and why_it_matters", async () => {
     const root = await makeRepo();
-    const report = await explain(
-      "large_function::billing.ts::generateInvoice",
-      { root },
-    );
+    const report = await explain("large_function::billing.ts::generateInvoice", { root });
     expect(report.detector.description).toContain("per-shape line threshold");
     expect(report.why_it_matters).toContain("Functions this large");
   });
@@ -84,10 +75,9 @@ describe("explain", () => {
         "end = datetime.now()\n",
       "utf8",
     );
-    const report = await explain(
-      "mixed_utc_local_methods::domain/billing.py::",
-      { root },
-    );
+    const report = await explain("mixed_utc_local_methods::domain/billing.py::", {
+      root,
+    });
     expect(report.detector.type).toBe("mixed_utc_local_methods.py");
     expect(report.detector.description).toContain("utcnow");
     expect(report.detector.description).not.toContain("getUTCHours");

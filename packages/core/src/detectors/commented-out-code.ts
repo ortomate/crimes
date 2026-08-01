@@ -99,11 +99,18 @@ function scoreComment(comment: SourceComment): CommentScore | undefined {
   const codeLikeLines = lines.filter(isCodeLikeLine);
   if (codeLikeLines.length < 2) return undefined;
 
-  const proseWords = lines.join(" ").split(/\s+/).filter((word) => /^[a-z]{4,}$/i.test(word)).length;
+  const proseWords = lines
+    .join(" ")
+    .split(/\s+/)
+    .filter((word) => /^[a-z]{4,}$/i.test(word)).length;
   const codeText = codeLikeLines.join("\n");
   const syntaxCount = countMatches(codeText, /[{};]|=>|===|!==|&&|\|\|/g);
-  const callLines = codeLikeLines.filter((line) => /\b[A-Za-z_$][\w$]*\s*\([^)]*\)/.test(line)).length;
-  const tokens = CODE_TOKENS.filter((token) => new RegExp(`\\b${token}\\b`).test(codeText));
+  const callLines = codeLikeLines.filter((line) =>
+    /\b[A-Za-z_$][\w$]*\s*\([^)]*\)/.test(line),
+  ).length;
+  const tokens = CODE_TOKENS.filter((token) =>
+    new RegExp(`\\b${token}\\b`).test(codeText),
+  );
   const statementCount = syntaxCount + callLines + tokens.length + codeLikeLines.length;
 
   if (statementCount < 5) return undefined;
@@ -119,7 +126,11 @@ function scoreComment(comment: SourceComment): CommentScore | undefined {
 }
 
 function isCodeLikeLine(line: string): boolean {
-  if (/^(const|let|var|function|class|import|export|interface|type|if|else|for|while|switch|try|catch|await|return)\b/.test(line)) {
+  if (
+    /^(const|let|var|function|class|import|export|interface|type|if|else|for|while|switch|try|catch|await|return)\b/.test(
+      line,
+    )
+  ) {
     return true;
   }
   if (/[{};]$/.test(line) || /=>/.test(line)) return true;

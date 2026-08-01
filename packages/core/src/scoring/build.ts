@@ -158,8 +158,7 @@ export async function buildScoringContext(
       ? { limitedReason: churnResult.historyLimitedReason }
       : !churnResult.gitAvailable
         ? {
-            limitedReason:
-              "not a git repository or git is unavailable; churn is unknown",
+            limitedReason: "not a git repository or git is unavailable; churn is unknown",
           }
         : {}),
   };
@@ -173,14 +172,14 @@ export async function buildScoringContext(
       return recencyForDate(latestByFile.get(repoPath));
     },
     limited: !churnResult.gitAvailable,
-    ...(churnResult.gitAvailable ? {} : {
-      limitedReason: "not a git repository or git is unavailable; recency is unknown",
-    }),
+    ...(churnResult.gitAvailable
+      ? {}
+      : {
+          limitedReason: "not a git repository or git is unavailable; recency is unknown",
+        }),
   };
 
-  const repoPaths = options.files.map((abs) =>
-    toRepoPath(options.root, abs),
-  );
+  const repoPaths = options.files.map((abs) => toRepoPath(options.root, abs));
   const testGap = buildTestGapIndex({
     repoPaths,
     imports: options.imports,
@@ -310,10 +309,7 @@ function buildBlastRadiusIndex(args: {
   };
 }
 
-function transitiveImporterCount(
-  imports: ImportGraph,
-  start: string,
-): number {
+function transitiveImporterCount(imports: ImportGraph, start: string): number {
   const visited = new Set<string>();
   const stack = [start];
   while (stack.length > 0) {
@@ -352,7 +348,7 @@ const SEVERITY_NUMERIC: Record<Severity, number> = {
 const FALLBACK_INTRINSIC: Record<Severity, number> = {
   high: 0.75,
   medium: 0.55,
-  low: 0.40,
+  low: 0.4,
 };
 
 /**
@@ -390,10 +386,7 @@ export function computeAgentRisk(args: {
       ? clamp01(args.intrinsic)
       : FALLBACK_INTRINSIC[args.severity];
   const raw =
-    0.40 * intrinsic +
-    0.20 * args.churn +
-    0.20 * args.test_gap +
-    0.20 * args.blast_radius;
+    0.4 * intrinsic + 0.2 * args.churn + 0.2 * args.test_gap + 0.2 * args.blast_radius;
   return round(clamp01(raw));
 }
 
@@ -501,4 +494,3 @@ function parseRepoPath(repoPath: string): { dir: string; baseNoExt: string } {
   const baseNoExt = dot >= 0 ? base.slice(0, dot) : base;
   return { dir, baseNoExt };
 }
-

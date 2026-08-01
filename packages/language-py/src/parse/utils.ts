@@ -110,8 +110,7 @@ export function maxNestingDepth(body: Node): number {
       ) {
         continue;
       }
-      const opensLevel =
-        NESTING_TYPES.has(child.type) && child.type !== "elif_clause";
+      const opensLevel = NESTING_TYPES.has(child.type) && child.type !== "elif_clause";
       stack.push({ node: child, depth: opensLevel ? depth + 1 : depth });
     }
   }

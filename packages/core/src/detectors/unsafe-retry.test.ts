@@ -180,8 +180,11 @@ describe("unsafe_retry — configuration", () => {
     `;
     expect(run(source)).toHaveLength(1);
     expect(
-      run(source, "src/a.ts",
-        configWithOptions("unsafe_retry", { transactionCountsAsIdempotent: true })),
+      run(
+        source,
+        "src/a.ts",
+        configWithOptions("unsafe_retry", { transactionCountsAsIdempotent: true }),
+      ),
     ).toHaveLength(0);
   });
 
@@ -201,8 +204,11 @@ describe("unsafe_retry — configuration", () => {
 
   it("honours idempotentCalls", () => {
     expect(
-      run(RETRIED_POST, "src/a.ts",
-        configWithOptions("unsafe_retry", { idempotentCalls: ["post"] })),
+      run(
+        RETRIED_POST,
+        "src/a.ts",
+        configWithOptions("unsafe_retry", { idempotentCalls: ["post"] }),
+      ),
     ).toHaveLength(0);
   });
 
@@ -217,8 +223,11 @@ describe("unsafe_retry — configuration", () => {
     // `append` is not in the built-in mutating vocabulary.
     expect(run(source)).toHaveLength(0);
     expect(
-      run(source, "src/a.ts",
-        configWithOptions("unsafe_retry", { mutatingCalls: ["ledger.append"] })),
+      run(
+        source,
+        "src/a.ts",
+        configWithOptions("unsafe_retry", { mutatingCalls: ["ledger.append"] }),
+      ),
     ).toHaveLength(1);
   });
 

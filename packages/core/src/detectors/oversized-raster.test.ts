@@ -4,14 +4,12 @@ import type { CrimesConfig } from "../config.js";
 import type { AssetDetectorContext } from "../detector.js";
 import { oversizedRasterDetector } from "./oversized-raster.js";
 
-function makeCtx(
-  args: {
-    byteSize: number;
-    file?: string;
-    extension?: string;
-    config?: CrimesConfig;
-  },
-): AssetDetectorContext {
+function makeCtx(args: {
+  byteSize: number;
+  file?: string;
+  extension?: string;
+  config?: CrimesConfig;
+}): AssetDetectorContext {
   return {
     file: args.file ?? "src/assets/hero.png",
     absolutePath: `/tmp/${args.file ?? "src/assets/hero.png"}`,
@@ -24,33 +22,25 @@ function makeCtx(
 
 describe("oversizedRasterDetector", () => {
   it("does not fire below the low threshold (200 KB default)", async () => {
-    const findings = await oversizedRasterDetector.run(
-      makeCtx({ byteSize: 100 * 1024 }),
-    );
+    const findings = await oversizedRasterDetector.run(makeCtx({ byteSize: 100 * 1024 }));
     expect(findings).toEqual([]);
   });
 
   it("fires at low severity between low and medium thresholds", async () => {
-    const findings = await oversizedRasterDetector.run(
-      makeCtx({ byteSize: 300 * 1024 }),
-    );
+    const findings = await oversizedRasterDetector.run(makeCtx({ byteSize: 300 * 1024 }));
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("low");
     expect(findings[0]!.charge).toBe("Oversized Raster");
   });
 
   it("fires at medium severity between medium and high thresholds", async () => {
-    const findings = await oversizedRasterDetector.run(
-      makeCtx({ byteSize: 700 * 1024 }),
-    );
+    const findings = await oversizedRasterDetector.run(makeCtx({ byteSize: 700 * 1024 }));
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("medium");
   });
 
   it("fires at high severity at or above the high threshold (1000 KB)", async () => {
-    const findings = await oversizedRasterDetector.run(
-      makeCtx({ byteSize: 1_500_000 }),
-    );
+    const findings = await oversizedRasterDetector.run(makeCtx({ byteSize: 1_500_000 }));
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("high");
     expect(findings[0]!.evidence.join(" ")).toContain("1.43 MB");

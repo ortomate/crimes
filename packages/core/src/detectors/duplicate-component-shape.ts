@@ -42,11 +42,7 @@ export const duplicateComponentShapeDetector: LanguageJsDetector = {
   },
 };
 
-function buildFinding(
-  shape: string,
-  sites: JsxShapeHit[],
-  anchor: string,
-): Finding {
+function buildFinding(shape: string, sites: JsxShapeHit[], anchor: string): Finding {
   const sortedSites = [...sites].sort((a, b) =>
     a.file === b.file ? a.lines[0] - b.lines[0] : a.file.localeCompare(b.file),
   );
@@ -58,9 +54,7 @@ function buildFinding(
     `${distinctFiles.length} file(s), ${sortedSites.length} occurrence(s)`,
   ];
   for (const site of sortedSites.slice(0, 5)) {
-    evidence.push(
-      `${site.file}:${site.lines[0]}-${site.lines[1]}: <${site.rootName}>`,
-    );
+    evidence.push(`${site.file}:${site.lines[0]}-${site.lines[1]}: <${site.rootName}>`);
   }
   if (sortedSites.length > 5) {
     evidence.push(`+${sortedSites.length - 5} more occurrence(s)`);

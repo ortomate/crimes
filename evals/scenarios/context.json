@@ -5,12 +5,8 @@
     "kind": "context",
     "prompt": "You are about to add a new `archived` flag to the billing API. Use `crimes context src/api/state.ts --format json` to find existing boolean-typed declarations whose names don't follow the project's prefix convention. Name the two specific identifiers that violate the convention and quote one finding evidence line verbatim.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "boolean_naming_drift"
-      ],
-      "referenced_files": [
-        "src/api/state.ts"
-      ]
+      "referenced_findings": ["boolean_naming_drift"],
+      "referenced_files": ["src/api/state.ts"]
     },
     "judge_questions": [
       "Did the agent identify at least two of the unprefixed booleans (e.g. `paid`, `expired`, `stale`) by name?",
@@ -23,12 +19,8 @@
     "kind": "context",
     "prompt": "You are about to add a new due-date display to the billing UI by reusing helpers from src/date.ts. Use `crimes context src/date.ts --format json` to find any locale-naive renderers already there. Identify which helper function you should NOT copy as a starting point, name the method it calls, and quote the finding evidence verbatim.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "locale_drift"
-      ],
-      "referenced_files": [
-        "src/date.ts"
-      ]
+      "referenced_findings": ["locale_drift"],
+      "referenced_files": ["src/date.ts"]
     },
     "judge_questions": [
       "Did the agent name the locale-drifting helper (e.g. `prettyDueDate`) and the `toLocale*()` method it relies on?",
@@ -41,12 +33,8 @@
     "kind": "context",
     "prompt": "You are about to edit src/billing.ts. Use `crimes context src/billing.ts --format json` to gather context. Summarise what the file does, which related files you would also need to read, and which risks the scan flagged.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "large_function"
-      ],
-      "referenced_files": [
-        "src/billing.ts"
-      ]
+      "referenced_findings": ["large_function"],
+      "referenced_files": ["src/billing.ts"]
     },
     "judge_questions": [
       "Did the agent quote at least one finding's evidence verbatim instead of paraphrasing?",
@@ -59,13 +47,8 @@
     "kind": "context",
     "prompt": "You are about to edit src/add.ts. Use `crimes context src/add.ts --format json` to gather context. Report what crimes found (or didn't find) and whether the file is safe to extend.",
     "expected_artifacts": {
-      "referenced_files": [
-        "src/add.ts"
-      ],
-      "forbidden_actions": [
-        "large_function",
-        "direct_date"
-      ]
+      "referenced_files": ["src/add.ts"],
+      "forbidden_actions": ["large_function", "direct_date"]
     },
     "judge_questions": [
       "Did the agent correctly recognise this as a clean fixture (no findings)?",
@@ -78,13 +61,8 @@
     "kind": "context",
     "prompt": "Use `crimes context src/billing.ts --format json` to inspect src/billing.ts. Confirm there are no findings, report the likely_tests path, and explain why this module is low risk to edit.",
     "expected_artifacts": {
-      "referenced_files": [
-        "src/billing.ts"
-      ],
-      "forbidden_actions": [
-        "large_function",
-        "near_duplicate_block"
-      ]
+      "referenced_files": ["src/billing.ts"],
+      "forbidden_actions": ["large_function", "near_duplicate_block"]
     },
     "judge_questions": [
       "Did the agent surface the likely_tests entry pointing to billing.test.ts?",
@@ -97,9 +75,7 @@
     "kind": "context",
     "prompt": "You're about to land your first PR on this monorepo and want to know what agent-facing context the repo provides. Use `crimes scan --format json` to check whether the repo ships an AGENTS.md / CLAUDE.md / SKILL.md surface. If not, surface the finding, explain the consequence for future agent work, and propose a minimal AGENTS.md skeleton that would clear the finding.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "missing_agent_context"
-      ],
+      "referenced_findings": ["missing_agent_context"],
       "expected_priority": "missing_agent_context"
     },
     "judge_questions": [
@@ -113,12 +89,8 @@
     "kind": "context",
     "prompt": "You're about to add a new status indicator next to `src/assets/check-icon.png`. Before you copy that asset's pattern for the new indicator, use `crimes scan --format json` to inspect what the scanner says about it. Quote the finding's dimensions verbatim and explain why a new SVG indicator would be a better starting point than another PNG at those dimensions.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "raster_should_be_vector"
-      ],
-      "referenced_files": [
-        "src/assets/check-icon.png"
-      ]
+      "referenced_findings": ["raster_should_be_vector"],
+      "referenced_files": ["src/assets/check-icon.png"]
     },
     "judge_questions": [
       "Did the agent quote the actual pixel dimensions (e.g. `32 × 32`) from the finding evidence rather than paraphrasing 'small icon'?",
@@ -131,10 +103,7 @@
     "kind": "context",
     "prompt": "You have been asked to change how ledger entries are reversed in this package. Before touching anything, use crimes to work out what protection you have if you get it wrong, and what else your change could affect. Report what you learned.",
     "expected_artifacts": {
-      "referenced_files": [
-        "billing/ledger.py",
-        "billing/reporting.py"
-      ]
+      "referenced_files": ["billing/ledger.py", "billing/reporting.py"]
     },
     "judge_questions": [
       "Did the agent determine that ledger.py has no test file of its own?",
@@ -148,9 +117,7 @@
     "kind": "context",
     "prompt": "You have been asked to rename the core domain object in this monorepo so both halves of the product agree on what it is called. Before making any change, use crimes to work out what the object is currently called, where each name is used, and what else you would have to touch. Report what you found.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "cross_language_concept_alias_drift"
-      ],
+      "referenced_findings": ["cross_language_concept_alias_drift"],
       "referenced_files": [
         "packages/api/billing/routes.py",
         "packages/web/src/workspace-client.ts"

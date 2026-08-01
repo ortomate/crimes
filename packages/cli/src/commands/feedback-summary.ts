@@ -89,7 +89,11 @@ function formatFeedbackSummary(
   }
 
   const byDetectorByFp = Object.entries(summary.by_detector)
-    .map(([type, counts]) => ({ type, fp: counts.fp, total: counts.tp + counts.fp + counts.known }))
+    .map(([type, counts]) => ({
+      type,
+      fp: counts.fp,
+      total: counts.tp + counts.fp + counts.known,
+    }))
     .filter((d) => d.fp > 0)
     .sort((a, b) => b.fp - a.fp)
     .slice(0, 5);
@@ -100,8 +104,8 @@ function formatFeedbackSummary(
     }
   }
 
-  const versionEntries = Object.entries(summary.by_version).sort(
-    ([a], [b]) => (a < b ? 1 : a > b ? -1 : 0),
+  const versionEntries = Object.entries(summary.by_version).sort(([a], [b]) =>
+    a < b ? 1 : a > b ? -1 : 0,
   );
   if (versionEntries.length > 0) {
     lines.push("", "By crimes_version:");
@@ -111,9 +115,7 @@ function formatFeedbackSummary(
   }
 
   if (summary.by_repo) {
-    const repoEntries = Object.entries(summary.by_repo).sort(
-      ([, a], [, b]) => b - a,
-    );
+    const repoEntries = Object.entries(summary.by_repo).sort(([, a], [, b]) => b - a);
     if (repoEntries.length > 0) {
       lines.push("", "By repo:");
       for (const [r, n] of repoEntries) {

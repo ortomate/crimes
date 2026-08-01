@@ -124,8 +124,8 @@ describe("booleanNamingDriftDetector", () => {
   });
 
   it("escalates to medium at 5+ offenders", async () => {
-    const offenders = ["paid", "done", "shipped", "complete", "active_state"].map(
-      (n) => decl(n, { type: "boolean", line: 1 }),
+    const offenders = ["paid", "done", "shipped", "complete", "active_state"].map((n) =>
+      decl(n, { type: "boolean", line: 1 }),
     );
     const findings = await booleanNamingDriftDetector.run(makeCtx(offenders));
     expect(findings[0]!.severity).toBe("medium");

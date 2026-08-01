@@ -61,7 +61,12 @@ export const directDatePyDetector: LanguagePyDetector = {
         `${naive.length} of ${hits.length} return a naive datetime (no tz= argument) — ` +
           "comparing one against an aware datetime raises TypeError",
       );
-      evidence.push(`naive at ${lineList(naive.map((h) => h.line), 5)}`);
+      evidence.push(
+        `naive at ${lineList(
+          naive.map((h) => h.line),
+          5,
+        )}`,
+      );
     }
     const utcnow = hits.filter((h) => h.kind === "utcnow");
     if (utcnow.length > 0) {

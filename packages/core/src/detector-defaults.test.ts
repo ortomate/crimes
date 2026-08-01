@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { DETECTOR_DEFAULTS, GENERIC_DEFAULT, getDefaultsFor } from "./detector-defaults.js";
+import {
+  DETECTOR_DEFAULTS,
+  GENERIC_DEFAULT,
+  getDefaultsFor,
+} from "./detector-defaults.js";
 import { builtInDetectors, builtInAssetDetectors } from "./detector-registry.js";
 
 describe("detector-defaults", () => {
@@ -12,7 +16,9 @@ describe("detector-defaults", () => {
 
   it("has a one-line fix_shape (no newlines, <=120 chars) for every detector type", () => {
     for (const [type, defaults] of Object.entries(DETECTOR_DEFAULTS)) {
-      expect(defaults.fix_shape.length, `${type} fix_shape too long`).toBeLessThanOrEqual(120);
+      expect(defaults.fix_shape.length, `${type} fix_shape too long`).toBeLessThanOrEqual(
+        120,
+      );
       expect(defaults.fix_shape, `${type} fix_shape has newline`).not.toContain("\n");
       expect(defaults.fix_shape.trim(), `${type} fix_shape empty`).not.toBe("");
       expect(["quick", "small", "medium", "large"]).toContain(defaults.effort);

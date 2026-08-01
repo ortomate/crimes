@@ -8,10 +8,7 @@ import { ConfigParseError, UnknownDetectorError } from "@crimes/core";
 export function isUserSetupError(
   error: unknown,
 ): error is ConfigParseError | UnknownDetectorError {
-  return (
-    error instanceof ConfigParseError ||
-    error instanceof UnknownDetectorError
-  );
+  return error instanceof ConfigParseError || error instanceof UnknownDetectorError;
 }
 
 /**

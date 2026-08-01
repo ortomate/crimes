@@ -96,10 +96,7 @@ describe("buildImportGraph — Python edges", () => {
       .filter((e) => e.to.length > 0)
       .map((e) => `${e.from} -> ${e.to}`)
       .sort();
-    expect(resolved).toEqual([
-      "src/main.ts -> src/util.ts",
-      "svc/api.py -> svc/core.py",
-    ]);
+    expect(resolved).toEqual(["src/main.ts -> src/util.ts", "svc/api.py -> svc/core.py"]);
   });
 
   it("never emits typeOnly or dynamic on a Python edge", async () => {

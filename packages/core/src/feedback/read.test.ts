@@ -57,11 +57,7 @@ describe("readFeedback", () => {
 
   it("strict mode also rejects schema-invalid entries", async () => {
     const path = await tempPath();
-    await writeFile(
-      path,
-      JSON.stringify({ fingerprint: "x" }) + "\n",
-      "utf8",
-    );
+    await writeFile(path, JSON.stringify({ fingerprint: "x" }) + "\n", "utf8");
     await expect(readFeedback(path, { strict: true })).rejects.toBeInstanceOf(
       MalformedFeedbackEntryError,
     );

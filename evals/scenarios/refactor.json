@@ -5,12 +5,8 @@
     "kind": "refactor",
     "prompt": "Clean up name/type mismatches in src/api/state.ts. Use `crimes scan src/api/state.ts --format json` to find every `singular_plural_type_mismatch` finding. For each declaration flagged, propose either (a) a rename to match the type's shape, or (b) a type change to match the name's shape — and explain which side carries the intended meaning. Quote the finding's evidence verbatim.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "singular_plural_type_mismatch"
-      ],
-      "referenced_files": [
-        "src/api/state.ts"
-      ],
+      "referenced_findings": ["singular_plural_type_mismatch"],
+      "referenced_files": ["src/api/state.ts"],
       "expected_priority": "singular_plural_type_mismatch"
     },
     "judge_questions": [
@@ -24,12 +20,8 @@
     "kind": "refactor",
     "prompt": "Reduce timezone fragility in src/date.ts. Use `crimes context src/date.ts --format json` to find functions that mix UTC and local Date methods on the same receiver. Pick one function to fix first, name the receiver identifier whose methods disagree, and propose a refactor that picks a single Date-method family.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "mixed_utc_local_methods"
-      ],
-      "referenced_files": [
-        "src/date.ts"
-      ],
+      "referenced_findings": ["mixed_utc_local_methods"],
+      "referenced_files": ["src/date.ts"],
       "expected_priority": "mixed_utc_local_methods"
     },
     "judge_questions": [
@@ -43,13 +35,8 @@
     "kind": "refactor",
     "prompt": "Reduce risk in src/billing.ts. Use `crimes context src/billing.ts` to understand the surface. List the top 3 things you'd change, with reasoning tied to specific findings.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "large_function",
-        "direct_date"
-      ],
-      "referenced_files": [
-        "src/billing.ts"
-      ],
+      "referenced_findings": ["large_function", "direct_date"],
+      "referenced_files": ["src/billing.ts"],
       "expected_priority": "large_function"
     },
     "judge_questions": [
@@ -63,15 +50,8 @@
     "kind": "refactor",
     "prompt": "Three files in src/ define near-duplicate sanitisation functions. Use `crimes scan --format json` to confirm the duplication and propose a refactor that consolidates them. List which files would change and what the public API of the consolidated function should look like.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "near_duplicate_block",
-        "exact_duplicate_block"
-      ],
-      "referenced_files": [
-        "src/sanitize-a.ts",
-        "src/sanitize-b.ts",
-        "src/sanitize-c.ts"
-      ],
+      "referenced_findings": ["near_duplicate_block", "exact_duplicate_block"],
+      "referenced_files": ["src/sanitize-a.ts", "src/sanitize-b.ts", "src/sanitize-c.ts"],
       "expected_priority": "near_duplicate_block"
     },
     "judge_questions": [
@@ -90,9 +70,7 @@
         "accessible_interaction_risk",
         "responsive_fragility"
       ],
-      "referenced_files": [
-        "src/Card.tsx"
-      ],
+      "referenced_files": ["src/Card.tsx"],
       "expected_priority": "accessible_interaction_risk"
     },
     "judge_questions": [
@@ -111,9 +89,7 @@
         "return_shape_roulette",
         "negative_flag_maze"
       ],
-      "referenced_files": [
-        "src/petty.ts"
-      ],
+      "referenced_files": ["src/petty.ts"],
       "expected_priority": "return_shape_roulette"
     },
     "judge_questions": [
@@ -132,11 +108,7 @@
         "option_bag_junk_drawer",
         "return_shape_roulette"
       ],
-      "referenced_files": [
-        "src/index.ts",
-        "src/rollup.ts",
-        "src/esbuild/svelte.ts"
-      ],
+      "referenced_files": ["src/index.ts", "src/rollup.ts", "src/esbuild/svelte.ts"],
       "expected_priority": "name_behavior_mismatch"
     },
     "judge_questions": [
@@ -150,10 +122,7 @@
     "kind": "refactor",
     "prompt": "src/components/UserList.tsx, TeamList.tsx, and SeatList.tsx use different verbs for what should be the same destructive action (Delete / Remove / Archive). Use `crimes scan --format json` to confirm the drift, then propose a canonical label set and explain which component you'd refactor first. Tie each change to the finding (action_label_drift vs copy_ia_drift) and explain how the two detectors differ on this fixture.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "action_label_drift",
-        "copy_ia_drift"
-      ],
+      "referenced_findings": ["action_label_drift", "copy_ia_drift"],
       "referenced_files": [
         "src/components/UserList.tsx",
         "src/components/TeamList.tsx",
@@ -172,14 +141,8 @@
     "kind": "refactor",
     "prompt": "The four-layer architecture (domain / application / presentation / infrastructure) declared in crimes.config.json is being violated, and one file reaches past a published package surface. Use `crimes scan --format json` to enumerate the layer_violation and deep_import findings, then propose which imports to break and which to redirect through a proper interface. Tie each change to its finding and explain how layer_violation and deep_import differ in agent risk.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "layer_violation",
-        "deep_import"
-      ],
-      "referenced_files": [
-        "src/domain/billing.ts",
-        "src/application/billing-flow.ts"
-      ],
+      "referenced_findings": ["layer_violation", "deep_import"],
+      "referenced_files": ["src/domain/billing.ts", "src/application/billing-flow.ts"],
       "expected_priority": "layer_violation"
     },
     "judge_questions": [
@@ -193,9 +156,7 @@
     "kind": "refactor",
     "prompt": "The dashboard's invoice forms share a JSX subtree shape across multiple files — when one form changes, the others drift. Use `crimes scan --format json` to find the duplicate_component_shape finding, then propose a shared component that consolidates the repeated div subtree. Name the files that would change and the shared component's public API (props + slots).",
     "expected_artifacts": {
-      "referenced_findings": [
-        "duplicate_component_shape"
-      ],
+      "referenced_findings": ["duplicate_component_shape"],
       "referenced_files": [
         "dashboard/final-example/app/ui/invoices/create-form.tsx",
         "dashboard/final-example/app/ui/invoices/edit-form.tsx",
@@ -214,12 +175,8 @@
     "kind": "refactor",
     "prompt": "src/billing.ts has tripped the large_file threshold (file-level structural finding, separate from large_function). Use `crimes context src/billing.ts --format json` to gather context, then propose a file-level split: which logical chunks would you move to new files, in what order, and which callers would update? Tie your plan to the large_file finding's evidence rather than just 'feels too long'.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "large_file"
-      ],
-      "referenced_files": [
-        "src/billing.ts"
-      ],
+      "referenced_findings": ["large_file"],
+      "referenced_files": ["src/billing.ts"],
       "expected_priority": "large_file"
     },
     "judge_questions": [
@@ -233,12 +190,8 @@
     "kind": "refactor",
     "prompt": "Refactor `src/assets/partner-logo.svg` so it lives up to the SVG mime type — vector geometry, no embedded rasters. Use `crimes scan --format json` to find the `svg_with_embedded_raster` finding. Quote both the number of embedded rasters and the MIME types from the finding evidence, then propose the concrete steps to remediate: which parts should be re-authored as vector paths vs. split out to standalone raster assets, and what file(s) the SVG would reference after the refactor. Don't recommend deleting the file — the logo still needs to ship.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "svg_with_embedded_raster"
-      ],
-      "referenced_files": [
-        "src/assets/partner-logo.svg"
-      ],
+      "referenced_findings": ["svg_with_embedded_raster"],
+      "referenced_files": ["src/assets/partner-logo.svg"],
       "expected_priority": "svg_with_embedded_raster"
     },
     "judge_questions": [
@@ -252,12 +205,8 @@
     "kind": "refactor",
     "prompt": "Run `crimes scan --format json` on this repo, find the single function that would be riskiest for an AI agent to modify, and propose a concrete refactor plan for it. Say what makes it risky beyond its length.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "large_function"
-      ],
-      "referenced_files": [
-        "domain/invoicing.py"
-      ],
+      "referenced_findings": ["large_function"],
+      "referenced_files": ["domain/invoicing.py"],
       "expected_priority": "large_function"
     },
     "judge_questions": [

@@ -45,10 +45,7 @@ async function runCli(
 }
 
 function largeFunctionSource(name = "generateInvoice"): string {
-  const body = Array.from(
-    { length: 200 },
-    (_, i) => `  const v${i} = ${i};`,
-  ).join("\n");
+  const body = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join("\n");
   return `export function ${name}() {\n${body}\n  return 0;\n}\n`;
 }
 
@@ -79,17 +76,12 @@ describe("crimes feedback (write)", () => {
     const root = await makeRepo();
     const result = await runCli(["feedback", FP, "--verdict", "fp"], root);
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain(
-      "--note is required when --verdict is fp",
-    );
+    expect(result.stderr).toContain("--note is required when --verdict is fp");
   });
 
   it("invalid verdict exits 2", async () => {
     const root = await makeRepo();
-    const result = await runCli(
-      ["feedback", FP, "--verdict", "maybe"],
-      root,
-    );
+    const result = await runCli(["feedback", FP, "--verdict", "maybe"], root);
     expect(result.exitCode).toBe(2);
   });
 
@@ -105,10 +97,7 @@ describe("crimes feedback (write)", () => {
 
   it("crime_NNNNN id without --file exits 2", async () => {
     const root = await makeRepo();
-    const result = await runCli(
-      ["feedback", "crime_00001", "--verdict", "tp"],
-      root,
-    );
+    const result = await runCli(["feedback", "crime_00001", "--verdict", "tp"], root);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("--file <scan.json> is required");
   });
@@ -150,17 +139,7 @@ describe("crimes feedback (write)", () => {
   it("--verdict tp on a previously-fp finding removes the feedback suppression and appends a tp line", async () => {
     const root = await makeRepo();
     // First: mark fp.
-    await runCli(
-      [
-        "feedback",
-        FP,
-        "--verdict",
-        "fp",
-        "--note",
-        "DSL chain",
-      ],
-      root,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "DSL chain"], root);
     // Now: mark tp.
     const result = await runCli(
       ["feedback", FP, "--verdict", "tp", "--note", "I was wrong"],
@@ -168,10 +147,7 @@ describe("crimes feedback (write)", () => {
     );
     expect(result.exitCode).toBe(0);
 
-    const lines = readFileSync(
-      join(root, ".crimes", "feedback.jsonl"),
-      "utf8",
-    )
+    const lines = readFileSync(join(root, ".crimes", "feedback.jsonl"), "utf8")
       .trim()
       .split("\n");
     expect(lines).toHaveLength(2);
@@ -185,16 +161,10 @@ describe("crimes feedback (write)", () => {
 
   it("--verdict known appends an entry but writes no suppression", async () => {
     const root = await makeRepo();
-    const result = await runCli(
-      ["feedback", FP, "--verdict", "known"],
-      root,
-    );
+    const result = await runCli(["feedback", FP, "--verdict", "known"], root);
     expect(result.exitCode).toBe(0);
 
-    const lines = readFileSync(
-      join(root, ".crimes", "feedback.jsonl"),
-      "utf8",
-    )
+    const lines = readFileSync(join(root, ".crimes", "feedback.jsonl"), "utf8")
       .trim()
       .split("\n");
     expect(lines).toHaveLength(1);
@@ -252,10 +222,7 @@ describe("crimes feedback (write)", () => {
     );
     expect(result.exitCode).toBe(0);
 
-    const lines = readFileSync(
-      join(root, ".crimes", "feedback.jsonl"),
-      "utf8",
-    )
+    const lines = readFileSync(join(root, ".crimes", "feedback.jsonl"), "utf8")
       .trim()
       .split("\n");
     expect(lines).toHaveLength(1);
@@ -282,14 +249,8 @@ describe("crimes feedback list", () => {
 
   it("lists captured entries (latest verdict per fingerprint)", async () => {
     const root = await makeRepo();
-    await runCli(
-      ["feedback", FP, "--verdict", "fp", "--note", "first"],
-      root,
-    );
-    await runCli(
-      ["feedback", FP, "--verdict", "tp", "--note", "I was wrong"],
-      root,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "first"], root);
+    await runCli(["feedback", FP, "--verdict", "tp", "--note", "I was wrong"], root);
     const result = await runCli(["feedback", "list"], root);
     expect(result.exitCode).toBe(0);
     // Only the latest verdict per fingerprint shows up — fp is shadowed by tp.
@@ -299,19 +260,10 @@ describe("crimes feedback list", () => {
 
   it("--verdict filters to only the matching current verdict", async () => {
     const root = await makeRepo();
-    await runCli(
-      ["feedback", FP, "--verdict", "fp", "--note", "stays fp"],
-      root,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "stays fp"], root);
     const otherFp = "todo_density::billing.ts::";
-    await runCli(
-      ["feedback", otherFp, "--verdict", "known"],
-      root,
-    );
-    const result = await runCli(
-      ["feedback", "list", "--verdict", "fp"],
-      root,
-    );
+    await runCli(["feedback", otherFp, "--verdict", "known"], root);
+    const result = await runCli(["feedback", "list", "--verdict", "fp"], root);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain(FP);
     expect(result.stdout).not.toContain(otherFp);
@@ -319,14 +271,8 @@ describe("crimes feedback list", () => {
 
   it("--format json emits a FeedbackReport-shaped object", async () => {
     const root = await makeRepo();
-    await runCli(
-      ["feedback", FP, "--verdict", "fp", "--note", "x"],
-      root,
-    );
-    const result = await runCli(
-      ["feedback", "list", "--format", "json"],
-      root,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "x"], root);
+    const result = await runCli(["feedback", "list", "--format", "json"], root);
     expect(result.exitCode).toBe(0);
     const doc = JSON.parse(result.stdout);
     expect(doc.report_type).toBe("feedback");
@@ -336,10 +282,7 @@ describe("crimes feedback list", () => {
 
   it("--since with a malformed duration exits 2", async () => {
     const root = await makeRepo();
-    const result = await runCli(
-      ["feedback", "list", "--since", "next-week"],
-      root,
-    );
+    const result = await runCli(["feedback", "list", "--since", "next-week"], root);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("--since");
   });
@@ -420,10 +363,7 @@ describe("crimes feedback recheck", () => {
   it("--format json emits structured output with reconfirm/resolve commands", async () => {
     const root = await makeRepo();
     await seedResurfaceableSuppression(root);
-    const result = await runCli(
-      ["feedback", "recheck", "--format", "json"],
-      root,
-    );
+    const result = await runCli(["feedback", "recheck", "--format", "json"], root);
     expect(result.exitCode).toBe(0);
     const doc = JSON.parse(result.stdout);
     expect(doc.report_type).toBe("feedback_recheck");
@@ -443,14 +383,8 @@ describe("crimes feedback summary", () => {
 
   it("renders a table grouped by verdict / detector / version", async () => {
     const root = await makeRepo();
-    await runCli(
-      ["feedback", FP, "--verdict", "fp", "--note", "x"],
-      root,
-    );
-    await runCli(
-      ["feedback", "todo_density::billing.ts::", "--verdict", "known"],
-      root,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "x"], root);
+    await runCli(["feedback", "todo_density::billing.ts::", "--verdict", "known"], root);
     const result = await runCli(["feedback", "summary"], root);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("By verdict:");
@@ -463,14 +397,8 @@ describe("crimes feedback summary", () => {
 
   it("--format json emits FeedbackReport with summary populated", async () => {
     const root = await makeRepo();
-    await runCli(
-      ["feedback", FP, "--verdict", "fp", "--note", "x"],
-      root,
-    );
-    const result = await runCli(
-      ["feedback", "summary", "--format", "json"],
-      root,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "x"], root);
+    const result = await runCli(["feedback", "summary", "--format", "json"], root);
     expect(result.exitCode).toBe(0);
     const doc = JSON.parse(result.stdout);
     expect(doc.report_type).toBe("feedback");
@@ -483,10 +411,7 @@ describe("crimes feedback summary", () => {
 describe("crimes feedback export", () => {
   it("prints local entries as JSONL by default", async () => {
     const root = await makeRepo();
-    await runCli(
-      ["feedback", FP, "--verdict", "fp", "--note", "x"],
-      root,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "x"], root);
     const result = await runCli(["feedback", "export"], root);
     expect(result.exitCode).toBe(0);
     const lines = result.stdout.trim().split("\n");
@@ -497,14 +422,8 @@ describe("crimes feedback export", () => {
 
   it("--format md renders a Markdown report grouped by detector", async () => {
     const root = await makeRepo();
-    await runCli(
-      ["feedback", FP, "--verdict", "fp", "--note", "x"],
-      root,
-    );
-    const result = await runCli(
-      ["feedback", "export", "--format", "md"],
-      root,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "x"], root);
+    const result = await runCli(["feedback", "export", "--format", "md"], root);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("# crimes feedback");
     expect(result.stdout).toContain("## large_function");
@@ -513,14 +432,8 @@ describe("crimes feedback export", () => {
 
   it("--format json emits FeedbackReport with entries + summary", async () => {
     const root = await makeRepo();
-    await runCli(
-      ["feedback", FP, "--verdict", "fp", "--note", "x"],
-      root,
-    );
-    const result = await runCli(
-      ["feedback", "export", "--format", "json"],
-      root,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "x"], root);
+    const result = await runCli(["feedback", "export", "--format", "json"], root);
     expect(result.exitCode).toBe(0);
     const doc = JSON.parse(result.stdout);
     expect(doc.report_type).toBe("feedback");
@@ -534,16 +447,9 @@ describe("crimes feedback export", () => {
     const fakeHome = await mkdtempFn(join(tmpdir(), "crimes-rollup-home-"));
     const env = { CRIMES_HOME: fakeHome };
 
-    await runCli(
-      ["feedback", FP, "--verdict", "fp", "--note", "x"],
-      root,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "x"], root);
 
-    const first = await runCli(
-      ["feedback", "export", "--append-global"],
-      root,
-      env,
-    );
+    const first = await runCli(["feedback", "export", "--append-global"], root, env);
     expect(first.exitCode).toBe(0);
     expect(first.stdout).toContain("Appended 1 new entry");
 
@@ -558,11 +464,7 @@ describe("crimes feedback export", () => {
     expect(parsed.repo).toBe(rootResolved);
 
     // Run again — should dedupe to zero appends.
-    const second = await runCli(
-      ["feedback", "export", "--append-global"],
-      root,
-      env,
-    );
+    const second = await runCli(["feedback", "export", "--append-global"], root, env);
     expect(second.exitCode).toBe(0);
     expect(second.stdout).toContain("Appended 0 new entries");
     expect(second.stdout).toContain("1 entry was already present");
@@ -574,15 +476,8 @@ describe("crimes feedback export", () => {
     const fakeHome = await mkdtempFn(join(tmpdir(), "crimes-rollup-home2-"));
     const env = { CRIMES_HOME: fakeHome };
 
-    await runCli(
-      ["feedback", FP, "--verdict", "fp", "--note", "x"],
-      root,
-    );
-    await runCli(
-      ["feedback", "export", "--append-global"],
-      root,
-      env,
-    );
+    await runCli(["feedback", FP, "--verdict", "fp", "--note", "x"], root);
+    await runCli(["feedback", "export", "--append-global"], root, env);
     const result = await runCli(
       ["feedback", "summary", "--global", "--format", "json"],
       root,

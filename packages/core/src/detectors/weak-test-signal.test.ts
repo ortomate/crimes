@@ -4,7 +4,10 @@ import { DEFAULT_CONFIG } from "../config.js";
 import type { LanguageJsDetectorContext } from "../detector.js";
 import { weakTestSignalDetector } from "./weak-test-signal.js";
 
-function makeCtx(source: string, file = "src/example.test.ts"): LanguageJsDetectorContext {
+function makeCtx(
+  source: string,
+  file = "src/example.test.ts",
+): LanguageJsDetectorContext {
   return {
     kind: "language-js",
     file,
@@ -53,10 +56,15 @@ it("calculates total", () => {
   });
 
   it("ignores non-test files and type-only tests", async () => {
-    expect(await weakTestSignalDetector.run(makeCtx(`it("x", () => {});`, "src/example.ts"))).toEqual([]);
+    expect(
+      await weakTestSignalDetector.run(makeCtx(`it("x", () => {});`, "src/example.ts")),
+    ).toEqual([]);
     expect(
       await weakTestSignalDetector.run(
-        makeCtx(`it("types", () => { expectTypeOf(value).toEqualTypeOf<string>(); });`, "src/types.test.ts"),
+        makeCtx(
+          `it("types", () => { expectTypeOf(value).toEqualTypeOf<string>(); });`,
+          "src/types.test.ts",
+        ),
       ),
     ).toEqual([]);
   });

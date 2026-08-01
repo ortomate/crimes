@@ -7,7 +7,12 @@ import { describe, expect, it } from "vitest";
 import { discoverFiles } from "../discovery/index.js";
 import { DEFAULT_CONFIG } from "../config.js";
 import { buildImportGraph } from "../imports/build.js";
-import { buildScoringContext, computeAgentRisk, finaliseFindingScores, recencyForDate } from "./build.js";
+import {
+  buildScoringContext,
+  computeAgentRisk,
+  finaliseFindingScores,
+  recencyForDate,
+} from "./build.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -71,32 +76,23 @@ describe("buildScoringContext > churn", () => {
     expect(ctx.churn.forFile("src/unknown.ts")).toBe(0);
   });
 
-  it(
-    "scales linearly with commit count up to the saturation cap",
-    async () => {
-      // 5 additional commits (plus the initial) = 6 total → 6/20 = 0.30.
-      // Keeping the count small so the test stays fast under the full
-      // suite's parallelism contention.
-      const root = await makeRepo({ "src/a.ts": "export const a = 0;\n" });
-      await initRepo(root);
-      for (let i = 1; i <= 5; i++) {
-        await commitFile(
-          root,
-          "src/a.ts",
-          `export const a = ${i};\n`,
-          `bump ${i}`,
-        );
-      }
-      const files = await discover(root);
-      const ctx = await buildScoringContext({ root, files, imports: undefined });
-      // 6 commits / 20 cap = 0.30; allow ±0.05 in case the platform's git
-      // collapses identical-tree commits.
-      expect(ctx.churn.forFile("src/a.ts")).toBeGreaterThan(0.2);
-      expect(ctx.churn.forFile("src/a.ts")).toBeLessThanOrEqual(1);
-      expect(ctx.churn.limited).toBe(false);
-    },
-    20_000,
-  );
+  it("scales linearly with commit count up to the saturation cap", async () => {
+    // 5 additional commits (plus the initial) = 6 total → 6/20 = 0.30.
+    // Keeping the count small so the test stays fast under the full
+    // suite's parallelism contention.
+    const root = await makeRepo({ "src/a.ts": "export const a = 0;\n" });
+    await initRepo(root);
+    for (let i = 1; i <= 5; i++) {
+      await commitFile(root, "src/a.ts", `export const a = ${i};\n`, `bump ${i}`);
+    }
+    const files = await discover(root);
+    const ctx = await buildScoringContext({ root, files, imports: undefined });
+    // 6 commits / 20 cap = 0.30; allow ±0.05 in case the platform's git
+    // collapses identical-tree commits.
+    expect(ctx.churn.forFile("src/a.ts")).toBeGreaterThan(0.2);
+    expect(ctx.churn.forFile("src/a.ts")).toBeLessThanOrEqual(1);
+    expect(ctx.churn.limited).toBe(false);
+  }, 20_000);
 
   it("marks the index as `limited` when the repo is a shallow clone", async () => {
     const root = await makeRepo({ "src/a.ts": "export const a = 1;\n" });
@@ -123,8 +119,7 @@ describe("buildScoringContext > test_gap", () => {
   it("returns 0 for a file with a sibling .test.ts that imports it", async () => {
     const root = await makeRepo({
       "src/util.ts": "export const u = 1;\n",
-      "src/util.test.ts":
-        `import { u } from "./util";\n` + `console.log(u);\n`,
+      "src/util.test.ts": `import { u } from "./util";\n` + `console.log(u);\n`,
     });
     const files = await discover(root);
     const imports = await buildImportGraph({ root, files });
@@ -606,7 +601,9 @@ describe("ScoringContext.recency", () => {
   });
 });
 
-function stubFinding(overrides: Partial<import("../finding.js").Finding> = {}): import("../finding.js").Finding {
+function stubFinding(
+  overrides: Partial<import("../finding.js").Finding> = {},
+): import("../finding.js").Finding {
   return {
     id: "crime_00001",
     type: "large_function",
@@ -625,7 +622,10 @@ function stubFinding(overrides: Partial<import("../finding.js").Finding> = {}): 
 
 describe("finaliseFindingScores — applies detector defaults", () => {
   it("fills effort and fix_shape from DETECTOR_DEFAULTS when detector omits them", () => {
-    const finding = stubFinding({ effort: undefined as never, fix_shape: undefined as never });
+    const finding = stubFinding({
+      effort: undefined as never,
+      fix_shape: undefined as never,
+    });
     finaliseFindingScores(finding, undefined);
     expect(finding.effort).toBe("small");
     expect(finding.fix_shape).toBe("extract pure helpers; keep the orchestrator thin");

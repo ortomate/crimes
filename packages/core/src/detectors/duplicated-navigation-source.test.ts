@@ -101,9 +101,7 @@ describe("duplicatedNavigationSourceDetector", () => {
       },
     ]);
     for (const f of ["src/nav/registry.ts", "src/nav/sidebar.ts"]) {
-      expect(
-        await duplicatedNavigationSourceDetector.run(ctxFor(f, ia)),
-      ).toEqual([]);
+      expect(await duplicatedNavigationSourceDetector.run(ctxFor(f, ia))).toEqual([]);
     }
   });
 
@@ -141,9 +139,7 @@ describe("duplicatedNavigationSourceDetector", () => {
       },
     ]);
     for (const f of ["src/nav/a.ts", "src/nav/b.ts"]) {
-      expect(
-        await duplicatedNavigationSourceDetector.run(ctxFor(f, ia)),
-      ).toEqual([]);
+      expect(await duplicatedNavigationSourceDetector.run(ctxFor(f, ia))).toEqual([]);
     }
   });
 
@@ -159,9 +155,7 @@ describe("duplicatedNavigationSourceDetector", () => {
       },
     ]);
     for (const f of ["src/nav/a.ts", "src/nav/b.ts"]) {
-      expect(
-        await duplicatedNavigationSourceDetector.run(ctxFor(f, ia)),
-      ).toEqual([]);
+      expect(await duplicatedNavigationSourceDetector.run(ctxFor(f, ia))).toEqual([]);
     }
   });
 
@@ -177,9 +171,7 @@ describe("duplicatedNavigationSourceDetector", () => {
       },
     ]);
     for (const f of ["src/nav/a.ts", "src/nav/b.ts"]) {
-      expect(
-        await duplicatedNavigationSourceDetector.run(ctxFor(f, ia)),
-      ).toEqual([]);
+      expect(await duplicatedNavigationSourceDetector.run(ctxFor(f, ia))).toEqual([]);
     }
   });
 
@@ -200,9 +192,7 @@ describe("duplicatedNavigationSourceDetector", () => {
         ],
       },
     ]);
-    const onA = await duplicatedNavigationSourceDetector.run(
-      ctxFor("src/nav/a.ts", ia),
-    );
+    const onA = await duplicatedNavigationSourceDetector.run(ctxFor("src/nav/a.ts", ia));
     expect(onA).toHaveLength(2);
     const destinations = onA
       .flatMap((f) => f.evidence)

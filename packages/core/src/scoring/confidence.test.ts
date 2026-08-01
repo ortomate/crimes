@@ -20,9 +20,7 @@ describe("ConfidenceLadder", () => {
   });
 
   it("clamps below 1 — a structural reader is never certain", () => {
-    const ladder = new ConfidenceLadder(0.9)
-      .add(true, "a", 0.3)
-      .add(true, "b", 0.3);
+    const ladder = new ConfidenceLadder(0.9).add(true, "a", 0.3).add(true, "b", 0.3);
     expect(ladder.value()).toBe(0.98);
   });
 
@@ -32,9 +30,7 @@ describe("ConfidenceLadder", () => {
   });
 
   it("rounds to two places so float wobble cannot flip an ordering", () => {
-    const ladder = new ConfidenceLadder(0.1)
-      .add(true, "a", 0.2)
-      .add(true, "b", 0.4);
+    const ladder = new ConfidenceLadder(0.1).add(true, "a", 0.2).add(true, "b", 0.4);
     // 0.1 + 0.2 + 0.4 is 0.7000000000000001 in IEEE754.
     expect(ladder.value()).toBe(0.7);
     expect(Number.isInteger(ladder.value() * 100)).toBe(true);
@@ -101,9 +97,7 @@ describe("SeverityLadder", () => {
       .add(true, "queue publish", 0.2)
       .add(true, "payment operation", 0.3)
       .add(true, "deliberate suppression", -0.2);
-    expect(ladder.explain()).toBe(
-      "severity raised by: payment operation, queue publish",
-    );
+    expect(ladder.explain()).toBe("severity raised by: payment operation, queue publish");
   });
 
   it("returns no escalation line when nothing raised severity", () => {

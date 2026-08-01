@@ -25,12 +25,7 @@ const execFileAsync = promisify(execFile);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "..", "..", "..");
-const FIXTURES_REGISTRY = resolve(
-  REPO_ROOT,
-  "evals",
-  "fixtures",
-  "fixtures.meta.json",
-);
+const FIXTURES_REGISTRY = resolve(REPO_ROOT, "evals", "fixtures", "fixtures.meta.json");
 const SCENARIOS_DIR = resolve(REPO_ROOT, "evals", "scenarios");
 const RESULTS_DIR = resolve(REPO_ROOT, "evals", "results");
 
@@ -80,9 +75,7 @@ async function main(): Promise<void> {
   }
 
   const crimesVersion = await readCrimesVersion();
-  const outDirName = flags.label
-    ? `${crimesVersion}-${flags.label}`
-    : crimesVersion;
+  const outDirName = flags.label ? `${crimesVersion}-${flags.label}` : crimesVersion;
   const outDir = resolve(RESULTS_DIR, outDirName);
   mkdirSync(outDir, { recursive: true });
 
@@ -229,7 +222,10 @@ async function processOne(args: ProcessOneArgs): Promise<void> {
 
   if (flags.judge) {
     try {
-      const judge = await runJudge({ scenario: item.scenario, response: agentResult.response });
+      const judge = await runJudge({
+        scenario: item.scenario,
+        response: agentResult.response,
+      });
       if (judge) result.judge_score = judge;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -274,10 +270,16 @@ function updateTally(
 ): void {
   tally.total += 1;
   const all = structural.passed + structural.failed;
-  tally.passByAgent.set(item.agent, (tally.passByAgent.get(item.agent) ?? 0) + structural.passed);
+  tally.passByAgent.set(
+    item.agent,
+    (tally.passByAgent.get(item.agent) ?? 0) + structural.passed,
+  );
   tally.totalByAgent.set(item.agent, (tally.totalByAgent.get(item.agent) ?? 0) + all);
   const kindKey = `${item.scenario.kind}::${item.agent}`;
-  tally.passByAgentKind.set(kindKey, (tally.passByAgentKind.get(kindKey) ?? 0) + structural.passed);
+  tally.passByAgentKind.set(
+    kindKey,
+    (tally.passByAgentKind.get(kindKey) ?? 0) + structural.passed,
+  );
   tally.totalByAgentKind.set(kindKey, (tally.totalByAgentKind.get(kindKey) ?? 0) + all);
 }
 
@@ -287,7 +289,10 @@ function buildSummary(
   agents: Agent[],
   tally: Tally,
 ): Record<string, unknown> {
-  const perAgent: Record<string, { structural_pass_rate: number; scenarios_run: number }> = {};
+  const perAgent: Record<
+    string,
+    { structural_pass_rate: number; scenarios_run: number }
+  > = {};
   for (const agent of agents) {
     const total = tally.totalByAgent.get(agent) ?? 0;
     const pass = tally.passByAgent.get(agent) ?? 0;
@@ -362,9 +367,7 @@ function parseFlags(args: string[]): CliFlags {
       if (value && (AGENTS as readonly string[]).includes(value)) {
         flags.agent = value;
       } else {
-        process.stderr.write(
-          `evals: --agent must be one of: ${AGENTS.join(", ")}\n`,
-        );
+        process.stderr.write(`evals: --agent must be one of: ${AGENTS.join(", ")}\n`);
         process.exit(2);
       }
     } else if (arg === "--fixture") {
@@ -375,9 +378,7 @@ function parseFlags(args: string[]): CliFlags {
       if (value && known.includes(value)) {
         flags.scenario = value;
       } else {
-        process.stderr.write(
-          `evals: --scenario must be one of: ${known.join(", ")}\n`,
-        );
+        process.stderr.write(`evals: --scenario must be one of: ${known.join(", ")}\n`);
         process.exit(2);
       }
     } else if (arg === "--concurrency") {
@@ -417,9 +418,7 @@ function loadScenarios(): Scenario[] {
       if (Array.isArray(data)) out.push(...data);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      process.stderr.write(
-        `evals: failed to parse ${file} — ${message}\n`,
-      );
+      process.stderr.write(`evals: failed to parse ${file} — ${message}\n`);
     }
   }
   return out;
@@ -463,10 +462,7 @@ function composePrompt(scenario: Scenario, scanJson: string): string {
   );
 }
 
-async function writeJsonAtomic(
-  filePath: string,
-  data: unknown,
-): Promise<void> {
+async function writeJsonAtomic(filePath: string, data: unknown): Promise<void> {
   // Write to a tempfile in the same dir, then rename — protects against
   // partial writes from a crashed run.
   await mkdir(dirname(filePath), { recursive: true });

@@ -340,9 +340,13 @@ function inspectStatement(
       result.discriminates = true;
     }
     // A guard that rethrows in one branch still propagates.
-    forEachStatement(statement.thenStatement, (s) => inspectStatement(s, binding, result));
+    forEachStatement(statement.thenStatement, (s) =>
+      inspectStatement(s, binding, result),
+    );
     if (statement.elseStatement) {
-      forEachStatement(statement.elseStatement, (s) => inspectStatement(s, binding, result));
+      forEachStatement(statement.elseStatement, (s) =>
+        inspectStatement(s, binding, result),
+      );
     }
     return;
   }
@@ -460,7 +464,10 @@ function referencesDiscriminator(
   let found = false;
   const visit = (node: ts.Node): void => {
     if (found) return;
-    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.InstanceOfKeyword) {
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.InstanceOfKeyword
+    ) {
       found = true;
       return;
     }
@@ -525,7 +532,8 @@ function isTypedResultShape(expr: ts.Expression): boolean {
     }
     const hasDiscriminant =
       keys.has("ok") || keys.has("success") || keys.has("status") || keys.has("type");
-    const carriesError = keys.has("error") || keys.has("err") || keys.has("reason") || keys.has("cause");
+    const carriesError =
+      keys.has("error") || keys.has("err") || keys.has("reason") || keys.has("cause");
     // Both halves required: `{ ok: false }` alone is a bland fallback
     // wearing a discriminant, and `{ error: e }` alone cannot be matched
     // against a success shape.
@@ -559,7 +567,8 @@ function leadingComment(block: ts.Block, sourceFile: ts.SourceFile): string | un
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
   const allComments = lines.every(
-    (l) => l.startsWith("//") || l.startsWith("/*") || l.startsWith("*") || l.endsWith("*/"),
+    (l) =>
+      l.startsWith("//") || l.startsWith("/*") || l.startsWith("*") || l.endsWith("*/"),
   );
   if (!allComments) return undefined;
   const condensed = lines

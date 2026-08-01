@@ -472,11 +472,7 @@ const PERMISSION_WORDS: ReadonlySet<string> = new Set([
   "privileges",
 ]);
 
-const STATUS_WORDS: ReadonlySet<string> = new Set([
-  "status",
-  "state",
-  "phase",
-]);
+const STATUS_WORDS: ReadonlySet<string> = new Set(["status", "state", "phase"]);
 
 /**
  * Operation words that make a failure consequential — a write that
@@ -546,27 +542,82 @@ export const RISKY_BOUNDARIES: ReadonlyArray<{
   {
     id: "payment",
     label: "payment",
-    tokens: ["charge", "payment", "stripe", "invoice", "refund", "payout", "billing", "checkout"],
+    tokens: [
+      "charge",
+      "payment",
+      "stripe",
+      "invoice",
+      "refund",
+      "payout",
+      "billing",
+      "checkout",
+    ],
   },
   {
     id: "authorization",
     label: "authentication / authorization",
-    tokens: ["auth", "authenticate", "authorize", "authorise", "login", "session", "token", "permission", "role"],
+    tokens: [
+      "auth",
+      "authenticate",
+      "authorize",
+      "authorise",
+      "login",
+      "session",
+      "token",
+      "permission",
+      "role",
+    ],
   },
   {
     id: "persistence",
     label: "database write",
-    tokens: ["db", "database", "prisma", "knex", "sequelize", "mongo", "repository", "repo", "transaction", "insert", "update", "upsert", "delete", "save", "persist"],
+    tokens: [
+      "db",
+      "database",
+      "prisma",
+      "knex",
+      "sequelize",
+      "mongo",
+      "repository",
+      "repo",
+      "transaction",
+      "insert",
+      "update",
+      "upsert",
+      "delete",
+      "save",
+      "persist",
+    ],
   },
   {
     id: "queue",
     label: "queue publish",
-    tokens: ["queue", "publish", "enqueue", "kafka", "sqs", "sns", "pubsub", "rabbit", "topic", "producer"],
+    tokens: [
+      "queue",
+      "publish",
+      "enqueue",
+      "kafka",
+      "sqs",
+      "sns",
+      "pubsub",
+      "rabbit",
+      "topic",
+      "producer",
+    ],
   },
   {
     id: "filesystem",
     label: "file write",
-    tokens: ["writefile", "mkdir", "rename", "unlink", "rmdir", "copyfile", "appendfile", "truncate"],
+    tokens: [
+      "writefile",
+      "mkdir",
+      "rename",
+      "unlink",
+      "rmdir",
+      "copyfile",
+      "appendfile",
+      "truncate",
+    ],
   },
   {
     id: "network",
@@ -576,7 +627,19 @@ export const RISKY_BOUNDARIES: ReadonlyArray<{
   {
     id: "state_transition",
     label: "state transition",
-    tokens: ["transition", "activate", "deactivate", "cancel", "approve", "reject", "complete", "finalize", "finalise", "archive", "suspend"],
+    tokens: [
+      "transition",
+      "activate",
+      "deactivate",
+      "cancel",
+      "approve",
+      "reject",
+      "complete",
+      "finalize",
+      "finalise",
+      "archive",
+      "suspend",
+    ],
   },
 ];
 

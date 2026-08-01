@@ -128,10 +128,7 @@ export function loadSuppressions(path: string): LoadSuppressionsResult {
     raw = readFileSync(path, "utf8");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    throw new MalformedSuppressionsError(
-      path,
-      `unable to read file — ${message}`,
-    );
+    throw new MalformedSuppressionsError(path, `unable to read file — ${message}`);
   }
 
   let parsed: unknown;
@@ -144,10 +141,7 @@ export function loadSuppressions(path: string): LoadSuppressionsResult {
 
   const result = SuppressionsSchema.safeParse(parsed);
   if (!result.success) {
-    throw new MalformedSuppressionsError(
-      path,
-      formatZodIssues(result.error.issues),
-    );
+    throw new MalformedSuppressionsError(path, formatZodIssues(result.error.issues));
   }
 
   return { entries: result.data.suppressions, path, loaded: true };

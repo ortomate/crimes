@@ -37,7 +37,9 @@ export function action() {
   return save();
 }
 `;
-    const findings = await logicInCommentsDetector.run(makeCtx(source, "src/routes/billing.ts"));
+    const findings = await logicInCommentsDetector.run(
+      makeCtx(source, "src/routes/billing.ts"),
+    );
     expect(findings[0]!.severity).toBe("medium");
   });
 

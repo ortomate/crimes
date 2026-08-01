@@ -16,8 +16,7 @@ export const exactDuplicateBlockDetector: LanguageJsDetector = {
   id: "exact_duplicate_block",
   name: "Exact Duplicate Block",
   description:
-    "Flags function bodies that are verbatim-identical across two or " +
-    "more files.",
+    "Flags function bodies that are verbatim-identical across two or " + "more files.",
   whyItMatters:
     "Two copies of the same function body mean two places to keep in " +
     "sync. Every fix has to land twice, every refactor too. Reviewers " +

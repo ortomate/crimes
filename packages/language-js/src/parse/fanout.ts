@@ -12,12 +12,7 @@ import {
   startLineOf,
   unwrap,
 } from "./ast-util.js";
-import type {
-  FanOutBound,
-  FanOutSite,
-  FanOutWork,
-  ParsedFunction,
-} from "./types.js";
+import type { FanOutBound, FanOutSite, FanOutWork, ParsedFunction } from "./types.js";
 
 /**
  * Concurrent fan-out extraction — the parser half of
@@ -75,7 +70,8 @@ const BATCH_TAILS: ReadonlySet<string> = new Set([
   "paginate",
 ]);
 
-const CONCURRENCY_OPTION_KEYS = /\b(concurrency|limit|maxconcurrency|parallel|poolsize|batchsize|chunksize)\b/i;
+const CONCURRENCY_OPTION_KEYS =
+  /\b(concurrency|limit|maxconcurrency|parallel|poolsize|batchsize|chunksize)\b/i;
 
 export function collectFanOutSite(
   node: ts.Node,
@@ -169,9 +165,7 @@ function describeCollection(
       const receiver = ts.isPropertyAccessExpression(argument.expression)
         ? unwrap(argument.expression.expression)
         : undefined;
-      const callback = argument.arguments[0]
-        ? unwrap(argument.arguments[0])
-        : undefined;
+      const callback = argument.arguments[0] ? unwrap(argument.arguments[0]) : undefined;
       const receiverInfo = receiver
         ? describeReceiver(receiver, sourceFile)
         : { origin: "unknown" as const, rendered: "…", staticallyBounded: false };
@@ -296,11 +290,14 @@ function describeReceiver(
  * Per-element work classification
  * ------------------------------------------------------------------ */
 
-const NETWORK_TAILS = /^(fetch|request|get|post|put|patch|del|delete|head|send|query|graphql|call|invoke)$/i;
-const NETWORK_RECEIVERS = /^(axios|http|https|client|api|fetcher|got|ky|superagent|gql|apollo)$/i;
+const NETWORK_TAILS =
+  /^(fetch|request|get|post|put|patch|del|delete|head|send|query|graphql|call|invoke)$/i;
+const NETWORK_RECEIVERS =
+  /^(axios|http|https|client|api|fetcher|got|ky|superagent|gql|apollo)$/i;
 const DATABASE_TAILS =
   /^(find|findone|findmany|findunique|findfirst|create|createmany|update|updatemany|upsert|delete|deletemany|insert|select|aggregate|count|exec|raw|transaction|save)$/i;
-const DATABASE_RECEIVERS = /^(db|prisma|knex|sequelize|mongoose|pool|conn|connection|client|repo|repository|collection|model|table)$/i;
+const DATABASE_RECEIVERS =
+  /^(db|prisma|knex|sequelize|mongoose|pool|conn|connection|client|repo|repository|collection|model|table)$/i;
 const FILESYSTEM_TAILS =
   /^(readfile|writefile|appendfile|readdir|stat|lstat|mkdir|rm|rmdir|unlink|copyfile|rename|open|createreadstream|createwritestream)$/i;
 const SUBPROCESS_TAILS = /^(exec|execfile|spawn|fork|execa|run)$/i;
@@ -309,9 +306,11 @@ const SUBPROCESS_TAILS = /^(exec|execfile|spawn|fork|execa|run)$/i;
  * `exec` and `run` are deliberately absent — a bare `run(x)` is far more
  * often a domain function than a shell.
  */
-const BARE_SUBPROCESS_TAILS = /^(execa|execaSync|execaCommand|spawnSync|execSync|execFileSync)$/;
+const BARE_SUBPROCESS_TAILS =
+  /^(execa|execaSync|execaCommand|spawnSync|execSync|execFileSync)$/;
 const QUEUE_TAILS = /^(publish|enqueue|send|sendmessage|produce|emit|dispatch|push)$/i;
-const QUEUE_RECEIVERS = /^(queue|kafka|sqs|sns|pubsub|producer|bus|broker|rabbit|redis|stream)$/i;
+const QUEUE_RECEIVERS =
+  /^(queue|kafka|sqs|sns|pubsub|producer|bus|broker|rabbit|redis|stream)$/i;
 
 /**
  * What does the callback do per element?
@@ -362,7 +361,10 @@ function classifyWork(call: ts.CallExpression): FanOutWork["kind"] | undefined {
   if (tail === "fetch") return "network";
   if (BARE_SUBPROCESS_TAILS.test(tail)) return "subprocess";
   if (FILESYSTEM_TAILS.test(tail)) return "filesystem";
-  if (SUBPROCESS_TAILS.test(tail) && receiverMatches(/^(child_process|cp|execa|shell)$/i)) {
+  if (
+    SUBPROCESS_TAILS.test(tail) &&
+    receiverMatches(/^(child_process|cp|execa|shell)$/i)
+  ) {
     return "subprocess";
   }
   if (QUEUE_TAILS.test(tail) && receiverMatches(QUEUE_RECEIVERS)) return "queue";
@@ -435,7 +437,9 @@ function collectBounds(argument: ts.Node, sourceFile: ts.SourceFile): FanOutBoun
 /** Stable ordering so evidence lines don't shuffle between runs. */
 function sortBounds(bounds: FanOutBound[]): FanOutBound[] {
   return [...bounds].sort((a, b) =>
-    a.kind === b.kind ? a.evidence.localeCompare(b.evidence) : a.kind.localeCompare(b.kind),
+    a.kind === b.kind
+      ? a.evidence.localeCompare(b.evidence)
+      : a.kind.localeCompare(b.kind),
   );
 }
 

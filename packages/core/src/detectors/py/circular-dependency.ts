@@ -108,10 +108,7 @@ function collectPythonCycles(graph: ImportGraph): string[][] {
             i: 0,
           });
         } else if (onStack.has(next)) {
-          lowlink.set(
-            frame.node,
-            Math.min(lowlink.get(frame.node)!, index.get(next)!),
-          );
+          lowlink.set(frame.node, Math.min(lowlink.get(frame.node)!, index.get(next)!));
         }
         continue;
       }

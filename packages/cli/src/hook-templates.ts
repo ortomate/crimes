@@ -73,9 +73,7 @@ function isCrimesEntry(entry: ClaudeHookEntry): boolean {
   );
 }
 
-export function mergeClaudeHook(
-  existing: ClaudeSettings | undefined,
-): MergeResult {
+export function mergeClaudeHook(existing: ClaudeSettings | undefined): MergeResult {
   if (existing === undefined) {
     return {
       action: "created",

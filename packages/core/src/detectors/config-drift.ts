@@ -270,7 +270,10 @@ function assessVariable(
         detail: [
           `this repo funnels configuration through ${env.configModules.slice(0, 2).join(", ")}`,
           `\`${variable.name}\` is also read directly at ` +
-            outside.slice(0, 3).map((r) => `${r.file}:${r.line}`).join(", "),
+            outside
+              .slice(0, 3)
+              .map((r) => `${r.file}:${r.line}`)
+              .join(", "),
         ],
         severityDelta: 0.08,
         confidenceDelta: 0.08,
@@ -315,7 +318,11 @@ function buildFinding(variable: EnvVariableRecord, issues: Issue[]): Finding {
   for (const issue of issues) {
     confidence.add(true, issue.label, issue.confidenceDelta);
   }
-  confidence.add(variable.files.length >= 3, `read in ${variable.files.length} files`, 0.06);
+  confidence.add(
+    variable.files.length >= 3,
+    `read in ${variable.files.length} files`,
+    0.06,
+  );
 
   const severity = new SeverityLadder(0.25);
   for (const issue of issues) {
@@ -394,7 +401,11 @@ function buildActions(
       risk: "high",
     });
   }
-  if (ids.has("type_disagreement") || ids.has("default_disagreement") || ids.has("unit_disagreement")) {
+  if (
+    ids.has("type_disagreement") ||
+    ids.has("default_disagreement") ||
+    ids.has("unit_disagreement")
+  ) {
     actions.push({
       kind: "centralise_parse",
       description:

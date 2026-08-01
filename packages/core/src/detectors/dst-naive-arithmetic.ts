@@ -18,7 +18,7 @@ export const dstNaiveArithmeticDetector: LanguageJsDetector = {
     "Flags `+` / `-` arithmetic with day-level millisecond constants " +
     "(86,400,000 ≈ 1 day, etc.).",
   whyItMatters:
-    "A \"day\" isn't always 86,400,000 ms — DST transitions skip an hour " +
+    'A "day" isn\'t always 86,400,000 ms — DST transitions skip an hour ' +
     "in spring and repeat an hour in autumn. Adding constants to a " +
     "timestamp picks up that drift silently. Tests that don't straddle a " +
     "transition won't catch it; the report runs differently in March or " +

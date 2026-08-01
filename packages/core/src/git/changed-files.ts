@@ -41,9 +41,7 @@ export class UnknownGitRefError extends Error {
  * existing files are returned — deletions are skipped, since there is nothing
  * to scan.
  */
-export async function getChangedFiles(
-  options: ChangedFilesOptions,
-): Promise<string[]> {
+export async function getChangedFiles(options: ChangedFilesOptions): Promise<string[]> {
   const root = resolve(options.root);
 
   if (!(await isGitRepo(root))) {
@@ -92,11 +90,9 @@ export async function isGitRepo(dir: string): Promise<boolean> {
 }
 
 async function getGitTopLevel(dir: string): Promise<string> {
-  const { stdout } = await execFileAsync(
-    "git",
-    ["rev-parse", "--show-toplevel"],
-    { cwd: dir },
-  );
+  const { stdout } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], {
+    cwd: dir,
+  });
   return stdout.trim();
 }
 
@@ -105,13 +101,7 @@ async function listWorkingTreeChanges(repoRoot: string): Promise<string[]> {
   // --no-renames simplifies parsing — renamed files appear as add+delete pairs.
   const { stdout } = await execFileAsync(
     "git",
-    [
-      "status",
-      "--porcelain=v1",
-      "-z",
-      "--untracked-files=all",
-      "--no-renames",
-    ],
+    ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"],
     { cwd: repoRoot, maxBuffer: 16 * 1024 * 1024 },
   );
 
@@ -129,10 +119,7 @@ async function listWorkingTreeChanges(repoRoot: string): Promise<string[]> {
   return out;
 }
 
-async function listDiffAgainstBase(
-  repoRoot: string,
-  base: string,
-): Promise<string[]> {
+async function listDiffAgainstBase(repoRoot: string, base: string): Promise<string[]> {
   await assertRefExists(repoRoot, base);
 
   // `<base>...HEAD` uses the merge-base, which matches what `git diff
@@ -171,4 +158,3 @@ function toPosix(p: string): string {
   if (sep === "/") return p;
   return p.split(sep).join("/");
 }
-

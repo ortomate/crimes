@@ -83,9 +83,7 @@ export interface BuildRiskIndexOptions {
   envInventoryFiles?: string[];
 }
 
-export async function buildRiskIndex(
-  options: BuildRiskIndexOptions,
-): Promise<RiskIndex> {
+export async function buildRiskIndex(options: BuildRiskIndexOptions): Promise<RiskIndex> {
   // Sorted so every downstream "first wins" tie-break is stable across
   // platforms and filesystem orderings.
   const candidates = options.files
@@ -343,10 +341,7 @@ function blankLiterals(normalized: string): string {
  * one — zero means they are the same form, more than one means they are
  * two unrelated rules that happen to share a skeleton.
  */
-function singleLiteralDifference(
-  left: string,
-  right: string,
-): string | undefined {
+function singleLiteralDifference(left: string, right: string): string | undefined {
   const leftLiterals = left.match(LITERAL_RE) ?? [];
   const rightLiterals = right.match(LITERAL_RE) ?? [];
   if (leftLiterals.length !== rightLiterals.length) return undefined;
@@ -427,9 +422,7 @@ function buildContractIndex(occurrences: ContractOccurrence[]): ContractIndex {
     if (a.anchorFile !== b.anchorFile) {
       return a.anchorFile.localeCompare(b.anchorFile);
     }
-    return `${a.left.name}${a.right.name}`.localeCompare(
-      `${b.left.name}${b.right.name}`,
-    );
+    return `${a.left.name}${a.right.name}`.localeCompare(`${b.left.name}${b.right.name}`);
   });
 
   return { occurrences, pairs };
@@ -537,10 +530,18 @@ function diffFields(
     };
 
     if (a.optional !== b.optional) {
-      add("requiredness", a.optional ? "optional" : "required", b.optional ? "optional" : "required");
+      add(
+        "requiredness",
+        a.optional ? "optional" : "required",
+        b.optional ? "optional" : "required",
+      );
     }
     if (a.nullable !== b.nullable) {
-      add("nullability", a.nullable ? "nullable" : "non-null", b.nullable ? "nullable" : "non-null");
+      add(
+        "nullability",
+        a.nullable ? "nullable" : "non-null",
+        b.nullable ? "nullable" : "non-null",
+      );
     }
     if (a.enumMembers && b.enumMembers) {
       const aSet = new Set(a.enumMembers);
@@ -548,17 +549,17 @@ function diffFields(
       const onlyLeft = a.enumMembers.filter((m) => !bSet.has(m));
       const onlyRight = b.enumMembers.filter((m) => !aSet.has(m));
       if (onlyLeft.length > 0 || onlyRight.length > 0) {
-        add(
-          "enum_members",
-          a.enumMembers.join(" | "),
-          b.enumMembers.join(" | "),
-        );
+        add("enum_members", a.enumMembers.join(" | "), b.enumMembers.join(" | "));
       }
     } else if (a.type !== b.type) {
       add("type", a.type, b.type);
     }
     if (a.nested !== b.nested && a.type !== b.type) {
-      add("nesting", a.nested ? "nested object" : a.type, b.nested ? "nested object" : b.type);
+      add(
+        "nesting",
+        a.nested ? "nested object" : a.type,
+        b.nested ? "nested object" : b.type,
+      );
     }
   }
 
@@ -639,9 +640,7 @@ function buildEnvIndex(
       parsers: [...new Set(sorted.map((r) => r.parser ?? "(none)"))].sort(),
       defaults: [
         ...new Set(
-          sorted
-            .map((r) => r.defaultValue)
-            .filter((d): d is string => d !== undefined),
+          sorted.map((r) => r.defaultValue).filter((d): d is string => d !== undefined),
         ),
       ].sort(),
       units: [
@@ -709,9 +708,11 @@ async function readEnvInventories(
  * because a path heuristic cannot prove a bundling outcome.
  */
 function looksClientReachable(file: string): boolean {
-  return /(^|\/)(app|src|pages|components|islands|routes)\/.*\.(tsx|jsx)$/.test(file) ||
+  return (
+    /(^|\/)(app|src|pages|components|islands|routes)\/.*\.(tsx|jsx)$/.test(file) ||
     /(^|\/)(client|frontend|web|browser|ui)\//.test(file) ||
-    /\.client\.[cm]?[jt]sx?$/.test(file);
+    /\.client\.[cm]?[jt]sx?$/.test(file)
+  );
 }
 
 /* ------------------------------------------------------------------ *
@@ -805,8 +806,7 @@ function buildChains(
       // Prefer a link in a *different* file — the chain that costs a
       // reader something is the one that crosses module boundaries — and
       // break ties lexicographically so the walk is deterministic.
-      const next =
-        candidates.find((e) => e.file !== cursor.file) ?? candidates[0]!;
+      const next = candidates.find((e) => e.file !== cursor.file) ?? candidates[0]!;
       walk.push(next);
       visited.add(`${next.file}::${next.name}`);
       cursor = next;
@@ -866,7 +866,9 @@ function buildClusters(edges: PassThroughEdge[]): PassThroughCluster[] {
     });
   }
   clusters.sort((a, b) =>
-    a.file === b.file ? a.receiver.localeCompare(b.receiver) : a.file.localeCompare(b.file),
+    a.file === b.file
+      ? a.receiver.localeCompare(b.receiver)
+      : a.file.localeCompare(b.file),
   );
   return clusters;
 }

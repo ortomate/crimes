@@ -27,13 +27,7 @@ const PACK_SHORT_ID: Partial<Record<Pack, string>> = {
  * still a package worth reporting as universal-only coverage, and
  * naming it is more useful than folding it into the repo total.
  */
-const MANIFESTS = [
-  "package.json",
-  "pyproject.toml",
-  "setup.py",
-  "Cargo.toml",
-  "go.mod",
-];
+const MANIFESTS = ["package.json", "pyproject.toml", "setup.py", "Cargo.toml", "go.mod"];
 
 /**
  * A single-package repo is not a monorepo, and reporting one entry that
@@ -127,10 +121,7 @@ export function buildByPackage(args: {
  * 45% Python and 40% TypeScript has no dominant language, and calling
  * one of them dominant would put a confident label on a coin flip.
  */
-function dominant(
-  byLang: Record<string, number>,
-  filesTotal: number,
-): string | null {
+function dominant(byLang: Record<string, number>, filesTotal: number): string | null {
   if (filesTotal === 0) return null;
   for (const [lang, count] of Object.entries(byLang)) {
     if (count * 2 > filesTotal) return lang;

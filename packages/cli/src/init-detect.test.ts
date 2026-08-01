@@ -16,7 +16,9 @@ async function makeRepo(files: Record<string, string>): Promise<string> {
 
 describe("detectRepoShape", () => {
   it("detects pnpm workspaces", async () => {
-    const dir = await makeRepo({ "pnpm-workspace.yaml": "packages:\n  - 'packages/*'\n" });
+    const dir = await makeRepo({
+      "pnpm-workspace.yaml": "packages:\n  - 'packages/*'\n",
+    });
     const shape = await detectRepoShape(dir);
     expect(shape.isMonorepo).toBe(true);
   });

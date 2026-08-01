@@ -26,8 +26,9 @@ export const responsiveFragilityDetector: LanguageJsDetector = {
   run(ctx) {
     const elements = walkJsx({ source: ctx.source, ast: ctx.parsed });
     if (elements.length === 0) return [];
-    const targets = findJsxElements(elements, (el) =>
-      el.attributes.has("style") || el.attributes.has("className"),
+    const targets = findJsxElements(
+      elements,
+      (el) => el.attributes.has("style") || el.attributes.has("className"),
     );
     if (targets.length === 0) return [];
 
@@ -64,7 +65,8 @@ export const responsiveFragilityDetector: LanguageJsDetector = {
           "viewports. Add responsive alternatives or convert to fluid units.",
         evidence,
         effort: "small",
-        fix_shape: "drive layout from container queries or a fluid scale, not pixel media queries",
+        fix_shape:
+          "drive layout from container queries or a fluid scale, not pixel media queries",
         scores: {
           severity: 0.4,
           confidence: 0.65,

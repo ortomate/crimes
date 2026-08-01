@@ -96,10 +96,7 @@ describe("crimes unignore", () => {
 
   it("missing fingerprint exits 2 with audit hint", async () => {
     const { root } = await makeRepoWithSuppression();
-    const result = await runCli(
-      ["unignore", "large_function::nope.ts::nope"],
-      root,
-    );
+    const result = await runCli(["unignore", "large_function::nope.ts::nope"], root);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("no suppression entry");
     expect(result.stderr).toContain("audit-suppressions");
@@ -119,11 +116,7 @@ describe("crimes unignore", () => {
     const { root, path } = await makeRepoWithSuppression();
     const before = readFileSync(path, "utf8");
     const result = await runCli(
-      [
-        "unignore",
-        "large_function::billing.ts::generateInvoice",
-        "--dry-run",
-      ],
+      ["unignore", "large_function::billing.ts::generateInvoice", "--dry-run"],
       root,
     );
     expect(result.exitCode).toBe(0);
@@ -157,12 +150,7 @@ describe("crimes unignore", () => {
       "utf8",
     );
     const result = await runCli(
-      [
-        "unignore",
-        "large_function::a.ts::a",
-        "--file",
-        "custom.json",
-      ],
+      ["unignore", "large_function::a.ts::a", "--file", "custom.json"],
       root,
     );
     expect(result.exitCode).toBe(0);

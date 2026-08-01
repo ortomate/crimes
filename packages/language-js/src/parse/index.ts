@@ -6,10 +6,7 @@ import {
   collectDateStringConcat,
   collectDateUse,
 } from "./dates.js";
-import {
-  collectFetchSite,
-  collectStringUnionType,
-} from "./cross-language.js";
+import { collectFetchSite, collectStringUnionType } from "./cross-language.js";
 import { collectTypedDeclaration } from "./declarations.js";
 import { collectFunction } from "./functions.js";
 import { collectJsxRoot } from "./jsx.js";
@@ -24,11 +21,7 @@ import { collectMockDeclaration, collectTestCase } from "./mocks.js";
 import { collectPassThroughFunction } from "./passthrough.js";
 import { collectPolicyExpression } from "./policy.js";
 import { collectRetrySite } from "./retry.js";
-import {
-  countNonEmptyLines,
-  extractDefaultExport,
-  pickScriptKind,
-} from "./utils.js";
+import { countNonEmptyLines, extractDefaultExport, pickScriptKind } from "./utils.js";
 import type {
   DateArithmetic,
   DateMethodCall,
@@ -116,7 +109,8 @@ export type {
  * test file. Over-matching here costs an empty array; under-matching
  * costs a missed detector, so the pattern is the permissive one.
  */
-const TEST_SOURCE_RE = /(?:^|[/\\])(?:__tests__[/\\]|tests?[/\\])|[._](?:test|spec)\.[cm]?[jt]sx?$/;
+const TEST_SOURCE_RE =
+  /(?:^|[/\\])(?:__tests__[/\\]|tests?[/\\])|[._](?:test|spec)\.[cm]?[jt]sx?$/;
 
 export function parseFile(input: ParseInput): ParsedFile {
   const ext = extname(input.absolutePath).toLowerCase();

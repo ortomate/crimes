@@ -57,9 +57,7 @@ describe("localeDriftDetector", () => {
   });
 
   it("escalates to high in user-facing paths with 5+ offenders", async () => {
-    const calls = Array.from({ length: 5 }, (_, i) =>
-      loc("toLocaleDateString", i + 1),
-    );
+    const calls = Array.from({ length: 5 }, (_, i) => loc("toLocaleDateString", i + 1));
     const findings = await localeDriftDetector.run(
       makeCtx(calls, { file: "src/pages/dashboard.tsx" }),
     );
@@ -67,9 +65,7 @@ describe("localeDriftDetector", () => {
   });
 
   it("escalates to medium in non-user-facing paths with 3+ offenders", async () => {
-    const calls = Array.from({ length: 3 }, (_, i) =>
-      loc("toLocaleString", i + 1),
-    );
+    const calls = Array.from({ length: 3 }, (_, i) => loc("toLocaleString", i + 1));
     const findings = await localeDriftDetector.run(
       makeCtx(calls, { file: "src/jobs/digest.ts" }),
     );

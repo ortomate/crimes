@@ -92,7 +92,9 @@ function analyse(ia: IaIndex): Finding[] {
   // route file AND any permission-like role token in its headings or
   // text contributes a permission hit for that destination.
   for (const doc of ia.docs) {
-    const docPermissionTokens = collectDocPermissionTokens(doc.headings.map((h) => h.text));
+    const docPermissionTokens = collectDocPermissionTokens(
+      doc.headings.map((h) => h.text),
+    );
     if (docPermissionTokens.length === 0) continue;
     for (const link of doc.links) {
       if (!link.isLocal) continue;
@@ -183,11 +185,7 @@ function buildFinding(
   };
 }
 
-function push(
-  map: Map<string, PermissionHit[]>,
-  dest: string,
-  hit: PermissionHit,
-): void {
+function push(map: Map<string, PermissionHit[]>, dest: string, hit: PermissionHit): void {
   const list = map.get(dest);
   if (list) list.push(hit);
   else map.set(dest, [hit]);

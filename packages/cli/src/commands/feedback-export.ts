@@ -18,9 +18,7 @@ interface FeedbackExportOptions {
 export function registerFeedbackExportSubcommand(parent: Command): void {
   parent
     .command("export")
-    .description(
-      "Print the local feedback JSONL or append it to the global rollup.",
-    )
+    .description("Print the local feedback JSONL or append it to the global rollup.")
     .option(
       "--format <format>",
       "output format: jsonl (default, one entry per line) | md (Markdown report) | json (FeedbackReport)",
@@ -88,9 +86,7 @@ export function registerFeedbackExportSubcommand(parent: Command): void {
         return;
       }
       // md
-      process.stdout.write(
-        formatFeedbackMarkdown(read.entries, localPath, read.loaded),
-      );
+      process.stdout.write(formatFeedbackMarkdown(read.entries, localPath, read.loaded));
     });
 }
 

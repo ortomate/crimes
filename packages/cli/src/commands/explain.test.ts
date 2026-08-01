@@ -40,10 +40,7 @@ async function runCli(args: string[], cwd: string): Promise<CliResult> {
 }
 
 function largeFunctionSource(): string {
-  const body = Array.from(
-    { length: 200 },
-    (_, i) => `  const v${i} = ${i};`,
-  ).join("\n");
+  const body = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join("\n");
   return `export function generateInvoice() {\n${body}\n  return 0;\n}\n`;
 }
 
@@ -64,7 +61,9 @@ describe("crimes explain", () => {
     expect(result.stdout).toContain("CRIMES EXPLAIN");
     expect(result.stdout).toContain("God Function");
     expect(result.stdout).toContain("Likely remedies");
-    expect(result.stdout).toContain("crimes ignore large_function::billing.ts::generateInvoice");
+    expect(result.stdout).toContain(
+      "crimes ignore large_function::billing.ts::generateInvoice",
+    );
     expect(result.stdout).toContain("--reason");
   });
 
@@ -94,10 +93,7 @@ describe("crimes explain", () => {
 
   it("--from <scan.json> resolves a finding without re-scanning", async () => {
     const root = await makeRepo();
-    const scanResult = await runCli(
-      ["scan", "--format", "json", "--no-color"],
-      root,
-    );
+    const scanResult = await runCli(["scan", "--format", "json", "--no-color"], root);
     expect(scanResult.exitCode).toBe(0);
     const scanPath = join(root, "scan.json");
     await writeFile(scanPath, scanResult.stdout, "utf8");
@@ -121,25 +117,14 @@ describe("crimes explain", () => {
 
   it("--from with an id resolves correctly", async () => {
     const root = await makeRepo();
-    const scanResult = await runCli(
-      ["scan", "--format", "json", "--no-color"],
-      root,
-    );
+    const scanResult = await runCli(["scan", "--format", "json", "--no-color"], root);
     const scanPath = join(root, "scan.json");
     await writeFile(scanPath, scanResult.stdout, "utf8");
     const scan = JSON.parse(scanResult.stdout);
     const id = scan.findings[0].id;
 
     const result = await runCli(
-      [
-        "explain",
-        id,
-        "--from",
-        "scan.json",
-        "--format",
-        "json",
-        "--no-color",
-      ],
+      ["explain", id, "--from", "scan.json", "--format", "json", "--no-color"],
       root,
     );
     expect(result.exitCode).toBe(0);
@@ -149,10 +134,7 @@ describe("crimes explain", () => {
 
   it("unknown id / fingerprint exits 2", async () => {
     const root = await makeRepo();
-    const result = await runCli(
-      ["explain", "crime_99999", "--no-color"],
-      root,
-    );
+    const result = await runCli(["explain", "crime_99999", "--no-color"], root);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("no finding");
   });

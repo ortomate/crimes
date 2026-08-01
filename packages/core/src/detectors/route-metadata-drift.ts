@@ -1,11 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import { tokenise, tokenisePath } from "../ia/tokenise.js";
-import type {
-  IaIndex,
-  IaLabelSignal,
-  IaRouteSignal,
-} from "../ia/types.js";
+import type { IaIndex, IaLabelSignal, IaRouteSignal } from "../ia/types.js";
 
 /**
  * Fires when a single route's vocabulary appears to drift across the
@@ -137,14 +133,22 @@ function collectSources(
   if (route.componentName) {
     const compTokens = tokenise(route.componentName);
     if (compTokens.length > 0) {
-      sources.push({ origin: "component", tokens: compTokens, quote: route.componentName });
+      sources.push({
+        origin: "component",
+        tokens: compTokens,
+        quote: route.componentName,
+      });
     }
   }
 
   for (const label of labelSignals) {
     const tks = tokenise(label.value);
     if (tks.length === 0) continue;
-    sources.push({ origin: `label:${labelKindShort(label)}`, tokens: tks, quote: label.value });
+    sources.push({
+      origin: `label:${labelKindShort(label)}`,
+      tokens: tks,
+      quote: label.value,
+    });
   }
 
   for (const nav of navHits) {

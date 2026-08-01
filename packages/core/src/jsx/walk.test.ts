@@ -14,9 +14,7 @@ async function parseTsx(source: string) {
 
 describe("walkJsx", () => {
   it("returns an empty list for a file with no JSX", async () => {
-    const { source, ast } = await parseTsx(
-      `export const greeting = "hello";\n`,
-    );
+    const { source, ast } = await parseTsx(`export const greeting = "hello";\n`);
     expect(walkJsx({ source, ast })).toEqual([]);
     expect(ast.jsxElements).toBeUndefined();
   });
@@ -79,9 +77,7 @@ describe("walkJsx", () => {
     if (style?.kind !== "expression") throw new Error();
     expect(style.source).toBe("{ width: 800 }");
 
-    const spreadKey = [...foo.attributes.keys()].find((k) =>
-      k.startsWith("..."),
-    )!;
+    const spreadKey = [...foo.attributes.keys()].find((k) => k.startsWith("..."))!;
     const spread = foo.attributes.get(spreadKey);
     expect(spread?.kind).toBe("spread");
     if (spread?.kind !== "spread") throw new Error();

@@ -6,11 +6,7 @@ import {
   renderFileGroups,
   renderResurfaceBlock,
 } from "./scan-groups.js";
-import {
-  severityCountsLine,
-  summaryLine,
-  suppressedCountLine,
-} from "./scan-common.js";
+import { severityCountsLine, summaryLine, suppressedCountLine } from "./scan-common.js";
 import type { ColourFns, FeedbackHintOptions } from "./shared.js";
 import { pc, plainColour, renderFinding } from "./shared.js";
 
@@ -117,12 +113,7 @@ function renderResurfacedSection(
       "You're editing files you previously triaged — was this still intentional?",
     ),
   );
-  renderResurfaceBlock(
-    lines,
-    resurfaced,
-    context.colour,
-    context.isColorDisabled,
-  );
+  renderResurfaceBlock(lines, resurfaced, context.colour, context.isColorDisabled);
 }
 
 function renderAllFindings(
@@ -176,7 +167,8 @@ function renderAllNonDomain(
   lines.push("");
   lines.push(context.colour.bold("All findings are in non-domain folders"));
   renderFileGroups(lines, shown, context.colour, context.isColorDisabled);
-  if (grouped.length > shown.length) renderHiddenFileCount(lines, grouped.length, shown.length, context);
+  if (grouped.length > shown.length)
+    renderHiddenFileCount(lines, grouped.length, shown.length, context);
   lines.push("");
   lines.push(
     `→ Start with \`crimes context ${shown[0]!.file}\` — every finding is in non-domain folders; review your scopeTiers config if that surprises you.`,
@@ -194,7 +186,8 @@ function renderDomainGroups(
   lines.push("");
   lines.push(context.colour.bold("Top files by risk"));
   renderFileGroups(lines, shown, context.colour, context.isColorDisabled);
-  if (grouped.length > shown.length) renderHiddenFileCount(lines, grouped.length, shown.length, context);
+  if (grouped.length > shown.length)
+    renderHiddenFileCount(lines, grouped.length, shown.length, context);
   if (nonDomain.length > 0) renderNonDomainFooter(lines, nonDomain, context);
   lines.push("");
   lines.push(

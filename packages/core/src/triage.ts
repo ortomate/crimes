@@ -146,10 +146,7 @@ export function parseTriage(raw: string, sourceLabel = "<inline>"): Triage {
   }
   const result = TriageSchema.safeParse(parsed);
   if (!result.success) {
-    throw new MalformedTriageError(
-      sourceLabel,
-      formatZodIssues(result.error.issues),
-    );
+    throw new MalformedTriageError(sourceLabel, formatZodIssues(result.error.issues));
   }
   return result.data;
 }
@@ -180,9 +177,7 @@ export function upsertTriageEntry(
   options: { now?: () => Date } = {},
 ): Triage {
   const now = (options.now ?? systemClock)();
-  const filtered = triage.entries.filter(
-    (e) => e.fingerprint !== entry.fingerprint,
-  );
+  const filtered = triage.entries.filter((e) => e.fingerprint !== entry.fingerprint);
   filtered.push(entry);
   return {
     ...triage,
@@ -214,7 +209,5 @@ function formatZodIssues(issues: z.core.$ZodIssue[]): string {
 }
 
 function isNodeErrnoException(err: unknown): err is NodeJS.ErrnoException {
-  return (
-    err instanceof Error && typeof (err as { code?: unknown }).code === "string"
-  );
+  return err instanceof Error && typeof (err as { code?: unknown }).code === "string";
 }

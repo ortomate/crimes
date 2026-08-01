@@ -55,10 +55,7 @@ export const parallelDestinationDetector: LanguageJsDetector = {
   },
 };
 
-function findParallelCandidates(
-  route: IaRouteSignal,
-  ia: IaIndex,
-): IaRouteSignal[] {
+function findParallelCandidates(route: IaRouteSignal, ia: IaIndex): IaRouteSignal[] {
   const candidates: IaRouteSignal[] = [];
   const seedTokens = new Set(tokenise(route.routePath));
   if (seedTokens.size === 0) return [];
@@ -108,9 +105,7 @@ function areLinked(
     if (!isFromA && !isFromB) continue;
     for (const lit of source.entries) {
       for (const entry of lit.entries) {
-        const dest = entry.destination
-          ? normalisePath(entry.destination)
-          : undefined;
+        const dest = entry.destination ? normalisePath(entry.destination) : undefined;
         if (!dest) continue;
         if (isFromA && dest === normalisePath(b.routePath)) return true;
         if (isFromB && dest === normalisePath(a.routePath)) return true;
@@ -134,10 +129,7 @@ function areLinked(
   return false;
 }
 
-function buildFinding(
-  anchor: IaRouteSignal,
-  other: IaRouteSignal,
-): Finding {
+function buildFinding(anchor: IaRouteSignal, other: IaRouteSignal): Finding {
   const evidence: string[] = [
     `routes: ${anchor.routePath}, ${other.routePath}`,
     `files: ${anchor.file}, ${other.file}`,
@@ -181,10 +173,7 @@ function buildFinding(
   };
 }
 
-function sharedRouteTokens(
-  a: IaRouteSignal,
-  b: IaRouteSignal,
-): string[] {
+function sharedRouteTokens(a: IaRouteSignal, b: IaRouteSignal): string[] {
   const aSet = new Set([...tokenise(a.routePath), ...tokenisePath(a.file)]);
   const out: string[] = [];
   for (const t of tokenise(b.routePath)) {
@@ -193,10 +182,7 @@ function sharedRouteTokens(
   return out;
 }
 
-function sortPair(
-  a: IaRouteSignal,
-  b: IaRouteSignal,
-): [IaRouteSignal, IaRouteSignal] {
+function sortPair(a: IaRouteSignal, b: IaRouteSignal): [IaRouteSignal, IaRouteSignal] {
   return a.file < b.file ? [a, b] : [b, a];
 }
 

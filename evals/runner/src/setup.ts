@@ -50,9 +50,7 @@ async function main(): Promise<void> {
       ossEntries.push({ dir: resolve(FIXTURES_DIR, name), meta });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      process.stderr.write(
-        `evals:setup: failed to parse ${metaPath} — ${message}\n`,
-      );
+      process.stderr.write(`evals:setup: failed to parse ${metaPath} — ${message}\n`);
     }
   }
 

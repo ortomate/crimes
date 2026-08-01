@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
 import type { UniversalDetectorContext } from "../detector.js";
-import type {
-  IaAgentInventory,
-  IaFileSignals,
-  IaIndex,
-} from "../ia/types.js";
+import type { IaAgentInventory, IaFileSignals, IaIndex } from "../ia/types.js";
 import { missingAgentContextDetector } from "./missing-agent-context.js";
 
 function makeIndex(args: {
@@ -66,9 +62,7 @@ describe("missingAgentContextDetector", () => {
 
   it("fires when no agent context files are present (and a bin is declared)", async () => {
     const ia = makeIndex({ files: ["src/a.ts"] });
-    const findings = await missingAgentContextDetector.run(
-      makeCtx("src/a.ts", ia),
-    );
+    const findings = await missingAgentContextDetector.run(makeCtx("src/a.ts", ia));
     expect(findings).toHaveLength(1);
     expect(findings[0]!.type).toBe("missing_agent_context");
     expect(findings[0]!.charge).toBe("Missing Agent Context");
@@ -83,9 +77,7 @@ describe("missingAgentContextDetector", () => {
 
   it("does not fire when no bin is declared (library/fixture path)", async () => {
     const ia = makeIndex({ agent: { declaredBins: [] } });
-    const findings = await missingAgentContextDetector.run(
-      makeCtx("src/a.ts", ia),
-    );
+    const findings = await missingAgentContextDetector.run(makeCtx("src/a.ts", ia));
     expect(findings).toEqual([]);
   });
 
@@ -93,9 +85,7 @@ describe("missingAgentContextDetector", () => {
     const ia = makeIndex({
       agent: { agentsMdPath: "AGENTS.md" },
     });
-    const findings = await missingAgentContextDetector.run(
-      makeCtx("src/a.ts", ia),
-    );
+    const findings = await missingAgentContextDetector.run(makeCtx("src/a.ts", ia));
     expect(findings).toEqual([]);
   });
 
@@ -103,9 +93,7 @@ describe("missingAgentContextDetector", () => {
     const ia = makeIndex({
       agent: { claudeMdPath: "CLAUDE.md" },
     });
-    const findings = await missingAgentContextDetector.run(
-      makeCtx("src/a.ts", ia),
-    );
+    const findings = await missingAgentContextDetector.run(makeCtx("src/a.ts", ia));
     expect(findings).toEqual([]);
   });
 
@@ -113,9 +101,7 @@ describe("missingAgentContextDetector", () => {
     const ia = makeIndex({
       agent: { claudeSkills: [".claude/skills/example/SKILL.md"] },
     });
-    const findings = await missingAgentContextDetector.run(
-      makeCtx("src/a.ts", ia),
-    );
+    const findings = await missingAgentContextDetector.run(makeCtx("src/a.ts", ia));
     expect(findings).toEqual([]);
   });
 
@@ -123,29 +109,21 @@ describe("missingAgentContextDetector", () => {
     const ia = makeIndex({
       agent: { codexSkills: [".agents/skills/example/SKILL.md"] },
     });
-    const findings = await missingAgentContextDetector.run(
-      makeCtx("src/a.ts", ia),
-    );
+    const findings = await missingAgentContextDetector.run(makeCtx("src/a.ts", ia));
     expect(findings).toEqual([]);
   });
 
   it("fires only on the lexicographically first file (single emission per scan)", async () => {
     const ia = makeIndex({ files: ["src/a.ts", "src/b.ts", "src/c.ts"] });
-    const first = await missingAgentContextDetector.run(
-      makeCtx("src/a.ts", ia),
-    );
-    const second = await missingAgentContextDetector.run(
-      makeCtx("src/b.ts", ia),
-    );
+    const first = await missingAgentContextDetector.run(makeCtx("src/a.ts", ia));
+    const second = await missingAgentContextDetector.run(makeCtx("src/b.ts", ia));
     expect(first).toHaveLength(1);
     expect(second).toEqual([]);
   });
 
   it("lists declared bins in evidence", async () => {
     const ia = makeIndex({ agent: { declaredBins: ["mycli", "mytool"] } });
-    const findings = await missingAgentContextDetector.run(
-      makeCtx("src/a.ts", ia),
-    );
+    const findings = await missingAgentContextDetector.run(makeCtx("src/a.ts", ia));
     expect(findings[0]!.evidence.join(" ")).toContain("mycli");
     expect(findings[0]!.evidence.join(" ")).toContain("mytool");
   });

@@ -45,13 +45,19 @@ describe("directDateDetector", () => {
   });
 
   it("ranks 2+ uses as medium — pattern, not accident", async () => {
-    const uses = Array.from({ length: 4 }, (_, i) => ({ kind: "now" as const, line: i + 1 }));
+    const uses = Array.from({ length: 4 }, (_, i) => ({
+      kind: "now" as const,
+      line: i + 1,
+    }));
     const findings = await directDateDetector.run(makeCtx(uses));
     expect(findings[0]!.severity).toBe("medium");
   });
 
   it("escalates to high at 8+ uses", async () => {
-    const uses = Array.from({ length: 8 }, (_, i) => ({ kind: "now" as const, line: i + 1 }));
+    const uses = Array.from({ length: 8 }, (_, i) => ({
+      kind: "now" as const,
+      line: i + 1,
+    }));
     const findings = await directDateDetector.run(makeCtx(uses));
     expect(findings[0]!.severity).toBe("high");
   });

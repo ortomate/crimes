@@ -29,9 +29,7 @@ export function readImageDimensions(buf: Buffer): ImageDimensions | undefined {
 // PNG signature is 8 bytes, then a 4-byte length, then the literal
 // "IHDR" (4 bytes), then the 13-byte IHDR data. Width and height are
 // the first 8 bytes of the IHDR data as big-endian uint32s.
-const PNG_SIGNATURE = Buffer.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-]);
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 function readPng(buf: Buffer): ImageDimensions | undefined {
   if (buf.length < 24) return undefined;

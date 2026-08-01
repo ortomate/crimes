@@ -181,12 +181,32 @@ function buildFinding(
   const missing = MISSING_ORDER.filter((kind) => !present.has(kind));
 
   const confidence = new ConfidenceLadder(0.62)
-    .add(httpMutations.length > 0, `explicit ${httpMutations[0]?.method ?? "HTTP"} inside the retry`, 0.16)
-    .add(site.kind === "loop" || site.kind === "helper", "retry construct is explicit in this file", 0.08)
-    .add(site.kind === "sdk_config", "retry happens inside the SDK, invisible at each call site", 0.04)
+    .add(
+      httpMutations.length > 0,
+      `explicit ${httpMutations[0]?.method ?? "HTTP"} inside the retry`,
+      0.16,
+    )
+    .add(
+      site.kind === "loop" || site.kind === "helper",
+      "retry construct is explicit in this file",
+      0.08,
+    )
+    .add(
+      site.kind === "sdk_config",
+      "retry happens inside the SDK, invisible at each call site",
+      0.04,
+    )
     .add(boundary !== undefined, `operation touches ${boundary?.label}`, 0.06)
-    .add(present.has("transaction"), "a transaction is visible (may already dedupe)", -0.1)
-    .add(mutations.length === 1 && mutations[0]!.via === "call", "mutation recognised by name only", -0.08);
+    .add(
+      present.has("transaction"),
+      "a transaction is visible (may already dedupe)",
+      -0.1,
+    )
+    .add(
+      mutations.length === 1 && mutations[0]!.via === "call",
+      "mutation recognised by name only",
+      -0.08,
+    );
 
   const severity = new SeverityLadder(0.42)
     .add(boundary?.id === "payment", "payment operation", 0.32)
@@ -195,7 +215,11 @@ function buildFinding(
     .add(boundary?.id === "state_transition", "state transition", 0.14)
     .add(site.maxAttempts === undefined, "no visible attempt bound", 0.1)
     .add(!present.has("delay"), "no delay or backoff between attempts", 0.06)
-    .add(!present.has("error_classification"), "every failure is retried, including permanent ones", 0.06);
+    .add(
+      !present.has("error_classification"),
+      "every failure is retried, including permanent ones",
+      0.06,
+    );
 
   return {
     id: "",
@@ -212,7 +236,15 @@ function buildFinding(
       `A retry wraps ${describeMutations(mutations)} with no idempotency or ` +
       "deduplication key visible at the call site. If an attempt succeeds but " +
       "the response is lost, the retry applies the operation a second time.",
-    evidence: buildEvidence(site, mutations, present, missing, boundary, confidence, severity),
+    evidence: buildEvidence(
+      site,
+      mutations,
+      present,
+      missing,
+      boundary,
+      confidence,
+      severity,
+    ),
     effort: "medium",
     fix_shape: "pass a stable idempotency key, or make the retry read-only",
     scores: {
@@ -237,10 +269,10 @@ function buildEvidence(
   evidence.push(`retry construct: ${site.construct} (line ${site.line})`);
   for (const mutation of mutations.slice(0, 5)) {
     const how =
-      mutation.via === "http"
-        ? `HTTP ${mutation.method}`
-        : "name suggests a write";
-    evidence.push(`  retried mutation — ${mutation.callee} at line ${mutation.line} (${how})`);
+      mutation.via === "http" ? `HTTP ${mutation.method}` : "name suggests a write";
+    evidence.push(
+      `  retried mutation — ${mutation.callee} at line ${mutation.line} (${how})`,
+    );
   }
   if (mutations.length > 5) {
     evidence.push(`  +${mutations.length - 5} further mutating call(s)`);
@@ -268,9 +300,7 @@ function buildEvidence(
   );
   const secondary = missing.filter((k) => k !== "idempotency_key");
   if (secondary.length > 0) {
-    evidence.push(
-      `also absent: ${secondary.map(describeSafeguard).join(", ")}`,
-    );
+    evidence.push(`also absent: ${secondary.map(describeSafeguard).join(", ")}`);
   }
   if (site.maxAttempts !== undefined) {
     evidence.push(`attempt bound: ${site.maxAttempts}`);

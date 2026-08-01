@@ -71,7 +71,13 @@ describe("the strong tier", () => {
    * that produced 188 false positives before the tier existed.
    */
   it("rejects general programming vocabulary that the broad tier accepts", () => {
-    for (const name of ["items.length", "retryCount", "bufferState", "isValid", "flagEnabled"]) {
+    for (const name of [
+      "items.length",
+      "retryCount",
+      "bufferState",
+      "isValid",
+      "flagEnabled",
+    ]) {
       expect(strongDomainTokensIn(name), name).toEqual([]);
     }
     // `state`, `valid`, and `flag` are in the broad catalogue on purpose —
@@ -82,10 +88,7 @@ describe("the strong tier", () => {
 
   it("accepts unambiguously-business vocabulary", () => {
     expect(strongDomainTokensIn("user.role")).toEqual(["role"]);
-    expect(strongDomainTokensIn("subscription.tier")).toEqual([
-      "subscription",
-      "tier",
-    ]);
+    expect(strongDomainTokensIn("subscription.tier")).toEqual(["subscription", "tier"]);
     expect(strongDomainTokensIn("order.status")).toEqual(["status"]);
     expect(strongDomainTokensIn("workspace.entitlements")).toEqual([
       "workspace",

@@ -31,9 +31,7 @@ export function formatVerdictReport(
   }
 
   if (report.recommended_actions.length > 0) {
-    lines.push(
-      `Recommended next action: ${report.recommended_actions.join(" ")}`,
-    );
+    lines.push(`Recommended next action: ${report.recommended_actions.join(" ")}`);
   }
 
   return lines.join("\n");

@@ -27,10 +27,7 @@ interface DocEntry {
   created_by?: string;
 }
 
-async function writeSuppressionsFile(
-  root: string,
-  entries: DocEntry[],
-): Promise<string> {
+async function writeSuppressionsFile(root: string, entries: DocEntry[]): Promise<string> {
   const path = join(root, ".crimes", "suppressions.json");
   const doc = {
     schema_version: SCHEMA_VERSION,

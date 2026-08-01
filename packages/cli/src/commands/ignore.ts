@@ -55,40 +55,59 @@ export function registerIgnoreCommand(program: Command): void {
       "skip the fresh scan that confirms the id-or-fingerprint resolves to a real finding",
       false,
     )
-    .action(
-      async (
-        idOrFingerprint: string,
-        options: IgnoreCommandOptions,
-      ) => {
-        const root = resolve(process.cwd());
+    .action(async (idOrFingerprint: string, options: IgnoreCommandOptions) => {
+      const root = resolve(process.cwd());
 
-        if (
-          options.reason === undefined ||
-          typeof options.reason !== "string" ||
-          options.reason.trim().length === 0
-        ) {
-          process.stderr.write(
-            "crimes: --reason is required and must be a non-empty sentence.\n",
-          );
-          process.exit(2);
+      if (
+        options.reason === undefined ||
+        typeof options.reason !== "string" ||
+        options.reason.trim().length === 0
+      ) {
+        process.stderr.write(
+          "crimes: --reason is required and must be a non-empty sentence.\n",
+        );
+        process.exit(2);
+        return;
+      }
+
+      if (
+        !ID_PATTERN.test(idOrFingerprint) &&
+        !FINGERPRINT_PATTERN.test(idOrFingerprint)
+      ) {
+        process.stderr.write(
+          `crimes: "${idOrFingerprint}" is neither a per-scan id (crime_00001) ` +
+            `nor a stable fingerprint (<type>::<file>::<symbol>).\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      let config;
+      try {
+        config = loadConfig(root);
+      } catch (error) {
+        if (isUserSetupError(error)) {
+          fatalUserError(error);
           return;
         }
+        throw error;
+      }
 
-        if (
-          !ID_PATTERN.test(idOrFingerprint) &&
-          !FINGERPRINT_PATTERN.test(idOrFingerprint)
-        ) {
-          process.stderr.write(
-            `crimes: "${idOrFingerprint}" is neither a per-scan id (crime_00001) ` +
-              `nor a stable fingerprint (<type>::<file>::<symbol>).\n`,
-          );
-          process.exit(2);
-          return;
-        }
+      const path = options.file
+        ? resolveOverridePath(root, options.file)
+        : resolveSuppressionsPath(root, config);
 
-        let config;
+      let fingerprint: string;
+      let type: string;
+      let file: string | undefined;
+      let symbol: string | undefined;
+
+      if (ID_PATTERN.test(idOrFingerprint)) {
+        // Resolve a per-scan id to its stable fingerprint by re-running
+        // scan. Ids are reassigned every scan — they are useless on disk.
+        let report;
         try {
-          config = loadConfig(root);
+          report = await scan({ root, config });
         } catch (error) {
           if (isUserSetupError(error)) {
             fatalUserError(error);
@@ -96,19 +115,29 @@ export function registerIgnoreCommand(program: Command): void {
           }
           throw error;
         }
+        const match = report.findings.find((f) => f.id === idOrFingerprint);
+        if (!match) {
+          process.stderr.write(
+            `crimes: no finding with id "${idOrFingerprint}" in the current scan. ` +
+              "Re-run `crimes scan` and use the id from that output.\n",
+          );
+          process.exit(2);
+          return;
+        }
+        fingerprint = `${match.type}::${match.file}::${match.symbol ?? ""}`;
+        type = match.type;
+        file = match.file;
+        symbol = match.symbol;
+      } else {
+        fingerprint = idOrFingerprint;
+        const [typePart, filePart, symbolPart] = fingerprint.split("::");
+        type = typePart!;
+        if (filePart) file = filePart;
+        if (symbolPart) symbol = symbolPart;
 
-        const path = options.file
-          ? resolveOverridePath(root, options.file)
-          : resolveSuppressionsPath(root, config);
-
-        let fingerprint: string;
-        let type: string;
-        let file: string | undefined;
-        let symbol: string | undefined;
-
-        if (ID_PATTERN.test(idOrFingerprint)) {
-          // Resolve a per-scan id to its stable fingerprint by re-running
-          // scan. Ids are reassigned every scan — they are useless on disk.
+        // Verify the fingerprint resolves to a real finding when --no-verify
+        // is off. Catches silent typos before they land in the file.
+        if (!options.noVerify) {
           let report;
           try {
             report = await scan({ root, config });
@@ -119,91 +148,55 @@ export function registerIgnoreCommand(program: Command): void {
             }
             throw error;
           }
-          const match = report.findings.find((f) => f.id === idOrFingerprint);
+          const match = report.findings.find(
+            (f) => `${f.type}::${f.file}::${f.symbol ?? ""}` === fingerprint,
+          );
           if (!match) {
             process.stderr.write(
-              `crimes: no finding with id "${idOrFingerprint}" in the current scan. ` +
-                "Re-run `crimes scan` and use the id from that output.\n",
+              `crimes: fingerprint "${fingerprint}" did not match any finding ` +
+                "in the current scan. Pass --no-verify to suppress it anyway, " +
+                "or double-check the type/file/symbol parts.\n",
             );
             process.exit(2);
             return;
           }
-          fingerprint = `${match.type}::${match.file}::${match.symbol ?? ""}`;
-          type = match.type;
-          file = match.file;
-          symbol = match.symbol;
-        } else {
-          fingerprint = idOrFingerprint;
-          const [typePart, filePart, symbolPart] = fingerprint.split("::");
-          type = typePart!;
-          if (filePart) file = filePart;
-          if (symbolPart) symbol = symbolPart;
-
-          // Verify the fingerprint resolves to a real finding when --no-verify
-          // is off. Catches silent typos before they land in the file.
-          if (!options.noVerify) {
-            let report;
-            try {
-              report = await scan({ root, config });
-            } catch (error) {
-              if (isUserSetupError(error)) {
-                fatalUserError(error);
-                return;
-              }
-              throw error;
-            }
-            const match = report.findings.find(
-              (f) => `${f.type}::${f.file}::${f.symbol ?? ""}` === fingerprint,
-            );
-            if (!match) {
-              process.stderr.write(
-                `crimes: fingerprint "${fingerprint}" did not match any finding ` +
-                  "in the current scan. Pass --no-verify to suppress it anyway, " +
-                  "or double-check the type/file/symbol parts.\n",
-              );
-              process.exit(2);
-              return;
-            }
-          }
         }
+      }
 
-        const createdBy = await readGitUserEmail(root);
-        const entry = {
-          fingerprint,
-          type,
-          ...(file !== undefined ? { file } : {}),
-          ...(symbol !== undefined ? { symbol } : {}),
-          reason: options.reason.trim(),
-          ...(createdBy ? { created_by: createdBy } : {}),
-        };
+      const createdBy = await readGitUserEmail(root);
+      const entry = {
+        fingerprint,
+        type,
+        ...(file !== undefined ? { file } : {}),
+        ...(symbol !== undefined ? { symbol } : {}),
+        reason: options.reason.trim(),
+        ...(createdBy ? { created_by: createdBy } : {}),
+      };
 
-        if (options.dryRun) {
-          process.stdout.write(
-            `Would write to ${path}:\n${JSON.stringify(entry, null, 2)}\n`,
-          );
-          return;
-        }
-
-        const result = await appendSuppression(path, entry, {
-          crimesVersion: __CRIMES_VERSION__,
-        });
-
-        const verb = result.updated ? "Updated" : "Suppressed";
+      if (options.dryRun) {
         process.stdout.write(
-          `${verb} ${fingerprint} in ${path}. ` +
-            "Commit the file so the suppression survives review.\n",
+          `Would write to ${path}:\n${JSON.stringify(entry, null, 2)}\n`,
         );
-      },
-    );
+        return;
+      }
+
+      const result = await appendSuppression(path, entry, {
+        crimesVersion: __CRIMES_VERSION__,
+      });
+
+      const verb = result.updated ? "Updated" : "Suppressed";
+      process.stdout.write(
+        `${verb} ${fingerprint} in ${path}. ` +
+          "Commit the file so the suppression survives review.\n",
+      );
+    });
 }
 
 async function readGitUserEmail(root: string): Promise<string | undefined> {
   try {
-    const { stdout } = await execFileAsync(
-      "git",
-      ["config", "--get", "user.email"],
-      { cwd: root },
-    );
+    const { stdout } = await execFileAsync("git", ["config", "--get", "user.email"], {
+      cwd: root,
+    });
     const trimmed = stdout.trim();
     return trimmed.length > 0 ? trimmed : undefined;
   } catch {

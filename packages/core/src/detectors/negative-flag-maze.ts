@@ -20,9 +20,9 @@ export const negativeFlagMazeDetector: LanguageJsDetector = {
 
     const findings: Finding[] = [];
     for (const condition of extractConditions(ctx.source)) {
-      const allSignals = Array.from(new Set(
-        identifiersIn(condition.text).filter((name) => NEGATIVE_NAME.test(name)),
-      )).sort();
+      const allSignals = Array.from(
+        new Set(identifiersIn(condition.text).filter((name) => NEGATIVE_NAME.test(name))),
+      ).sort();
       if (allSignals.length < 2) continue;
 
       findings.push({
@@ -33,8 +33,7 @@ export const negativeFlagMazeDetector: LanguageJsDetector = {
         confidence: 0.72,
         file: ctx.file,
         lines: [condition.line, condition.line],
-        summary:
-          `Conditional combines ${allSignals.length} negative flags. Double-negative logic is easy to invert during maintenance.`,
+        summary: `Conditional combines ${allSignals.length} negative flags. Double-negative logic is easy to invert during maintenance.`,
         evidence: [
           `negative flags: ${allSignals.join(", ")}`,
           `condition: ${truncate(condition.text.replace(/\s+/g, " "), 100)}`,

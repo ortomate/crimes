@@ -95,9 +95,7 @@ function collectValueCycles(graph: ImportGraph): string[][] {
   return sccs;
 }
 
-function buildValueAdjacency(
-  graph: ImportGraph,
-): Map<string, Set<string>> {
+function buildValueAdjacency(graph: ImportGraph): Map<string, Set<string>> {
   const adj = new Map<string, Set<string>>();
   const ensure = (key: string): Set<string> => {
     const existing = adj.get(key);

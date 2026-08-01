@@ -36,7 +36,9 @@ async function main(): Promise<void> {
   const version = await readCrimesVersion();
   const sampleDirs = findSampleDirs(version);
   if (sampleDirs.length === 0) {
-    process.stderr.write(`variance: no result directories for version ${version} or ${version}-*\n`);
+    process.stderr.write(
+      `variance: no result directories for version ${version} or ${version}-*\n`,
+    );
     process.exit(2);
     return;
   }
@@ -57,9 +59,7 @@ async function main(): Promise<void> {
       const agentDir = resolve(dir, agentEntry.name);
       for (const f of readdirSync(agentDir)) {
         if (!f.endsWith(".json")) continue;
-        const r = JSON.parse(
-          readFileSync(resolve(agentDir, f), "utf8"),
-        ) as ScoreResult;
+        const r = JSON.parse(readFileSync(resolve(agentDir, f), "utf8")) as ScoreResult;
         const s = r.structural_score;
         const total = s.passed + s.failed;
         const fraction = total === 0 ? 0 : s.passed / total;
@@ -86,8 +86,7 @@ async function main(): Promise<void> {
     const [scenario, agent] = key.split("::");
     const xs = list.map((s) => s.fraction);
     const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
-    const variance =
-      xs.reduce((a, b) => a + (b - mean) * (b - mean), 0) / xs.length;
+    const variance = xs.reduce((a, b) => a + (b - mean) * (b - mean), 0) / xs.length;
     const stddev = Math.sqrt(variance);
     rows.push({
       scenario: scenario!,
@@ -99,11 +98,11 @@ async function main(): Promise<void> {
       max: Math.max(...xs),
     });
   }
-  rows.sort((a, b) => a.scenario.localeCompare(b.scenario) || a.agent.localeCompare(b.agent));
-
-  process.stdout.write(
-    `variance: ${sampleDirs.length} samples for crimes ${version}:\n`,
+  rows.sort(
+    (a, b) => a.scenario.localeCompare(b.scenario) || a.agent.localeCompare(b.agent),
   );
+
+  process.stdout.write(`variance: ${sampleDirs.length} samples for crimes ${version}:\n`);
   for (const d of sampleDirs) process.stdout.write(`  ${d}\n`);
   process.stdout.write("\n");
 

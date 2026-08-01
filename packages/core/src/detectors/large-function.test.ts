@@ -107,9 +107,7 @@ describe("largeFunctionDetector (domain default)", () => {
     const findings = await largeFunctionDetector.run(
       makeCtx([{ name: "f", start: 1, end: 200 }]),
     );
-    expect(findings[0]!.evidence.some((e) => /domain function/i.test(e))).toBe(
-      true,
-    );
+    expect(findings[0]!.evidence.some((e) => /domain function/i.test(e))).toBe(true);
   });
 });
 
@@ -142,9 +140,7 @@ describe("largeFunctionDetector (shape-aware thresholds)", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("low");
     expect(findings[0]!.symbol).toBe("describe callback");
-    expect(
-      findings[0]!.evidence.some((e) => /test callback/i.test(e)),
-    ).toBe(true);
+    expect(findings[0]!.evidence.some((e) => /test callback/i.test(e))).toBe(true);
   });
 
   it("escalates a 400-line test_callback to medium (≥2× threshold)", async () => {
@@ -224,9 +220,7 @@ describe("largeFunctionDetector (shape-aware thresholds)", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("medium");
     expect(
-      findings[0]!.evidence.some((e) =>
-        /route handler threshold \(100/.test(e),
-      ),
+      findings[0]!.evidence.some((e) => /route handler threshold \(100/.test(e)),
     ).toBe(true);
   });
 
@@ -246,16 +240,12 @@ describe("largeFunctionDetector (shape-aware thresholds)", () => {
 
   it("flags a 220-line page_export at medium, 401-line at high", async () => {
     const mediumFindings = await largeFunctionDetector.run(
-      makeCtx([
-        { name: "Page", start: 1, end: 220, shape: "page_export" },
-      ]),
+      makeCtx([{ name: "Page", start: 1, end: 220, shape: "page_export" }]),
     );
     expect(mediumFindings[0]!.severity).toBe("medium");
 
     const highFindings = await largeFunctionDetector.run(
-      makeCtx([
-        { name: "Page", start: 1, end: 401, shape: "page_export" },
-      ]),
+      makeCtx([{ name: "Page", start: 1, end: 401, shape: "page_export" }]),
     );
     expect(highFindings[0]!.severity).toBe("high");
   });
@@ -305,9 +295,7 @@ describe("largeFunctionDetector (shape-aware thresholds)", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("low");
     expect(
-      findings[0]!.evidence.some((e) =>
-        /CLI command registrar threshold \(200/.test(e),
-      ),
+      findings[0]!.evidence.some((e) => /CLI command registrar threshold \(200/.test(e)),
     ).toBe(true);
   });
 
@@ -364,9 +352,10 @@ describe("largeFunctionDetector (end-to-end shape classification)", () => {
   it("classifies a real `describe()` callback as test_callback and respects the 200-line threshold", async () => {
     // 110-line describe block — well past the domain threshold (60) but
     // under the test threshold (200), so it must NOT fire.
-    const body = Array.from({ length: 100 }, () => "  it('case', () => null);").join("\n");
-    const source =
-      "describe('billing', () => {\n" + body + "\n});\n";
+    const body = Array.from({ length: 100 }, () => "  it('case', () => null);").join(
+      "\n",
+    );
+    const source = "describe('billing', () => {\n" + body + "\n});\n";
     const ctx = parsedCtx({
       source,
       file: "src/billing.test.ts",
@@ -378,11 +367,11 @@ describe("largeFunctionDetector (end-to-end shape classification)", () => {
 
   it("classifies a default-exported page.tsx component as page_export", async () => {
     // 220 lines of body — past the 200-line page threshold → medium.
-    const body = Array.from({ length: 210 }, (_, i) => `  const x${i} = ${i};`).join("\n");
+    const body = Array.from({ length: 210 }, (_, i) => `  const x${i} = ${i};`).join(
+      "\n",
+    );
     const source =
-      "export default function HomePage() {\n" +
-      body +
-      "\n  return <main />;\n}\n";
+      "export default function HomePage() {\n" + body + "\n  return <main />;\n}\n";
     const ctx = parsedCtx({
       source,
       file: "src/app/page.tsx",
@@ -392,15 +381,15 @@ describe("largeFunctionDetector (end-to-end shape classification)", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("medium");
     expect(
-      findings[0]!.evidence.some((e) =>
-        /page component threshold \(200/.test(e),
-      ),
+      findings[0]!.evidence.some((e) => /page component threshold \(200/.test(e)),
     ).toBe(true);
   });
 
   it("classifies a named-export `GET` under app/ as route_handler", async () => {
     // 110-line GET → past the 100-line handler threshold → medium.
-    const body = Array.from({ length: 105 }, (_, i) => `  const x${i} = ${i};`).join("\n");
+    const body = Array.from({ length: 105 }, (_, i) => `  const x${i} = ${i};`).join(
+      "\n",
+    );
     const source = "export function GET() {\n" + body + "\n  return new Response();\n}\n";
     const ctx = parsedCtx({
       source,
@@ -412,18 +401,16 @@ describe("largeFunctionDetector (end-to-end shape classification)", () => {
     expect(findings[0]!.severity).toBe("medium");
     expect(findings[0]!.symbol).toBe("GET");
     expect(
-      findings[0]!.evidence.some((e) =>
-        /route handler threshold \(100/.test(e),
-      ),
+      findings[0]!.evidence.some((e) => /route handler threshold \(100/.test(e)),
     ).toBe(true);
   });
 
   it("classifies a PascalCase function with JSX as react_component", async () => {
-    const body = Array.from({ length: 210 }, (_, i) => `  const x${i} = ${i};`).join("\n");
+    const body = Array.from({ length: 210 }, (_, i) => `  const x${i} = ${i};`).join(
+      "\n",
+    );
     const source =
-      "function HomePage() {\n" +
-      body +
-      "\n  return <div />;\n}\nexport { HomePage };\n";
+      "function HomePage() {\n" + body + "\n  return <div />;\n}\nexport { HomePage };\n";
     const ctx = parsedCtx({
       source,
       file: "src/components/HomePage.tsx",
@@ -433,9 +420,7 @@ describe("largeFunctionDetector (end-to-end shape classification)", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]!.severity).toBe("medium");
     expect(
-      findings[0]!.evidence.some((e) =>
-        /React component threshold \(200/.test(e),
-      ),
+      findings[0]!.evidence.some((e) => /React component threshold \(200/.test(e)),
     ).toBe(true);
   });
 
@@ -470,9 +455,7 @@ describe("largeFunctionDetector (end-to-end shape classification)", () => {
     for (const f of findings) {
       expect(f.severity).toBe("low");
       expect(
-        f.evidence.some((e) =>
-          /CLI command registrar threshold \(200/.test(e),
-        ),
+        f.evidence.some((e) => /CLI command registrar threshold \(200/.test(e)),
       ).toBe(true);
     }
   });
@@ -481,9 +464,10 @@ describe("largeFunctionDetector (end-to-end shape classification)", () => {
     // 204-line domain function → ratio 3.4 → high. This is the
     // bundled `examples/messy-ts-app` headline finding; regressing it
     // would silently empty the demo report.
-    const body = Array.from({ length: 200 }, (_, i) => `  const x${i} = ${i};`).join("\n");
-    const source =
-      "export function generateInvoice() {\n" + body + "\n  return 1;\n}\n";
+    const body = Array.from({ length: 200 }, (_, i) => `  const x${i} = ${i};`).join(
+      "\n",
+    );
+    const source = "export function generateInvoice() {\n" + body + "\n  return 1;\n}\n";
     const ctx = parsedCtx({
       source,
       file: "src/billing.ts",

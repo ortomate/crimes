@@ -25,9 +25,7 @@ export function isFunctionLike(node: ts.Node): node is ts.SignatureDeclaration {
 
 /** 1-based start line of a node. */
 export function startLineOf(node: ts.Node, sourceFile: ts.SourceFile): number {
-  return (
-    sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1
-  );
+  return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 }
 
 /** 1-based end line of a node. */
@@ -331,9 +329,7 @@ export function soleReturnedExpression(
     // Concise arrow body: the body *is* the returned expression.
     return body as ts.Expression;
   }
-  const statements = body.statements.filter(
-    (s) => !ts.isEmptyStatement(s),
-  );
+  const statements = body.statements.filter((s) => !ts.isEmptyStatement(s));
   if (statements.length !== 1) return undefined;
   const only = statements[0]!;
   if (ts.isReturnStatement(only)) return only.expression;
@@ -342,12 +338,8 @@ export function soleReturnedExpression(
 }
 
 /** Parameter names in order; `undefined` entries for destructuring patterns. */
-export function parameterNames(
-  node: ts.SignatureDeclaration,
-): Array<string | undefined> {
-  return node.parameters.map((p) =>
-    ts.isIdentifier(p.name) ? p.name.text : undefined,
-  );
+export function parameterNames(node: ts.SignatureDeclaration): Array<string | undefined> {
+  return node.parameters.map((p) => (ts.isIdentifier(p.name) ? p.name.text : undefined));
 }
 
 /** Is this a rest parameter (`...args`)? */

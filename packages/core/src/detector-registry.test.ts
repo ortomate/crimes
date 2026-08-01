@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Detector } from "./detector.js";
-import {
-  builtInDetectors,
-  groupDetectorsByPack,
-} from "./detector-registry.js";
+import { builtInDetectors, groupDetectorsByPack } from "./detector-registry.js";
 
 describe("groupDetectorsByPack", () => {
   it("returns separate lists per pack", () => {

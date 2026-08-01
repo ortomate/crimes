@@ -138,8 +138,7 @@ export function conceptKeyOf(name: string): ConceptKey {
   // A name made *entirely* of affixes (`Schema`, `CreateInput`) has no
   // concept of its own. Fall back to the whole lowercased name so two
   // such declarations still only match each other.
-  const baseKey =
-    base.length > 0 ? base.join("") : words.join("");
+  const baseKey = base.length > 0 ? base.join("") : words.join("");
   const sorted = [...projections].sort();
   return {
     key: sorted.length > 0 ? `${baseKey}::${sorted.join("+")}` : baseKey,
@@ -176,7 +175,12 @@ function singularise(word: string): string {
   if (word.length > 3 && word.endsWith("ies")) return `${word.slice(0, -3)}y`;
   if (word.length > 3 && word.endsWith("ses")) return word.slice(0, -2);
   // `status` / `address` must not lose their trailing `s`.
-  if (word.length > 2 && word.endsWith("s") && !word.endsWith("ss") && !word.endsWith("us")) {
+  if (
+    word.length > 2 &&
+    word.endsWith("s") &&
+    !word.endsWith("ss") &&
+    !word.endsWith("us")
+  ) {
     return word.slice(0, -1);
   }
   return word;

@@ -27,10 +27,7 @@ export interface BreadcrumbOptions {
  * undefined. Falls back to `!process.stdout.isTTY` so piped output
  * stays quiet by default — same convention the human reporter uses.
  */
-export function resolveNoColor(options: {
-  color?: boolean;
-  noColor?: boolean;
-}): boolean {
+export function resolveNoColor(options: { color?: boolean; noColor?: boolean }): boolean {
   if (options.color === false) return true;
   if (options.noColor === true) return true;
   return !process.stdout.isTTY;
@@ -81,9 +78,7 @@ export function emitResurfacedSuppressionsBreadcrumb(
   options: BreadcrumbOptions = {},
 ): void {
   if (options.noColor) return;
-  const entries = Object.entries(byPinnedMinor).sort(
-    ([a], [b]) => a.localeCompare(b),
-  );
+  const entries = Object.entries(byPinnedMinor).sort(([a], [b]) => a.localeCompare(b));
   if (entries.length === 0) return;
 
   const total = entries.reduce((sum, [, n]) => sum + n, 0);

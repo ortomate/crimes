@@ -21,8 +21,8 @@ export const localeDriftDetector: LanguageJsDetector = {
     "calls invoked with no locale argument — output varies by host.",
   whyItMatters:
     "Calling `toLocaleDateString()` with no arguments uses the runtime's " +
-    "host locale. The same line renders as \"3/15/2026\" on a US machine, " +
-    "\"15/03/2026\" on a UK one, and \"15.03.2026\" on a German one. For " +
+    'host locale. The same line renders as "3/15/2026" on a US machine, ' +
+    '"15/03/2026" on a UK one, and "15.03.2026" on a German one. For ' +
     "logs, IDs, persisted text, or anything passed across a network, the " +
     "drift produces silent bugs and broken parsers. For user-facing copy, " +
     "the implicit locale is rarely the right contract either — pick one " +
@@ -89,7 +89,9 @@ export const localeDriftDetector: LanguageJsDetector = {
  * and escalate only on recurring patterns.
  */
 function pickSeverity(file: string, count: number): Severity {
-  const userFacing = /(?:^|\/)(?:ui|components|pages|app|routes|views)(?:\/|$)/.test(file);
+  const userFacing = /(?:^|\/)(?:ui|components|pages|app|routes|views)(?:\/|$)/.test(
+    file,
+  );
   if (userFacing) return count >= 5 ? "high" : "medium";
   return count >= 3 ? "medium" : "low";
 }

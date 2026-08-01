@@ -26,7 +26,7 @@ describe("extractComments", () => {
 
   it("ignores comment markers inside strings and templates", () => {
     const comments = extractComments(
-      "const url = \"https://example.com\";\nconst text = `/* not a comment */`;\n// real\n",
+      'const url = "https://example.com";\nconst text = `/* not a comment */`;\n// real\n',
     );
     expect(comments).toHaveLength(1);
     expect(comments[0]!.text).toBe("real");

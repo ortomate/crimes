@@ -100,9 +100,7 @@ async function exists(p) {
 
 async function main() {
   if (!(await exists(sourceDocs))) {
-    throw new Error(
-      `sync-docs: source docs directory not found at ${sourceDocs}`,
-    );
+    throw new Error(`sync-docs: source docs directory not found at ${sourceDocs}`);
   }
   await rm(targetDocs, { recursive: true, force: true });
   await mkdir(targetDocs, { recursive: true });
@@ -140,10 +138,7 @@ async function main() {
 
   const publicDir = resolve(websiteDir, "public");
   await mkdir(publicDir, { recursive: true });
-  await cp(
-    resolve(websiteDir, "landing", "favicon.svg"),
-    join(publicDir, "favicon.svg"),
-  );
+  await cp(resolve(websiteDir, "landing", "favicon.svg"), join(publicDir, "favicon.svg"));
 }
 
 main().catch((err) => {

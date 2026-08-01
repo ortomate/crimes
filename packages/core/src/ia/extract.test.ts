@@ -8,9 +8,7 @@ import {
 
 describe("routeFromFilePath", () => {
   it("derives a Pages-router route", () => {
-    expect(routeFromFilePath("src/pages/settings/billing.tsx")).toBe(
-      "/settings/billing",
-    );
+    expect(routeFromFilePath("src/pages/settings/billing.tsx")).toBe("/settings/billing");
   });
 
   it("strips /index for Pages-router", () => {
@@ -28,9 +26,7 @@ describe("routeFromFilePath", () => {
   });
 
   it("strips App-router groups", () => {
-    expect(routeFromFilePath("src/app/(marketing)/about/page.tsx")).toBe(
-      "/about",
-    );
+    expect(routeFromFilePath("src/app/(marketing)/about/page.tsx")).toBe("/about");
   });
 
   it("converts dynamic segments", () => {
@@ -38,9 +34,7 @@ describe("routeFromFilePath", () => {
   });
 
   it("converts catchall segments", () => {
-    expect(routeFromFilePath("src/app/docs/[...slug]/page.tsx")).toBe(
-      "/docs/*",
-    );
+    expect(routeFromFilePath("src/app/docs/[...slug]/page.tsx")).toBe("/docs/*");
   });
 
   it("handles Remix/React-Router routes/ directory", () => {
@@ -92,10 +86,7 @@ describe("extractPermissions", () => {
 
 describe("parseMarkdown", () => {
   it("extracts headings with levels", () => {
-    const doc = parseMarkdown(
-      `# Top\n\n## Mid\n\n### Bottom\n`,
-      "x.md",
-    );
+    const doc = parseMarkdown(`# Top\n\n## Mid\n\n### Bottom\n`, "x.md");
     expect(doc.headings).toEqual([
       { text: "Top", level: 1, line: 1 },
       { text: "Mid", level: 2, line: 3 },
@@ -104,10 +95,7 @@ describe("parseMarkdown", () => {
   });
 
   it("extracts local links and marks remote as non-local", () => {
-    const doc = parseMarkdown(
-      `[a](./a.md) [b](https://x.com) [c](#anchor)\n`,
-      "x.md",
-    );
+    const doc = parseMarkdown(`[a](./a.md) [b](https://x.com) [c](#anchor)\n`, "x.md");
     expect(doc.links).toHaveLength(3);
     expect(doc.links[0]!.isLocal).toBe(true);
     expect(doc.links[1]!.isLocal).toBe(false);

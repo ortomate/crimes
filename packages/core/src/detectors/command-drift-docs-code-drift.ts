@@ -118,9 +118,7 @@ function analyse(ia: IaIndex): Finding[] {
   return findings;
 }
 
-function collectReferencedCommands(
-  doc: IaIndex["docs"][number],
-): RefHit[] {
+function collectReferencedCommands(doc: IaIndex["docs"][number]): RefHit[] {
   const out: RefHit[] = [];
   for (const cmd of doc.fencedCommands) {
     if (cmd.deferred) continue;
@@ -138,10 +136,7 @@ function collectReferencedCommands(
   return out;
 }
 
-function loadBinSurface(
-  iaRoot: string,
-  bin: string,
-): BinSurface | undefined {
+function loadBinSurface(iaRoot: string, bin: string): BinSurface | undefined {
   const pkgPath = join(iaRoot, "package.json");
   if (!existsSync(pkgPath)) return undefined;
   let pkg: { bin?: string | Record<string, string>; name?: string };
@@ -162,9 +157,7 @@ function loadBinSurface(
   }
 
   const advertised = new Set<string>();
-  for (const match of source.matchAll(
-    /\.command\(\s*["']([a-z][a-z0-9_-]*)/g,
-  )) {
+  for (const match of source.matchAll(/\.command\(\s*["']([a-z][a-z0-9_-]*)/g)) {
     advertised.add(match[1]!);
   }
   return { bin, advertised };

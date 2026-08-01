@@ -39,8 +39,7 @@ describe("buildIaIndex", () => {
 
   it("records path tokens and component names per file", async () => {
     const root = await makeRepo({
-      "src/team/permissions.ts":
-        `export default function TeamPermissions() { return null; }\n`,
+      "src/team/permissions.ts": `export default function TeamPermissions() { return null; }\n`,
     });
     const files = await discover(root);
     const index = await buildIaIndex({ root, files });
@@ -54,8 +53,7 @@ describe("buildIaIndex", () => {
 
   it("captures route paths for route-convention files", async () => {
     const root = await makeRepo({
-      "src/pages/settings/billing.tsx":
-        `export default function PricingPage() { return null; }\n`,
+      "src/pages/settings/billing.tsx": `export default function PricingPage() { return null; }\n`,
       "src/billing/tax.ts": `export const tax = 0;\n`,
     });
     const files = await discover(root);
@@ -105,8 +103,7 @@ describe("buildIaIndex", () => {
 
   it("captures permission-like strings", async () => {
     const root = await makeRepo({
-      "src/auth/roles.ts":
-        `const r = "owner"; const p = "billing.manage";\n`,
+      "src/auth/roles.ts": `const r = "owner"; const p = "billing.manage";\n`,
     });
     const files = await discover(root);
     const index = await buildIaIndex({ root, files });
@@ -135,8 +132,7 @@ describe("buildIaIndex", () => {
 
   it("captures the agent inventory at the repo root", async () => {
     const root = await makeRepo({
-      "AGENTS.md":
-        `# AGENTS\n\nUse \`mycli scan\` before editing.\n\n\`\`\`bash\nmycli context foo\n\`\`\`\n`,
+      "AGENTS.md": `# AGENTS\n\nUse \`mycli scan\` before editing.\n\n\`\`\`bash\nmycli context foo\n\`\`\`\n`,
       "package.json": JSON.stringify({
         name: "mycli",
         bin: { mycli: "dist/index.js" },
@@ -149,12 +145,8 @@ describe("buildIaIndex", () => {
 
     expect(index.agentContext.agentsMdPath).toBe("AGENTS.md");
     expect(index.agentContext.declaredBins).toEqual(["mycli"]);
-    expect(index.agentContext.claudeSkills).toEqual([
-      ".claude/skills/example/SKILL.md",
-    ]);
-    expect(index.agentContext.codexSkills).toEqual([
-      ".agents/skills/crimes/SKILL.md",
-    ]);
+    expect(index.agentContext.claudeSkills).toEqual([".claude/skills/example/SKILL.md"]);
+    expect(index.agentContext.codexSkills).toEqual([".agents/skills/crimes/SKILL.md"]);
     expect(index.agentContext.referencedCommands.sort()).toEqual([
       "mycli context",
       "mycli scan",

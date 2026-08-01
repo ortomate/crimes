@@ -442,7 +442,9 @@ class TeamService:
         expect(f.scores.agent_risk!).toBeGreaterThan(0);
         // Fingerprints are `<type>::<file>::<symbol>`, so a
         // cross-language finding still needs a real anchor file.
-        expect(f.file.length, `${d.id} emitted a finding with no file`).toBeGreaterThan(0);
+        expect(f.file.length, `${d.id} emitted a finding with no file`).toBeGreaterThan(
+          0,
+        );
       }
     }
     // Guard the guard: all three must have fired on this corpus.

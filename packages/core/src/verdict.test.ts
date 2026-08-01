@@ -6,9 +6,7 @@ import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Finding } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
-import {
-  NotAGitRepoError,
-} from "./git/changed-files.js";
+import { NotAGitRepoError } from "./git/changed-files.js";
 import {
   judgeVerdict,
   NoDefaultBaseError,
@@ -65,9 +63,7 @@ async function makeRepo(): Promise<string> {
 function bigFunctionSource(name: string): string {
   // 80-line body — past the 60-line default but the resulting severity
   // depends on threshold ratios. Use only for "introduces a finding".
-  const body = Array.from({ length: 80 }, (_, i) => `  let v${i} = ${i};`).join(
-    "\n",
-  );
+  const body = Array.from({ length: 80 }, (_, i) => `  let v${i} = ${i};`).join("\n");
   return `export function ${name}() {\n${body}\n  return null;\n}\n`;
 }
 
@@ -257,53 +253,30 @@ describe("shouldFailVerdict", () => {
   }
 
   it("`worse` threshold fires only when verdict is `worse`", () => {
-    expect(shouldFailVerdict(makeReport({ verdict: "worse" }), "worse")).toBe(
+    expect(shouldFailVerdict(makeReport({ verdict: "worse" }), "worse")).toBe(true);
+    expect(shouldFailVerdict(makeReport({ verdict: "cleaner" }), "worse")).toBe(false);
+    expect(shouldFailVerdict(makeReport({ verdict: "unchanged" }), "worse")).toBe(false);
+    expect(shouldFailVerdict(makeReport({ verdict: "mixed" }), "worse")).toBe(false);
+  });
+
+  it("`new-high` fires only when any new high finding exists", () => {
+    expect(shouldFailVerdict(makeReport({ verdict: "worse", high: 1 }), "new-high")).toBe(
       true,
     );
     expect(
-      shouldFailVerdict(makeReport({ verdict: "cleaner" }), "worse"),
+      shouldFailVerdict(makeReport({ verdict: "worse", medium: 5 }), "new-high"),
     ).toBe(false);
-    expect(
-      shouldFailVerdict(makeReport({ verdict: "unchanged" }), "worse"),
-    ).toBe(false);
-    expect(shouldFailVerdict(makeReport({ verdict: "mixed" }), "worse")).toBe(
+    expect(shouldFailVerdict(makeReport({ verdict: "mixed", low: 99 }), "new-high")).toBe(
       false,
     );
   });
 
-  it("`new-high` fires only when any new high finding exists", () => {
-    expect(
-      shouldFailVerdict(
-        makeReport({ verdict: "worse", high: 1 }),
-        "new-high",
-      ),
-    ).toBe(true);
-    expect(
-      shouldFailVerdict(
-        makeReport({ verdict: "worse", medium: 5 }),
-        "new-high",
-      ),
-    ).toBe(false);
-    expect(
-      shouldFailVerdict(
-        makeReport({ verdict: "mixed", low: 99 }),
-        "new-high",
-      ),
-    ).toBe(false);
-  });
-
   it("`new-medium` fires when any new medium OR high finding exists", () => {
     expect(
-      shouldFailVerdict(
-        makeReport({ verdict: "worse", medium: 1 }),
-        "new-medium",
-      ),
+      shouldFailVerdict(makeReport({ verdict: "worse", medium: 1 }), "new-medium"),
     ).toBe(true);
     expect(
-      shouldFailVerdict(
-        makeReport({ verdict: "worse", high: 1 }),
-        "new-medium",
-      ),
+      shouldFailVerdict(makeReport({ verdict: "worse", high: 1 }), "new-medium"),
     ).toBe(true);
     expect(
       shouldFailVerdict(makeReport({ verdict: "mixed", low: 3 }), "new-medium"),
@@ -333,9 +306,7 @@ describe("resolveDefaultBase (against a real git repo)", () => {
 
   it("throws NoDefaultBaseError when neither origin/main nor main resolves", async () => {
     // Brand new repo with no commits — `main` does not yet point anywhere.
-    await expect(resolveDefaultBase(repo)).rejects.toBeInstanceOf(
-      NoDefaultBaseError,
-    );
+    await expect(resolveDefaultBase(repo)).rejects.toBeInstanceOf(NoDefaultBaseError);
   });
 });
 
@@ -350,120 +321,87 @@ describe("verdict (end-to-end against a real git repo)", () => {
     await rm(repo, { recursive: true, force: true });
   });
 
-  it(
-    "reports a `worse` verdict when a new God Function is introduced",
-    { timeout: 30000 },
-    async () => {
-      await writeFile(join(repo, "f.ts"), "export const x = 1;\n", "utf8");
-      await git(repo, "add", "-A");
-      await git(repo, "commit", "-m", "base", "--quiet");
+  it("reports a `worse` verdict when a new God Function is introduced", {
+    timeout: 30000,
+  }, async () => {
+    await writeFile(join(repo, "f.ts"), "export const x = 1;\n", "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "base", "--quiet");
 
-      await writeFile(
-        join(repo, "fresh.ts"),
-        bigFunctionSource("freshFn"),
-        "utf8",
-      );
-      await git(repo, "add", "-A");
-      await git(repo, "commit", "-m", "head", "--quiet");
+    await writeFile(join(repo, "fresh.ts"), bigFunctionSource("freshFn"), "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "head", "--quiet");
 
-      const report = await verdict({ root: repo, base: "HEAD~1" });
+    const report = await verdict({ root: repo, base: "HEAD~1" });
 
-      expect(report.report_type).toBe("verdict");
-      expect(report.schema_version).toBe(SCHEMA_VERSION);
-      expect(report.base).toBe("HEAD~1");
-      expect(report.head).toBe("HEAD");
-      expect(report.verdict).toBe("worse");
-      expect(report.summary.new).toBeGreaterThan(0);
-      expect(report.recommended_actions.length).toBeGreaterThan(0);
-      expect(
-        report.new_findings.some((f) => f.symbol === "freshFn"),
-      ).toBe(true);
-    },
-  );
+    expect(report.report_type).toBe("verdict");
+    expect(report.schema_version).toBe(SCHEMA_VERSION);
+    expect(report.base).toBe("HEAD~1");
+    expect(report.head).toBe("HEAD");
+    expect(report.verdict).toBe("worse");
+    expect(report.summary.new).toBeGreaterThan(0);
+    expect(report.recommended_actions.length).toBeGreaterThan(0);
+    expect(report.new_findings.some((f) => f.symbol === "freshFn")).toBe(true);
+  });
 
-  it(
-    "reports a `cleaner` verdict when a God Function is removed",
-    { timeout: 30000 },
-    async () => {
-      await writeFile(
-        join(repo, "doomed.ts"),
-        bigFunctionSource("doomedFn"),
-        "utf8",
-      );
-      await git(repo, "add", "-A");
-      await git(repo, "commit", "-m", "base", "--quiet");
+  it("reports a `cleaner` verdict when a God Function is removed", {
+    timeout: 30000,
+  }, async () => {
+    await writeFile(join(repo, "doomed.ts"), bigFunctionSource("doomedFn"), "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "base", "--quiet");
 
-      await rm(join(repo, "doomed.ts"));
-      await writeFile(join(repo, "still.ts"), "export const x = 1;\n", "utf8");
-      await git(repo, "add", "-A");
-      await git(repo, "commit", "-m", "head", "--quiet");
+    await rm(join(repo, "doomed.ts"));
+    await writeFile(join(repo, "still.ts"), "export const x = 1;\n", "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "head", "--quiet");
 
-      const report = await verdict({ root: repo, base: "HEAD~1" });
-      expect(report.verdict).toBe("cleaner");
-      expect(report.summary.fixed).toBeGreaterThan(0);
-      expect(report.summary.new).toBe(0);
-    },
-  );
+    const report = await verdict({ root: repo, base: "HEAD~1" });
+    expect(report.verdict).toBe("cleaner");
+    expect(report.summary.fixed).toBeGreaterThan(0);
+    expect(report.summary.new).toBe(0);
+  });
 
-  it(
-    "reports `unchanged` when nothing differs between refs",
-    { timeout: 30000 },
-    async () => {
-      await writeFile(join(repo, "f.ts"), "export const x = 1;\n", "utf8");
-      await git(repo, "add", "-A");
-      await git(repo, "commit", "-m", "only", "--quiet");
+  it("reports `unchanged` when nothing differs between refs", {
+    timeout: 30000,
+  }, async () => {
+    await writeFile(join(repo, "f.ts"), "export const x = 1;\n", "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "only", "--quiet");
 
-      const report = await verdict({ root: repo, base: "HEAD", head: "HEAD" });
-      expect(report.verdict).toBe("unchanged");
-      expect(report.summary.new).toBe(0);
-      expect(report.summary.fixed).toBe(0);
-    },
-  );
+    const report = await verdict({ root: repo, base: "HEAD", head: "HEAD" });
+    expect(report.verdict).toBe("unchanged");
+    expect(report.summary.new).toBe(0);
+    expect(report.summary.fixed).toBe(0);
+  });
 
-  it(
-    "carries `unchanged` count through from the underlying diff",
-    { timeout: 30000 },
-    async () => {
-      await writeFile(
-        join(repo, "stable.ts"),
-        bigFunctionSource("stableFn"),
-        "utf8",
-      );
-      await git(repo, "add", "-A");
-      await git(repo, "commit", "-m", "init", "--quiet");
-      // Touch an unrelated file; the underlying detector should still match
-      // the stableFn finding by fingerprint.
-      await writeFile(
-        join(repo, "other.ts"),
-        "export const y = 2;\n",
-        "utf8",
-      );
-      await git(repo, "add", "-A");
-      await git(repo, "commit", "-m", "noise", "--quiet");
+  it("carries `unchanged` count through from the underlying diff", {
+    timeout: 30000,
+  }, async () => {
+    await writeFile(join(repo, "stable.ts"), bigFunctionSource("stableFn"), "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "init", "--quiet");
+    // Touch an unrelated file; the underlying detector should still match
+    // the stableFn finding by fingerprint.
+    await writeFile(join(repo, "other.ts"), "export const y = 2;\n", "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "noise", "--quiet");
 
-      const report = await verdict({ root: repo, base: "HEAD~1" });
-      expect(report.summary.unchanged).toBeGreaterThan(0);
-    },
-  );
+    const report = await verdict({ root: repo, base: "HEAD~1" });
+    expect(report.summary.unchanged).toBeGreaterThan(0);
+  });
 
   it("throws NotAGitRepoError when run outside a git repo", async () => {
     const dir = await mkdtemp(join(tmpdir(), "crimes-verdict-not-repo-"));
     try {
-      await expect(verdict({ root: dir })).rejects.toBeInstanceOf(
-        NotAGitRepoError,
-      );
+      await expect(verdict({ root: dir })).rejects.toBeInstanceOf(NotAGitRepoError);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
-  it(
-    "throws NoDefaultBaseError when no base is passed and origin/main / main do not resolve",
-    async () => {
-      // Fresh repo with no commits — no `main` ref exists yet.
-      await expect(verdict({ root: repo })).rejects.toBeInstanceOf(
-        NoDefaultBaseError,
-      );
-    },
-  );
+  it("throws NoDefaultBaseError when no base is passed and origin/main / main do not resolve", async () => {
+    // Fresh repo with no commits — no `main` ref exists yet.
+    await expect(verdict({ root: repo })).rejects.toBeInstanceOf(NoDefaultBaseError);
+  });
 });

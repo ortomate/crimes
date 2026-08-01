@@ -9,10 +9,7 @@ import {
 import type { CrimesConfig } from "../config.js";
 import type { PreFinding } from "../finding.js";
 
-async function runOn(
-  repo: TestRepo,
-  config?: CrimesConfig,
-): Promise<PreFinding[]> {
+async function runOn(repo: TestRepo, config?: CrimesConfig): Promise<PreFinding[]> {
   const out: PreFinding[] = [];
   for (const absolutePath of repo.files) {
     const file = absolutePath.slice(repo.root.length + 1);
@@ -209,7 +206,10 @@ describe("config_drift — configuration", () => {
     expect(findByName(await runOn(repo), "TIMEOUT_MS")).toBeDefined();
     expect(
       findByName(
-        await runOn(repo, configWithOptions("config_drift", { ignoreNames: ["TIMEOUT_MS"] })),
+        await runOn(
+          repo,
+          configWithOptions("config_drift", { ignoreNames: ["TIMEOUT_MS"] }),
+        ),
         "TIMEOUT_MS",
       ),
     ).toBeUndefined();
@@ -224,7 +224,10 @@ describe("config_drift — configuration", () => {
     expect(findByName(await runOn(repo), "UNDOCUMENTED")).toBeDefined();
     expect(
       findByName(
-        await runOn(repo, configWithOptions("config_drift", { reportUndocumented: false })),
+        await runOn(
+          repo,
+          configWithOptions("config_drift", { reportUndocumented: false }),
+        ),
         "UNDOCUMENTED",
       ),
     ).toBeUndefined();
@@ -236,7 +239,10 @@ describe("config_drift — configuration", () => {
       "src/b.ts": `export const j = process.env.CLIENT_STRIPE_SECRET;`,
     });
     const finding = findByName(
-      await runOn(repo, configWithOptions("config_drift", { publicPrefixes: ["CLIENT_"] })),
+      await runOn(
+        repo,
+        configWithOptions("config_drift", { publicPrefixes: ["CLIENT_"] }),
+      ),
       "CLIENT_STRIPE_SECRET",
     );
     expect(finding?.severity).toBe("high");

@@ -87,9 +87,7 @@ export function collectPassThroughFunction(
     targetTail,
     forwarding,
     adds,
-    ...(memberReceiver(call) !== undefined
-      ? { viaMember: memberReceiver(call) }
-      : {}),
+    ...(memberReceiver(call) !== undefined ? { viaMember: memberReceiver(call) } : {}),
     ...(targetTail === name ? { sameName: true } : {}),
   });
 }

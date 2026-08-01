@@ -83,9 +83,7 @@ describe("loadSuppressions", () => {
   it("throws MalformedSuppressionsError on a malformed file", async () => {
     const path = await tempPath();
     await writeFile(path, "not json", "utf8");
-    expect(() => loadSuppressions(path)).toThrowError(
-      MalformedSuppressionsError,
-    );
+    expect(() => loadSuppressions(path)).toThrowError(MalformedSuppressionsError);
   });
 
   it("rejects missing reason field", async () => {
@@ -101,9 +99,7 @@ describe("loadSuppressions", () => {
       }),
       "utf8",
     );
-    expect(() => loadSuppressions(path)).toThrowError(
-      MalformedSuppressionsError,
-    );
+    expect(() => loadSuppressions(path)).toThrowError(MalformedSuppressionsError);
   });
 });
 
@@ -126,9 +122,7 @@ describe("appendSuppression", () => {
 
     const reread = loadSuppressions(path);
     expect(reread.entries).toHaveLength(1);
-    expect(reread.entries[0]!.fingerprint).toBe(
-      "large_function::src/a.ts::foo",
-    );
+    expect(reread.entries[0]!.fingerprint).toBe("large_function::src/a.ts::foo");
   });
 
   it("appends a new entry to an existing file", async () => {
@@ -195,7 +189,7 @@ describe("appendSuppression", () => {
     });
     const raw = readFileSync(path, "utf8");
     expect(raw.endsWith("\n")).toBe(true);
-    expect(raw).toContain("  \"fingerprint\":");
+    expect(raw).toContain('  "fingerprint":');
   });
 });
 
@@ -205,19 +199,16 @@ describe("end-to-end scan suppression", () => {
     const root = await mkdtempFn(join(tmpdir(), "crimes-scan-supp-e2e-"));
     const { writeFile: wf } = await import("node:fs/promises");
 
-    const body = Array.from(
-      { length: 200 },
-      (_, i) => `  const v${i} = ${i};`,
-    ).join("\n");
+    const body = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join(
+      "\n",
+    );
     await wf(
       join(root, "billing.ts"),
       `export function generateInvoice() {\n${body}\n  return 0;\n}\n`,
       "utf8",
     );
 
-    const { scan, applySuppressionsToScan, applyScanFailOn } = await import(
-      "./scan.js"
-    );
+    const { scan, applySuppressionsToScan, applyScanFailOn } = await import("./scan.js");
     const report = await scan({ root });
     expect(report.summary.high).toBeGreaterThan(0);
 
@@ -242,9 +233,7 @@ describe("end-to-end scan suppression", () => {
   });
 
   it("--show-suppressed retains annotated findings but gate still ignores them", async () => {
-    const { applyScanFailOn, applySuppressionsToScan } = await import(
-      "./scan.js"
-    );
+    const { applyScanFailOn, applySuppressionsToScan } = await import("./scan.js");
     const report = {
       schema_version: SCHEMA_VERSION,
       report_type: "scan" as const,
@@ -371,11 +360,9 @@ describe("removeSuppression", () => {
       },
       { now: () => new Date("2026-05-01T12:00:00.000Z") },
     );
-    const result = await removeSuppression(
-      path,
-      "large_function::missing.ts::nope",
-      { now: () => new Date(NOW_ISO) },
-    );
+    const result = await removeSuppression(path, "large_function::missing.ts::nope", {
+      now: () => new Date(NOW_ISO),
+    });
     expect(result.removed).toBe(false);
     expect(result.document?.suppressions).toHaveLength(1);
   });
@@ -397,11 +384,9 @@ describe("removeSuppression", () => {
     expect(before.suppressions).toHaveLength(1);
     const originalCreatedAt = before.created_at;
 
-    const result = await removeSuppression(
-      path,
-      "large_function::a.ts::a",
-      { now: () => new Date(NOW_ISO) },
-    );
+    const result = await removeSuppression(path, "large_function::a.ts::a", {
+      now: () => new Date(NOW_ISO),
+    });
     expect(result.removed).toBe(true);
     expect(result.entry?.fingerprint).toBe("large_function::a.ts::a");
 
@@ -413,35 +398,25 @@ describe("removeSuppression", () => {
 
   it("leaves other entries untouched", async () => {
     const path = await tempPath();
-    await appendSuppression(
-      path,
-      {
-        fingerprint: "large_function::a.ts::a",
-        type: "large_function",
-        reason: "tracked in #1234",
-      },
-    );
-    await appendSuppression(
-      path,
-      {
-        fingerprint: "large_function::b.ts::b",
-        type: "large_function",
-        reason: "tracked in #5678",
-      },
-    );
+    await appendSuppression(path, {
+      fingerprint: "large_function::a.ts::a",
+      type: "large_function",
+      reason: "tracked in #1234",
+    });
+    await appendSuppression(path, {
+      fingerprint: "large_function::b.ts::b",
+      type: "large_function",
+      reason: "tracked in #5678",
+    });
 
-    const result = await removeSuppression(
-      path,
-      "large_function::a.ts::a",
-      { now: () => new Date(NOW_ISO) },
-    );
+    const result = await removeSuppression(path, "large_function::a.ts::a", {
+      now: () => new Date(NOW_ISO),
+    });
     expect(result.removed).toBe(true);
 
     const after = JSON.parse(readFileSync(path, "utf8"));
     expect(after.suppressions).toHaveLength(1);
-    expect(after.suppressions[0].fingerprint).toBe(
-      "large_function::b.ts::b",
-    );
+    expect(after.suppressions[0].fingerprint).toBe("large_function::b.ts::b");
   });
 });
 
@@ -901,11 +876,7 @@ describe("suppressionsForFile", () => {
   };
 
   it("returns entries scoped to the file by the `file` field", () => {
-    const result = suppressionsForFile(
-      [entryForFile, entryOtherFile],
-      FILE_PATH,
-      [],
-    );
+    const result = suppressionsForFile([entryForFile, entryOtherFile], FILE_PATH, []);
     expect(result).toHaveLength(1);
     expect(result[0]!.fingerprint).toBe(entryForFile.fingerprint);
     expect(result[0]!.detector).toBe("large_function");
@@ -918,11 +889,9 @@ describe("suppressionsForFile", () => {
   it("returns entries scoped by fingerprint match (no `file` field)", () => {
     // entryByPrint has no `file` field; it should be included only when
     // its fingerprint appears in currentFindings.
-    const result = suppressionsForFile(
-      [entryByPrint, entryOtherFile],
-      FILE_PATH,
-      [findingDateOnFile],
-    );
+    const result = suppressionsForFile([entryByPrint, entryOtherFile], FILE_PATH, [
+      findingDateOnFile,
+    ]);
     expect(result).toHaveLength(1);
     expect(result[0]!.fingerprint).toBe(entryByPrint.fingerprint);
     expect(result[0]!.detector).toBe("direct_date");
@@ -932,11 +901,7 @@ describe("suppressionsForFile", () => {
   it("sets matches_current_finding correctly", () => {
     // entryForFile points at FILE_PATH. findingOnFile is in currentFindings
     // and has a matching fingerprint.
-    const result = suppressionsForFile(
-      [entryForFile],
-      FILE_PATH,
-      [findingOnFile],
-    );
+    const result = suppressionsForFile([entryForFile], FILE_PATH, [findingOnFile]);
     expect(result).toHaveLength(1);
     expect(result[0]!.matches_current_finding).toBe(true);
   });

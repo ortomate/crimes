@@ -47,7 +47,8 @@ const TODO_MARKER_PATTERN = new RegExp(
 export const logicInCommentsDetector: LanguageJsDetector = {
   id: "logic_in_comments",
   name: "Logic in Comments",
-  description: "Flags comments that appear to carry business rules or safety constraints.",
+  description:
+    "Flags comments that appear to carry business rules or safety constraints.",
   whyItMatters:
     "Rules that live only in prose are not enforceable. Anyone (or any " +
     "agent) editing the file can drop the constraint without the type " +
@@ -73,7 +74,9 @@ export const logicInCommentsDetector: LanguageJsDetector = {
       if (missingTerms.length === 0) continue;
 
       const severity = pickSeverity(ctx.file, ruleTerms.length, domainTerms.length);
-      const confidence = round(Math.min(0.54 + ruleTerms.length * 0.04 + missingTerms.length * 0.03, 0.76));
+      const confidence = round(
+        Math.min(0.54 + ruleTerms.length * 0.04 + missingTerms.length * 0.03, 0.76),
+      );
       const quoted = truncate(comment.text.replace(/\s+/g, " ").trim(), 110);
 
       findings.push({
@@ -97,7 +100,9 @@ export const logicInCommentsDetector: LanguageJsDetector = {
         scores: {
           severity: severityScore(severity),
           confidence,
-          agent_risk: round(Math.min(0.55 + ruleTerms.length * 0.05 + missingTerms.length * 0.03, 0.8)),
+          agent_risk: round(
+            Math.min(0.55 + ruleTerms.length * 0.05 + missingTerms.length * 0.03, 0.8),
+          ),
         },
         suggested_actions: [
           {

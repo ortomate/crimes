@@ -43,11 +43,7 @@ export const commentedOutCodeUniversalDetector: UniversalDetector = {
     let runCount = 0;
 
     const flushRun = (endLine: number): void => {
-      if (
-        runCount >= MINIMUM_RUN &&
-        runCodeHits >= MINIMUM_CODE_HITS &&
-        runStart >= 0
-      ) {
+      if (runCount >= MINIMUM_RUN && runCodeHits >= MINIMUM_CODE_HITS && runStart >= 0) {
         findings.push(buildFinding(ctx.file, runStart + 1, endLine));
       }
       runStart = -1;

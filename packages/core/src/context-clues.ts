@@ -48,11 +48,7 @@ export function buildClues(args: {
   // suppressions — per-file inventory, regardless of whether any
   // matched on this run.
   if (args.suppressionsEntries) {
-    const supps = suppressionsForFile(
-      args.suppressionsEntries,
-      fileRel,
-      findings,
-    );
+    const supps = suppressionsForFile(args.suppressionsEntries, fileRel, findings);
     if (supps.length > 0) clues.suppressions = supps;
   }
 
