@@ -15,6 +15,23 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.16.0` headline:** correctness and authority — ten detectors for the
+crimes that only show up *between* files. The same business rule
+implemented twice and now divergent (`duplicated_policy`), two
+declarations of one record that disagree (`contract_drift`), an
+environment variable read past the config boundary or leaked to a client
+bundle (`config_drift`), a retry wrapped around a mutating call with no
+idempotency key (`unsafe_retry`), a `Promise.all` over a runtime-sized
+collection doing per-element I/O (`unbounded_async_fanout`), a failure
+caught and discarded with no record (`swallowed_error`), and a test
+whose collaborators are all behaviourless doubles it then asserts on
+(`mock_saturation`). Plus agent hygiene: imports with no declaring
+manifest (`dependency_provenance_gap`, entirely local — it never
+contacts a registry) and repo-local agent config granting unrestricted
+execution (`agent_permission_sprawl`, read as text, never executed).
+`schema_version` is unchanged at `0.3.0`; existing baselines,
+suppressions, and triage files are unaffected.
+
 **`0.15.0` headline:** polyglot IA + monorepo coverage — findings no
 single-language tool can produce. Three cross-language detectors report
 disagreements *between* Python and TypeScript: a frontend calling a
