@@ -141,14 +141,80 @@ fixed here because splitting a detector changes its output, which needs
 its own change and an eval re-run rather than a drive-by extraction
 during a tooling pass.
 
-### What is deliberately still visible
+### What is deliberately still visible, and why
 
-250 findings remain untriaged and unsuppressed, led by 101
-`large_function`, 33 `large_file`, 30 `boolean_naming_drift`, and 25
-`sync_io_in_hotpath`. That is the honest backlog. It was left alone
-rather than blanket-triaged, because a triage entry that says nothing
-more than "acknowledged" is worse than an open finding — it converts a
-visible number into a silent one.
+250 findings remain untriaged and unsuppressed. They are **accepted as
+backlog, not dismissed** — every type below was looked at and given a
+decision. What they deliberately did *not* get is a per-finding triage
+entry, because an entry that says nothing more than "acknowledged"
+converts a visible number into a silent one while claiming credit for
+having dealt with it.
+
+No `high` remains in this set; the split is 165 `medium` / 85 `low`.
+
+| type | n | decision |
+|---|---|---|
+| `large_function` | 101 | Accept. Real size debt, same class as the 19 triaged highs. Detector `run` bodies dominate. Splitting one changes its output, so it belongs in a scoped change with an eval re-run. |
+| `large_file` | 33 | Accept, as above. The prose cases are already suppressed; what remains is code. |
+| `boolean_naming_drift` | 30 | Accept. 29 of 30 are `low`. Renaming a boolean is cheap individually and churns broadly; worth a dedicated sweep, not a drive-by. |
+| `sync_io_in_hotpath` | 25 | Accept. All `low`. Concentrated in CLI startup and config loading, which run once per process — "hotpath" overstates it for a short-lived CLI. |
+| `exact_duplicate_block` | 15 | Accept **with a caveat**: this detector is not run-to-run deterministic (see below). Do not act on its evidence strings until that is fixed. |
+| `todo_density` | 9 | Accept. TODOs that are tracked prose, mostly in non-domain tier. |
+| `direct_date` | 6 | Accept. `clock.ts` exists and domain code uses it; these are the eval runner and renderers stamping display timestamps, where a clock seam adds no testability. |
+| `weak_test_signal` | 6 | Accept. All in the non-domain tier. |
+| `magic_domain_literal_scatter` | 5 | Accept. Formatting-sensitive by construction (see the fingerprint section) and already `low`/`medium`. |
+| `contract_drift` | 4 | Accept — **representational, not real**. Each pairs a TS interface with its Zod schema *in the same file* with 100% field overlap; the "disagreements" are `(typeof X)[number]` vs `enum` and `SuppressionEntry[]` vs `array[]`, i.e. the detector cannot see that a Zod enum and a TS union denote the same set. Already down-ranked by a −0.12 same-file delta. |
+| `option_bag_junk_drawer` | 3 | Accept. Detector option bags are genuinely heterogeneous by design. |
+| `near_duplicate_block` | 3 | Accept. Same determinism caveat as `exact_duplicate_block`. |
+| `unbounded_async_fanout` | 2 | **Real, worth fixing.** `buildFunctionHashIndex` and `buildJsxShapeIndex` both `Promise.all` a `readFile` per candidate file with no bound — on a large enough repo that opens every source file at once. Not fixed here because it is a behaviour change in the scan path. |
+| `name_behavior_mismatch` | 2 | Accept. `parseFile` and `readStdinIfAvailable` do exactly what they say; the detector reads caching/IO as an unadvertised side effect. |
+| `logic_in_comments` | 2 | Accept. Non-domain tier. |
+| `duplicated_role_status_plan_check` | 1 | Accept — **self-referential**. It fires on `duplicated-role-status-plan-check.ts`, because the detector's own source contains the literal `"admin"` three times as its detection patterns. Same shape as the suppressed `hardcoded_local_path` docs cases. |
+| `dependency_provenance_gap` | 1 | **Detector bug — see below.** |
+| `commented_out_code` | 1 | Accept. |
+| `singular_plural_type_mismatch` | 1 | Accept. |
+
+---
+
+## `dependency_provenance_gap` ignores pnpm workspace negation globs
+
+**Status:** Open. Reproduces on this repo. Not fixed here — it changes
+detector output, so it needs a patch bump and an eval re-run.
+
+First, the good half: this detector **independently found a real
+CI-breaking bug in this repo**, and described it exactly right —
+
+```
+2 declared dependenc(ies) with no lockfile entry:
+  `anything-goes`@* — declared in examples/risky-service/package.json:17
+  `legacy-utils`@git+https://... — declared in examples/risky-service/package.json:16
+the manifest and the lock disagree, so `install --frozen-lockfile` in CI
+will resolve differently from a local install
+```
+
+That is precisely why `pnpm install --frozen-lockfile` was failing on
+`main` after 0.16.0 (fixed in `ef7c3ab`).
+
+The bug is that it **still reports it after the fix.** The repair was to
+exclude the fixture from the workspace:
+
+```yaml
+packages:
+  - "examples/*"
+  - "!examples/risky-service"
+```
+
+`parseWorkspaceGlobs` in `manifest/build.ts` is a line-based reader that
+collects every `- "glob"` entry verbatim and has no concept of a leading
+`!`. So the negation is read as an ordinary glob, `examples/*` still
+matches, and the fixture is counted as one of the "10 workspace
+manifests compared" — when pnpm itself no longer installs it.
+
+Net effect: the detector reports a manifest/lockfile disagreement for a
+package the package manager deliberately excludes, on any repo that uses
+pnpm's negation syntax. **Fix:** treat a leading `!` as an exclusion when
+resolving workspace members. Worth a fixture, since this repo now
+exercises the case.
 
 ---
 
