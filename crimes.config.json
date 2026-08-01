@@ -12,8 +12,24 @@
     "**/.crimes/**",
     "evals/fixtures/**",
     "examples/messy-ts-app/**",
+    "examples/risky-service/**",
+    "docs/superpowers/**",
     "apps/website/src/content/docs/**"
   ],
+  "scopeTiers": {
+    "nonDomain": [
+      "scripts/**",
+      "examples/**",
+      "fixtures/**",
+      "public/**",
+      "**/__tests__/**",
+      "**/*.test.{ts,tsx,js,jsx}",
+      "**/*.spec.{ts,tsx,js,jsx}",
+      "docs/**",
+      "*.md",
+      ".planning/**"
+    ]
+  },
   "assets": {
     "exclude": [
       "**/node_modules/**",
@@ -28,7 +44,8 @@
       "**/fixtures/**",
       "**/*.test.{png,jpg,jpeg,gif,webp,avif,svg}",
       "evals/fixtures/**",
-      "examples/messy-ts-app/**"
+      "examples/messy-ts-app/**",
+      "examples/risky-service/**"
     ]
   }
 }

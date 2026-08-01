@@ -1,0 +1,1126 @@
+{
+  "schema_version": "0.3.0",
+  "report_type": "triage",
+  "created_at": "2026-08-01",
+  "updated_at": "2026-08-01",
+  "crimes_version": "0.16.0",
+  "entries": [
+    {
+      "fingerprint": "large_function::packages/core/src/context-indexes.ts::runDetectorsOnTarget",
+      "type": "large_function",
+      "file": "packages/core/src/context-indexes.ts",
+      "symbol": "runDetectorsOnTarget",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "contract_drift::packages/core/src/config.ts::CrimesConfig",
+      "type": "contract_drift",
+      "file": "packages/core/src/config.ts",
+      "symbol": "CrimesConfig",
+      "disposition": "needs-design",
+      "reason": "Carried from the 0.16.0 slate and not yet dispositioned. Left as an explicit open decision rather than silently accepted.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/detector.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/detector.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/finding.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/finding.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_file::packages/language-js/src/parse/types.ts::",
+      "type": "large_file",
+      "file": "packages/language-js/src/parse/types.ts",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_file::packages/core/src/config.ts::",
+      "type": "large_file",
+      "file": "packages/core/src/config.ts",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_function::packages/core/src/scan-resurface.ts::collectResurfaceForScan",
+      "type": "large_function",
+      "file": "packages/core/src/scan-resurface.ts",
+      "symbol": "collectResurfaceForScan",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/config.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/config.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/context.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/context.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/scan.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/scan.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/risk/types.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/risk/types.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/scan-detect.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/scan-detect.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/scoring/build.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/scoring/build.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_file::packages/core/src/risk/build.ts::",
+      "type": "large_file",
+      "file": "packages/core/src/risk/build.ts",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/indexes.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/indexes.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/context-indexes.ts::runCrossLanguageOnCorpus → claims",
+      "type": "swallowed_error",
+      "file": "packages/core/src/context-indexes.ts",
+      "symbol": "runCrossLanguageOnCorpus → claims",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/agents/build.ts::readJsonConfig → parse",
+      "type": "swallowed_error",
+      "file": "packages/core/src/agents/build.ts",
+      "symbol": "readJsonConfig → parse",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/manifest/build.ts::readManifest → readFile",
+      "type": "swallowed_error",
+      "file": "packages/core/src/manifest/build.ts",
+      "symbol": "readManifest → readFile",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/manifest/build.ts::readManifest → parse",
+      "type": "swallowed_error",
+      "file": "packages/core/src/manifest/build.ts",
+      "symbol": "readManifest → parse",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/manifest/build.ts::readLockfile → readFile",
+      "type": "swallowed_error",
+      "file": "packages/core/src/manifest/build.ts",
+      "symbol": "readLockfile → readFile",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/manifest/build.ts::readPnpmWorkspace → readFile",
+      "type": "swallowed_error",
+      "file": "packages/core/src/manifest/build.ts",
+      "symbol": "readPnpmWorkspace → readFile",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/context-indexes.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/context-indexes.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "circular_dependency::packages/core/src/baseline.ts::",
+      "type": "circular_dependency",
+      "file": "packages/core/src/baseline.ts",
+      "disposition": "needs-design",
+      "reason": "Carried from the 0.16.0 slate and not yet dispositioned. Left as an explicit open decision rather than silently accepted.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_function::packages/core/src/detectors/config-drift.ts::assessVariable",
+      "type": "large_function",
+      "file": "packages/core/src/detectors/config-drift.ts",
+      "symbol": "assessVariable",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/detectors/py/shared.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/detectors/py/shared.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_function::packages/core/src/detectors/dependency-provenance-gap.ts::reportUndeclared",
+      "type": "large_function",
+      "file": "packages/core/src/detectors/dependency-provenance-gap.ts",
+      "symbol": "reportUndeclared",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_file::packages/language-js/src/parse/retry.ts::",
+      "type": "large_file",
+      "file": "packages/language-js/src/parse/retry.ts",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_file::packages/core/src/domain/vocabulary.ts::",
+      "type": "large_file",
+      "file": "packages/core/src/domain/vocabulary.ts",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/scan-assets.ts::runDetectorsForAssetFile → run",
+      "type": "swallowed_error",
+      "file": "packages/core/src/scan-assets.ts",
+      "symbol": "runDetectorsForAssetFile → run",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/scan-assets.ts::buildAssetContext → stat",
+      "type": "swallowed_error",
+      "file": "packages/core/src/scan-assets.ts",
+      "symbol": "buildAssetContext → stat",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/language-js/src/parse/types.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/language-js/src/parse/types.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/git/churn.ts::probeShallow → runGit",
+      "type": "swallowed_error",
+      "file": "packages/core/src/git/churn.ts",
+      "symbol": "probeShallow → runGit",
+      "disposition": "wont-fix",
+      "reason": "Over-stated, and the fallback is the right default. probeShallow runs inside the same Promise.all as `git log`; if git were missing or the repo unreadable, the log call throws first and the enclosing catch already returns gitAvailable:false. The only way this handler runs is git older than 2.15, which predates `rev-parse --is-shallow-repository`. Those versions cannot produce a shallow clone this code would need to warn about, so returning false is correct — returning 'unknown' would emit a false historyLimited warning on every scan with old git.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/ia/types.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/ia/types.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/util/test-files.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/util/test-files.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_function::packages/core/src/detectors/dependency-provenance-gap.ts::reportLockGaps",
+      "type": "large_function",
+      "file": "packages/core/src/detectors/dependency-provenance-gap.ts",
+      "symbol": "reportLockGaps",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_function::packages/core/src/detectors/dependency-provenance-gap.ts::reportUnpinned",
+      "type": "large_function",
+      "file": "packages/core/src/detectors/dependency-provenance-gap.ts",
+      "symbol": "reportUnpinned",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "duplicated_policy::packages/core/src/detectors/dependency-provenance-gap.ts::role \"add\" \"bland_fallback\" variants",
+      "type": "duplicated_policy",
+      "file": "packages/core/src/detectors/dependency-provenance-gap.ts",
+      "symbol": "role \"add\" \"bland_fallback\" variants",
+      "disposition": "needs-design",
+      "reason": "Carried from the 0.16.0 slate and not yet dispositioned. Left as an explicit open decision rather than silently accepted.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_file::packages/language-js/src/parse/errors.ts::",
+      "type": "large_file",
+      "file": "packages/language-js/src/parse/errors.ts",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/detector-registry.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/detector-registry.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/suppressions-write.ts::readCreatedAt → readFileSync",
+      "type": "swallowed_error",
+      "file": "packages/core/src/suppressions-write.ts",
+      "symbol": "readCreatedAt → readFileSync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/suppressions-write.ts::readFullDocument → readFileSync",
+      "type": "swallowed_error",
+      "file": "packages/core/src/suppressions-write.ts",
+      "symbol": "readFullDocument → readFileSync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/indexes.ts::safelyBuildIaIndex → buildIaIndex",
+      "type": "swallowed_error",
+      "file": "packages/core/src/indexes.ts",
+      "symbol": "safelyBuildIaIndex → buildIaIndex",
+      "disposition": "wont-fix",
+      "reason": "Deliberate. The `safely*` prefix is the contract: one unparseable file must never abort a whole-repo scan. Already down-ranked to low by BEST_EFFORT_FUNCTION_RE. Kept visible rather than added to `allowedFunctions`, which would also hide future real swallows.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/indexes.ts::safelyBuildPettyIndex → buildPettyIndex",
+      "type": "swallowed_error",
+      "file": "packages/core/src/indexes.ts",
+      "symbol": "safelyBuildPettyIndex → buildPettyIndex",
+      "disposition": "wont-fix",
+      "reason": "Deliberate. The `safely*` prefix is the contract: one unparseable file must never abort a whole-repo scan. Already down-ranked to low by BEST_EFFORT_FUNCTION_RE. Kept visible rather than added to `allowedFunctions`, which would also hide future real swallows.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/indexes.ts::safelyBuildJsxShapeIndex → buildJsxShapeIndex",
+      "type": "swallowed_error",
+      "file": "packages/core/src/indexes.ts",
+      "symbol": "safelyBuildJsxShapeIndex → buildJsxShapeIndex",
+      "disposition": "wont-fix",
+      "reason": "Deliberate. The `safely*` prefix is the contract: one unparseable file must never abort a whole-repo scan. Already down-ranked to low by BEST_EFFORT_FUNCTION_RE. Kept visible rather than added to `allowedFunctions`, which would also hide future real swallows.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/indexes.ts::safelyBuildFunctionHashIndex → buildFunctionHashIndex",
+      "type": "swallowed_error",
+      "file": "packages/core/src/indexes.ts",
+      "symbol": "safelyBuildFunctionHashIndex → buildFunctionHashIndex",
+      "disposition": "wont-fix",
+      "reason": "Deliberate. The `safely*` prefix is the contract: one unparseable file must never abort a whole-repo scan. Already down-ranked to low by BEST_EFFORT_FUNCTION_RE. Kept visible rather than added to `allowedFunctions`, which would also hide future real swallows.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/indexes.ts::safelyBuildImportGraph → buildImportGraph",
+      "type": "swallowed_error",
+      "file": "packages/core/src/indexes.ts",
+      "symbol": "safelyBuildImportGraph → buildImportGraph",
+      "disposition": "wont-fix",
+      "reason": "Deliberate. The `safely*` prefix is the contract: one unparseable file must never abort a whole-repo scan. Already down-ranked to low by BEST_EFFORT_FUNCTION_RE. Kept visible rather than added to `allowedFunctions`, which would also hide future real swallows.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/indexes.ts::safelyBuildScoringContext → buildScoringContext",
+      "type": "swallowed_error",
+      "file": "packages/core/src/indexes.ts",
+      "symbol": "safelyBuildScoringContext → buildScoringContext",
+      "disposition": "wont-fix",
+      "reason": "Deliberate. The `safely*` prefix is the contract: one unparseable file must never abort a whole-repo scan. Already down-ranked to low by BEST_EFFORT_FUNCTION_RE. Kept visible rather than added to `allowedFunctions`, which would also hide future real swallows.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/indexes.ts::safelyBuildRiskIndex → buildRiskIndex",
+      "type": "swallowed_error",
+      "file": "packages/core/src/indexes.ts",
+      "symbol": "safelyBuildRiskIndex → buildRiskIndex",
+      "disposition": "wont-fix",
+      "reason": "Deliberate. The `safely*` prefix is the contract: one unparseable file must never abort a whole-repo scan. Already down-ranked to low by BEST_EFFORT_FUNCTION_RE. Kept visible rather than added to `allowedFunctions`, which would also hide future real swallows.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/indexes.ts::safelyBuildManifestIndex → buildManifestIndex",
+      "type": "swallowed_error",
+      "file": "packages/core/src/indexes.ts",
+      "symbol": "safelyBuildManifestIndex → buildManifestIndex",
+      "disposition": "wont-fix",
+      "reason": "Deliberate. The `safely*` prefix is the contract: one unparseable file must never abort a whole-repo scan. Already down-ranked to low by BEST_EFFORT_FUNCTION_RE. Kept visible rather than added to `allowedFunctions`, which would also hide future real swallows.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/discovery/universal-context.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/discovery/universal-context.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/scan-resurface.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/scan-resurface.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/index.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/index.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_file::packages/core/src/detectors/dependency-provenance-gap.ts::",
+      "type": "large_file",
+      "file": "packages/core/src/detectors/dependency-provenance-gap.ts",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/cli/src/index.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/cli/src/index.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_file::packages/core/src/detectors/duplicated-policy.ts::",
+      "type": "large_file",
+      "file": "packages/core/src/detectors/duplicated-policy.ts",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "large_file::packages/core/src/detectors/agent-permission-sprawl.ts::",
+      "type": "large_file",
+      "file": "packages/core/src/detectors/agent-permission-sprawl.ts",
+      "disposition": "needs-design",
+      "reason": "Genuine size debt. These are detector `run` bodies and parser surfaces that grew with the 0.16.0 slate. Splitting them changes detector output, so it needs its own change with an eval re-run — not a drive-by extraction during a tooling pass.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/ast-hash/function-index.ts::<module> → readFile",
+      "type": "swallowed_error",
+      "file": "packages/core/src/ast-hash/function-index.ts",
+      "symbol": "<module> → readFile",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/ast-hash/function-index.ts::<module> → parseFile",
+      "type": "swallowed_error",
+      "file": "packages/core/src/ast-hash/function-index.ts",
+      "symbol": "<module> → parseFile",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/imports/python.ts::<module> → readFile",
+      "type": "swallowed_error",
+      "file": "packages/core/src/imports/python.ts",
+      "symbol": "<module> → readFile",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/imports/python.ts::<module> → parsePyFile",
+      "type": "swallowed_error",
+      "file": "packages/core/src/imports/python.ts",
+      "symbol": "<module> → parsePyFile",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/ast-hash/function-index.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/ast-hash/function-index.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/diff.ts::<module> → loadConfig",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/diff.ts",
+      "symbol": "<module> → loadConfig",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::evals/runner/src/index.ts::launch → worker",
+      "type": "swallowed_error",
+      "file": "evals/runner/src/index.ts",
+      "symbol": "launch → worker",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::evals/runner/src/index.ts::hasCommand → execFileAsync",
+      "type": "swallowed_error",
+      "file": "evals/runner/src/index.ts",
+      "symbol": "hasCommand → execFileAsync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/jsx/shape-index.ts::<module> → readFile",
+      "type": "swallowed_error",
+      "file": "packages/core/src/jsx/shape-index.ts",
+      "symbol": "<module> → readFile",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/jsx/shape-index.ts::<module> → parseFile",
+      "type": "swallowed_error",
+      "file": "packages/core/src/jsx/shape-index.ts",
+      "symbol": "<module> → parseFile",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/cli/src/runtime-errors.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/cli/src/runtime-errors.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/discovery/language-pack-router.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/discovery/language-pack-router.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/ia/extract.ts::readDeclaredBins → readFileSync",
+      "type": "swallowed_error",
+      "file": "packages/core/src/ia/extract.ts",
+      "symbol": "readDeclaredBins → readFileSync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/feedback/index.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/feedback/index.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/scoring/confidence.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/scoring/confidence.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/suppressions.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/suppressions.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/baseline.ts::<module> → loadConfig",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/baseline.ts",
+      "symbol": "<module> → loadConfig",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/imports/build.ts::<module> → readFileSync",
+      "type": "swallowed_error",
+      "file": "packages/core/src/imports/build.ts",
+      "symbol": "<module> → readFileSync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/imports/build.ts::isFile → …isFile",
+      "type": "swallowed_error",
+      "file": "packages/core/src/imports/build.ts",
+      "symbol": "isFile → …isFile",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/imports/build.ts::loadTsconfigPaths → readFileSync",
+      "type": "swallowed_error",
+      "file": "packages/core/src/imports/build.ts",
+      "symbol": "loadTsconfigPaths → readFileSync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/ia/build.ts::readSourceSignal → readFileSync",
+      "type": "swallowed_error",
+      "file": "packages/core/src/ia/build.ts",
+      "symbol": "readSourceSignal → readFileSync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::evals/runner/src/replay.ts::loadFixtureDirMap → parse",
+      "type": "swallowed_error",
+      "file": "evals/runner/src/replay.ts",
+      "symbol": "loadFixtureDirMap → parse",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::evals/runner/src/replay.ts::loadScenarios → parse",
+      "type": "swallowed_error",
+      "file": "evals/runner/src/replay.ts",
+      "symbol": "loadScenarios → parse",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::evals/runner/src/replay.ts::deriveScanContext → …then",
+      "type": "swallowed_error",
+      "file": "evals/runner/src/replay.ts",
+      "symbol": "deriveScanContext → …then",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::evals/runner/src/setup.ts::<module> → …isDirectory",
+      "type": "swallowed_error",
+      "file": "evals/runner/src/setup.ts",
+      "symbol": "<module> → …isDirectory",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/detectors/command-drift-docs-code-drift.ts::loadBinSurface → parse",
+      "type": "swallowed_error",
+      "file": "packages/core/src/detectors/command-drift-docs-code-drift.ts",
+      "symbol": "loadBinSurface → parse",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/detectors/command-drift-docs-code-drift.ts::loadBinSurface → readFileSync",
+      "type": "swallowed_error",
+      "file": "packages/core/src/detectors/command-drift-docs-code-drift.ts",
+      "symbol": "loadBinSurface → readFileSync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/baseline.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/baseline.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "dependency_provenance_gap::package.json::unpinned specifiers",
+      "type": "dependency_provenance_gap",
+      "file": "package.json",
+      "symbol": "unpinned specifiers",
+      "disposition": "needs-design",
+      "reason": "Carried from the 0.16.0 slate and not yet dispositioned. Left as an explicit open decision rather than silently accepted.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/reporter/src/human/shared.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/reporter/src/human/shared.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::apps/website/scripts/sync-docs.mjs::exists → stat",
+      "type": "swallowed_error",
+      "file": "apps/website/scripts/sync-docs.mjs",
+      "symbol": "exists → stat",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::evals/runner/src/judge.ts::<module> → parse",
+      "type": "swallowed_error",
+      "file": "evals/runner/src/judge.ts",
+      "symbol": "<module> → parse",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/init.ts::<module> → parse",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/init.ts",
+      "symbol": "<module> → parse",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/init.ts::<module> → mergeClaudeHook",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/init.ts",
+      "symbol": "<module> → mergeClaudeHook",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/jsx/walk.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/jsx/walk.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/triage.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/triage.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/language-js/src/parse/index.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/language-js/src/parse/index.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/scan.test.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/scan.test.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/git/changed-files.ts::isGitRepo → execFileAsync",
+      "type": "swallowed_error",
+      "file": "packages/core/src/git/changed-files.ts",
+      "symbol": "isGitRepo → execFileAsync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/git/changed-files.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/git/changed-files.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/detectors/py/index.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/detectors/py/index.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::evals/runner/src/types.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "evals/runner/src/types.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/hook.ts::resolveFilePath → parse",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/hook.ts",
+      "symbol": "resolveFilePath → parse",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/explain.ts::<module> → readFileSync",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/explain.ts",
+      "symbol": "<module> → readFileSync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/explain.ts::<module> → parse",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/explain.ts",
+      "symbol": "<module> → parse",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/ignore.ts::readGitUserEmail → execFileAsync",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/ignore.ts",
+      "symbol": "readGitUserEmail → execFileAsync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/diff.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/diff.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/imports/types.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/imports/types.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/triage.ts::runApply → parseTriage",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/triage.ts",
+      "symbol": "runApply → parseTriage",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/triage.ts::gitConfigEmail → …trim",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/triage.ts",
+      "symbol": "gitConfigEmail → …trim",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/src/commands/triage.ts::recordTriageFeedback → writeFeedbackEntry",
+      "type": "swallowed_error",
+      "file": "packages/cli/src/commands/triage.ts",
+      "symbol": "recordTriageFeedback → writeFeedbackEntry",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/explain.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/explain.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/risk/test-harness.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/risk/test-harness.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/language-py/src/parse/index.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/language-py/src/parse/index.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::apps/website/scripts/build.mjs::exists → stat",
+      "type": "swallowed_error",
+      "file": "apps/website/scripts/build.mjs",
+      "symbol": "exists → stat",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/core/src/verdict.ts::refExists → execFileAsync",
+      "type": "swallowed_error",
+      "file": "packages/core/src/verdict.ts",
+      "symbol": "refExists → execFileAsync",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/discovery/index.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/discovery/index.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "swallowed_error::packages/cli/scripts/postinstall.mjs::<module> → parse",
+      "type": "swallowed_error",
+      "file": "packages/cli/scripts/postinstall.mjs",
+      "symbol": "<module> → parse",
+      "disposition": "wont-fix",
+      "reason": "Best-effort read/parse/probe whose contract is 'return undefined if unavailable'. The detector is right that the tolerance is not announced in the name — that is a naming debt, not a defect. Rejected widening BEST_EFFORT_FUNCTION_RE to read*/parse*/load*: those prefixes do not announce failure tolerance, and the regex ships to every user. See docs/calibration-followups.md.",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/fingerprint.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/fingerprint.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/reporter/src/human/index.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/reporter/src/human/index.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    },
+    {
+      "fingerprint": "high_fan_in_fan_out::packages/core/src/risk/integration.test.ts::",
+      "type": "high_fan_in_fan_out",
+      "file": "packages/core/src/risk/integration.test.ts",
+      "disposition": "wont-fix",
+      "reason": "Hub module inside a layered monorepo. The finding schema, scoring, and renderer entry points are meant to be depended on widely — that is the package boundary CLAUDE.md describes, not drift. Revisit only if an edge crosses a layer it should not (layer_violation covers that).",
+      "owner": "@ortomate/maintainers",
+      "date": "2026-08-01"
+    }
+  ]
+}
