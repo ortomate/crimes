@@ -4,6 +4,7 @@ import { writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ScoreResult } from "./types.js";
+import { sortResultsVersionsDesc } from "./versions.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "..", "..", "..");
@@ -103,11 +104,11 @@ interface PinnedSummary {
 
 function readPinnedSummary(): PinnedSummary | undefined {
   if (!existsSync(RESULTS_DIR)) return undefined;
-  const versions = readdirSync(RESULTS_DIR, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .filter((name) => /^\d+\.\d+\.\d+/.test(name))
-    .sort((a, b) => compareSemverDesc(a, b));
+  const versions = sortResultsVersionsDesc(
+    readdirSync(RESULTS_DIR, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name),
+  );
   for (const version of versions) {
     const summaryPath = resolve(RESULTS_DIR, version, "summary.json");
     if (existsSync(summaryPath)) {
@@ -115,17 +116,6 @@ function readPinnedSummary(): PinnedSummary | undefined {
     }
   }
   return undefined;
-}
-
-function compareSemverDesc(a: string, b: string): number {
-  const pa = a.split(".").map((p) => Number.parseInt(p, 10));
-  const pb = b.split(".").map((p) => Number.parseInt(p, 10));
-  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
-    const av = pa[i] ?? 0;
-    const bv = pb[i] ?? 0;
-    if (av !== bv) return bv - av;
-  }
-  return 0;
 }
 
 function classify(delta: number | null): "—" | "stable" | "improved" | "regression" {

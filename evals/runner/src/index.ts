@@ -45,20 +45,18 @@ interface CliFlags {
    * version — e.g. `--label r2` writes to `evals/results/0.7.2-r2/`.
    */
   label?: string;
+  /**
+   * Skip work items whose result file already exists, so an
+   * interrupted run can be finished without re-billing the agent
+   * invocations that already succeeded.
+   */
+  resume: boolean;
 }
 
 interface WorkItem {
   scenario: Scenario;
   fixture: FixtureRegistryEntry;
   agent: Agent;
-}
-
-interface Tally {
-  total: number;
-  passByAgent: Map<string, number>;
-  totalByAgent: Map<string, number>;
-  passByAgentKind: Map<string, number>;
-  totalByAgentKind: Map<string, number>;
 }
 
 async function main(): Promise<void> {
@@ -80,16 +78,30 @@ async function main(): Promise<void> {
   mkdirSync(outDir, { recursive: true });
 
   const scanCache = new Map<string, Promise<string>>();
-  const tally = createTally();
   let completed = 0;
 
-  await runPool(items, flags.concurrency, async (item) => {
+  const pending = flags.resume
+    ? items.filter(
+        (item) => !existsSync(resolve(outDir, item.agent, `${item.scenario.id}.json`)),
+      )
+    : items;
+  if (flags.resume) {
+    const skipped = items.length - pending.length;
+    process.stdout.write(
+      `evals: --resume — ${skipped} result(s) already on disk, running ${pending.length}.\n`,
+    );
+    if (pending.length === 0) {
+      process.stdout.write("evals: nothing left to run; rebuilding summary only.\n");
+    }
+  }
+
+  await runPool(pending, flags.concurrency, async (item) => {
     const seq = ++completed;
     process.stdout.write(
-      `evals: [${seq}/${items.length}] ${item.agent} × ${item.scenario.id} (${item.fixture.name})\n`,
+      `evals: [${seq}/${pending.length}] ${item.agent} × ${item.scenario.id} (${item.fixture.name})\n`,
     );
     try {
-      await processOne({ item, scanCache, flags, outDir, crimesVersion, tally });
+      await processOne({ item, scanCache, flags, outDir, crimesVersion });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       process.stderr.write(
@@ -99,13 +111,31 @@ async function main(): Promise<void> {
     }
   });
 
-  const summary = buildSummary(crimesVersion, scenariosToRun, usableAgents, tally);
+  // Built from the result files on disk, not from an in-memory tally.
+  // A tally dies with the process, so an interrupted run used to leave
+  // a directory of valid results and no summary — and `evals:replay` /
+  // `evals:diff` both pin the highest-versioned directory, so that
+  // half-state silently became the baseline. Reading the directory also
+  // makes `--scenario review --resume` produce a summary covering the
+  // whole matrix rather than just the filtered subset.
+  const summary = summariseResultsDir(outDir, crimesVersion);
   await writeJsonAtomic(resolve(outDir, "summary.json"), summary);
   const elapsed = formatDuration(Date.now() - startMs);
+  // Canonical full matrix — a filtered run is by definition not a
+  // complete baseline, so the filter must not lower the bar.
+  const expected = loadScenarios().length * AGENTS.length;
   process.stdout.write(
-    `\nevals: done. ${tally.total} run × scenario combinations in ${elapsed}.\n` +
-      `Results: ${outDir}\n`,
+    `\nevals: done. ${summary.total_scenarios} run × scenario combinations on disk ` +
+      `in ${elapsed}.\nResults: ${outDir}\n`,
   );
+  if (summary.total_scenarios < expected) {
+    process.stdout.write(
+      `evals: WARNING — ${expected - summary.total_scenarios} combination(s) missing. ` +
+        `This directory is NOT a complete baseline; finish it with\n` +
+        `  pnpm run evals -- --resume\n` +
+        `before treating it as one (see evals/README.md).\n`,
+    );
+  }
 }
 
 interface RunContext {
@@ -192,11 +222,10 @@ interface ProcessOneArgs {
   flags: CliFlags;
   outDir: string;
   crimesVersion: string;
-  tally: Tally;
 }
 
 async function processOne(args: ProcessOneArgs): Promise<void> {
-  const { item, scanCache, flags, outDir, crimesVersion, tally } = args;
+  const { item, scanCache, flags, outDir, crimesVersion } = args;
   const fixtureDir = resolve(REPO_ROOT, item.fixture.path);
   const scanJson = await getCachedScan(scanCache, fixtureDir);
   const scanContext = buildScanContext(scanJson);
@@ -235,7 +264,6 @@ async function processOne(args: ProcessOneArgs): Promise<void> {
     }
   }
 
-  updateTally(tally, item, structural);
   const agentDir = resolve(outDir, item.agent);
   mkdirSync(agentDir, { recursive: true });
   await writeJsonAtomic(resolve(agentDir, `${item.scenario.id}.json`), result);
@@ -251,76 +279,6 @@ function getCachedScan(
     cache.set(fixtureDir, existing);
   }
   return existing;
-}
-
-function createTally(): Tally {
-  return {
-    total: 0,
-    passByAgent: new Map(),
-    totalByAgent: new Map(),
-    passByAgentKind: new Map(),
-    totalByAgentKind: new Map(),
-  };
-}
-
-function updateTally(
-  tally: Tally,
-  item: WorkItem,
-  structural: { passed: number; failed: number },
-): void {
-  tally.total += 1;
-  const all = structural.passed + structural.failed;
-  tally.passByAgent.set(
-    item.agent,
-    (tally.passByAgent.get(item.agent) ?? 0) + structural.passed,
-  );
-  tally.totalByAgent.set(item.agent, (tally.totalByAgent.get(item.agent) ?? 0) + all);
-  const kindKey = `${item.scenario.kind}::${item.agent}`;
-  tally.passByAgentKind.set(
-    kindKey,
-    (tally.passByAgentKind.get(kindKey) ?? 0) + structural.passed,
-  );
-  tally.totalByAgentKind.set(kindKey, (tally.totalByAgentKind.get(kindKey) ?? 0) + all);
-}
-
-function buildSummary(
-  crimesVersion: string,
-  scenarios: Scenario[],
-  agents: Agent[],
-  tally: Tally,
-): Record<string, unknown> {
-  const perAgent: Record<
-    string,
-    { structural_pass_rate: number; scenarios_run: number }
-  > = {};
-  for (const agent of agents) {
-    const total = tally.totalByAgent.get(agent) ?? 0;
-    const pass = tally.passByAgent.get(agent) ?? 0;
-    perAgent[agent] = {
-      structural_pass_rate: total === 0 ? 0 : round(pass / total),
-      scenarios_run: scenarios.length,
-    };
-  }
-  const perKind: Record<ScenarioKind, Record<string, number>> = {} as Record<
-    ScenarioKind,
-    Record<string, number>
-  >;
-  for (const scenario of scenarios) {
-    const kind = scenario.kind as ScenarioKind;
-    if (!perKind[kind]) perKind[kind] = {};
-    for (const agent of agents) {
-      const key = `${kind}::${agent}`;
-      const total = tally.totalByAgentKind.get(key) ?? 0;
-      const pass = tally.passByAgentKind.get(key) ?? 0;
-      perKind[kind][agent] = total === 0 ? 0 : round(pass / total);
-    }
-  }
-  return {
-    crimes_version: crimesVersion,
-    total_scenarios: tally.total,
-    per_agent: perAgent,
-    per_scenario_kind: perKind,
-  };
 }
 
 /**
@@ -354,7 +312,7 @@ async function runPool<T>(
 }
 
 function parseFlags(args: string[]): CliFlags {
-  const flags: CliFlags = { judge: false, bail: false, concurrency: 4 };
+  const flags: CliFlags = { judge: false, bail: false, concurrency: 4, resume: false };
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i]!;
     // `pnpm run evals -- --flag` forwards a literal "--" through to argv;
@@ -362,6 +320,7 @@ function parseFlags(args: string[]): CliFlags {
     if (arg === "--") continue;
     if (arg === "--judge") flags.judge = true;
     else if (arg === "--bail") flags.bail = true;
+    else if (arg === "--resume") flags.resume = true;
     else if (arg === "--agent") {
       const value = args[++i] as Agent | undefined;
       if (value && (AGENTS as readonly string[]).includes(value)) {
@@ -460,6 +419,104 @@ function composePrompt(scenario: Scenario, scanJson: string): string {
     scanJson.trim() +
     "\n```\n"
   );
+}
+
+interface EvalSummary {
+  crimes_version: string;
+  total_scenarios: number;
+  per_agent: Record<string, { structural_pass_rate: number; scenarios_run: number }>;
+  per_scenario_kind: Record<string, Record<string, number>>;
+}
+
+/**
+ * Build the summary by reading every result file under `outDir`.
+ *
+ * Deliberately *not* accumulated during the run. A tally lives in the
+ * process, so a run that is killed part-way leaves a directory of valid
+ * per-scenario results with no summary at all — and since `evals:replay`
+ * and `evals:diff` both pin the highest-versioned directory, that
+ * half-state silently becomes the baseline every later comparison is
+ * made against.
+ *
+ * Reading the directory also fixes the filtered-rerun case: finishing a
+ * broken run with `--scenario review --resume` now writes a summary
+ * describing the whole matrix, not just the scenarios that re-ran.
+ *
+ * Arithmetic is unchanged from the tally it replaces: per agent and per
+ * `kind::agent`, sum `structural_score.passed` over `passed + failed`.
+ */
+function summariseResultsDir(outDir: string, crimesVersion: string): EvalSummary {
+  const allScenarios = loadScenarios();
+  // The *full* scenario set, never the filtered one. This summary
+  // describes the whole directory, so a `--scenario review --resume`
+  // must not stamp it with the count of the scenarios that re-ran.
+  const scenariosRun = allScenarios.length;
+  const kindOf = new Map(allScenarios.map((s) => [s.id, s.kind]));
+  const passByAgent = new Map<string, number>();
+  const totalByAgent = new Map<string, number>();
+  const passByAgentKind = new Map<string, number>();
+  const totalByAgentKind = new Map<string, number>();
+  const agents: string[] = [];
+  let total = 0;
+
+  if (existsSync(outDir)) {
+    for (const entry of readdirSync(outDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const agent = entry.name;
+      agents.push(agent);
+      for (const file of readdirSync(resolve(outDir, agent))) {
+        if (!file.endsWith(".json")) continue;
+        let result: ScoreResult;
+        try {
+          result = JSON.parse(
+            readFileSync(resolve(outDir, agent, file), "utf8"),
+          ) as ScoreResult;
+        } catch {
+          // A truncated file from a hard kill: skip it rather than
+          // abort, and let the completeness warning report the gap.
+          continue;
+        }
+        const structural = result.structural_score;
+        if (!structural) continue;
+        const kind = kindOf.get(result.scenario);
+        if (kind === undefined) continue;
+        const all = structural.passed + structural.failed;
+        total += 1;
+        passByAgent.set(agent, (passByAgent.get(agent) ?? 0) + structural.passed);
+        totalByAgent.set(agent, (totalByAgent.get(agent) ?? 0) + all);
+        const key = `${kind}::${agent}`;
+        passByAgentKind.set(key, (passByAgentKind.get(key) ?? 0) + structural.passed);
+        totalByAgentKind.set(key, (totalByAgentKind.get(key) ?? 0) + all);
+      }
+    }
+  }
+  agents.sort();
+
+  const perAgent: EvalSummary["per_agent"] = {};
+  for (const agent of agents) {
+    const t = totalByAgent.get(agent) ?? 0;
+    perAgent[agent] = {
+      structural_pass_rate: t === 0 ? 0 : round((passByAgent.get(agent) ?? 0) / t),
+      scenarios_run: scenariosRun,
+    };
+  }
+
+  const perKind: EvalSummary["per_scenario_kind"] = {};
+  for (const kind of new Set(kindOf.values())) {
+    perKind[kind] = {};
+    for (const agent of agents) {
+      const key = `${kind}::${agent}`;
+      const t = totalByAgentKind.get(key) ?? 0;
+      perKind[kind]![agent] = t === 0 ? 0 : round((passByAgentKind.get(key) ?? 0) / t);
+    }
+  }
+
+  return {
+    crimes_version: crimesVersion,
+    total_scenarios: total,
+    per_agent: perAgent,
+    per_scenario_kind: perKind,
+  };
 }
 
 async function writeJsonAtomic(filePath: string, data: unknown): Promise<void> {

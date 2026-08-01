@@ -118,40 +118,46 @@ evals/
 
 ## If a run dies part-way
 
-`pnpm run evals` has **no resume**. The summary is accumulated in an
-in-memory tally and written once, at the very end
-(`buildSummary` / `writeJsonAtomic` in `runner/src/index.ts`). A run
-that is interrupted therefore leaves a directory full of valid
-per-scenario results and **no `summary.json`**.
+Use `--resume`:
 
-That state is dangerous, not merely incomplete. `evals:replay` and
-`evals:diff` both select the highest-versioned directory, so a partial
-directory silently becomes the pinned baseline and every later
-comparison is made against a truncated sample. **Never commit a version
-directory without a `summary.json` covering the full matrix.**
+```bash
+pnpm run evals -- --resume
+```
 
-Two things do *not* work:
+It skips every work item whose result file already exists, so an
+interrupted run finishes without re-billing the agent invocations that
+already succeeded — and re-runs nothing when the directory is complete.
 
-- Re-running the whole matrix is correct but expensive — it is 96 agent
-  invocations, and the ones that already succeeded are re-billed.
-- Re-running a subset (`--scenario review`) fills the missing results,
-  but then writes a `summary.json` describing **only that subset** while
-  sitting in a directory that claims to be the whole baseline. Worse
-  than no summary.
+`summary.json` is built by reading the result directory, not from an
+in-memory tally, so:
 
-What works: re-run whatever filter covers the gap, then rebuild
-`summary.json` from the per-scenario files on disk. Everything the tally
-accumulates (`structural_score.passed`, `passed + failed`, keyed by
-agent and scenario kind) is present in those files, so the summary is
-fully derivable. Verify any such rebuild by regenerating a *known-good*
-directory first and confirming it reproduces the committed
-`summary.json` byte-for-byte before trusting it on the incomplete one,
-and assert the combination count equals `scenarios × agents` before
-writing.
+- A killed run leaves a directory that can be completed, and the summary
+  is regenerated from whatever is on disk.
+- Finishing a gap with a filter (`--scenario review --resume`) still
+  writes a summary describing the **whole matrix**, not just the
+  scenarios that re-ran.
 
-Worth fixing properly: have the runner write `summary.json` from the
-result directory rather than from a tally that dies with the process,
-and skip work items whose output already exists so a re-run resumes.
+If the directory is short of the full matrix, the runner says so and
+refuses to let it pass quietly:
+
+```
+evals: WARNING — 3 combination(s) missing. This directory is NOT a
+complete baseline; finish it with
+  pnpm run evals -- --resume
+```
+
+Take that seriously. `evals:replay` and `evals:diff` both select the
+highest-versioned directory, so an incomplete one silently becomes the
+pinned baseline and every later comparison is made against a truncated
+sample. **Never commit a version directory that reports missing
+combinations.**
+
+> This section used to describe a manual recovery procedure, because
+> none of the above existed. The 0.16.0 baseline was produced by a run
+> that died at 85/96, and recovering it by hand — re-run the filter,
+> then rebuild the summary from disk, then validate that rebuild against
+> a known-good directory — is what motivated building it into the
+> runner.
 
 ## Retention of `results/` — measured, decision: keep everything
 

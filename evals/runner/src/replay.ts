@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractCodexResponse } from "./agents/codex-transcript.js";
 import { buildScanContext, runScan } from "./scan-helpers.js";
+import { sortResultsVersionsDesc } from "./versions.js";
 import { scoreStructural } from "./score.js";
 import type { FixturesRegistry, ScanContext, Scenario, ScoreResult } from "./types.js";
 
@@ -111,24 +112,13 @@ async function main(): Promise<void> {
 
 function pickLatestVersion(): { version: string } | undefined {
   if (!existsSync(RESULTS_DIR)) return undefined;
-  const versions = readdirSync(RESULTS_DIR, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .filter((name) => /^\d+\.\d+\.\d+/.test(name))
-    .sort(compareSemverDesc);
+  const versions = sortResultsVersionsDesc(
+    readdirSync(RESULTS_DIR, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name),
+  );
   const top = versions[0];
   return top ? { version: top } : undefined;
-}
-
-function compareSemverDesc(a: string, b: string): number {
-  const pa = a.split(".").map((p) => Number.parseInt(p, 10));
-  const pb = b.split(".").map((p) => Number.parseInt(p, 10));
-  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
-    const av = pa[i] ?? 0;
-    const bv = pb[i] ?? 0;
-    if (av !== bv) return bv - av;
-  }
-  return 0;
 }
 
 function loadFixtureDirMap(): Map<string, string> {
