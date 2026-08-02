@@ -65,13 +65,19 @@ describe("generateConfig", () => {
   it("emits the static template when detect=false", async () => {
     const out = await generateConfig({ root: ".", detect: false });
     expect(out).toMatch(/"\$schema": "https:\/\/crimes\.sh\/schema/);
-    expect(out).toMatch(/"include": \["\*\*\/\*\.\{ts/);
+    // The include list mirrors the zero-config default, so it is a
+    // multi-language array rather than a single collapsed JS glob.
+    expect(out).toContain('"**/*.{ts,tsx,js,jsx,mjs,cjs,cts,mts}"');
+    expect(out).toContain('"**/*.{py,pyi}"');
   });
 
-  it("tightens include to ts-only when no JS files are present", async () => {
+  it("tightens the JS glob to ts-only when no JS files are present", async () => {
     const dir = await makeRepo({ "src/a.ts": "" });
     const out = await generateConfig({ root: dir, detect: true });
-    expect(out).toContain('"include": ["**/*.{ts,tsx}"]');
+    expect(out).toContain('"**/*.{ts,tsx}"');
+    expect(out).not.toContain('"**/*.{ts,tsx,js,jsx,mjs,cjs,cts,mts}"');
+    // Narrowing the JS glob must not drop the other language globs.
+    expect(out).toContain('"**/*.{py,pyi}"');
   });
 
   it("adds .next/.vercel excludes when next.config.* exists", async () => {
@@ -88,5 +94,66 @@ describe("generateConfig", () => {
     expect(parsed.scopeTiers.nonDomain).toContain("scripts/**");
     expect(parsed.scopeTiers.nonDomain).not.toContain("examples/**");
     expect(parsed.scopeTiers.nonDomain).toContain("**/*.test.{ts,tsx,js,jsx}");
+  });
+});
+
+/** Does any glob in `include` claim a file with this extension? */
+function claims(include: string[], ext: string): boolean {
+  return include.some((glob) => {
+    const braced = glob.match(/\{([^}]+)\}/);
+    if (braced?.[1]) return braced[1].split(",").includes(ext);
+    return glob.endsWith(`.${ext}`);
+  });
+}
+
+describe("generateConfig does not narrow the scan below zero-config", () => {
+  it("claims Python when the repo contains Python", async () => {
+    const dir = await makeRepo({
+      "src/app.ts": "export const a = 1;",
+      "svc/main.py": "def main():\n    pass\n",
+    });
+    const parsed = JSON.parse(await generateConfig({ root: dir, detect: true }));
+    expect(claims(parsed.include, "py")).toBe(true);
+  });
+
+  it("claims every language present in the repo", async () => {
+    const dir = await makeRepo({
+      "src/app.ts": "export const a = 1;",
+      "svc/main.py": "def main():\n    pass\n",
+      "core/lib.rs": "fn main() {}",
+      "docs/guide.md": "# Guide",
+    });
+    const parsed = JSON.parse(await generateConfig({ root: dir, detect: true }));
+    for (const ext of ["ts", "py", "rs", "md"]) {
+      expect(claims(parsed.include, ext), `include should claim .${ext}`).toBe(true);
+    }
+  });
+
+  it("still narrows the JS glob when no .js-family files exist", async () => {
+    const dir = await makeRepo({ "src/a.ts": "", "svc/main.py": "" });
+    const parsed = JSON.parse(await generateConfig({ root: dir, detect: true }));
+    expect(claims(parsed.include, "ts")).toBe(true);
+    expect(claims(parsed.include, "js")).toBe(false);
+    // ...without dropping Python on the way past.
+    expect(claims(parsed.include, "py")).toBe(true);
+  });
+
+  it("claims Python with detect=false too", async () => {
+    const parsed = JSON.parse(await generateConfig({ root: ".", detect: false }));
+    expect(claims(parsed.include, "py")).toBe(true);
+    expect(claims(parsed.include, "ts")).toBe(true);
+  });
+
+  it("treats Python test conventions as non-domain", async () => {
+    const dir = await makeRepo({
+      "svc/main.py": "def main():\n    pass\n",
+      "tests/test_main.py": "def test_main():\n    assert True\n",
+    });
+    const parsed = JSON.parse(await generateConfig({ root: dir, detect: true }));
+    const tiers: string[] = parsed.scopeTiers.nonDomain;
+    expect(
+      tiers.some((t) => t.includes("test_") || t.includes("_test")),
+      `scopeTiers should recognise a Python test file, got ${JSON.stringify(tiers)}`,
+    ).toBe(true);
   });
 });

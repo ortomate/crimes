@@ -37,6 +37,10 @@
       "!evals/results",
       "!evals/replay",
 
+      // Recorded dogfooding-round data. Machine-written from scan output;
+      // reformatting it would edit the measurements after the fact.
+      "!docs/dogfooding/*.json",
+
       // --- Never format: not ours --------------------------------------
       // `.planning/` is a write-once archive of milestone prompts and
       // throwaway prototypes. It is never built, tested, or shipped;

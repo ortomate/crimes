@@ -2,6 +2,7 @@ import type { Dirent } from "node:fs";
 import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { DEFAULT_SOURCE_INCLUDES } from "@crimes/core";
 
 export interface RepoShape {
   isMonorepo: boolean;
@@ -19,7 +20,23 @@ const DIR_PATTERNS: Array<[string, string]> = [
   ["__tests__", "**/__tests__/**"],
 ];
 
-const STATIC_TEST_GLOBS = ["**/*.test.{ts,tsx,js,jsx}", "**/*.spec.{ts,tsx,js,jsx}"];
+const STATIC_TEST_GLOBS = [
+  "**/*.test.{ts,tsx,js,jsx}",
+  "**/*.spec.{ts,tsx,js,jsx}",
+  // Python test conventions. Without these a pytest suite is scored as
+  // production code — see docs/dogfooding/2026-08-02-0.14-to-0.17.md §3.10.
+  "**/test_*.py",
+  "**/*_test.py",
+];
+
+/**
+ * The JS-family entry inside `DEFAULT_SOURCE_INCLUDES`. Narrowing this
+ * one glob is the only include change `--detect` is allowed to make:
+ * dropping the others would make `crimes init` scan *less* than a
+ * zero-config run, which is how a repo's whole Python tree can vanish.
+ */
+const JS_FAMILY_GLOB = "**/*.{ts,tsx,js,jsx,mjs,cjs,cts,mts}";
+const TS_ONLY_GLOB = "**/*.{ts,tsx}";
 
 export async function detectRepoShape(root: string): Promise<RepoShape> {
   const exists = (path: string) => existsSync(join(root, path));
@@ -82,7 +99,9 @@ export interface GenerateConfigOptions {
 }
 
 export async function generateConfig(options: GenerateConfigOptions): Promise<string> {
-  const include = ["**/*.{ts,tsx,js,jsx,mjs,cjs}"];
+  // Start from the same list a zero-config scan uses. `crimes init` must
+  // never make crimes see less than it would with no config at all.
+  const include = [...DEFAULT_SOURCE_INCLUDES];
   const exclude = [
     "**/node_modules/**",
     "**/dist/**",
@@ -105,7 +124,10 @@ export async function generateConfig(options: GenerateConfigOptions): Promise<st
 
   if (options.detect) {
     const shape = await detectRepoShape(options.root);
-    if (shape.isTsOnly) include[0] = "**/*.{ts,tsx}";
+    if (shape.isTsOnly) {
+      const js = include.indexOf(JS_FAMILY_GLOB);
+      if (js !== -1) include[js] = TS_ONLY_GLOB;
+    }
     if (shape.isNextJs) exclude.push("**/.next/**", "**/.vercel/**");
     if (shape.isVite) exclude.push("**/dist/**");
     scopeTiers = shape.scopeTiers;
