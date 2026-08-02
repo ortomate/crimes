@@ -110,6 +110,10 @@
               "Cross-file related_files for IA findings",
               "Per-finding effort + fix_shape on every Finding",
               "Stable, versioned JSON output for AI agents",
+              "Python language pack with real parsing, not regexes",
+              "Universal pack — file-level and git-derived findings in any language",
+              "Cross-language detectors: route drift, type drift, concept alias drift between Python and TypeScript",
+              "Per-finding feedback loop (tp/fp/known) that auto-suppresses and resurfaces for re-confirmation",
               "Claude Code skill and AGENTS.md integration",
               "GitHub Actions example for PR gating"
             ],
@@ -206,18 +210,23 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.12.0 · Universal pack · <a href="/docs/releases/v0.12.0/">release notes</a></span>
+          <span class="pill">v0.17.0 · Fingerprint discriminator · <a href="/docs/releases/v0.17.0/">release notes</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
         <h1>A crime scene investigator for your codebase.</h1>
         <p class="tagline">Built for agents, readable by humans.</p>
         <p class="lede">
-          <code>crimes</code> is an open-source CLI that scans a TypeScript or
-          JavaScript repository for <strong>change risk</strong> and
-          <strong>agent risk</strong> — duplicated business rules, ambiguous
-          sources of truth, weakly tested hotspots, and patterns that confuse
-          AI coding agents. Local, deterministic, no cloud.
+          <code>crimes</code> is an open-source CLI that scans
+          <strong>TypeScript, JavaScript and Python</strong> repositories for
+          <strong>change risk</strong> and <strong>agent risk</strong> —
+          duplicated business rules, ambiguous sources of truth, weakly
+          tested hotspots, failures swallowed without a trace, and patterns
+          that confuse AI coding agents. In a polyglot repo it also reports
+          the disagreements <em>between</em> languages that neither side's
+          own tooling can see. A universal pack runs on every file in any
+          language, so a Rust or Go repo still gets findings. Local,
+          deterministic, no cloud.
         </p>
 
         <div class="cta-row">
@@ -230,15 +239,16 @@
 
         <pre class="hero-snippet" aria-label="Example terminal session"><code><span class="prompt">$</span> <span class="cmd">npx crimes scan .</span>
 <span class="output">CRIME SCENE REPORT
-repo: messy-ts-app  ·  5 findings
+repo: messy-ts-app  ·  41 findings across 19 files  ·  6 high  15 medium  20 low
 
-HIGH severity (1)
-  1. src/billing.ts:37-240 (generateInvoice)
-     Charge: God Function
-     Evidence: 204 lines · 3.4× threshold · function declaration
-     id=crime_00001  confidence=0.95
-
-Total 5  ·  high 1  medium 3  low 1</span></code></pre>
+Top files by risk
+src/billing.ts  7 findings · 1 high, 4 medium, 2 low
+   1. God Function · generateInvoice()   lines 50–253 (204 lines), 3.4× the domain function threshold (60 lines)
+   2. False Identity · calculateRefundPreview()   name prefix suggests a pure transformation, side-effect-like calls: saveRefundAudit, sendRefundEmail
+   3. Logic in the Alibi   comment says: "Only owners can refund enterprise plans unless billing support approves.", rule terms: only, unless
+   4. Catch and Release · generateInvoice → catch_clause   protected operation: if (body.length === 0) throw new Error("empty body"); (+1 more statement(s)), handler kind: try/catch (line 245)
+     Risk: churn low · test gap ~median · blast bottom-quartile (0 importers)
+     id=crime_00003 … crime_00022</span></code></pre>
 
         <p class="hero-foot">
           Not another linter. Not a security scanner. <code>crimes</code>
@@ -382,6 +392,24 @@ crimes triage --retriage src/billing.ts</code></pre>
               permanent amnesia. Persisted to
               <code>.crimes/triage.json</code>, intended to be
               committed.
+            </p>
+          </div>
+
+          <div class="qs-row">
+            <h3>Feedback — tell it when it's wrong</h3>
+            <pre><code>crimes feedback &lt;fingerprint&gt; --verdict fp --note "…"
+crimes feedback summary
+crimes feedback recheck</code></pre>
+            <p class="note">
+              A false positive is a calibration signal, not a shrug.
+              <code>--verdict fp</code> requires a note and writes a
+              suppression <strong>pinned to the current crimes minor</strong>,
+              so the finding comes back for re-confirmation the next time
+              the detector could plausibly have changed —
+              <code>crimes feedback recheck</code> lists each one with what
+              actually changed for that detector. Verdicts land in
+              <code>.crimes/feedback.jsonl</code> and feed the eval harness
+              that gates every release.
             </p>
           </div>
 
@@ -686,6 +714,88 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
 
       <section id="detects">
         <h2>What it detects today</h2>
+        <p>
+          <strong>62 detectors across ten families.</strong> The two tables
+          below are the founding families, shown in full because they are
+          the easiest to picture. Every family after them links to its own
+          reference page — each one lists every detector, what raises and
+          lowers its confidence, and the near-misses it deliberately does
+          not fire on.
+        </p>
+
+        <div class="detector-table" role="table" aria-label="Detector families">
+          <div class="row head" role="row">
+            <span role="columnheader">Family</span>
+            <span role="columnheader">Since</span>
+            <span role="columnheader">The question it asks</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/structural.md"><strong>Structural</strong></a></span>
+            <span role="cell"><code>v0.1.0</code></span>
+            <span role="cell">Is this unit too big, too deep, or too temporally reckless to edit safely?</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/ia.md"><strong>Information architecture</strong></a></span>
+            <span role="cell"><code>v0.3.0</code></span>
+            <span role="cell">Does the repo tell more than one story about the same product concept?</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/dependency.md"><strong>Dependency graph</strong></a></span>
+            <span role="cell"><code>v0.6.0</code></span>
+            <span role="cell">Which edges between modules are cycles, layer violations, or reach past a public entry point?</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/duplication.md"><strong>Duplication</strong></a></span>
+            <span role="cell"><code>v0.6.0</code></span>
+            <span role="cell">Where does the same body exist twice, so every fix has to land twice?</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/frontend.md"><strong>Frontend / UI</strong></a></span>
+            <span role="cell"><code>v0.6.0</code></span>
+            <span role="cell">Which UI code will an agent restyle, relabel, or duplicate because nothing marks it as canonical?</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/petty.md"><strong>Petty crimes</strong></a></span>
+            <span role="cell"><code>v0.3.0</code></span>
+            <span role="cell">Which small lies — dead code, misleading names, logic hidden in comments — will mislead the next reader?</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/assets.md"><strong>Assets</strong></a></span>
+            <span role="cell"><code>v0.10.0</code></span>
+            <span role="cell">Which images are the wrong format or weight for how they are actually used?</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/correctness.md"><strong>Correctness risk</strong></a></span>
+            <span role="cell"><code>v0.16.0</code></span>
+            <span role="cell">What does this code do when something goes wrong? A swallowed failure, a retry that replays a payment, a test green through any refactor.</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/authority.md"><strong>Cross-file authority</strong></a></span>
+            <span role="cell"><code>v0.16.0</code></span>
+            <span role="cell">Where does the repo keep its truth twice? The same authorization rule in two files, one record with two disagreeing declarations.</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/agent-hygiene.md"><strong>Agent hygiene</strong></a></span>
+            <span role="cell"><code>v0.16.0</code></span>
+            <span role="cell">Imports with no declaring manifest, and repo-local agent config granting unrestricted execution. Fully local — no registry calls, nothing executed.</span>
+          </div>
+        </div>
+
+        <h3 class="sub">Beyond one language</h3>
+        <p>
+          Three packs decide what can be seen at all.
+          The <strong>universal pack</strong> (<code>v0.12.0</code>) runs on
+          every file in any language, so a Rust or Go repo still gets
+          file-level and git-derived findings. The
+          <strong>Python pack</strong> (<code>v0.14.0</code>) brings real
+          parsing — not regexes — to <code>.py</code> sources. And the
+          <strong>cross-language pack</strong> (<code>v0.15.0</code>)
+          reports what neither language's own tooling can: a frontend
+          calling a path the backend does not serve, a closed set listed
+          differently on each side, or the same concept called
+          <code>team</code> in one language and <code>workspace</code> in
+          the other.
+        </p>
 
         <h3 class="sub">Structural detectors · shipped in v0.1.0</h3>
         <div class="detector-table" role="table" aria-label="Structural detectors shipped in v0.1.0">
@@ -991,9 +1101,10 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
         </p>
         <p>
           Detectors live in <code>packages/core</code>, language parsing in
-          <code>packages/language-js</code>, reporters in
-          <code>packages/reporter</code>. Adding a detector is a pull
-          request, not a plugin marketplace.
+          <code>packages/language-js</code> and
+          <code>packages/language-py</code>, reporters in
+          <code>packages/reporter</code>. Adding a detector — or a whole
+          language pack — is a pull request, not a plugin marketplace.
         </p>
       </section>
     </main>
