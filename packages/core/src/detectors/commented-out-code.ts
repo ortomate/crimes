@@ -1,3 +1,4 @@
+import { hashSlice } from "../ast-hash/hash.js";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { extractComments, type SourceComment } from "../petty/comments.js";
@@ -49,6 +50,14 @@ export const commentedOutCodeDetector: LanguageJsDetector = {
         confidence: score.confidence,
         file: ctx.file,
         lines: [comment.startLine, comment.endLine],
+        // This detector emits one finding per comment block and carries
+        // no `symbol`, so without a discriminator every block in a file
+        // shares the fingerprint `commented_out_code::<file>::` —
+        // `crimes ignore` on one silently suppresses all of them. The
+        // block's own text is stable across scans of the same code, so
+        // it is the discriminator, matching the 0.17.0 precedent set by
+        // `exact_duplicate_block` and `magic_domain_literal_scatter`.
+        discriminator: hashSlice(comment.text).exact.slice(0, 12),
         summary:
           `Comment block appears to contain disabled code. Dead implementation snippets can ` +
           `mislead humans and agents into copying or reviving stale behaviour.`,
