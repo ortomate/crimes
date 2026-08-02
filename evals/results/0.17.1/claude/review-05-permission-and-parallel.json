@@ -1,0 +1,92 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:42:28.462Z",
+  "run_id": "4ee36ba2-6549-489c-a062-b3350625e3cf",
+  "response": "I read the fixture files behind the findings rather than triaging from the JSON alone — one of the three turns out to be worse in the code than the score suggests.\n\n## The three IA drifts\n\n### 1. `permission_ia_drift` — /admin described three ways → **block merge**\n\n`crime_00011`, medium/0.7. Three surfaces, three role tokens:\n\n- `src/nav.ts:10` — `{ href: \"/admin\", label: \"Admin Console\", role: \"admin\" }`\n- `src/routes/admin.ts:4` — `export const requiredRole = \"owner\"`\n- `docs/routes.md:14` — \"reachable only by a manager\"\n\nThe scan understates this. The guard doesn't just disagree with nav and docs, it disagrees with *itself*:\n\n```ts\nexport const requiredRole = \"owner\";          // the advertised contract\nexport function loadAdminPanel() {\n  if (currentUser.role === \"manager\") return { ok: true, legacy: true };  // fires first\n  if (currentUser.role !== \"owner\") return null;\n```\n\n`src/routes/admin.ts:9` grants managers access before the owner check at line 10 ever runs. The exported constant says owner-only; the function ships a live manager path underneath it. And `role: \"admin\"` from nav matches neither branch — an admin sees the Admin Console link and gets `null`.\n\nBlock. Three of the four ways to answer \"who can reach /admin?\" are wrong, and the resolution requires a product decision no one can derive from the code.\n\n### 2. `parallel_destination` — /admin/billing-plans vs /billing-plans → **ignore (for this merge)**\n\n`crime_00003`, medium/0.6. Both files are stubs — `listAdminBillingPlans()` and `listBillingPlans()`, each returning `[]`, four lines apiece, zero importers, zero nav entries, zero doc links.\n\nThe scan already says this twice more, and more accurately: `crime_00005` and `crime_00006` flag both files as orphaned destinations. Neither route is reachable at all. \"Fold the parallel destinations into one\" is the wrong first move when the open question is whether either ships. Act on the orphan charge; ignore the parallel charge as a duplicate lens on a lower-level problem.\n\nThis is ignore-for-now, not dismissal: wire either route up and the finding re-fires with real reachability behind it, at which point it becomes a warn.\n\n### 3. `command_drift_docs_code_drift` — docs reference commands the bin lacks → **warn**\n\n`crime_00013`, low/0.8. `bin/iaq.ts` registers exactly `list` and `get`. `docs/routes.md` ships three copy-pasteable blocks: `iaq teams` (:23), `iaq workspace` (:27), `iaq refresh` (:31).\n\nEvidence is exact and verified, so confidence is earned. But the failure is loud — Commander exits with \"unknown command.\" An agent that follows the doc gets an immediate, unambiguous error rather than a wrong result. The real risk is second-order: an agent may read the docs as a spec and *implement* `refresh`, inventing product surface from a stale file. Worth blocking a release, not worth blocking a merge.\n\n## Highest agent-risk: the permission drift\n\nNot close, and this is where I'd override the tool's own ranking.\n\n**Every source looks authoritative.** An agent asked to extend admin access reads one file and gets a confident answer. Which file it opens first determines whether it writes `owner`, `manager`, or `admin` — and all three have a legitimate claim. The other two drifts have an obvious ground truth (the bin is the truth about commands; the router is the truth about routes). Here there is no ground truth in the repo.\n\n**It fails silently and in the wrong direction.** An unreachable route and a missing subcommand both announce themselves. A stale `manager` branch grants access to a role the exported contract says is excluded, and nothing errors.\n\n**It resists the repair agents are good at.** You can regenerate command docs from the bin; you can delete a dead route. You cannot resolve this by reading harder — it needs someone to decide who owns the admin console. Agents are worst precisely here: the likely heuristic is \"pick the token that appears most often,\" which is `manager` (four occurrences across the guard and docs) — the one the code is trying to retire.\n\n**Blast radius is authority, not UX.** The billing-plans split costs a duplicated flow. Getting this one wrong grants or revokes access.\n\n## Calibration note for crimes\n\nThe scan ranks this finding 11th of 13 by agent risk. `severity` is 0.65 — the highest in the report — but `agent_risk` is 0.25, below both billing-plans orphans (0.27) and the parallel destination (0.33). Since default ranking is aggregate, the most dangerous finding in the repo sorts below two four-line stubs nobody can reach.\n\nTwo specific gaps:\n\n- **Authority disagreement should lift `agent_risk`, not just `severity`.** Multiple-sources-of-truth over an access rule is the archetype `agent_risk` exists to capture, per the scoring model. It's currently reading as a documentation-consistency issue.\n- **The finding anchors on `docs/routes.md`.** The dangerous code is `src/routes/admin.ts:9`. Anchoring on the doc means `test_gap` scores 0 (markdown has no tests to miss) and the file an agent would open to fix it isn't the file the finding names. The route guard is the better anchor, with the doc as a related file.\n\nThe detector found the right thing and scored it as the wrong kind of thing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "dependency_provenance_gap",
+      "crime_00013": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Phantom Accomplice": "dependency_provenance_gap",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 7,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": "src/routes/admin.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": "src/nav.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  }
+}

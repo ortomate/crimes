@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:44:43.976Z",
+  "run_id": "6e2e5290-f0cd-4e6d-bb34-d7c3b32ed65b",
+  "response": "## Diagnosis\n\nLow CPU + collapsing p99 is the signature of **event-loop starvation**, and the scan found it: `crime_00001` (`sync_io_in_hotpath`, high, confidence 0.8) reports four blocking calls in `api/routes.py`, at least one inside an `async def`. Reading the file confirms it's worse than \"at least one\" — **both** async handlers are affected, and every one of the four calls is blocking:\n\n```python\n@router.get(\"/invoices/{customer_id}\")\nasync def get_invoice(customer_id: str):\n    profile = requests.get(...)                # api/routes.py:21\n    with open(\"/etc/billing/rates.json\") ...   # api/routes.py:23\n\n@router.post(\"/invoices/{customer_id}/export\")\nasync def export_invoice(customer_id: str):\n    subprocess.run([...], check=True)          # api/routes.py:31\n    time.sleep(2)                              # api/routes.py:32\n```\n\nFastAPI runs `async def` handlers **on the event loop itself** — no threadpool. So each of these calls freezes the entire worker: every concurrent request, on every route, waits. CPU stays near zero because the process is blocked on a socket, a pipe, or a timer, not computing. p99 goes first because tail requests queue behind N blocked predecessors — the wait compounds rather than adding.\n\nThe arithmetic that matters: the loop can absorb 1.0 seconds of blocking per second. Multiply each call's duration by its request rate; if the sum exceeds 1, the queue grows without bound and latency diverges. At moderate load, **either** of the top two below clears that threshold alone.\n\n## Ranked by contribution\n\n**1. `requests.get()` — routes.py:21.** Highest volume × unbounded duration. This is the primary read endpoint, and the call has **no `timeout=`**, which the scan doesn't call out. A slow or hung `billing.internal` pins the loop for as long as the socket stays open — potentially forever, taking down `/invoices`, `/export`, and everything else with it. It's also self-amplifying: upstream latency rises under the same load that's hitting you, so loop occupancy grows exactly when you can least afford it. This is the one that turns a slowdown into a metastable failure.\n\n**2. `time.sleep(2)` — routes.py:32.** A guaranteed, unconditional 2 seconds of loop time per export, buying nothing. Only ~0.5 exports/sec saturates the worker on its own. It ranks second only because exports are presumably rarer than reads — **if exports run above roughly 1/25th of GET traffic, this overtakes #1.** Check your route-level RPS; that's the one number that settles the order.\n\n**3. `subprocess.run(..., check=True)` — routes.py:31.** Blocks for the full PDF render, which is likely seconds and has no ceiling. Same route as #2 so it shares the traffic multiplier, but its duration is at least doing work. Secondary issue: the handler returns `{\"status\": \"queued\"}` while doing the render synchronously — the response contract is a lie, and `check=True` surfaces render failures as 500s.\n\n**4. `open()` / `.read()` — routes.py:23.** Real but small. A warm-page-cache read is sub-millisecond; it only bites on a cold cache or slow mount. Note it re-reads config on every single request with no caching, so it also scales pointlessly with traffic.\n\n## Fixes, in the order that buys the most\n\n- Delete `time.sleep(2)` outright. Nothing depends on it.\n- Add `timeout=` to the HTTP call **now** — that's a one-line change that converts an unbounded outage into a bounded error — then migrate to `httpx.AsyncClient` with a shared client.\n- Move the render off the request path (`BackgroundTasks` or a real queue), which makes `\"queued\"` honest. If it must stay inline, `asyncio.create_subprocess_exec`.\n- Load `rates.json` once at startup, or read it via `asyncio.to_thread`.\n\nA blunt stopgap if you need relief before any of that lands: drop `async` from both handlers. FastAPI then runs them in the threadpool, and blocking calls stop poisoning the loop — you get thread-pool-bounded concurrency instead of a global stall. It's a mitigation, not a fix.\n\n## On the rest of the scan\n\nThe other seven findings are real but are **not** causing this outage — none of them touch latency. Worth knowing while you're in here:\n\n- `crime_00004` (circular dependency, `api/rendering.py` ↔ `domain/invoicing.py`) is the highest-value non-perf item; it's an import-order-dependent `ImportError` that can pass under pytest and fail under your server.\n- `crime_00002` / `crime_00003` (mixed `utcnow()`/`now()`, naive datetimes in `domain/invoicing.py`) is a correctness bug — `invoicing.py:53` compares a coupon expiry against a naive local `datetime.now()`, so coupon expiry is wrong by your host's UTC offset.\n- `crime_00005`–`00008` (large function, deep imports, boolean naming) are maintainability, not incidents.\n\nOne gap worth noting in the scan itself: it collapsed all four blocking calls into a single finding at one severity. Their contributions differ by orders of magnitude, and the missing `timeout=` — the detail that decides whether this degrades or fully collapses — isn't surfaced at all.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      }
+    ]
+  }
+}

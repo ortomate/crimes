@@ -1,0 +1,58 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:34:18.132Z",
+  "run_id": "24ea5ca3-c2e1-4cea-88ef-e23aaf2afb02",
+  "response": "The scan identifies two boundary findings:\n\n| Finding | Import to change | Recommended refactor |\n|---|---|---|\n| `crime_00002` — `layer_violation` | `src/domain/billing.ts` → `src/presentation/invoice-view.ts` | Break this import entirely. Move any shared billing data types or formatting-neutral contracts into a domain-owned leaf module such as `src/domain/invoice.ts`. Let presentation import that contract. If domain needs an external behavior, define a domain-owned interface and inject its implementation from application composition. |\n| `crime_00003` — `deep_import` | `src/application/billing-flow.ts` → `some-pkg/dist/internal/private/helper.js` | Stop importing the private path. Prefer the package’s documented public entry point, such as `some-pkg`. If the helper is not publicly exported, define an application-owned port and implement it in infrastructure using a supported package API; do not preserve the private import inside an adapter. |\n\nFor `crime_00002`, the dependency should point inward:\n\n```text\npresentation/invoice-view.ts\n          ↓\ndomain/invoice.ts\n```\n\nThe domain must not know that an invoice has a view. Extract only presentation-neutral concepts—such as `Invoice`, `InvoiceLine`, or an `InvoicePresenter` port—rather than moving rendering code into the domain. This also breaks the domain → presentation edge participating in the three-file cycle reported by `crime_00001`.\n\nFor `crime_00003`, the preferred shape is:\n\n```text\napplication/billing-flow.ts\n          ↓\napplication-owned port\n          ↑\ninfrastructure adapter → some-pkg public API\n```\n\nThere is also a connected provenance issue: `crime_00004` says `some-pkg` is undeclared. If the dependency remains after the refactor, add it to the applicable `package.json` under `dependencies`.\n\nThe agent-risk distinction is:\n\n- `layer_violation` (`agent_risk: 0.34`) violates the repository’s declared architectural direction. An agent modifying domain behavior may unknowingly affect UI code, propagate changes outward, or recreate cycles because the dependency is locally resolvable but conceptually forbidden.\n- `deep_import` (`agent_risk: 0.29`) violates an external package’s encapsulation. The code may work today, but an upgrade can relocate or remove the private module without a public API guarantee.\n\nSo the layer violation is primarily a change-direction and ownership risk; the deep import is primarily an upgrade-fragility and unsupported-contract risk.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

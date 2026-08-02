@@ -224,11 +224,39 @@ recommendation awaiting a decision.
 
 `packages/cli/package.json` is at **0.17.1**. Seven fixes move findings,
 so the baseline moved. `pnpm run evals` was run at the maintainer's
-explicit request; results in `evals/results/0.17.1/`.
+explicit request — 96/96 combinations in 32m 31s, results in
+`evals/results/0.17.1/`.
+
+| agent | 0.17.0 | 0.17.1 | move |
+|---|---|---|---|
+| claude | 0.84 | 0.82 | −2pp |
+| codex | 0.57 | 0.56 | −1pp |
+
+**Neither move is claimable, and neither is a regression.** The measured
+noise band in [`evals/README.md`](../../evals/README.md) § Measured noise
+band — three full runs of identical code at 0.12.1 — puts 2σ at roughly
+**±6pp for claude and ±3pp for codex**. Both moves sit inside it.
+
+`per_scenario_kind` swung hard in both directions (bugfix: claude −14pp
+but codex +24pp; plan: claude +14pp but codex −11pp). That field holds
+only 7–8 scenarios per kind and the README explicitly says not to quote
+it without repeat samples — `plan`/claude ranged 0.64–0.88 across three
+*identical* runs. It is recorded here and interpreted as nothing.
 
 **This is a product delta, not a measurement correction.** Nothing in the
-scorer, judge prompts, scenario rubrics or fixture finding sets changed.
-What moved is what `crimes` reports.
+scorer, judge prompts, scenario rubrics or fixture finding sets changed;
+what moved is what `crimes` reports. The honest reading is that eleven
+fixes which removed false and duplicated findings and corrected
+misleading messages **did not degrade agent task performance, and did
+not measurably improve it either**. That is the expected shape: the
+fixtures are small, clean, mostly-TS repos, and most of what was fixed
+(gitignore, dot-directories, the Python `init` amputation, the quadratic
+scale wall, fingerprint collisions at volume) barely bites at fixture
+scale. The evidence that those fixes matter is in §1's measurements on
+real repos, not here.
+
+If a future change is expected to move the aggregate, take repeat
+samples (`pnpm run evals -- --label r2`) before claiming it.
 
 ### Migration note for anyone with pinned entries
 

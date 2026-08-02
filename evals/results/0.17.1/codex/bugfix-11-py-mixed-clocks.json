@@ -1,0 +1,59 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "codex",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:17:19.641Z",
+  "run_id": "e55010c8-d437-452c-9845-fbffd14dab4b",
+  "response": "I’ll trace the clock reads in `domain/invoicing.py` and the tests/CI configuration to connect the scan finding to the billing-period calculation. I’ll keep this diagnostic-only and propose a concrete fix without modifying the fixture.\n\nThe scan’s clock findings are the relevant ones; the higher-severity blocking-I/O finding is unrelated to wrong values. The key path is two adjacent reads in `build_invoice()`: local-naive `now()` for issuance and UTC-naive `utcnow()` for the period stamp. I’m checking the actual command result once before summarizing the boundary behavior and fix.\n\nThe responsible module is [`domain/invoicing.py`](</Users/andrew/dev/crimes/evals/fixtures/11-py-service/domain/invoicing.py:20>), specifically these lines in `build_invoice()`:\n\n```python\nissued = datetime.now()       # host-local, naive\nperiod_start = datetime.utcnow()  # UTC, naive\n```\n\n`crime_00002` and `crime_00003` identify the root cause: two clock conventions are mixed, and neither result contains timezone information.\n\nAt the same instant, the values differ by the production host’s UTC offset. Near midnight—and especially a month boundary—they can represent different calendar dates or billing periods. Because both have `tzinfo=None`, Python treats them as directly comparable and provides no warning. DST changes the size of the affected window, explaining the intermittent behavior.\n\nCI hides the bug because its host timezone is UTC. There, `datetime.now()` and `datetime.utcnow()` return effectively the same wall-clock value, so the offset disappears. Direct clock reads also prevent tests from reliably exercising a boundary instant.\n\nOne caveat: the code uses the server’s timezone, not the customer’s. The precise “late evening in Europe” window depends on where the production worker runs. That deployment/customer timezone relationship should be confirmed, but the mixed-clock defect is unambiguous.\n\nThe fix is to:\n\n1. Capture one timezone-aware UTC instant.\n2. Derive the billing period in an explicitly chosen customer or business timezone.\n3. Inject the clock so boundary tests can freeze time.\n4. Convert the other reads—coupon expiry and `summarise()`—to the same aware convention.\n\nFor example:\n\n```python\nfrom datetime import datetime, timezone\nfrom zoneinfo import ZoneInfo\n\n\ndef utc_now():\n    return datetime.now(timezone.utc)\n\n\ndef build_invoice(\n    customer,\n    line_items,\n    coupon,\n    region,\n    options,\n    *,\n    now=utc_now,\n):\n    issued = now()\n    billing_zone = ZoneInfo(customer[\"billing_timezone\"])\n    local = issued.astimezone(billing_zone)\n\n    period_start = local.replace(\n        day=1,\n        hour=0,\n        minute=0,\n        second=0,\n        microsecond=0,\n    )\n```\n\nStore `issued_at` as aware UTC. If downstream consumers only need the billing period, represent it explicitly as a year/month or date rather than a misleading “current datetime.”\n\nTests should inject fixed instants immediately before and after a month boundary in zones such as `Europe/Paris`, including a DST period. No files were modified.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:21:24.277Z",
+  "run_id": "24f9c149-ed15-47b4-811c-ad79af74c5b3",
+  "response": "I ran the pre-edit context check rather than touching anything. Here's what crimes says.\n\n## `crimes context billing/ledger.py`\n\n```\nCRIMES CONTEXT\nfile: billing/ledger.py\nrisk: NONE  (0 findings)\n\nRelated files\n  · billing/__init__.py  — same directory\n  · billing/rates.py  — same directory\n  · billing/reporting.py  — same directory\n\nLikely tests\n  (no test file matched the target basename (looked for siblings, __tests__/ and tests/\n   directories, and the .test / .spec / _test / test_ naming conventions) and no test\n   file imports it)\n\nClues\n  · churn: 1 commits over 90d · last touched 3 days ago · 1 author\n  · test gap: top-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n## What protection do I have if I get `reverse_entry` wrong?\n\n**Effectively none.** The `risk: NONE` headline is the trap here — the useful field is `likely_tests`, which is **empty**, with the reason spelled out: no test file matches the basename and *no test file imports it*. `test_gap` is `top-quartile` (raw 1, percentile 1) — the worst bucket.\n\nConcretely, tracing the three-module package:\n\n- `tests/test_rates.py` is the only file in the repo with real assertions — and it tests `billing/rates.py`, not the ledger.\n- `tests/test_reporting.py` reaches `ledger.post_entry` transitively (`build_report → post_entry → rate_for`), so it's the only thing that executes ledger code at all. It's also the repo's single high finding.\n- `reverse_entry` specifically has **zero references anywhere** — `grep -rn reverse_entry` returns only its own definition. No test, no caller. Nothing observes it.\n\nSo a sign error, a dropped key, or a changed `gross` derivation in `reverse_entry` produces a fully green suite.\n\n## The one high finding, and why it's the relevant one\n\n```\ntests/test_reporting.py  1 finding · 1 high\n   1. Weak Test Signal · test_build_report()\n```\n\nEvidence, verbatim from the scan:\n\n- `4 of 4 test functions contain no assertion`\n- `0 total assertions across 4 tests (0.0 per test, expected ≥ 1)`\n- `counted forms: bare assert, unittest self.assert*, and pytest.raises`\n- summary: *\"They pass as long as the code under test does not raise, which is not the same as it being correct.\"*\n\nThat matters for this task because `test_reporting.py` is the only test that touches ledger code *at all*. Even the indirect coverage of `post_entry` is a smoke test — it asserts nothing about the returned `net`/`gross`. The file's own docstring confirms it's deliberate: *\"the suite is green whatever `build_report` returns.\"*\n\n## What else could the change affect?\n\nBlast radius from the finding is `0 importers` for the test file, and the import graph for ledger is narrow:\n\n- `billing/reporting.py:3` — `from billing.ledger import post_entry`. This is the **only** consumer of `ledger`, and it imports `post_entry`, not `reverse_entry`.\n- `reverse_entry` hand-mirrors `post_entry`'s dict shape (`account`, `net`, `gross`, `region`). That's a second source of truth for the entry contract. If your reversal change alters keys or how `gross` is derived — `post_entry` computes `gross = amount * (1 + rate_for(region))`, while `reverse_entry` just negates the stored `gross` — the two can silently drift apart. Nothing in the repo compares them.\n- Downstream of that shape: `build_report` reads `entry[\"gross\"]` into `total`, and `export_report` formats `report[\"total\"]` with `%.2f`. A shape change propagates there, and `test_reporting.py` will still pass.\n\n## Recommendation before editing\n\nThe fix shape crimes suggests is *\"assert on the result, not just that it ran\"* (effort: small, risk: low). Given `reverse_entry` has no test and no caller, I'd do it in this order:\n\n1. Add `tests/test_ledger.py` covering `post_entry` and the current `reverse_entry` behavior — pin the contract *before* changing it, since there's nothing to regress against otherwise.\n2. Make the reversal change against that pin.\n3. Optionally strengthen `test_reporting.py`'s four assertion-free tests, since they're the only thing exercising the reporting→ledger seam.\n\nI haven't modified anything — say the word and I'll write the ledger tests first, or go straight to the reversal change if you'd rather accept the exposure.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:19:19.321Z",
+  "run_id": "40585fe0-269c-4037-a473-283b2c35ff08",
+  "response": "## What crimes found\n\n**`crimes context src/add.ts --format json`** — nothing on the file itself:\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"agent_guidance\": [],\n\"related_files\": [],\n\"likely_tests\": [\"src/add.test.ts\"],\n\"findings\": []\n```\n\nIt also gives its reasons rather than just an empty result, which is the useful part:\n\n- `agent_guidance_reason`: \"no findings on this file and no deterministic related files\"\n- `related_files_reason`: \"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"\n- Churn: 1 commit in 90d, 1 author, last touched 2026-05-18 — cold and uncontested\n- `test_gap`: raw 0, label `\"unknown\"`\n\nThe one repo-level finding from `crimes scan` (`dependency_provenance_gap`, low, confidence 0.56) is **not about `src/add.ts`** — it's anchored on `package.json` and triggered by `src/add.test.ts` importing `vitest`, which the manifest never declares. It's excluded from the file context correctly.\n\n## Is the file safe to extend?\n\nYes. `src/add.ts` is 4 lines — a single pure exported `add(a, b)` with no imports, no side effects, no callers inside the repo, and a direct unit test at `src/add.test.ts`. Zero blast radius, zero churn pressure. Change it freely; the only thing to keep in step is that one test.\n\nTwo caveats on the tooling side, not the file:\n\n1. **`test_gap` says `\"unknown\"` while `likely_tests` names a real test file.** The two signals disagree in a way that's mildly misleading — a reader skimming the JSON could conclude the file is untested. It isn't.\n2. **This fixture is labelled a zero-findings control** (`// Minimal control fixture — should produce zero crimes findings.`) but the scan emits one. The `package.json` genuinely has no `devDependencies` block at all, so `vitest` really is undeclared — the detector is right and the fixture is wrong. Adding `\"devDependencies\": { \"vitest\": \"...\" }` would restore it as a true clean baseline; leaving it means every scan of this fixture carries a finding the fixture's own comment says shouldn't exist.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

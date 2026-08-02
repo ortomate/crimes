@@ -1,0 +1,58 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:14:39.972Z",
+  "run_id": "68d5f1c5-31ae-4eab-9d69-753f89587f27",
+  "response": "All three fixture files confirm what the scan reports. Here's the read.\n\n## The cycle\n\n```\nsrc/application/billing-flow.ts  ──imports chargeCustomer──▶  src/domain/billing.ts\n          ▲                                                            │\n          │                                                    imports renderInvoice\n          └──imports runBillingFlow──  src/presentation/invoice-view.ts ◀┘\n```\n\nAll three are **runtime value imports** (functions that get called), not type-only — so `crimes`' generic \"convert one direction to `import type`\" suggestion doesn't apply to any edge here. One of them has to actually go.\n\n## Break this one\n\n**`src/domain/billing.ts:2` — `import { renderInvoice } from \"../presentation/invoice-view.js\"`**\n\nWhy that edge and not the other two:\n\n1. **It's the only edge that's wrong on its own merits.** `crime_00002` flags the same import as a layer violation (`domain cannotImport presentation`, per `crimes.config.json`). The other two edges — application→domain and presentation→application — both point *inward* and are exactly what the configured architecture wants. Cutting either of those would remove the cycle by breaking a legitimate dependency; cutting this one removes the cycle *and* clears the layer violation. Two findings, one edit.\n\n2. **It's the inversion that created the ring.** Without it, the graph is a clean chain: presentation → application → domain, with domain as a leaf. Add it back and every layer transitively depends on itself.\n\n3. **Effort is contained.** `billing.ts` is a six-line file with one exported function and one importer. Nothing else in the repo depends on `chargeCustomer` returning a rendered string.\n\n## The concrete fix\n\n`chargeCustomer` currently *is* `renderInvoice` — it has no domain logic of its own. Make it return domain data and let the caller render:\n\n```ts\n// src/domain/billing.ts — no presentation import\nexport function chargeCustomer(amount: number): { amount: number } {\n  return { amount };\n}\n\n// src/presentation/invoice-view.ts — renders what domain returns\nimport { chargeCustomer } from \"../domain/billing.js\";\n\nexport function renderInvoice(amount: number): string {\n  const charge = chargeCustomer(amount);\n  return `Invoice: ${charge.amount}`;\n}\n```\n\nThat leaves presentation → domain and presentation → application, both inward-pointing and both allowed by the rules as written.\n\n## One thing the scan can't tell you\n\nThe suspected runtime error probably isn't a module-resolution failure. These are all hoisted `export function` declarations, so ESM (and tsc's CJS output, which defers property access to call time) will resolve the bindings fine despite the cycle. What you actually have is **unbounded mutual recursion**:\n\n`renderInvoice(100)` → `runBillingFlow()` → `chargeCustomer(100)` → `renderInvoice(100)` → …\n\nThat's a stack overflow, not a `TypeError: x is not a function`. It matters for the fix: if you broke the cycle by, say, injecting `renderInvoice` into `chargeCustomer` as a callback, the import graph would go acyclic and `crimes` would go quiet — while the call graph stayed infinitely recursive. The rewrite above kills both, because domain stops calling back into presentation at all.\n\nSeparately, `crime_00004` flags `some-pkg` as imported but declared in no `package.json` — if you're chasing a startup crash, a module-not-found on `some-pkg/dist/internal/private/helper.js` is a likelier culprit than the cycle, and it's a one-line fix.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

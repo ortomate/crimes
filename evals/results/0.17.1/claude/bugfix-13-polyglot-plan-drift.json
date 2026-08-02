@@ -1,0 +1,53 @@
+{
+  "scenario": "bugfix-13-polyglot-plan-drift",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:17:37.406Z",
+  "run_id": "45ff5e1d-033c-4835-94a6-cb37fdd0a18b",
+  "response": "## The cause: `crime_00001` — Cross-Language Type Drift on `Plan`\n\nThe plan tier list is declared twice, by hand, in two languages that no type checker can compare:\n\n| | declares |\n|---|---|\n| `packages/api/billing/plans.py:10` (`class Plan(str, Enum)`) | `free, pro, team, scale` |\n| `packages/web/src/workspace-client.ts:10` (`export type Plan`) | `free, pro, enterprise` |\n\nOnly `free` and `pro` are shared. `team` and `scale` — the newer tiers, added at the bottom of the Python enum — exist on the API side and **nowhere in the TypeScript union**.\n\n## The mechanism\n\n1. Someone added the new tier where they were asked to add it: the Python enum, plus its `SEATS_INCLUDED` map. That side is internally consistent, so the API validates and serves `scale` users correctly.\n2. The web client's `Plan` is a hand-maintained copy. It was never updated, so `\"scale\"` is not an assignable value of `Plan`.\n3. At runtime the API returns `{\"id\": ..., \"plan\": \"scale\"}`, the web app validates it against its narrower copy, and the value falls off the end of the closed set → validation error. Same story for `team`.\n4. Nothing catches it in between. `tsc` type-checks the TS union, `mypy`/FastAPI checks the enum, and neither can see across the process boundary. The failure only appears when a real `scale` user's data hits the narrower side — which is exactly what your users are reporting.\n\nNote the drift runs both ways: `enterprise` exists **only** in TypeScript. If the UI ever sends it, the API will reject it. That one hasn't bitten yet because no user is on it — but it's the same bug pointed the other direction.\n\n### Why nobody noticed\n\n`crime_00004` (Concept Alias Drift, low) is the reason this stayed invisible: the same concept is `team` in Python and `workspace` in TypeScript. Anyone — human or agent — who greps for `team` after adding a tier finds all four Python routes and none of the TS client. The second source of truth is hiding behind a different noun. Combine that with `test_gap: 1.00` on both files (no tests exist for either) and there's no mechanism at all that would have flagged the divergence.\n\n### Two adjacent bugs you'll hit right after fixing this\n\nAdding `\"scale\"` to the union unblocks display, but plan *changes* still won't work:\n\n- **`crime_00003`** — `changeWorkspacePlan` calls `PUT /api/teams/:id/plan`; `routes.py:25` declares it `POST`. Fails as a **405**, which reads like a permissions problem.\n- **`crime_00005`** — `createWorkspace` posts to `/api/workspaces`, which no backend route declares (the backend has `/api/teams`). Fails as a **404**, which reads like a data problem.\n\nAlso worth noting: `workspaceSeats` and `changeWorkspacePlan` fetch the literal string `\"/api/teams/:id/plan\"` — the `:id` placeholder is never interpolated. That's a plain bug the scanner sees only as the route mismatch.\n\n## Stopping it recurring\n\nThe fix that matters is structural, not the one-line union edit:\n\n1. **Make one side canonical and generate the other.** FastAPI already emits an OpenAPI schema; generate the TS `Plan` type and the client functions from it (`openapi-typescript` / `orval`) and commit the output. That kills all three cross-language findings at once — the enum, the HTTP method, and the wrong path — because the client stops being hand-written. Two hand-maintained copies staying in sync is precisely the assumption that already failed.\n2. **Unify the concept name.** Pick `team` or `workspace` (crimes suggests `organization`) and rename across both languages, or document the mapping at the boundary. While `team` ≠ `workspace`, every future search for one side finds only half the code that needs changing — this is the failure mode that will regenerate the bug even after codegen, if anyone hand-edits again.\n3. **Gate it in CI.** Run `crimes scan` in the pipeline; `cross_language_type_drift` is emitted at `high`. `crimes verdict` compares against `origin/main` and reports new findings, so a PR that adds a tier on one side only fails the build rather than reaching production.\n4. **Add a contract test** covering plan round-trip for every enum member — the `test_gap: 1.00` on both files is why step 1's codegen output would otherwise go unverified.\n\nSteps 1 and 2 are the durable ones. Steps 3 and 4 are what catch it if someone bypasses them.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": "packages/api/billing/plans.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": "packages/web/src/workspace-client.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      }
+    ]
+  }
+}

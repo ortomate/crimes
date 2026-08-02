@@ -1,0 +1,58 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:35:22.543Z",
+  "run_id": "ba3f8e1c-76b2-4ef3-b741-9c06a0b4320a",
+  "response": "I read the four source files and the config rather than working from the finding summaries alone, because the fix direction depends on the exact rule set. Here's what the graph actually is.\n\n## The dependency graph\n\n| Edge | Legal? | Finding |\n|---|---|---|\n| `presentation/invoice-view` → `application/billing-flow` | ✅ legal | — (cycle member, crime_00001) |\n| `application/billing-flow` → `domain/billing` | ✅ legal | — (cycle member, crime_00001) |\n| `domain/billing` → `presentation/invoice-view` | ❌ **violates** `domain cannotImport presentation` | crime_00002 |\n| `application/billing-flow` → `some-pkg/dist/internal/private/helper.js` | ⚠️ past the package surface, undeclared | crime_00003, crime_00004 |\n\n**Four findings, two actual defects.** Exactly one edge in the three-file ring is illegal, and it's the one `layer_violation` names. Delete it and the cycle dissolves — crime_00001 is crime_00002 counted a second time from the graph's point of view. Likewise `some-pkg` is both deep-imported (crime_00003) and undeclared (crime_00004); one import statement produced both.\n\nOne thing the scan implies but doesn't state: this cycle is a live runtime bug, not just a build-graph concern. `renderInvoice(amount)` → `runBillingFlow()` → `chargeCustomer(100)` → `renderInvoice(100)` → … unbounded recursion. The finding's phrase \"risk re-entry bugs\" is literal here.\n\n## Change 1 — break `domain → presentation` (crime_00002, dissolves crime_00001)\n\n**Break, don't redirect.** `billing.ts:2` exists so that `chargeCustomer` can return a formatted string. Formatting is presentation's job; the domain doesn't need this collaboration at all, so there's no interface to route it through. Introducing a renderer port here would preserve an inversion that shouldn't exist.\n\nThe trap worth naming: the instinctive fix — *let application orchestrate domain then presentation* — is itself a violation. `crimes.config.json` declares `application cannotImport presentation`. In this architecture presentation is the **top** layer and the composition root; the legal direction is `presentation → application → domain`, which the first two edges already follow. So the fix is to make domain a leaf and let the existing legal edges carry the data back up.\n\n```ts\n// src/domain/billing.ts — no imports, pure leaf\nexport interface Charge { amount: number }\n\nexport function chargeCustomer(amount: number): Charge {\n  return { amount };\n}\n```\n```ts\n// src/application/billing-flow.ts — return the charge instead of discarding it\nexport function runBillingFlow(amount: number): Charge {\n  return chargeCustomer(amount);\n}\n```\n```ts\n// src/presentation/invoice-view.ts — render the result it already asked for\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${runBillingFlow(amount).amount}`;\n}\n```\n\nOne import deleted, two signatures threaded. Resulting graph is acyclic and every remaining edge is legal.\n\n## Change 2 — redirect the deep import (crime_00003 + crime_00004)\n\nThis is the one that *does* want an interface. Two sub-cases:\n\n- **If `internalHelper` is on `some-pkg`'s public surface** (check its `exports` map): change the specifier to `\"some-pkg\"` and stop. Effort `quick`, matches the finding's `use_public_entry` action.\n- **If it isn't exported**, don't code around it by finding a shallower private path. Isolate it behind a single adapter so the upgrade blast radius is one file, and file the upstream issue the finding recommends:\n\n```ts\n// src/infrastructure/some-pkg-adapter.ts — the only file that knows the private path\nimport { internalHelper as vendorHelper } from \"some-pkg\";\nexport function internalHelper(): void { vendorHelper(); }\n```\n\n`application → infrastructure` is legal — the config only forbids `application → presentation` — so this placement doesn't trade one violation for another.\n\nEither way, crime_00004 needs the separate one-line fix: add `some-pkg` to `dependencies` in `package.json`, which currently declares none. The deep path resolves today purely through hoisting; a clean install can fail before the deep import ever gets a chance to.\n\n## How the two differ in agent risk\n\nThe scores (`layer_violation` 0.34 vs `deep_import` 0.29) are close, and both severities are modest — but the *shape* of the risk is what justifies the ordering.\n\n**`layer_violation` is quiet and contagious.** The rule lives in `crimes.config.json`, not in the code. Nothing in `billing.ts` signals that the import is forbidden: it resolves, typechecks, and runs. An agent opening that file sees six clean lines. Worse, the existing violation reads as *precedent* — an agent asked to add another formatting concern to the domain will copy the pattern, because all local evidence says it's allowed. The invariant is external to everything the agent reads, so violations compound silently and only a config-aware tool ever objects. And the damage is directional: it inverts the intended direction of change, so a presentation refactor can now break domain logic. That's precisely what happened here — layer rules exist largely to prevent cycles, and this one produced the cycle it was written to prevent.\n\n**`deep_import` is loud and contained.** Its constraint is external to the repo entirely, living in another package's `exports` map. An agent genuinely cannot verify it by reading this codebase — but it also can't get it *wrong* in a spreading way. There's no local pattern to generalize from, the failure is a single specifier in a single file, and it surfaces as a hard resolution error at install or build time. The risk is temporal rather than structural: correct today, broken on some future upgrade, with a stack trace pointing straight at the line.\n\nSo: one is an invisible invariant that agent edits propagate; the other is a visible-on-failure coupling that stays put. Aggregate risk ranks the first higher even though `deep_import` is the easier thing to notice once you know the rule — which is the `agent_risk` dimension doing exactly its job, since severity alone would have ordered these the same way but for the wrong reason.\n\n## Not applied\n\nI've left the fixture untouched. `evals/fixtures/08-stress-dependency/` is scanner input — its four findings are the expected baseline for this scenario, and fixing them would change what `evals/results/` records. If you want these changes made, they belong in a copy or behind a deliberate fixture-set update with the accompanying patch bump and eval re-run.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "circular_dependency",
+        "passed": false
+      }
+    ]
+  }
+}

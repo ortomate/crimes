@@ -1,0 +1,65 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "codex",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:28:32.638Z",
+  "run_id": "cf6551ba-5fc5-4bfa-a5fa-87004c8bd472",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is an extraction-risk plan. I’ll verify the supplied scan from the runner, then turn the five findings into pre-split gates versus follow-up work.\n\nThe global `crimes` binary is not installed in this shell (`command not found`). I’m checking for the repository-built CLI so I can run the same scan locally; the supplied JSON remains sufficient context if no build artifact exists.\n\nThe source-mode scan completed and exactly matches the supplied report: 5 findings (1 high, 3 medium, 1 low). The extraction gate is the API contract: the plan enum and both route mismatches must be reconciled before ownership changes; the naming findings do not block deployment.\n\nThe billing split should be blocked until the API contract is corrected and made canonical. The naming issues can follow after extraction.\n\nI ran the repository’s source CLI with `scan --format json` because the global `crimes` binary was unavailable. It reproduced the supplied result exactly: 5 findings—1 high, 3 medium, 1 low.\n\n## Finding disposition\n\n| Finding | Timing | Decision |\n|---|---|---|\n| Plan enum drift | **Before split—hard gate** | Decide the valid commercial tiers and migration behavior for `team`, `scale`, and `enterprise`. Publish them in a canonical OpenAPI/JSON Schema contract and generate or validate both Python and TypeScript representations. Do not merely union the values without a product decision. |\n| `PUT` versus `POST` plan change | **Before split—hard gate** | Choose the intended method, align server and client, and add a contract test. Moving a known 405 across a team boundary would make ownership and rollback ambiguous. |\n| Missing `POST /api/workspaces` route | **Before split—hard gate** | Choose the public resource name and align the route. If compatibility is required, keep the old path as an explicitly deprecated alias or gateway rewrite. |\n| `getWorkspace` name/behavior mismatch | **After split** | Review whether a rename is actually useful. An async `get…` client performing a GET request is conventional, so this may not justify pre-split churn. |\n| `team` versus `workspace` terminology | **Document before; rename after** | Record the mapping in the API contract and ownership documentation before handoff. A repository-wide rename to `organization` is optional follow-up work and should not be mixed into the service extraction. |\n\n## Extraction plan\n\n1. **Define the boundary and owners**\n\n   Inventory every consumer of [routes.py](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py) and [plans.py](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/plans.py), plus billing data stores, authentication, configuration, jobs, events, and shared libraries. Assign the new team ownership of the API contract, deployment, data, alerts, and runbooks.\n\n2. **Create the canonical contract**\n\n   Describe all billing operations, request/response bodies, errors, authentication, tenant terminology, and the valid `Plan` values in a versioned OpenAPI specification. Generate the web client types where practical; at minimum, validate both implementations against the specification in CI.\n\n   The contract must explicitly settle:\n\n   - `team`, `workspace`, or `organization` as the public resource name.\n   - `POST` or `PUT` semantics for changing a plan.\n   - The disposition of `team`, `scale`, and `enterprise`.\n   - Compatibility behavior for existing clients and stored values.\n\n3. **Correct and characterize current behavior**\n\n   Fix the three contract findings, then add consumer/provider contract tests covering every route and every plan value.\n\n   A manual source review also reveals gaps beyond the two route findings: [workspace-client.ts](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts) constructs `/api/workspaces/{id}`, while the backend exposes `/api/teams/{team_id}`, and its seats/plan URLs contain a literal `:id` rather than interpolating the supplied ID. These must also be resolved before extraction. The scanner warned that dynamically assembled URLs are outside that finding’s visibility.\n\n4. **Build the deployable service**\n\n   Move the billing implementation behind the canonical contract without changing behavior again. Give it an independent build artifact, health/readiness checks, configuration namespace, service identity, and deployment pipeline. Remove reliance on monorepo-relative imports or shared process state.\n\n5. **Separate data safely**\n\n   Establish which team owns billing records and the system of record. Prefer a staged migration: backfill, verify counts and representative records, dual-read or shadow-read if necessary, then switch ownership. Define rollback behavior before any irreversible schema changes.\n\n6. **Cut over through a compatibility layer**\n\n   Initially route the existing `/api/...` surface to the new service through the current gateway or application. This avoids combining service extraction with an immediate public URL migration. Roll out gradually, compare status codes and response shapes, and monitor latency, 4xx/5xx rates, plan-change failures, and reconciliation errors.\n\n7. **Complete the ownership transfer**\n\n   After a stable observation period, remove the old implementation and temporary compatibility code. Transfer dashboards, alerts, runbooks, on-call escalation, contract-change policy, and repository ownership to the new team.\n\n8. **Perform follow-up cleanup**\n\n   Unify internal tenant terminology if its benefits outweigh migration churn, and review `getWorkspace` naming separately. Re-run `crimes scan --format json` and require the type-drift and route-drift findings to be gone before cutover.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 6,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

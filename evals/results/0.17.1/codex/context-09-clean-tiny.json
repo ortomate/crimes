@@ -1,0 +1,38 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:19:23.820Z",
+  "run_id": "8095d221-8e7a-4978-a152-6e091a709273",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a pre-edit risk check. I’ll run the requested context command against the tiny fixture and report only what it establishes about `src/add.ts`.\n\nThe global `crimes` binary isn’t installed in this shell. I’m switching to the repository’s locally built CLI, which runs the same command and JSON contract without modifying the fixture.\n\n`crimes context src/add.ts --format json` found:\n\n- No findings on `src/add.ts`; risk level is `none`.\n- No related files or special agent guidance.\n- Likely test: `src/add.test.ts`.\n- Low churn: one commit and one author in the last 90 days.\n- Test-gap status is `unknown`.\n\nThe file is safe to extend. Update or run `src/add.test.ts` alongside the change.\n\nThe repository-wide scan’s only finding is unrelated to `add.ts`: a low-severity dependency provenance gap because `vitest`, imported by `src/add.test.ts`, is missing from `package.json`. This may affect clean test installs but does not increase the implementation file’s change risk.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "scenario": "context-13-polyglot-rename",
+  "agent": "codex",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:21:43.514Z",
+  "run_id": "cbb28abe-2330-4255-9e19-7a7dbea99c68",
+  "response": "I’m using the `crimes-codebase-risk` workflow to interpret the supplied scan as a pre-edit risk report. I’ll keep this read-only and identify the naming split, affected files, and adjacent contract changes.\n\nThe scan shows a cross-language alias split, but the rename also intersects live API-contract drift. I’m checking the human-readable report so the final handoff preserves the tool’s intended prioritization and evidence.\n\nThe global `crimes` binary is not installed in this environment, so I’m using the repository’s locally built CLI against the same fixture. This does not modify the fixture.\n\nThe context command expects paths relative to the supplied repository root; my first invocation passed both the fixture prefix and `--root`, so it rejected the duplicated path. I’m rerunning with repository-relative filenames.\n\nThe core concept is the product tenant, currently named inconsistently:\n\n- Python/backend: `team`\n- TypeScript/frontend: `workspace`\n- `crimes` recommends the shared name `organization`\n\nThe rename spans all three files:\n\n- [plans.py](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/plans.py:10): `Plan` docstring refers to a team.\n- [routes.py](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py:10): `/api/teams/...`, `team_id`, `get_team`, `create_team`, `team_seats`, and `change_team_plan`.\n- [workspace-client.ts](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:12): `Workspace`, `getWorkspace`, `createWorkspace`, `workspaceSeats`, and `changeWorkspacePlan`.\n\nThe HTTP contract must be renamed at the same time. It is already inconsistent:\n\n- The frontend creates via `POST /api/workspaces`, but the backend only exposes `POST /api/teams`.\n- Other frontend calls still use `/api/teams/...`.\n- Plan changes use `PUT` in TypeScript but `POST` in Python, producing a likely 405.\n\nThere is also a separate high-severity contract issue in the same files: Python’s `Plan` values are `free | pro | team | scale`, while TypeScript uses `free | pro | enterprise`. That closed set should be reconciled or generated from a shared schema during the refactor.\n\nNo likely tests were found for any of these files. Therefore, the safe scope is a coordinated rename across symbols, parameters, documentation, route paths, and client calls, followed by contract tests for route paths/methods and plan values. No files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

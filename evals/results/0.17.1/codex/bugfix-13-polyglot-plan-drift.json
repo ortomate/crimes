@@ -1,0 +1,53 @@
+{
+  "scenario": "bugfix-13-polyglot-plan-drift",
+  "agent": "codex",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:16:48.833Z",
+  "run_id": "e53a5fc9-fb05-4acf-b968-247b6b19e0b5",
+  "response": "The web and API disagree on the valid `Plan` values:\n\n- API/Python: `free | pro | team | scale`\n- Web/TypeScript: `free | pro | enterprise`\n\nThe newest `scale` plan is therefore accepted by the API but rejected by the web app’s narrower validation contract. The drift also works in reverse: the web accepts `enterprise`, which the API rejects.\n\nThe durable fix is to make one schema authoritative—ideally OpenAPI or shared JSON Schema—and generate both the Python model and TypeScript client/types from it. Add a CI contract test or regeneration check so independently edited closed sets cannot diverge again.\n\nThere is also a separate plan-change bug: the web calls `PUT /api/teams/:id/plan`, while the API only declares `POST`. Fixing the enum explains the reported validation error, but that method mismatch must also be aligned for plan changes to complete successfully.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

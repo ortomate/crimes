@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:44:37.791Z",
+  "run_id": "eb57d895-50e6-4b47-afb0-12dc21989d70",
+  "response": "I’ll verify the scan against the fixture, then inspect the test bodies and production modules so “genuinely covered” means asserted behavior—not merely executed code.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m using the repository’s locally built CLI—the scan contract is the same—and reading the six Python files to map assertions to behavior.\n\nThe suite genuinely protects `billing.rates`, but `billing.reporting` and `billing.ledger` are effectively unprotected against wrong results.\n\n| Package area | Actual protection |\n|---|---|\n| `rate_for` | Assertions verify GB → `0.20`, DE → `0.19`, and unknown region `ZZ` → `DEFAULT_RATE`. |\n| `is_zero_rated` | Assertions verify false for GB and FR. |\n| `build_report` | Only executed. Nothing checks account, region, line entries, total, or the fixed amount of 100. |\n| `export_report` | CSV and JSON paths are executed, but neither output is checked. The unsupported-format error path is not tested. |\n| `post_entry` | Transitively executed through `build_report`, but none of its returned fields or gross-rate calculation is asserted. |\n| `reverse_entry` | Not exercised at all. |\n\nThe key difference is assertion coverage versus execution coverage:\n\n- `tests/test_rates.py` contains five concrete assertions. A refactor that changes the tested rate behavior should fail the suite.\n- All four functions in `tests/test_reporting.py` contain zero assertions. They pass whenever calls complete without raising—even if reports contain incorrect totals, missing fields, or malformed exports.\n- `ledger.py` has no test file. Some ledger code happens to run underneath the hollow reporting tests, which may make coverage metrics look reassuring, but wrong ledger values would still pass.\n\nThe scan correctly classifies this as one high-severity `weak_test_signal` finding with 0 assertions across 4 reporting tests. Also, the scan’s `coverage.files_total: 6` describes files analyzed by `crimes`; it is not test or line coverage.\n\nFor the refactor, treat only the tested `rates` behavior as protected. Reporting and ledger currently provide little more than smoke tests for “does not crash on these happy-path inputs.”",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

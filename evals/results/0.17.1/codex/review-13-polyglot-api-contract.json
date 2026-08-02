@@ -1,0 +1,59 @@
+{
+  "scenario": "review-13-polyglot-api-contract",
+  "agent": "codex",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:45:49.757Z",
+  "run_id": "1c68082b-f544-4392-8585-cd833a4ef29d",
+  "response": "I’m using the `crimes-codebase-risk` review workflow because this is a contract-risk audit. I’ll verify the scanner’s five findings against the three source files, separate true wire-contract failures from maintainability signals, and rank the production impact.\n\nThe client and API disagree in four operations plus the shared plan model. Ranked by production failure:\n\n1. **Silent wrong-team lookup — highest risk.**  \n   `workspaceSeats(id)` calls `/api/teams/:id/seats` literally instead of interpolating `id`. FastAPI accepts `\":id\"` as `team_id`, so this can return `200` for the wrong tenant rather than failing visibly. The current backend ignores `team_id` and always returns free-plan seats, masking the bug further.  \n   [workspace-client.ts:27](</Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:27>) · [routes.py:20](</Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py:20>)\n\n2. **Plan changes always fail, with three independent contract errors.**\n\n   - Client sends `PUT`; API only declares `POST` → immediate `405`.\n   - Client sends the literal `:id`, not the supplied workspace ID.\n   - The `plan` argument is never included in the request. FastAPI declares it as a required query parameter, so after fixing the method the request would still return `422`.\n\n   The contract should be something explicit such as `POST /api/teams/${id}/plan?plan=pro`, or preferably a typed JSON body on both sides.  \n   [workspace-client.ts:33](</Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:33>) · [routes.py:25](</Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py:25>)\n\n3. **Workspace reads always return `404`.**  \n   The client calls `GET /api/workspaces/${id}`; the API exposes `GET /api/teams/{team_id}`.  \n   [workspace-client.ts:17](</Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:17>) · [routes.py:10](</Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py:10>)\n\n4. **Workspace creation fails twice.**\n\n   - Client calls `POST /api/workspaces`; API exposes `POST /api/teams` → currently `404`.\n   - The API requires a dictionary request body, while the client sends none → after correcting the path, `422`.\n\n   [workspace-client.ts:22](</Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:22>) · [routes.py:15](</Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py:15>)\n\n5. **Plan values have diverged.**  \n   Python defines `free | pro | team | scale`; TypeScript defines `free | pro | enterprise`.\n\n   - Responses containing `team` or `scale` violate the client’s declared type and can break UI branching.\n   - The client offers `enterprise`, which is absent from the canonical Python enum.\n   - The update endpoint weakens the backend contract further by accepting `str` rather than `Plan`, so it does not actually reject invalid values at this boundary.\n\n   TypeScript types do not perform runtime rejection by themselves, so the scanner’s “will reject” wording is stronger than the implementation supports.  \n   [plans.py:10](</Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/plans.py:10>) · [workspace-client.ts:10](</Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:10>)\n\nThe remaining scanner findings are not wire-contract failures:\n\n- `team` versus `workspace` is terminology drift. It contributed to the route divergence and makes future edits riskier, but names alone do not cause runtime failure.\n- `getWorkspace` using `fetch` is not a meaningful name/behavior mismatch here: it performs an ordinary GET read.\n\nThe scan caught the plan drift, creation path, and update method, but missed the read-path mismatch, both literal `:id` placeholders, the missing creation body, and the omitted/incorrectly placed update parameter. A generated OpenAPI client would prevent most of these disagreements.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

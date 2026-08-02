@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:30:43.061Z",
+  "run_id": "99ea72be-7d0e-4859-a46b-9e04ca379bfd",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is a scan-guided TypeScript refactor assessment. I’ll verify the reported duplication against the fixture source, then propose the smallest API-preserving consolidation without editing files.\n\nThe global `crimes` binary isn’t installed in this environment, so I’m switching to the repository’s locally built CLI—the documented equivalent for an unpublished checkout—and checking the three implementations directly to identify their true parameter and return-type differences.\n\nThe scan confirms one medium-severity near-duplicate spanning:\n\n- `src/sanitize-a.ts:10–36` — `sanitizeUserInput`\n- `src/sanitize-b.ts:9–35` — `sanitizeText`\n- `src/sanitize-c.ts:9–35` — `cleanMessage`\n\nAll three implementations have identical behavior; only identifiers differ.\n\nRecommended consolidated API:\n\n```ts\nexport function sanitize(\n  input: string | null | undefined,\n): string;\n```\n\nPlace the implementation in a new `src/sanitize.ts`. The nullable input type reflects the existing runtime behavior, while the return value remains consistently `string`.\n\nTo avoid breaking current consumers, retain the old export names as aliases:\n\n```ts\n// sanitize-a.ts\nexport { sanitize as sanitizeUserInput } from \"./sanitize.js\";\n\n// sanitize-b.ts\nexport { sanitize as sanitizeText } from \"./sanitize.js\";\n\n// sanitize-c.ts\nexport { sanitize as cleanMessage } from \"./sanitize.js\";\n```\n\nEach original file should retain its unrelated `assertAdminA/B/C` export.\n\nFiles affected:\n\n- Add `src/sanitize.ts` containing the single implementation.\n- Modify `src/sanitize-a.ts`.\n- Modify `src/sanitize-b.ts`.\n- Modify `src/sanitize-c.ts`.\n- Ideally add `src/sanitize.test.ts` covering nullish input, trimming, control characters, whitespace, length limits, rejected prefixes/escapes, punctuation rejection, and uppercase normalization.\n\nThis refactor should address only the sanitisation duplication. The separate admin-policy and telemetry findings should be handled independently.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

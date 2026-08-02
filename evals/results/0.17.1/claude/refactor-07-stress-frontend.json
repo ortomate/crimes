@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:32:24.983Z",
+  "run_id": "affdca86-3df1-4e71-bca1-4364f73d3871",
+  "response": "## What's actually in the file\n\n```tsx\n// src/Card.tsx\nexport function Card({ children }: { children: React.ReactNode }) {\n  return (\n    <div\n      style={{ width: 800, height: 600, maxWidth: 1024, padding: 24,\n               background: \"#ff00aa\", color: \"#0a0a0a\", borderColor: \"#cccccc\",\n               boxShadow: \"0 2px 4px rgb(0, 0, 0)\", outlineColor: \"#1a73e8\" }}\n      onClick={() => console.log(\"clicked\")}\n    >\n      <div style={{ width: 720, fontSize: 18, color: \"#333333\" }}>{children}</div>\n      <div style={{ width: 240, fontSize: 14, color: \"#666666\" }}>sidebar</div>\n    </div>\n  );\n}\n```\n\nAll three findings share one root cause: the component styles itself with an inline `style` object, which is exactly the escape hatch that bypasses the token scale (`tailwind.config.ts`), bypasses the responsive utility system, and lets a plain `<div>` masquerade as a control. So the three fixes are one refactor with three distinct payoffs.\n\n`crimes context` adds two multipliers worth naming: **test gap is top-quartile** (no test file matched `Card` at all) and **blast radius is 0 importers**. Zero importers means this is a safe refactor to do aggressively — nothing downstream depends on the current markup. Top-quartile test gap means nothing will catch you if you get it wrong, so the changes below are deliberately structural rather than clever.\n\n---\n\n## Change 1 — `design_token_escape` (crime_00002, 9 raw values, confidence 0.75)\n\n**Fix shape from the finding:** *replace raw values with the design token.*\n\nThe complication `crimes` can't see: **the tokens don't exist yet.** `tailwind.config.ts` defines exactly three colors — `brand #0050ff`, `surface #f7f7fa`, `ink #111111` — and none of the nine literals in `Card.tsx` match any of them. There is no spacing scale, no radius scale, no shadow scale. So \"replace with the token\" is really two steps: extend the scale, then consume it.\n\n```ts\n// tailwind.config.ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      \"brand-accent\": \"#1a73e8\",  // was Card.tsx outlineColor\n      surface: \"#f7f7fa\",\n      \"surface-raised\": \"#ff00aa\", // ⚠️ needs design sign-off — see below\n      ink: \"#111111\",\n      \"ink-muted\": \"#333333\",      // was inner div color\n      \"ink-subtle\": \"#666666\",     // was sidebar color\n      border: \"#cccccc\",           // was borderColor\n    },\n    extend: {\n      boxShadow: { card: \"0 2px 4px rgb(0 0 0 / 0.2)\" },\n    },\n  },\n};\n```\n\nTwo of these mappings are honest promotions of an existing value (`#1a73e8` → a focus accent, `#cccccc` → a border token). Three are new text/border ramp entries that a design system would plausibly want anyway. **`#ff00aa` is the one I would not auto-promote** — magenta against `ink #111111` is not a considered surface color, it reads like a placeholder someone never replaced. I've stubbed it as `surface-raised` so the refactor is mechanical, but flag it for a designer; the alternative is that the card should simply use the existing `surface` token and the magenta was always a bug.\n\nThis is the change that most directly buys down agent risk. The finding's own summary names the mechanism: *\"agents extending the file may copy them forward without realising they bypass the tokens.\"* Once the values live in the config, the next agent that adds a row to this card copies `text-ink-subtle`, not `#666666`.\n\n## Change 2 — `accessible_interaction_risk` (crime_00001, medium, confidence 0.85)\n\n**Fix shape from the finding:** *use semantic elements; add ARIA only when semantics don't fit.*\n\nThe suggested action offers two paths — hoist to `<button>`, or add `role=\"button\"` + `aria-label` + `tabIndex={0}`. **Take the first one, but not by wrapping the whole card.**\n\nThe signature is `{ children: React.ReactNode }`, so this card accepts arbitrary content — including links and buttons. Wrapping that in `<button>` produces invalid HTML (interactive content inside interactive content) and a screen-reader experience where the nested controls are unreachable. The `role=\"button\"` path has the same problem *and* obliges you to hand-write Enter/Space key handling that a real `<button>` gives you free.\n\nSo: keep the container non-interactive and give the interaction its own semantic element.\n\n```tsx\n{onActivate && (\n  <button\n    type=\"button\"\n    onClick={onActivate}\n    className=\"mt-4 rounded-md bg-brand px-4 py-2 text-surface\n               focus-visible:outline-2 focus-visible:outline-offset-2\n               focus-visible:outline-brand-accent\"\n  >\n    {actionLabel}\n  </button>\n)}\n```\n\nNote this is where `#1a73e8` earns its keep — as a real focus ring, which is what an `outlineColor` on a non-focusable div was never going to deliver.\n\nAlso worth deleting outright: the current handler is `() => console.log(\"clicked\")`. It has no behaviour to preserve. Promoting it to an `onActivate` prop is me guessing that a real one was intended; if the click was always vestigial, **remove it entirely** and the finding clears with less code, not more.\n\nIf a product requirement genuinely demands the entire card surface be clickable, the fallback is the ARIA path — but it is strictly worse and should carry a comment saying why it was chosen:\n\n```tsx\n<div\n  role=\"button\"\n  tabIndex={0}\n  aria-label={actionLabel}\n  onClick={onActivate}\n  onKeyDown={(e) => {\n    if (e.key === \"Enter\" || e.key === \" \") { e.preventDefault(); onActivate?.(); }\n  }}\n>\n```\n\n## Change 3 — `responsive_fragility` (crime_00003, 3 fixed values, confidence 0.65)\n\n**Fix shape from the finding:** *drive layout from container queries or a fluid scale, not pixel media queries.*\n\nThe finding cites `width: 800`, `width: 720`, and `fontSize: 18` with `no @media in file`. Container queries are the right call here specifically because `Card` is a component with **0 importers today** — it has no idea what column it will eventually be dropped into, so sizing off the viewport would be wrong even if you added media queries.\n\n- `width: 800` → `w-full max-w-5xl` (1024px ceiling, matching the existing `maxWidth`), so the card shrinks below 800px instead of forcing a horizontal scrollbar.\n- `width: 720` / `width: 240` → flex children (`flex-1` + a fixed-basis sidebar) that stack vertically until the *container* is wide enough.\n- `fontSize: 18` → `text-lg`. The real win is rem over px: an 18px literal ignores a user's browser font-size setting, which is an accessibility regression that this detector catches incidentally.\n\nI'd also drop `height: 600`, which the detector did **not** flag but which fails the same way — fixed height plus variable `children` equals clipped or overflowing content. Letting content determine height removes the problem rather than managing it.\n\n---\n\n## Proposed `src/Card.tsx`\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  /** Optional card action. Omit for a purely presentational card. */\n  onActivate?: () => void;\n  actionLabel?: string;\n};\n\nexport function Card({ children, onActivate, actionLabel = \"Open card\" }: CardProps) {\n  return (\n    <section\n      className=\"@container w-full max-w-5xl rounded-lg border border-border\n                 bg-surface-raised p-6 text-ink shadow-card\"\n    >\n      <div className=\"flex flex-col gap-6 @2xl:flex-row\">\n        <div className=\"min-w-0 flex-1 text-lg text-ink-muted\">{children}</div>\n        <aside className=\"w-full text-sm text-ink-subtle @2xl:w-60 @2xl:shrink-0\">\n          sidebar\n        </aside>\n      </div>\n\n      {onActivate && (\n        <button\n          type=\"button\"\n          onClick={onActivate}\n          className=\"mt-4 rounded-md bg-brand px-4 py-2 text-surface\n                     focus-visible:outline-2 focus-visible:outline-offset-2\n                     focus-visible:outline-brand-accent\"\n        >\n          {actionLabel}\n        </button>\n      )}\n    </section>\n  );\n}\n```\n\nContainer-query variants (`@container`, `@2xl:`) are native in Tailwind v4; on v3 add `@tailwindcss/container-queries`. The fixture's `package.json` pins no Tailwind version, so confirm before assuming v4.\n\n## A latent bug the refactor happens to fix\n\nWorth calling out because no detector reported it: the current layout **already overflows**. The outer div is `800px` wide with `24px` padding on each side, leaving `752px` of content box — but the two children are `720px` and `240px`, totalling `960px`. The sidebar overflows its parent today, at every viewport, before responsiveness enters the picture. This is a good illustration of why `responsive_fragility` fires on fixed pixel widths in the first place: hard-coded sibling widths don't compose, and nobody notices until the numbers stop adding up. The flex layout in Change 3 makes the arithmetic impossible to get wrong.\n\n## Verification\n\nSince blast radius is 0 and test gap is top-quartile, the refactor is unverified by anything except the scanner. Re-running `crimes scan` on the fixture should report `total: 0` — all three findings are file-scoped with no cross-file dependencies. If you want real coverage, the cheapest high-value test is a keyboard one: render `Card`, tab to the action, press Enter, assert `onActivate` fired. That's the assertion that would have caught crime_00001 in the first place.\n\nI have not applied any of this — `evals/fixtures/` is scanner input, and editing `Card.tsx` would zero out the very findings this scenario exercises. The diff above is a proposal to review, not a change on disk.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

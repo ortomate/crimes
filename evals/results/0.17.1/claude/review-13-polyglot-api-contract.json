@@ -1,0 +1,59 @@
+{
+  "scenario": "review-13-polyglot-api-contract",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:45:34.236Z",
+  "run_id": "46c63d7a-6692-4da2-ada0-7cc6a733a117",
+  "response": "I read the scan output and then verified every call against the Python routes. Here's what I found.\n\n## The headline: all four client calls are broken\n\n| Client call (`workspace-client.ts`) | What it actually sends | What the API declares (`routes.py`) | Production result |\n|---|---|---|---|\n| `getWorkspace` :18 | `GET /api/workspaces/{id}` | `GET /api/teams/{team_id}` :10 | **404** |\n| `createWorkspace` :23 | `POST /api/workspaces`, no body | `POST /api/teams`, body required :15 | **404** (then 422) |\n| `workspaceSeats` :28 | `GET /api/teams/:id/seats` — literal `\":id\"` | `GET /api/teams/{team_id}/seats` :20 | **200 OK, wrong data** |\n| `changeWorkspacePlan` :34 | `PUT /api/teams/:id/plan`, no plan value | `POST /api/teams/{team_id}/plan` :25, `plan` required :26 | **405** (then 422) |\n\n`crimes` caught two of these four. The other two, plus the enum's real failure mode, need the source read alongside the scan.\n\n## Ranked by how they fail in production\n\n**1. `workspaceSeats` silently returns the wrong seat count — never errors** (`workspace-client.ts:28`)\nThe template placeholder was never interpolated: the code fetches the literal string `/api/teams/:id/seats`, and the `id` parameter is unused. FastAPI happily binds `team_id = \":id\"` and matches the route. The endpoint then ignores `team_id` entirely and returns `seats_for(Plan.FREE)` — a hardcoded `1`.\n\nSo every workspace in the UI reports 1 seat, with a 200 status and a well-formed body. Nothing logs, nothing alerts, no monitoring catches it. If seat counts gate provisioning or billing, this is wrong money with a clean receipt. `crimes` missed it — the detector matches literal path strings, and this path *is* a literal that matches; it just isn't the one anyone intended.\n\n**2. The `Plan` enum drift is worse than \"one side rejects the other\"** (`plans.py:10` vs `workspace-client.ts:10`) — `crimes_00001`\nPython has `[free, pro, team, scale]`; TypeScript has `[free, pro, enterprise]`. The scan says the narrower side rejects the other's values. Neither side actually validates:\n\n- `change_team_plan(team_id: str, plan: str)` (`routes.py:26`) types `plan` as a bare `str`, not `Plan`. Send `\"enterprise\"` and it's accepted and echoed back — no 422.\n- `getWorkspace` returns `res.json()` cast straight to `Workspace` with no runtime check. A team on `\"scale\"` arrives typed as `Plan` and lies to every downstream `switch`/plan-gate, which falls through to whatever the default branch does.\n- `seats_for` uses `SEATS_INCLUDED.get(plan, 1)` (`plans.py:28`) — an unknown plan silently returns 1 seat rather than raising.\n\nThree values diverge and there is no boundary that would surface it. This is the same silent-wrong-data class as #1, one layer up.\n\n**3. `getWorkspace` 404s, and the 404 body gets parsed as a `Workspace`** (`workspace-client.ts:18`)\nThe path `/api/workspaces/{id}` doesn't exist on the backend. `crimes` missed this one specifically because the URL is assembled by concatenation (`\"/api/workspaces/\" + id`) rather than a literal — the finding's own evidence flags this limitation (\"a route or URL assembled at runtime is invisible to this check\"). The scan's `crimes_00005` reports only the sibling literal at line 23.\n\nThe failure is nastier than a 404 because `res.ok` is never checked: FastAPI's `{\"detail\": \"Not Found\"}` gets returned as a `Workspace`, so the crash surfaces later as `undefined` reading `.plan` somewhere in a component, far from the fetch.\n\n**4. `createWorkspace` 404s, and would 422 even if the path were fixed** (`workspace-client.ts:23`) — `crimes_00005`\nPath should be `/api/teams`. Separately, `create_team(payload: dict)` (`routes.py:16`) requires a JSON body; the client sends `{ method: \"POST\" }` with none. Fixing the path alone converts a 404 into a 422 — worth knowing before someone declares it fixed.\n\n**5. `changeWorkspacePlan` — wrong method, and the plan value is never sent** (`workspace-client.ts:34`) — `crimes_00003`\nThe scan's read is right and worth quoting: the path exists but only as `POST`, so this fails as a **405**, which on-call reads as a permissions problem rather than a routing one.\n\nBeyond the method: the function takes `plan: Plan` and never puts it anywhere — no body, no query string. `change_team_plan` declares `plan: str` with no default, which FastAPI treats as a **required query parameter**. Switch to `POST` and this immediately becomes a 422. Two disagreements stacked on one call.\n\n**6. `team` vs `workspace` naming drift across both sides** (`crimes_00004`)\nNo runtime failure — this is the *cause* of items 3–5. Two teams named the same concept differently, and the client author guessed at paths from their own vocabulary. It's also why a search-and-fix pass misses half the code: grepping `workspace` finds the client, grepping `team` finds the API, and neither finds the mismatch. The scan suggests `organization` as the unified name; picking either existing name is fine, as long as it's one.\n\n## Noise\n\n`crimes_00002` flags `getWorkspace` as \"False Identity\" for calling `fetch` under a `get` prefix. In an HTTP client module, a network call under a `get*` name is the convention, not a misleading name. Ignore it here.\n\n## What to fix first\n\nItems 1 and 2 are the urgent pair — they're the only ones that produce *wrong answers* instead of *errors*, and they're both live in production right now. Items 3–5 are already dead on arrival, so nobody is silently miscounting seats because of them.\n\nThe structural fix both the scan and the code point at: generate the client from the route table. FastAPI already emits OpenAPI; a codegen step would have caught all five disagreements at build time, including the `\":id\"` placeholder that no path-matching detector can see.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:45:37.581Z",
+  "run_id": "84e7690a-2c6b-4097-af65-5ec4ade28721",
+  "response": "# Test Protection Audit — `12-py-tested` billing package\n\n`crimes scan --format json` returns **one finding**: `weak_test_signal` (high, confidence 0.85) on `tests/test_reporting.py` — 4 of 4 tests assert nothing. That finding is correct and it's the most important thing here, but it does not answer your whole question, so I verified the rest directly (coverage run + mutation testing on a throwaway copy; the fixture itself is untouched).\n\n## The headline number is the trap\n\n```\nName                   Stmts   Miss  Cover   Missing\nbilling/__init__.py        0      0   100%\nbilling/ledger.py          6      1    83%   17\nbilling/rates.py           6      0   100%\nbilling/reporting.py      10      1    90%   21\nTOTAL                     22      2    91%      7 passed\n```\n\n**91% line coverage, 7 green tests.** Statements actually backed by an assertion: **6 of 22 (27%)** — all of them in `rates.py`. Everything else is executed, not verified.\n\n## Genuinely covered — refactor freely\n\n**`billing/rates.py::rate_for`** — real protection. `tests/test_rates.py` asserts known regions (`GB`→0.20, `DE`→0.19) and the unknown-region fallback to `DEFAULT_RATE`. Control check: mutating `DE` to `0.21` **fails the suite**. This is the one module where green means something.\n\n## Covered, but one-sided — a real gap for your refactor\n\n**`billing/rates.py::is_zero_rated`** (`rates.py:17`) — asserted, but only the `False` path (`not is_zero_rated(\"GB\")`, `(\"FR\")`). I replaced the entire body with `return False` and **all 7 tests still passed**. No region in `RATES` has a rate of `0`, so the `True` branch is currently unreachable — meaning the day the refactor adds a zero-rated region, nothing catches it. This one isn't in the scan output because the tests *do* assert; they just assert one half.\n\n## Only looks covered — zero protection\n\n**`billing/reporting.py`** (`build_report`, `export_report`) — this is the scan's finding. 90% line coverage, four tests named after the functions they call, **zero assertions**. They pass as long as nothing raises. Proof — I applied two mutations:\n\n- `build_report` line 12: `\"total\": entry[\"gross\"]` → `entry[\"net\"]` — *bills the customer the pre-tax amount*\n- `export_report` line 18: `\"%.2f\"` → `\"%.4f\"` — *changes the CSV money format*\n\n**Both passed, 7/7 green.** The `json` branch (`reporting.py:20`) is executed by `test_export_report_json` and its return value is never inspected.\n\n**`billing/ledger.py::post_entry`** — **the one the scan does not mention, and the worst of the three.** There is no `test_ledger.py` at all. It shows 83% coverage purely because `reporting.build_report` calls it, and those callers are the hollow tests. Mutation: `gross = amount * (1 + rate_for(region))` → `amount * rate_for(region)` — *drops the principal, invoicing only the VAT*. **Passed green.** This matters disproportionately because `ledger` is the shared dependency underneath `reporting`, so a silent break there propagates to every report.\n\n## Not covered at all\n\n- **`ledger.py::reverse_entry`** (line 17 in the miss list) — no test, and **no callers anywhere in the package**. Dead-or-dormant refund path with nothing exercising it. If reversals are in scope for your refactor, you are working without a net entirely.\n- **`reporting.py:21`** — the `raise ValueError(\"unsupported format: %s\")` guard is never exercised. No test passes a bad `fmt`.\n\n## Practical read for the refactor\n\n| Module | Line cov | Real protection | Verdict |\n|---|---|---|---|\n| `rates.py` `rate_for` | 100% | assertions, mutation-caught | **Safe** |\n| `rates.py` `is_zero_rated` | 100% | False-path only | **Half-safe** — add a zero-rate case |\n| `reporting.py` | 90% | none | **Unprotected** |\n| `ledger.py` `post_entry` | 83% | none (transitive only) | **Unprotected** |\n| `ledger.py` `reverse_entry` | 0% | none | **Untouched** |\n\nOrder I'd fix in: `ledger.post_entry` first (shared dependency, money math, no test file), then assertions on `reporting` per the scan's `strengthen_assertions` action, then the `is_zero_rated` true branch and the `ValueError` guard.\n\n**One note on the tool itself:** the scan tells you which *tests* are hollow, not which *code* is unguarded. It flagged `test_reporting.py` but said nothing about `ledger.py` having no test file, and it reported `test_gap: 0` / `blast_radius: 0` on the finding. Given the fixture's own docstrings call out ledger as \"deliberately has no test file at all,\" that looks like a genuine detector gap worth filing — an untested-module signal would have caught the highest-risk module here.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      }
+    ]
+  }
+}

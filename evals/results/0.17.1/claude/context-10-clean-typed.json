@@ -1,0 +1,38 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:20:04.010Z",
+  "run_id": "dfdd4abb-5314-41f4-9a06-415d1c01676a",
+  "response": "`crimes context src/billing.ts --format json` confirms it: **zero findings on this file.**\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"findings\": [],\n\"likely_tests\": [\"src/billing.test.ts\"]\n```\n\n## likely_tests\n\n**`src/billing.test.ts`** — a sibling test file matched by name. That's the file to run (and to extend) when you change `src/billing.ts`.\n\n## Why this module is low risk to edit\n\n- **No findings, at any severity.** `risk.level: \"none\"` — nothing structural (no oversized function or file, no deep nesting, no parameter explosion), no duplication, no testability crimes (no ambient `Date.now()` / `Math.random()` / `process.env` reads in domain code).\n- **It has a direct test.** `likely_tests` resolves to a real sibling test, so a change here has an immediate feedback loop rather than landing untested.\n- **No blast radius.** `related_files` is empty and `related_files_reason` spells out why: no finding-derived neighbours, no shared domain tokens, no domain-prefix filenames, no same-directory siblings. Nothing in the repo is coupled to it through the signals crimes tracks, so an edit is unlikely to break something at a distance.\n- **Cold, single-author history.** `churn.commits_90d: 1`, `unique_authors_90d: 1`, last touched 2026-05-18. It isn't a contested hotspot where your change collides with someone else's in-flight work.\n- **`agent_guidance` is empty** — crimes has no caveats to hand an agent before it edits this file.\n\n## One caveat about the repo-level finding\n\nThe single finding in the scan (`dependency_provenance_gap`, low, confidence 0.56) is **not on `src/billing.ts`** — it's filed against `package.json`. `vitest` is imported by `src/billing.test.ts` but declared in no applicable manifest; it resolves today via hoisting and could fail a clean install. Since only a test file is affected, confidence is discounted (`0.68 base − 0.12`). Fix is a one-liner: declare `vitest` in the manifest of the package that imports it. It doesn't change the edit-risk picture for `billing.ts` itself, but it could break the very test run you'd rely on after editing, so it's worth clearing first.\n\nThe `test_gap` label is `\"unknown\"` (raw 0) — crimes found a name-matched test but isn't measuring actual coverage, so \"has a test file\" is the claim here, not \"is well covered.\"",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

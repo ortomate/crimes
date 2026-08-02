@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.17.1",
+  "timestamp": "2026-08-02T21:25:26.280Z",
+  "run_id": "6ccd62a3-22c6-4766-9bf0-31c6962930f9",
+  "response": "## What the scan is actually telling you\n\nTwo findings are in scope — `crime_00001` (near-duplicate sanitise body ×3) and `crime_00003` (`\"admin\"` across 4 files, 2 expression shapes). They look like the same class of problem, but reading the fixture shows they have opposite risk profiles:\n\n**The sanitise trio is genuinely mechanical.** `sanitizeUserInput` / `sanitizeText` / `cleanMessage` are byte-identical logic with renamed locals (`working` / `cleaned` / `normalised`). Same hash, same 26 lines, same edge cases. Nothing to reconcile.\n\n**The role trio is not.** The scan reports \"2 distinct expression shapes,\" which undersells it — the three guards are three *different policies*:\n\n| | `src/sanitize-a.ts:7` | `src/sanitize-b.ts:6` | `src/sanitize-c.ts:6` |\n|---|---|---|---|\n| `assertAdminA` | `role === \"admin\"` | | |\n| `assertAdminB` | | `role === \"admin\" \\|\\| role === \"owner\"` | |\n| `assertAdminC` | | | `role !== \"admin\"` |\n\nB admits `owner`. C is **inverted** — it returns `true` for everyone who is *not* an admin. Taking `crime_00003`'s suggested action literally (\"replace the ad-hoc checks with a single policy function\") would silently either revoke owner access or invert C's callers. That's the whole reason to sequence the change set the way I have below.\n\n## Ordering: policy first, then the merge\n\nDo the semantic reconciliation **while all three variants are still sitting side by side in three files**. Once you collapse the sanitise modules, two of those guards get deleted as collateral and the divergence becomes invisible — you'd be choosing a policy by accident rather than on purpose. The mechanical merge is safe to do last precisely because it's mechanical.\n\n---\n\n## Step 1 — Reconcile and centralise the `\"admin\"` policy\n\n**New file `src/policy/roles.ts`:**\n\n```ts\nexport type Role = \"admin\" | \"owner\" | string;\n\nexport function isAdmin(role: Role): boolean {\n  return role === \"admin\";\n}\n\nexport function isElevated(role: Role): boolean {\n  return isAdmin(role) || role === \"owner\";\n}\n```\n\nTwo predicates, not one, because A and B are legitimately different questions. The literal `\"admin\"` now appears once.\n\n**Then rewrite each call site as a decision, not a rename:**\n\n- `assertAdminA` → `isAdmin`. Straight swap.\n- `assertAdminB` → `isElevated`. Preserves owner access. If owner access was itself the bug, that's a separate ticket — don't fold a policy change into a refactor.\n- `assertAdminC` → **delete the negated helper**; invert at the call site (`if (!isAdmin(role))`). Never ship a `isNotAdmin` export — a negative predicate is how the next `!isNotAdmin(role)` double-negation bug gets written. This is the one place in the change set where you must look at every consumer, because the polarity flips from callee to caller.\n\n**`src/policy.ts`:** `canEditBilling`, `canSeeAuditLog`, and `canImpersonate` are three copies of `role === \"admin\"`. Delegate the literal, **keep all three function names**:\n\n```ts\nimport { isAdmin } from \"./policy/roles\";\n\nexport const canEditBilling  = (role: string) => isAdmin(role);\nexport const canSeeAuditLog  = (role: string) => isAdmin(role);\nexport const canImpersonate  = (role: string) => isAdmin(role);\n```\n\nCollapsing these into one `canDoAdminThings` would be the wrong read of the finding. They're three distinct capabilities that currently happen to agree; the names are the domain vocabulary and they *will* diverge (impersonation is the one that gets a stricter check first). The duplication worth removing is the literal, not the names.\n\n**Checkpoint:** re-run `crimes scan --format json`. `crime_00003` should be gone. `crime_00001` should be unchanged — Step 1 touched only lines 1–8 of each sanitise file, not the hashed bodies.\n\n---\n\n## Step 2 — Collapse the three sanitise helpers\n\n**New file `src/sanitize.ts`** — lift `sanitize-a.ts:10-36` verbatim, renaming the local to something neutral:\n\n```ts\nexport function sanitize(input: string): string {\n  // body of sanitizeUserInput, unchanged\n}\n```\n\n**Copy the body byte-for-byte.** Specifically, do not \"fix\" `working.replace(/[ -]/g, \"\")` on the way through. That range is space-through-hyphen and strips `!\"#$%&'()*+,-` — it looks like a mangled control-character strip, and it may well be a bug. But it's a bug that all three copies share today, so consolidating it preserves behaviour exactly. Fix it afterwards, in a commit whose diff is one line and whose blast radius is obvious. Mixing it into the merge means any behaviour change gets attributed to the refactor.\n\n**Then delete `sanitize-a.ts`, `sanitize-b.ts`, `sanitize-c.ts`** and update imports. The three names are the real migration cost here — `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` are three vocabularies that consumers have learned. Two options:\n\n- **Preferred:** sweep the call sites in the same commit. In this fixture that's free — there are currently zero importers of any of the six functions, so the sweep is empty. In a real repo, grep all three names first and size it before starting.\n- **If the sweep is too wide to land atomically:** keep the three files as one-line re-export shims (`export { sanitize as cleanMessage } from \"./sanitize\"`), marked `@deprecated`, and delete them in a follow-up. This still clears the finding — the *body* exists once — but it leaves three names pointing at one implementation, so put a date on the removal or it becomes permanent.\n\n**Checkpoint:** `crime_00001` gone. Scan should be down to the three findings Step 3 would cover.\n\n---\n\n## Verification\n\nBoth findings carry `test_gap: 0.5` and the fixture has no tests at all, so there is nothing currently protecting either move. Before Step 2, write a characterization test against `sanitizeUserInput` covering the branches that make this body interesting: null/undefined, the >1000 truncation, the `<`/`>` prefix rejection, the `\\\\x` rejection, the `[!?]{3,}` count >5 path, and the upper-ratio >0.9 && length >30 lowercasing. Run it against all three originals first — it should pass identically for all three, which *proves* the merge is safe rather than assuming it from a hash match. Then point it at the merged `sanitize`.\n\nFor Step 1, the test that matters is the polarity one: assert `isAdmin(\"owner\") === false` and `isElevated(\"owner\") === true`, and one test per former `assertAdminC` call site confirming the non-admin path still triggers.\n\nBetween steps, `crimes scan --changed` is the cheap check; a full `crimes scan --format json` at each checkpoint tells you whether you moved the finding or just moved the code.\n\n---\n\n## Deliberately out of scope\n\nThe remaining three findings form a coherent **third** step that I've left out because you asked for two:\n\n- `crime_00002` — `recordSanitiseEvent` is a byte-exact duplicate across `telemetry-a.ts` / `telemetry-b.ts`.\n- `crime_00004` / `crime_00005` — the `Date.now()` inside each copy, at line 16 of both.\n\nThese are one change, not three: extract `recordSanitiseEvent` into `src/telemetry.ts` and inject a clock (`now: () => number = Date.now`) in the same move, since you're already rewriting the signature. Doing it as a separate follow-up is right — it shares no files with Steps 1 and 2, so it can land in parallel or after without conflict.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}
