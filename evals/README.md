@@ -73,6 +73,26 @@ delta** (a detector started or stopped firing). Distinguish the two in
 the commit message — future readers shouldn't confuse a scorer fix
 with an agent improvement, or a detector bug fix with a regression.
 
+### Identity-only bumps: carry the baseline forward
+
+Step 3 is skipped for a bump whose entire effect is on **finding
+identity** rather than finding content — a new or changed
+`discriminator`, which alters `fingerprint` but not what the scan says.
+The finding set is unchanged: nothing added, removed, rescored, or
+reworded. No scenario reads a fingerprint, so a re-run cannot do
+anything but resample the noise band.
+
+Such a bump still happens, because the results directory has to move
+when the wire output moves. Record it here instead of running:
+
+| version | why no run | carried from |
+|---|---|---|
+| `0.17.2` | fingerprint discriminators for nine detectors; n8n's finding count identical at 16,325 before and after | `0.17.1` |
+
+**This applies to identity only.** If a change touches which findings
+appear, their scores, or their prose, run the evals — and if you expect
+the aggregate to move, take repeat samples before claiming it.
+
 ## Why it's not in CI as a fresh-agent runner
 
 The harness invokes the locally-installed `claude` and `codex` CLIs in
