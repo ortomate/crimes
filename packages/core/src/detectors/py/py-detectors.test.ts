@@ -514,6 +514,206 @@ describe("weak_test_signal.py", () => {
       ),
     ).toEqual([]);
   });
+
+  it("credits a test that delegates its assertions to a same-file helper", async () => {
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_billing.py",
+        [
+          "def check_valid_user(user):",
+          "    assert user.id",
+          "    assert user.email",
+          "",
+          "def test_creates_user():",
+          "    user = create_user()",
+          "    check_valid_user(user)",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("credits a helper reached through a method on self", async () => {
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_events.py",
+        [
+          "class BaseAction(ZulipTestCase):",
+          "    def verify_action(self, events):",
+          "        self.assert_length(events, 1)",
+          "",
+          "class NormalActionsTest(BaseAction):",
+          "    def test_send_message(self):",
+          "        with self.verify_action():",
+          "            send_message()",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("follows a helper chain two hops deep but no further", async () => {
+    const twoHops = await run(
+      weakTestSignalPyDetector,
+      "tests/test_billing.py",
+      [
+        "def leaf(x):",
+        "    assert x",
+        "",
+        "def middle(x):",
+        "    leaf(x)",
+        "",
+        "def test_two_hops():",
+        "    middle(1)",
+      ].join("\n"),
+    );
+    expect(twoHops).toEqual([]);
+
+    const threeHops = await run(
+      weakTestSignalPyDetector,
+      "tests/test_billing.py",
+      [
+        "def leaf(x):",
+        "    assert x",
+        "",
+        "def middle(x):",
+        "    leaf(x)",
+        "",
+        "def outer(x):",
+        "    middle(x)",
+        "",
+        "def test_three_hops():",
+        "    outer(1)",
+      ].join("\n"),
+    );
+    expect(threeHops).toHaveLength(1);
+    expect(threeHops[0]!.evidence.join(" ")).toMatch(/`test_three_hops`/);
+  });
+
+  it("does not credit a helper it cannot see the body of", async () => {
+    // `check_valid_user` is imported from elsewhere. Crediting a call
+    // we cannot read would turn the detector blind.
+    const found = await run(
+      weakTestSignalPyDetector,
+      "tests/test_billing.py",
+      [
+        "from .helpers import check_valid_user",
+        "",
+        "def test_creates_user():",
+        "    check_valid_user(create_user())",
+      ].join("\n"),
+    );
+    expect(found).toHaveLength(1);
+  });
+
+  it("does not credit a bare-name match on an unrelated receiver", async () => {
+    // `client.check` is a method on some object, not the module-level
+    // `check` defined below. Matching on the trailing segment alone
+    // would credit any test that happened to call something similarly
+    // named.
+    const found = await run(
+      weakTestSignalPyDetector,
+      "tests/test_billing.py",
+      [
+        "def check(x):",
+        "    assert x",
+        "",
+        "def test_creates_user():",
+        "    client.check(create_user())",
+      ].join("\n"),
+    );
+    expect(found).toHaveLength(1);
+  });
+
+  it("reports how many tests were credited through a helper", async () => {
+    const found = await run(
+      weakTestSignalPyDetector,
+      "tests/test_billing.py",
+      [
+        "def check(x):",
+        "    assert x",
+        "",
+        "def test_a():",
+        "    check(1)",
+        "",
+        "def test_b():",
+        "    compute(2)",
+      ].join("\n"),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]!.evidence.join(" ")).toMatch(
+      /1 further test asserts through a same-file helper/,
+    );
+  });
+
+  it("counts self.fail as a real signal", async () => {
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_billing.py",
+        [
+          "class T(unittest.TestCase):",
+          "    def test_a(self):",
+          "        try:",
+          "            boom()",
+          "        except ValueError:",
+          "            return",
+          "        self.fail('expected ValueError')",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("counts model_dump_json(warnings='error') as a real signal", async () => {
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_billing.py",
+        "def test_a():\n    build_model().model_dump_json(warnings='error')\n",
+      ),
+    ).toEqual([]);
+  });
+
+  it("exempts benchmarks, whether marked by decorator or by fixture", async () => {
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/benchmarks/test_speed.py",
+        [
+          "@pytest.mark.benchmark(group='validate')",
+          "def test_marked():",
+          "    run_it()",
+          "",
+          "def test_fixture(benchmark):",
+          "    benchmark(run_it)",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps benchmarks out of the denominator as well as the numerator", async () => {
+    // One real test asserting nothing beside three benchmarks must read
+    // as 1 of 1, not 4 of 4 — the share drives severity.
+    const found = await run(
+      weakTestSignalPyDetector,
+      "tests/benchmarks/test_speed.py",
+      [
+        "def test_bench_a(benchmark):",
+        "    benchmark(run_it)",
+        "",
+        "def test_bench_b(benchmark):",
+        "    benchmark(run_it)",
+        "",
+        "def test_bench_c(benchmark):",
+        "    benchmark(run_it)",
+        "",
+        "def test_real():",
+        "    run_it()",
+      ].join("\n"),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]!.evidence[0]).toMatch(/1 of 1 test function contains no assertion/);
+  });
 });
 
 describe("circular_dependency.py", () => {

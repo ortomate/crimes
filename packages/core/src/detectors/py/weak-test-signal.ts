@@ -1,9 +1,63 @@
+import type { ParsedPyFile, ParsedPyFunction } from "@crimes/language-py";
 import { z } from "zod";
 import type { LanguagePyDetector } from "../../detector.js";
 import type { PreFinding as Finding, Severity } from "../../finding.js";
 import { isTestFile } from "../../util/test-files.js";
 import { intrinsicFor, plural, severityScore } from "./shared.js";
 
+/**
+ * `weak_test_signal.py` — test functions that assert nothing.
+ *
+ * ## What counts as an assertion
+ *
+ * A test is credited when any of these appears **inside its line span**:
+ * a bare `assert` statement, a `unittest` `self.assert*` call,
+ * `self.fail(...)` / `pytest.fail(...)`, `pytest.raises(...)`, or
+ * pydantic's `model_dump_json(warnings='error')` — a call written only
+ * for its raise-on-bad-data behaviour.
+ *
+ * It is also credited when any of those is reached **through a call**,
+ * which is the change that made this detector usable. Python's dominant
+ * test idiom is to write the assertions once in a helper:
+ *
+ *     def check_valid_user(user):
+ *         assert user.id
+ *
+ *     def test_creates_user():
+ *         check_valid_user(create_user())   # asserts, transitively
+ *
+ * ## The limit on following calls, and why
+ *
+ * **At most {@link MAX_HELPER_HOPS} hops, resolved within this file
+ * only, and only for calls whose receiver is nothing or `self` / `cls`.**
+ *
+ * - **Two hops** because the chase saturates there. Measured over the
+ *   Python corpus, allowing a third hop credits zero further tests on
+ *   both zulip and drf while widening what the detector will forgive.
+ * - **Same file only** because there is no repo-wide Python symbol
+ *   index to resolve against, and the tempting fallback — matching a
+ *   `self.<method>()` against any function of that name anywhere —
+ *   guesses at an MRO we have not read. When a helper lives in
+ *   `conftest.py` or a base class in another module, this detector
+ *   still reports the test. That is a known and accepted miss; it is
+ *   the honest one.
+ * - **Resolvable receivers only** because `client.check(x)` is a method
+ *   on an object whose class we have not read. Crediting it against a
+ *   module-level `check` on the trailing segment alone is name
+ *   collision, not call following.
+ *
+ * Each search visits every name at most once and reaches each
+ * function's calls by binary search into the line-sorted call list, so
+ * the cost is bounded by the calls actually reached rather than by the
+ * file's total — deterministic-cheap, per the pack contract.
+ *
+ * ## Exemptions
+ *
+ * Benchmarks — `@pytest.mark.benchmark`, or a test declaring the
+ * `benchmark` fixture as a parameter — are dropped from both the
+ * numerator and the denominator. Asserting on a duration is the thing
+ * you should not do, so their silence is correct.
+ */
 const optionsSchema = z
   .object({
     minAssertionsPerTest: z.number().positive().optional(),
@@ -11,6 +65,39 @@ const optionsSchema = z
   .strict();
 
 const DEFAULT_MIN_ASSERTIONS_PER_TEST = 1;
+
+/**
+ * How far a call chain is followed looking for an assertion.
+ *
+ * Two hops, same file only. The limit is empirical rather than
+ * arbitrary: measured over the Python corpus, a third hop credits
+ * exactly zero additional tests on zulip and drf, so the chase
+ * saturates at two. It is also the point past which the finding stops
+ * being quotable — evidence has to name the helper and the assertion
+ * line it stands on, and a four-link chain is a claim a reader cannot
+ * check at a glance.
+ *
+ * Crossing files is deliberately out of scope. It would need a
+ * repo-wide Python symbol index that does not exist yet, and the
+ * `self.<base-class-method>()` case it would unlock cannot be resolved
+ * by name alone without guessing at the MRO. Uncredited is the honest
+ * answer there, not credited-on-a-hunch.
+ */
+const MAX_HELPER_HOPS = 2;
+
+/**
+ * Parameter name that requests the `pytest-benchmark` fixture. A test
+ * declaring it is a benchmark: the timing harness is the point, and
+ * asserting on a duration is exactly what you should not do. This is
+ * far more common than the `@pytest.mark.benchmark` decorator — in
+ * pydantic's benchmark suites 201 of 203 tests are marked this way and
+ * none of them carry the decorator.
+ */
+const BENCHMARK_FIXTURE = "benchmark";
+const BENCHMARK_DECORATOR = /^(pytest\.mark\.)?benchmark\b/;
+
+/** Receivers whose trailing name can be resolved against this file. */
+const RESOLVABLE_RECEIVER = /^(self|cls)$/;
 
 export const weakTestSignalPyDetector: LanguagePyDetector = {
   id: "weak_test_signal.py",
@@ -37,9 +124,17 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     // file on numbers we can't stand behind.
     if (ctx.parsed.hasSyntaxErrors) return [];
 
+    // Benchmarks are excluded from the numerator *and* the denominator.
+    // A benchmark that asserted on a duration would be a flaky test, so
+    // its silence is correct, and leaving it in the denominator would
+    // drag the silent share — which drives severity — toward whichever
+    // way the benchmark suite happens to be sized.
     const tests = ctx.parsed.functions.filter(
       (fn) =>
-        fn.shape === "test_function" && fn.name !== undefined && /^test/.test(fn.name),
+        fn.shape === "test_function" &&
+        fn.name !== undefined &&
+        /^test/.test(fn.name) &&
+        !isBenchmark(fn),
     );
     if (tests.length === 0) return [];
 
@@ -55,12 +150,15 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     // would report `test_totals` as asserting nothing. It is a real
     // test; accusing it would be exactly the kind of false positive
     // that gets a detector disabled.
-    const silent = tests.filter(
-      (fn) =>
-        !ctx.parsed.assertions.some(
-          (a) => a.line >= fn.startLine && a.line <= fn.endLine,
-        ),
-    );
+    const direct = tests.filter((fn) => !assertsWithin(ctx.parsed, fn));
+
+    // The line span only reaches assertions written *inside* the test.
+    // The dominant Python idiom is to write them once in a shared
+    // helper and call it, which the span cannot see. Follow the call
+    // graph a bounded distance to find them.
+    const helpers = buildHelperIndex(ctx.parsed);
+    const silent = direct.filter((fn) => !assertsThroughHelper(ctx.parsed, helpers, fn));
+    const creditedViaHelper = direct.length - silent.length;
     if (silent.length === 0) return [];
 
     const minPerTest = readMinAssertions(ctx.config);
@@ -70,14 +168,24 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
 
     const shown = silent.slice(0, 8);
     const evidence: string[] = [
-      `${silent.length} of ${tests.length} test ${plural(tests.length, "function")} contain no assertion`,
+      `${silent.length} of ${tests.length} test ${plural(tests.length, "function")} ` +
+        `${tests.length === 1 ? "contains" : "contain"} no assertion`,
       ...shown.map(
         (fn) => `\`${fn.name}\` (lines ${fn.startLine}–${fn.endLine}) asserts nothing`,
       ),
       ...(silent.length > shown.length ? [`…+${silent.length - shown.length} more`] : []),
       `${totalAssertions} total ${plural(totalAssertions, "assertion")} across ${tests.length} ` +
         `${plural(tests.length, "test")} (${ratio.toFixed(1)} per test, expected ≥ ${minPerTest})`,
-      "counted forms: bare `assert`, unittest `self.assert*`, and `pytest.raises`",
+      ...(creditedViaHelper > 0
+        ? [
+            `${creditedViaHelper} further ${plural(creditedViaHelper, "test")} ` +
+              `${creditedViaHelper === 1 ? "asserts" : "assert"} through a same-file ` +
+              "helper and are not counted here",
+          ]
+        : []),
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, " +
+        "`pytest.raises`, `model_dump_json(warnings='error')`, and any of those " +
+        `reached through up to ${MAX_HELPER_HOPS} same-file helper calls`,
     ];
 
     const finding: Finding = {
@@ -124,6 +232,116 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     return [finding];
   },
 };
+
+/**
+ * Is this test really a benchmark? Either marker counts — the
+ * decorator, or the `benchmark` fixture requested by parameter name.
+ */
+function isBenchmark(fn: ParsedPyFunction): boolean {
+  if (fn.paramNames.includes(BENCHMARK_FIXTURE)) return true;
+  return fn.decorators.some((d) => BENCHMARK_DECORATOR.test(d));
+}
+
+/** Does any assertion fall inside this function's line span? */
+function assertsWithin(parsed: ParsedPyFile, fn: ParsedPyFunction): boolean {
+  return parsed.assertions.some((a) => a.line >= fn.startLine && a.line <= fn.endLine);
+}
+
+/**
+ * Every named function in the file, keyed by name.
+ *
+ * A name can map to several functions — two test classes commonly each
+ * define their own `setup` or `check` — so the value is a list and a
+ * name counts as asserting if *any* function wearing it does. Within a
+ * single test file that is the right reading: the question being asked
+ * is "is there an assertion behind this name", and answering it per
+ * class would need an MRO we do not have.
+ */
+function buildHelperIndex(parsed: ParsedPyFile): Map<string, ParsedPyFunction[]> {
+  const index = new Map<string, ParsedPyFunction[]>();
+  for (const fn of parsed.functions) {
+    if (fn.name === undefined) continue;
+    const existing = index.get(fn.name);
+    if (existing) existing.push(fn);
+    else index.set(fn.name, [fn]);
+  }
+  return index;
+}
+
+/**
+ * Names called from inside `fn` that could refer to something defined
+ * in this file.
+ *
+ * A bare `check(x)` or a `self.check(x)` can. `client.check(x)` cannot:
+ * the receiver is some object whose class we have not read, and
+ * matching it against a module-level `check` on the trailing segment
+ * alone would credit a test for calling something that merely shares a
+ * name. That is the difference between following a call and guessing at
+ * one.
+ */
+function resolvableCallNames(parsed: ParsedPyFile, fn: ParsedPyFunction): string[] {
+  const names: string[] = [];
+  // `parsed.calls` is sorted by line, so seek to the function's first
+  // call rather than scanning the file's whole call list once per
+  // function — the difference between linear and quadratic on a
+  // 6000-line test module.
+  for (let i = firstAtOrAfter(parsed, fn.startLine); i < parsed.calls.length; i += 1) {
+    const call = parsed.calls[i]!;
+    if (call.line > fn.endLine) break;
+    if (call.receiver === "" || RESOLVABLE_RECEIVER.test(call.receiver)) {
+      names.push(call.name);
+    }
+  }
+  return names;
+}
+
+/** Index of the first call at or after `line`, by binary search. */
+function firstAtOrAfter(parsed: ParsedPyFile, line: number): number {
+  let low = 0;
+  let high = parsed.calls.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (parsed.calls[mid]!.line < line) low = mid + 1;
+    else high = mid;
+  }
+  return low;
+}
+
+/**
+ * Breadth-first search over the same-file call graph for an assertion,
+ * bounded at `MAX_HELPER_HOPS`.
+ *
+ * `parsed.calls` is sorted by line, so the per-function slice is a
+ * forward scan that stops at the closing line rather than a pass over
+ * every call in the file.
+ */
+function assertsThroughHelper(
+  parsed: ParsedPyFile,
+  helpers: Map<string, ParsedPyFunction[]>,
+  test: ParsedPyFunction,
+): boolean {
+  const seen = new Set<string>(test.name === undefined ? [] : [test.name]);
+  let frontier = resolvableCallNames(parsed, test);
+
+  for (let hop = 0; hop < MAX_HELPER_HOPS; hop += 1) {
+    const next: string[] = [];
+    for (const name of frontier) {
+      if (seen.has(name)) continue;
+      seen.add(name);
+      const candidates = helpers.get(name);
+      if (!candidates) continue;
+      for (const candidate of candidates) {
+        if (assertsWithin(parsed, candidate)) return true;
+        if (hop + 1 < MAX_HELPER_HOPS) {
+          next.push(...resolvableCallNames(parsed, candidate));
+        }
+      }
+    }
+    if (next.length === 0) return false;
+    frontier = next;
+  }
+  return false;
+}
 
 function pickSeverity(silent: number, total: number): Severity {
   const share = silent / total;
