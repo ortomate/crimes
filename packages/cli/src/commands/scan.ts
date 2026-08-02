@@ -1,3 +1,4 @@
+import { type Stats, statSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   applyScanFailOn,
@@ -111,6 +112,23 @@ export function registerScanCommand(program: Command): void {
     .action(async (path: string | undefined, options: ScanCommandOptions) => {
       const root = resolve(path ?? process.cwd());
       const format = options.format;
+
+      // A path typo used to produce a well-formed, empty, exit-0 report:
+      // "No crimes detected. Suspiciously clean." That makes a mistyped
+      // CI path a permanently green gate. Fail loudly instead.
+      let rootStat: Stats;
+      try {
+        rootStat = statSync(root);
+      } catch {
+        process.stderr.write(`crimes: path does not exist: ${root}\n`);
+        process.exit(2);
+        return;
+      }
+      if (!rootStat.isDirectory()) {
+        process.stderr.write(`crimes: not a directory: ${root}\n`);
+        process.exit(2);
+        return;
+      }
 
       if (format !== "human" && format !== "json") {
         process.stderr.write(

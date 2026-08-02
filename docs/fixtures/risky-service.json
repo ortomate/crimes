@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3.0",
+  "schema_version": "0.4.0",
   "report_type": "scan",
   "repo": {
     "name": "risky-service",
@@ -19,6 +19,7 @@
       "severity": "medium",
       "confidence": 0.85,
       "file": "src/contracts/user.ts",
+      "discriminator": "admin",
       "lines": [
         9,
         9
@@ -34,12 +35,12 @@
       "scores": {
         "severity": 0.5,
         "confidence": 0.85,
-        "agent_risk": 0.42,
-        "churn": 0,
+        "agent_risk": 0.43,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0
+        "recency": 1
       },
       "suggested_actions": [
         {
@@ -64,6 +65,7 @@
       "severity": "medium",
       "confidence": 0.85,
       "file": "src/contracts/user.ts",
+      "discriminator": "free",
       "lines": [
         10,
         10
@@ -79,12 +81,12 @@
       "scores": {
         "severity": 0.5,
         "confidence": 0.85,
-        "agent_risk": 0.42,
-        "churn": 0,
+        "agent_risk": 0.43,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0
+        "recency": 1
       },
       "suggested_actions": [
         {
@@ -142,12 +144,12 @@
       "scores": {
         "severity": 0.73,
         "confidence": 0.98,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.4
+        "recency": 1,
+        "agent_risk": 0.41
       },
       "suggested_actions": [
         {
@@ -203,12 +205,12 @@
       "scores": {
         "severity": 0.96,
         "confidence": 0.95,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.4
+        "recency": 1,
+        "agent_risk": 0.41
       },
       "suggested_actions": [
         {
@@ -260,12 +262,12 @@
       "scores": {
         "severity": 0.82,
         "confidence": 0.88,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0.02,
         "blast_radius_importers": 1,
-        "recency": 0,
-        "agent_risk": 0.4
+        "recency": 1,
+        "agent_risk": 0.41
       },
       "suggested_actions": [
         {
@@ -314,12 +316,12 @@
       "scores": {
         "severity": 0.69,
         "confidence": 0.92,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.32
+        "recency": 1,
+        "agent_risk": 0.33
       },
       "suggested_actions": [
         {
@@ -362,12 +364,12 @@
       "scores": {
         "severity": 0.62,
         "confidence": 0.88,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.32
+        "recency": 1,
+        "agent_risk": 0.33
       },
       "suggested_actions": [
         {
@@ -413,12 +415,12 @@
       "scores": {
         "severity": 0.59,
         "confidence": 0.88,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.32
+        "recency": 1,
+        "agent_risk": 0.33
       },
       "suggested_actions": [
         {
@@ -461,12 +463,12 @@
       "scores": {
         "severity": 0.62,
         "confidence": 0.88,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0.02,
         "blast_radius_importers": 1,
-        "recency": 0,
-        "agent_risk": 0.32
+        "recency": 1,
+        "agent_risk": 0.33
       },
       "suggested_actions": [
         {
@@ -517,12 +519,12 @@
       "scores": {
         "severity": 0.63,
         "confidence": 0.78,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.32
+        "recency": 1,
+        "agent_risk": 0.33
       },
       "suggested_actions": [
         {
@@ -568,12 +570,12 @@
       "scores": {
         "severity": 0.63,
         "confidence": 0.72,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.32
+        "recency": 1,
+        "agent_risk": 0.33
       },
       "suggested_actions": [
         {
@@ -616,12 +618,12 @@
       "scores": {
         "severity": 0.86,
         "confidence": 0.68,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0,
         "blast_radius": 0.04,
         "blast_radius_importers": 2,
-        "recency": 0,
-        "agent_risk": 0.31
+        "recency": 1,
+        "agent_risk": 0.32
       },
       "suggested_actions": [
         {
@@ -671,12 +673,12 @@
       "scores": {
         "severity": 0.75,
         "confidence": 0.9,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.3
+        "recency": 1,
+        "agent_risk": 0.31
       },
       "suggested_actions": [
         {
@@ -716,12 +718,12 @@
       "scores": {
         "severity": 0.7,
         "confidence": 0.9,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.3
+        "recency": 1,
+        "agent_risk": 0.31
       },
       "suggested_actions": [
         {
@@ -763,12 +765,12 @@
       "scores": {
         "severity": 0.95,
         "confidence": 0.88,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.3
+        "recency": 1,
+        "agent_risk": 0.31
       },
       "suggested_actions": [
         {
@@ -812,12 +814,12 @@
       "scores": {
         "severity": 0.54,
         "confidence": 0.92,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0,
         "blast_radius": 0.04,
         "blast_radius_importers": 2,
-        "recency": 0,
-        "agent_risk": 0.23
+        "recency": 1,
+        "agent_risk": 0.24
       },
       "suggested_actions": [
         {
@@ -873,12 +875,12 @@
       "scores": {
         "severity": 0.61,
         "confidence": 0.9,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.22
+        "recency": 1,
+        "agent_risk": 0.23
       },
       "suggested_actions": [
         {
@@ -925,12 +927,12 @@
       "scores": {
         "severity": 0.62,
         "confidence": 0.82,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.22
+        "recency": 1,
+        "agent_risk": 0.23
       },
       "suggested_actions": [
         {
@@ -975,12 +977,12 @@
       "scores": {
         "severity": 0.3,
         "confidence": 0.45,
-        "churn": 0,
+        "churn": 0.05,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.16
+        "recency": 1,
+        "agent_risk": 0.17
       },
       "suggested_actions": [
         {

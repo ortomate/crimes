@@ -46,4 +46,33 @@ describe("buildUniversalFile", () => {
     await uf.readSource();
     expect(uf.lineCount).toBe(4);
   });
+
+  it("does not count a trailing newline as an extra line", async () => {
+    // A 3-line file written with a final newline is 3 lines, not 4.
+    // Counting the trailing empty string inflated every universal-pack
+    // file by exactly one and pushed files just under the large_file
+    // threshold over it — 11 of pydantic's 109 large_file findings (10%)
+    // existed only because of this.
+    const abs = join(root, "trailing.py");
+    await writeFile(abs, "a\nb\nc\n");
+    const uf = await buildUniversalFile({ root, absolutePath: abs });
+    await uf.readSource();
+    expect(uf.lineCount).toBe(3);
+  });
+
+  it("counts CRLF line endings the same as LF", async () => {
+    const abs = join(root, "crlf.py");
+    await writeFile(abs, "a\r\nb\r\nc\r\n");
+    const uf = await buildUniversalFile({ root, absolutePath: abs });
+    await uf.readSource();
+    expect(uf.lineCount).toBe(3);
+  });
+
+  it("reports 0 for an empty file", async () => {
+    const abs = join(root, "empty.py");
+    await writeFile(abs, "");
+    const uf = await buildUniversalFile({ root, absolutePath: abs });
+    await uf.readSource();
+    expect(uf.lineCount).toBe(0);
+  });
 });

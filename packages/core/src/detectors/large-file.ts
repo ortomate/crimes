@@ -150,7 +150,9 @@ export const largeFileDetector: UniversalDetector = {
       lines: [1, lines],
       summary,
       evidence: [
-        `${lines} non-empty lines`,
+        // "non-empty lines" was never what this counted — blank lines are
+        // included. Say what the number is rather than what it isn't.
+        `${lines} lines`,
         thresholdEvidence,
         ...(shape === "test_file"
           ? ["shape: test file (matches **/*.{test,spec}.[jt]sx? or __tests__/)"]

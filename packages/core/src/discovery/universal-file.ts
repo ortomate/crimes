@@ -59,8 +59,25 @@ export async function buildUniversalFile(args: {
             "await uf.readSource() before reading lineCount.",
         );
       }
-      cachedLines = cached.split("\n").length;
+      cachedLines = countLines(cached);
       return cachedLines;
     },
   };
+}
+
+/**
+ * Count source lines, matching `countNonEmptyLines` in the JS pack so the
+ * two packs measure the same file the same way.
+ *
+ * A trailing newline terminates the last line rather than starting a new
+ * one, so a 3-line file written with a final `\n` is 3 lines. Counting it
+ * as 4 inflated every universal-pack file by exactly one and pushed files
+ * sitting just under `thresholds.largeFile` over it: 11 of pydantic's 109
+ * `large_file` findings (10%) existed only because of that off-by-one.
+ */
+function countLines(source: string): number {
+  if (source.length === 0) return 0;
+  const lines = source.split(/\r?\n/);
+  if (lines[lines.length - 1] === "") lines.pop();
+  return lines.length;
 }

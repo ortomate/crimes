@@ -397,3 +397,37 @@ describe("crimes scan — resurfacing end-to-end", () => {
     expect(result.stdout).toContain("crimes triage --retriage src.ts");
   });
 });
+
+describe("crimes scan path validation", () => {
+  it("exits 2 on a path that does not exist, instead of reporting clean", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "crimes-badpath-"));
+    const result = await runCli(
+      ["scan", join(cwd, "no-such-dir"), "--no-color", "--no-init"],
+      cwd,
+    );
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("no-such-dir");
+    expect(result.stdout).not.toContain("Suspiciously clean");
+  });
+
+  it("exits 2 on a nonexistent path in --format json too", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "crimes-badpath-json-"));
+    const result = await runCli(
+      ["scan", join(cwd, "nope"), "--format", "json", "--no-init"],
+      cwd,
+    );
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout.trim()).toBe("");
+  });
+
+  it("exits 2 when the path is a file rather than a directory", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "crimes-badpath-file-"));
+    await writeFile(join(cwd, "a.ts"), "export const a = 1;\n");
+    const result = await runCli(
+      ["scan", join(cwd, "a.ts"), "--no-color", "--no-init"],
+      cwd,
+    );
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("directory");
+  });
+});
