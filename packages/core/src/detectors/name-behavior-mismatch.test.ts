@@ -67,4 +67,45 @@ function calculateInvoice(order: Order) {
     );
     expect(findings).toEqual([]);
   });
+
+  it("separates two same-named functions in one file", async () => {
+    // n8n has four `build` functions in one model-factory file and two
+    // `render` functions in each of several .stories.ts files; every
+    // group shared one fingerprint.
+    const source = `
+const a = {
+  async build(order: Order) {
+    const invoice = buildInvoice(order);
+    await saveInvoice(invoice);
+    await sendInvoiceEmail(invoice);
+    return invoice.total;
+  },
+};
+const b = {
+  async build(order: Order) {
+    const receipt = buildReceipt(order);
+    await saveReceipt(receipt);
+    await sendReceiptEmail(receipt);
+    return receipt.total;
+  },
+};
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(2);
+    expect(new Set(findings.map((f) => f.symbol)).size).toBe(1);
+    expect(new Set(findings.map((f) => f.discriminator)).size).toBe(2);
+  });
+
+  it("leaves a uniquely-named function with no discriminator", async () => {
+    const source = `
+export async function calculateInvoice(order: Order) {
+  const invoice = buildInvoice(order);
+  await saveInvoice(invoice);
+  await sendInvoiceEmail(invoice);
+  return invoice.total;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings[0]!.discriminator).toBeUndefined();
+  });
 });

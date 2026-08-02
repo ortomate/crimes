@@ -39,4 +39,19 @@ export function canRun(isEnabled: boolean, hasPlan: boolean) {
     const findings = await negativeFlagMazeDetector.run(makeCtx(source));
     expect(findings).toEqual([]);
   });
+
+  it("gives every conditional in a file its own discriminator", async () => {
+    // No `symbol`, so without one every conditional in a file shares
+    // `negative_flag_maze::<file>::`.
+    const source = `
+export function canRun(disableBilling: boolean, skipRetry: boolean) {
+  if (!disableBilling && !skipRetry) return true;
+  if (!disableBilling && !skipEmail) return true;
+  return false;
+}
+`;
+    const findings = await negativeFlagMazeDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(2);
+    expect(new Set(findings.map((f) => f.discriminator)).size).toBe(2);
+  });
 });

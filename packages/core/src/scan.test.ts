@@ -992,6 +992,52 @@ export interface UserModel {
   createdAt: Date;
 }
 `,
+    // name_behavior_mismatch + return_shape_roulette: same-named and
+    // anonymous functions in one file.
+    "src/jobs/factory.ts": `
+const a = {
+  async build(order) {
+    const invoice = buildInvoice(order);
+    await saveInvoice(invoice);
+    await sendInvoiceEmail(invoice);
+    return invoice.total;
+  },
+};
+const b = {
+  async build(order) {
+    const receipt = buildReceipt(order);
+    await saveReceipt(receipt);
+    await sendReceiptEmail(receipt);
+    return receipt.total;
+  },
+};
+export const handlers = [
+  (input) => {
+    if (input.error) return { ok: false, code: input.code, message: input.message };
+    if (input.redirect) return { url: input.url, permanent: false };
+    return { ok: true, value: input.value, cached: input.cached };
+  },
+  (input) => {
+    if (input.missing) return { found: false, reason: input.reason, at: input.at };
+    if (input.stale) return { age: input.age, refreshed: false };
+    return { found: true, record: input.record, source: input.source };
+  },
+];
+`,
+    // negative_flag_maze: several double-negative conditionals per file.
+    "src/jobs/flags.ts": `
+export function canRun(disableBilling, skipRetry, skipEmail, noCache) {
+  if (!disableBilling && !skipRetry) return true;
+  if (!disableBilling && !skipEmail) return true;
+  if (!noCache && !skipRetry) return true;
+  return false;
+}
+`,
+    // duplicated_role_status_plan_check: two policy literals, three
+    // files, differing expression shapes — both anchor on the same file.
+    "src/policy/a.ts": `if (user.role === "admin") { allow(); }\nif (job.status === "running") { wait(); }`,
+    "src/policy/b.ts": `if (user.role !== "admin") { deny(); }\nif (job.status !== "running") { stop(); }`,
+    "src/policy/c.ts": `const isAdmin = user.role === "admin" || user.role === "owner";\nconst busy = job.status === "running" || job.status === "queued";`,
     // magic_domain_literal_scatter: several domain literals per file.
     "src/billing/plans.ts": `
 export function priceFor(plan) {
@@ -1046,9 +1092,13 @@ export function limitFor(plan) {
           "commented_out_code",
           "contract_drift",
           "duplicate_component_shape",
+          "duplicated_role_status_plan_check",
           "large_function",
           "logic_in_comments",
           "magic_domain_literal_scatter",
+          "name_behavior_mismatch",
+          "negative_flag_maze",
+          "return_shape_roulette",
           "swallowed_error",
           "unbounded_async_fanout",
           "weak_test_signal",

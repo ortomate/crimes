@@ -152,6 +152,13 @@ function buildFinding(literalKey: string, hits: CheckHit[], anchor: string): Fin
     severity: "medium",
     confidence: 0.7,
     file: anchor,
+    // One finding per (field, literal) group, all anchored on the
+    // lex-first file that mentions them and carrying no `symbol` — so
+    // two literals anchored on one file share
+    // `duplicated_role_status_plan_check::<file>::`. Measured on n8n:
+    // 8 findings lost. The group key is what separates them, rendered
+    // with a dot because `::` is the fingerprint's own separator.
+    discriminator: literalKey.replace("::", "."),
     summary:
       `The literal "${literal}" is compared against in ${distinctFiles.length} ` +
       `files using ${distinctExpressions.length} different expression shapes. ` +

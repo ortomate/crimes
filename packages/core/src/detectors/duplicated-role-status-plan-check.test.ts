@@ -99,6 +99,23 @@ describe("duplicatedRoleStatusPlanCheckDetector", () => {
     expect(findings).toEqual([]);
   });
 
+  it("gives each literal anchored on one file its own discriminator", async () => {
+    // One finding per literal, no `symbol`, all anchored on the lex-first
+    // file — so two literals anchored on one file share
+    // `duplicated_role_status_plan_check::<file>::`. Measured on n8n:
+    // 8 findings lost this way.
+    const root = await makeRepo({
+      "src/a.ts": `if (user.role === "admin") { allow(); }\nif (job.status === "running") { wait(); }`,
+      "src/b.ts": `if (user.role !== "admin") { deny(); }\nif (job.status !== "running") { stop(); }`,
+      "src/c.ts": `const isAdmin = user.role === "admin" || user.role === "owner";\nconst busy = job.status === "running" || job.status === "queued";`,
+    });
+    const ia = buildIndex(root, ["src/a.ts", "src/b.ts", "src/c.ts"]);
+    const anchor = Object.keys(ia.files).sort()[0]!;
+    const findings = await duplicatedRoleStatusPlanCheckDetector.run(ctxFor(anchor, ia));
+    expect(findings.length).toBeGreaterThan(1);
+    expect(new Set(findings.map((f) => f.discriminator)).size).toBe(findings.length);
+  });
+
   it("emits nothing when ctx.ia is absent", async () => {
     const findings = await duplicatedRoleStatusPlanCheckDetector.run({
       kind: "language-js",

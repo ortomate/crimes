@@ -61,6 +61,22 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
     "0.17":
       "Fingerprints now carry the collection expression as a discriminator, for fan-outs whose enclosing function and per-element call are shared (schema_version 0.4.0). Re-record the pin against the fan-out you meant. Pins on fan-outs that were already uniquely named are unaffected.",
   },
+  name_behavior_mismatch: {
+    "0.17":
+      "Fingerprints now carry the start line as a discriminator, for functions that share a name within one file (schema_version 0.4.0). Re-record the pin against the function you meant. Pins on uniquely-named functions are unaffected.",
+  },
+  return_shape_roulette: {
+    "0.17":
+      "Fingerprints now carry the start line as a discriminator, for anonymous functions that share the `<anonymous>` symbol within one file (schema_version 0.4.0). Re-record the pin against the function you meant. Pins on named functions are unaffected.",
+  },
+  negative_flag_maze: {
+    "0.17":
+      "Fingerprints now carry a hash of the conditional as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every conditional in the file — re-record it against the one you meant.",
+  },
+  duplicated_role_status_plan_check: {
+    "0.17":
+      "Fingerprints now carry the field and literal as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every policy literal anchored on that file — re-record it against the one you meant.",
+  },
   duplicate_component_shape: {
     "0.17":
       "Fingerprints now carry the structural shape hash as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every shape group anchored on that file — re-record it against the group you meant.",

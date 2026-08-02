@@ -28,16 +28,20 @@ describe("releaseNoteFor", () => {
     // without a note leaves `crimes feedback recheck` saying "detector
     // behaviour unchanged" about the one change that invalidated the
     // pin. 0.17.0 shipped three such detectors with notes and three
-    // without; the four here landed in 0.17.2.
+    // without; the remaining nine landed in 0.17.2.
     const changed = [
       "commented_out_code",
       "contract_drift",
       "duplicate_component_shape",
+      "duplicated_role_status_plan_check",
       "exact_duplicate_block",
       "large_function",
       "logic_in_comments",
       "magic_domain_literal_scatter",
+      "name_behavior_mismatch",
       "near_duplicate_block",
+      "negative_flag_maze",
+      "return_shape_roulette",
       "swallowed_error",
       "unbounded_async_fanout",
       "weak_test_signal",

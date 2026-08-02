@@ -1,6 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
+import { resolveDiscriminators } from "./disambiguate.js";
 
 export const returnShapeRouletteDetector: LanguageJsDetector = {
   id: "return_shape_roulette",
@@ -68,7 +69,11 @@ export const returnShapeRouletteDetector: LanguageJsDetector = {
       });
     }
 
-    return findings.slice(0, 5);
+    const emitted = findings.slice(0, 5);
+    // Anonymous functions all collapse to `<anonymous>`, so two in one
+    // file share a fingerprint. Start line, as for `large_function`.
+    resolveDiscriminators(emitted);
+    return emitted;
   },
 };
 

@@ -1,6 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
+import { hashSlice } from "../ast-hash/hash.js";
 
 const NEGATIVE_NAME = /^(?:no|not|disable|disabled|skip|without)[A-Z_]/;
 
@@ -33,6 +34,13 @@ export const negativeFlagMazeDetector: LanguageJsDetector = {
         confidence: 0.72,
         file: ctx.file,
         lines: [condition.line, condition.line],
+        // One finding per conditional and no `symbol`, so without a
+        // discriminator every conditional in a file shares
+        // `negative_flag_maze::<file>::`. The condition's own text is
+        // stable across scans of the same code and is what makes the
+        // findings different — the same treatment as
+        // `commented_out_code`.
+        discriminator: hashSlice(condition.text).exact.slice(0, 12),
         summary: `Conditional combines ${allSignals.length} negative flags. Double-negative logic is easy to invert during maintenance.`,
         evidence: [
           `negative flags: ${allSignals.join(", ")}`,

@@ -1,5 +1,6 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
+import { resolveDiscriminators } from "./disambiguate.js";
 
 const PURE_PREFIXES = [
   "get",
@@ -90,7 +91,15 @@ export const nameBehaviorMismatchDetector: LanguageJsDetector = {
       });
     }
 
-    return findings.slice(0, 5);
+    const emitted = findings.slice(0, 5);
+    // Several functions can share a name in one file — n8n has four
+    // `build` methods in one model-factory file and two `render`
+    // exports in each of a dozen .stories.ts files, each group sharing
+    // one fingerprint. There is nothing content-derived to key them on,
+    // so no candidate is offered and `resolveDiscriminators` falls back
+    // to the start line for exactly the findings that collide.
+    resolveDiscriminators(emitted);
+    return emitted;
   },
 };
 
