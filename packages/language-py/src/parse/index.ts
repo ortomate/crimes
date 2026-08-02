@@ -1,5 +1,5 @@
 import type { Node } from "web-tree-sitter";
-import { matchAssertionCall, matchDateCall, matchIoCall } from "./calls.js";
+import { buildCall, matchAssertionCall, matchDateCall, matchIoCall } from "./calls.js";
 import { extractAssignment } from "./declarations.js";
 import { ensurePythonParser } from "./grammar.js";
 import { extractImport } from "./imports.js";
@@ -12,6 +12,7 @@ import type {
   ParsePyInput,
   PyAssertion,
   PyAssignment,
+  PyCall,
   PyDateCall,
   PyEnclosingFunction,
   PyImport,
@@ -60,6 +61,7 @@ function emptyParsedFile(source: string): ParsedPyFile {
     functions: [],
     classes: [],
     imports: [],
+    calls: [],
     dateCalls: [],
     ioCalls: [],
     assignments: [],
@@ -189,19 +191,26 @@ function recordDecorators(
  * A `call` node can be up to three things at once for our purposes — a
  * clock read, blocking I/O, and an assertion are all just calls — so
  * each matcher gets a look rather than the first match winning.
+ *
+ * The general `PyCall` is built once and handed to every matcher, so
+ * the callee text and argument shape are read off the tree a single
+ * time per call site.
  */
 function recordCall(
   node: Node,
   funcStack: PyEnclosingFunction[],
   result: ParsedPyFile,
 ): void {
-  const date = matchDateCall(node);
+  const call = buildCall(node, funcStack);
+  result.calls.push(call);
+
+  const date = matchDateCall(call);
   if (date) result.dateCalls.push(date);
 
-  const io = matchIoCall(node);
+  const io = matchIoCall(call);
   if (io) result.ioCalls.push({ ...io, enclosingFunctions: funcStack });
 
-  const assertion = matchAssertionCall(node);
+  const assertion = matchAssertionCall(call);
   if (assertion) result.assertions.push(withFunctionName(assertion, funcStack));
 }
 
@@ -261,7 +270,7 @@ function buildFunction(args: {
   const nameText = flatText(node.childForFieldName("name"));
   const name = nameText.length > 0 ? nameText : undefined;
 
-  const { paramCount, firstParam } = readParameters(node);
+  const { paramCount, paramNames, firstParam } = readParameters(node);
   const isAsync = hasAsyncKeyword(node);
   const isMethod = enclosingClass !== undefined;
   const kind: PyFunctionKind = isMethod
@@ -292,6 +301,7 @@ function buildFunction(args: {
     shape,
     decorators,
     paramCount,
+    paramNames,
     maxNestingDepth: body ? maxNestingDepth(body) : 0,
   };
   if (evidence.length > 0) fn.shapeEvidence = evidence;
@@ -306,12 +316,14 @@ function buildFunction(args: {
  */
 function readParameters(node: Node): {
   paramCount: number;
+  paramNames: string[];
   firstParam: string | undefined;
 } {
   const params = node.childForFieldName("parameters");
-  if (!params) return { paramCount: 0, firstParam: undefined };
+  if (!params) return { paramCount: 0, paramNames: [], firstParam: undefined };
 
   let count = 0;
+  const paramNames: string[] = [];
   let firstParam: string | undefined;
   for (let i = 0; i < params.namedChildCount; i += 1) {
     const child = params.namedChild(i);
@@ -321,12 +333,13 @@ function readParameters(node: Node): {
     }
     const paramName = parameterName(child);
     if (paramName === "self" || paramName === "cls") continue;
+    if (paramName !== undefined) paramNames.push(paramName);
     if (firstParam === undefined && paramName !== undefined) {
       firstParam = paramName;
     }
     count += 1;
   }
-  return { paramCount: count, firstParam };
+  return { paramCount: count, paramNames, firstParam };
 }
 
 function parameterName(node: Node): string | undefined {
@@ -356,6 +369,7 @@ function sortByLine(result: ParsedPyFile): void {
   const byLine = <T extends { line: number }>(a: T, b: T): number => a.line - b.line;
   result.imports.sort(byLine);
   result.routes.sort(byLine);
+  result.calls.sort(byLine);
   result.dateCalls.sort(byLine);
   result.ioCalls.sort(byLine);
   result.assignments.sort(byLine);
@@ -371,6 +385,7 @@ export type {
   ParsePyInput,
   PyAssertion,
   PyAssignment,
+  PyCall,
   PyDateCall,
   PyEnclosingFunction,
   PyImport,

@@ -67,6 +67,18 @@ export interface ParsedPyFunction {
    * a method is measured on the same scale as a free function.
    */
   paramCount: number;
+  /**
+   * Declared parameter names in source order, same exclusions as
+   * `paramCount`. `*args` / `**kwargs` appear as `args` / `kwargs`.
+   *
+   * Present because in Python a parameter name is often a *dependency
+   * declaration* rather than a value — a pytest fixture is requested by
+   * naming it. `weak_test_signal.py` reads this to recognise the
+   * `pytest-benchmark` idiom (`def test_x(benchmark)`), which is by far
+   * the most common way a benchmark is written and which no decorator
+   * marks.
+   */
+  paramNames: string[];
   /** Deepest nesting level of compound statements inside the body. */
   maxNestingDepth: number;
   /** Enclosing class name, when the function is a method. */
@@ -214,17 +226,84 @@ export interface PyAssignment {
 }
 
 /**
- * One assertion. `assert_statement` and the `unittest` `self.assert*`
- * method family both land here so `weak_test_signal.py` can count test
- * strength without caring which framework the file uses.
+ * One assertion. Every form that makes a test fail on bad data lands
+ * here so `weak_test_signal.py` can count test strength without caring
+ * which framework the file uses.
+ *
+ * - `assert_statement` — a bare `assert`.
+ * - `unittest_method` — the `self.assert*` family.
+ * - `pytest_raises` — `pytest.raises(...)`, usually as a context manager.
+ * - `explicit_fail` — `self.fail(...)` / `pytest.fail(...)`. unittest's
+ *   idiom for "reaching this line is the failure" is a deliberate
+ *   assertion written inside-out, not an absent one.
+ * - `raises_on_invalid` — a call that is only ever written for its
+ *   raise-on-bad-data behaviour, currently pydantic's
+ *   `model_dump_json(warnings='error')`. The call *is* the assertion:
+ *   without the keyword it silently coerces, with it the test fails.
  */
 export interface PyAssertion {
-  kind: "assert_statement" | "unittest_method" | "pytest_raises";
+  kind:
+    | "assert_statement"
+    | "unittest_method"
+    | "pytest_raises"
+    | "explicit_fail"
+    | "raises_on_invalid";
   /** Method name for the unittest family, e.g. `"assertEqual"`. */
   method?: string;
   line: number;
   /** Enclosing test function name, when recoverable. */
   functionName?: string;
+}
+
+/** One keyword argument at a call site. */
+export interface PyCallKeyword {
+  /** Keyword name as written: `warnings` in `f(warnings='error')`. */
+  name: string;
+  /**
+   * The argument's value when it is a plain string literal, quotes and
+   * prefix stripped. Absent for every other expression — a value that
+   * cannot be read off the source is not guessed at.
+   */
+  stringValue?: string;
+}
+
+/**
+ * One call site, recorded for every `call` node in the file.
+ *
+ * This is the *general* call surface, deliberately unfiltered and
+ * unclassified: `dateCalls` and `ioCalls` answer narrow, policy-laden
+ * questions ("is this a clock read?", "is this blocking I/O?"), whereas
+ * plenty of analysis only needs "what did this function call, and from
+ * where?". Building that from a filtered list is impossible, so it is
+ * collected once in the same pass and the narrow lists are derived from
+ * it.
+ *
+ * Both `dateCalls` and `ioCalls` are still published as their own
+ * classified lists rather than being folded into this one: their
+ * `kind` / `family` / `timezoneAware` fields are Python-API knowledge
+ * that belongs in the language pack, and re-deriving them in `core`
+ * from `calls` would push exactly that knowledge across the pack seam.
+ */
+export interface PyCall {
+  /**
+   * Dotted callee text exactly as written — `"open"`,
+   * `"self.assertEqual"`, `"datetime.datetime.now"`. A receiver built
+   * at runtime (`registry["x"].run`) yields its flattened source text,
+   * so an unusual receiver fails to match rather than mis-matching.
+   */
+  callee: string;
+  /** Trailing segment of `callee`: `"assertEqual"`. */
+  name: string;
+  /** Everything before the trailing segment: `"self"`, or `""`. */
+  receiver: string;
+  /** 1-based line of the call. */
+  line: number;
+  /** Total argument count, positional and keyword together. */
+  argCount: number;
+  /** Keyword arguments, in source order. Empty when there are none. */
+  keywords: PyCallKeyword[];
+  /** Ancestor functions, innermost first. Empty at module top level. */
+  enclosingFunctions: PyEnclosingFunction[];
 }
 
 /**
@@ -277,6 +356,8 @@ export interface ParsedPyFile {
   functions: ParsedPyFunction[];
   classes: ParsedPyClass[];
   imports: PyImport[];
+  /** Every call site in the file, unfiltered. */
+  calls: PyCall[];
   dateCalls: PyDateCall[];
   ioCalls: PyIoCall[];
   assignments: PyAssignment[];

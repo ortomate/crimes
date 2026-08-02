@@ -29,6 +29,19 @@ def compute_total(items, discount):
     expect(fn.maxNestingDepth).toBe(2);
   });
 
+  it("records parameter names alongside the count", async () => {
+    const parsed = await parse(`
+def test_speed(benchmark, tmp_path, *args, **kwargs):
+    benchmark(run)
+`);
+    expect(parsed.functions[0]!.paramNames).toEqual([
+      "benchmark",
+      "tmp_path",
+      "args",
+      "kwargs",
+    ]);
+  });
+
   it("excludes self from the parameter count and records the class", async () => {
     const parsed = await parse(`
 class Billing:
@@ -37,6 +50,7 @@ class Billing:
 `);
     const fn = parsed.functions[0]!;
     expect(fn.paramCount).toBe(2);
+    expect(fn.paramNames).toEqual(["customer", "amount"]);
     expect(fn.kind).toBe("method");
     expect(fn.className).toBe("Billing");
   });
@@ -417,6 +431,135 @@ def test_c():
     ]);
     expect(parsed.assertions[1]!.method).toBe("assertEqual");
     expect(parsed.assertions[0]!.functionName).toBe("test_a");
+  });
+
+  it("counts self.fail as an explicit failure signal", async () => {
+    const parsed = await parse(
+      `
+class T(unittest.TestCase):
+    def test_b(self):
+        try:
+            boom()
+        except ValueError:
+            return
+        self.fail("expected ValueError")
+
+def test_c():
+    if bad:
+        pytest.fail("nope")
+`,
+      "/repo/tests/test_x.py",
+    );
+    expect(parsed.assertions.map((a) => a.kind)).toEqual([
+      "explicit_fail",
+      "explicit_fail",
+    ]);
+    expect(parsed.assertions[0]!.functionName).toBe("test_b");
+  });
+
+  it("does not treat a project-local fail() on some other object as an assertion", async () => {
+    const parsed = await parse(
+      `
+def test_a():
+    job.fail("retry")
+    fail_over()
+`,
+      "/repo/tests/test_x.py",
+    );
+    expect(parsed.assertions).toEqual([]);
+  });
+
+  it("counts model_dump_json(warnings='error') as raising on invalid data", async () => {
+    const parsed = await parse(
+      `
+def test_a():
+    model.model_dump_json(warnings='error')
+
+def test_b():
+    model.model_dump(warnings="error")
+
+def test_c():
+    model.model_dump_json(warnings='none')
+
+def test_d():
+    model.model_dump_json()
+`,
+      "/repo/tests/test_x.py",
+    );
+    expect(parsed.assertions.map((a) => a.kind)).toEqual([
+      "raises_on_invalid",
+      "raises_on_invalid",
+    ]);
+    expect(parsed.assertions.map((a) => a.functionName)).toEqual(["test_a", "test_b"]);
+  });
+});
+
+describe("parsePyFile — calls", () => {
+  it("records every call with its callee, receiver, and line", async () => {
+    const parsed = await parse(`
+def process():
+    requests.get("https://x")
+    helper(1, 2)
+`);
+    expect(
+      parsed.calls.map((c) => ({
+        callee: c.callee,
+        name: c.name,
+        receiver: c.receiver,
+        line: c.line,
+        argCount: c.argCount,
+      })),
+    ).toEqual([
+      {
+        callee: "requests.get",
+        name: "get",
+        receiver: "requests",
+        line: 3,
+        argCount: 1,
+      },
+      { callee: "helper", name: "helper", receiver: "", line: 4, argCount: 2 },
+    ]);
+  });
+
+  it("carries the enclosing function chain innermost first", async () => {
+    const parsed = await parse(`
+def outer():
+    def inner():
+        helper()
+    return inner
+`);
+    const call = parsed.calls.find((c) => c.name === "helper")!;
+    expect(call.enclosingFunctions.map((f) => f.name)).toEqual(["inner", "outer"]);
+  });
+
+  it("captures keyword argument names and their string-literal values", async () => {
+    const parsed = await parse(`
+def process():
+    render(template, mode="strict", retries=3, **rest)
+`);
+    const call = parsed.calls[0]!;
+    expect(call.argCount).toBe(4);
+    expect(call.keywords).toEqual([
+      { name: "mode", stringValue: "strict" },
+      { name: "retries" },
+    ]);
+  });
+
+  it("records module-level calls with an empty enclosing chain", async () => {
+    const parsed = await parse(`CONFIG = load_config()`);
+    expect(parsed.calls[0]!.enclosingFunctions).toEqual([]);
+  });
+
+  it("sorts calls by line", async () => {
+    const parsed = await parse(`
+def one():
+    a()
+    b()
+def two():
+    c()
+`);
+    const lines = parsed.calls.map((c) => c.line);
+    expect([...lines].sort((x, y) => x - y)).toEqual(lines);
   });
 });
 
