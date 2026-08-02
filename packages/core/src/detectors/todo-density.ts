@@ -64,7 +64,14 @@ export const todoDensityDetector: UniversalDetector = {
         Object.entries(breakdown)
           .map(([k, v]) => `${v}× ${k}`)
           .join(", "),
-        `${density.toFixed(1)} markers per 1k LOC (threshold ${threshold})`,
+        // Name the condition that actually tripped. This detector fires on
+        // "3+ markers OR density above threshold"; printing the density
+        // comparison when density is *under* the threshold reads as the
+        // tool disproving its own finding.
+        density >= threshold
+          ? `${density.toFixed(1)} markers per 1k LOC (threshold ${threshold})`
+          : `${matches.length} markers in this file (floor is 3); ` +
+            `density ${density.toFixed(1)} per 1k LOC is within the threshold of ${threshold}`,
       ],
       effort: "small",
       fix_shape: "convert TODOs to tickets or delete; comments are not tracking",

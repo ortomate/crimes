@@ -116,6 +116,37 @@ describe("large_function.py", () => {
     expect(found[0]!.evidence.join(" ")).toMatch(/nesting reaches 4 levels/);
   });
 
+  it("does not claim a sub-threshold function is too big to hold in context", async () => {
+    // Fired on nesting, not length. Saying "is 6 lines ... At this size an
+    // agent must read the whole body" beside evidence reading "6 lines
+    // (threshold 50)" is self-refuting — every blind judge in the 0.14→0.17
+    // dogfooding round independently called this out.
+    const source = [
+      "def pick(a):",
+      "    if a:",
+      "        for i in a:",
+      "            while i:",
+      "                with open('x') as f:",
+      "                    return f",
+    ].join("\n");
+    const found = await run(largeFunctionPyDetector, "src/deep.py", source);
+    expect(found).toHaveLength(1);
+    const summary = found[0]!.summary;
+
+    expect(summary).not.toMatch(/At this size/);
+    expect(summary).toMatch(/nest/i);
+    // The summary must not lead with a length claim it just disproved.
+    expect(summary).not.toMatch(/^`pick` is \d+ lines\./);
+  });
+
+  it("still leads with length when the function really is too long", async () => {
+    const source = `def compute(a):\n${body(80)}\n    return a`;
+    const found = await run(largeFunctionPyDetector, "src/long.py", source);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.summary).toMatch(/At this size/);
+    expect(found[0]!.summary).toMatch(/lines/);
+  });
+
   it("honours a configured per-shape threshold", async () => {
     const source = `def compute(a):\n${body(60)}\n    return a`;
     const config = {

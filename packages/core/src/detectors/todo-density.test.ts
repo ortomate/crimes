@@ -135,3 +135,28 @@ describe("todoDensityDetector", () => {
     });
   });
 });
+
+describe("todo_density evidence names the condition that tripped", () => {
+  it("does not imply the density exceeded the threshold when it did not", async () => {
+    // Fires on the count floor (>=3 markers), not on density: 3 markers in
+    // 1000 lines is 3.0 per 1k against a threshold of 10. Printing
+    // "3.0 markers per 1k LOC (threshold 10)" as the justification reads as
+    // the tool disproving its own finding — 45 of 73 zulip findings and
+    // drf's `todo_density` hit were this shape.
+    const source = ["// TODO: a", "// TODO: b", "// FIXME: c"].join("\n");
+    const found = await todoDensityDetector.run(makeCtx({ source, padLines: 997 }));
+    expect(found).toHaveLength(1);
+    const evidence = found[0]!.evidence.join(" | ");
+
+    expect(evidence).toMatch(/3 marker/);
+    // Must not present a passing density check as the reason.
+    expect(evidence).not.toMatch(/3\.0 markers per 1k LOC \(threshold 10\)/);
+  });
+
+  it("still reports the density comparison when density is what tripped", async () => {
+    const source = Array.from({ length: 30 }, (_, i) => `// TODO: ${i}`).join("\n");
+    const found = await todoDensityDetector.run(makeCtx({ source }));
+    expect(found).toHaveLength(1);
+    expect(found[0]!.evidence.join(" | ")).toMatch(/threshold 10/);
+  });
+});

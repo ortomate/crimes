@@ -79,11 +79,17 @@ export const largeFunctionPyDetector: LanguagePyDetector = {
       const overage = tooLong ? lines / threshold : 1;
       const severity = pickSeverity({ overage, tooDeep, shape: fn.shape });
 
-      const evidence: string[] = [
-        `${lines} lines (threshold ${threshold} for shape "${fn.shape}")`,
-        `nesting depth ${fn.maxNestingDepth}`,
-        `${fn.paramCount} parameter${fn.paramCount === 1 ? "" : "s"}`,
-      ];
+      // Lead with whichever condition actually tripped. Printing the
+      // length comparison first on a nesting-only finding reads as a
+      // contradiction: "9 lines (threshold 50)" under a God Function
+      // charge is the tool disproving its own headline.
+      const lengthEvidence = tooLong
+        ? `${lines} lines (threshold ${threshold} for shape "${fn.shape}")`
+        : `${lines} lines (within the ${threshold}-line budget for shape "${fn.shape}")`;
+      const evidence: string[] = tooLong
+        ? [lengthEvidence, `nesting depth ${fn.maxNestingDepth}`]
+        : [`nesting depth ${fn.maxNestingDepth}`, lengthEvidence];
+      evidence.push(`${fn.paramCount} parameter${fn.paramCount === 1 ? "" : "s"}`);
       for (const reason of fn.shapeEvidence ?? []) evidence.push(`shape: ${reason}`);
       if (fn.className !== undefined) evidence.push(`method on ${fn.className}`);
       if (tooDeep) {
@@ -101,11 +107,13 @@ export const largeFunctionPyDetector: LanguagePyDetector = {
         file: ctx.file,
         symbol: fn.name,
         lines: [fn.startLine, fn.endLine],
-        summary:
-          `\`${fn.name}\` is ${lines} lines` +
-          (tooDeep ? ` and nests ${fn.maxNestingDepth} levels deep` : "") +
-          `. At this size an agent must read the whole body before it can safely ` +
-          `change any part of it.`,
+        summary: buildSummary({
+          name: fn.name,
+          lines,
+          depth: fn.maxNestingDepth,
+          tooLong,
+          tooDeep,
+        }),
         evidence,
         effort: "small",
         fix_shape: "extract pure helpers; keep the orchestrator thin",
@@ -166,3 +174,37 @@ type LanguagePyDetectorConfig = Parameters<LanguagePyDetector["run"]>[0]["config
 /** Exported for the unit tests, which assert the shipped budgets. */
 export const PY_LARGE_FUNCTION_THRESHOLDS = SHAPE_THRESHOLDS;
 export const PY_DEEP_NESTING_THRESHOLD = DEEP_NESTING;
+
+/**
+ * Build the summary from whichever condition actually tripped.
+ *
+ * The detector fires on `tooLong || tooDeep`, but the summary used to be
+ * built unconditionally from the line count and always ended "At this
+ * size an agent must read the whole body". On a nesting-only finding
+ * that asserted a size problem the evidence directly below disproved —
+ * pydantic's `get_strict` at 14 lines against a 50-line threshold, zulip
+ * at 26/19/23, 172 of 898 Python findings on zulip alone. Every blind
+ * judge in the 0.14→0.17 dogfooding round called it self-contradicting,
+ * and rated the whole detector noise as a result.
+ */
+function buildSummary(args: {
+  name: string;
+  lines: number;
+  depth: number;
+  tooLong: boolean;
+  tooDeep: boolean;
+}): string {
+  const { name, lines, depth, tooLong, tooDeep } = args;
+  if (tooLong) {
+    const nesting = tooDeep ? ` and nests ${depth} levels deep` : "";
+    return (
+      `\`${name}\` is ${lines} lines${nesting}. At this size an agent must ` +
+      `read the whole body before it can safely change any part of it.`
+    );
+  }
+  return (
+    `\`${name}\` nests ${depth} levels deep in ${lines} lines. Each level is ` +
+    `a branch a reader has to hold on the stack, so an agent has to follow ` +
+    `every path before it can safely change any of them.`
+  );
+}
