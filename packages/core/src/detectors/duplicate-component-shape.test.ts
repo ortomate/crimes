@@ -47,6 +47,16 @@ const CARD = `export default function C() {
 }
 `;
 
+const PANEL = `export function P() {
+  return (
+    <Panel>
+      <PanelTitle>Heading</PanelTitle>
+      <PanelSection>Section one</PanelSection>
+    </Panel>
+  );
+}
+`;
+
 describe("duplicateComponentShapeDetector", () => {
   it("fires on three files sharing the same JSX shape", async () => {
     const root = await makeRepo({
@@ -81,6 +91,41 @@ describe("duplicateComponentShapeDetector", () => {
     const ctxB = await ctxFor("src/b/Card.tsx", root);
     const findings = await duplicateComponentShapeDetector.run(ctxB);
     expect(findings).toEqual([]);
+  });
+
+  it("gives two shape groups anchored on one file distinct fingerprints", async () => {
+    // This detector carries neither `symbol` nor `lines`, so two shape
+    // groups anchored on the same file share
+    // `duplicate_component_shape::<file>::`. Measured on hono: three
+    // findings on one benchmarks/jsx file, two of them lost.
+    const root = await makeRepo({
+      "src/a/Card.tsx": `${CARD}\n${PANEL}`,
+      "src/b/Card.tsx": `${CARD}\n${PANEL}`,
+      "src/c/Card.tsx": `${CARD}\n${PANEL}`,
+    });
+    const ctx = await ctxFor("src/a/Card.tsx", root);
+    const findings = await duplicateComponentShapeDetector.run(ctx);
+    expect(findings.length).toBeGreaterThan(1);
+    expect(new Set(findings.map((f) => f.discriminator)).size).toBe(findings.length);
+  });
+
+  it("keys the discriminator on the shape hash, not on emission order", async () => {
+    const files = {
+      "src/a/Card.tsx": CARD,
+      "src/b/Card.tsx": CARD,
+      "src/c/Card.tsx": CARD,
+    };
+    const first = await duplicateComponentShapeDetector.run(
+      await ctxFor("src/a/Card.tsx", await makeRepo(files)),
+    );
+    const second = await duplicateComponentShapeDetector.run(
+      await ctxFor(
+        "src/a/Card.tsx",
+        await makeRepo({ ...files, "src/d/Other.tsx": PANEL }),
+      ),
+    );
+    expect(first[0]!.discriminator).toBeDefined();
+    expect(second[0]!.discriminator).toBe(first[0]!.discriminator);
   });
 
   it("emits nothing when jsxShapeIndex is absent", async () => {

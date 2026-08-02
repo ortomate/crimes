@@ -895,6 +895,26 @@ describe("scan — fingerprint uniqueness", () => {
   const body = (n: number): string =>
     Array.from({ length: n }, (_, i) => `    const v${i} = ${i};`).join("\n");
 
+  const DUPLICATED_JSX = `export function Card() {
+  return (
+    <Card>
+      <CardHeader>Title</CardHeader>
+      <CardBody>Body text</CardBody>
+      <CardFooter>Footer text</CardFooter>
+    </Card>
+  );
+}
+
+export function Panel() {
+  return (
+    <Panel>
+      <PanelTitle>Heading</PanelTitle>
+      <PanelSection>Section one</PanelSection>
+    </Panel>
+  );
+}
+`;
+
   const MULTI_EMIT_FIXTURE: Record<string, string> = {
     // large_function: two anonymous callbacks collapse to the same
     // synthesized symbol.
@@ -941,6 +961,11 @@ export function rate() { return 1; }
 // return olderRate * 1.1;
 export function otherRate() { return 2; }
 `,
+    // duplicate_component_shape: two shape groups repeated across three
+    // files, so both anchor on the same lex-first file.
+    "src/ui/a.tsx": DUPLICATED_JSX,
+    "src/ui/b.tsx": DUPLICATED_JSX,
+    "src/ui/c.tsx": DUPLICATED_JSX,
     // contract_drift: one declaration drifting against two others, so
     // every pair anchors on the same (type, file, symbol) triple.
     "src/api/user.ts": `
@@ -1020,6 +1045,7 @@ export function limitFor(plan) {
         expect.arrayContaining([
           "commented_out_code",
           "contract_drift",
+          "duplicate_component_shape",
           "large_function",
           "logic_in_comments",
           "magic_domain_literal_scatter",

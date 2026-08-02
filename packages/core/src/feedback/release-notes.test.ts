@@ -32,6 +32,7 @@ describe("releaseNoteFor", () => {
     const changed = [
       "commented_out_code",
       "contract_drift",
+      "duplicate_component_shape",
       "exact_duplicate_block",
       "large_function",
       "logic_in_comments",

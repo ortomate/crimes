@@ -61,6 +61,10 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
     "0.17":
       "Fingerprints now carry the collection expression as a discriminator, for fan-outs whose enclosing function and per-element call are shared (schema_version 0.4.0). Re-record the pin against the fan-out you meant. Pins on fan-outs that were already uniquely named are unaffected.",
   },
+  duplicate_component_shape: {
+    "0.17":
+      "Fingerprints now carry the structural shape hash as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every shape group anchored on that file — re-record it against the group you meant.",
+  },
   contract_drift: {
     "0.17":
       "Fingerprints now carry the other declaration as a discriminator, where one declaration drifts against several (schema_version 0.4.0). Re-record the pin against the pair you meant. Pins on single-pair findings are unaffected.",

@@ -67,6 +67,13 @@ function buildFinding(shape: string, sites: JsxShapeHit[], anchor: string): Find
     severity: "medium",
     confidence: 0.7,
     file: anchor,
+    // One finding per shape group, anchored on the lex-first file, with
+    // neither `symbol` nor `lines` — so several groups anchored on one
+    // file all share `duplicate_component_shape::<file>::`. Measured on
+    // hono: three findings on one benchmarks/jsx file, two of them lost.
+    // The structural hash *is* what separates the groups, and it is the
+    // same discriminator `near_duplicate_block` uses.
+    discriminator: shape.slice(0, 12),
     summary:
       `${rootName} subtree appears in ${distinctFiles.length} files with the ` +
       "same structural shape. Extracting a shared component would let edits " +
