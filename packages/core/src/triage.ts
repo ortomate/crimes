@@ -33,7 +33,7 @@ export interface TriageEntry {
  * the writer always emits the current `SCHEMA_VERSION`. Update this union
  * each time `SCHEMA_VERSION` bumps to add the previous value.
  */
-const ACCEPTED_TRIAGE_SCHEMA_VERSIONS = ["0.2.0", "0.3.0", "0.4.0"] as const;
+const ACCEPTED_TRIAGE_SCHEMA_VERSIONS = ["0.2.0", "0.3.0", "0.4.0", "0.5.0"] as const;
 
 export interface Triage {
   /**

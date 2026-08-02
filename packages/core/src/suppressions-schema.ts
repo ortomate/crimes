@@ -56,6 +56,7 @@ const ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS = [
   "0.2.0",
   "0.3.0",
   "0.4.0",
+  "0.5.0",
 ] as const;
 
 /**
@@ -66,7 +67,7 @@ export interface Suppressions {
   /**
    * On-disk schema version. The loader accepts any value in
    * `ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS` (currently `"0.1.0"` through
-   * `"0.4.0"`); the writer always emits the current `SCHEMA_VERSION`.
+   * `"0.5.0"`); the writer always emits the current `SCHEMA_VERSION`.
    *
    * `schema_version` 0.4.0 added the fingerprint discriminator. Entries
    * pinned to a `magic_domain_literal_scatter`, `exact_duplicate_block`,

@@ -18,7 +18,12 @@ export function fileRiskSummary(findings: Finding[]): string | undefined {
     parts.push(`test gap ${dominantTestGap(summary.testGapBuckets)}`);
   }
   if (summary.maxBlast !== undefined) {
-    parts.push(`blast ${formatBlastRadius(summary.maxBlast, summary.maxImporters)}`);
+    parts.push(
+      `blast ${formatBlastRadius(summary.maxBlast, {
+        direct: summary.maxDirectImporters,
+        transitive: summary.maxTransitiveImporters,
+      })}`,
+    );
   }
   return parts.join(" · ");
 }
@@ -26,7 +31,14 @@ export function fileRiskSummary(findings: Finding[]): string | undefined {
 interface RiskSummary {
   maxChurn?: number;
   maxBlast?: number;
-  maxImporters?: number;
+  /**
+   * The two importer counts are tracked separately and never merged.
+   * Every finding in a group shares one file, so these are that file's
+   * values; taking a max is just a tolerant way to skip findings from
+   * stubs that carry no scoring context.
+   */
+  maxDirectImporters?: number;
+  maxTransitiveImporters?: number;
   anyTestGap: boolean;
   testGapBuckets: Record<TestGapBucket, number>;
 }
@@ -44,9 +56,13 @@ function collectRiskSummary(findings: Finding[]): RiskSummary {
   for (const f of findings) {
     summary.maxChurn = maxOptional(summary.maxChurn, f.scores.churn);
     summary.maxBlast = maxOptional(summary.maxBlast, f.scores.blast_radius);
-    summary.maxImporters = maxOptional(
-      summary.maxImporters,
-      f.scores.blast_radius_importers,
+    summary.maxDirectImporters = maxOptional(
+      summary.maxDirectImporters,
+      f.scores.blast_radius_direct_importers,
+    );
+    summary.maxTransitiveImporters = maxOptional(
+      summary.maxTransitiveImporters,
+      f.scores.blast_radius_transitive_importers,
     );
     if (f.scores.test_gap !== undefined) {
       summary.anyTestGap = true;

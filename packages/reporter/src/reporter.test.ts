@@ -222,7 +222,7 @@ describe("formatHumanReport", () => {
     expect(out).not.toContain("previously triaged");
   });
 
-  it("renders the transitive importer count next to blast in file Risk: lines", () => {
+  it("labels direct and transitive importer counts in file Risk: lines", () => {
     const report: ScanReport = {
       ...sampleReport,
       findings: [
@@ -237,10 +237,13 @@ describe("formatHumanReport", () => {
         }),
       ],
     };
-    // blast_radius_importers is on scores; set it directly post-construction.
-    report.findings[0]!.scores.blast_radius_importers = 11;
+    // The counts live on scores; set them directly post-construction.
+    report.findings[0]!.scores.blast_radius_direct_importers = 3;
+    report.findings[0]!.scores.blast_radius_transitive_importers = 11;
     const out = formatHumanReport(report, { noColor: true });
-    expect(out).toContain("blast top-quartile (11 importers)");
+    expect(out).toContain("blast top-quartile (3 direct / 11 transitive importers)");
+    // Never the bare form that reads as "11 files import this".
+    expect(out).not.toContain("(11 importers)");
   });
 
   it("singularises 'importer' for a count of 1 in the file Risk: line", () => {
@@ -256,9 +259,10 @@ describe("formatHumanReport", () => {
         }),
       ],
     };
-    report.findings[0]!.scores.blast_radius_importers = 1;
+    report.findings[0]!.scores.blast_radius_direct_importers = 1;
+    report.findings[0]!.scores.blast_radius_transitive_importers = 1;
     const out = formatHumanReport(report, { noColor: true });
-    expect(out).toContain("blast bottom-quartile (1 importer)");
+    expect(out).toContain("blast bottom-quartile (1 direct importer)");
   });
 });
 
@@ -1363,6 +1367,28 @@ describe("renderRiskProfileLine — test_gap quartile label", () => {
     const f = stubFinding({ test_gap: 0.5 });
     const line = renderRiskProfileLine(f, pc, { alwaysShowRiskProfile: true });
     expect(line).toContain("test gap ~median");
+  });
+});
+
+describe("renderRiskProfileLine — blast radius counts", () => {
+  it("distinguishes direct fan-in from transitive reach", () => {
+    const f = stubFinding({
+      blast_radius: 1,
+      blast_radius_direct_importers: 5,
+      blast_radius_transitive_importers: 798,
+    });
+    const line = renderRiskProfileLine(f, pc, { alwaysShowRiskProfile: true });
+    expect(line).toContain("5 direct / 798 transitive importers");
+  });
+
+  it("never implies '798 files import this'", () => {
+    const f = stubFinding({
+      blast_radius: 1,
+      blast_radius_direct_importers: 5,
+      blast_radius_transitive_importers: 798,
+    });
+    const line = renderRiskProfileLine(f, pc, { alwaysShowRiskProfile: true });
+    expect(line).not.toMatch(/\b798 importers\b/);
   });
 });
 

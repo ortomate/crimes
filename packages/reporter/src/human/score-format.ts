@@ -2,11 +2,12 @@
  * Interpretive prose for raw `Finding.scores` floats. JSON output keeps
  * the raw values untouched — these helpers are the human-readable layer.
  *
- * Each helper takes the raw score plus an optional supplementary integer
- * from the scoring context (importer count, 90-day commit count, etc.).
- * When the integer is unavailable (e.g. git missing, scoring context
- * not wired in a test stub), the helper falls back to the quartile
- * label alone.
+ * Each helper takes the raw score plus optional supplementary integers
+ * from the scoring context (importer counts, 90-day commit count, etc.).
+ * When those are unavailable (e.g. git missing, scoring context not
+ * wired in a test stub), the helper falls back to the quartile label
+ * alone. A helper that receives an integer must name what it counts —
+ * see {@link formatBlastRadius}.
  */
 
 export type QuartileLabel = "top-quartile" | "median" | "bottom-quartile" | "unknown";
@@ -17,19 +18,43 @@ function quartileFromScore(score: number): QuartileLabel {
   return "median";
 }
 
+/** The two integers behind a `blast_radius` score. */
+export interface BlastRadiusCounts {
+  /** `scores.blast_radius_direct_importers` — genuine per-file fan-in. */
+  direct?: number;
+  /** `scores.blast_radius_transitive_importers` — reachability closure. */
+  transitive?: number;
+}
+
 /**
- * Render a blast-radius score as a quartile label, optionally suffixed
- * with the importer count.
+ * Render a blast-radius score as a quartile label, suffixed with whichever
+ * importer counts are available.
+ *
+ * The two counts are always labelled. Rendering the transitive closure as
+ * a bare "N importers" was the pre-0.5.0 defect: on the zulip corpus it
+ * claimed `slack.py` had 798 importers when 5 files import it, because the
+ * closure collapses to the size of the strongly-connected component the
+ * file sits in.
  *
  * - `formatBlastRadius(0.85)` → `"top-quartile"`
- * - `formatBlastRadius(0.85, 11)` → `"top-quartile (11 importers)"`
- * - `formatBlastRadius(0.85, 1)` → `"top-quartile (1 importer)"`
+ * - `formatBlastRadius(1, { direct: 5, transitive: 798 })` →
+ *   `"top-quartile (5 direct / 798 transitive importers)"`
+ * - `formatBlastRadius(0.85, { direct: 11, transitive: 11 })` →
+ *   `"top-quartile (11 direct importers)"` — nothing extra is reachable,
+ *   so the second number carries no information.
  */
-export function formatBlastRadius(score: number, importerCount?: number): string {
+export function formatBlastRadius(score: number, counts?: BlastRadiusCounts): string {
   const label = quartileFromScore(score);
-  if (importerCount === undefined) return label;
-  const noun = importerCount === 1 ? "importer" : "importers";
-  return `${label} (${importerCount} ${noun})`;
+  const direct = counts?.direct;
+  const transitive = counts?.transitive;
+  if (direct === undefined && transitive === undefined) return label;
+  if (direct !== undefined && transitive !== undefined && transitive !== direct) {
+    return `${label} (${direct} direct / ${transitive} transitive importers)`;
+  }
+  const kind = direct !== undefined ? "direct" : "transitive";
+  const n = direct !== undefined ? direct : transitive!;
+  const noun = n === 1 ? "importer" : "importers";
+  return `${label} (${n} ${kind} ${noun})`;
 }
 
 /**

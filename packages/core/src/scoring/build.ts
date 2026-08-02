@@ -68,16 +68,32 @@ export interface TestGapIndex {
 
 export interface BlastRadiusIndex {
   /**
-   * Returns [0,1] blast radius — normalised count of transitive importers
-   * of the file.
+   * Returns [0,1] blast radius — normalised transitive-reach count for
+   * the file (see {@link transitiveCountForFile}).
    */
   forFile(repoPath: string): number;
   /**
-   * Raw transitive importer count (pre-normalisation). Exposed so the
-   * reporter can render "blast top-quartile (11 importers)" without the
-   * renderer having to invert the normalisation.
+   * Size of the file's transitive importer closure (pre-normalisation) —
+   * every in-repo file that reaches it through one or more import edges.
+   * This is the integer `forFile` normalises.
+   *
+   * It is NOT a per-file fan-in measurement, and must never be rendered
+   * as a bare "N importers". When the file participates in an import
+   * cycle the walk returns to the start, so the file counts *itself*,
+   * and every member of a strongly-connected component reports the same
+   * value. On the zulip corpus that plateau put 866 findings on exactly
+   * 798 and 825 on exactly 324; on hono six files all report 197 while
+   * their direct fan-in ranges from 2 to 70.
    */
-  countForFile(repoPath: string): number;
+  transitiveCountForFile(repoPath: string): number;
+  /**
+   * Number of distinct in-repo files with a direct import edge to this
+   * file — the honest "N files import this" number. Deduplicated across
+   * multiple import statements from the same file, and excludes the file
+   * itself. Does not feed the `blast_radius` score; it is a separate
+   * signal reported alongside it.
+   */
+  directCountForFile(repoPath: string): number;
 }
 
 const RECENCY_FULL_DAYS = 7;
@@ -316,29 +332,52 @@ function buildTestGapIndex(args: {
 function buildBlastRadiusIndex(args: {
   imports: ImportGraph | undefined;
 }): BlastRadiusIndex {
-  const countMemo = new Map<string, number>();
+  const transitiveMemo = new Map<string, number>();
+  const directMemo = new Map<string, number>();
   const { imports } = args;
 
-  const countFor = (repoPath: string): number => {
+  const transitiveFor = (repoPath: string): number => {
     if (!imports) return 0;
-    const cached = countMemo.get(repoPath);
+    const cached = transitiveMemo.get(repoPath);
     if (cached !== undefined) return cached;
     const count = transitiveImporterCount(imports, repoPath);
-    countMemo.set(repoPath, count);
+    transitiveMemo.set(repoPath, count);
+    return count;
+  };
+
+  const directFor = (repoPath: string): number => {
+    if (!imports) return 0;
+    const cached = directMemo.get(repoPath);
+    if (cached !== undefined) return cached;
+    const count = directImporterCount(imports, repoPath);
+    directMemo.set(repoPath, count);
     return count;
   };
 
   return {
     forFile(repoPath) {
-      const count = countFor(repoPath);
+      const count = transitiveFor(repoPath);
       return Math.min(count / BLAST_RADIUS_CAP, 1);
     },
-    countForFile(repoPath) {
-      return countFor(repoPath);
+    transitiveCountForFile(repoPath) {
+      return transitiveFor(repoPath);
+    },
+    directCountForFile(repoPath) {
+      return directFor(repoPath);
     },
   };
 }
 
+/**
+ * Size of the transitive importer closure of `start`.
+ *
+ * Deliberately unchanged: this is the number `blast_radius` has always
+ * normalised, and retuning the score is a calibration decision made
+ * separately. Note that it counts `start` itself whenever `start` sits on
+ * an import cycle — the walk reaches back round to it — so the result is
+ * "files that can reach this one, plus this one if it is cyclic", not a
+ * fan-in count. See {@link BlastRadiusIndex.transitiveCountForFile}.
+ */
 function transitiveImporterCount(imports: ImportGraph, start: string): number {
   const visited = new Set<string>();
   const stack = [start];
@@ -352,6 +391,25 @@ function transitiveImporterCount(imports: ImportGraph, start: string): number {
     }
   }
   return visited.size;
+}
+
+/**
+ * Distinct in-repo files with a direct import edge to `target`.
+ *
+ * `imports.in` holds one edge per import statement, so a file that
+ * imports the same module twice (a value import plus an `import type`,
+ * say) contributes two edges and must be counted once. A self-edge is
+ * excluded: a module importing itself is not an importer of it in any
+ * sense a reader would expect.
+ */
+function directImporterCount(imports: ImportGraph, target: string): number {
+  const incoming = imports.in.get(target) ?? [];
+  const sources = new Set<string>();
+  for (const edge of incoming) {
+    if (edge.from === target) continue;
+    sources.add(edge.from);
+  }
+  return sources.size;
 }
 
 /**
@@ -471,7 +529,9 @@ export function finaliseFindingScores(
     finding.scores.churn = churn;
     finding.scores.test_gap = test_gap;
     finding.scores.blast_radius = blast_radius;
-    finding.scores.blast_radius_importers = scoring.blastRadius.countForFile(
+    finding.scores.blast_radius_transitive_importers =
+      scoring.blastRadius.transitiveCountForFile(finding.file);
+    finding.scores.blast_radius_direct_importers = scoring.blastRadius.directCountForFile(
       finding.file,
     );
     finding.scores.recency = recency;

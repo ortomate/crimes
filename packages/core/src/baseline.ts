@@ -52,7 +52,13 @@ export interface BaselineEntry {
  * tolerates any value in this list, the writer always emits the current
  * `SCHEMA_VERSION`. Extend whenever `SCHEMA_VERSION` bumps.
  */
-const ACCEPTED_BASELINE_SCHEMA_VERSIONS = ["0.1.0", "0.2.0", "0.3.0", "0.4.0"] as const;
+const ACCEPTED_BASELINE_SCHEMA_VERSIONS = [
+  "0.1.0",
+  "0.2.0",
+  "0.3.0",
+  "0.4.0",
+  "0.5.0",
+] as const;
 export type AcceptedBaselineSchemaVersion =
   (typeof ACCEPTED_BASELINE_SCHEMA_VERSIONS)[number];
 
@@ -60,7 +66,7 @@ export interface Baseline {
   /**
    * On-disk schema version. The loader accepts any value in
    * `ACCEPTED_BASELINE_SCHEMA_VERSIONS` (currently `"0.1.0"` through
-   * `"0.4.0"`); the writer always emits the current `SCHEMA_VERSION`.
+   * `"0.5.0"`); the writer always emits the current `SCHEMA_VERSION`.
    *
    * Note that accepting an older version is not the same as matching it:
    * `schema_version` 0.4.0 added the optional fingerprint discriminator,

@@ -212,11 +212,16 @@ describe("buildScoringContext > blast_radius", () => {
     expect(ctx.blastRadius.forFile("src/leaf.ts")).toBe(0.06);
     expect(ctx.blastRadius.forFile("src/mid.ts")).toBe(0.04);
     expect(ctx.blastRadius.forFile("src/a.ts")).toBe(0);
-    // countForFile exposes the same raw count the renderer uses to print
-    // "blast top-quartile (3 importers)".
-    expect(ctx.blastRadius.countForFile("src/leaf.ts")).toBe(3);
-    expect(ctx.blastRadius.countForFile("src/mid.ts")).toBe(2);
-    expect(ctx.blastRadius.countForFile("src/a.ts")).toBe(0);
+    // transitiveCountForFile exposes the raw reachability count the score
+    // is normalised from.
+    expect(ctx.blastRadius.transitiveCountForFile("src/leaf.ts")).toBe(3);
+    expect(ctx.blastRadius.transitiveCountForFile("src/mid.ts")).toBe(2);
+    expect(ctx.blastRadius.transitiveCountForFile("src/a.ts")).toBe(0);
+    // …and directCountForFile is the genuine per-file fan-in. On this
+    // acyclic chain leaf has exactly one direct importer, not three.
+    expect(ctx.blastRadius.directCountForFile("src/leaf.ts")).toBe(1);
+    expect(ctx.blastRadius.directCountForFile("src/mid.ts")).toBe(2);
+    expect(ctx.blastRadius.directCountForFile("src/a.ts")).toBe(0);
   });
 
   it("returns 0 when no import graph is available", async () => {
@@ -224,7 +229,88 @@ describe("buildScoringContext > blast_radius", () => {
     const files = await discover(root);
     const ctx = await buildScoringContext({ root, files, imports: undefined });
     expect(ctx.blastRadius.forFile("src/a.ts")).toBe(0);
-    expect(ctx.blastRadius.countForFile("src/a.ts")).toBe(0);
+    expect(ctx.blastRadius.transitiveCountForFile("src/a.ts")).toBe(0);
+    expect(ctx.blastRadius.directCountForFile("src/a.ts")).toBe(0);
+  });
+
+  it("separates direct fan-in from component size inside an import cycle", async () => {
+    // a → b → c → a is a strongly-connected component. Every member of
+    // the component reaches every other member, so the transitive count
+    // collapses to the component size — and, because the cycle walks
+    // back to the start, it counts the file itself. On the zulip corpus
+    // this signature produced 866 findings all reporting exactly 798
+    // "importers"; on hono, six files all report exactly 197.
+    const root = await makeRepo({
+      "src/a.ts": `import { b } from "./b";\nimport { hub } from "./hub";\nexport const a = b + hub;\n`,
+      "src/b.ts": `import { c } from "./c";\nexport const b = c;\n`,
+      "src/c.ts": `import { a } from "./a";\nexport const c = a;\n`,
+      "src/hub.ts": "export const hub = 1;\n",
+      "src/leaf1.ts": `import { hub } from "./hub";\nexport const l1 = hub;\n`,
+      "src/leaf2.ts": `import { hub } from "./hub";\nexport const l2 = hub;\n`,
+    });
+    const files = await discover(root);
+    const imports = await buildImportGraph({ root, files });
+    const ctx = await buildScoringContext({ root, files, imports });
+
+    // Exactly one file imports src/a.ts — src/c.ts.
+    expect(ctx.blastRadius.directCountForFile("src/a.ts")).toBe(1);
+    // The transitive walk returns the whole component {a, b, c} — three,
+    // including src/a.ts itself. That is the number the score is built
+    // from, and the number the reporter must never call "1 importer" or
+    // "3 importers" without saying which.
+    expect(ctx.blastRadius.transitiveCountForFile("src/a.ts")).toBe(3);
+
+    // hub is imported directly by a, leaf1 and leaf2 …
+    expect(ctx.blastRadius.directCountForFile("src/hub.ts")).toBe(3);
+    // … but the cycle behind `a` drags b and c into its reachable set.
+    expect(ctx.blastRadius.transitiveCountForFile("src/hub.ts")).toBe(5);
+
+    // Every member of the component shares one transitive value — the
+    // plateau that made this look like a per-file measurement when it
+    // was not.
+    const component = ["src/a.ts", "src/b.ts", "src/c.ts"];
+    const transitive = component.map((f) => ctx.blastRadius.transitiveCountForFile(f));
+    expect(new Set(transitive).size).toBe(1);
+    const direct = component.map((f) => ctx.blastRadius.directCountForFile(f));
+    expect(direct).toEqual([1, 1, 1]);
+  });
+
+  it("counts a file that imports the same module twice as one importer", async () => {
+    const root = await makeRepo({
+      "src/dep.ts": "export const x = 1;\nexport const y = 2;\n",
+      "src/one.ts": `import { x } from "./dep";\nimport type { y } from "./dep";\nexport const o = x;\n`,
+    });
+    const files = await discover(root);
+    const imports = await buildImportGraph({ root, files });
+    const ctx = await buildScoringContext({ root, files, imports });
+    expect(ctx.blastRadius.directCountForFile("src/dep.ts")).toBe(1);
+  });
+});
+
+describe("finaliseFindingScores — blast radius counts", () => {
+  it("records the transitive and direct counts as separate fields", () => {
+    const finding = {
+      file: "src/a.ts",
+      severity: "high" as const,
+      scores: { severity: 0.9, confidence: 0.8 },
+    } as unknown as import("../finding.js").Finding;
+    const scoring = {
+      churn: { forFile: () => 0, limited: false },
+      testGap: { forFile: () => 0, rawForFile: () => 0 },
+      blastRadius: {
+        forFile: () => 1,
+        transitiveCountForFile: () => 798,
+        directCountForFile: () => 5,
+      },
+      recency: { forFile: () => 0, limited: false },
+    } as import("./build.js").ScoringContext;
+    finaliseFindingScores(finding, scoring);
+    expect(finding.scores.blast_radius_transitive_importers).toBe(798);
+    expect(finding.scores.blast_radius_direct_importers).toBe(5);
+    // The old, misleading name is gone from the wire format.
+    expect(
+      (finding.scores as unknown as Record<string, unknown>).blast_radius_importers,
+    ).toBeUndefined();
   });
 });
 
@@ -694,7 +780,11 @@ describe("finaliseFindingScores — recency", () => {
     const scoring = {
       churn: { forFile: () => 0, limited: false },
       testGap: { forFile: () => 1, rawForFile: () => 1 },
-      blastRadius: { forFile: () => 0, countForFile: () => 0 },
+      blastRadius: {
+        forFile: () => 0,
+        transitiveCountForFile: () => 0,
+        directCountForFile: () => 0,
+      },
       recency: { forFile: () => 0.6, limited: false },
     } as import("./build.js").ScoringContext;
     finaliseFindingScores(finding, scoring);

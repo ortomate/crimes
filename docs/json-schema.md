@@ -9,11 +9,44 @@ This page is the **stable product API**. Treat it as a public contract:
 any breaking change to a field name, type, or required-ness will bump
 `schema_version`.
 
-Documented as of `schema_version: "0.4.0"`. The source of truth in code
+Documented as of `schema_version: "0.5.0"`. The source of truth in code
 is [`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
 
 For how an agent should _use_ this output, see
 [`agent-usage.md`](./agent-usage.md).
+
+## Migrating from `0.4.0` to `0.5.0`
+
+The blast-radius integer is split in two, because the one that shipped
+was mislabelled.
+
+- **Renamed:** `scores.blast_radius_importers` →
+  `scores.blast_radius_transitive_importers`. Same value, honest name.
+  It is the size of the file's transitive importer closure — every file
+  that can *reach* it — not a count of files that import it.
+- **New optional field:** `scores.blast_radius_direct_importers`. The
+  number of distinct files with a direct import edge to this one,
+  deduplicated across repeated imports from the same file and excluding
+  self-edges. This is the "N files import this" number.
+
+Consumers that hard-checked `schema_version === "0.4.0"` must accept
+`"0.5.0"`. Consumers reading `blast_radius_importers` must rename the
+key — and should look hard at whether they wanted
+`blast_radius_direct_importers` instead, because the old name promised
+the direct count and delivered the closure.
+
+The two diverge by more than a rounding error. The walk does not break
+cycles, so a file on an import cycle counts itself, and every member of
+a strongly-connected component reports the same number. On the `hono`
+corpus `src/utils/mime.ts` has 5 direct importers and a closure of 240;
+six files in the core component all report exactly 197 while their
+direct fan-in ranges from 2 to 70.
+
+`scores.blast_radius` itself is unchanged — it is still
+`min(transitive_closure / 50, 1)`. Only the reporting is corrected; the
+score's calibration is a separate decision. No fingerprint changes, so
+no `.crimes/baseline.json` or `.crimes/suppressions.json` entry is
+invalidated by this bump.
 
 ## Migrating from `0.3.0` to `0.4.0`
 
@@ -754,11 +787,28 @@ interface FindingScores {
   /** Detector certainty (0–1). Always present. */
   confidence: number;
   /**
-   * Normalised transitive-importer count (0–1). Populated by every scan
-   * since 0.6.0 from the repo's import graph. Ordinal — the precise
+   * Normalised transitive-reach count (0–1). Populated by every scan
+   * since 0.6.0 from the repo's import graph; the integer it normalises
+   * is `blast_radius_transitive_importers`. Ordinal — the precise
    * scaling may shift between minor releases. See `docs/scoring.md`.
    */
   blast_radius?: number;
+  /**
+   * Size of the file's transitive importer closure — every file that
+   * reaches it through one or more import edges. The integer source of
+   * `blast_radius`. Reachability, NOT fan-in: the walk does not break
+   * cycles, so a file on an import cycle counts itself and every member
+   * of a strongly-connected component reports the same number. Renamed
+   * from `blast_radius_importers` in 0.5.0. See `docs/scoring.md`.
+   */
+  blast_radius_transitive_importers?: number;
+  /**
+   * Distinct files with a direct import edge to this one — the "N files
+   * import this" number. Deduplicated per source file, self-edges
+   * excluded. Reported alongside `blast_radius` but not an input to it.
+   * New in 0.5.0.
+   */
+  blast_radius_direct_importers?: number;
   /**
    * Normalised commits-in-window count (0–1). Populated by every scan
    * since 0.6.0 from `git log --since=90d`. Same saturation curve as

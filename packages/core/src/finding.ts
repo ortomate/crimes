@@ -3,7 +3,7 @@
  *
  * Bumping `schema_version` is a breaking change.
  */
-export const SCHEMA_VERSION = "0.4.0" as const;
+export const SCHEMA_VERSION = "0.5.0" as const;
 
 import type { Pack } from "./pack.js";
 import type { Tier } from "./scoring/tier.js";
@@ -27,20 +27,48 @@ export interface FindingScores {
   /** How certain the detector is (0-1). */
   confidence: number;
   /**
-   * Normalised transitive-importer count (0-1). Populated by the scoring
-   * context attached to every scan; absent only in direct unit-test stubs
-   * that bypass scan/context wiring. Treat as ordinal — the precise scaling
-   * may shift between minor releases.
+   * Normalised transitive-reach count (0-1) — see
+   * `blast_radius_transitive_importers`, which is the integer this is
+   * derived from. Populated by the scoring context attached to every
+   * scan; absent only in direct unit-test stubs that bypass scan/context
+   * wiring. Treat as ordinal — the precise scaling may shift between
+   * minor releases.
    */
   blast_radius?: number;
   /**
-   * Raw transitive-importer count for the finding's file (the integer
-   * source of `blast_radius`). Optional and additive; populated when the
-   * scoring context resolves an import graph. The renderer uses it to
-   * print "blast top-quartile (11 importers)"; the normalised
-   * `blast_radius` stays the canonical ordinal score.
+   * Size of the file's transitive importer closure: every in-repo file
+   * that reaches it through one or more import edges. The integer source
+   * of `blast_radius`. Populated when the scoring context resolves an
+   * import graph.
+   *
+   * This is a **reachability** measure, not a fan-in measure, and the two
+   * diverge sharply on real repos. Because the walk follows import edges
+   * without cycle-breaking, a file that sits on an import cycle counts
+   * *itself*, and every member of a strongly-connected component reports
+   * the same number. On the `hono` corpus `src/utils/mime.ts` has 5 direct
+   * importers and a transitive closure of 240; six files in the core
+   * component all report exactly 197 while their direct fan-in ranges
+   * from 2 to 70.
+   *
+   * Renamed from `blast_radius_importers` in `schema_version` 0.5.0: the
+   * old name promised a fan-in count it never delivered. Use
+   * `blast_radius_direct_importers` when you want "how many files import
+   * this".
    */
-  blast_radius_importers?: number;
+  blast_radius_transitive_importers?: number;
+  /**
+   * Number of distinct in-repo files with a **direct** import edge to the
+   * finding's file — the honest "N files import this" number.
+   * Deduplicated across multiple import statements from the same file
+   * (a value import plus an `import type` counts once), and excluding the
+   * file itself. Populated whenever
+   * `blast_radius_transitive_importers` is.
+   *
+   * Reported alongside `blast_radius` but deliberately not an input to
+   * it: the score's normalisation is a separate, calibrated decision.
+   * New in `schema_version` 0.5.0.
+   */
+  blast_radius_direct_importers?: number;
   /**
    * Normalised commits-in-window count (0-1). Populated by the scoring
    * context; absent in stubs. Ordinal.

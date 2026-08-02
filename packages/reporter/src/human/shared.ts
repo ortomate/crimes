@@ -218,7 +218,13 @@ export function renderRiskProfileLine(
   colour: ColourFns,
   options: { alwaysShowRiskProfile?: boolean },
 ): string | undefined {
-  const { churn, test_gap, blast_radius, blast_radius_importers } = finding.scores;
+  const {
+    churn,
+    test_gap,
+    blast_radius,
+    blast_radius_direct_importers,
+    blast_radius_transitive_importers,
+  } = finding.scores;
   if (churn === undefined && test_gap === undefined && blast_radius === undefined) {
     return undefined;
   }
@@ -228,7 +234,10 @@ export function renderRiskProfileLine(
   const parts = [
     `churn ${formatChurn(churn ?? 0)}`,
     `test gap ${testGapLabel(test_gap)}`,
-    `blast ${formatBlastRadius(blast_radius ?? 0, blast_radius_importers)}`,
+    `blast ${formatBlastRadius(blast_radius ?? 0, {
+      direct: blast_radius_direct_importers,
+      transitive: blast_radius_transitive_importers,
+    })}`,
   ];
   return `     ${colour.bold("Risk profile:")} ${colour.dim(parts.join(" · "))}`;
 }

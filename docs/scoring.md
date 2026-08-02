@@ -166,9 +166,36 @@ testable automatically when a pack starts claiming it — no second list.
 blast_radius[file] = min(transitive_importers / 50, 1)
 ```
 
-Where `transitive_importers` is the count of distinct repo files that
-reach the target via one or more import edges. The traversal is memoised
-per file so the per-scan cost stays O(F).
+Where `transitive_importers` is the size of the file's transitive
+importer closure: every distinct repo file that reaches the target via
+one or more import edges. The traversal is memoised per file so the
+per-scan cost stays O(F).
+
+**This is reachability, not fan-in, and the two are not close.** The
+walk follows import edges without breaking cycles, so a file on an
+import cycle appears in its own closure, and every member of a
+strongly-connected component reports the same number. Measured on the
+`hono` corpus: `src/utils/mime.ts` has 5 direct importers and a closure
+of 240; six files in the core component all report exactly 197 while
+their direct fan-in ranges from 2 to 70. On `zulip`, 866 findings shared
+one value (798) and 825 shared another (324) — a component census, not a
+per-file measurement.
+
+Both integers are reported on every finding, under names that say which
+is which:
+
+| Field | Meaning |
+| --- | --- |
+| `scores.blast_radius_transitive_importers` | Closure size. The integer `blast_radius` normalises. |
+| `scores.blast_radius_direct_importers` | Distinct files with a direct import edge to this one. Deduplicated per source file, self-edges excluded. |
+
+`blast_radius_direct_importers` deliberately does **not** feed the score.
+Which of the two signals should drive `blast_radius`, and where the cap
+should sit, is a calibration question with eval-baseline consequences;
+splitting the reporting is a truthfulness fix and is kept separate from
+it. Before `schema_version` 0.5.0 the closure size was the only integer
+emitted, under the name `blast_radius_importers`, and every human
+surface rendered it as "N importers".
 
 When the import graph isn't available, `blast_radius` is `0` for every
 file. The graph is built once per scan and shared across every detector

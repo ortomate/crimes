@@ -3,8 +3,8 @@ import type { Finding, ScanReport } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 
 describe("SCHEMA_VERSION", () => {
-  it("is 0.4.0 — fingerprint discriminator", () => {
-    expect(SCHEMA_VERSION).toBe("0.4.0");
+  it("is 0.5.0 — blast-radius importer counts split", () => {
+    expect(SCHEMA_VERSION).toBe("0.5.0");
   });
 });
 

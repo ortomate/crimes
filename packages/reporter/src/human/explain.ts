@@ -1,4 +1,4 @@
-import type { ExplainReport, Finding, Severity } from "@crimes/core";
+import type { ExplainReport, Finding, FindingScores, Severity } from "@crimes/core";
 import type { ColourFns } from "./shared.js";
 import { pc, plainColour } from "./shared.js";
 
@@ -131,7 +131,7 @@ function explainRiskProfileBlock(finding: Finding, colour: ColourFns): string[] 
   );
   lines.push(
     `  · blast radius: ${(blast_radius ?? 0).toFixed(2)} — ` +
-      blastRadiusExplain(blast_radius ?? 0),
+      blastRadiusExplain(blast_radius ?? 0, finding.scores),
   );
   return lines;
 }
@@ -151,10 +151,41 @@ function testGapExplain(score: number): string {
   return "partial coverage signal";
 }
 
-function blastRadiusExplain(score: number): string {
+/**
+ * Prose for the blast-radius score.
+ *
+ * Prefers the two measured integers over inverting the score. Inverting
+ * was lossy in both directions: it capped out at "50+" no matter how
+ * large the closure actually was, and it could not say anything at all
+ * about direct fan-in — the number a reader actually pictures when they
+ * are told a file has importers.
+ */
+function blastRadiusExplain(score: number, scores: FindingScores): string {
+  const direct = scores.blast_radius_direct_importers;
+  const transitive = scores.blast_radius_transitive_importers;
+
+  if (direct !== undefined || transitive !== undefined) {
+    if ((direct ?? 0) === 0 && (transitive ?? 0) === 0) {
+      return "no other files import this one";
+    }
+    const clauses: string[] = [];
+    if (direct !== undefined) {
+      clauses.push(
+        `${direct} ${direct === 1 ? "file imports" : "files import"} this directly`,
+      );
+    }
+    if (transitive !== undefined && transitive !== direct) {
+      clauses.push(`${transitive} reach it transitively`);
+    }
+    const cap = score >= 1 ? " (score capped at 50)" : "";
+    return `${clauses.join("; ")}${cap}`;
+  }
+
+  // No counts on the finding — a stub, or output from a pre-0.5.0 scan
+  // replayed through `--from`. Fall back to inverting the score.
   if (score === 0) return "no other files import this one";
-  if (score >= 1) return "50+ transitive importers (cap reached)";
-  return `~${Math.round(score * 50)} transitive importers`;
+  if (score >= 1) return "50+ files reach this transitively (score capped at 50)";
+  return `~${Math.round(score * 50)} files reach this transitively`;
 }
 
 function severityCell(s: Severity, colour: ColourFns): string {
