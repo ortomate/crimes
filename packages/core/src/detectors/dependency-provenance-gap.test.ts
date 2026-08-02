@@ -76,6 +76,27 @@ describe("dependency_provenance_gap — undeclared imports", () => {
     expect(evidence).not.toContain("`zod`");
   });
 
+  it("does not check Python imports against package.json", async () => {
+    // On zulip this emitted a HIGH-severity finding claiming 450 external
+    // packages were undeclared. The itemised examples were `abc` and
+    // `_typeshed` — the Python standard library — plus packages that are
+    // declared, in pyproject.toml. Every cited import was from a .py file
+    // and the only manifests searched were package.json.
+    const repo = await makeRepo({
+      "package.json": JSON.stringify({ name: "app", dependencies: { zod: "3.22.4" } }),
+      "pnpm-lock.yaml": PNPM_LOCK,
+      "src/a.ts": `import { z } from "zod";\nexport const x = z;\n`,
+      "svc/main.py": `import abc\nimport aioapns\n\ndef go():\n    return abc\n`,
+    });
+    const finding = bySymbol(await runOn(repo), "undeclared imports");
+    if (finding !== undefined) {
+      const evidence = finding.evidence.join("\n");
+      expect(evidence).not.toContain("abc");
+      expect(evidence).not.toContain("aioapns");
+      expect(evidence).not.toContain("main.py");
+    }
+  });
+
   it("states plainly that no registry was contacted", async () => {
     const repo = await makeRepo({
       "package.json": JSON.stringify({ name: "app" }),

@@ -162,6 +162,14 @@ function reportUndeclared(
 
   for (const edge of edges) {
     if (!edge.external) continue;
+    // A `package.json` governs JS/TS imports and nothing else. Checking a
+    // Python import against it produced a HIGH-severity finding on zulip
+    // claiming 450 undeclared packages, itemising `abc` and `_typeshed`
+    // (the Python standard library) and `aioapns` (declared, in
+    // pyproject.toml). Provenance for other languages needs their own
+    // manifest readers; until then, silence beats a confident wrong
+    // answer.
+    if (!isNodeResolvedSource(edge.from)) continue;
     const packageName = packageNameOf(edge.specifier);
     if (packageName === undefined) continue;
     if (allowed.has(packageName.toLowerCase())) continue;
@@ -672,4 +680,15 @@ function readOptions(config: {
   if (raw === undefined) return {};
   const parsed = optionsSchema.safeParse(raw);
   return parsed.success ? parsed.data : {};
+}
+
+/**
+ * Files whose imports are resolved by Node / a JS bundler, and therefore
+ * governed by a `package.json`. Anything else — Python, Go, Rust — has
+ * its own manifest system that this detector does not read.
+ */
+const NODE_RESOLVED_EXT = /\.(?:[cm]?[jt]sx?|vue|svelte)$/i;
+
+function isNodeResolvedSource(file: string): boolean {
+  return NODE_RESOLVED_EXT.test(file);
 }
