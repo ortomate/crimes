@@ -19,7 +19,7 @@ export function registerExplainCommand(program: Command): void {
     .argument(
       "<id-or-fingerprint>",
       "either a per-scan id (crime_00005) or a stable fingerprint " +
-        "(<type>::<file>::<symbol>)",
+        "(<type>::<file>::<symbol>[::<discriminator>])",
     )
     .option(
       "--from <path>",

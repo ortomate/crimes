@@ -139,7 +139,7 @@ function validateInputs(
   if (!ID_PATTERN.test(idOrFingerprint!) && !FINGERPRINT_PATTERN.test(idOrFingerprint!)) {
     process.stderr.write(
       `crimes: "${idOrFingerprint!}" is neither a per-scan id (crime_00001) ` +
-        `nor a stable fingerprint (<type>::<file>::<symbol>).\n`,
+        `nor a stable fingerprint (<type>::<file>::<symbol>[::<discriminator>]).\n`,
     );
     process.exit(2);
   }

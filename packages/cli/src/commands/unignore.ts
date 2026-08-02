@@ -40,7 +40,8 @@ export function registerUnignoreCommand(program: Command): void {
       if (!FINGERPRINT_PATTERN.test(fingerprint)) {
         process.stderr.write(
           `crimes: "${fingerprint}" is not a stable fingerprint ` +
-            `(<type>::<file>::<symbol>). Run \`crimes audit-suppressions\` ` +
+            `(<type>::<file>::<symbol>[::<discriminator>]). Run ` +
+            `\`crimes audit-suppressions\` ` +
             `to see the active fingerprints.\n`,
         );
         process.exit(2);

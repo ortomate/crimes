@@ -36,7 +36,7 @@ export function registerIgnoreCommand(program: Command): void {
     .argument(
       "<id-or-fingerprint>",
       "either a per-scan id (crime_00005) or a stable fingerprint " +
-        "(<type>::<file>::<symbol>) — the latter is the durable form",
+        "(<type>::<file>::<symbol>[::<discriminator>]) — the latter is the durable form",
     )
     .option(
       "--reason <text>",
@@ -77,7 +77,7 @@ export function registerIgnoreCommand(program: Command): void {
       ) {
         process.stderr.write(
           `crimes: "${idOrFingerprint}" is neither a per-scan id (crime_00001) ` +
-            `nor a stable fingerprint (<type>::<file>::<symbol>).\n`,
+            `nor a stable fingerprint (<type>::<file>::<symbol>[::<discriminator>]).\n`,
         );
         process.exit(2);
         return;

@@ -70,8 +70,10 @@ const ID_PATTERN = /^crime_\d+$/;
  * - per-scan id (`crime_00005`) — only meaningful when paired with the
  *   same scan that produced it, so `options.from` is the canonical path
  *   here; fresh-scan mode also works as long as the order is stable.
- * - stable fingerprint (`<type>::<file>::<symbol>`) — survives across
- *   scans; the preferred form for agent workflows.
+ * - stable fingerprint (`<type>::<file>::<symbol>`, with an optional
+ *   trailing `::<discriminator>` for detectors that emit more than one
+ *   finding per triple) — survives across scans; the preferred form for
+ *   agent workflows.
  */
 export async function explain(
   identifier: string,
