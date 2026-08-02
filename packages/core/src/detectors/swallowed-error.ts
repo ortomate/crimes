@@ -5,6 +5,7 @@ import type { ErrorHandler } from "@crimes/language-js";
 import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
 import { classifyBoundary } from "../domain/vocabulary.js";
 import { classifyScope } from "../util/scope-class.js";
+import { resolveDiscriminators } from "./disambiguate.js";
 
 /**
  * Catch and Release — a failure that is caught and then discarded, or
@@ -145,6 +146,7 @@ export const swallowedErrorDetector: LanguageJsDetector = {
     }
 
     findings.sort((a, b) => (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0));
+    resolveDiscriminators(findings);
     return findings;
   },
 };
@@ -312,6 +314,12 @@ function buildFinding(
     file,
     lines: [handler.line, handler.endLine],
     symbol: handlerIdentity(handler),
+    // Two handlers in one function guarding the same callee share that
+    // symbol — 111 findings were lost to it on n8n. The protected
+    // operation is what makes them different and is stable across scans
+    // of the same code. `resolveDiscriminators` drops it again wherever
+    // the symbol is already unique.
+    discriminator: condenseOperation(handler.protectedOperation),
     summary: buildSummary(handler, verdict, boundary),
     evidence: buildEvidence(handler, verdict, boundary, confidence, severity),
     effort: "small",
@@ -467,6 +475,17 @@ function buildActions(
  * them, stays stable when lines move, and reads meaningfully in output:
  * `readManifest → readFile`.
  */
+/**
+ * One line, bounded length — a fingerprint gets copied into
+ * `crimes ignore` and pasted into config, so a multi-line protected
+ * region cannot go in verbatim. Truncation can make two long operations
+ * collide again, which `resolveDiscriminators` then settles by line.
+ */
+function condenseOperation(operation: string): string {
+  const oneLine = operation.replace(/\s+/g, " ").trim();
+  return oneLine.length <= 60 ? oneLine : `${oneLine.slice(0, 59)}…`;
+}
+
 function handlerIdentity(handler: ErrorHandler): string {
   const where = handler.enclosing ?? "<module>";
   const protectedCall = handler.protectedCalls[0];

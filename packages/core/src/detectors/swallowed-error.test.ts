@@ -324,4 +324,42 @@ describe("swallowed_error — stability", () => {
     `;
     expect(JSON.stringify(run(source))).toBe(JSON.stringify(run(source)));
   });
+
+  it("separates two handlers whose symbol is identical", () => {
+    // Same enclosing function, same protected callee, so
+    // `<enclosing> → <call>` cannot tell them apart. What differs is the
+    // operation each one guards.
+    const findings = run(`
+      export async function persist(order) {
+        try { await db.orders.insert(order); } catch (e) {}
+        try { await db.orders.insert(order.child); } catch (e) {}
+      }
+    `);
+    expect(findings).toHaveLength(2);
+    expect(new Set(findings.map((f) => f.symbol)).size).toBe(1);
+    expect(new Set(findings.map((f) => f.discriminator)).size).toBe(2);
+  });
+
+  it("falls back to the start line for two identical protected operations", () => {
+    const findings = run(`
+      export async function persist(order) {
+        try { await db.orders.insert(order); } catch (e) {}
+        try { await db.orders.insert(order); } catch (e) {}
+      }
+    `);
+    expect(findings).toHaveLength(2);
+    expect(new Set(findings.map((f) => f.discriminator)).size).toBe(2);
+    for (const finding of findings) {
+      expect(finding.discriminator).toMatch(/@L\d+$/);
+    }
+  });
+
+  it("leaves an unambiguous handler with no discriminator", () => {
+    const findings = run(`
+      export async function persist(order) {
+        try { await db.orders.insert(order); } catch (e) {}
+      }
+    `);
+    expect(findings[0]!.discriminator).toBeUndefined();
+  });
 });

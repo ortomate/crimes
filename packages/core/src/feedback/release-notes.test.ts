@@ -22,4 +22,29 @@ describe("releaseNoteFor", () => {
   it("the map is non-empty (covers at least the §6.1 / §6.3 fixes)", () => {
     expect(Object.keys(RELEASE_NOTES).length).toBeGreaterThan(0);
   });
+
+  it("every detector whose fingerprint changed in 0.17 tells the user to re-record", () => {
+    // A fingerprint change breaks pinned suppressions. Shipping one
+    // without a note leaves `crimes feedback recheck` saying "detector
+    // behaviour unchanged" about the one change that invalidated the
+    // pin. 0.17.0 shipped three such detectors with notes and three
+    // without; the four here landed in 0.17.2.
+    const changed = [
+      "commented_out_code",
+      "contract_drift",
+      "exact_duplicate_block",
+      "large_function",
+      "logic_in_comments",
+      "magic_domain_literal_scatter",
+      "near_duplicate_block",
+      "swallowed_error",
+      "unbounded_async_fanout",
+      "weak_test_signal",
+    ];
+    for (const detector of changed) {
+      const note = releaseNoteFor(detector, "0.17");
+      expect(note, detector).not.toBe(RELEASE_NOTES_FALLBACK);
+      expect(note, detector).toMatch(/re-record/i);
+    }
+  });
 });

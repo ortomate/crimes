@@ -233,4 +233,41 @@ describe("unbounded_async_fanout — stability", () => {
     expect(findings).toHaveLength(2);
     expect(new Set(findings.map((f) => f.symbol)).size).toBe(2);
   });
+
+  it("separates two fan-outs whose symbol is identical", () => {
+    // Same enclosing function, same first per-element call, so
+    // `<enclosing> → <call>` cannot tell them apart. The collection is
+    // what differs.
+    const findings = run(`
+      export async function sync() {
+        const orders = await db.orders.findMany();
+        await Promise.all(orders.map((o) => api.post("/a", o)));
+        const users = await db.users.findMany();
+        await Promise.all(users.map((u) => api.post("/b", u)));
+      }
+    `);
+    expect(findings).toHaveLength(2);
+    expect(new Set(findings.map((f) => f.symbol)).size).toBe(1);
+    expect(findings.map((f) => f.discriminator)).toEqual(["orders", "users"]);
+  });
+
+  it("falls back to the start line when the collections are named alike", () => {
+    const findings = run(`
+      export async function sync(rows) {
+        await Promise.all(rows.map((r) => api.post("/a", r)));
+        await Promise.all(rows.map((r) => api.post("/b", r)));
+      }
+    `);
+    expect(findings).toHaveLength(2);
+    expect(new Set(findings.map((f) => f.discriminator)).size).toBe(2);
+    for (const finding of findings) {
+      expect(finding.discriminator).toMatch(/^rows\.map\(…\)@L\d+$/);
+    }
+  });
+
+  it("leaves an unambiguous fan-out with no discriminator", () => {
+    // Guards the surgical rule: adding one to every finding would change
+    // the fingerprint of every unambiguous fan-out ever emitted.
+    expect(run(UNBOUNDED)[0]!.discriminator).toBeUndefined();
+  });
 });

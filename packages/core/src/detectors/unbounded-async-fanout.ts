@@ -4,6 +4,7 @@ import type { PreFinding as Finding } from "../finding.js";
 import type { FanOutSite, FanOutWork } from "@crimes/language-js";
 import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
 import { classifyScope } from "../util/scope-class.js";
+import { resolveDiscriminators } from "./disambiguate.js";
 
 /**
  * Concurrency Stampede — `Promise.all` over a collection whose size is
@@ -108,6 +109,7 @@ export const unboundedAsyncFanoutDetector: LanguageJsDetector = {
     }
 
     findings.sort((a, b) => (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0));
+    resolveDiscriminators(findings);
     return findings;
   },
 };
@@ -190,6 +192,13 @@ function buildFinding(file: string, site: FanOutSite): Finding {
     symbol: `${site.enclosing ?? "<module>"} → ${
       site.work[0] !== undefined ? tailOf(site.work[0].callee) : "fanout"
     }`,
+    // Two fan-outs in one function over different collections but with
+    // the same first per-element call share that symbol — 294 findings
+    // were lost to it on n8n. The collection expression is what makes
+    // them different and is stable across scans of the same code, so it
+    // is the discriminator candidate. `resolveDiscriminators` drops it
+    // again wherever the symbol is already unique.
+    discriminator: collectionName(site.collection),
     summary:
       `\`${site.kind === "promise_all" ? "Promise.all" : "Promise.allSettled"}\` ` +
       `starts one ${describeWorkList(kinds)} per element of ${site.collection}, ` +
@@ -303,6 +312,16 @@ function describeWorkList(kinds: string[]): string {
   const labels = kinds.map((k) => describeWorkKind(k as FanOutWork["kind"]));
   if (labels.length === 1) return labels[0]!;
   return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+}
+
+/**
+ * The bare collection expression, without the `(← producer)` annotation
+ * the parser appends for the human report. The producer is already
+ * carried in the evidence and only lengthens a value users copy into
+ * `crimes ignore`.
+ */
+function collectionName(collection: string): string {
+  return collection.replace(/\s*\(←.*$/, "").trim();
 }
 
 function tailOf(name: string): string {

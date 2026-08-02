@@ -1,6 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { extractComments } from "../petty/comments.js";
+import { hashSlice } from "../ast-hash/hash.js";
 
 const RULE_TERMS = [
   "must",
@@ -87,6 +88,17 @@ export const logicInCommentsDetector: LanguageJsDetector = {
         confidence,
         file: ctx.file,
         lines: [comment.startLine, comment.endLine],
+        // One finding per comment block and no `symbol`, so without a
+        // discriminator every block in a file shares
+        // `logic_in_comments::<file>::` — 18 findings were lost to it on
+        // n8n. Unlike the symbol-bearing detectors, which only
+        // disambiguate the findings that actually collide, this one
+        // hashes unconditionally: the triple is unique only when the
+        // file holds exactly one finding, and keying on the block's own
+        // text means adding a neighbouring comment does not move an
+        // existing fingerprint. Same treatment as `commented_out_code`,
+        // which reads the same comment stream.
+        discriminator: hashSlice(comment.text).exact.slice(0, 12),
         summary:
           `Comment appears to carry a rule that nearby code does not obviously encode. ` +
           `Hidden prose rules are easy for agents and new maintainers to miss.`,

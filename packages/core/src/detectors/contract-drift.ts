@@ -3,6 +3,7 @@ import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
 import type { ContractDisagreement, ContractDriftPair } from "../risk/types.js";
+import { resolveDiscriminators } from "./disambiguate.js";
 
 /**
  * Contract Split-Brain — two declarations that describe the same record
@@ -119,6 +120,7 @@ export const contractDriftDetector: LanguageJsDetector = {
       const lineDelta = (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0);
       return lineDelta !== 0 ? lineDelta : a.summary.localeCompare(b.summary);
     });
+    resolveDiscriminators(findings);
     return findings;
   },
 };
@@ -195,6 +197,15 @@ function buildFinding(
         ? [pair.left.line, pair.left.endLine]
         : [pair.right.line, pair.right.endLine],
     symbol: pair.left.file === pair.anchorFile ? pair.left.name : pair.right.name,
+    // One declaration drifting against several others anchors every
+    // pair on the same (type, file, symbol) triple — 26 findings were
+    // lost to it on n8n. The other side identifies the pair and is
+    // stable across scans. `resolveDiscriminators` drops it again
+    // wherever the symbol is already unique.
+    discriminator:
+      pair.left.file === pair.anchorFile
+        ? `${pair.right.file}:${pair.right.name}`
+        : `${pair.left.file}:${pair.left.name}`,
     summary:
       `\`${pair.left.name}\` and \`${pair.right.name}\` appear to describe the ` +
       `same record but disagree on ${describeCount(disagreements.length, "field")}. ` +

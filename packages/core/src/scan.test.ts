@@ -876,3 +876,160 @@ describe("scan — ScanReport.coverage", () => {
     }
   });
 });
+
+/**
+ * A fingerprint that is not unique is not an identity. When two findings
+ * share one, `crimes ignore` on either silently suppresses both and
+ * `crimes diff` conflates them — the user gets a finding hidden that
+ * they never looked at.
+ *
+ * The class has now regressed twice: 0.17.0 fixed three detectors and
+ * left four more colliding, which real-repo measurement then found. This
+ * fixture is the standing gate. It is deliberately built to trip every
+ * detector that can legitimately emit more than one finding per
+ * `(type, file, symbol)` triple, and it asserts both that they fired and
+ * that nothing collided — a fixture that quietly stopped triggering them
+ * would keep passing while covering nothing.
+ */
+describe("scan — fingerprint uniqueness", () => {
+  const body = (n: number): string =>
+    Array.from({ length: n }, (_, i) => `    const v${i} = ${i};`).join("\n");
+
+  const MULTI_EMIT_FIXTURE: Record<string, string> = {
+    // large_function: two anonymous callbacks collapse to the same
+    // synthesized symbol.
+    "src/suite.test.ts": `describe("a", () => {\n${body(200)}\n});\n\ndescribe("b", () => {\n${body(200)}\n});\n`,
+    // weak_test_signal: several assertion-free tests in one file.
+    "src/weak.test.ts": [
+      `it("does the first thing", () => { setup(); });`,
+      `it("does the second thing", () => { setup(); });`,
+      `it("does the third thing", () => { setup(); });`,
+    ].join("\n"),
+    // swallowed_error + unbounded_async_fanout: two of each in one
+    // function, guarding / fanning out over the same callee.
+    "src/jobs/sync.ts": `
+export async function sync(orders, users) {
+  try { await db.orders.insert(orders); } catch (e) {}
+  try { await db.orders.insert(users); } catch (e) {}
+  await Promise.all(orders.map((o) => api.post("/a", o)));
+  await Promise.all(users.map((u) => api.post("/b", u)));
+}
+`,
+    // logic_in_comments + commented_out_code: several blocks per file.
+    "src/billing/rules.ts": `
+// Only owners can refund plans unless support approves.
+export function refundAccount(accountId) {
+  return payments.refund(accountId);
+}
+
+// Admins must never change the billing tier after the cutoff.
+export function setTier(accountId) {
+  return save(accountId);
+}
+
+// const legacyRate = computeRate(plan, region);
+// if (legacyRate > 100) {
+//   legacyRate = applyCap(legacyRate, region);
+// }
+// return legacyRate * 1.2;
+export function rate() { return 1; }
+
+// const olderRate = computeRate(plan);
+// if (olderRate < 10) {
+//   olderRate = applyFloor(olderRate);
+// }
+// return olderRate * 1.1;
+export function otherRate() { return 2; }
+`,
+    // contract_drift: one declaration drifting against two others, so
+    // every pair anchors on the same (type, file, symbol) triple.
+    "src/api/user.ts": `
+export interface User {
+  id: string;
+  email: string;
+  role: "admin" | "member";
+  createdAt: Date;
+}
+`,
+    "src/db/user.ts": `
+export const UserSchema = z.object({
+  id: z.string(),
+  email: z.string().optional(),
+  role: z.enum(["admin", "member", "owner"]),
+  createdAt: z.string(),
+});
+`,
+    "src/store/user.ts": `
+export interface UserModel {
+  id: number;
+  email: string;
+  role: "admin" | "member";
+  createdAt: Date;
+}
+`,
+    // magic_domain_literal_scatter: several domain literals per file.
+    "src/billing/plans.ts": `
+export function priceFor(plan) {
+  if (plan === "enterprise") return 999;
+  if (plan === "pro") return 99;
+  if (plan === "starter") return 9;
+  return 0;
+}
+export function limitFor(plan) {
+  if (plan === "enterprise") return 1000;
+  if (plan === "pro") return 100;
+  if (plan === "starter") return 10;
+  return 1;
+}
+`,
+  };
+
+  it("gives every finding in a multi-emit repo a distinct fingerprint", async () => {
+    const root = await makeRepo(MULTI_EMIT_FIXTURE);
+    try {
+      const report = await scan({ root });
+
+      const byPrint = new Map<string, Finding[]>();
+      for (const finding of report.findings) {
+        const print = fingerprintFinding(finding);
+        const bucket = byPrint.get(print);
+        if (bucket === undefined) byPrint.set(print, [finding]);
+        else bucket.push(finding);
+      }
+      const collisions = [...byPrint.entries()].filter(([, fs]) => fs.length > 1);
+
+      expect(
+        collisions.map(([print, fs]) => `${print} ×${fs.length}`),
+        "findings sharing one fingerprint",
+      ).toEqual([]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("still trips the detectors that can emit more than one per symbol", async () => {
+    const root = await makeRepo(MULTI_EMIT_FIXTURE);
+    try {
+      const report = await scan({ root });
+      const withDiscriminator = new Set(
+        report.findings.filter((f) => f.discriminator !== undefined).map((f) => f.type),
+      );
+      // If a fixture edit stops tripping one of these, the uniqueness
+      // test above silently stops covering it.
+      expect([...withDiscriminator].sort()).toEqual(
+        expect.arrayContaining([
+          "commented_out_code",
+          "contract_drift",
+          "large_function",
+          "logic_in_comments",
+          "magic_domain_literal_scatter",
+          "swallowed_error",
+          "unbounded_async_fanout",
+          "weak_test_signal",
+        ]),
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});

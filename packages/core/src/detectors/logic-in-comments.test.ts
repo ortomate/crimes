@@ -54,6 +54,44 @@ export function normalise(value: unknown) {
     expect(findings).toEqual([]);
   });
 
+  it("gives every comment block its own discriminator", async () => {
+    // This detector carries no `symbol`, so without one every block in a
+    // file shares the fingerprint `logic_in_comments::<file>::` and
+    // `crimes ignore` on one silently suppresses the rest.
+    const source = `
+// Only owners can refund plans unless support approves.
+export function refundAccount(accountId: string) {
+  return payments.refund(accountId);
+}
+
+// Admins must never change the billing tier after the cutoff.
+export function setTier(accountId: string) {
+  return save(accountId);
+}
+`;
+    const findings = await logicInCommentsDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(2);
+    expect(new Set(findings.map((f) => f.discriminator)).size).toBe(2);
+  });
+
+  it("keys the discriminator on the comment text, not on its position", async () => {
+    const rule = "// Only owners can refund plans unless support approves.";
+    const bare = `
+${rule}
+export function refundAccount(accountId: string) {
+  return payments.refund(accountId);
+}
+`;
+    const shifted = `
+// An unrelated leading comment.
+${bare}`;
+    const [first] = await logicInCommentsDetector.run(makeCtx(bare));
+    const [second] = await logicInCommentsDetector.run(makeCtx(shifted));
+    expect(second!.lines?.[0]).not.toBe(first!.lines?.[0]);
+    expect(first!.discriminator).toBeDefined();
+    expect(second!.discriminator).toBe(first!.discriminator);
+  });
+
   it("ignores rules that appear represented by nearby guard names", async () => {
     const source = `
 // Only owners can refund annual plans.

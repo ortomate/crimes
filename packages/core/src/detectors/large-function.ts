@@ -2,6 +2,7 @@ import type { FunctionShape, ParsedFunction } from "@crimes/language-js";
 import type { CrimesConfig } from "../config.js";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
+import { resolveDiscriminators } from "./disambiguate.js";
 
 /**
  * Per-shape size policy. `domain` reads the configured threshold so
@@ -161,44 +162,17 @@ export const largeFunctionDetector: LanguageJsDetector = {
       });
     }
 
-    disambiguate(findings);
+    // Anonymous callbacks all collapse to a synthesized name — nine
+    // `large_function::src/types.test.ts::describe callback` findings
+    // shared one fingerprint on hono, and zulip lost 70 findings this
+    // way. There is nothing content-derived to key two anonymous
+    // callbacks in one file on, so no candidate is offered and
+    // `resolveDiscriminators` falls back to the start line for exactly
+    // the findings that collide.
+    resolveDiscriminators(findings);
     return findings;
   },
 };
-
-/**
- * Give a discriminator only to findings whose `symbol` does not identify
- * them uniquely within the file.
- *
- * Anonymous callbacks all collapse to a synthesized name — nine
- * `large_function::src/types.test.ts::describe callback` findings shared
- * one fingerprint on hono, and zulip lost 70 findings this way, so
- * `crimes ignore` on one silenced all nine and `crimes diff` conflated
- * them.
- *
- * Only the ambiguous ones are touched. Adding a discriminator to every
- * finding would change the fingerprint of every named function too, and
- * this is the highest-volume detector in the product — that would
- * invalidate pinned suppressions and baselines wholesale for no benefit.
- *
- * The start line is the discriminator. It is not content-derived, so it
- * moves if code above the function moves; for two anonymous callbacks in
- * one file there is nothing more stable to key on, and an unstable
- * fingerprint on a previously *colliding* finding is still strictly
- * better than one that silently suppresses its neighbours.
- */
-function disambiguate(findings: Finding[]): void {
-  const counts = new Map<string, number>();
-  for (const f of findings) {
-    const key = f.symbol ?? "";
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  for (const f of findings) {
-    if ((counts.get(f.symbol ?? "") ?? 0) > 1) {
-      f.discriminator = `L${f.lines?.[0] ?? 0}`;
-    }
-  }
-}
 
 function symbolFor(fn: ParsedFunction): string {
   if (fn.name) return fn.name;

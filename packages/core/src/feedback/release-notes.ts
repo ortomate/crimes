@@ -16,6 +16,8 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
   large_function: {
     "0.6":
       "cli_command_registrar shape added — Commander DSL chains get a 200-line budget. Likely resolved for register*Command findings.",
+    "0.17":
+      "Fingerprints now carry the start line as a discriminator, for anonymous callbacks that share a synthesized symbol within one file (schema_version 0.4.0). Re-record the pin against the callback you meant. Pins on named functions are unaffected.",
   },
   todo_density: {
     "0.6":
@@ -38,6 +40,30 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
   near_duplicate_block: {
     "0.17":
       "Fingerprints now carry the shape group's body hash as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that could cover several groups — re-record it against the one you meant.",
+  },
+  weak_test_signal: {
+    "0.17":
+      "Fingerprints now carry the test's title as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every test in the file — re-record it against the test you meant.",
+  },
+  commented_out_code: {
+    "0.17":
+      "Fingerprints now carry a hash of the comment block as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every block in the file — re-record it against the block you meant.",
+  },
+  logic_in_comments: {
+    "0.17":
+      "Fingerprints now carry a hash of the comment block as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every rule comment in the file — re-record it against the one you meant.",
+  },
+  swallowed_error: {
+    "0.17":
+      "Fingerprints now carry the protected operation as a discriminator, for handlers whose enclosing function and protected callee are shared (schema_version 0.4.0). Re-record the pin against the handler you meant. Pins on handlers that were already uniquely named are unaffected.",
+  },
+  unbounded_async_fanout: {
+    "0.17":
+      "Fingerprints now carry the collection expression as a discriminator, for fan-outs whose enclosing function and per-element call are shared (schema_version 0.4.0). Re-record the pin against the fan-out you meant. Pins on fan-outs that were already uniquely named are unaffected.",
+  },
+  contract_drift: {
+    "0.17":
+      "Fingerprints now carry the other declaration as a discriminator, where one declaration drifts against several (schema_version 0.4.0). Re-record the pin against the pair you meant. Pins on single-pair findings are unaffected.",
   },
 };
 

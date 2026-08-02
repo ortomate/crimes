@@ -302,4 +302,35 @@ describe("contract_drift — stability", () => {
     expect(finding!.file).toBe("src/aaa/user.ts");
     expect(finding!.symbol).toBe("UserSchema");
   });
+
+  it("separates two pairs anchored on the same declaration", async () => {
+    // One declaration drifting against two others produces two findings
+    // on the same (type, file, symbol) triple. The other side is what
+    // makes them different.
+    const repo = await makeRepo({
+      "src/aaa/user.ts": API_USER,
+      "src/db/user.ts": DB_USER_SCHEMA,
+      "src/store/user.ts": `
+        export interface UserModel {
+          id: number;
+          email: string;
+          role: "admin" | "member";
+          createdAt: Date;
+        }
+      `,
+    });
+    const findings = (await runOn(repo)).filter((f) => f.file === "src/aaa/user.ts");
+    expect(findings.length).toBeGreaterThan(1);
+    expect(new Set(findings.map((f) => f.symbol)).size).toBe(1);
+    expect(new Set(findings.map((f) => f.discriminator)).size).toBe(findings.length);
+  });
+
+  it("leaves an unambiguous pair with no discriminator", async () => {
+    const repo = await makeRepo({
+      "src/api/user.ts": API_USER,
+      "src/db/user.ts": DB_USER_SCHEMA,
+    });
+    const [finding] = await runOn(repo);
+    expect(finding!.discriminator).toBeUndefined();
+  });
 });
