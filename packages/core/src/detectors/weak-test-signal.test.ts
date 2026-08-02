@@ -69,3 +69,30 @@ it("calculates total", () => {
     ).toEqual([]);
   });
 });
+
+describe("weak_test_signal fingerprint uniqueness", () => {
+  it("gives each test in a file a distinct fingerprint", async () => {
+    // One finding per test block, no `symbol`, so every finding in a file
+    // shared `weak_test_signal::<file>::`. Eight tests in a single hono
+    // file collapsed onto one fingerprint; zulip lost 114 findings this
+    // way. `crimes ignore` on one silenced all of them.
+    const source = [
+      "it('alpha', () => {",
+      "  setup();",
+      "});",
+      "it('beta', () => {",
+      "  setup();",
+      "});",
+      "it('gamma', () => {",
+      "  setup();",
+      "});",
+    ].join("\n");
+
+    const found = await weakTestSignalDetector.run(makeCtx(source, "src/a.test.ts"));
+    expect(found.length).toBeGreaterThanOrEqual(2);
+
+    const discriminators = found.map((f) => f.discriminator);
+    expect(discriminators.every((d) => typeof d === "string" && d.length > 0)).toBe(true);
+    expect(new Set(discriminators).size).toBe(found.length);
+  });
+});

@@ -479,3 +479,36 @@ describe("largeFunctionDetector (end-to-end shape classification)", () => {
     expect(findings[0]!.severity).toBe("high");
   });
 });
+
+describe("large_function fingerprint uniqueness", () => {
+  it("disambiguates several same-named anonymous functions in one file", async () => {
+    // Anonymous callbacks all get the same synthesized symbol, so nine
+    // `large_function::src/types.test.ts::describe callback` findings
+    // collapsed onto one fingerprint on hono; zulip lost 70 findings.
+    const found = await largeFunctionDetector.run(
+      makeCtx([
+        { start: 1, end: 200 },
+        { start: 210, end: 400 },
+        { start: 410, end: 600 },
+      ]),
+    );
+    expect(found).toHaveLength(3);
+    expect(new Set(found.map((f) => f.symbol)).size).toBe(1);
+
+    const fps = found.map(
+      (f) => `${f.type}::${f.file}::${f.symbol ?? ""}::${f.discriminator ?? ""}`,
+    );
+    expect(new Set(fps).size).toBe(3);
+  });
+
+  it("leaves a uniquely named function's fingerprint untouched", async () => {
+    // Adding a discriminator to every finding would invalidate every
+    // pinned suppression for the highest-volume detector in the product.
+    // Only ambiguous symbols need one.
+    const found = await largeFunctionDetector.run(
+      makeCtx([{ name: "generateInvoice", start: 1, end: 200 }]),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]!.discriminator).toBeUndefined();
+  });
+});

@@ -41,6 +41,13 @@ export const weakTestSignalDetector: LanguageJsDetector = {
         confidence,
         file: ctx.file,
         lines: [block.startLine, block.endLine],
+        // One finding per test block and no `symbol`, so without this
+        // every test in a file shared `weak_test_signal::<file>::` and
+        // `crimes ignore` on one silenced them all. The test title is
+        // stable across scans of the same code, so it is the
+        // discriminator — the same shape as the literal that
+        // `magic_domain_literal_scatter` uses.
+        discriminator: block.title,
         summary:
           assertions.length === 0
             ? `Test "${block.title}" contains no expect/assert calls. A test that only runs setup gives agents false confidence.`

@@ -161,9 +161,44 @@ export const largeFunctionDetector: LanguageJsDetector = {
       });
     }
 
+    disambiguate(findings);
     return findings;
   },
 };
+
+/**
+ * Give a discriminator only to findings whose `symbol` does not identify
+ * them uniquely within the file.
+ *
+ * Anonymous callbacks all collapse to a synthesized name — nine
+ * `large_function::src/types.test.ts::describe callback` findings shared
+ * one fingerprint on hono, and zulip lost 70 findings this way, so
+ * `crimes ignore` on one silenced all nine and `crimes diff` conflated
+ * them.
+ *
+ * Only the ambiguous ones are touched. Adding a discriminator to every
+ * finding would change the fingerprint of every named function too, and
+ * this is the highest-volume detector in the product — that would
+ * invalidate pinned suppressions and baselines wholesale for no benefit.
+ *
+ * The start line is the discriminator. It is not content-derived, so it
+ * moves if code above the function moves; for two anonymous callbacks in
+ * one file there is nothing more stable to key on, and an unstable
+ * fingerprint on a previously *colliding* finding is still strictly
+ * better than one that silently suppresses its neighbours.
+ */
+function disambiguate(findings: Finding[]): void {
+  const counts = new Map<string, number>();
+  for (const f of findings) {
+    const key = f.symbol ?? "";
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  for (const f of findings) {
+    if ((counts.get(f.symbol ?? "") ?? 0) > 1) {
+      f.discriminator = `L${f.lines?.[0] ?? 0}`;
+    }
+  }
+}
 
 function symbolFor(fn: ParsedFunction): string {
   if (fn.name) return fn.name;
