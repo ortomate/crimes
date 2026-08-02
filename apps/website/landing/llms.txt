@@ -34,7 +34,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest v0.16.0)
+## Commands (latest v0.17.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -340,7 +340,53 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.16.0 — the correctness and authority slate (current release)
+## 0.17.0 — calibration, and the first wire-format change (current release)
+
+The first release to move `schema_version`: 0.3.0 -> 0.4.0.
+
+`Finding` gains an optional `discriminator`, folded into the fingerprint
+when present and omitted entirely when not. Fingerprints are now
+`<type>::<file>::<symbol-or-empty>[::<discriminator>]`.
+
+The hole it closes: three detectors can legitimately report several
+findings about one file — `magic_domain_literal_scatter` (one per
+scattered literal), `exact_duplicate_block` and `near_duplicate_block`
+(one per duplicate group anchored on the same file). Those findings
+shared a single fingerprint, so `crimes ignore <fingerprint>` on one of
+them silently suppressed the others without telling the user. A
+suppression should mean the one finding its author looked at.
+
+Migration: pinned baseline and suppression entries for those three
+types stop matching and need re-recording with a fresh `crimes ignore`
+plus `crimes baseline save`. `crimes feedback recheck` surfaces them
+with the reason. Every other finding type is byte-identical. The loader
+accepts the whole 0.1.0-0.4.0 window, so an un-migrated file still
+reads.
+
+Also in this release:
+
+- `large_file` gains a `docs` shape — prose (`.md`, `.mdx`,
+  `.markdown`, `.rst`, `.adoc`, `.asciidoc`, `.txt`) gets a 1000-line
+  budget at low/medium severity instead of the 300-line domain-code
+  budget. Reference documentation is supposed to be long. Data formats
+  (`.json`, `.yaml`, `.csv`) are deliberately not docs. Configurable as
+  `thresholds.largeFile.docs`.
+- The scan's two hash-index builders no longer open every candidate file
+  at once. Flagged by crimes' own `unbounded_async_fanout` detector on a
+  self-scan, and fixed by removing the fan-out rather than by teaching
+  the detector to ignore it.
+- `exact_duplicate_block` evidence is reproducible run-to-run. Map
+  insertion order used to track which file read finished first, so the
+  same anchor file reported different hash groups across scans of an
+  unchanged tree. Finding identity was always stable, so baselines and
+  diff were never affected.
+- `dependency_provenance_gap` honours `!` negation in pnpm `packages:`
+  and npm/yarn `workspaces` globs, so a package the package manager
+  deliberately excludes is no longer compared against a lockfile that
+  correctly does not contain it.
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.17.0.md
+
+## 0.16.0 — the correctness and authority slate
 
 Ten detectors that ask what code does when something goes wrong, and
 where a repository keeps its truth twice.
@@ -377,8 +423,8 @@ Agent hygiene:
   running fetched code. Nothing discovered is ever executed; quoted
   fragments are redacted.
 
-Schema stays 0.3.0 — new `type` values are additive and fingerprints are
-unchanged.
+Schema stayed 0.3.0 in that release — new `type` values are additive and
+fingerprints were unchanged.
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.16.0.md
 
 ## 0.15.0 — polyglot IA + monorepo coverage

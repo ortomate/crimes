@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.17.0",
+  "timestamp": "2026-08-01T20:05:18.874Z",
+  "run_id": "aa1e4945-def8-47d5-9ebc-c44bcf339964",
+  "response": "I ran `crimes context src/Card.tsx` and read the fixture. Adding to what the scan JSON already shows, `context` gave one useful extra signal:\n\n- **no importers, no tests, top-quartile test gap** — this component has zero callers and no test file. Nothing will catch a regression, so the refactor has to be verified by re-running the scanner rather than by a suite.\n\nI'm proposing only, not editing — `07-stress-frontend` is scanner input, and its raw values are the fixture's whole point.\n\n## The file today\n\n`src/Card.tsx:9-31` is one `<div>` with a 10-property inline `style` object, an `onClick`, and two fixed-width child `<div>`s. `tailwind.config.ts` already declares a token scale (`brand`, `surface`, `ink`) that the component ignores entirely.\n\n## Change 1 — extend the token scale, then move to classes (`design_token_escape`)\n\nThe nine raw values don't map onto the three existing tokens — `#ff00aa`, `#333333`, `#666666`, `#1a73e8` have no home in `tailwind.config.ts`. So this isn't a find-and-replace; the scale is genuinely incomplete and has to grow first. Doing it in the other order is how you get a fourth pink that \"almost\" matches.\n\n```ts\n// tailwind.config.ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      \"brand-accent\": \"#ff00aa\",   // was inline `background`\n      surface: \"#f7f7fa\",\n      \"surface-border\": \"#cccccc\", // was inline `borderColor`\n      ink: \"#111111\",\n      \"ink-body\": \"#333333\",\n      \"ink-muted\": \"#666666\",\n      focus: \"#1a73e8\",            // was inline `outlineColor`\n    },\n    spacing: { card: \"1.5rem\" },                       // was padding: 24\n    boxShadow: { card: \"0 2px 4px rgb(0 0 0 / 0.2)\" }, // was the rgb() literal\n    maxWidth: { card: \"64rem\" },                       // was maxWidth: 1024\n    fontSize: {\n      body: \"clamp(1rem, 0.95rem + 0.25vw, 1.125rem)\", // was fontSize: 18\n    },\n  },\n};\n```\n\nWhether `#0a0a0a` (inline `color`) should collapse into `ink` (`#111111`) is a design call, not a mechanical one — they're two near-blacks four points apart. My recommendation is collapse them; if there's a deliberate reason for both, name the second token rather than leaving the literal.\n\n## Change 2 — real button, not a clickable div (`accessible_interaction_risk`)\n\nThe suggested action offers \"switch to `<button>` **or** add ARIA.\" Here the `<button>` route needs a caveat: `Card` accepts arbitrary `children`, so wrapping the whole surface in a `<button>` risks nesting interactive content inside a button — invalid HTML, and it breaks keyboard traversal in a way the current div doesn't. Put the button *inside* the card instead:\n\n```tsx\n<button\n  type=\"button\"\n  onClick={onActivate}\n  className=\"w-full text-left focus-visible:outline-2 focus-visible:outline-focus\"\n>\n  {label}\n</button>\n```\n\nThat also surfaces a second problem the detector can't see: `onClick={() => console.log(\"clicked\")}` is a stub. The refactor should lift it to an `onActivate: () => void` prop with a required `label: string` for the accessible name. If the entire card surface genuinely must be clickable, the fallback is `role=\"button\"` + `tabIndex={0}` + an `onKeyDown` handling Enter *and* Space — all three, since `role=\"button\"` without the key handler still fails keyboard users and would satisfy the detector while leaving the hazard in place.\n\n## Change 3 — container query + fluid units (`responsive_fragility`)\n\n`width: 800` on the shell with `width: 720` and `width: 240` inside it already overflows at *any* viewport — 720 + 240 = 960 against a 752px content box. This isn't only a small-screen bug. The fix is to stop expressing layout as widths at all:\n\n```tsx\n<div className=\"@container w-full max-w-card p-card bg-brand-accent text-ink\n                border border-surface-border shadow-card\">\n  {/* button from Change 2 */}\n  <div className=\"grid grid-cols-1 gap-card @md:grid-cols-[3fr_1fr]\">\n    <div className=\"text-body text-ink-body\">{children}</div>\n    <aside className=\"text-sm text-ink-muted\">sidebar</aside>\n  </div>\n</div>\n```\n\n`w-full max-w-card` replaces the fixed 800/1024 pair, the `3fr_1fr` grid replaces 720/240, and `text-body`'s `clamp()` replaces `fontSize: 18`. Container queries rather than `@media` matter here specifically because `Card` has no importers yet — you don't know what container it'll land in, so sizing off the viewport is a guess. `<aside>` for the sidebar is a small semantics win adjacent to Change 2.\n\n## Tie-back\n\n| Finding | Change | Effort claim | Holds? |\n|---|---|---|---|\n| `accessible_interaction_risk` (medium, 0.85) | Inner `<button>` + `onActivate`/`label` props | `small` | Yes, but it changes the public prop shape |\n| `design_token_escape` (low, 0.75) | Extend `tailwind.config.ts`, then classes | `quick` | **No** — `quick` assumes tokens exist to swap to; four don't |\n| `responsive_fragility` (low, 0.65) | `@container` + `3fr_1fr` grid + `clamp()` | `small` | Yes |\n\n## Verifying\n\nThere's no test to run — that's the top-quartile test gap. Re-run `crimes scan` on the fixture and expect all three findings to clear; that's the only regression signal this file has. If you want a real one, a render test asserting the button is reachable by role and name would cover Change 2, which is the only change here with user-visible failure modes.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "design_token_escape",
+        "passed": false
+      }
+    ]
+  }
+}

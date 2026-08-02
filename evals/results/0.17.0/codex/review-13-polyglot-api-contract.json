@@ -1,0 +1,61 @@
+{
+  "scenario": "review-13-polyglot-api-contract",
+  "agent": "codex",
+  "crimes_version": "0.17.0",
+  "timestamp": "2026-08-01T20:21:17.390Z",
+  "run_id": "b80134ea-dfad-41f4-b143-cb5bbb5d3fa9",
+  "response": "The web client and billing API disagree in five production-relevant ways, ranked by failure mode:\n\n1. `createWorkspace` calls an undeclared route — guaranteed 404  \n   [workspace-client.ts:23] calls `POST /api/workspaces`, but the billing API declares no matching path. Every workspace-creation request using this client will fail.\n\n2. Plan changes use the wrong HTTP method — guaranteed 405  \n   [workspace-client.ts:34] sends `PUT /api/teams/:id/plan`; [routes.py:25] accepts only `POST /api/teams/{team_id}/plan`. The path matches, but the method does not.\n\n3. The client can send `enterprise`, which the API rejects  \n   TypeScript permits `free | pro | enterprise`; Python permits `free | pro | team | scale`. Any enterprise-plan request is outside the API’s closed set and will likely fail validation.\n\n4. The API can return `team` or `scale`, which the client does not understand  \n   Responses containing either value violate the TypeScript `Plan` type. Depending on runtime validation and UI branching, this may cause rejection, incorrect rendering, or an unhandled fallback.\n\n5. The same tenant concept has incompatible names  \n   Python consistently calls it a `team`; TypeScript calls it a `workspace`. This does not directly break HTTP traffic, but it likely caused the `/api/workspaces` versus team-oriented API drift and makes future cross-boundary changes easy to miss.\n\nRecommended repair order: align the creation path, align the plan-change method, then establish one canonical plan schema and generate both language representations from it. Finally, standardize or explicitly document the `workspace ↔ team` mapping.\n\nThe other scan findings are not client/API contract disagreements:\n\n- `getWorkspace` calling `fetch` is not necessarily a name/behavior defect; reads normally use `fetch`.\n- The dependency finding applies Node manifest logic to Python imports. `enum` is a Python standard-library module, `billing.plans` is local, and `fastapi` should be checked against the Python dependency manifest—not added to `package.json`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift",
+      "crime_00006": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

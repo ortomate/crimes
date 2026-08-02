@@ -129,9 +129,45 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.16.0`
+## Status — `crimes@0.17.0`
 
-`crimes@0.16.0` is the latest version. It is **the correctness and
+`crimes@0.17.0` is the latest version. It is **a calibration release**,
+and the first one to change the wire format: `schema_version` goes
+`0.3.0` → `0.4.0`.
+
+`Finding` gains an optional `discriminator`, and `fingerprintFinding`
+folds it in when present. That closes a real hole rather than a
+cosmetic one. Three detectors can legitimately report several findings
+about the same file — `magic_domain_literal_scatter` reports one per
+scattered literal, `exact_duplicate_block` and `near_duplicate_block`
+one per duplicate group — and those findings used to share a single
+fingerprint. So `crimes ignore <fingerprint>` on one of them silently
+suppressed the others, and the user was never told. A suppression
+should mean the one finding its author actually looked at.
+
+**If you have pinned entries for those three types**, they stop
+matching and need re-recording; every other type is byte-identical.
+`crimes feedback recheck` will surface them with the reason. See
+[Migrating from `0.3.0` to `0.4.0`](./docs/json-schema.md).
+
+`large_file` also gains a **`docs` shape**: prose (`.md`, `.mdx`,
+`.rst`, `.adoc`, `.txt`) gets a 1000-line budget at `low`/`medium`
+instead of being measured against the 300-line domain-code budget.
+Reference documentation is supposed to be long. Data formats are
+deliberately not docs — a 3000-line `.json` is still a finding worth
+having.
+
+Two scan-path fixes round it out: the index builders no longer
+`Promise.all` a read per candidate file (unbounded on a large repo, and
+`crimes`' own `unbounded_async_fanout` detector was right to flag it),
+and `exact_duplicate_block` evidence is now reproducible run-to-run —
+map insertion order used to track which read finished first.
+
+Release notes: [`docs/releases/v0.17.0.md`](./docs/releases/v0.17.0.md).
+
+### Earlier `0.16.0` work (_correctness and authority_)
+
+`0.16.0` is **the correctness and
 authority slate** — ten detectors that ask a different question from
 everything before them: *what does this code do when something goes
 wrong, and where does it disagree with itself?*
@@ -158,9 +194,9 @@ say, never what npm says), **nothing is executed**
 reported** (`config_drift` reports names and locations; a real `.env`
 is never opened).
 
-Schema stays `0.3.0` — new `type` values are additive, fingerprints and
-existing detector meanings are unchanged. Release notes:
-[`docs/releases/v0.16.0.md`](./docs/releases/v0.16.0.md).
+Schema stayed `0.3.0` in that release — new `type` values are additive,
+fingerprints and existing detector meanings were unchanged. Release
+notes: [`docs/releases/v0.16.0.md`](./docs/releases/v0.16.0.md).
 
 Earlier `0.15.0` work (_polyglot IA + monorepo coverage_) remains
 shipped — the release where `crimes` starts reporting problems that no

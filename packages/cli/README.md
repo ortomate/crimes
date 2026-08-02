@@ -15,6 +15,20 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.17.0` headline:** calibration, and the first wire-format change —
+`schema_version` `0.3.0` → `0.4.0`. `Finding` gains an optional
+`discriminator` that `fingerprintFinding` folds in, so the three
+detectors that can report several findings per file
+(`magic_domain_literal_scatter`, `exact_duplicate_block`,
+`near_duplicate_block`) stop sharing one fingerprint — before this,
+`crimes ignore` on one of them silently suppressed the others. **Pinned
+baseline / suppression entries for those three types need
+re-recording**; every other type is unchanged. `large_file` gains a
+`docs` shape so prose gets a 1000-line budget at `low`/`medium` instead
+of the 300-line domain budget. The scan's index builders no longer open
+every candidate file at once, and `exact_duplicate_block` evidence is
+now reproducible run-to-run.
+
 **`0.16.0` headline:** correctness and authority — ten detectors for the
 crimes that only show up *between* files. The same business rule
 implemented twice and now divergent (`duplicated_policy`), two
@@ -29,8 +43,8 @@ whose collaborators are all behaviourless doubles it then asserts on
 manifest (`dependency_provenance_gap`, entirely local — it never
 contacts a registry) and repo-local agent config granting unrestricted
 execution (`agent_permission_sprawl`, read as text, never executed).
-`schema_version` is unchanged at `0.3.0`; existing baselines,
-suppressions, and triage files are unaffected.
+`schema_version` was unchanged at `0.3.0` in that release; existing
+baselines, suppressions, and triage files were unaffected.
 
 **`0.15.0` headline:** polyglot IA + monorepo coverage — findings no
 single-language tool can produce. Three cross-language detectors report

@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.17.0",
+  "timestamp": "2026-08-01T20:21:27.202Z",
+  "run_id": "d32fc5b7-eff4-4167-afa5-0740f1c0938b",
+  "response": "## What the scan actually said\n\nOne finding, and it's a precise one: `tests/test_reporting.py` has 4 test functions and **0 assertions**. That's the whole machine-verified result. Everything below is me reading the 4 source files to turn that one finding into a coverage map — the scan flagged the hollow tests, it did *not* certify anything else as covered.\n\n## Genuinely covered: `billing/rates.py`\n\n`tests/test_rates.py` is real. Three tests, seven assertions, all on return values:\n\n- `rate_for` — asserted for a known region (`GB` → 0.20, `DE` → 0.19) and for the unknown-region fallback (`ZZ` → `DEFAULT_RATE`). If you change the lookup or the fallback, these fail.\n- `is_zero_rated` — asserted, but **only in the False direction** (`GB`, `FR`). There is no test where it returns True, and there can't be one against current data: no rate in `RATES` is 0. So the branch that matters — \"this region is zero-rated, don't charge VAT\" — has never executed in the suite. If the refactor introduces a zero-rated region, that path ships untested.\n\nVerdict: `rate_for` is protected. `is_zero_rated` is half-protected.\n\n## Only *looks* covered: `billing/reporting.py`\n\nThis is the dangerous one. There's a test file named after the module, with a test per public function, and it's green. It verifies exactly one thing: **these functions don't raise.**\n\nWhat is *not* verified:\n\n- **`build_report`** — nothing about the returned dict. The `account`/`region`/`lines`/`total` keys, and whether `total` equals the entry's `gross`, are all unchecked. I ran it directly: `build_report({\"account\": \"acct\"}, \"GB\")` currently gives `total = 120.0`, `DE` gives `119.0`. Change that to 0, to `None`, to the net instead of the gross — all four tests still pass.\n- **`export_report(…, \"csv\")`** — the format string is unchecked. The header text, the comma layout, the `%.2f` rounding, the missing trailing newline. Actual output today is `'account,total\\nacct,120.00'`. Any of that can drift silently.\n- **`export_report(…, \"json\")`** — returns a dict with `account` and `total`. Shape unchecked.\n- **The `ValueError` branch** — `export_report` raises on an unsupported format. The four tests only ever pass `\"csv\"` and `\"json\"`, so this branch isn't even *smoke*-covered. The one guarantee hollow tests do give you — \"it ran without exploding\" — doesn't extend here.\n\nAlso worth knowing before you trust the file: `test_round_trip` does not round-trip. It builds a report and exports it to CSV, same as `test_export_report`, with a different account string. The name promises the strongest test in the file and delivers a duplicate of the weakest. That's the kind of thing that misleads a human skimming the file *and* an agent asked to \"check if this is tested.\"\n\n## Not covered at all: `billing/ledger.py`\n\nNo test file exists. The module docstring says so outright.\n\n- **`post_entry`** gets *transitive execution* — `build_report` calls it, and the hollow reporting tests call `build_report`. So it's import-checked and runs on the GB/DE/FR paths. Nothing asserts on it. The gross calculation `amount * (1 + rate_for(region))` is the core money math in this package and no test observes its output.\n- **`reverse_entry`** has zero callers — not in the package, not in the tests. It never executes during the suite. The sign flips on `net` and `gross` are exactly what a refactor breaks quietly, and nothing anywhere would notice.\n\nNote the direction of risk: `ledger` is imported by `reporting`, and `rates` by both. Your best-tested module is the leaf dependency; your untested module sits in the middle of the chain.\n\n## What this means for the refactor\n\nRanked by what will actually bite you:\n\n1. **`reverse_entry`** — dark code in the middle of the dependency chain. Write a test before touching it.\n2. **`post_entry`'s gross math** — runs constantly, asserted never. One assertion on the returned dict closes it.\n3. **`test_reporting.py`** — four tests to convert. Assert on the returned dict from `build_report`, on the exact CSV string, on the JSON shape, and add a `pytest.raises(ValueError)` for the unsupported-format branch. The scan's `effort: small` is right; this is maybe twenty minutes.\n4. **`is_zero_rated`'s True branch** — cheap to cover now, and it's the branch you'll want if regions change.\n\nThe one thing I'd push back on in the scan output: `test_gap: 0` and `blast_radius: 0` on that finding understate it. The finding is scoped to the test file itself, not to the untested surface behind it — and `ledger.py`, the module with no tests at all, produced no finding. A clean scan on a file is not evidence that the file is covered.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

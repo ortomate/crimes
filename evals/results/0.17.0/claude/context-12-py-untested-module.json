@@ -1,0 +1,34 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.17.0",
+  "timestamp": "2026-08-01T19:55:49.416Z",
+  "run_id": "325499e3-9bcc-4b32-86bc-2a75f9a7a124",
+  "response": "Ran the pre-edit checks; no files touched.\n\n## What crimes says\n\n**`crimes context billing/ledger.py`** — the file I'd be editing:\n\n```\nCRIMES CONTEXT\nfile: billing/ledger.py\nrisk: NONE  (0 findings)\n\nLikely tests\n  (no test file matched the target basename (looked for siblings, __tests__/ and tests/\n   directories, and the .test / .spec / _test / test_ naming conventions) and no test\n   file imports it)\n\nClues\n  · churn: 1 commits over 90d · last touched 2 days ago · 1 author\n  · test gap: top-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n**`crimes scan`** — one finding in the whole repo, and it's the neighbour's test file:\n\n> `crime_00001` · **Weak Test Signal** · high · `tests/test_reporting.py`\n> \"4 of 4 test functions in this file assert nothing. They pass as long as the code under test does not raise, which is not the same as it being correct.\"\n> — `0 total assertions across 4 tests (0.0 per test, expected ≥ 1)`\n\n## What protection I have if I get it wrong\n\n**Effectively none.** Two independent signals, and they stack badly:\n\n1. `likely_tests: []` with `test_gap: top-quartile` — crimes looked for siblings, `tests/`, and every `test_*` convention, and also checked whether *any* test file imports the module. Nothing does. There is no direct test of `reverse_entry`.\n2. The one indirect path that could have caught a regression is dead. `billing/reporting.py` imports `post_entry` from ledger, and `tests/test_reporting.py` exercises it — but that file is the high-severity `weak_test_signal`. All four tests call the code and assert nothing, so they stay green for *any* return value. If I broke ledger's dict shape or sign convention, `test_round_trip` would still pass as long as nothing raised.\n\nSo the suite is green-by-construction on this module. A passing `pytest` after my change tells me the code doesn't throw. It tells me nothing about correctness.\n\nThe contrast in the same repo is the useful calibration: `tests/test_rates.py` genuinely asserts (`rate_for(\"GB\") == 0.20`, fallback behaviour, `is_zero_rated`), and `context billing/reporting.py` reports `test gap: bottom-quartile`. Coverage exists here — it just doesn't reach ledger.\n\n## What else the change could affect\n\nBlast radius is small in-repo but the boundary is unguarded:\n\n- `reverse_entry` has **zero in-repo callers**. Nothing in `billing/` or `tests/` references it. It's module-public API, so any real consumer is outside what I can see — meaning I can't verify a signature or shape change by grep, and I won't get a compile error either (Python, untyped dicts).\n- It has an **implicit contract with `post_entry`**: it reads `entry[\"account\"]`, `[\"net\"]`, `[\"gross\"]`, `[\"region\"]` — exactly the dict `post_entry` builds. That coupling is by convention only. If reversal starts recomputing `gross` (say via `rate_for`) instead of negating it, ledger gains a second dependency on `billing.rates` and a second place where the VAT rule lives — the kind of duplicate-source-of-truth that's easy to drift.\n- Downstream, `build_report` puts a `post_entry` result into `lines` and reads `entry[\"gross\"]` for `total`, and `export_report` formats `total` with `%.2f`. Any shape or sign change to ledger entries propagates there — through the assertion-free tests.\n\nOne caveat on reading the scan: `risk: NONE` on `ledger.py` and `total: 1` for the repo do **not** mean this is safe ground. crimes flags what it can see; the point here is what's *absent* — the empty `likely_tests` is the finding.\n\n## What I'd do before changing reversal\n\n1. Write real tests for `reverse_entry` first — assert the sign flip on both `net` and `gross`, that `account`/`region` pass through, and pin the double-reversal identity (`reverse(reverse(e)) == e`). That's the safety net that doesn't currently exist.\n2. Fix `tests/test_reporting.py` in the same change, or at minimum `test_round_trip` — otherwise the downstream path stays blind. The finding's own `fix_shape` is \"assert on the result, not just that it ran\", effort `small`.\n3. Decide explicitly whether reversal negates the stored `gross` or recomputes it, and keep the VAT rule in `rates.py` either way.\n4. Re-run `crimes scan` after; clearing `crime_00001` should show up as the high-severity finding going away.\n\nSay the word and I'll do the change plus the tests.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

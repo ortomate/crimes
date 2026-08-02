@@ -4,7 +4,21 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current version:** `crimes@0.16.0` ✅ shipped — the correctness
+- **Current version:** `crimes@0.17.0` ✅ shipped — calibration, and
+  the first wire-format change. `schema_version` `0.3.0` → `0.4.0`:
+  `Finding` gains an optional `discriminator` that `fingerprintFinding`
+  folds in, so the three detectors that can report several findings per
+  file stop sharing one fingerprint and `crimes ignore` can name the one
+  a user actually looked at. **Pinned baseline / suppression entries for
+  `magic_domain_literal_scatter`, `exact_duplicate_block`, and
+  `near_duplicate_block` need re-recording**; every other type is
+  unchanged. `large_file` gains a `docs` shape (1000-line budget,
+  `low`/`medium`) so prose is no longer measured against the domain-code
+  budget. Two scan-path fixes the product found in its own source: the
+  index builders no longer open every candidate file at once, and
+  `exact_duplicate_block` evidence is reproducible run-to-run. Release
+  notes: [`docs/releases/v0.17.0.md`](./releases/v0.17.0.md).
+- **Previous version:** `crimes@0.16.0` ✅ shipped — the correctness
   and authority slate. Ten detectors that ask what code does when
   something goes wrong (`swallowed_error`, `unsafe_retry`,
   `unbounded_async_fanout`, `mock_saturation`) and where a repo keeps
@@ -12,10 +26,10 @@ mirror, not a planning doc.
   `config_drift`, `pass_through_abstraction`), plus two agent-hygiene
   detectors that stay strictly local (`dependency_provenance_gap`
   contacts no registry; `agent_permission_sprawl` executes nothing).
-  Schema stays `0.3.0`; fingerprints and existing detector meanings
-  unchanged. Release notes:
+  Schema stayed `0.3.0` in that release; fingerprints and existing
+  detector meanings unchanged. Release notes:
   [`docs/releases/v0.16.0.md`](./releases/v0.16.0.md).
-- **Last published version:** `crimes@0.15.0` (npm) ✅ shipped —
+- **Earlier:** `crimes@0.15.0` ✅ shipped —
   polyglot IA + monorepo coverage, and the release the whole
   wider-codebase-support arc was building toward. Three cross-language
   detectors report disagreements *between* Python and TypeScript that
@@ -88,6 +102,37 @@ mirror, not a planning doc.
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
 
 ---
+
+## ✅ Shipped in `crimes@0.17.0`
+
+> **Theme: calibration.** Every change came from `crimes` scanning
+> `crimes`, and two are bugs the product found in its own source.
+>
+> Release notes: [`docs/releases/v0.17.0.md`](./releases/v0.17.0.md).
+
+- **`schema_version` `0.3.0` → `0.4.0`** — `Finding.discriminator`,
+  folded into `fingerprintFinding` when present and omitted entirely
+  when not. Closes a suppression-targeting hole: three detectors could
+  emit several findings sharing one fingerprint, so `crimes ignore` on
+  one silently suppressed the others. Self-scan collisions 3 → 0.
+  Migration path documented in `docs/json-schema.md`; the loader accepts
+  the whole `0.1.0`–`0.4.0` window.
+- **`large_file` `docs` shape** — prose (`.md`, `.mdx`, `.markdown`,
+  `.rst`, `.adoc`, `.asciidoc`, `.txt`) gets a 1000-line budget at
+  `low`/`medium`, configurable as `thresholds.largeFile.docs`. Data
+  formats deliberately excluded. Retired 19 placeholder suppressions in
+  this repo.
+- **Bounded index-builder fan-out** — the two hash-index builders no
+  longer `Promise.all` a read per candidate file. Flagged by the
+  product's own `unbounded_async_fanout` detector; fixed by removing the
+  fan-out, not by teaching the detector to ignore it.
+- **Reproducible duplicate-block evidence** — map insertion order used
+  to track which read finished first, so the same anchor file reported
+  different hash groups across runs of an unchanged tree.
+- **`dependency_provenance_gap` honours `!` negation** in pnpm and
+  npm/yarn workspace globs.
+- **`docs/calibration-followups.md` closed out** — every open item has a
+  disposition and its evidence.
 
 ## ✅ Shipped in `crimes@0.16.0`
 

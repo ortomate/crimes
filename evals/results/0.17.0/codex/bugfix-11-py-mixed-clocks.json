@@ -1,0 +1,59 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "codex",
+  "crimes_version": "0.17.0",
+  "timestamp": "2026-08-01T19:50:52.898Z",
+  "run_id": "03cf62dc-3709-4cae-acd3-72f52c05f49a",
+  "response": "The scan narrows this to `domain/invoicing.py`, but I’ll inspect its clock usage and nearby tests so the billing-period failure mechanism and CI blind spot are concrete rather than inferred only from the finding.\n\nThe responsible lines are adjacent: `issued_at` is captured in host-local time while `period_start` is captured in UTC, and both values are naive. I’m checking serialization/tests next because that determines exactly where the offset turns into a wrong calendar period.\n\nThe bug is in [`domain/invoicing.py`](</Users/andrew/dev/crimes/evals/fixtures/11-py-service/domain/invoicing.py:20>):\n\n```python\nissued = datetime.now()          # host-local wall time, naive\nperiod_start = datetime.utcnow() # UTC wall time, also naive\n```\n\nBoth values lack timezone information, despite representing different time zones. Downstream code therefore treats them as comparable clocks. On a European/non-UTC host they differ by the UTC offset, so near a day or month boundary an invoice can be assigned to the adjacent billing period. It happens only during that boundary window, which explains the intermittent reports.\n\nCI hides the bug because CI runs in UTC. There, `datetime.now()` and `datetime.utcnow()` produce effectively identical wall-clock values, so tests cannot expose the mismatch. The direct clock reads also make boundary testing awkward.\n\nThe fix should:\n\n1. Capture one timezone-aware instant through an injected clock:\n\n```python\nfrom datetime import datetime, timezone\n\ndef build_invoice(..., now=lambda: datetime.now(timezone.utc)):\n    issued_at = now()\n```\n\n2. Use that same instant for all calculations rather than reading the clock repeatedly.\n3. If billing periods follow the customer’s local calendar, convert that instant using the customer’s IANA timezone before deriving the period:\n\n```python\nfrom zoneinfo import ZoneInfo\n\nlocal_date = issued_at.astimezone(ZoneInfo(customer_timezone)).date()\nperiod_start = local_date.replace(day=1)\n```\n\n4. Store timestamps as aware UTC values; convert to customer-local time only when deriving calendar periods or presenting them.\n\nTests should inject fixed instants on both sides of a month boundary, including DST and a European zone such as `Europe/Paris`. Running one test with a non-UTC process timezone would additionally prevent CI’s UTC configuration from masking a regression. The other scan findings are real risks, but they do not explain this billing-period symptom.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

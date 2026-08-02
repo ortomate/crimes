@@ -152,16 +152,6 @@ Commander-style registrar wrappers and `.action(...)` callbacks.
 `crimes hotspots <subdir>` walks upward to the enclosing git repo.
 Full docs site at [`crimes.sh/docs/`](https://crimes.sh/docs/).
 
-**Unreleased, on `main`** — `schema_version` is **`0.4.0`** as of the
-0.16.1 patch bump. `Finding` gained an optional `discriminator` that
-`fingerprintFinding` folds in when present, so `crimes ignore` can name
-one of several findings a detector reports for the same file. Pinned
-baseline / suppression entries for `magic_domain_literal_scatter`,
-`exact_duplicate_block`, and `near_duplicate_block` need re-recording;
-everything else is unaffected. `large_file` gained a `docs` policy shape
-so prose is no longer measured against the domain-code budget. See
-[`docs/calibration-followups.md`](./docs/calibration-followups.md).
-
 **Shipped in `0.16.0`** — no new commands. Ten detectors across three
 new finding families: correctness risk (`swallowed_error`,
 `unsafe_retry`, `unbounded_async_fanout`, `mock_saturation` —
@@ -171,13 +161,26 @@ cross-file authority (`duplicated_policy`, `contract_drift`,
 [`finding-types/authority.md`](./docs/finding-types/authority.md)), and
 agent hygiene (`dependency_provenance_gap`, `agent_permission_sprawl` —
 [`finding-types/agent-hygiene.md`](./docs/finding-types/agent-hygiene.md)).
-Schema stays `0.3.0`. New shared infrastructure lives in
+Schema stayed `0.3.0` in that release. New shared infrastructure lives in
 `packages/core/src/risk/` (one-pass cross-file index),
 `packages/core/src/domain/vocabulary.ts` (two-tier domain vocabulary),
 `packages/core/src/scoring/confidence.ts` (explainable score ladders),
 and `packages/core/src/util/scope-class.ts` (one generated/vendored/
 fixture/test classifier). New fixture:
 `examples/risky-service/`.
+
+**Shipped in `0.17.0`** — `schema_version` is **`0.4.0`**.
+`Finding` gained an optional `discriminator` that
+`fingerprintFinding` folds in when present, so `crimes ignore` can name
+one of several findings a detector reports for the same file. Pinned
+baseline / suppression entries for `magic_domain_literal_scatter`,
+`exact_duplicate_block`, and `near_duplicate_block` need re-recording;
+everything else is unaffected. `large_file` gained a `docs` policy shape
+so prose is no longer measured against the domain-code budget. The two
+hash-index builders no longer open every candidate file at once, and
+`exact_duplicate_block` evidence is reproducible run-to-run. See
+[`docs/releases/v0.17.0.md`](./docs/releases/v0.17.0.md) and
+[`docs/calibration-followups.md`](./docs/calibration-followups.md).
 
 **Not yet implemented** — do not invoke or reference these in generated docs:
 `crimes ask`. See [`docs/agent-usage.md`](./docs/agent-usage.md) for the

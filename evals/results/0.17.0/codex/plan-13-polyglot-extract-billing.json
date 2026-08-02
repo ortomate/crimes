@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "codex",
+  "crimes_version": "0.17.0",
+  "timestamp": "2026-08-01T20:02:18.141Z",
+  "run_id": "f032f9a3-1fc8-444a-8e83-57c7830c9633",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is an extraction-risk planning task. I’ll first verify the live scan against the supplied JSON, then classify each finding by whether it blocks an independently deployable billing service.\n\nThe global `crimes` binary is not installed in this shell, so I’m switching to the repository’s locally built CLI—the documented equivalent for an unreleased checkout. No files will be changed; this is a read-only planning pass.\n\nThe live scan matches the supplied report: six findings, including two high-severity issues. The key distinction is deployability versus maintainability: dependency ownership and wire-contract correctness block the split; naming cleanup does not. I’m checking the tiny fixture now so the sequencing reflects the actual routes and package boundary.\n\nThe live scan completed successfully using the repository’s local CLI and exactly matches the supplied result: 6 findings—2 high, 3 medium, 1 low.\n\nThe split should not proceed until the API contract and isolated Python dependency closure are corrected. Naming cleanup can follow.\n\n## Finding disposition\n\n| Finding | Before split? | Decision |\n|---|---:|---|\n| `crime_00001` — plan type drift | **Yes—blocker** | The service and client disagree on valid billing plans. Decide whether `enterprise`, `team`, and `scale` are valid, define the canonical enum in OpenAPI/JSON Schema, and generate or validate both Python and TypeScript representations. |\n| `crime_00003` — `PUT` vs `POST` plan change | **Yes—blocker** | Select the public method and align both sides. Preserve the old method temporarily only if existing consumers require a compatibility window. |\n| `crime_00005` — `/workspaces` vs `/teams` route drift | **Yes—blocker** | Establish one public resource path and update the service/client together. The current client already targets an undeclared route. |\n| `crime_00006` — dependency provenance | **Yes—blocker, with corrected scope** | The extracted service must install from a clean environment. Declare `fastapi` and an ASGI server in `pyproject.toml`; ensure `billing.plans` is packaged with the service. Do **not** add `enum` as a dependency—it is Python’s standard library—and do not treat the internal `billing.plans` import as an external package. |\n| `crime_00004` — team/workspace terminology | **Can follow** | Document the mapping before handoff, but avoid a broad rename during extraction. Standardize terminology later as a separately versioned API change. |\n| `crime_00002` — `getWorkspace` name/behavior | **Can follow** | Network I/O is normal for an API client and `get…` still describes a read. Review later; it should not hold up deployment. This may be detector noise rather than a meaningful defect. |\n\n## Extraction plan\n\n1. **Freeze and define the boundary**\n\n   Assign the new owning team, identify the billing service’s public endpoints, data ownership, authorization requirements, SLOs, and rollback owner. Treat the HTTP contract—not Python implementation details—as the team boundary.\n\n2. **Repair the contract before moving code**\n\n   Create a versioned OpenAPI definition covering:\n\n   - tenant creation and lookup;\n   - seat lookup;\n   - plan changes;\n   - the canonical `Plan` values;\n   - request, response, and error schemas.\n\n   Resolve the `/teams` versus `/workspaces` decision and `POST` versus `PUT` mismatch explicitly. Generate the TypeScript client or add schema conformance checks so the hand-maintained copies cannot drift again.\n\n3. **Add boundary tests**\n\n   Add provider and consumer contract tests that exercise every route and every accepted plan value. Include tests proving the web client cannot receive or send an enum value rejected by the service. This directly addresses the `test_gap: 1` reported on all cross-language findings.\n\n4. **Make billing independently buildable**\n\n   Turn [packages/api/pyproject.toml](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/pyproject.toml) into a complete runtime manifest with pinned or bounded dependencies, packaging configuration, an application entry point, and an ASGI server. Verify that [routes.py](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py) and [plans.py](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/plans.py) install and start in a clean environment without monorepo paths or hoisting.\n\n5. **Create the deployable service**\n\n   Add its container/build definition, health and readiness endpoints, environment schema, secret handling, structured logs, metrics, tracing, timeouts, and deployment pipeline. Give the new team ownership of these artifacts and the API specification.\n\n6. **Decouple the web deployment**\n\n   Update [workspace-client.ts](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts) to use a configurable billing-service base URL or an existing gateway. Prefer keeping the current browser-visible `/api/...` address behind a proxy during migration so service location is not exposed as a client contract.\n\n7. **Cut over gradually**\n\n   Deploy the service without traffic, run smoke and contract tests, then route a small traffic percentage through it. Monitor error rate, latency, 404/405 responses, and plan-validation failures. Retain the old implementation until rollback has been tested and the observation window passes.\n\n8. **Remove the old implementation**\n\n   After full cutover, delete the former billing routes from the monolith, remove obsolete dependencies and proxy rules, transfer operational documentation, and rerun `crimes scan --format json`. The three contract findings and the genuine dependency gap must be gone before declaring extraction complete.\n\n9. **Post-split cleanup**\n\n   Standardize `team`/`workspace`/`organization` terminology through an API-versioned migration. Separately evaluate whether `getWorkspace` needs renaming; it should not be coupled to the ownership transfer.\n\nThe release gates are: clean isolated install, passing provider/consumer contract tests, one authoritative plan schema, aligned methods and paths, successful deployment smoke test, and a demonstrated rollback path.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift",
+      "crime_00006": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

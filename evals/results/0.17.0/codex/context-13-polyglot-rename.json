@@ -1,0 +1,49 @@
+{
+  "scenario": "context-13-polyglot-rename",
+  "agent": "codex",
+  "crimes_version": "0.17.0",
+  "timestamp": "2026-08-01T19:56:17.597Z",
+  "run_id": "d64f24e1-b665-43bb-a879-d702c7bec572",
+  "response": "I’m using the repository’s crimes risk workflow to interpret the supplied scan and separate the rename surface from adjacent contract problems. I’ll report only—no files will be changed.\n\nThe scan identifies a cross-language concept split, so I’m checking its human-readable evidence before summarizing the affected symbols and API boundary.\n\nThe global binary isn’t installed in this environment. I’ll use the repository’s built CLI if present; the supplied JSON remains the decision record either way.\n\nThe rename spans three files and also crosses URL contracts. I’m checking file-level context now so the report includes any likely tests or safe-editing notes, not just symbol names.\n\nThat first context invocation used paths in the wrong coordinate system for `--root`. I’m retrying with repository-relative file names.\n\nThe core domain concept is a tenant, but it has two names:\n\n- Python/backend: `team`\n- TypeScript/frontend: `workspace`\n- Crimes’ preferred unified term: `organization`\n\nThe rename spans three files:\n\n- [plans.py](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/plans.py:10): `Plan`’s docstring refers to a team.\n- [routes.py](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py:10): `get_team`, `create_team`, `team_seats`, `change_team_plan`, `team_id`, and `/api/teams/...` routes.\n- [workspace-client.ts](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:12): `Workspace`, `getWorkspace`, `createWorkspace`, `workspaceSeats`, `changeWorkspacePlan`, the filename, and `/api/workspaces` or `/api/teams` URLs.\n\nA complete move to `organization` therefore needs to cover type/interface names, functions, parameters, documentation, filenames/imports, and public route paths—not merely symbol names.\n\nThere are adjacent contract problems worth resolving during the rename:\n\n- `POST /api/workspaces` has no backend route; the backend exposes `/api/teams`.\n- The frontend uses `PUT /api/teams/:id/plan`, while the backend declares `POST /api/teams/{team_id}/plan`.\n- The frontend’s `:id` route strings are literal rather than interpolated.\n- `getWorkspace` performs a network fetch; a name such as `fetchOrganization` would better disclose that behavior.\n- The `Plan` definitions have independently drifted: Python has `free | pro | team | scale`, while TypeScript has `free | pro | enterprise`. Crimes rates this high severity and recommends one canonical schema or generated client type.\n\nNo likely tests were detected for any of the three files, so the rename currently lacks an identified regression-test safety net. The separate dependency-provenance finding does not appear to be part of the rename itself.\n\nNo files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift",
+      "crime_00006": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

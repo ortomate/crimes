@@ -1,0 +1,80 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "codex",
+  "crimes_version": "0.17.0",
+  "timestamp": "2026-08-01T20:08:08.333Z",
+  "run_id": "df60a31b-9064-4347-beae-61a15396c909",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a scan interpretation/refactor-planning task. I’ll verify the supplied fixture scan, inspect the three component labels in context, then map the proposed edits to the two findings.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m switching to the repository’s locally built CLI—the documented equivalent for an unreleased checkout. The supplied JSON already identifies the relevant pair of findings; this rerun is to independently confirm it.\n\nThe rerun matches the provided report: both `crime_00009` and `crime_00010` flag the same delete-group aliases (`archive`, `delete`, `remove`) across exactly these three files. I’m checking the detector definitions now because, on this fixture, their evidence is identical even though their intended contracts are not.\n\nThe local `crimes scan --format json` rerun confirms the supplied result: 13 findings overall, including two low-severity findings covering the same three components:\n\n- `crime_00009`: `action_label_drift`\n- `crime_00010`: `copy_ia_drift`\n\nBoth detect `archive`, `delete`, and `remove` in the “delete” action group.\n\nI’d standardize on **Delete** because the scenario defines these as genuinely destructive actions. “Archive” implies reversibility and “Remove” can imply merely detaching membership.\n\nCanonical copy:\n\n- Trigger: `Delete {object}`\n- Dialog title: `Delete {object}?`\n- Confirmation button: `Delete`\n- Cancellation button: `Cancel`\n- Success message: `{Object} deleted`\n\nFor this fixture:\n\n- [UserList.tsx](/Users/andrew/dev/crimes/evals/fixtures/05-stress-ia-drift/src/components/UserList.tsx:7): retain `Delete user`; replace or consolidate `Remove member` into `Delete user`.\n- [TeamList.tsx](/Users/andrew/dev/crimes/evals/fixtures/05-stress-ia-drift/src/components/TeamList.tsx:6): change `Archive team` → `Delete team`; normalize `Delete the seat` → `Delete seat`.\n- [SeatList.tsx](/Users/andrew/dev/crimes/evals/fixtures/05-stress-ia-drift/src/components/SeatList.tsx:6): replace `Remove member` and `Archive member` with one `Delete seat` action if they truly share the same intent and destination.\n\nI’d refactor `TeamList.tsx` first. It already contains the canonical verb in `Delete the seat`, so changing `Archive team` establishes the verb rule with a small semantic edit; removing “the” also establishes the exact `Delete {object}` copy pattern. It is a useful first slice before consolidating the duplicate-looking entries in `UserList` and `SeatList`, where confirming that the two controls really are redundant is more important.\n\nThe findings overlap, but their scopes differ:\n\n- `action_label_drift` is the broader domain-vocabulary detector. It examines JSX labels plus the wider IA/navigation signals. The verb replacements—`Archive`/`Remove` → `Delete`—directly address this finding.\n- `copy_ia_drift` is the frontend-restricted variant. It considers only JSX label literals and focuses on consistent user-visible wording. Applying the exact `Delete {object}` template, including `Delete seat` rather than `Delete the seat`, addresses this finding.\n\nThey produce identical evidence here because every qualifying occurrence is a JSX `label` prop. The broader detector therefore sees no additional signals beyond those seen by the frontend detector. One coherent refactor should clear both; they are two views of the same fixture drift, not two independent defects.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "docs_code_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "dependency_provenance_gap",
+      "crime_00013": "command_drift_docs_code_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Phantom Accomplice": "dependency_provenance_gap",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}
