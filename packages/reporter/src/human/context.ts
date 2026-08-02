@@ -113,6 +113,9 @@ export function formatContextHumanReport(
           alwaysShowRiskProfile: true,
           feedbackHints: options.feedbackHints,
           noColor: options.noColor === true,
+          // context ids are file-local; the fingerprint is what
+          // `crimes explain` can actually resolve.
+          useFingerprintHandle: true,
         }),
       );
       lines.push("");

@@ -452,7 +452,9 @@ describe("formatContextHumanReport", () => {
     expect(out).toContain("HIGH");
     expect(out).toContain("God Function");
     expect(out).toContain("generateInvoice");
-    expect(out).toContain("crime_00001");
+    // context prints the fingerprint, not its file-local `crime_NNNNN`
+    // id — the latter resolves to a different finding in `crimes explain`.
+    expect(out).toContain("large_function::src/billing.ts::generateInvoice");
     expect(out).toContain("Prefer extracting pure helpers");
     expect(out).toContain("src/billing.test.ts");
     expect(out).toContain("src/__tests__/billing.test.ts");
@@ -1552,5 +1554,52 @@ describe("inline feedback hints (0.7.0)", () => {
     expect(out).toContain("⚠ Previously marked fp in 0.6");
     expect(out).toContain("Re-confirm: crimes feedback large_function");
     expect(out).toContain("crimes feedback recheck");
+  });
+});
+
+describe("formatContextHumanReport — finding handles resolve in `crimes explain`", () => {
+  it("does not print a scan-style crime_ id that means something else", () => {
+    // `crimes context` numbers its findings locally from 1, but those ids
+    // look identical to `crimes scan`'s global ids and resolve to
+    // different findings: `context src/MetricsGrid.tsx` printed
+    // id=crime_00001, and `explain crime_00001` returned a finding in
+    // src/server/migrations.ts. context -> explain is the documented
+    // pre-edit agent workflow, so this was a silent wrong answer at the
+    // centre of the agent-native positioning.
+    const report = stubContextReport({
+      risk: { level: "medium", high: 0, medium: 1, low: 0, total: 1 },
+      findings: [
+        {
+          id: "crime_00001",
+          type: "large_function",
+          detector_id: "large_function",
+          pack: "language-js",
+          charge: "God Function",
+          severity: "medium",
+          confidence: 0.9,
+          file: "src/billing.ts",
+          symbol: "applyDiscount",
+          lines: [10, 90],
+          summary: "long",
+          evidence: [],
+          effort: "small",
+          fix_shape: "extract",
+          scores: {
+            severity: 0.6,
+            confidence: 0.9,
+            agent_risk: 0.5,
+            churn: 0,
+            test_gap: 0,
+            blast_radius: 0,
+          },
+        },
+      ],
+    });
+
+    const out = formatContextHumanReport(report, { noColor: true });
+
+    expect(out).not.toMatch(/id=crime_\d+/);
+    // It must print the stable handle `crimes explain` actually accepts.
+    expect(out).toContain("large_function::src/billing.ts::applyDiscount");
   });
 });

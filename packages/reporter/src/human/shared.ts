@@ -103,6 +103,12 @@ export function renderFinding(
     alwaysShowRiskProfile?: boolean;
     feedbackHints?: FeedbackHintOptions;
     noColor?: boolean;
+    /**
+     * Print the stable fingerprint rather than the per-report `id`. Set
+     * by `crimes context`, whose ids are file-local and would resolve to
+     * a different finding if pasted into `crimes explain`.
+     */
+    useFingerprintHandle?: boolean;
   } = {},
 ): string[] {
   const lineRange = finding.lines
@@ -147,8 +153,16 @@ export function renderFinding(
       `     ${colour.dim("Suppressed:")} ${finding.suppression_reason ?? "(no reason)"}`,
     );
   }
+  // `crimes context` numbers its findings locally from 1, so a scan-style
+  // `crime_NNNNN` id printed there resolves to a *different* finding in
+  // `crimes explain`, which numbers globally. Print the fingerprint
+  // instead: it is stable, globally unique-ish, and is the handle
+  // `explain` / `ignore` / `feedback` already accept.
+  const handle = options.useFingerprintHandle
+    ? `fingerprint=${fingerprintFinding(finding)}`
+    : `id=${finding.id}`;
   out.push(
-    `     ${colour.dim(`id=${finding.id}  confidence=${finding.confidence.toFixed(2)}`)}`,
+    `     ${colour.dim(`${handle}  confidence=${finding.confidence.toFixed(2)}`)}`,
   );
   appendFeedbackHint(out, finding, colour, options);
   return out;
