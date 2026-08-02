@@ -114,6 +114,43 @@ README at publish time, and stale ones are not patched after the fact.
   > This section exists because the previous version of it said no
   > per-release `index.html` edit was needed. The site then advertised
   > `0.12.0` through both the 0.13.0 and 0.14.0 releases.
+
+### What `verify-build` enforces about the landing page
+
+Item 2 above used to be prose only, and prose lost: the version stayed
+correct for three releases while the sentence beside it said crimes
+scanned "a TypeScript or JavaScript repository", and "what it detects
+today" listed two detector families out of ten. A version number is the
+easiest thing to remember and therefore the least valuable thing to
+check.
+
+`apps/website/scripts/verify-build.mjs` now derives its expectations
+from the repo and fails CI on any of these:
+
+| Claim on the page | Derived from | Fails when |
+| --- | --- | --- |
+| JSON-LD `softwareVersion` | `packages/cli/package.json` | the release bumped and the field did not |
+| Hero pill `vX.Y.Z` | same | same — and this one is *visible* |
+| Hero pill release-notes link | built `dist/docs/releases/` | it 404s, or points at an older release |
+| "N detectors across M families" | the built detector registry, `docs/finding-types/*.md` | anyone lands a detector or a family |
+| Every finding-type family is linked | `docs/finding-types/*.md` | a family ships without a row in the family table |
+| Languages named in the prose | `packages/language-*` | a language pack ships and the page still says the old list |
+| Packages listed in the OSS section | `packages/language-*` | a language pack is missing from "where the code lives" |
+
+Two consequences worth knowing before you trip them:
+
+- **Adding a language pack breaks the build on purpose.** A new
+  `packages/language-*` with no entry in `LANGUAGE_NAMES` fails with an
+  instruction to add it *and* to update the page. Touching the check is
+  the point — it is how the page gets written.
+- **The detector count is asserted exactly**, not softened to "dozens".
+  It is wrong the moment a detector lands, which is precisely why it is
+  worth a check rather than a good intention. Update the number; it
+  takes ten seconds and the failure message tells you the right one.
+
+These run against the **built** `dist/`, so run `pnpm --filter
+@crimes/website build` before `node apps/website/scripts/verify-build.mjs`
+locally, or you will be checking a stale page.
 - **JSON schema only if it changed.** If the schema gained fields,
   also update [`docs/json-schema.md`](./json-schema.md) and the pinned
   fixture at [`docs/fixtures/messy-ts-app.json`](./fixtures/messy-ts-app.json).
