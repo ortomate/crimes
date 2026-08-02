@@ -1,13 +1,19 @@
 # Remediation of the 0.14 → 0.17 dogfooding round
 
 **Date:** 2026-08-03
-**Version:** `0.17.1` (patch bump — findings moved, no release, no tag)
+**Version:** `0.17.2` (patch bumps — findings moved, no release, no tag)
 **Round report:** [`2026-08-02-0.14-to-0.17.md`](./2026-08-02-0.14-to-0.17.md)
 **Friction log:** [`2026-08-02-log.md`](./2026-08-02-log.md)
 
-The round found ~30 verified defects. This is the first remediation
-pass: **11 fixed, all test-driven, `pnpm verify` green at every commit.**
-Test count 1873 → 1911.
+The round found ~30 verified defects.
+
+- **First pass (`0.17.1`, §1):** 11 fixed. Tests 1,873 → 1,911.
+- **Second pass (`0.17.2`, §1b):** the fingerprint-collision class
+  closed — §4.4a plus five detectors it had not named, and the
+  discovery that every discriminated finding was unignorable. Tests
+  1,911 → 1,945.
+
+All test-driven, `pnpm verify` green at every commit.
 
 This document is the handoff. It records what changed, what was
 deliberately *not* changed, and what is left — enough to resume cold.
@@ -197,6 +203,99 @@ the detector.
 
 ---
 
+## 1b. Second pass — the fingerprint class, closed
+
+A later session picked up §4.4a and finished it. Version `0.17.2`.
+
+### 1.12 The remaining nine colliding detectors — `29f6555`, `37404d6`, `c93b530`
+
+§4.4a named four. Fixing those and re-measuring found five more, so the
+queue's list was itself a partial sample — the same mistake 0.17.0 made
+by trusting its own self-scan.
+
+| pass | detectors | n8n findings lost |
+|---|---|---|
+| pre-0.17.0 | — | 3,091 of 16,325 (18.9%) |
+| 0.17.0–0.17.1 | 5 fixed | 496 of 16,325 (3.0%) |
+| §4.4a (`29f6555`) | +4: `unbounded_async_fanout`, `swallowed_error`, `contract_drift`, `logic_in_comments` | 47 of 16,325 (0.3%) |
+| found by measurement (`37404d6`, `c93b530`) | +5: `duplicate_component_shape`, `name_behavior_mismatch`, `duplicated_role_status_plan_check`, `negative_flag_maze`, `return_shape_roulette` | 28 of 16,325 (0.17%) |
+
+Each discriminator is derived from what actually separates the findings:
+the collection expression, the condensed protected operation, the other
+declaration in the pair, a hash of the comment or condition, the shape
+hash, the `(field, literal)` key, or — where nothing content-derived
+exists — the start line.
+
+**The residual 28 is not a bug.** All of it is two findings whose content
+is genuinely identical: `commented_out_code` on duplicated comment blocks
+(15) and `weak_test_signal` on tests with identical titles (13). A
+content hash cannot separate those and arguably should not — they are
+the same finding twice, which is a *deduplication* question, not an
+identity one.
+
+Verified against the shipped build, not derived by subtraction:
+
+| repo | findings | pre-0.17.0 | 0.17.2 |
+|---|---|---|---|
+| n8n | 16,325 | 3,091 (18.9%) | **28 (0.17%)** |
+| hono | 376 | 97 (25.8%) | **0** |
+| self-scan | 283 | 7 (2.5%) | **0** |
+
+The finding *count* is identical before and after on every repo — no
+finding was added, removed, or rescored. Only the wire output moved,
+which is why `0.17.2` is a patch bump rather than nothing.
+
+`duplicate_component_shape` was the entire residual on hono (2 of 376
+after 0.17.1) and the round had attributed that to nothing in particular.
+
+### 1.13 A standing gate, so this cannot regress a third time — `29f6555`
+
+The rule that decides whether a candidate discriminator survives now
+lives in one place, `detectors/disambiguate.ts`, rather than being
+open-coded per detector. Detectors offer a candidate; the pass drops it
+where `symbol` is already unique, keeps it where it is not, and appends
+the start line where two candidates in one ambiguous group still match.
+That last case is what the per-detector implementations lacked — a
+discriminator that is merely *usually* unique is the same bug in a
+smaller font.
+
+`scan.test.ts` gains a fixture repo built to trip every multi-emit
+detector, asserting both that they fired and that no two findings share a
+fingerprint. **Mutation-checked**: reverting the detectors makes it fail
+with exactly the collisions the round measured.
+
+> **What the gate does not cover.** It is a fixture, not a corpus. A new
+> detector that collides on a shape the fixture does not contain will
+> pass it. Both of this session's five extra detectors were found by
+> measuring a real repo, not by the gate.
+
+### 1.14 Every discriminated finding was unignorable — `1499b5e`
+
+Found while fixing the above, and the more consequential half of it.
+0.17.0 folded the discriminator into `fingerprintFinding`, but three
+commands still built or validated fingerprints by hand:
+
+- `crimes ignore <crime_id>` reconstructed `type::file::symbol`, so it
+  wrote an entry matching nothing. It printed "Suppressed …" and exited
+  0 while suppressing nothing. Reproduced on a two-anonymous-callback
+  file: the entry lands, the finding is still in the next scan.
+- `crimes feedback <crime_id> --file` had the same reconstruction.
+- All three commands validated the argument against
+  `/^[a-z0-9_]+::[^:]*::[^:]*$/` — three separate copies — which
+  *rejects* every four-part fingerprint the scanner emits.
+
+So a discriminated finding could not be ignored by id (silent no-op) or
+by fingerprint (hard reject). The pattern now lives in `@crimes/core`
+next to `fingerprintFinding` and treats the discriminator as an opaque
+tail.
+
+Also: the 0.17 release notes now cover all fifteen detectors whose
+fingerprints changed in this minor. Three shipped in 0.17.0 with no
+note, so `crimes feedback recheck` was reporting "detector behaviour
+unchanged" about the one change that had invalidated the user's pin.
+
+---
+
 ## 2. Deliberately not changed
 
 Each of these is a real decision, not an oversight.
@@ -265,6 +364,20 @@ Suppressions and baselines naming a **`commented_out_code`**,
 matching and need re-recording — the same migration 0.17.0 described for
 the three detectors it changed. `crimes feedback recheck` surfaces them.
 
+**0.17.2 extends this to nine more detectors** (§1.12):
+`unbounded_async_fanout`, `swallowed_error`, `contract_drift`,
+`logic_in_comments`, `duplicate_component_shape`,
+`name_behavior_mismatch`, `duplicated_role_status_plan_check`,
+`negative_flag_maze`, `return_shape_roulette`. For the symbol-bearing
+ones only the *ambiguous* findings move; pins on uniquely-named symbols
+are untouched. `crimes feedback recheck` now carries a per-detector note
+for all fifteen — it previously fell back to "detector behaviour
+unchanged" for three of them.
+
+Re-recording actually works now: before `1499b5e`, `crimes ignore` on a
+discriminated finding was a silent no-op by id and a hard reject by
+fingerprint (§1.14).
+
 ---
 
 ## 4. Remaining work, in impact order
@@ -293,14 +406,12 @@ the three detectors it changed. `crimes feedback recheck` surfaces them.
    importers; it has 5. `explain` renders it honestly ("50+ transitive,
    cap reached"); `scan` and `context` do not.
 
-4a. **Three detectors still collide on fingerprints.** The same fix
-   pattern as §1.9–1.10, already proven: `unbounded_async_fanout` (294
-   findings lost on n8n), `swallowed_error` (111), `contract_drift` (26),
-   `logic_in_comments` (18). Each emits more than one finding per
-   (type, file, symbol); empty or repeated `symbol` is the tell. Cheap,
-   mechanical, and the highest value-per-hour item on this list.
-   Consider asserting fingerprint uniqueness in the scan pipeline so the
-   class cannot regress a third time.
+4a. ~~**Three detectors still collide on fingerprints.**~~ **Done** in
+   `0.17.2` — see §1.12–1.14. Nine detectors fixed, not the four listed
+   here; n8n's residual is 28 of 16,325 (0.17%) and all of it is
+   content-identical pairs. A standing uniqueness gate is in
+   `scan.test.ts`. The related discovery — that every discriminated
+   finding was unignorable by both id and fingerprint — is §1.14.
 
 ### Real problems
 
