@@ -1,17 +1,17 @@
 # Remediation of the 0.14 → 0.17 dogfooding round
 
 **Date:** 2026-08-03
-**Version:** `0.17.2` (patch bumps — findings moved, no release, no tag)
+**Version:** `0.17.3` (patch bumps — findings moved, no release, no tag)
 **Round report:** [`2026-08-02-0.14-to-0.17.md`](./2026-08-02-0.14-to-0.17.md)
 **Friction log:** [`2026-08-02-log.md`](./2026-08-02-log.md)
 
 The round found ~30 verified defects.
 
 - **First pass (`0.17.1`, §1):** 11 fixed. Tests 1,873 → 1,911.
-- **Second pass (`0.17.2`, §1b):** the fingerprint-collision class
-  closed — §4.4a plus five detectors it had not named, and the
-  discovery that every discriminated finding was unignorable. Tests
-  1,911 → 1,945.
+- **Second pass (`0.17.2`–`0.17.3`, §1b):** the fingerprint-collision
+  class closed — §4.4a plus six detectors it had not named, the
+  discovery that every discriminated finding was unignorable, and
+  blocker 3 (scan determinism). Tests 1,911 → 1,950.
 
 All test-driven, `pnpm verify` green at every commit.
 
@@ -294,6 +294,49 @@ fingerprints changed in this minor. Three shipped in 0.17.0 with no
 note, so `crimes feedback recheck` was reporting "detector behaviour
 unchanged" about the one change that had invalidated the user's pin.
 
+### 1.15 A re-scan of an unchanged tree was not reproducible — `3658750`
+
+Blocker 3. Two scans of the same tree produced different
+`crime_NNNNN` ids, so `crimes explain <id>` from one scan pointed at a
+different finding in the next.
+
+**The queue's number was mostly a measurement artifact.** §4.3 recorded
+202 of 3,593 positions moved on n8n `packages/cli`. That measurement
+matched findings by fingerprint while 567 of those 3,593 fingerprints
+still collided, so it was reading ambiguous keys. With unique
+fingerprints the figure is 11, and 7 of those are still collisions. The
+genuine instability was **4 findings**.
+
+Root cause: `recencyForDate` measured age in elapsed milliseconds, so
+`scores.recency` was a continuous function of wall-clock time, rounded
+to 2dp for the report. Any file whose true value sat within one
+scan-gap of a `0.005` boundary flipped between runs → different
+`rank_score` → different sort → every id after it renumbered. The
+evidence was one file moving `0.23 → 0.22` across two scans 93 seconds
+apart while every other file in the decay band held still.
+
+Age is now whole UTC days, both endpoints floored, so the value changes
+only at UTC midnight and for every file at once. Two supporting fixes
+were needed for the guarantee to hold: the sort tiebreaker ran out at
+`(severity, confidence, file, line-start)` and now ends on the
+fingerprint, and `duplicated_policy` was still colliding.
+
+> **`duplicated_policy` is the lesson worth carrying.** It collides at
+> package scope and not at repo scope, because it anchors on its
+> group's lex-first file and repo scope puts the groups on different
+> anchors. The whole-repo measurement in §1.12 therefore called the
+> class closed while it was not. **Scope changes which collisions
+> manifest** — measure at more than one before claiming a class is
+> closed.
+
+**Verified:** two consecutive scans of n8n `packages/cli` (3,593
+findings) and of hono (376) now produce **byte-identical** JSON. Not
+"the ids match" — the whole report compares equal.
+
+Residual: a scan pair straddling UTC midnight can still disagree. That
+is bounded and predictable rather than continuous, and it is documented
+on the function.
+
 ---
 
 ## 2. Deliberately not changed
@@ -396,10 +439,15 @@ fingerprint (§1.14).
    `ast-hash/function-index.ts:72-79`), `hasSyntaxErrors` (computed,
    never surfaced), and gitignored/excluded counts. Schema addition,
    minor bump.
-3. **Finding ids are not stable across runs.** Ids are positional and the
-   sort key includes clock-derived `recency`; two runs of an unchanged
-   tree reorder. 202 of 3,593 positions moved on n8n `packages/cli`, 139
-   of 3,759 on zulip. `crimes explain <id>` does not survive a re-run.
+3. ~~**Finding ids are not stable across runs.**~~ **Done** in `0.17.3`
+   — see §1.15. Two consecutive scans of n8n `packages/cli` and of hono
+   are now byte-identical. The 202-of-3,593 figure recorded here was
+   mostly a measurement artifact: it matched by fingerprint while 567 of
+   those fingerprints collided. The genuine instability was 4 findings,
+   caused by `recency` being a continuous function of wall-clock time.
+   The zulip figure (139 of 3,759) was measured the same way and was
+   never re-checked — treat it as unverified rather than as a
+   still-open number.
 4. **`blast_radius` prints a component size as a per-file count.** zulip:
    3,759 findings, **37 distinct values**; 866 share `798`, 825 share
    `324`; pinned at 1.0 on 47%. The report says `slack.py` has 798

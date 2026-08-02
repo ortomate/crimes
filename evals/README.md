@@ -88,6 +88,14 @@ when the wire output moves. Record it here instead of running:
 | version | why no run | carried from |
 |---|---|---|
 | `0.17.2` | fingerprint discriminators for nine detectors; n8n's finding count identical at 16,325 before and after | `0.17.1` |
+| `0.17.3` | recency quantised to whole UTC days + a total sort tiebreaker. **Not** structurally identity-only — `scores.recency` can move on a repo with files 7–14 days old. Measured on both fixtures instead: zero recency values change, nothing added, removed, rescored or reordered | `0.17.1` |
+
+The `0.17.3` row is a different kind of justification from `0.17.2` and
+should not be copied without doing the same work. `0.17.2` could not
+move a score by construction. `0.17.3` could, and was **checked** — by
+scanning each fixture with the before and after builds and diffing the
+reports finding-by-finding. If you skip a run on that basis, run the
+diff and say so.
 
 **This applies to identity only.** If a change touches which findings
 appear, their scores, or their prose, run the evals — and if you expect
