@@ -1,0 +1,546 @@
+{
+ "claude": [
+  {
+   "detector": "duplicated_policy",
+   "n": 15,
+   "act": 0,
+   "know": 0,
+   "noise": 15,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "agent_permission_sprawl",
+   "n": 2,
+   "act": 0,
+   "know": 0,
+   "noise": 2,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "option_bag_junk_drawer",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "unsafe_retry",
+   "n": 3,
+   "act": 0,
+   "know": 0,
+   "noise": 3,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "return_shape_roulette",
+   "n": 2,
+   "act": 0,
+   "know": 0,
+   "noise": 2,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "magic_domain_literal_scatter",
+   "n": 3,
+   "act": 0,
+   "know": 0,
+   "noise": 3,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "boolean_naming_drift",
+   "n": 24,
+   "act": 0,
+   "know": 0,
+   "noise": 24,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "sync_io_in_hotpath",
+   "n": 7,
+   "act": 0,
+   "know": 0,
+   "noise": 7,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "unbounded_async_fanout",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "exact_duplicate_block",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "deep_import",
+   "n": 11,
+   "act": 0,
+   "know": 0,
+   "noise": 11,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "todo_density",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "dependency_provenance_gap",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "hardcoded_localhost",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "name_behavior_mismatch",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "pass_through_abstraction",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "weak_test_signal",
+   "n": 21,
+   "act": 0,
+   "know": 3,
+   "noise": 18,
+   "act_rate": 0.0,
+   "noise_rate": 0.857,
+   "under_test": true
+  },
+  {
+   "detector": "large_file",
+   "n": 18,
+   "act": 0,
+   "know": 7,
+   "noise": 11,
+   "act_rate": 0.0,
+   "noise_rate": 0.611,
+   "under_test": false
+  },
+  {
+   "detector": "logic_in_comments",
+   "n": 2,
+   "act": 0,
+   "know": 1,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 0.5,
+   "under_test": false
+  },
+  {
+   "detector": "high_fan_in_fan_out",
+   "n": 2,
+   "act": 0,
+   "know": 2,
+   "noise": 0,
+   "act_rate": 0.0,
+   "noise_rate": 0.0,
+   "under_test": false
+  },
+  {
+   "detector": "contract_drift",
+   "n": 1,
+   "act": 0,
+   "know": 1,
+   "noise": 0,
+   "act_rate": 0.0,
+   "noise_rate": 0.0,
+   "under_test": true
+  },
+  {
+   "detector": "swallowed_error",
+   "n": 52,
+   "act": 1,
+   "know": 6,
+   "noise": 45,
+   "act_rate": 0.019,
+   "noise_rate": 0.865,
+   "under_test": true
+  },
+  {
+   "detector": "large_function",
+   "n": 93,
+   "act": 2,
+   "know": 26,
+   "noise": 65,
+   "act_rate": 0.022,
+   "noise_rate": 0.699,
+   "under_test": true
+  },
+  {
+   "detector": "config_drift",
+   "n": 6,
+   "act": 1,
+   "know": 2,
+   "noise": 3,
+   "act_rate": 0.167,
+   "noise_rate": 0.5,
+   "under_test": true
+  },
+  {
+   "detector": "direct_date",
+   "n": 4,
+   "act": 1,
+   "know": 0,
+   "noise": 3,
+   "act_rate": 0.25,
+   "noise_rate": 0.75,
+   "under_test": false
+  },
+  {
+   "detector": "oversized_raster",
+   "n": 1,
+   "act": 1,
+   "know": 0,
+   "noise": 0,
+   "act_rate": 1.0,
+   "noise_rate": 0.0,
+   "under_test": false
+  },
+  {
+   "detector": "circular_dependency",
+   "n": 1,
+   "act": 1,
+   "know": 0,
+   "noise": 0,
+   "act_rate": 1.0,
+   "noise_rate": 0.0,
+   "under_test": false
+  }
+ ],
+ "codex": [
+  {
+   "detector": "duplicated_policy",
+   "n": 31,
+   "act": 0,
+   "know": 0,
+   "noise": 31,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "agent_permission_sprawl",
+   "n": 2,
+   "act": 0,
+   "know": 0,
+   "noise": 2,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "option_bag_junk_drawer",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "unsafe_retry",
+   "n": 10,
+   "act": 0,
+   "know": 0,
+   "noise": 10,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "logic_in_comments",
+   "n": 2,
+   "act": 0,
+   "know": 0,
+   "noise": 2,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "return_shape_roulette",
+   "n": 4,
+   "act": 0,
+   "know": 0,
+   "noise": 4,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "magic_domain_literal_scatter",
+   "n": 3,
+   "act": 0,
+   "know": 0,
+   "noise": 3,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "direct_date",
+   "n": 5,
+   "act": 0,
+   "know": 0,
+   "noise": 5,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "boolean_naming_drift",
+   "n": 24,
+   "act": 0,
+   "know": 0,
+   "noise": 24,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "sync_io_in_hotpath",
+   "n": 9,
+   "act": 0,
+   "know": 0,
+   "noise": 9,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "weak_test_signal",
+   "n": 21,
+   "act": 0,
+   "know": 0,
+   "noise": 21,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "contract_drift",
+   "n": 21,
+   "act": 0,
+   "know": 0,
+   "noise": 21,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "name_behavior_mismatch",
+   "n": 2,
+   "act": 0,
+   "know": 0,
+   "noise": 2,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "unbounded_async_fanout",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "exact_duplicate_block",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "deep_import",
+   "n": 11,
+   "act": 0,
+   "know": 0,
+   "noise": 11,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "todo_density",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "hardcoded_localhost",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": false
+  },
+  {
+   "detector": "pass_through_abstraction",
+   "n": 1,
+   "act": 0,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.0,
+   "noise_rate": 1.0,
+   "under_test": true
+  },
+  {
+   "detector": "high_fan_in_fan_out",
+   "n": 2,
+   "act": 0,
+   "know": 2,
+   "noise": 0,
+   "act_rate": 0.0,
+   "noise_rate": 0.0,
+   "under_test": false
+  },
+  {
+   "detector": "circular_dependency",
+   "n": 1,
+   "act": 0,
+   "know": 1,
+   "noise": 0,
+   "act_rate": 0.0,
+   "noise_rate": 0.0,
+   "under_test": false
+  },
+  {
+   "detector": "large_function",
+   "n": 104,
+   "act": 4,
+   "know": 15,
+   "noise": 85,
+   "act_rate": 0.038,
+   "noise_rate": 0.817,
+   "under_test": false
+  },
+  {
+   "detector": "large_file",
+   "n": 21,
+   "act": 2,
+   "know": 6,
+   "noise": 13,
+   "act_rate": 0.095,
+   "noise_rate": 0.619,
+   "under_test": false
+  },
+  {
+   "detector": "config_drift",
+   "n": 25,
+   "act": 4,
+   "know": 3,
+   "noise": 18,
+   "act_rate": 0.16,
+   "noise_rate": 0.72,
+   "under_test": true
+  },
+  {
+   "detector": "swallowed_error",
+   "n": 119,
+   "act": 20,
+   "know": 8,
+   "noise": 91,
+   "act_rate": 0.168,
+   "noise_rate": 0.765,
+   "under_test": true
+  },
+  {
+   "detector": "dependency_provenance_gap",
+   "n": 2,
+   "act": 1,
+   "know": 0,
+   "noise": 1,
+   "act_rate": 0.5,
+   "noise_rate": 0.5,
+   "under_test": true
+  },
+  {
+   "detector": "oversized_raster",
+   "n": 1,
+   "act": 1,
+   "know": 0,
+   "noise": 0,
+   "act_rate": 1.0,
+   "noise_rate": 0.0,
+   "under_test": false
+  }
+ ]
+}
