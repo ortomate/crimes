@@ -33,6 +33,13 @@
       // Pinned expected outputs — byte-compared against live scans.
       "!docs/fixtures",
 
+      // Agent worktrees. `git worktree` checkouts created under `.claude/`
+      // are full copies of this repo, biome.jsonc included, so Biome reads
+      // them as nested root configurations and refuses to run at all.
+      // Excluded rather than relocated because the path is the agent
+      // harness's, not ours.
+      "!.claude",
+
       // Recorded eval runs. Machine-written, never hand-edited.
       "!evals/results",
       "!evals/replay",
