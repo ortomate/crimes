@@ -7,6 +7,7 @@ import {
   strongDomainTokensAcross,
 } from "../domain/vocabulary.js";
 import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import { hashSlice } from "../ast-hash/hash.js";
 import type {
   PolicyCloneGroup,
   PolicyNearCloneFamily,
@@ -227,6 +228,13 @@ function buildCloneFinding(group: PolicyCloneGroup): Finding | undefined {
     file: group.anchorFile,
     lines: [anchor.line, anchor.endLine],
     symbol: ruleIdentity(group.occurrences, "rule"),
+    // `ruleIdentity` is built from the rule's vocabulary and literals, so
+    // two genuinely different rules over the same domain nouns collapse
+    // to one symbol — n8n's packages/cli lost 5 findings this way, four
+    // of them under `duplicated_policy::…::credential rule`. The
+    // normalised form is what makes them different and is already in the
+    // evidence.
+    discriminator: hashSlice(group.normalized).exact.slice(0, 12),
     summary:
       `The same ${describeKind(anchor.kind)} appears in ${group.files.length} ` +
       `production files with no shared definition. Each copy is maintained ` +
@@ -377,6 +385,9 @@ function buildNearCloneFinding(family: PolicyNearCloneFamily): Finding | undefin
     file: family.anchorFile,
     lines: [anchor.line, anchor.endLine],
     symbol: ruleIdentity(occurrences, "variants"),
+    // Same collapse as the exact-clone arm; here the shared shape is
+    // what identifies the family.
+    discriminator: hashSlice(family.shape).exact.slice(0, 12),
     summary:
       `${family.variants.length} variants of the same ${describeKind(anchor.kind)} ` +
       `exist across ${files.length} files and disagree on a value ` +

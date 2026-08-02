@@ -4,6 +4,7 @@ import type { CrimesConfig } from "./config.js";
 import type { Finding, Severity } from "./finding.js";
 import type { ContextRisk } from "./context.js";
 import { makeTierClassifier } from "./scoring/tier.js";
+import { fingerprintFinding } from "./fingerprint.js";
 
 /**
  * Per-finding-type guidance shown to agents in the human report and in
@@ -111,7 +112,16 @@ function existingSecondarySort(a: Finding, b: Finding): number {
   if (sev !== 0) return sev;
   if (b.confidence !== a.confidence) return b.confidence - a.confidence;
   if (a.file !== b.file) return a.file.localeCompare(b.file);
-  return (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0);
+  const lineDelta = (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0);
+  if (lineDelta !== 0) return lineDelta;
+  // Final, total key. Everything above can tie — `lines` is absent on
+  // 12-16% of findings, so two file-level findings both fall back to 0 —
+  // and `Array.prototype.sort` then preserves whatever order the
+  // detectors happened to emit, which follows filesystem iteration.
+  // That made `crime_NNNNN` ids depend on directory listing order.
+  // Fingerprints are unique as of 0.17.2, so this makes the comparator
+  // total rather than merely longer.
+  return fingerprintFinding(a).localeCompare(fingerprintFinding(b));
 }
 
 /**

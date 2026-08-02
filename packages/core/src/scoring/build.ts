@@ -84,6 +84,30 @@ const RECENCY_FULL_DAYS = 7;
 const RECENCY_DECAY_DAYS = 14;
 const MS_PER_DAY = 86_400_000;
 
+/**
+ * Recency boost in [0,1] for a file's latest commit date.
+ *
+ * **Age is measured in whole UTC days, not in elapsed milliseconds.**
+ * Without that, recency is a continuous function of wall-clock time: two
+ * scans of an unchanged tree, seconds apart, produce slightly different
+ * values, and any file whose true value sits near the report's 2-decimal
+ * rounding boundary flips between them. That flip changes `rank_score`,
+ * which changes the sort, which renumbers every `crime_NNNNN` id after
+ * it — so `crimes explain <id>` from one scan pointed at a different
+ * finding in the next. Measured on n8n `packages/cli`: two scans 93
+ * seconds apart reordered four findings, and one file's `scores.recency`
+ * moved 0.23 → 0.22.
+ *
+ * Both endpoints are floored to a UTC day, so the value changes only at
+ * UTC midnight and changes for every file at the same moment. Flooring
+ * the *difference* instead would give each file its own boundary at its
+ * own commit-time-of-day, which shrinks the problem rather than removing
+ * it: a scan pair straddling one file's boundary would still disagree.
+ *
+ * The remaining exposure is a scan pair that straddles UTC midnight.
+ * That is a real limit, not a solved case — it is bounded and
+ * predictable rather than continuous.
+ */
 export function recencyForDate(
   iso: string | undefined,
   nowMs: number = Date.now(),
@@ -91,7 +115,7 @@ export function recencyForDate(
   if (!iso) return 0;
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return 0;
-  const days = (nowMs - t) / MS_PER_DAY;
+  const days = Math.floor(nowMs / MS_PER_DAY) - Math.floor(t / MS_PER_DAY);
   if (days <= RECENCY_FULL_DAYS) return 1;
   if (days >= RECENCY_DECAY_DAYS) return 0;
   // Linear decay from 1 → 0 across (FULL, DECAY].
@@ -167,9 +191,13 @@ export async function buildScoringContext(
   for (const c of churnResult.files) {
     latestByFile.set(c.file, c.latestChange);
   }
+  // One clock reading for the whole scan. Per-call `Date.now()` would
+  // let a scan that straddles a day boundary score its first files
+  // differently from its last.
+  const nowMs = Date.now();
   const recency: RecencyIndex = {
     forFile(repoPath) {
-      return recencyForDate(latestByFile.get(repoPath));
+      return recencyForDate(latestByFile.get(repoPath), nowMs);
     },
     limited: !churnResult.gitAvailable,
     ...(churnResult.gitAvailable

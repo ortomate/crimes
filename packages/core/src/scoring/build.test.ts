@@ -568,9 +568,10 @@ describe("recencyForDate", () => {
   });
 
   it("linearly decays between 7 and 14 days", () => {
-    // 10.5d old → 3.5 / 7 of the way through decay → 1 - 3.5/7 = 0.5
+    // Age is counted in whole UTC days, so a commit 10.5 days back is 10
+    // days old: 3 / 7 of the way through decay → 1 - 3/7 = 0.571.
     const tenAndAHalfDaysAgo = new Date(now - 10.5 * 86400 * 1000).toISOString();
-    expect(recencyForDate(tenAndAHalfDaysAgo, now)).toBeCloseTo(0.5, 2);
+    expect(recencyForDate(tenAndAHalfDaysAgo, now)).toBeCloseTo(4 / 7, 2);
   });
 
   it("returns 0 for commits older than 14 days", () => {
@@ -583,6 +584,39 @@ describe("recencyForDate", () => {
 
   it("returns 0 for an unparsable date string", () => {
     expect(recencyForDate("not-a-date", now)).toBe(0);
+  });
+
+  it("does not move as the clock advances within a day", () => {
+    // The bug this pins: recency was a continuous function of wall-clock
+    // time, rounded to 2dp for the report. A commit whose true value sat
+    // near a 0.005 boundary flipped between two scans of an unchanged
+    // tree, which changed rank_score, which renumbered every `crime_id`
+    // after it. Measured on n8n packages/cli: two scans 93 seconds apart
+    // reordered four findings.
+    // `now` is 12:00Z, so these offsets all stay inside the same UTC day.
+    const commit = new Date(now - 10.5 * 86400 * 1000).toISOString();
+    const baseline = recencyForDate(commit, now);
+    for (const offsetMs of [1_000, 60_000, 3_600_000, 11 * 3_600_000]) {
+      expect(recencyForDate(commit, now + offsetMs), `+${offsetMs}ms`).toBe(baseline);
+    }
+  });
+
+  it("changes for every file at the same instant — UTC midnight", () => {
+    const older = new Date(now - 10.5 * 86400 * 1000).toISOString();
+    const newer = new Date(now - 9.2 * 86400 * 1000).toISOString();
+    const midnight = now + 12 * 3_600_000;
+    expect(recencyForDate(older, midnight)).not.toBe(recencyForDate(older, now));
+    expect(recencyForDate(newer, midnight)).not.toBe(recencyForDate(newer, now));
+  });
+
+  it("takes only whole-day steps across the decay band", () => {
+    const values = new Set<number>();
+    for (let hours = 7 * 24; hours <= 14 * 24; hours++) {
+      values.add(recencyForDate(new Date(now - hours * 3_600_000).toISOString(), now));
+    }
+    // 7 days of decay → at most one value per whole day, plus the
+    // endpoints.
+    expect(values.size).toBeLessThanOrEqual(9);
   });
 });
 

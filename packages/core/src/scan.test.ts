@@ -518,6 +518,32 @@ describe("tagTierAndSortByRankScore — recencyEnabled: false", () => {
     expect(findings[0]!.file).toBe("cold.ts");
     expect(findings[1]!.file).toBe("hot.ts");
   });
+
+  it("orders findings identical on every ranking key the same way whatever the input order", () => {
+    // The tiebreaker ran out at (severity, confidence, file, line-start).
+    // Two findings agreeing on all four fell through to whatever order
+    // the detectors happened to emit — so ids depended on filesystem
+    // iteration order. Quantising `recency` to whole days makes exact
+    // rank_score ties commoner, not rarer, so the comparator has to be
+    // total.
+    const base = makeScoredFinding("src/a.ts", 0.8, 1.0);
+    const one: Finding = { ...base, type: "swallowed_error", symbol: "handler" };
+    const two: Finding = { ...base, type: "large_function", symbol: "handler" };
+    const three: Finding = {
+      ...base,
+      type: "large_function",
+      symbol: "handler",
+      discriminator: "L42",
+    };
+
+    const forwards = [one, two, three];
+    const backwards = [three, two, one];
+    tagTierAndSortByRankScore(forwards, emptyConfig);
+    tagTierAndSortByRankScore(backwards, emptyConfig);
+
+    expect(forwards.map(fingerprintFinding)).toEqual(backwards.map(fingerprintFinding));
+    expect(new Set(forwards.map(fingerprintFinding)).size).toBe(3);
+  });
 });
 
 describe("scan — resurfacing", () => {

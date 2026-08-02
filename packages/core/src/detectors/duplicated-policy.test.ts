@@ -283,3 +283,42 @@ describe("duplicated_policy — stability", () => {
     expect(finding!.symbol).not.toBe("exportBilling");
   });
 });
+
+describe("duplicated_policy — fingerprint uniqueness", () => {
+  it("separates two rules whose identity string is the same", async () => {
+    // `ruleIdentity` is built from the rule's vocabulary and literals,
+    // so two genuinely different rules over the same domain nouns
+    // collapse to one symbol. Measured on n8n packages/cli: 5 findings
+    // lost, four of them under
+    // `duplicated_policy::…::credential rule`.
+    const repo = await makeRepo({
+      "src/a.ts": `
+export function checkA(credential) {
+  if (credential.type !== credential.expectedType) throw new Error("bad");
+  if (!credential.scopes.includes(credential.type)) throw new Error("scope");
+}
+`,
+      "src/b.ts": `
+export function checkB(credential) {
+  if (credential.type !== credential.expectedType) throw new Error("bad");
+  if (!credential.scopes.includes(credential.type)) throw new Error("scope");
+}
+`,
+    });
+    const findings = await runOn(repo);
+    const bySymbol = new Map<string, number>();
+    for (const f of findings) {
+      const key = `${f.file}::${f.symbol ?? ""}`;
+      bySymbol.set(key, (bySymbol.get(key) ?? 0) + 1);
+    }
+    const ambiguous = [...bySymbol.values()].some((n) => n > 1);
+    expect(ambiguous, "fixture must produce a symbol collision to be a real test").toBe(
+      true,
+    );
+
+    const prints = findings.map(
+      (f) => `${f.type}::${f.file}::${f.symbol ?? ""}::${f.discriminator ?? ""}`,
+    );
+    expect(new Set(prints).size).toBe(findings.length);
+  });
+});
