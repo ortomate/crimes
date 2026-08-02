@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import { promisify } from "node:util";
 import {
   appendSuppression,
+  FINGERPRINT_PATTERN,
+  fingerprintFinding,
   loadConfig,
   resolveOverridePath,
   resolveSuppressionsPath,
@@ -23,7 +25,6 @@ interface IgnoreCommandOptions {
 }
 
 const ID_PATTERN = /^crime_\d+$/;
-const FINGERPRINT_PATTERN = /^[a-z0-9_]+::[^:]*::[^:]*$/i;
 
 export function registerIgnoreCommand(program: Command): void {
   program
@@ -124,7 +125,11 @@ export function registerIgnoreCommand(program: Command): void {
           process.exit(2);
           return;
         }
-        fingerprint = `${match.type}::${match.file}::${match.symbol ?? ""}`;
+        // Must go through `fingerprintFinding` — a hand-rolled
+        // `type::file::symbol` drops the discriminator, and the entry it
+        // writes then matches nothing. The command still printed
+        // "Suppressed …" and exited 0 while suppressing nothing.
+        fingerprint = fingerprintFinding(match);
         type = match.type;
         file = match.file;
         symbol = match.symbol;
@@ -149,7 +154,7 @@ export function registerIgnoreCommand(program: Command): void {
             throw error;
           }
           const match = report.findings.find(
-            (f) => `${f.type}::${f.file}::${f.symbol ?? ""}` === fingerprint,
+            (f) => fingerprintFinding(f) === fingerprint,
           );
           if (!match) {
             process.stderr.write(

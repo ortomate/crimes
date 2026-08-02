@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  FINGERPRINT_PATTERN,
   loadConfig,
   loadSuppressions,
   MalformedSuppressionsError,
@@ -17,8 +18,6 @@ interface UnignoreCommandOptions {
   file?: string;
   dryRun: boolean;
 }
-
-const FINGERPRINT_PATTERN = /^[a-z0-9_]+::[^:]*::[^:]*$/i;
 
 export function registerUnignoreCommand(program: Command): void {
   program

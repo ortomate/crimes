@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   appendSuppression,
+  FINGERPRINT_PATTERN,
+  fingerprintFinding,
   loadConfig,
   loadSuppressions,
   minorKey,
@@ -23,7 +25,7 @@ export interface FeedbackCommandOptions {
 }
 
 export const ID_PATTERN = /^crime_\d+$/;
-export const FINGERPRINT_PATTERN = /^[a-z0-9_]+::[^:]*::[^:]*$/i;
+export { FINGERPRINT_PATTERN };
 export const VALID_VERDICTS = new Set(["tp", "fp", "known"] as const);
 export type Verdict = "tp" | "fp" | "known";
 
@@ -177,7 +179,13 @@ async function resolveFingerprintTarget(
     }
     const scanHash = "sha256:" + createHash("sha256").update(raw).digest("hex");
     let scanJson: {
-      findings?: Array<{ id: string; type: string; file: string; symbol?: string }>;
+      findings?: Array<{
+        id: string;
+        type: string;
+        file: string;
+        symbol?: string;
+        discriminator?: string;
+      }>;
     };
     try {
       scanJson = JSON.parse(raw);
@@ -199,7 +207,10 @@ async function resolveFingerprintTarget(
       throw new Error("unreachable");
     }
     return {
-      fingerprint: `${match.type}::${match.file}::${match.symbol ?? ""}`,
+      // Via `fingerprintFinding`, not by hand — see the same note in
+      // `ignore.ts`. A reconstructed three-part fingerprint drops the
+      // discriminator and records feedback against nothing.
+      fingerprint: fingerprintFinding(match),
       findingType: match.type,
       file: match.file,
       symbol: match.symbol,

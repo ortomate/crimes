@@ -255,7 +255,7 @@ export type {
   DiffReport,
   DiffSummary,
 } from "./diff.js";
-export { fingerprintFinding } from "./fingerprint.js";
+export { fingerprintFinding, FINGERPRINT_PATTERN } from "./fingerprint.js";
 export type {
   Effort,
   Finding,

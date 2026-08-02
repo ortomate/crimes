@@ -40,9 +40,29 @@ import type { Finding } from "./finding.js";
  * That is now a detector bug rather than a schema gap; the fix is for the
  * detector to supply a discriminator that separates them.
  */
-export function fingerprintFinding(finding: Finding): string {
+export function fingerprintFinding(
+  finding: Pick<Finding, "type" | "file"> &
+    Partial<Pick<Finding, "symbol" | "discriminator">>,
+): string {
   const base = `${finding.type}::${finding.file}::${finding.symbol ?? ""}`;
   return finding.discriminator === undefined || finding.discriminator === ""
     ? base
     : `${base}::${finding.discriminator}`;
 }
+
+/**
+ * Shape check for a fingerprint a user typed or pasted — `crimes ignore`,
+ * `crimes unignore`, and `crimes feedback` all accept one as an argument
+ * and each needs to reject a typo before it lands on disk.
+ *
+ * The discriminator segment is matched as an opaque tail rather than a
+ * fourth colon-free field. It is detector-chosen text — a collection
+ * expression, a condensed statement, a hash — and constraining its
+ * contents here would silently make some findings unignorable, which is
+ * the failure this pattern previously had: written for the three-part
+ * form, it rejected every discriminated fingerprint the scanner emits.
+ *
+ * Exported from `core` rather than duplicated per command, because three
+ * copies is how it came to be wrong in three places at once.
+ */
+export const FINGERPRINT_PATTERN = /^[a-z0-9_]+::[^:]*::[^:]*(?:::.*)?$/i;

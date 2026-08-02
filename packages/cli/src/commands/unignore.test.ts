@@ -94,6 +94,28 @@ describe("crimes unignore", () => {
     expect(after.suppressions).toEqual([]);
   });
 
+  it("accepts a fingerprint carrying a discriminator", async () => {
+    const { root, path } = await makeRepoWithSuppression();
+    const discriminated = "large_function::billing.ts::describe callback::L204";
+    const before = JSON.parse(readFileSync(path, "utf8"));
+    before.suppressions.push({
+      fingerprint: discriminated,
+      type: "large_function",
+      file: "billing.ts",
+      symbol: "describe callback",
+      reason: "second callback",
+      created_at: "2026-01-01T00:00:00.000Z",
+    });
+    await writeFile(path, JSON.stringify(before, null, 2), "utf8");
+
+    const result = await runCli(["unignore", discriminated], root);
+    expect(result.exitCode).toBe(0);
+    const after = JSON.parse(readFileSync(path, "utf8"));
+    expect(after.suppressions.map((s: { fingerprint: string }) => s.fingerprint)).toEqual(
+      ["large_function::billing.ts::generateInvoice"],
+    );
+  });
+
   it("missing fingerprint exits 2 with audit hint", async () => {
     const { root } = await makeRepoWithSuppression();
     const result = await runCli(["unignore", "large_function::nope.ts::nope"], root);

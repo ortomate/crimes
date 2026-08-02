@@ -95,6 +95,20 @@ describe("crimes feedback (write)", () => {
     expect(result.stderr).toContain("neither a per-scan id");
   });
 
+  it("accepts a fingerprint carrying a discriminator", async () => {
+    const root = await makeRepo();
+    const result = await runCli(
+      [
+        "feedback",
+        "large_function::billing.ts::describe callback::L1",
+        "--verdict",
+        "known",
+      ],
+      root,
+    );
+    expect(result.exitCode).toBe(0);
+  });
+
   it("crime_NNNNN id without --file exits 2", async () => {
     const root = await makeRepo();
     const result = await runCli(["feedback", "crime_00001", "--verdict", "tp"], root);

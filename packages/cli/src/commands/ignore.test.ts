@@ -51,6 +51,35 @@ async function makeRepo(): Promise<string> {
   return root;
 }
 
+/**
+ * Two anonymous callbacks in one file. Both collapse to the symbol
+ * `describe callback`, so the findings are separated only by their
+ * fingerprint discriminator.
+ */
+async function makeAmbiguousRepo(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "crimes-ignore-dup-"));
+  const body = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join("\n");
+  await writeFile(
+    join(root, "billing.test.ts"),
+    `describe("a", () => {\n${body}\n});\n\ndescribe("b", () => {\n${body}\n});\n`,
+    "utf8",
+  );
+  return root;
+}
+
+async function scanJson(root: string): Promise<{
+  findings: {
+    id: string;
+    type: string;
+    file: string;
+    symbol?: string;
+    discriminator?: string;
+  }[];
+}> {
+  const result = await runCli(["scan", "--all", "--format", "json"], root);
+  return JSON.parse(result.stdout);
+}
+
 describe("crimes ignore", () => {
   it("missing --reason exits 2", async () => {
     const root = await makeRepo();
@@ -111,6 +140,52 @@ describe("crimes ignore", () => {
     );
     expect(raw.suppressions[0].fingerprint).toBe(
       "large_function::billing.ts::generateInvoice",
+    );
+  });
+
+  it("keeps the discriminator when resolving an id, so the entry suppresses", async () => {
+    const root = await makeAmbiguousRepo();
+    const before = await scanJson(root);
+    const target = before.findings.find((f) => f.discriminator !== undefined);
+    expect(target).toBeDefined();
+
+    const result = await runCli(["ignore", target!.id, "--reason", "legacy"], root);
+    expect(result.exitCode).toBe(0);
+
+    const raw = JSON.parse(
+      readFileSync(join(root, ".crimes", "suppressions.json"), "utf8"),
+    );
+    expect(raw.suppressions[0].fingerprint).toBe(
+      `${target!.type}::${target!.file}::${target!.symbol ?? ""}::${target!.discriminator}`,
+    );
+
+    // The point of the fingerprint is that it matches. A reconstructed
+    // one that drops the discriminator writes a well-formed entry that
+    // silently suppresses nothing.
+    const after = await scanJson(root);
+    expect(after.findings.map((f) => f.id)).toHaveLength(before.findings.length - 1);
+    expect(after.findings.some((f) => f.discriminator === target!.discriminator)).toBe(
+      false,
+    );
+  });
+
+  it("accepts a fingerprint carrying a discriminator", async () => {
+    const root = await makeAmbiguousRepo();
+    const result = await runCli(
+      [
+        "ignore",
+        "large_function::billing.test.ts::describe callback::L1",
+        "--reason",
+        "legacy",
+      ],
+      root,
+    );
+    expect(result.exitCode).toBe(0);
+    const raw = JSON.parse(
+      readFileSync(join(root, ".crimes", "suppressions.json"), "utf8"),
+    );
+    expect(raw.suppressions[0].fingerprint).toBe(
+      "large_function::billing.test.ts::describe callback::L1",
     );
   });
 
