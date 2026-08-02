@@ -125,7 +125,9 @@ cached on a `WeakMap`. Each `run()` is an O(1) lookup.
 - **n8n, which never finished at 60 min or 2h51m, completed in 789s
   (13m 9s)**: 16,325 findings, 1,662 high, 19,738 files, and
   `coverage.by_package` populated with 86 entries — a surface that was
-  previously untestable because only subtree scans ever completed
+  previously untestable because only subtree scans ever completed. A
+  second run under heavy CPU contention (96 concurrent eval agents) took
+  1082s, so treat both as upper bounds rather than a clean benchmark.
 
 ### 1.8 `context` printed a handle `explain` could not resolve — `775996a`
 
@@ -154,8 +156,20 @@ Fixed: `commented_out_code` (hashed block text), `weak_test_signal` (test
 title), `large_function` (start line, **only** where the symbol is
 ambiguous).
 
-**hono: findings lost to collisions 89 of 377 (23.6%) → 2 of 376
-(0.5%).** Self-scan: 0.
+Measured:
+
+| repo | before | after |
+|---|---|---|
+| hono | 89 of 377 (23.6%) | **2 of 376 (0.5%)** |
+| n8n | 2,723 of 16,325 (16.7%) | **496 of 16,325 (3.0%)** |
+| self-scan | 3 | **0** |
+
+**Three detectors still collide and were not fixed** — they are next in
+the queue (§4.4a): `unbounded_async_fanout` (294 on n8n),
+`swallowed_error` (111), `contract_drift` (26), plus `logic_in_comments`
+(18). `commented_out_code`'s residual 15 are genuinely identical comment
+blocks in one file, which the content hash cannot separate and arguably
+should not.
 
 > **A weaker guarantee, recorded rather than glossed.** `large_function`
 > uses the start line, which is positional, not content-derived — it
@@ -250,6 +264,15 @@ the three detectors it changed. `crimes feedback recheck` surfaces them.
    `324`; pinned at 1.0 on 47%. The report says `slack.py` has 798
    importers; it has 5. `explain` renders it honestly ("50+ transitive,
    cap reached"); `scan` and `context` do not.
+
+4a. **Three detectors still collide on fingerprints.** The same fix
+   pattern as §1.9–1.10, already proven: `unbounded_async_fanout` (294
+   findings lost on n8n), `swallowed_error` (111), `contract_drift` (26),
+   `logic_in_comments` (18). Each emits more than one finding per
+   (type, file, symbol); empty or repeated `symbol` is the tell. Cheap,
+   mechanical, and the highest value-per-hour item on this list.
+   Consider asserting fingerprint uniqueness in the scan pipeline so the
+   class cannot regress a third time.
 
 ### Real problems
 
