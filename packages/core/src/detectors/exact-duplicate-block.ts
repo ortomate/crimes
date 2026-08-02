@@ -1,6 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import type { FunctionHit } from "../ast-hash/function-index.js";
+import { anchoredGroups } from "./duplicate-anchor-index.js";
 
 /**
  * Fires when a function body is verbatim-identical (modulo whitespace
@@ -27,16 +28,11 @@ export const exactDuplicateBlockDetector: LanguageJsDetector = {
   run(ctx) {
     if (!ctx.functionHashIndex) return [];
     const findings: Finding[] = [];
-    // Map order is deterministic (the index inserts in sorted file
-    // order), but sorting the keys makes that independent of the index's
-    // internals rather than a property this detector has to trust.
-    for (const [hash, hits] of [...ctx.functionHashIndex.byExact].sort((a, b) =>
-      a[0].localeCompare(b[0]),
-    )) {
-      const distinctFiles = new Set(hits.map((h) => h.file));
-      if (distinctFiles.size < 2) continue;
-      const anchor = [...distinctFiles].sort()[0]!;
-      if (anchor !== ctx.file) continue;
+    // Groups anchored on this file, ordered by hash. The sort happens
+    // once per index rather than once per file — see
+    // duplicate-anchor-index.ts for why that mattered.
+    const groups = anchoredGroups(ctx.functionHashIndex, "exact").get(ctx.file) ?? [];
+    for (const { hash, hits, anchor } of groups) {
       findings.push(
         buildFinding({
           type: "exact_duplicate_block",

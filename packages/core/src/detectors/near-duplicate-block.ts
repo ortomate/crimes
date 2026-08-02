@@ -1,5 +1,6 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
+import { anchoredGroups } from "./duplicate-anchor-index.js";
 import { buildFinding } from "./exact-duplicate-block.js";
 
 /**
@@ -29,13 +30,10 @@ export const nearDuplicateBlockDetector: LanguageJsDetector = {
   run(ctx) {
     if (!ctx.functionHashIndex) return [];
     const findings: Finding[] = [];
-    // Sorted for the same reason as `exact_duplicate_block`: the emitted
-    // order should not depend on map internals.
-    for (const [hash, hits] of [...ctx.functionHashIndex.byShape].sort((a, b) =>
-      a[0].localeCompare(b[0]),
-    )) {
-      const distinctFiles = new Set(hits.map((h) => h.file));
-      if (distinctFiles.size < 2) continue;
+    // Groups anchored on this file, ordered by hash, sorted once per
+    // index rather than once per file — see duplicate-anchor-index.ts.
+    const groups = anchoredGroups(ctx.functionHashIndex, "shape").get(ctx.file) ?? [];
+    for (const { hash, hits, anchor } of groups) {
       // Avoid double-reporting: if every site in this shape group also
       // shares an exact hash, the `exact_duplicate_block` detector already
       // fired. Skip silently to keep the two detectors from echoing each
@@ -44,8 +42,6 @@ export const nearDuplicateBlockDetector: LanguageJsDetector = {
       const exactKey = anyExactKeyShared(hits, exactGroup);
       if (exactKey !== undefined) continue;
 
-      const anchor = [...distinctFiles].sort()[0]!;
-      if (anchor !== ctx.file) continue;
       findings.push(
         buildFinding({
           type: "near_duplicate_block",
