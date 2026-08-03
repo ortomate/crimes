@@ -93,6 +93,51 @@ async function makeChangedRepoNoFindings(): Promise<string> {
   return root;
 }
 
+describe("crimes scan — presentation flags under --format json", () => {
+  async function makeRepo(): Promise<string> {
+    const root = await mkdtemp(join(tmpdir(), "crimes-cli-json-flags-"));
+    await writeFile(join(root, "big.ts"), largeFunctionSource(), "utf8");
+    await git(root, "init", "--initial-branch=main", "--quiet");
+    await git(root, "add", "-A");
+    await git(root, "commit", "-m", "init", "--quiet");
+    return root;
+  }
+
+  it("says on stderr that --all does not apply to json, and leaves stdout alone", async () => {
+    const root = await makeRepo();
+    const plain = await runCli(["scan", "--format", "json"], root);
+    const withAll = await runCli(["scan", "--format", "json", "--all"], root);
+
+    // The contract half: JSON already carries every finding, so the
+    // bytes must not move. This is what makes the warning the right fix
+    // rather than teaching JSON to truncate.
+    expect(withAll.stdout).toBe(plain.stdout);
+    expect(withAll.exitCode).toBe(0);
+
+    // The honesty half: the flag did nothing, so say so.
+    expect(plain.stderr).not.toMatch(/--all/);
+    expect(withAll.stderr).toMatch(/--all/);
+    expect(withAll.stderr).toMatch(/every finding/i);
+  });
+
+  it("warns for the other human-only presentation flags too", async () => {
+    const root = await makeRepo();
+    const result = await runCli(
+      ["scan", "--format", "json", "--flat", "--top", "2"],
+      root,
+    );
+    expect(result.stderr).toMatch(/--flat/);
+    expect(result.stderr).toMatch(/--top/);
+    expect(JSON.parse(result.stdout).findings.length).toBeGreaterThan(0);
+  });
+
+  it("stays silent about presentation flags in human format", async () => {
+    const root = await makeRepo();
+    const result = await runCli(["scan", "--all", "--flat", "--no-color"], root);
+    expect(result.stderr).not.toMatch(/--all|--flat/);
+  });
+});
+
 describe("crimes scan --changed --fail-on", () => {
   it("exits 1 when the changed set contains a finding ≥ threshold", async () => {
     const root = await makeChangedRepo();

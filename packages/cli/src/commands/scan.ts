@@ -55,6 +55,37 @@ interface ScanCommandOptions {
 
 const VALID_FAIL_ON = new Set<FailOn>(["low", "medium", "high"]);
 
+/**
+ * Flags that shape the *terminal* report and nothing else.
+ *
+ * `--format json` already emits every finding — the human renderer is a
+ * view over the same array, and it is the view that truncates. So these
+ * are not merely ignored under `--format json`, they are meaningless
+ * there, and teaching JSON to honour them would mean teaching the
+ * machine contract to withhold findings by default. That is the wrong
+ * direction: JSON is the product contract (`PRD.md` §9) and a consumer
+ * that has to pass a flag to be given the whole answer is a worse
+ * contract than one that always gives it.
+ *
+ * What was actually wrong is that `--all` looked like it did something.
+ * It parsed, it exited 0, and stdout came back byte-identical. The fix
+ * is to say so on stderr, which leaves stdout untouched — so this
+ * changes no finding and moves no baseline.
+ */
+function warnIgnoredPresentationFlags(options: ScanCommandOptions): void {
+  const ignored: string[] = [];
+  if (options.all) ignored.push("--all");
+  if (options.flat) ignored.push("--flat");
+  if (options.top !== undefined) ignored.push("--top");
+  if (ignored.length === 0) return;
+  const list = ignored.join(", ");
+  process.stderr.write(
+    `crimes: ${list} ${ignored.length === 1 ? "shapes" : "shape"} the terminal ` +
+      "report only and had no effect here — --format json always emits every " +
+      "finding.\n",
+  );
+}
+
 function isFailOn(value: string): value is FailOn {
   return VALID_FAIL_ON.has(value as FailOn);
 }
@@ -65,7 +96,11 @@ export function registerScanCommand(program: Command): void {
     .description("Scan a repository for maintainability crimes.")
     .argument("[path]", "directory to scan (defaults to current directory)")
     .option("--format <format>", "output format: human | json", "human")
-    .option("--all", "show every finding instead of just the top ones", false)
+    .option(
+      "--all",
+      "show every finding instead of just the top ones (human format only; json always emits all)",
+      false,
+    )
     .option("--no-color", "disable ANSI colour output")
     .option(
       "--changed",
@@ -100,10 +135,12 @@ export function registerScanCommand(program: Command): void {
       "with --fail-on, count resurfaced findings (previously_triaged / previously_baselined) toward the gate",
       false,
     )
-    .option("--top <n>", "show only the top N files (default 5)", (v) =>
-      Number.parseInt(v, 10),
+    .option(
+      "--top <n>",
+      "show only the top N files (default 5; human format only)",
+      (v) => Number.parseInt(v, 10),
     )
-    .option("--flat", "use the legacy flat-by-severity layout", false)
+    .option("--flat", "use the legacy flat-by-severity layout (human format only)", false)
     .option("--no-recency", "disable the recency multiplier on rank_score")
     .option(
       "--explain-coverage",
@@ -218,6 +255,7 @@ export function registerScanCommand(program: Command): void {
           : report;
 
       if (format === "json") {
+        warnIgnoredPresentationFlags(options);
         process.stdout.write(formatJsonReport(gatedReport) + "\n");
       } else {
         const effectiveNoColor = options.noColor || !process.stdout.isTTY;
