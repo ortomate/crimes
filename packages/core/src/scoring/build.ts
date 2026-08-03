@@ -177,7 +177,6 @@ export interface BuildScoringContextOptions {
 }
 
 const CHURN_CAP = 20;
-const BLAST_RADIUS_CAP = 50;
 
 /**
  * Build the per-file scoring indices for a scan. Always returns a context
@@ -233,7 +232,7 @@ export async function buildScoringContext(
     repoPaths,
     imports: options.imports,
   });
-  const blastRadius = buildBlastRadiusIndex({ imports: options.imports });
+  const blastRadius = buildBlastRadiusIndex({ repoPaths, imports: options.imports });
 
   return { churn, testGap, blastRadius, recency, churnResult };
 }
@@ -334,12 +333,42 @@ function buildTestGapIndex(args: {
   };
 }
 
+/**
+ * Blast radius, quartile-ranked within the scan.
+ *
+ * ## Why not the raw normalised count
+ *
+ * The previous score was `min(transitive / 50, 1)`. On any repo with a
+ * large strongly-connected component that saturates: **47% of zulip's
+ * findings scored exactly 1.0**, and on hono six files all reported a
+ * transitive closure of 197 while their direct fan-in ranged from 2 to
+ * 70. A score that is 1.0 for half the report does not rank anything.
+ *
+ * Quartile-ranking removes the saturation by construction — the same
+ * treatment `test_gap` already gets — at the cost of comparability
+ * across repos. `blast_radius` becomes "how far-reaching is this file
+ * *relative to this repository*", which is what a reader triaging one
+ * report actually wants. The absolute integers remain available and
+ * unchanged as `blast_radius_transitive_importers` and
+ * `blast_radius_direct_importers` for anyone who needs them.
+ *
+ * ## The tiebreaker
+ *
+ * Ranking on the closure alone leaves the plateau intact *within* a
+ * quartile: every member of a strongly-connected component has the same
+ * closure by definition. The direct fan-in count breaks those ties, so
+ * the file 70 modules import outranks the one 2 modules import even
+ * though both reach 197. The composite key is
+ * `transitive * (maxDirect + 1) + direct`, which is exact — direct can
+ * never outweigh a difference in transitive.
+ */
 function buildBlastRadiusIndex(args: {
+  repoPaths: string[];
   imports: ImportGraph | undefined;
 }): BlastRadiusIndex {
   const transitiveMemo = new Map<string, number>();
   const directMemo = new Map<string, number>();
-  const { imports } = args;
+  const { repoPaths, imports } = args;
 
   const transitiveFor = (repoPath: string): number => {
     if (!imports) return 0;
@@ -359,10 +388,20 @@ function buildBlastRadiusIndex(args: {
     return count;
   };
 
+  const ranked = new Map<string, number>();
+  if (imports) {
+    const direct = repoPaths.map(directFor);
+    const maxDirect = direct.reduce((max, d) => Math.max(max, d), 0);
+    const keys = repoPaths.map(
+      (path, i) => transitiveFor(path) * (maxDirect + 1) + direct[i]!,
+    );
+    const scores = quartileScores(keys);
+    repoPaths.forEach((path, i) => ranked.set(path, scores[i]!));
+  }
+
   return {
     forFile(repoPath) {
-      const count = transitiveFor(repoPath);
-      return Math.min(count / BLAST_RADIUS_CAP, 1);
+      return ranked.get(repoPath) ?? 0;
     },
     transitiveCountForFile(repoPath) {
       return transitiveFor(repoPath);

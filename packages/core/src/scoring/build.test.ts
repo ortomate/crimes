@@ -208,10 +208,14 @@ describe("buildScoringContext > blast_radius", () => {
     const files = await discover(root);
     const imports = await buildImportGraph({ root, files });
     const ctx = await buildScoringContext({ root, files, imports });
-    // leaf has 3 transitive importers (mid + a + b); min(3/50, 1) = 0.06.
-    expect(ctx.blastRadius.forFile("src/leaf.ts")).toBe(0.06);
-    expect(ctx.blastRadius.forFile("src/mid.ts")).toBe(0.04);
-    expect(ctx.blastRadius.forFile("src/a.ts")).toBe(0);
+    // The score is a quartile rank within the scan, not a normalised
+    // count: leaf reaches furthest, mid next, a and b not at all.
+    expect(ctx.blastRadius.forFile("src/leaf.ts")).toBe(1);
+    expect(ctx.blastRadius.forFile("src/mid.ts")).toBe(0.75);
+    expect(ctx.blastRadius.forFile("src/a.ts")).toBe(0.25);
+    expect(ctx.blastRadius.forFile("src/leaf.ts")).toBeGreaterThan(
+      ctx.blastRadius.forFile("src/mid.ts"),
+    );
     // transitiveCountForFile exposes the raw reachability count the score
     // is normalised from.
     expect(ctx.blastRadius.transitiveCountForFile("src/leaf.ts")).toBe(3);
