@@ -1,0 +1,58 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.18.0",
+  "timestamp": "2026-08-03T00:47:38.862Z",
+  "run_id": "2944db52-32ad-4066-9f6a-8dfde5e45531",
+  "response": "## The cycle\n\nThree edges, all value imports:\n\n| # | Edge | Site |\n|---|---|---|\n| 1 | `application/billing-flow` → `domain/billing` | `src/application/billing-flow.ts:1` |\n| 2 | `domain/billing` → `presentation/invoice-view` | `src/domain/billing.ts:2` |\n| 3 | `presentation/invoice-view` → `application/billing-flow` | `src/presentation/invoice-view.ts:3` |\n\n## Break edge 2 — `src/domain/billing.ts:2`\n\n**Why that one and not the other two:**\n\n1. **It's the only edge that's independently illegal.** `crime_00002` fires on exactly this edge (`rule: domain cannotImport presentation` from `crimes.config.json:10`). Edges 1 and 3 both point in directions the config permits (`application → domain`, `presentation → application`). Cutting the one edge that already violates the architecture resolves two findings with one change and leaves a DAG; cutting either other edge fixes the cycle while leaving the layer violation in place.\n2. **Direction of change.** `domain` is the stable core — it should be importable by everything and import nothing upward. A domain function that returns a rendered string (`chargeCustomer` returns `renderInvoice(amount)`) has taken on a presentation responsibility that doesn't belong to it. Removing that is a correctness improvement independent of the cycle.\n3. **The other two edges have real reasons to exist.** An application flow orchestrating a domain operation is the intended direction; a view invoking an application flow is the intended composition point (and per rule `application cannotImport presentation`, presentation *has* to be the composer here — the fix can't route through `application` importing the view).\n\n**The tool's `import type` suggestion doesn't apply here.** `crime_00001`'s `break_cycle` action offers \"convert one direction to `import type`\" as an option — but all three imports are functions that are actually called, so none can be erased at compile time. Extraction is the only route.\n\n## On the suspected runtime error\n\nWorth being precise about what you're chasing. Nothing in these three modules executes at module scope — all three imports are consumed inside function bodies — so ESM hoisting resolves the ring cleanly and you would **not** get a TDZ / `undefined is not a function` error at load. The runtime failure this fixture actually produces is unconditional mutual recursion:\n\n`runBillingFlow()` → `chargeCustomer()` → `renderInvoice()` → `runBillingFlow()` → …\n\ni.e. `RangeError: Maximum call stack size exceeded` on the first call, not an import-time error. Breaking edge 2 kills both the cycle and the recursion, because it's the call that shouldn't be there.\n\n## Proposed shape\n\n```ts\n// src/domain/billing.ts — pure, imports nothing upward\nexport interface Charge { amount: number }\nexport function chargeCustomer(amount: number): Charge {\n  return { amount };\n}\n\n// src/application/billing-flow.ts — orchestrates, returns data\nimport { type Charge, chargeCustomer } from \"../domain/billing.js\";\nexport function runBillingFlow(): Charge {\n  return chargeCustomer(100);\n}\n\n// src/presentation/invoice-view.ts — composition point, owns formatting\nimport { runBillingFlow } from \"../application/billing-flow.js\";\nexport function renderInvoice(): string {\n  return `Invoice: ${runBillingFlow().amount}`;\n}\n```\n\nResulting edges: `presentation → application → domain`, plus a type-only `application → domain`. Acyclic, and every edge legal under `crimes.config.json`.\n\n## Two findings worth folding into the same change\n\nBoth live on `src/application/billing-flow.ts:4`, one line:\n\n```ts\nimport { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n```\n\n- **`crime_00004` (Phantom Accomplice)** is the one that bites first in practice: `package.json` declares no dependencies at all, so `some-pkg` resolves only through hoisting. A clean install fails before the cycle ever gets a chance to matter. Declare it.\n- **`crime_00003` (deep import)** is the same line reaching four segments past the package name into `dist/internal/private/`. Import from `some-pkg` proper; if `internalHelper` isn't exported, that's an upstream issue, not something to route around.\n\nI haven't edited anything — this tree is scanner input for the eval suite, so changing it would move the baseline. Say the word if you want the fix applied anyway.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

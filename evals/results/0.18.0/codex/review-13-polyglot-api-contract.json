@@ -1,0 +1,59 @@
+{
+  "scenario": "review-13-polyglot-api-contract",
+  "agent": "codex",
+  "crimes_version": "0.18.0",
+  "timestamp": "2026-08-03T01:30:33.210Z",
+  "run_id": "c7288a30-20bb-46cf-8f6c-fe670434ed94",
+  "response": "The scan shows three production-facing contract breaks and one terminology drift. Ranked by failure severity:\n\n1. **Plan-change requests always fail — HTTP method mismatch**\n   - Client: `PUT /api/teams/:id/plan`\n   - API: `POST /api/teams/{team_id}/plan`\n   - Production symptom: **405 Method Not Allowed** on every plan-change attempt.\n   - Fix: change the client to `POST`, or intentionally add a `PUT` handler.\n\n2. **Workspace creation always fails — route mismatch**\n   - Client: `POST /api/workspaces`\n   - API: no route declares `/api/workspaces`; the backend uses “team” terminology.\n   - Production symptom: **404 Not Found** on every workspace-creation attempt.\n   - Fix: point the client at the actual creation route or add the missing API route.\n\n3. **Plan values disagree in both directions**\n   - Shared: `free`, `pro`\n   - API only: `team`, `scale`\n   - Client only: `enterprise`\n   - Production symptoms:\n     - Sending `enterprise` from the client is rejected by the Python API.\n     - Receiving `team` or `scale` leaves the TypeScript client with values outside its declared contract, potentially causing validation failures, missing UI branches, or incorrect fallback behavior.\n   - Fix: make one schema canonical and generate both language definitions from it.\n\n4. **The same tenant concept has different names**\n   - API: `team`\n   - Client: `workspace`\n   - Production symptom: no immediate wire failure by itself, but it likely contributed to `/api/workspaces` versus `/api/teams/...` drifting and makes future cross-stack changes easy to miss.\n   - Fix: standardize the name or explicitly document the boundary mapping.\n\nThe `getWorkspace` “false identity” finding is not a client/API disagreement: performing a network read through `fetch` is normal for a getter-like API-client function.\n\nOne caveat: the scan did not inspect three JSON files or `pyproject.toml`, and dynamically assembled routes are invisible to this check. Therefore this is every disagreement detected in the scanned Python and TypeScript sources, not proof that no additional configuration-level mismatch exists.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

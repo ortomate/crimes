@@ -1,0 +1,65 @@
+{
+  "scenario": "plan-11-py-import-cycle",
+  "agent": "claude",
+  "crimes_version": "0.18.0",
+  "timestamp": "2026-08-03T01:02:53.616Z",
+  "run_id": "89f71bfd-6f95-4b30-98b2-c7695b418d6c",
+  "response": "Ran the scan (output matches what you have), then checked the actual import edges, because the JSON alone doesn't say which direction the `tax` arrows point — and for an extraction that's the whole question.\n\n## The graph crimes describes, drawn out\n\n```\napi/routes.py ──→ domain/invoicing.py ⇄ api/rendering.py\n                          │                    │\n                          ↓                    │\n                     tax/vat.py                │\n                          │                    │\n                          ↓                    ↓\n          tax/rules/regional/eu/vat_bands.py ←─┘\n```\n\n**`tax/` is already a leaf.** Nothing under `tax/` imports `domain` or `api` — `tax/vat.py`'s only import is intra-package, and `vat_bands.py` imports nothing. `python3 -c \"import tax.vat\"` succeeds cleanly. This is the single most important fact for the extraction and crimes doesn't state it directly; it's the absence of a finding, not a finding.\n\nTwo corrections to how the JSON reads:\n\n- The `circular_dependency` finding is filed against `api/rendering.py` and lists `domain/invoicing.py` as related. Neither is in `tax/`. **The cycle does not cross the extraction seam.**\n- Crimes hedges: *\"whichever module is imported first decides whether this raises.\"* Not here. I tried all three entry points and every one raises `ImportError` on a partially-initialized module. `LINE_ITEM_CAP` is defined at line 12 but `api.rendering` is imported at line 9, and `format_money` is defined at line 11 but `domain.invoicing` is imported at line 7 — whichever end you enter, the name you need isn't bound yet. The repo does not import today.\n\n## Blocks the extraction\n\n**1. `crime_00006` — `api/rendering.py:8` reaches `tax.rules.regional.eu.vat_bands` at depth 5.**\n\nThis is the real blocker. All four `tax/__init__.py` files are 0 bytes, so `tax` has no public surface at all — every consumer import is currently an internal-path import. The moment `tax` is a separately versioned wheel, `tax.rules.regional.eu.vat_bands` becomes a compatibility contract: you can't rename `rules/`, collapse `regional/eu/`, or move `STANDARD_BAND` without a breaking release on the host. You'd be publishing the file layout as API.\n\n**2. `crime_00004` — the cycle.** Blocks, but not for the reason the finding implies. It doesn't span the seam, so it doesn't stop you from cutting the package. It stops you from *verifying* the cut: with `domain.invoicing` unimportable, you can't run an import-health check or a test suite through the tax consumers before or after the swap. Extract first and every failure is ambiguous.\n\n## Merely untidy\n\n**`crime_00007` — `tax/vat.py:3` → `tax.rules.regional.eu.vat_bands`.** Same detector, same file target, identical scores to the blocker above (severity 0.6, confidence 0.85, agent_risk 0.28). But this one is intra-package: after extraction it lives entirely inside the new wheel and couples nothing across a release boundary. Fix it while you're defining the surface, not because it's in the way. Crimes can't distinguish these two — the seam you're about to draw is what makes one a blocker and one cosmetic, and the seam isn't in the repo yet.\n\n**Everything else stays with the host and doesn't affect the extraction:** the clock reads and mixed UTC/local in `domain/invoicing.py` (`crime_00002`, `crime_00003`), `build_invoice`'s size (`crime_00005`), `stale` naming (`crime_00008`), and the blocking I/O in `api/routes.py` (`crime_00001`). None of it is under `tax/`.\n\nAlso note the coverage warning: `pyproject.toml` was never read by any detector. Packaging is exactly a pyproject concern, so don't expect crimes to have an opinion on the build config side of this.\n\n## Plan\n\n**Step 0 — break the cycle (prerequisite, ~3 lines).**\nMove `LINE_ITEM_CAP = 500` out of `domain/invoicing.py` into a leaf `domain/limits.py` and repoint `api/rendering.py:7` at it. That deletes the `api/rendering → domain/invoicing` edge; the remaining `domain → api.rendering.format_money` edge is one-directional and the repo imports. Verify with `python3 -c \"import api.routes\"`.\n\nThat domain→api edge is itself backwards — `build_invoice` returning a formatted `display_total` is domain code doing presentation. Fixing it properly means dropping `display_total` and letting `api/rendering` format, which changes `build_invoice`'s return shape. **Do that after the extraction, not during** — don't fold a layering change into a packaging change.\n\n**Step 1 — give `tax` a public surface.** Populate `tax/__init__.py` with the deliberate export list: `apply_vat`, plus whatever band data consumers legitimately need. Note that `BANDS` (a country→rate map) and `STANDARD_BAND`/`REDUCED_BAND` (band labels) are two different concepts sharing a module — decide which are API and which are implementation before you freeze them. Everything under `tax/rules/` becomes private by convention.\n\n**Step 2 — repoint both consumers at the root.** `api/rendering.py:8` → `from tax import STANDARD_BAND`; `tax/vat.py:3` can move to a relative import within the package. Re-scan: both `deep_import` findings should clear.\n\n**Step 3 — cut the package.** `git mv tax/` into its own repo/dir with its own `pyproject.toml` under a distinct distribution name (import name `tax` is generic enough to collide; consider `tax` as the package with a namespaced distribution). Host `pyproject.toml` gains the dependency. Import paths in `domain/invoicing.py` are unchanged, so the diff on the host is the manifest plus Step 2's line.\n\n**Step 4 — re-scan both repos.** The host should drop to 6 findings; the new package should report zero once Step 2 lands.\n\nOne thing worth deciding before you publish, which crimes didn't flag: `apply_vat` does `BANDS.get(region, 0.0)` — an unknown region silently gets zero tax. Fine as an internal function, a support liability as published API behavior.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/rendering.py",
+        "observed": "api/rendering.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tax/rules/regional/eu/vat_bands.py",
+        "observed": "tax/rules/regional/eu/vat_bands.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "codex",
+  "crimes_version": "0.18.0",
+  "timestamp": "2026-08-03T01:29:08.534Z",
+  "run_id": "7b37764c-c47c-4680-bb98-7ff1dd76af98",
+  "response": "The dominant cause is synchronous I/O in the HTTP request path (`crime_00001`). It explains the signature precisely: low CPU, but collapsing p99 as requests queue behind blocked workers or a blocked async event loop.\n\nRanked by likely contribution:\n\n1. `requests.get()` in `get_invoice`, line 21 — synchronous network latency inside a route handler. If `get_invoice` is async, this freezes the event loop until the upstream responds.\n2. `time.sleep()` in `export_invoice`, line 32 — deliberately blocks execution while doing no work. In an async handler, it should be `await asyncio.sleep(...)`.\n3. `subprocess.run()` in `export_invoice`, line 31 — waits synchronously for a child process. Runtime variance can create especially bad tail latency.\n4. `open()` in `get_invoice`, line 23 — synchronous filesystem I/O. Probably less damaging than network/process waits unless the file is large, slow, or on network storage, but it still blocks concurrency.\n\nThe scan does not identify exactly which calls reside in `async def`, only that at least one does. Those calls deserve the first fix: use async equivalents or offload unavoidable blocking work to a bounded thread/background worker. Avoid unbounded thread offloading, which merely moves the queue.\n\nThe other findings do not explain the load-dependent latency collapse:\n\n- The import cycle can cause startup/import failures, not steadily degrading p99.\n- Clock handling can cause correctness bugs.\n- The large function and deep imports increase maintenance risk.\n- Boolean naming has negligible runtime impact.\n\nSo I would treat `sync_io_in_hotpath` as the incident cause and the remaining seven findings as separate follow-up work.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "sync_io_in_hotpath",
+      "crime_00002": "mixed_utc_local_methods",
+      "crime_00003": "direct_date",
+      "crime_00004": "circular_dependency",
+      "crime_00005": "large_function",
+      "crime_00006": "deep_import",
+      "crime_00007": "deep_import",
+      "crime_00008": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      }
+    ]
+  }
+}

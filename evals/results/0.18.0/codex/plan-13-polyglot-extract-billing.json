@@ -1,0 +1,65 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "codex",
+  "crimes_version": "0.18.0",
+  "timestamp": "2026-08-03T01:02:29.096Z",
+  "run_id": "f2733b7b-9524-48fc-87d2-308a20a58549",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is an extraction plan driven by scanner findings. I’ll first reproduce the JSON scan in the fixture, then inspect the three implementation files and package manifests so the sequencing reflects the actual service boundary.\n\nThe global `crimes` binary is not installed in this shell (`command not found`), so I’m switching to the repository’s locally built CLI—the documented equivalent for an unpublished checkout. I’ll preserve the same `scan --format json` invocation and verify it against the supplied report before planning.\n\nThe scan completed successfully via the repository-local CLI and reproduced the supplied result: 5 findings—1 high, 3 medium, 1 low.\n\nThe split should be contract-first. The current frontend and Python API do not agree on plan values, paths, methods, or even parameter substitution, so moving the code first would merely turn local drift into a cross-team production dependency.\n\n## Required before the split\n\n1. Establish one versioned billing contract.\n\n   Use OpenAPI as the source of truth for:\n\n   - Tenant identifier and resource paths\n   - `Plan` values\n   - Request and response schemas\n   - HTTP methods\n   - Error responses and authentication requirements\n\n   Generate the TypeScript client and, preferably, Python validation types from it. Add CI checks that regenerate or validate both sides.\n\n2. Resolve `cross_language_type_drift` (`crime_00001`, high).\n\n   Decide whether the supported plans are `free/pro/team/scale`, `free/pro/enterprise`, or a deliberately versioned combination. Define behavior for existing records and unknown/deprecated plans. This is a hard blocker: either side can currently reject values produced by the other.\n\n3. Resolve both `cross_language_route_drift` findings.\n\n   - `crime_00003`: choose POST or PUT for changing a plan and use it consistently.\n   - `crime_00005`: choose a canonical tenant path; the frontend’s `POST /api/workspaces` has no backend route.\n\n   Inspection also shows literal `:id` strings in the seats and plan URLs. The generated client must interpolate the actual identifier. Add contract tests covering every client operation against the FastAPI routes.\n\n4. Define the service boundary and ownership contract.\n\n   Document:\n\n   - Which team owns the API schema and compatibility policy\n   - Authentication and service authorization\n   - Billing data ownership and migration\n   - Idempotency expectations for plan changes\n   - Timeouts, retries, rate limits, and error mapping\n   - API versioning and deprecation windows\n   - On-call ownership and service-level objectives\n\n5. Make the Python package independently deployable.\n\n   The current `pyproject.toml` contains only minimal project metadata. Before cutover, add explicit runtime dependencies, an application entry point, locked dependencies, container/build configuration, health/readiness endpoints, configuration validation, and deployment manifests.\n\n6. Build the safety net.\n\n   All findings report `test_gap: 1`. Before extraction, add:\n\n   - Contract tests generated from or validated against OpenAPI\n   - Backend tests for all four operations and invalid plan values\n   - Frontend client tests for paths, methods, IDs, payloads, and responses\n   - End-to-end tests through the intended gateway/service URL\n   - Migration and rollback tests\n\n## Can follow after the split\n\n- `crime_00002`, `name_behavior_mismatch`: `getWorkspace` performing a `fetch` is conventional client-library behavior and does not threaten extraction correctness. Rename it later if the project’s naming convention requires explicit I/O, or classify it as a false positive with:\n\n  ```bash\n  crimes feedback <fingerprint> --verdict fp --note \"Async API client getters conventionally perform HTTP reads; callers do not treat this as a pure function.\"\n  ```\n\n- `crime_00004`, concept alias drift: a full `team`/`workspace`/`organization` rename can follow because it is not a runtime blocker. However, choose and document the canonical API term before the split. If the public contract uses one term while the UI retains another, record that mapping explicitly; otherwise two teams will perpetuate the ambiguity.\n\n- Expanding scanner coverage to JSON and TOML can follow. The warnings do not prove defects, but manifests become operationally important once billing is separately deployable. Review them manually during extraction even if the scanner configuration remains unchanged.\n\n## Cutover sequence\n\n1. Freeze the current billing surface and record consumer traffic.\n2. Approve the OpenAPI contract and canonical plan set.\n3. Fix the blocking contract drift in the monorepo.\n4. Add generated clients and contract/end-to-end tests.\n5. Package and deploy billing independently with no traffic.\n6. Migrate or connect billing data and validate consistency.\n7. Route shadow traffic or a small tenant cohort to the service.\n8. Compare responses, errors, latency, and plan-change results.\n9. Gradually increase traffic with a fast gateway rollback.\n10. Transfer ownership only after the new team has dashboards, alerts, runbooks, deployment access, and schema-change procedures.\n\nExit criteria should be: zero unresolved route/type drift, all client operations contract-tested, successful rollback rehearsal, compatible data migration, and explicit ownership of both the service and its public schema.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

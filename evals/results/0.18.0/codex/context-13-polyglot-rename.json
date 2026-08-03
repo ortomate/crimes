@@ -1,0 +1,47 @@
+{
+  "scenario": "context-13-polyglot-rename",
+  "agent": "codex",
+  "crimes_version": "0.18.0",
+  "timestamp": "2026-08-03T00:55:57.962Z",
+  "run_id": "37bc8cf6-6657-46b1-bc3c-8b106672223a",
+  "response": "I’m using the repository’s `crimes-codebase-risk` guidance to structure this as a pre-edit risk report. I’ll treat the supplied scan as the evidence and won’t change any files.\n\nThe core concept is the product tenant, but it has two names:\n\n- Python/backend: `team`\n- TypeScript/frontend: `workspace`\n- Crimes’ preferred canonical name: `organization`\n\nA complete rename would span all three scanned source files:\n\n- `packages/api/billing/plans.py`\n  - `Plan` docstring refers to a team.\n- `packages/api/billing/routes.py`\n  - `get_team`\n  - `create_team`\n  - `team_seats`\n  - `change_team_plan`\n  - Associated `/api/teams/...` routes and `team_id` parameters.\n- `packages/web/src/workspace-client.ts`\n  - `getWorkspace`\n  - `createWorkspace`\n  - `workspaceSeats`\n  - At least one additional workspace-named use omitted from the shortened evidence.\n  - Associated `/api/workspaces...` client paths.\n\nThe rename crosses the HTTP contract, so identifiers alone are insufficient. Existing drift must also be reconciled:\n\n- Frontend calls `POST /api/workspaces`, while no backend route declares that path.\n- Frontend uses `PUT /api/teams/:id/plan`; backend declares `POST /api/teams/{team_id}/plan`.\n- The `Plan` closed set also differs:\n  - Shared: `free`, `pro`\n  - Python only: `team`, `scale`\n  - TypeScript only: `enterprise`\n\nBefore editing, I would also inspect the three excluded JSON files and `packages/api/pyproject.toml`; the scan never read them, so scripts, configuration, generated contracts, or package metadata may contain more occurrences. No tests were identified (`test_gap: 1`), so boundary tests for renamed routes and plan serialization would need to be added or located manually.\n\nNo files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": "packages/api/billing/routes.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": "packages/web/src/workspace-client.ts",
+        "passed": true
+      }
+    ]
+  }
+}

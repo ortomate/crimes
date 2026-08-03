@@ -1,0 +1,47 @@
+{
+  "scenario": "context-13-polyglot-rename",
+  "agent": "claude",
+  "crimes_version": "0.18.0",
+  "timestamp": "2026-08-03T00:56:25.560Z",
+  "run_id": "d98286b7-f8f9-44a2-b26f-3d806f1bdb19",
+  "response": "I read the scan output and then opened the three scanned files plus the four files crimes told me it never read. No changes made — this is the reconnaissance report.\n\n## What the object is called\n\ncrimes names this directly: **`crime_00004` — Cross-Language Concept Alias Drift**, concept group \"tenant\", `low` severity but `agent_risk` 0.46, which is the score that matters here.\n\n> Python uses: `team` · TypeScript uses: `workspace` · preferred form for this group: `organization`\n\nSo there is no current agreed name. Two halves, two names, and crimes' vocabulary prefers a third (`organization`) over both.\n\n## Where each name is used\n\nPython — `packages/api/billing/` (all sites crimes listed, plus the identifiers around them):\n\n| Site | Name |\n|---|---|\n| `plans.py:11` | docstring \"The tiers a **team** can be on\" |\n| `routes.py:10-12` | `get_team`, path `/api/teams/{team_id}`, param `team_id` |\n| `routes.py:15-17` | `create_team`, path `/api/teams` |\n| `routes.py:20-22` | `team_seats`, path `/api/teams/{team_id}/seats` |\n| `routes.py:25-27` | `change_team_plan`, path `/api/teams/{team_id}/plan` |\n\nTypeScript — `packages/web/src/workspace-client.ts` (crimes truncated this list at \"…+1 more\"; the hidden entry is `changeWorkspacePlan:33`):\n\n| Site | Name |\n|---|---|\n| filename `workspace-client.ts` | workspace |\n| `:4-5` header comment | states the mismatch explicitly |\n| `:12` | `interface Workspace` |\n| `:14`, `:17`, `:22` | `Promise<Workspace>` return types |\n| `:17`, `:22`, `:27`, `:33` | `getWorkspace`, `createWorkspace`, `workspaceSeats`, `changeWorkspacePlan` |\n\n## The thing that makes this not a two-sided swap\n\nThe rename is **already half-done, inconsistently, inside the TypeScript file**. Its identifiers all say `workspace`, but two of its four URLs still say `teams`:\n\n- `:18` `GET /api/workspaces/` + id — no backend route\n- `:23` `POST /api/workspaces` — no backend route (this is `crime_00005`)\n- `:28` `GET /api/teams/:id/seats` — matches backend\n- `:34` `PUT /api/teams/:id/plan` — path matches, method doesn't (`crime_00003`, backend declares POST)\n\nSo findings 3 and 5 aren't independent bugs sitting next to the rename — they are **the wreckage of a previous partial rename**. Whoever renamed the TS symbols to `workspace` renamed two URLs with them and stopped. Both fail at runtime today.\n\nOne caveat crimes states about itself: `crime_00005` counts only **one** unmatched path, because it matches literal strings and `:18` assembles its URL by concatenation. The GET-by-id call is broken the same way but is invisible to the detector. Don't treat \"1 unmatched call\" as the true count.\n\n## What else you'd have to touch\n\n**A trap: `Plan.TEAM = \"team\"`.** `plans.py:15` uses \"team\" as a *plan tier*, not as the tenant. A repo-wide `team` → `organization` replace renames a wire value and breaks billing. This is exactly the collision that makes the rename risky, and it's the reason to go site-by-site rather than sed.\n\n**The adjacent enum drift (`crime_00001`, the only `high`).** Python has `[free, pro, team, scale]`; TypeScript has `[free, pro, enterprise]`. Not caused by the rename, but you'll be editing both declaring files anyway, and after renaming the tenant you'll have a plan tier called `team` in a codebase with no other `team` in it — which will read as leftover rename debris to the next person. Worth resolving in the same pass or explicitly deferring with a note.\n\n**`getWorkspace` (`crime_00002`).** A rename touches this signature regardless, so the misleading-name fix is nearly free while you're there.\n\n**Files crimes never read.** Coverage warnings flag 3 `.json` and 1 `.toml` excluded by `crimes.config.json`'s `include: [\"**/*.{ts,tsx,py}\"]`. I checked them manually: package names are `polyglot-monorepo`, `@poly/web`, `poly-api` — **no tenant name, nothing to rename there.** Good news, but only because I looked; the scan couldn't tell you.\n\n**Two blind spots the scan can't cover:** `blast_radius: 0` on every finding means no *internal importers* — it does not mean low impact, because the real coupling here is URL strings, which the import graph doesn't model. And `test_gap: 1.0` on all five findings means there are no tests anywhere; nothing will catch a botched rename.\n\n## Recommendation\n\n1. **Pick the name first.** crimes suggests `organization`; `team` collides with a plan tier and `workspace` is the one that's already been applied inconsistently. `organization` is the cleanest, but it's your product's word — that call is yours.\n2. **Treat the URL paths as an API-breaking change, separate from the symbol rename.** Renaming identifiers is internal; renaming `/api/teams/*` breaks any external client. Realistically: rename symbols freely, then fix the two broken calls to the paths the backend *actually declares today* (`POST /api/teams`, `POST` not `PUT` for plan) so the app works, and version the path rename deliberately.\n3. **Do it site-by-site, skipping `Plan.TEAM` and the string `\"team\"`.**\n4. **Then re-scan** — findings 3, 4, and 5 should all clear. If 4 survives, the rename missed a site.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": "packages/web/src/workspace-client.ts",
+        "passed": true
+      }
+    ]
+  }
+}

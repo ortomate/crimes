@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.18.0",
+  "timestamp": "2026-08-03T00:58:43.474Z",
+  "run_id": "09497b07-e979-43be-8f9d-f2f7156861a4",
+  "response": "I read the six fixture files to ground the plan — that turned up something the JSON only hints at, and it changes the shape of the change set.\n\n## What the scan says vs. what the code says\n\n**The three sanitise helpers are genuinely identical.** `sanitizeUserInput` / `sanitizeText` / `cleanMessage` differ only in the local variable name (`working` / `cleaned` / `normalised`) and the parameter name. Same hash, same 27 lines, same order of guards. Consolidation is a pure rename — zero behaviour delta.\n\n**The three role checks are not.** `crime_00003` reports \"2 distinct expression shapes,\" but the real divergence is three-way:\n\n| Site | Expression | Rule |\n|---|---|---|\n| `sanitize-a.ts:7` `assertAdminA` | `role === \"admin\"` | admin only |\n| `sanitize-b.ts:6` `assertAdminB` | `role === \"admin\" \\|\\| role === \"owner\"` | **admin *or owner*** |\n| `sanitize-c.ts:6` `assertAdminC` | `role !== \"admin\"` | **inverted polarity** |\n| `policy.ts:3,8,13` | `role === \"admin\"` ×3 | admin only |\n\nThe detector bucketed `assertAdminB` with the `===` shape, so the scan understates it — B grants access to a role the others don't. And `assertAdminC` returns `true` for *non*-admins while being named `assertAdmin*`. That's a naming bug wearing a duplication costume, and it's the most dangerous line in the fixture for an agent doing a find-and-replace.\n\nSo the two steps are not \"two halves of the same refactor.\" Step 1 is mechanical and reviewable by diffstat; step 2 needs a human authorization decision. Keep them as separate commits so a revert of step 2 doesn't drag step 1 with it.\n\n---\n\n## Step 1 — Consolidate the sanitiser (mechanical, no behaviour change)\n\nCreate `src/sanitize.ts` with one canonical implementation, body copied **verbatim** from `sanitize-b.ts`:\n\n```ts\n// src/sanitize.ts\nexport function sanitizeText(input: string): string {\n  if (input === null || input === undefined) return \"\";\n  let cleaned = String(input).trim();\n  cleaned = cleaned.replace(/[ -]/g, \"\");\n  // ... rest unchanged from sanitize-b.ts:9-35\n  return cleaned;\n}\n```\n\nThen reduce the three originals to re-export aliases and delete the bodies:\n\n```ts\n// src/sanitize-a.ts\nexport { sanitizeText as sanitizeUserInput } from \"./sanitize.js\";\n```\n\n`blast_radius_direct_importers` is 0, so nothing in-repo breaks — but all three are `export`ed, so they're package surface. The aliases are one line each and cost nothing; drop them in a later cleanup once you've confirmed no external consumer.\n\n**Two things not to do while extracting:**\n\n- `.replace(/[ -]/g, \"\")` is a character *range* from space (0x20) to hyphen (0x2D) — it strips `!\"#$%&'()*+,-` and spaces. That is almost certainly meant to be a control-character strip. Do not fix it here. Consolidation's whole value is that it lands this oddity in one place where it can be reviewed on its own merits.\n- The `input === null` guard is dead per the `string` type but live at runtime. Keep it.\n\nAn extraction commit that changes behaviour is not an extraction commit. Verify with a characterization test asserting all three old names produce byte-identical output to the new one across a fixed input table, run before and after.\n\n**Clears:** `crime_00001`.\n\n---\n\n## Step 2 — Centralise the role checks (needs a decision, not a replace)\n\nCreate the primitive, and keep the three capability functions as distinct named seams:\n\n```ts\n// src/roles.ts\nexport function isAdmin(role: string): boolean {\n  return role === \"admin\";\n}\nexport function isOwner(role: string): boolean {\n  return role === \"owner\";\n}\n```\n\n```ts\n// src/policy.ts\nimport { isAdmin } from \"./roles.js\";\n\nexport function canEditBilling(role: string): boolean  { return isAdmin(role); }\nexport function canSeeAuditLog(role: string): boolean  { return isAdmin(role); }\nexport function canImpersonate(role: string): boolean  { return isAdmin(role); }\n```\n\nDo **not** collapse those three into one function. They are three distinct capabilities that happen to share a rule today; the whole point of centralising is to make it cheap for them to diverge tomorrow. One function named `canDoAdminThings` re-creates the coupling you just paid to remove.\n\nThen handle the three guards individually:\n\n- **`assertAdminA`** → delete, callers use `isAdmin`. Pure rename.\n- **`assertAdminB`** → **blocked on a decision.** Either owner-has-elevated-access is intended, or it's a privilege-escalation bug. If intended, express it as a named rule built from the primitives — `export const hasElevatedAccess = (role: string) => isAdmin(role) || isOwner(role);` — so the extra grant is visible at every call site. If unintended, it's a security fix that deserves its own commit and its own test, not a line inside a refactor.\n- **`assertAdminC`** → delete the wrapper entirely and write `!isAdmin(role)` at the call sites. Do not preserve the negated helper under a new name. A predicate whose name says \"admin\" and whose truth value means \"not admin\" is exactly the shape that survives review and then gets called by the next agent that reads only the signature.\n\n**Clears:** `crime_00003` — assuming B resolves to either `isAdmin` or an `isAdmin`-derived rule. If B stays a hand-rolled comparison, expect the finding to persist at reduced occurrence count, which is correct behaviour on the scanner's part.\n\n---\n\n## Out of scope for this change set\n\n`crime_00002` (identical `recordSanitiseEvent` in `telemetry-a.ts` / `telemetry-b.ts`) and the two `direct_date` findings are one natural third commit — extracting the shared telemetry helper collapses both `Date.now()` sites into a single injectable `now()` parameter, so the clock fix rides along for free. It touches no file that steps 1 and 2 touch, so it can land in any order or in parallel. I've left it out because you asked for two steps; flagging it because doing the telemetry extraction *without* injecting the clock would mean touching those lines twice.\n\nOne coverage caveat from the scan itself: `package.json` was never read by any detector (no include pattern matched `.json`), so nothing here accounts for exports declared in the manifest.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      }
+    ]
+  }
+}

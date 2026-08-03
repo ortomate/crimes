@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.18.0",
+  "timestamp": "2026-08-03T01:30:23.769Z",
+  "run_id": "fa3c496c-eb27-47b3-a7b9-bb6e75c0ac95",
+  "response": "I’ll verify the fixture’s production and test files against the scan result, then distinguish assertion-backed behavior from tests that merely execute code. I’ll keep this read-only.\n\nThe distinction is already clear in the source: `rates` has outcome assertions, `reporting` has four test-shaped executions with zero assertions, and `ledger` has no direct test file. I’m also checking the scanner invocation itself so the report is tied to the requested command rather than source inspection alone.\n\nThe suite provides real protection only for `billing.rates`. The rest is largely coverage-shaped smoke testing.\n\n| Package area | Actual protection |\n|---|---|\n| `rate_for` | Genuinely asserted for GB (`0.20`), DE (`0.19`), and unknown-region fallback to `DEFAULT_RATE`. |\n| `is_zero_rated` | Asserted false for GB and FR. DE and any true/zero-rated case are not tested. |\n| `build_report` | Only executes without raising. Account, region, line contents, gross calculation, and total are never asserted. |\n| `export_report` | CSV and JSON paths execute, but their returned values and formats are never checked. The unsupported-format `ValueError` path is untested. |\n| `post_entry` | Has no direct tests. It is incidentally executed through `build_report`, but none of its calculated fields are asserted. |\n| `reverse_entry` | Not exercised at all. |\n\nThe high-severity finding is therefore meaningful: all four functions in `tests/test_reporting.py` contain zero assertions. Those tests would stay green if `build_report` returned incorrect values or `export_report` produced malformed output, provided no exception occurred.\n\nOne important distinction: the scan’s `coverage.files_total: 6` describes **scanner discovery**, not test or line coverage. It means Crimes analyzed all six Python files; it does not mean tests protect them. The `.coverage` file was not analyzed, nor were `crimes.config.json` and `pyproject.toml`.\n\nRefactor confidence is reasonable around the specifically asserted rate behavior, low around reporting and `post_entry`, and effectively absent for `reverse_entry`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

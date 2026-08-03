@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.18.0",
+  "timestamp": "2026-08-03T01:06:17.788Z",
+  "run_id": "092cf7ef-b697-4407-8422-a551a77b12e8",
+  "response": "I’m using the `crimes-codebase-risk` skill because this is a duplication investigation in the crimes evaluation workspace. I’ll use the supplied scan as the risk signal, then inspect the three implementations so the proposed API preserves their real behavioral differences.\n\nThe implementations confirm the detector’s evidence: the sanitizers differ only in exported names and local variable names; their behavior and constants are identical. The adjacent admin helpers are a separate policy duplication and should not be folded into the sanitizer API.\n\nThe global `crimes` binary is not installed in this environment, so I’m switching to the repository’s locally built CLI—the documented equivalent for an unpublished checkout—to verify the supplied result.\n\nThe scan confirms one medium-severity `near_duplicate_block`: the same sanitizer body appears in three files with 0.85 confidence.\n\nProposed refactor:\n\n```ts\n// src/sanitize.ts\nexport function sanitizeText(\n  input: string | null | undefined,\n): string;\n```\n\nThis function should own all existing behavior: trimming, control-character removal, whitespace normalization, the 1,000-character limit, unsafe-prefix and `\\x` rejection, punctuation checks, and uppercase normalization.\n\nFiles affected:\n\n- Add `src/sanitize.ts` with the single implementation.\n- Update [sanitize-a.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-a.ts:10) to re-export it as `sanitizeUserInput`.\n- Update [sanitize-b.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-b.ts:9) to re-export it as `sanitizeText`.\n- Update [sanitize-c.ts](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-c.ts:9) to re-export it as `cleanMessage`.\n\nCompatibility exports can remain thin aliases:\n\n```ts\nexport { sanitizeText as sanitizeUserInput } from \"./sanitize.js\";\nexport { sanitizeText } from \"./sanitize.js\";\nexport { sanitizeText as cleanMessage } from \"./sanitize.js\";\n```\n\nThis removes the duplicated bodies without breaking existing imports. The `assertAdminA/B/C` functions should remain separate for now: the scan identifies them as policy duplication, but they currently have materially different semantics and require a separate policy decision before consolidation.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block",
+      "crime_00002": "exact_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}
