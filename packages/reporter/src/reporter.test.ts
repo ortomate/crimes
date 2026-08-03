@@ -642,6 +642,31 @@ describe("formatDiffReport", () => {
     expect(out).toContain("Fixed crimes: 0");
     expect(out).toContain("Unchanged crimes: 0");
   });
+
+  it("says where the new and fixed findings are", () => {
+    // Three integers and nothing to act on: a reviewer told
+    // "New crimes: 2" had to re-run in `--format json` to find out
+    // where, which made the human output strictly worse than the
+    // machine one at the same job.
+    const out = formatDiffReport(sampleDiff, { noColor: true });
+    expect(out).toContain("New (2)");
+    expect(out).toContain("Fixed (1)");
+    expect(out).toMatch(/src\/deleted\.ts:1/);
+    expect(out).toContain("removed");
+    expect(out).toContain("God Function");
+  });
+
+  it("lists nothing when there is nothing to list", () => {
+    const zero: DiffReport = {
+      ...sampleDiff,
+      summary: { new: 0, fixed: 0, unchanged: 0 },
+      new_findings: [],
+      fixed_findings: [],
+    };
+    const out = formatDiffReport(zero, { noColor: true });
+    expect(out).not.toContain("New (");
+    expect(out).not.toContain("Fixed (");
+  });
 });
 
 describe("formatDiffJsonReport", () => {

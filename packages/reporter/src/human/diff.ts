@@ -34,5 +34,36 @@ export function formatDiffReport(
   lines.push(`${fixedPrefix}Fixed crimes: ${fixedCount}`);
   lines.push(`${unchangedPrefix}Unchanged crimes: ${unchangedCount}`);
 
+  // Three integers and nothing to act on. A reviewer told "New crimes:
+  // 7" has to re-run the command in `--format json` to find out where,
+  // which makes the human output a strictly worse way to read the same
+  // report. List them.
+  renderChangeList(lines, "New", report.new_findings, colour.red, colour);
+  renderChangeList(lines, "Fixed", report.fixed_findings, colour.green, colour);
+
   return lines.join("\n");
+}
+
+/** Findings listed per section before the rest are counted off. */
+const DIFF_LIST_CAP = 10;
+
+function renderChangeList(
+  lines: string[],
+  label: string,
+  findings: DiffReport["new_findings"],
+  accent: (s: string) => string,
+  colour: ReturnType<typeof plainColour>,
+): void {
+  if (findings.length === 0) return;
+  lines.push("");
+  lines.push(accent(`${label} (${findings.length})`));
+  for (const finding of findings.slice(0, DIFF_LIST_CAP)) {
+    const where =
+      finding.lines !== undefined ? `${finding.file}:${finding.lines[0]}` : finding.file;
+    const symbol = finding.symbol ? ` ${colour.dim(`· ${finding.symbol}`)}` : "";
+    lines.push(`  ${finding.severity.padEnd(6)} ${where}${symbol}  ${finding.charge}`);
+  }
+  if (findings.length > DIFF_LIST_CAP) {
+    lines.push(colour.dim(`  …+${findings.length - DIFF_LIST_CAP} more`));
+  }
 }
