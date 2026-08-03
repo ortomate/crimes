@@ -16,6 +16,43 @@ async function makeRepo(): Promise<string> {
   return root;
 }
 
+/**
+ * A structurally valid PNG padded past the 1 MB `oversized_raster`
+ * high threshold with one big ancillary chunk. The detector reads
+ * `byteSize` only, so the padding is all that matters.
+ */
+function oversizedPng(): Buffer {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc32 = (buf: Buffer): number => {
+    let c = 0xffffffff;
+    for (const byte of buf) c = crcTable[(c ^ byte) & 0xff]! ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type: string, data: Buffer): Buffer => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(8, 0);
+  ihdr.writeUInt32BE(8, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("tEXt", Buffer.concat([Buffer.from("pad\0"), Buffer.alloc(1_400_000, 0x78)])),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
 describe("explain", () => {
   it("resolves a finding by stable fingerprint via fresh scan", async () => {
     const root = await makeRepo();
@@ -27,7 +64,7 @@ describe("explain", () => {
     expect(report.likely_remedies.length).toBeGreaterThan(0);
     expect(report.likely_remedies.join(" ")).toContain("configure the detector");
     expect(report.suggested_suppression_command).toContain(
-      "crimes ignore large_function::billing.ts::generateInvoice",
+      "crimes ignore 'large_function::billing.ts::generateInvoice'",
     );
     expect(report.suggested_suppression_command).toContain("--reason");
   });
@@ -59,6 +96,41 @@ describe("explain", () => {
     const report = await explain("large_function::billing.ts::generateInvoice", { root });
     expect(report.detector.description).toContain("per-shape line threshold");
     expect(report.why_it_matters).toContain("Functions this large");
+  });
+
+  it("explains an asset-detector finding instead of exiting on it", async () => {
+    // Asset detectors live in `builtInAssetDetectors`, a list `explain`
+    // never searched — so every `oversized_raster`,
+    // `raster_should_be_vector` and `svg_with_embedded_raster` finding
+    // the scanner emitted was unexplainable, exit 2.
+    const root = await mkdtemp(join(tmpdir(), "crimes-explain-asset-"));
+    await writeFile(join(root, "hero.png"), oversizedPng(), null);
+    const report = await explain("oversized_raster::hero.png::", { root });
+    expect(report.detector.type).toBe("oversized_raster");
+    expect(report.detector.description).toContain("raster images");
+    expect(report.why_it_matters).toContain("Core Web Vitals");
+  });
+
+  it("quotes the suggested ignore command so it survives a copy-paste", async () => {
+    // The fingerprint embeds the file path. Unquoted, a path with a
+    // space turns one argument into three and the pasted command fails
+    // — or worse, silently ignores the wrong thing.
+    const root = await mkdtemp(join(tmpdir(), "crimes-explain-quote-"));
+    await mkdir(join(root, "my src"), { recursive: true });
+    const body = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join(
+      "\n",
+    );
+    await writeFile(
+      join(root, "my src", "big file.ts"),
+      `export function generateInvoice() {\n${body}\n  return 0;\n}\n`,
+      "utf8",
+    );
+    const report = await explain("large_function::my src/big file.ts::generateInvoice", {
+      root,
+    });
+    expect(report.suggested_suppression_command).toContain(
+      "'large_function::my src/big file.ts::generateInvoice'",
+    );
   });
 
   it("describes the Python detector, not the JS one of the same type", async () => {

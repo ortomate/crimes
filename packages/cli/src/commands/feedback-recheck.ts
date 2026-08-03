@@ -4,6 +4,7 @@ import {
   loadSuppressionsForRoot,
   minorKey,
   resurfacedSuppressions,
+  shellQuote,
 } from "@crimes/core";
 import type { ResurfacedSuppression } from "@crimes/core";
 import type { Command } from "commander";
@@ -72,8 +73,8 @@ export function registerFeedbackRecheckSubcommand(parent: Command): void {
               resurfaced: resurfaced.map((r) => ({
                 ...r,
                 commands: {
-                  reconfirm_fp: `crimes feedback ${r.fingerprint} --verdict fp`,
-                  mark_resolved: `crimes feedback ${r.fingerprint} --verdict tp`,
+                  reconfirm_fp: `crimes feedback ${shellQuote(r.fingerprint)} --verdict fp`,
+                  mark_resolved: `crimes feedback ${shellQuote(r.fingerprint)} --verdict tp`,
                 },
               })),
             },

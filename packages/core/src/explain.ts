@@ -1,12 +1,17 @@
 import { resolve } from "node:path";
 import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
-import { builtInDetectors, filterDetectors } from "./detector-registry.js";
+import {
+  builtInAssetDetectors,
+  builtInDetectors,
+  filterDetectors,
+} from "./detector-registry.js";
 import { fingerprintFinding } from "./fingerprint.js";
 import type { Finding, ScanReport } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { applySuppressionsToScan, scan } from "./scan.js";
 import { loadSuppressionsForRoot } from "./suppressions.js";
+import { shellQuote } from "./util/shell-quote.js";
 
 /**
  * Deterministic, evidence-backed long-form rationale for one finding.
@@ -118,7 +123,8 @@ export async function explain(
     why_it_matters: detector.whyItMatters,
     likely_remedies: likelyRemedies(match),
     suggested_suppression_command:
-      `crimes ignore ${fingerprint} ` + `--reason "<one-sentence justification>"`,
+      `crimes ignore ${shellQuote(fingerprint)} ` +
+      `--reason "<one-sentence justification>"`,
   };
 }
 
@@ -152,7 +158,16 @@ function resolveDetectorFor(finding: Finding) {
     );
     if (byPack) return byPack;
   }
-  return builtInDetectors.find((d) => d.id === finding.type);
+  const bySource = builtInDetectors.find((d) => d.id === finding.type);
+  if (bySource) return bySource;
+  // Asset detectors run in their own second pass and are registered in
+  // their own list, which this lookup did not search. Every finding they
+  // emit — `oversized_raster`, `raster_should_be_vector`,
+  // `svg_with_embedded_raster` — was therefore unexplainable, and
+  // `crimes explain` exited 2 on a finding `crimes scan` had just
+  // printed. They carry the same id / description / whyItMatters an
+  // explanation needs, so the only thing missing was the lookup.
+  return builtInAssetDetectors.find((d) => d.id === finding.type);
 }
 
 function likelyRemedies(finding: Finding): string[] {

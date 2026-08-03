@@ -63,7 +63,7 @@ describe("crimes explain", () => {
     expect(result.stdout).toContain("God Function");
     expect(result.stdout).toContain("Likely remedies");
     expect(result.stdout).toContain(
-      "crimes ignore large_function::billing.ts::generateInvoice",
+      "crimes ignore 'large_function::billing.ts::generateInvoice'",
     );
     expect(result.stdout).toContain("--reason");
   });
@@ -147,7 +147,7 @@ describe("crimes explain", () => {
       root,
     );
     expect(result.stdout).toMatch(
-      /crimes ignore large_function::billing\.ts::generateInvoice --reason "<one-sentence justification>"/,
+      /crimes ignore 'large_function::billing\.ts::generateInvoice' --reason "<one-sentence justification>"/,
     );
   });
 });
