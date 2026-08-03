@@ -144,19 +144,33 @@ describe("collectDiscoveryWarnings", () => {
     expect(warnings.some((w) => w.kind === "files_excluded")).toBe(false);
   });
 
-  it("blames the dot-directory, not the include list, for a hidden .md", async () => {
-    // hono carries .github/pull_request_template.md. `.md` is in the
-    // default include list, so "no include pattern matched it" would be
-    // a claim the report itself disproves two fields higher up. The real
-    // reason is that discovery walks with `dot: false`.
+  it("blames the never-walked directory, not the include list, for a file inside it", async () => {
+    // `.tox` is on discovery's NEVER_WALK list, so a committed `.py`
+    // inside it is missed for a reason the include list cannot explain —
+    // `.py` is in `DEFAULT_SOURCE_INCLUDES`, and saying "no include
+    // pattern matched it" would be a claim the report disproves two
+    // fields higher up.
+    const root = await makeRepo({
+      "main.py": "x = 1\n",
+      ".tox/py311/helper.py": "y = 2\n",
+    });
+    const warnings = await warningsFor(root);
+    const hidden = warnings.find((w) => w.kind === "files_in_hidden_path");
+    expect(hidden?.subject).toBe(".tox");
+    expect(hidden?.examples).toEqual([".tox/py311/helper.py"]);
+  });
+
+  it("does not blame a dot-directory that discovery actually walks", async () => {
+    // Discovery has walked dot-directories since 0.17.1 (`dot: true`), so
+    // `.github/pull_request_template.md` is *found*, not missed. An
+    // earlier revision of this test asserted the opposite; it was written
+    // against a tree where discovery still used `dot: false`.
     const root = await makeRepo({
       "README.md": "# hi\n",
       ".github/pull_request_template.md": "# pr\n",
     });
     const warnings = await warningsFor(root);
-    const hidden = warnings.find((w) => w.kind === "files_in_hidden_path");
-    expect(hidden?.subject).toBe(".github");
-    expect(hidden?.examples).toEqual([".github/pull_request_template.md"]);
+    expect(warnings.some((w) => w.kind === "files_in_hidden_path")).toBe(false);
   });
 
   it("still calls an unscanned extension unscanned even inside a dot-directory", async () => {

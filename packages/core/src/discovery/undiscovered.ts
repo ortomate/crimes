@@ -194,10 +194,16 @@ function recordByExtension(log: CoverageWarningLog, files: readonly string[]): v
 
 /**
  * First path segment starting with a dot, or `undefined` when there is
- * none. `discoverFiles` runs fast-glob with `dot: false`, so anything
- * under `.github/`, `.storybook/` or `.config/` is skipped no matter what
- * `include` says. Returning the segment rather than a boolean makes the
- * warning's `subject` the directory to act on.
+ * none. Returning the segment rather than a boolean makes the warning's
+ * `subject` the directory to act on.
+ *
+ * `discoverFiles` walks dot-directories (`dot: true`), so `.github/`,
+ * `.storybook/` and `.config/` are *found* — a hidden path only reaches
+ * this function when discovery's `NEVER_WALK` list dropped it (`.git`,
+ * `.venv`, `.tox`, the tool caches). Those are almost always gitignored
+ * too, so they rarely survive as far as the missed set; when one is
+ * committed anyway, this is the only field that can explain the gap
+ * without blaming the include list for something it does match.
  */
 function hiddenSegment(relativePath: string): string | undefined {
   for (const segment of relativePath.split("/")) {
