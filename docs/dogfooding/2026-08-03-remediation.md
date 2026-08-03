@@ -650,7 +650,14 @@ folded into them — each is a separate behaviour change.
    deliberately, and note it would also serve any other Python detector
    that wants to follow a call. **Still open** — deliberately not
    attempted in the 0.18.1 pass; it is the one item here that is a
-   feature rather than a correction.
+   feature rather than a correction. **Now scoped** in
+   `.planning/PROMPT-0.19-python-symbol-index.md`: the resolution has to
+   go through the MRO rather than the name (matching `self.<method>()`
+   against any same-named function is the mistake `2e9b2da` just removed
+   from `pass_through_abstraction`), and the real work is architectural
+   — Python files are parsed *inside* the per-file detector loop, so no
+   repo-wide index has anywhere to live yet. Three options are compared
+   there with a recommendation.
 
 4e. **JS syntax errors have no `coverage.warnings[]` signal.** The
    Python pack surfaces `hasSyntaxErrors`; the JS pack has no public
@@ -794,8 +801,11 @@ folded into them — each is a separate behaviour change.
     The flag is made *honest* instead — a stderr line when it had no
     effect — which leaves stdout byte-identical. Covers `--flat` and
     `--top`, which had the identical defect.
-18. Default-view suppression is a *file* cap (`scan.topFiles`), not a
-    finding budget — no compression on small repos.
+18. ~~Default-view suppression is a *file* cap.~~ **Done** in `0.18.1` —
+    `86d1ba3`. Nothing capped what was printed *inside* a file, so n8n's
+    `instance-ai.service.ts` listed 41 numbered findings under one
+    heading. Now 8, with the true tally still on the heading line and
+    the remainder counted off against `--all`.
 19. ~~`explain` exits 2 on `oversized_raster`.~~ **Done** in `0.18.1` —
     `4fb9887`. **Wider than the entry**: asset detectors live in their
     own registry that `explain` never searched, so
@@ -813,20 +823,38 @@ folded into them — each is a separate behaviour change.
     7.0s/7.1s over two runs each. **An earlier single 40.6s measurement
     did not reproduce and is not quoted.** Lands in `diff`, so it is also
     half of §21.
-21. `diff` human output is three integers with no locations, and runs two
-    full scans.
+21. ~~`diff` human output is three integers with no locations, and runs
+    two full scans.~~ **Done** in `0.18.1` — locations in `158a42f`, the
+    second scan removed in `6be5681` (reuses the base scan when both
+    refs resolve to the same tree; hono 12.3s → 7.0s).
 22. ~~No `fingerprint` field in the JSON.~~ **Done** in `0.18.1` —
     `286c24e`. `schema_version` 0.5.0 → **0.6.0**; migration note in
     `docs/json-schema.md`. Both load-bearing properties re-checked after
     the change: byte-identical re-scans (`cmp` clean on messy-ts-app and
     hono) and fingerprint uniqueness (hono 376/376 unique).
-23. `lines` absent on 12–16% of findings; `symbol` undefined on 20 of 34
-    types.
-24. `.json`/`.yaml`/`.txt`/`.rst`/`.adoc` absent from
-    `DEFAULT_SOURCE_INCLUDES`, so the 0.17.0 data-format exclusion and 5
-    of 7 docs extensions are unreachable at default config.
-25. Score derivation is mixed into `evidence` rather than a separate
-    field.
+23. ~~`lines` absent on 12–16% of findings.~~ **Mostly a wrong number.**
+    `9df7628`. Measured 2.6% on airflow, not 12–16%, and most of the
+    remainder is correct — an `oversized_raster` is an image,
+    `high_fan_in_fan_out` and `circular_dependency` are claims about a
+    file's position in a graph. One real gap inside it: the
+    duplicate-block family had the range in its evidence
+    (`Item.tsx:23-33`) and never set the field. 46 of 46 now do; overall
+    2.6% → 2.1%. **The `symbol` half is not a defect** — the 21 types
+    that never set one are file-level findings where naming one symbol
+    would be arbitrary.
+24. ~~`.json`/`.yaml`/`.txt`/`.rst`/`.adoc` absent from
+    `DEFAULT_SOURCE_INCLUDES`.~~ **Done** in `0.18.1` — `920f222`. Two
+    lists had drifted, and the symptom was a whole class of rule that
+    could not fire. airflow 9,874 → 9,981 findings across .rst 54,
+    .yaml 32, .json 32, .yml 21, .toml 6, .txt 1; the `docs` budget now
+    reaches 28 files including `RELEASE_NOTES.rst`. Lockfiles and
+    manifests excluded alongside. A test now pins the two lists in step,
+    since the drift was the actual defect.
+25. ~~Score derivation is mixed into `evidence`.~~ **Done** in `0.18.1`
+    — `5719874`. `Finding.score_rationale` carries it; `evidence` goes
+    back to being receipts a reader can check. 17 call sites across 10
+    detectors, verified against the built binary (45 findings carry the
+    field, zero traces left in `evidence`).
 
 ---
 
