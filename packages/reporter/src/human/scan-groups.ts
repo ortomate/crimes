@@ -49,6 +49,22 @@ export function groupByFile(findings: Finding[]): FileGroup[] {
   return Array.from(groups.values()).sort((a, b) => b.totalRankScore - a.totalRankScore);
 }
 
+/**
+ * Findings shown per file before the rest are counted off.
+ *
+ * `scan.topFiles` caps how many *files* the default view shows and
+ * nothing caps what is printed inside one, so a repo with few files and
+ * many findings each got no compression at all — n8n's
+ * `instance-ai.service.ts` printed 41 numbered lines under a single
+ * heading. That is the opposite of "signal over exhaustiveness", and it
+ * is worst exactly where the file cap cannot help.
+ *
+ * Findings arrive rank-ordered, so the ones kept are the ones that
+ * matter most; the tally on the heading line already states the true
+ * total, and the count-off line names `--all`.
+ */
+const FINDINGS_PER_FILE = 8;
+
 export function renderFileGroups(
   lines: string[],
   groups: FileGroup[],
@@ -59,9 +75,16 @@ export function renderFileGroups(
     if (groupIdx > 0) lines.push("");
     const glyph = severityGlyph(group.maxSeverity, isColorDisabled);
     lines.push(`${glyph}${colour.bold(group.file)}  ${colour.dim(fileTally(group))}`);
-    group.findings.forEach((f, idx) => {
+    group.findings.slice(0, FINDINGS_PER_FILE).forEach((f, idx) => {
       lines.push(formatFindingCompactLine(f, idx + 1, colour));
     });
+    if (group.findings.length > FINDINGS_PER_FILE) {
+      lines.push(
+        `     ${colour.dim(
+          `…+${group.findings.length - FINDINGS_PER_FILE} more in this file (--all)`,
+        )}`,
+      );
+    }
     const risk = fileRiskSummary(group.findings);
     if (risk) lines.push(`     ${colour.bold("Risk:")} ${colour.dim(risk)}`);
     lines.push(`     ${colour.dim(idRange(group.findings))}`);

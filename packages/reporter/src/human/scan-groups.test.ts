@@ -89,3 +89,33 @@ describe("symbol rendering", () => {
     expect(text).not.toContain("()");
   });
 });
+
+describe("renderFileGroups — per-file budget", () => {
+  function findingsFor(count: number): Finding[] {
+    return Array.from({ length: count }, (_, i) =>
+      finding({
+        id: `crime_${String(i + 1).padStart(5, "0")}`,
+        symbol: `fn${i}`,
+        lines: [i + 1, i + 2],
+      }),
+    );
+  }
+
+  it("shows a bounded number of findings and counts off the rest", () => {
+    // `scan.topFiles` caps how many *files* are shown and nothing capped
+    // what was printed inside one, so n8n's `instance-ai.service.ts`
+    // printed 41 numbered lines under a single heading.
+    const lines: string[] = [];
+    renderFileGroups(lines, groupByFile(findingsFor(41)), plainColour(), true);
+    const numbered = lines.filter((l) => /^\s+\d+\. /.test(l));
+    expect(numbered).toHaveLength(8);
+    expect(lines.join("\n")).toContain("+33 more in this file (--all)");
+  });
+
+  it("counts nothing off when the file fits", () => {
+    const lines: string[] = [];
+    renderFileGroups(lines, groupByFile(findingsFor(3)), plainColour(), true);
+    expect(lines.filter((l) => /^\s+\d+\. /.test(l))).toHaveLength(3);
+    expect(lines.join("\n")).not.toContain("more in this file");
+  });
+});
