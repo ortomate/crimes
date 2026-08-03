@@ -1,5 +1,6 @@
 export {
   buildCoverageBanner,
+  buildCoverageWarningNotice,
   formatAuditSuppressionsReport,
   formatBaselineCheckReport,
   formatBaselineSaveReport,

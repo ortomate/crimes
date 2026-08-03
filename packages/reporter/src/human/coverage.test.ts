@@ -1,7 +1,11 @@
 import { Writable } from "node:stream";
 import { describe, expect, it } from "vitest";
 import type { ScanReport } from "@crimes/core";
-import { buildCoverageBanner, renderCoverageExplain } from "./coverage.js";
+import {
+  buildCoverageBanner,
+  buildCoverageWarningNotice,
+  renderCoverageExplain,
+} from "./coverage.js";
 
 /** Collect everything written to a stream as one string. */
 function capture(fn: (out: Writable) => void): string {
@@ -93,5 +97,56 @@ describe("buildCoverageBanner", () => {
     const banner = buildCoverageBanner(coverage(100, 100, ["universal"]));
     expect(banner).toContain("(no language packs loaded)");
     expect(banner).not.toContain("universal");
+  });
+});
+
+describe("coverage warnings", () => {
+  const warned: ScanReport["coverage"] = {
+    ...coverage(340, 12)!,
+    warnings: [
+      {
+        kind: "files_not_discovered",
+        subject: ".vue",
+        files: 1226,
+        examples: ["packages/editor-ui/src/App.vue"],
+        detail:
+          "1226 files of type .vue are in the repo but no include pattern matched them.",
+        remedy: 'Add a glob covering .vue to "include".',
+      },
+      {
+        kind: "files_unreadable",
+        subject: "EMFILE",
+        files: 4,
+        detail: "4 files could not be read (EMFILE).",
+        remedy: "Raise the open-file limit (ulimit -n) and re-run.",
+      },
+    ],
+  };
+
+  it("prints a notice naming the biggest gap and its size", () => {
+    const notice = buildCoverageWarningNotice(warned);
+    expect(notice).not.toBeNull();
+    expect(notice).toContain("1226");
+    expect(notice).toContain(".vue");
+    expect(notice).toContain("--explain-coverage");
+  });
+
+  it("returns null when nothing was skipped", () => {
+    expect(buildCoverageWarningNotice(coverage(100, 10))).toBeNull();
+    expect(buildCoverageWarningNotice(undefined)).toBeNull();
+  });
+
+  it("renders every warning with its detail and remedy under --explain-coverage", () => {
+    const out = capture((s) => renderCoverageExplain(warned, s));
+    expect(out).toContain("skipped work (2)");
+    expect(out).toContain("files_not_discovered");
+    expect(out).toContain("EMFILE");
+    expect(out).toContain("ulimit -n");
+    expect(out).toContain("packages/editor-ui/src/App.vue");
+  });
+
+  it("says nothing about warnings when there are none", () => {
+    const out = capture((s) => renderCoverageExplain(coverage(100, 10), s));
+    expect(out).not.toContain("skipped work");
   });
 });

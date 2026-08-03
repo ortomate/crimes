@@ -15,6 +15,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import ts from "typescript";
+import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
 import { buildPythonImportEdges } from "./python.js";
 import type { ImportEdge, ImportGraph } from "./types.js";
 
@@ -44,6 +45,13 @@ export interface BuildImportGraphOptions {
    * spec's 200ms-on-1k-files budget — 5000 files.
    */
   maxFiles?: number;
+  /**
+   * Where files this builder could not read, and files that fell
+   * outside `maxFiles`, get recorded. Truncation already set `limited`
+   * on the returned graph, but nothing carried that to the report — a
+   * repo above the cap got advisory rankings presented as fact.
+   */
+  warnings?: CoverageWarningLog;
 }
 
 interface TsconfigPaths {
@@ -64,11 +72,9 @@ export async function buildImportGraph(
   const maxFiles = options.maxFiles ?? 5000;
   const tsPaths = loadTsconfigPaths(root);
 
-  const sourceFiles = options.files
-    .filter((abs) => SOURCE_EXT_RE.test(abs))
-    .slice(0, maxFiles);
-  const limited =
-    options.files.filter((abs) => SOURCE_EXT_RE.test(abs)).length > sourceFiles.length;
+  const jsCandidates = options.files.filter((abs) => SOURCE_EXT_RE.test(abs));
+  const sourceFiles = jsCandidates.slice(0, maxFiles);
+  const limited = jsCandidates.length > sourceFiles.length;
 
   // The "known set" — files we can resolve to. Used so that out-of-tree
   // resolved paths (e.g. the import landed outside the file set) are
@@ -89,6 +95,7 @@ export async function buildImportGraph(
     root,
     files: options.files,
     maxFiles,
+    ...(options.warnings !== undefined ? { warnings: options.warnings } : {}),
   });
   edges.push(...python.edges);
   // Register every Python file, not just the ones that import something —
@@ -104,7 +111,8 @@ export async function buildImportGraph(
       let source: string;
       try {
         source = readFileSync(abs, "utf8");
-      } catch {
+      } catch (err) {
+        options.warnings?.record("files_unreadable", errnoOf(err), { file: fromRel });
         return;
       }
       const specs = extractImportSpecifiers(abs, source);
@@ -150,6 +158,8 @@ export async function buildImportGraph(
     graph.limitedReason =
       `import graph truncated to first ${maxFiles} source files; ` +
       "rankings should be treated as advisory";
+    const dropped = jsCandidates.length - sourceFiles.length + python.droppedFiles;
+    options.warnings?.record("index_truncated", "imports", { files: dropped });
   }
   return graph;
 }

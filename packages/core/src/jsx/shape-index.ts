@@ -14,6 +14,7 @@ import { parseFile } from "@crimes/language-js";
 import type { JsxElementInfo } from "@crimes/language-js";
 import { hashJsxSubtree } from "../ast-hash/hash.js";
 import { mapWithConcurrency } from "../util/concurrency.js";
+import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
 
 export interface JsxShapeHit {
   file: string;
@@ -31,6 +32,8 @@ export interface BuildJsxShapeIndexOptions {
   root: string;
   /** Absolute paths discovered by the scan. */
   files: string[];
+  /** Where read / parse failures get recorded instead of vanishing. */
+  warnings?: CoverageWarningLog;
 }
 
 /**
@@ -43,7 +46,8 @@ const SOURCE_EXT_RE = /\.(tsx|jsx)$/;
 
 /**
  * Build the JSX shape index. Always returns an index; files that fail
- * to read or parse are skipped silently. Performance budget: a parsed
+ * to read or parse contribute nothing and are recorded on `warnings`
+ * so the absence is reported rather than read as "no duplicates here". Performance budget: a parsed
  * JSX tree is walked once per "interesting" element; hashing reuses the
  * same source slice the existing AST walker already produced.
  *
@@ -60,21 +64,23 @@ export async function buildJsxShapeIndex(
 
   const perFile = await mapWithConcurrency(candidateFiles, async (abs) => {
     const hits: Array<{ hash: string; hit: JsxShapeHit }> = [];
+    const repoPath = toRepoPath(options.root, abs);
     let source: string;
     try {
       source = await readFile(abs, "utf8");
-    } catch {
+    } catch (err) {
+      options.warnings?.record("files_unreadable", errnoOf(err), { file: repoPath });
       return hits;
     }
     let parsed: ReturnType<typeof parseFile>;
     try {
       parsed = parseFile({ absolutePath: abs, source });
     } catch {
+      options.warnings?.record("files_unparsed", "language-js", { file: repoPath });
       return hits;
     }
     const roots = parsed.jsxElements;
     if (!roots || roots.length === 0) return hits;
-    const repoPath = toRepoPath(options.root, abs);
 
     const visit = (el: JsxElementInfo): void => {
       if (countNodes(el) >= MIN_SUBTREE_NODES) {

@@ -30,6 +30,7 @@ export function renderCoverageExplain(
   out.write(`  files with only universal coverage: ${coverage.files_universal_only}\n`);
   renderUniversalOnlyHistogram(coverage.universal_only_by_extension, out);
   renderByPackage(coverage.by_package, out);
+  renderWarnings(coverage.warnings, out);
   if (coverage.files_universal_only > 0) {
     const tail =
       languagePacks(coverage.packs_loaded).length === 0
@@ -72,6 +73,67 @@ export function buildCoverageBanner(
     `${claimedPct}% covered by language packs ${packsLabel}.\n` +
     `          Run with --explain-coverage for the breakdown.`
   );
+}
+
+/**
+ * Short notice for work the scan skipped. Printed on every human scan
+ * that has warnings, not just under `--explain-coverage`: the whole
+ * failure mode this field exists for is a confident report over a
+ * fraction of a repo, and a warning nobody sees does not fix it.
+ *
+ * Names the two largest gaps and defers the rest, which keeps the
+ * notice to four lines on the worst repo we have measured.
+ *
+ * Returns null when there is nothing to say. Unlike the coverage
+ * banner this is content rather than decoration, so the caller should
+ * print it regardless of TTY / colour settings.
+ */
+export function buildCoverageWarningNotice(
+  coverage: ScanReport["coverage"] | undefined,
+): string | null {
+  const warnings = coverage?.warnings;
+  if (!warnings || warnings.length === 0) return null;
+
+  const totalFiles = warnings.reduce((sum, w) => sum + w.files, 0);
+  const lines = [
+    `skipped: ${totalFiles} file${totalFiles === 1 ? "" : "s"} were not analysed ` +
+      `(${warnings.length} reason${warnings.length === 1 ? "" : "s"}). ` +
+      `Findings below cover the rest.`,
+  ];
+  for (const warning of warnings.slice(0, NOTICE_LIMIT)) {
+    lines.push(`         ${warning.files} × ${warning.subject} (${warning.kind})`);
+  }
+  const rest = warnings.length - NOTICE_LIMIT;
+  if (rest > 0) {
+    lines.push(`         + ${rest} more reason${rest === 1 ? "" : "s"}`);
+  }
+  lines.push("         Run with --explain-coverage for the full list.");
+  return lines.join("\n");
+}
+
+/** Warning buckets named in the short notice before it defers. */
+const NOTICE_LIMIT = 2;
+
+/**
+ * Full warning list for `--explain-coverage`. Machine-readable JSON
+ * carries the same array; this is the same data with the prose the
+ * schema already supplies, so the two never drift.
+ */
+function renderWarnings(
+  warnings: NonNullable<ScanReport["coverage"]>["warnings"],
+  out: Writable,
+): void {
+  if (!warnings || warnings.length === 0) return;
+  out.write(`\n  skipped work (${warnings.length}):\n`);
+  for (const warning of warnings) {
+    out.write(`    [${warning.kind}] ${warning.subject} — ${warning.files} file`);
+    out.write(warning.files === 1 ? "\n" : "s\n");
+    out.write(`      ${warning.detail}\n`);
+    if (warning.remedy !== undefined) out.write(`      → ${warning.remedy}\n`);
+    if (warning.examples && warning.examples.length > 0) {
+      out.write(`      e.g. ${warning.examples.join(", ")}\n`);
+    }
+  }
 }
 
 function shortPackId(full: string): string {

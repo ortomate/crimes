@@ -2,8 +2,11 @@
  * Build the IA signal index for a repo.
  *
  * The build is deterministic and best-effort: any file that fails to parse
- * or read is skipped silently rather than breaking the scan. The IA index
- * is an enrichment layer, not a load-bearing piece of `crimes scan`.
+ * or read contributes no signals rather than breaking the scan. The IA
+ * index is an enrichment layer, not a load-bearing piece of `crimes
+ * scan` — but a skipped file is still reported on the optional
+ * `warnings` log, because "no IA signals" and "never read" look
+ * identical downstream.
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -22,6 +25,7 @@ import {
   routeFromFilePath,
   toPosix,
 } from "./extract.js";
+import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
 import { tokenisePath } from "./tokenise.js";
 import type {
   IaAgentInventory,
@@ -47,6 +51,8 @@ export interface BuildIaIndexOptions {
   files: string[];
   /** Override the alias-group catalogue (mostly for tests). */
   aliasGroups?: IaConceptAliasGroup[];
+  /** Where read / parse failures get recorded instead of vanishing. */
+  warnings?: CoverageWarningLog;
 }
 
 /**
@@ -56,7 +62,7 @@ export interface BuildIaIndexOptions {
 export async function buildIaIndex(options: BuildIaIndexOptions): Promise<IaIndex> {
   const root = resolve(options.root);
   const aliasGroups = options.aliasGroups ?? DEFAULT_ALIAS_GROUPS;
-  const sourceSignals = collectSourceSignals(root, options.files);
+  const sourceSignals = collectSourceSignals(root, options.files, options.warnings);
   const docs = await collectDocs(root);
   const agentContext = await collectAgentInventory(root, docs);
 
@@ -74,13 +80,14 @@ export async function buildIaIndex(options: BuildIaIndexOptions): Promise<IaInde
 function collectSourceSignals(
   root: string,
   absoluteFiles: string[],
+  warnings: CoverageWarningLog | undefined,
 ): Pick<IaIndex, "files" | "routes" | "navSources"> {
   const files: Record<RepoPath, IaFileSignals> = {};
   const routes: IaRouteSignal[] = [];
   const navSources: IaIndex["navSources"] = [];
 
   for (const abs of absoluteFiles) {
-    const sourceSignal = readSourceSignal(root, abs);
+    const sourceSignal = readSourceSignal(root, abs, warnings);
     if (!sourceSignal) continue;
     files[sourceSignal.signal.file] = sourceSignal.signal;
     if (sourceSignal.route) routes.push(sourceSignal.route);
@@ -98,16 +105,23 @@ function collectSourceSignals(
 function readSourceSignal(
   root: string,
   abs: string,
+  warnings: CoverageWarningLog | undefined,
 ): { signal: IaFileSignals; route?: IaRouteSignal } | undefined {
   const rel = toRepoRel(root, abs);
   if (!SOURCE_EXT.test(rel)) return undefined;
 
-  let parsed: ParsedFile;
   let source: string;
   try {
     source = readFileSync(abs, "utf8");
+  } catch (err) {
+    warnings?.record("files_unreadable", errnoOf(err), { file: rel });
+    return undefined;
+  }
+  let parsed: ParsedFile;
+  try {
     parsed = parseFile({ absolutePath: abs, source });
   } catch {
+    warnings?.record("files_unparsed", "language-js", { file: rel });
     return undefined;
   }
 

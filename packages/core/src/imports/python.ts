@@ -15,6 +15,7 @@
  */
 
 import { readFile } from "node:fs/promises";
+import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import {
   buildPyModuleIndex,
@@ -33,12 +34,16 @@ export interface BuildPythonImportEdgesOptions {
   files: string[];
   /** Maximum Python files to parse before truncating. */
   maxFiles?: number;
+  /** Where read / parse failures get recorded instead of vanishing. */
+  warnings?: CoverageWarningLog;
 }
 
 export interface PythonImportEdgeResult {
   edges: ImportEdge[];
   /** True when the Python file set exceeded `maxFiles`. */
   limited: boolean;
+  /** How many Python files fell outside `maxFiles`. */
+  droppedFiles: number;
   /**
    * How many resolvable in-repo edges were produced, and how many
    * specifiers were seen in total. Surfaced so we can report Python
@@ -66,7 +71,13 @@ export async function buildPythonImportEdges(
   const limited = allPy.length > pyFiles.length;
 
   if (pyFiles.length === 0) {
-    return { edges: [], limited: false, resolvedCount: 0, specifierCount: 0 };
+    return {
+      edges: [],
+      limited: false,
+      droppedFiles: 0,
+      resolvedCount: 0,
+      specifierCount: 0,
+    };
   }
 
   const repoPaths = pyFiles.map((abs) => toRepoPath(root, abs));
@@ -79,13 +90,15 @@ export async function buildPythonImportEdges(
       let source: string;
       try {
         source = await readFile(abs, "utf8");
-      } catch {
+      } catch (err) {
+        options.warnings?.record("files_unreadable", errnoOf(err), { file: from });
         return;
       }
       let parsed: Awaited<ReturnType<typeof parsePyFile>>;
       try {
         parsed = await parsePyFile({ absolutePath: abs, source });
       } catch {
+        options.warnings?.record("files_unparsed", "language-py", { file: from });
         return;
       }
       for (const imp of parsed.imports) {
@@ -127,6 +140,7 @@ export async function buildPythonImportEdges(
   return {
     edges,
     limited,
+    droppedFiles: allPy.length - pyFiles.length,
     resolvedCount: edges.filter((e) => e.to.length > 0).length,
     specifierCount: specifiers.length,
   };

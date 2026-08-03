@@ -49,7 +49,16 @@ export async function runAssetDetectorsForRoot(args: {
   return findings;
 }
 
-async function discoverAssetFiles(root: string, config: CrimesConfig): Promise<string[]> {
+/**
+ * Asset files the second pass will run over. Exported because
+ * `coverage.warnings` has to subtract them: a `.png` is not in the
+ * source `include` list, but reporting it as unanalysed would be false —
+ * the asset detectors do read it.
+ */
+export async function discoverAssetFiles(
+  root: string,
+  config: CrimesConfig,
+): Promise<string[]> {
   const includes = config.assets?.include;
   // No `assets.include` means the user explicitly cleared the
   // discovery pattern — treat that as "skip the asset pass entirely".

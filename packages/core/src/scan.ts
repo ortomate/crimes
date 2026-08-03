@@ -15,7 +15,9 @@ import {
 } from "./detector-registry.js";
 import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import { buildCoverage } from "./discovery/coverage.js";
-import { runAssetDetectorsForRoot } from "./scan-assets.js";
+import { CoverageWarningLog } from "./discovery/coverage-warnings.js";
+import { collectDiscoveryWarnings } from "./discovery/undiscovered.js";
+import { discoverAssetFiles, runAssetDetectorsForRoot } from "./scan-assets.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { getChangedFiles } from "./git/changed-files.js";
@@ -80,7 +82,25 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     options.assetDetectors ??
     filterAssetDetectors(builtInAssetDetectors, config, allKnownIds);
   const inputs = await resolveScanInputs({ root, config, options });
-  const indexes = await buildScanIndexes({ root, config, allFiles: inputs.allFiles });
+  // One log for the whole scan. Discovery, the index build and the
+  // per-file detector pass can each drop work and keep going; they all
+  // report here so `coverage.warnings` is the single answer to "what
+  // did this scan not look at?".
+  const warnings = new CoverageWarningLog();
+  await collectDiscoveryWarnings({
+    root,
+    include: config.include,
+    exclude: config.exclude,
+    discovered: inputs.allFiles,
+    alsoAnalysed: assetDetectors.length > 0 ? await discoverAssetFiles(root, config) : [],
+    into: warnings,
+  });
+  const indexes = await buildScanIndexes({
+    root,
+    config,
+    allFiles: inputs.allFiles,
+    warnings,
+  });
   const langPack = resolveLanguagePackRouter();
   const findings = await runDetectorsForFiles({
     root,
@@ -101,6 +121,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     files: inputs.allFiles,
     router: langPack,
     root,
+    warnings: warnings.build(),
   });
 
   // Backfill the per-finding scoring fields (churn / test_gap /

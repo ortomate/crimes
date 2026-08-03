@@ -289,8 +289,67 @@ interface ScanCoverage {
      */
     dominant_language: string | null;
   }>;
+  /**
+   * Work the scan dropped without failing. Absent when nothing was
+   * skipped — never present-but-empty. Added in 0.17.0.
+   *
+   * Every field above counts only files discovery actually returned, so
+   * none of them can report a file discovery never saw. A repo of 1,226
+   * `.vue` components produced a report where `.vue` appeared nowhere.
+   * This array is the answer to "what did this scan not look at?".
+   *
+   * Aggregated by `(kind, subject)` and sorted by `files` descending, so
+   * the first entry is the largest gap.
+   */
+  warnings?: CoverageWarning[];
+}
+
+interface CoverageWarning {
+  /** Stable discriminator; see the table below. */
+  kind:
+    | "files_not_discovered"
+    | "files_excluded"
+    | "files_not_followed"
+    | "files_in_hidden_path"
+    | "files_unreadable"
+    | "files_unparsed"
+    | "files_partial_parse"
+    | "index_truncated"
+    | "index_unavailable";
+  /** Aggregation key and the thing to act on. Never a file path. */
+  subject: string;
+  /** How many files this warning accounts for. Always ≥ 1. */
+  files: number;
+  /** Up to five repo-relative example paths, sorted. */
+  examples?: string[];
+  /** One sentence naming what was skipped. Prose — do not parse. */
+  detail: string;
+  /** One sentence naming the fix, when there is one. Prose. */
+  remedy?: string;
 }
 ```
+
+| `kind`                 | `subject` is…                       | Meaning                                                                       |
+| ---------------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
+| `files_not_discovered` | file extension (`".vue"`)           | In the repo, but no `include` glob matched it. Nothing read it.               |
+| `files_excluded`       | `"config.exclude"`                  | An `exclude` glob removed it. Findings there are absent, not zero.            |
+| `files_not_followed`   | `"symlink"` / `"submodule"`         | Discovery does not follow symlinks or enter submodules.                       |
+| `files_in_hidden_path` | dot segment (`".github"`)           | Under a dot-directory, which the walker skips regardless of `include`.        |
+| `files_unreadable`     | errno code (`"EMFILE"`, `"EACCES"`) | `readFile` threw. This is usually your machine, not your repo.                |
+| `files_unparsed`       | pack id (`"language-js"`)           | Read, but the parser threw. Missing from every cross-file index.              |
+| `files_partial_parse`  | pack id (`"language-py"`)           | Parsed with syntax errors; whole-file detectors declined to judge.            |
+| `index_truncated`      | index id (`"imports"`)              | A cross-file index hit its file cap; `files` counts what fell outside it.     |
+| `index_unavailable`    | index id (`"imports"`, `"ia"`, …)   | The index failed to build, so its detectors silently produced nothing.        |
+
+Unrecognised `kind` values may appear in a future minor release — treat
+the field as an open enum and tolerate values you do not know.
+
+The discovery-gap kinds (`files_not_discovered`, `files_excluded`,
+`files_not_followed`, `files_in_hidden_path`) are computed against
+`git ls-files`, so they are absent when the scan root is
+not inside a Git work tree. Without Git there is no cheap way to tell a
+repo file from a build artefact, and a wrong count in this field is worse
+than no count.
 
 Example on a polyglot monorepo:
 
@@ -320,6 +379,12 @@ Example on a polyglot monorepo:
 The human reporter prints a one-line coverage banner when >50% of discovered
 files were universal-only. Pass `--explain-coverage` to print the full
 breakdown after scan output.
+
+When `warnings` is present the human reporter prints a short `skipped:`
+notice above the findings — unconditionally, including when stdout is a
+pipe, because suppressing it is how a partial scan reads as a complete
+one in a CI log. `--explain-coverage` prints every warning with its
+detail, remedy and examples.
 
 ### `scan --changed --fail-on` gate fields
 

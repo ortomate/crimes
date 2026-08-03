@@ -12,6 +12,7 @@ import { relative, sep } from "node:path";
 import { parseFile } from "@crimes/language-js";
 import type { ParsedFunction } from "@crimes/language-js";
 import { mapWithConcurrency } from "../util/concurrency.js";
+import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
 import { hashFunction } from "./hash.js";
 
 export interface FunctionHit {
@@ -29,6 +30,14 @@ export interface FunctionHashIndex {
 export interface BuildFunctionHashIndexOptions {
   root: string;
   files: string[];
+  /**
+   * Where files this builder could not read or parse get recorded. A
+   * file that fails here contributes no duplicate hits, which is
+   * indistinguishable from "this file has no duplicated functions" —
+   * so the skip has to be reported or the absence reads as a clean bill
+   * of health.
+   */
+  warnings?: CoverageWarningLog;
 }
 
 const SOURCE_EXT_RE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
@@ -71,19 +80,21 @@ export async function buildFunctionHashIndex(
 
   const perFile = await mapWithConcurrency(candidate, async (abs) => {
     const hits: FileHits = { exact: [], shape: [] };
+    const repoPath = toRepoPath(options.root, abs);
     let source: string;
     try {
       source = await readFile(abs, "utf8");
-    } catch {
+    } catch (err) {
+      options.warnings?.record("files_unreadable", errnoOf(err), { file: repoPath });
       return hits;
     }
     let parsed: ReturnType<typeof parseFile>;
     try {
       parsed = parseFile({ absolutePath: abs, source });
     } catch {
+      options.warnings?.record("files_unparsed", "language-js", { file: repoPath });
       return hits;
     }
-    const repoPath = toRepoPath(options.root, abs);
     for (const fn of parsed.functions) {
       if (skipFunction(fn)) continue;
       const hash = hashFunction(fn, source);

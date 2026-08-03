@@ -12,6 +12,7 @@ import type {
   PackedFile,
 } from "./detector.js";
 import { groupDetectorsByPack } from "./detector-registry.js";
+import { CoverageWarningLog } from "./discovery/coverage-warnings.js";
 import { buildUniversalContext } from "./discovery/universal-context.js";
 import type { LanguagePackRouter } from "./discovery/language-pack-router.js";
 import { assignPackAndDetectorId } from "./finding-finalise.js";
@@ -61,30 +62,57 @@ export interface ScanIndexes {
   manifest?: ManifestIndex;
   /** Repo-local agent configuration inventory (0.16.0). */
   agentConfig?: AgentConfigIndex;
+  /**
+   * Everything the index build dropped without failing (0.17.0). Always
+   * present so downstream stages can keep recording into it; `scan()`
+   * folds it into `ScanReport.coverage.warnings`.
+   */
+  warnings?: CoverageWarningLog;
 }
 
 export async function buildScanIndexes(args: {
   root: string;
   config: CrimesConfig;
   allFiles: string[];
+  /** Reuse an existing log instead of starting a fresh one. */
+  warnings?: CoverageWarningLog;
 }): Promise<ScanIndexes> {
   const { root, config, allFiles } = args;
+  // One log for the whole index build. Every builder below can drop a
+  // file and keep going; without a shared collector each drop is
+  // indistinguishable from "that file was clean".
+  const warnings = args.warnings ?? new CoverageWarningLog();
   // Cross-file indexes always use the full discovered file set. `--changed`
   // gates finding emission, not the context detectors and scoring inspect.
   const ia = await safelyBuildIaIndex({
     root,
     allFiles,
     aliasGroups: resolveAliasGroups(config),
+    warnings,
   });
-  const petty = await safelyBuildPettyIndex({ root, allFiles });
-  const imports = await safelyBuildImportGraph({ root, allFiles });
-  const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
-  const functionHashIndex = await safelyBuildFunctionHashIndex({ root, allFiles });
-  const scoring = await safelyBuildScoringContext({ root, allFiles, imports });
+  const petty = await safelyBuildPettyIndex({ root, allFiles, warnings });
+  const imports = await safelyBuildImportGraph({ root, allFiles, warnings });
+  const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles, warnings });
+  const functionHashIndex = await safelyBuildFunctionHashIndex({
+    root,
+    allFiles,
+    warnings,
+  });
+  const scoring = await safelyBuildScoringContext({
+    root,
+    allFiles,
+    imports,
+    warnings,
+  });
   const envInventoryFiles = await discoverEnvInventoryFiles(root);
-  const risk = await safelyBuildRiskIndex({ root, allFiles, envInventoryFiles });
-  const manifest = await safelyBuildManifestIndex({ root });
-  const agentConfig = await safelyBuildAgentConfigIndex({ root });
+  const risk = await safelyBuildRiskIndex({
+    root,
+    allFiles,
+    envInventoryFiles,
+    warnings,
+  });
+  const manifest = await safelyBuildManifestIndex({ root, warnings });
+  const agentConfig = await safelyBuildAgentConfigIndex({ root, warnings });
 
   return {
     ia,
@@ -96,6 +124,7 @@ export async function buildScanIndexes(args: {
     risk,
     manifest,
     agentConfig,
+    warnings,
   };
 }
 
@@ -263,6 +292,13 @@ export async function runDetectorsForFile(args: {
       absolutePath: args.absolutePath,
       source,
     });
+    // tree-sitter recovers from a syntax error and hands back a partial
+    // tree. Detectors that judge a whole file (`py/weak_test_signal`)
+    // return [] on that partial tree — correctly, but invisibly. Record
+    // it so "no findings" can be told apart from "never really parsed".
+    if (parsed.hasSyntaxErrors) {
+      args.indexes.warnings?.record("files_partial_parse", "language-py", { file });
+    }
     const pyCtx: LanguagePyDetectorContext = {
       kind: "language-py",
       file,

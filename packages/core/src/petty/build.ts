@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
 import { isTestFile } from "../util/test-files.js";
 import { extractStringLiterals } from "./literals.js";
 import type { PettyIndex, PettyLiteralHit, RepoPath } from "./types.js";
@@ -36,6 +37,8 @@ const DOMAIN_WORDS = [
 export interface BuildPettyIndexOptions {
   root: string;
   files: string[];
+  /** Where read failures get recorded instead of vanishing. */
+  warnings?: CoverageWarningLog;
 }
 
 export async function buildPettyIndex(
@@ -51,7 +54,8 @@ export async function buildPettyIndex(
     let source: string;
     try {
       source = await readFile(abs, "utf8");
-    } catch {
+    } catch (err) {
+      options.warnings?.record("files_unreadable", errnoOf(err), { file });
       continue;
     }
 

@@ -374,5 +374,101 @@ export interface ScanReport {
        */
       dominant_language: string | null;
     }>;
+    /**
+     * Work the scan dropped without failing — every silent-skip path in
+     * the pipeline reports here. Absent when nothing was skipped; never
+     * present-but-empty, so `coverage.warnings === undefined` means
+     * "full coverage of what the config asked for".
+     *
+     * Added in 0.17.0. Before it, a scan that read 340 of a repo's 1,566
+     * files produced a report indistinguishable from one that read all
+     * of them: the extension buckets above only count files discovery
+     * actually returned, so a language nobody wrote an `include` glob
+     * for was invisible in *every* coverage field. Four of the eleven
+     * bugs found in the 0.16 dogfooding round would have been a one-line
+     * read of this array.
+     *
+     * Aggregated by `(kind, subject)` — 1,226 unscanned `.vue` files are
+     * one warning with `files: 1226`, not 1,226 warnings. Sorted by
+     * `files` descending, so the first entry is the largest gap.
+     */
+    warnings?: CoverageWarning[];
   };
+}
+
+/**
+ * Why a warning exists. Stable discriminator — treat these as an enum a
+ * consumer switches on. New kinds may be added in a minor release, so
+ * consumers should tolerate an unrecognised value rather than throw.
+ *
+ * - `files_not_discovered` — the file is in the repo but no `include`
+ *   glob matched it, so no pack ever saw it. `subject` is the file
+ *   extension.
+ * - `files_excluded` — an `exclude` glob removed files the walker would
+ *   otherwise have scanned. `subject` is `"config.exclude"`.
+ * - `files_not_followed` — discovery does not follow symlinks and does
+ *   not enter submodules, so these repo entries were never opened.
+ *   `subject` is `"symlink"` or `"submodule"`.
+ * - `files_in_hidden_path` — the file sits under a dot-directory, which
+ *   the walker skips regardless of `include`. Only emitted when the
+ *   file's extension *is* scanned elsewhere in the repo, so it never
+ *   competes with `files_not_discovered` for the same file. `subject` is
+ *   the leading dot segment (`".github"`).
+ * - `files_unreadable` — `readFile` threw. `subject` is the errno code
+ *   (`"EMFILE"`, `"EACCES"`, …), which is the part that tells you
+ *   whether this is your repo or your machine.
+ * - `files_unparsed` — the file was read but the parser threw, so its
+ *   functions, imports and symbols are missing from every cross-file
+ *   index. `subject` is the pack id.
+ * - `files_partial_parse` — the parser recovered but flagged syntax
+ *   errors, so whole-file detectors declined to judge. `subject` is the
+ *   pack id.
+ * - `index_truncated` — a cross-file index hit its file cap. `subject`
+ *   is the index id; `files` counts what fell outside the cap.
+ * - `index_unavailable` — a cross-file index failed to build at all, so
+ *   every detector depending on it silently produced nothing.
+ *   `subject` is the index id.
+ */
+export type CoverageWarningKind =
+  | "files_not_discovered"
+  | "files_excluded"
+  | "files_not_followed"
+  | "files_in_hidden_path"
+  | "files_unreadable"
+  | "files_unparsed"
+  | "files_partial_parse"
+  | "index_truncated"
+  | "index_unavailable";
+
+/**
+ * One aggregated class of skipped work.
+ *
+ * The contract an agent can rely on: `kind` + `subject` identify the
+ * gap, `files` sizes it, and `examples` prove it. `detail` and `remedy`
+ * are prose for humans and must not be parsed.
+ */
+export interface CoverageWarning {
+  kind: CoverageWarningKind;
+  /**
+   * The thing to act on, in a form that is comparable across runs — an
+   * extension, an errno code, a pack id, or an index id depending on
+   * `kind` (see {@link CoverageWarningKind}). Together with `kind` it is
+   * the aggregation key, so it is never a file path.
+   */
+  subject: string;
+  /**
+   * How many files this warning accounts for. Always ≥ 1 and always a
+   * file count, so warnings are comparable to `files_total`.
+   */
+  files: number;
+  /**
+   * Up to five repo-relative paths from the bucket, sorted. Present only
+   * when the recording site knew which files were affected — a
+   * whole-index failure knows a count but not a list.
+   */
+  examples?: string[];
+  /** One sentence naming what was skipped. Prose; do not parse. */
+  detail: string;
+  /** One sentence naming the fix, when there is one. Prose. */
+  remedy?: string;
 }

@@ -257,6 +257,8 @@ export type {
 } from "./diff.js";
 export { fingerprintFinding, FINGERPRINT_PATTERN } from "./fingerprint.js";
 export type {
+  CoverageWarning,
+  CoverageWarningKind,
   Effort,
   Finding,
   FindingScores,

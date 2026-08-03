@@ -2,6 +2,7 @@ import { extname } from "node:path";
 import type { ScanReport } from "../finding.js";
 import type { Pack } from "../pack.js";
 import { buildByPackage } from "./by-package.js";
+import type { CoverageWarning } from "../finding.js";
 import type { LanguagePackRouter } from "./language-pack-router.js";
 
 type Coverage = NonNullable<ScanReport["coverage"]>;
@@ -33,6 +34,12 @@ export function buildCoverage(args: {
    * roots are found on disk rather than in the file list.
    */
   root?: string;
+  /**
+   * Everything the scan skipped without failing. Merged in verbatim and
+   * omitted when empty, so `coverage.warnings === undefined` means
+   * "nothing was dropped" rather than "nobody looked".
+   */
+  warnings?: readonly CoverageWarning[];
 }): Coverage {
   const filesByLanguage: Record<string, number> = {};
   const universalOnlyByExtension: Record<string, number> = {};
@@ -57,6 +64,10 @@ export function buildCoverage(args: {
     universal_only_by_extension: universalOnlyByExtension,
     packs_loaded: ["universal", ...args.router.registeredPacks()],
   };
+
+  if (args.warnings !== undefined && args.warnings.length > 0) {
+    coverage.warnings = [...args.warnings];
+  }
 
   if (args.root !== undefined) {
     const byPackage = buildByPackage({

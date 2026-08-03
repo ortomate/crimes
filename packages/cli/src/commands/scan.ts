@@ -19,6 +19,7 @@ import {
 import type { FailOn } from "@crimes/core";
 import {
   buildCoverageBanner,
+  buildCoverageWarningNotice,
   formatHumanReport,
   formatJsonReport,
   formatScanFailOnLine,
@@ -226,6 +227,13 @@ export function registerScanCommand(program: Command): void {
         const banner = buildCoverageBanner(gatedReport.coverage);
         if (banner && !effectiveNoColor) {
           process.stdout.write(banner + "\n\n");
+        }
+        // Skipped work is reported unconditionally — unlike the banner
+        // it is not decoration, and suppressing it when stdout is a pipe
+        // is how a partial scan reads as a complete one in CI logs.
+        const skipped = buildCoverageWarningNotice(gatedReport.coverage);
+        if (skipped) {
+          process.stdout.write(skipped + "\n\n");
         }
         process.stdout.write(
           formatHumanReport(gatedReport, {

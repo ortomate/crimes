@@ -1704,6 +1704,29 @@
       "universal",
       "language-js",
       "language-py"
+    ],
+    "warnings": [
+      {
+        "kind": "files_not_discovered",
+        "subject": ".json",
+        "files": 2,
+        "detail": "2 files of type .json are in the repo but no include pattern matched them, so no detector ever read them.",
+        "examples": [
+          "crimes.config.json",
+          "package.json"
+        ],
+        "remedy": "Add a glob covering .json to \"include\" in crimes.config.json if these files carry logic worth scanning."
+      },
+      {
+        "kind": "files_excluded",
+        "subject": "config.exclude",
+        "files": 1,
+        "detail": "1 file matched an \"exclude\" pattern and was never read. Findings in it are absent, not zero.",
+        "examples": [
+          ".crimes/suppressions.json"
+        ],
+        "remedy": "Review \"exclude\" in crimes.config.json if any of these should be scanned."
+      }
     ]
   },
   "suppressed_count": 1
