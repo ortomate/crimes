@@ -768,6 +768,30 @@ function buildPassThroughIndex(edges: PassThroughEdge[]): PassThroughIndex {
 }
 
 /**
+ * Can a walk step from `from` to `to`?
+ *
+ * Chain links used to be pure name equality: edge A's `targetTail`
+ * equals edge B's `name`, in any file. On a large repo that is not a
+ * link, it is a collision — `delete`, `has`, `get` and `run` are each
+ * declared dozens of times by unrelated types, and the walk *preferred*
+ * a different file, so it maximised the fabrication. Confidence then
+ * rose with the number of unrelated files joined, because "spans 3
+ * files" and "4 layers deep" are both scored as corroboration.
+ *
+ * Measured on n8n `packages/cli`: 13 chain findings, several at
+ * confidence 0.98, one of them starting at `Set.prototype.has`.
+ *
+ * A cross-file step now additionally requires the target to be
+ * **exported**. A function another module never exported cannot be the
+ * one this module called, so the step would have been provably wrong,
+ * not merely unproven.
+ */
+function canFollow(from: PassThroughEdge, to: PassThroughEdge): boolean {
+  if (to.file === from.file) return true;
+  return to.exported;
+}
+
+/**
  * Walk wrapper → wrapper links to find chains of length ≥2 spanning ≥2
  * files.
  *
@@ -799,8 +823,15 @@ function buildChains(
     let cursor = start;
 
     for (let depth = 0; depth < MAX_CHAIN_DEPTH; depth++) {
+      // A member call (`this.repo.delete(…)`) names a method on an
+      // object whose type we have not read. Its tail is not a link — it
+      // is a word. Following it is how four unrelated registries, each
+      // with its own `has()` delegating to its own private Map, became
+      // one "4 layers across 4 files" chain on n8n at confidence 0.98.
+      // See {@link canFollow}.
+      if (cursor.viaMember !== undefined) break;
       const candidates = (byName.get(cursor.targetTail) ?? []).filter(
-        (e) => !visited.has(`${e.file}::${e.name}`),
+        (e) => !visited.has(`${e.file}::${e.name}`) && canFollow(cursor, e),
       );
       if (candidates.length === 0) break;
       // Prefer a link in a *different* file — the chain that costs a

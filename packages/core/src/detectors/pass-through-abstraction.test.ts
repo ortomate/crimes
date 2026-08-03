@@ -177,6 +177,45 @@ describe("pass_through_abstraction — false-positive boundaries", () => {
     expect(await runOn(await makeRepo(testChain))).toHaveLength(0);
   });
 
+  it("does not chain unrelated classes that share a method name", async () => {
+    // n8n. Four unrelated registries each expose `has()` delegating to
+    // their own private Map, and the walker joined them into one
+    // "4 layers across 4 files" chain at confidence 0.98 — the more
+    // unrelated files it found, the more certain it claimed to be. The
+    // first hop was `Set.prototype.has`.
+    //
+    // The tail name is all these have in common. `this.handlerMap.has`
+    // cannot be resolved to another file's `has` without knowing what
+    // `this.handlerMap` is, which needs type information we do not have.
+    const findings = await runOn(
+      await makeRepo({
+        "src/auth/auth-handler.registry.ts": `
+          export class AuthHandlerRegistry {
+            has(key) { return this.handlerMap.has(key); }
+          }
+        `,
+        "src/modules/breaking-changes/migration-registry.service.ts": `
+          export class MigrationRegistry {
+            has(key) { return this.migrations.has(key); }
+          }
+        `,
+        "src/modules/external-secrets/provider-registry.service.ts": `
+          export class ProviderRegistry {
+            has(key) { return this.providers.has(key); }
+          }
+        `,
+        "src/modules/external-secrets/manager.ts": `
+          export class ExternalSecretsManager {
+            hasProvider(name) { return this.providerRegistry.has(name); }
+          }
+        `,
+      }),
+    );
+    expect(findings.filter((f) => f.evidence.join(" ").includes("call chain"))).toEqual(
+      [],
+    );
+  });
+
   it("does not treat recursion as indirection", async () => {
     const repo = await makeRepo({
       "src/a.ts": `export function walk(n) { return walk(n.next); }`,
