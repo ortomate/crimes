@@ -503,6 +503,68 @@ describe("weak_test_signal.py", () => {
     ).toEqual([]);
   });
 
+  it("does not count a test_* function nested inside a real test", async () => {
+    // zulip's `test_message_delete.py` declares four local helpers named
+    // `test_delete_message_by_*` inside one real test. pytest collects
+    // neither of them — a nested function is not a test — but they were
+    // reported as silent tests, 9 of that file's 23 survivors.
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_message_delete.py",
+        [
+          "class T(ZulipTestCase):",
+          "    def test_delete_flow(self):",
+          "        def test_delete_by_admin(msg_id):",
+          "            return self.client_delete(msg_id)",
+          "",
+          "        self.assertEqual(test_delete_by_admin(1).status_code, 200)",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not count a test_* function nested inside a non-test function", async () => {
+    // Same rule, stated at its real boundary: pytest collects tests at
+    // module or class scope. Anything declared inside *any* function is
+    // out of reach regardless of what the enclosing function is called.
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_decorators.py",
+        [
+          "def build_view_suite():",
+          "    @zulip_login_required",
+          "    def test_view(request):",
+          "        return HttpResponse('Success')",
+          "",
+          "    return test_view",
+          "",
+          "def test_real():",
+          "    assert build_view_suite() is not None",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("still counts a nested test's assertions toward its enclosing test", async () => {
+    // The nesting exclusion removes the inner function from the
+    // denominator; it must not remove its assertions from the outer
+    // test's span-based credit.
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_billing.py",
+        [
+          "def test_outer():",
+          "    def test_inner():",
+          "        assert compute() == 3",
+          "    test_inner()",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
   it("stays quiet when the parse was incomplete", async () => {
     // An untrustworthy assertion count must not produce a confident
     // accusation — the whole charge is a count.

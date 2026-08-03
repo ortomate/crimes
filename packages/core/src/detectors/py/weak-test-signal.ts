@@ -129,11 +129,16 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     // its silence is correct, and leaving it in the denominator would
     // drag the silent share — which drives severity — toward whichever
     // way the benchmark suite happens to be sized.
+    //
+    // Nested functions are excluded for a different reason: they are not
+    // tests at all. See {@link nestedFunctions}.
+    const nested = nestedFunctions(ctx.parsed);
     const tests = ctx.parsed.functions.filter(
       (fn) =>
         fn.shape === "test_function" &&
         fn.name !== undefined &&
         /^test/.test(fn.name) &&
+        !nested.has(fn) &&
         !isBenchmark(fn),
     );
     if (tests.length === 0) return [];
@@ -232,6 +237,48 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     return [finding];
   },
 };
+
+/**
+ * Functions declared inside another function's body.
+ *
+ * `pytest` collects tests at module or class scope only, so a function
+ * declared inside another function is not a test however it is named —
+ * and neither `unittest` nor `pytest` will ever run it. Counting them
+ * invented silent tests wholesale: zulip's `test_message_delete.py`
+ * declares four local helpers named `test_delete_message_by_*` inside a
+ * single real test, which was 9 of that file's 23 reported survivors,
+ * and `test_decorators.py` declares decorated view stubs called
+ * `test_view` inside five tests, which was 5 of 71.
+ *
+ * The boundary is *any* enclosing function, not just an enclosing test.
+ * That is where pytest's own collection boundary sits, and the two
+ * zulip cases are one of each: a helper inside a test, and a view stub
+ * inside a test that only exists to be decorated.
+ *
+ * Containment is decided on line spans because the parser records no
+ * parent link. Sorting by start ascending and end descending puts an
+ * enclosing function before everything it encloses, so a single stack
+ * sweep decides every function — no pairwise comparison.
+ *
+ * Note this changes the denominator only. Assertions are still
+ * attributed by line span, so an assertion written inside a nested
+ * helper continues to credit the test that encloses it.
+ */
+function nestedFunctions(parsed: ParsedPyFile): Set<ParsedPyFunction> {
+  const ordered = [...parsed.functions].sort(
+    (a, b) => a.startLine - b.startLine || b.endLine - a.endLine,
+  );
+  const nested = new Set<ParsedPyFunction>();
+  const open: ParsedPyFunction[] = [];
+  for (const fn of ordered) {
+    while (open.length > 0 && open[open.length - 1]!.endLine < fn.startLine) {
+      open.pop();
+    }
+    if (open.length > 0) nested.add(fn);
+    open.push(fn);
+  }
+  return nested;
+}
 
 /**
  * Is this test really a benchmark? Either marker counts — the
