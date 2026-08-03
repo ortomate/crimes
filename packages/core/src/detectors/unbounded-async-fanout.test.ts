@@ -71,7 +71,7 @@ describe("unbounded_async_fanout — positive cases", () => {
       }
     `)[0]!;
     expect(subprocess.scores.severity).toBeGreaterThan(network.scores.severity);
-    expect(subprocess.evidence.join("\n")).toMatch(
+    expect(subprocess.score_rationale!.join("\n")).toMatch(
       /severity raised by:.*per-element subprocess execution/,
     );
   });

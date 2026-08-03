@@ -59,7 +59,7 @@ describe("swallowed_error — positive cases", () => {
       }
     `);
     expect(finding!.severity).toBe("high");
-    expect(finding!.evidence.join("\n")).toMatch(
+    expect(finding!.score_rationale!.join("\n")).toMatch(
       /severity raised by:.*payment operation/,
     );
   });

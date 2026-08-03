@@ -6,7 +6,11 @@ import {
   domainTokensAcross,
   strongDomainTokensAcross,
 } from "../domain/vocabulary.js";
-import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreRationale,
+} from "../scoring/confidence.js";
 import { hashSlice } from "../ast-hash/hash.js";
 import type {
   PolicyCloneGroup,
@@ -219,6 +223,7 @@ function buildCloneFinding(group: PolicyCloneGroup): Finding | undefined {
 
   const anchor = group.occurrences.find((o) => o.file === group.anchorFile)!;
 
+  const built = cloneEvidence(group, vocabulary, crossBoundary, confidence, severity);
   return {
     id: "",
     type: "duplicated_policy",
@@ -239,7 +244,8 @@ function buildCloneFinding(group: PolicyCloneGroup): Finding | undefined {
       `The same ${describeKind(anchor.kind)} appears in ${group.files.length} ` +
       `production files with no shared definition. Each copy is maintained ` +
       `independently, so changing one leaves the others enforcing the old rule.`,
-    evidence: cloneEvidence(group, vocabulary, crossBoundary, confidence, severity),
+    evidence: built.evidence,
+    score_rationale: built.rationale,
     effort: "medium",
     fix_shape: "extract one authoritative policy function; every site calls it",
     scores: {
@@ -274,7 +280,7 @@ function cloneEvidence(
   crossBoundary: string[],
   confidence: ConfidenceLadder,
   severity: SeverityLadder,
-): string[] {
+): { evidence: string[]; rationale: string[] } {
   const evidence: string[] = [];
   evidence.push(`normalised rule: ${group.normalized}`);
   evidence.push(
@@ -305,10 +311,9 @@ function cloneEvidence(
   for (const crossing of crossBoundary) evidence.push(crossing);
 
   evidence.push(authorityRationale(group.occurrences));
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
-  return evidence;
+  // The ladder trace is arithmetic about the finding, not a fact
+  // about the code, so it leaves `evidence` and rides alongside it.
+  return { evidence, rationale: scoreRationale(confidence, severity) };
 }
 
 /* ------------------------------------------------------------------ *
@@ -372,9 +377,7 @@ function buildNearCloneFinding(family: PolicyNearCloneFamily): Finding | undefin
     "the sites share a rule shape but disagree on a value — either one is " +
       "stale, or the difference is deliberate and undocumented",
   );
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
+  const rationale = scoreRationale(confidence, severity);
 
   return {
     id: "",
@@ -394,6 +397,7 @@ function buildNearCloneFinding(family: PolicyNearCloneFamily): Finding | undefin
       `(${family.differences[0] ?? "differing literals"}). At most one of them ` +
       "can be current.",
     evidence,
+    score_rationale: rationale,
     effort: "medium",
     fix_shape: "reconcile the variants into one authoritative rule",
     scores: {

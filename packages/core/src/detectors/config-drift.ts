@@ -1,7 +1,11 @@
 import { z } from "zod";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
-import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreRationale,
+} from "../scoring/confidence.js";
 import type { EnvIndex, EnvVariableRecord } from "../risk/types.js";
 
 /**
@@ -354,9 +358,7 @@ function buildFinding(variable: EnvVariableRecord, issues: Issue[]): Finding {
     "no configuration values are reported by this detector — names, " +
       "locations, and literal defaults written in committed source only",
   );
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
+  const rationale = scoreRationale(confidence, severity);
 
   return {
     id: "",
@@ -372,6 +374,7 @@ function buildFinding(variable: EnvVariableRecord, issues: Issue[]): Finding {
       `across ${variable.files.length} file(s). The behaviour depends on which ` +
       "code path reads it first.",
     evidence,
+    score_rationale: rationale,
     effort: "small",
     fix_shape: "parse each setting once, in one module; everyone imports it",
     scores: {
@@ -485,8 +488,8 @@ function assessUnused(env: EnvIndex, ignore: Set<string>): Finding | undefined {
         (unused.length > 12 ? `, +${unused.length - 12} more` : ""),
       "no computed `process.env[…]` reads were found, so the code's variable " +
         "set is fully enumerable and this list is not a guess",
-      confidence.explain(),
     ],
+    score_rationale: scoreRationale(confidence),
     effort: "quick",
     fix_shape: "delete the stale entries, or wire them up",
     scores: {

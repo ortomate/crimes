@@ -3,7 +3,11 @@ import { basename, dirname } from "node:path";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import type { AssertionCategory, MockDeclaration, TestCase } from "@crimes/language-js";
-import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreRationale,
+} from "../scoring/confidence.js";
 import { isTestFile, testBaseCovers } from "../util/test-files.js";
 import { classifyBoundary } from "../domain/vocabulary.js";
 
@@ -290,6 +294,7 @@ function buildFinding(args: {
     .add(args.boundaries.length >= 2, "multiple consequential boundaries mocked", 0.08)
     .add(args.hollow.length >= 3, "three or more behaviourless doubles", 0.06);
 
+  const built = buildEvidence(args, confidence, severity);
   return {
     id: "",
     type: "mock_saturation",
@@ -305,7 +310,8 @@ function buildFinding(args: {
       : `Test "${title}" replaces ${args.meaningful.length} collaborator(s) with ` +
         "behaviourless doubles and asserts only on those doubles. It reports " +
         "coverage of a code path it never really exercises.",
-    evidence: buildEvidence(args, confidence, severity),
+    evidence: built.evidence,
+    score_rationale: built.rationale,
     effort: "medium",
     fix_shape: "add one test that asserts an outcome, not a call",
     scores: {
@@ -351,7 +357,7 @@ function buildEvidence(
   },
   confidence: ConfidenceLadder,
   severity: SeverityLadder,
-): string[] {
+): { evidence: string[]; rationale: string[] } {
   const evidence: string[] = [];
   const title = [...args.testCase.suite, args.testCase.title].join(" › ");
 
@@ -412,10 +418,9 @@ function buildEvidence(
           "so a behaviour change that keeps the same call shape cannot fail this test",
   );
 
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
-  return evidence;
+  // The ladder trace is arithmetic about the finding, not a fact
+  // about the code, so it leaves `evidence` and rides alongside it.
+  return { evidence, rationale: scoreRationale(confidence, severity) };
 }
 
 /* ------------------------------------------------------------------ *

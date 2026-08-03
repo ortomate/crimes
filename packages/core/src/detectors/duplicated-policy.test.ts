@@ -69,6 +69,7 @@ describe("duplicated_policy — positive cases", () => {
     });
     const [finding] = await runOn(repo);
     const evidence = finding!.evidence.join("\n");
+    const rationale = finding!.score_rationale!.join("\n");
 
     expect(evidence).toMatch(/normalised rule: .+\.role/);
     expect(evidence).toContain("src/routes/export.ts:5 in exportBilling()");
@@ -81,7 +82,7 @@ describe("duplicated_policy — positive cases", () => {
     expect(evidence).toMatch(/shared property path\(s\): user\.role/);
     expect(evidence).toContain("domain vocabulary:");
     // Confidence arithmetic is reconstructable.
-    expect(evidence).toMatch(/confidence 0\.\d+ = 0\.60 base/);
+    expect(rationale).toMatch(/confidence 0\.\d+ = 0\.60 base/);
   });
 
   it("normalises away local names, so two spellings of one rule collide", async () => {
@@ -116,7 +117,7 @@ describe("duplicated_policy — positive cases", () => {
       "src/b.ts": `export function b(m) { if (m.role === "admin" && m.subscription !== "free") return 1; return 0; }`,
     });
     const [finding] = await runOn(repo);
-    expect(finding!.evidence.join("\n")).toMatch(
+    expect(finding!.score_rationale!.join("\n")).toMatch(
       /severity raised by:.*authorization rule/,
     );
   });

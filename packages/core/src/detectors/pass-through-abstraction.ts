@@ -1,7 +1,11 @@
 import { z } from "zod";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
-import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreRationale,
+} from "../scoring/confidence.js";
 import type {
   PassThroughChain,
   PassThroughCluster,
@@ -183,9 +187,7 @@ function buildChainFinding(chain: PassThroughChain): Finding {
       "or adds instrumentation — reading the chain end to end yields the same " +
       "call the caller wrote",
   );
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
+  const rationale = scoreRationale(confidence, severity);
 
   return {
     id: "",
@@ -201,6 +203,7 @@ function buildChainFinding(chain: PassThroughChain): Finding {
       `${chain.files.length} files to reach \`${chain.terminal}\`, and no layer ` +
       "adds anything. Finding the behaviour costs a reader every hop.",
     evidence,
+    score_rationale: rationale,
     effort: "medium",
     fix_shape: "collapse the empty layers; keep the one boundary that earns its place",
     scores: {
@@ -280,9 +283,7 @@ function buildClusterFinding(
     `every caller of this type could call \`${cluster.receiver}\` directly with ` +
       "no change in behaviour",
   );
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
+  const rationale = scoreRationale(confidence, severity);
 
   const first = empty[0]!;
   return {
@@ -299,6 +300,7 @@ function buildClusterFinding(
       `\`${cluster.receiver}\`. The layer restates an interface without ` +
       "changing it.",
     evidence,
+    score_rationale: rationale,
     effort: "medium",
     fix_shape: "expose the collaborator directly, or give the layer a reason to exist",
     scores: {

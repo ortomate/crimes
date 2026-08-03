@@ -74,7 +74,7 @@ describe("mock_saturation — positive cases", () => {
 
   it("escalates severity when the doubles cover consequential boundaries", () => {
     const [finding] = run(SATURATED);
-    expect(finding!.evidence.join("\n")).toMatch(
+    expect(finding!.score_rationale!.join("\n")).toMatch(
       /severity raised by:.*mocks stand in for database write, payment/,
     );
   });

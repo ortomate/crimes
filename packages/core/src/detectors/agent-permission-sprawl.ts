@@ -8,7 +8,11 @@ import type {
   AgentPermissionRule,
 } from "../agents/types.js";
 import { quoteFragment } from "../agents/build.js";
-import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreRationale,
+} from "../scoring/confidence.js";
 
 /**
  * Loaded Agent — repository-local agent configuration that grants more
@@ -209,9 +213,7 @@ function reportPermissions(index: AgentConfigIndex, allowed: Set<string>): Findi
       "scoped development commands in the same file are not reported — only " +
         "rules that place no bound on what may run",
     );
-    evidence.push(confidence.explain());
-    const escalation = severity.explain();
-    if (escalation !== undefined) evidence.push(escalation);
+    const rationale = scoreRationale(confidence, severity);
 
     findings.push({
       id: "",
@@ -227,6 +229,7 @@ function reportPermissions(index: AgentConfigIndex, allowed: Set<string>): Findi
         "execution or out-of-repository writes for any agent that opens this " +
         "checkout.",
       evidence,
+      score_rationale: rationale,
       effort: "quick",
       fix_shape: "narrow each rule to the specific commands the work needs",
       scores: { severity: severity.score(), confidence: confidence.value() },
@@ -357,9 +360,7 @@ function reportHooks(index: AgentConfigIndex): Finding[] {
       "no hook was executed to produce this finding; the commands were read " +
         "as text and quoted with token-shaped values masked",
     );
-    evidence.push(confidence.explain());
-    const escalation = severity.explain();
-    if (escalation !== undefined) evidence.push(escalation);
+    const rationale = scoreRationale(confidence, severity);
 
     findings.push({
       id: "",
@@ -374,6 +375,7 @@ function reportHooks(index: AgentConfigIndex): Finding[] {
         `${group.length} committed hook command(s) execute automatically and ` +
         `${group[0]!.reason}.`,
       evidence,
+      score_rationale: rationale,
       effort: "small",
       fix_shape: "remove the hazard, or move the logic into a reviewed script",
       scores: { severity: severity.score(), confidence: confidence.value() },
@@ -446,9 +448,7 @@ function reportMcpServers(index: AgentConfigIndex): Finding[] {
     }
   }
   evidence.push("MCP servers start with the agent session and inherit its environment");
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
+  const rationale = scoreRationale(confidence, severity);
 
   return [
     {
@@ -464,6 +464,7 @@ function reportMcpServers(index: AgentConfigIndex): Finding[] {
         `${risky.length} MCP server(s) configured in this repo launch code that ` +
         "is fetched at start-up rather than pinned in the repository.",
       evidence,
+      score_rationale: rationale,
       effort: "small",
       fix_shape: "pin the server package, or vendor the launch script",
       scores: { severity: severity.score(), confidence: confidence.value() },
@@ -534,9 +535,7 @@ function reportInstructions(index: AgentConfigIndex): Finding | undefined {
     "confidence is capped low for this reason and no severity above `low` is " +
       "assigned to prose alone",
   );
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
+  const rationale = scoreRationale(confidence, severity);
 
   return {
     id: "",
@@ -552,6 +551,7 @@ function reportInstructions(index: AgentConfigIndex): Finding | undefined {
       "verification, ignore higher-level instructions, or handle secrets " +
       "unusually. Advisory — worth a reviewer's eye, not necessarily wrong.",
     evidence,
+    score_rationale: rationale,
     effort: "quick",
     fix_shape: "confirm each directive is intended; scope or delete the rest",
     scores: {

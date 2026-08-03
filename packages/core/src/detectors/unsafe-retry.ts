@@ -2,7 +2,11 @@ import { z } from "zod";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import type { RetrySafeguardKind, RetrySite } from "@crimes/language-js";
-import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreRationale,
+} from "../scoring/confidence.js";
 import { classifyBoundary } from "../domain/vocabulary.js";
 import { classifyScope } from "../util/scope-class.js";
 
@@ -221,6 +225,15 @@ function buildFinding(
       0.06,
     );
 
+  const built = buildEvidence(
+    site,
+    mutations,
+    present,
+    missing,
+    boundary,
+    confidence,
+    severity,
+  );
   return {
     id: "",
     type: "unsafe_retry",
@@ -236,15 +249,8 @@ function buildFinding(
       `A retry wraps ${describeMutations(mutations)} with no idempotency or ` +
       "deduplication key visible at the call site. If an attempt succeeds but " +
       "the response is lost, the retry applies the operation a second time.",
-    evidence: buildEvidence(
-      site,
-      mutations,
-      present,
-      missing,
-      boundary,
-      confidence,
-      severity,
-    ),
+    evidence: built.evidence,
+    score_rationale: built.rationale,
     effort: "medium",
     fix_shape: "pass a stable idempotency key, or make the retry read-only",
     scores: {
@@ -263,7 +269,7 @@ function buildEvidence(
   boundary: ReturnType<typeof classifyBoundary>,
   confidence: ConfidenceLadder,
   severity: SeverityLadder,
-): string[] {
+): { evidence: string[]; rationale: string[] } {
   const evidence: string[] = [];
 
   evidence.push(`retry construct: ${site.construct} (line ${site.line})`);
@@ -307,10 +313,9 @@ function buildEvidence(
   }
   void present;
 
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
-  return evidence;
+  // The ladder trace is arithmetic about the finding, not a fact
+  // about the code, so it leaves `evidence` and rides alongside it.
+  return { evidence, rationale: scoreRationale(confidence, severity) };
 }
 
 function buildActions(

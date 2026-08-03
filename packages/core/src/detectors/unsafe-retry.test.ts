@@ -107,7 +107,7 @@ describe("unsafe_retry — positive cases", () => {
     expect(finding!.evidence.join("\n")).toContain(
       "publishOrder() calls itself from its catch block",
     );
-    expect(finding!.evidence.join("\n")).toContain("no visible attempt bound");
+    expect(finding!.score_rationale!.join("\n")).toContain("no visible attempt bound");
   });
 });
 

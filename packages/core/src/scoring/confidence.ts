@@ -187,3 +187,21 @@ function round(value: number): number {
 function fmt(value: number): string {
   return value.toFixed(2);
 }
+
+/**
+ * Collect the derivation of a finding's scores for
+ * `Finding.score_rationale`.
+ *
+ * Exists so the ten detectors that use the ladders all produce the same
+ * shape, and so the split from `evidence` is made once rather than
+ * remembered seventeen times.
+ */
+export function scoreRationale(
+  confidence: ConfidenceLadder,
+  severity?: SeverityLadder,
+): string[] {
+  const out = [confidence.explain()];
+  const escalation = severity?.explain();
+  if (escalation !== undefined) out.push(escalation);
+  return out;
+}

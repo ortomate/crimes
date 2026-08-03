@@ -2,7 +2,11 @@ import { z } from "zod";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import type { ErrorHandler } from "@crimes/language-js";
-import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreRationale,
+} from "../scoring/confidence.js";
 import { classifyBoundary } from "../domain/vocabulary.js";
 import { classifyScope } from "../util/scope-class.js";
 import { resolveDiscriminators } from "./disambiguate.js";
@@ -305,6 +309,7 @@ function buildFinding(
     .add(verdict.kind === "empty", "nothing is recorded at all", 0.06)
     .add(verdict.deliberate, "suppression appears deliberate", -0.25);
 
+  const built = buildEvidence(handler, verdict, boundary, confidence, severity);
   return {
     id: "",
     type: "swallowed_error",
@@ -321,7 +326,8 @@ function buildFinding(
     // the symbol is already unique.
     discriminator: condenseOperation(handler.protectedOperation),
     summary: buildSummary(handler, verdict, boundary),
-    evidence: buildEvidence(handler, verdict, boundary, confidence, severity),
+    evidence: built.evidence,
+    score_rationale: built.rationale,
     effort: "small",
     fix_shape: "propagate, or record the error with enough context to act on",
     scores: {
@@ -351,7 +357,7 @@ function buildEvidence(
   boundary: ReturnType<typeof classifyBoundary>,
   confidence: ConfidenceLadder,
   severity: SeverityLadder,
-): string[] {
+): { evidence: string[]; rationale: string[] } {
   const evidence: string[] = [];
 
   evidence.push(`protected operation: ${handler.protectedOperation}`);
@@ -402,10 +408,9 @@ function buildEvidence(
     );
   }
 
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
-  return evidence;
+  // The ladder trace is arithmetic about the finding, not a fact
+  // about the code, so it leaves `evidence` and rides alongside it.
+  return { evidence, rationale: scoreRationale(confidence, severity) };
 }
 
 function buildActions(

@@ -92,7 +92,7 @@ describe("contract_drift — positive cases", () => {
     });
     const [finding] = await runOn(repo);
     expect(finding!.severity).toBe("high");
-    expect(finding!.evidence.join("\n")).toMatch(
+    expect(finding!.score_rationale!.join("\n")).toMatch(
       /severity raised by:.*disagreement on identifier field/,
     );
   });
@@ -228,7 +228,9 @@ describe("contract_drift — false-positive boundaries", () => {
     const [inOneFile] = await runOn(together);
     const [acrossFiles] = await runOn(apart);
     expect(inOneFile!.confidence).toBeLessThan(acrossFiles!.confidence);
-    expect(inOneFile!.evidence.join("\n")).toContain("same file (may be deliberate)");
+    expect(inOneFile!.score_rationale!.join("\n")).toContain(
+      "same file (may be deliberate)",
+    );
   });
 });
 

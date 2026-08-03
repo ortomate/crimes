@@ -2,7 +2,11 @@ import { z } from "zod";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import type { FanOutSite, FanOutWork } from "@crimes/language-js";
-import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreRationale,
+} from "../scoring/confidence.js";
 import { classifyScope } from "../util/scope-class.js";
 import { resolveDiscriminators } from "./disambiguate.js";
 
@@ -179,6 +183,7 @@ function buildFinding(file: string, site: FanOutSite): Finding {
     .add(kinds.length >= 2, "multiple expensive operation kinds", 0.06)
     .add(runtimeSourced, "collection size is decided at runtime", 0.06);
 
+  const built = buildEvidence(site, kinds, confidence, severity);
   return {
     id: "",
     type: "unbounded_async_fanout",
@@ -203,7 +208,8 @@ function buildFinding(file: string, site: FanOutSite): Finding {
       `\`${site.kind === "promise_all" ? "Promise.all" : "Promise.allSettled"}\` ` +
       `starts one ${describeWorkList(kinds)} per element of ${site.collection}, ` +
       "with no visible bound on how many run at once.",
-    evidence: buildEvidence(site, kinds, confidence, severity),
+    evidence: built.evidence,
+    score_rationale: built.rationale,
     effort: "small",
     fix_shape: "bound the concurrency, or page the source and process in batches",
     scores: {
@@ -238,7 +244,7 @@ function buildEvidence(
   kinds: string[],
   confidence: ConfidenceLadder,
   severity: SeverityLadder,
-): string[] {
+): { evidence: string[]; rationale: string[] } {
   const evidence: string[] = [];
 
   evidence.push(
@@ -270,10 +276,9 @@ function buildEvidence(
       "start at once — N is a property of the data, not of this code",
   );
 
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
-  return evidence;
+  // The ladder trace is arithmetic about the finding, not a fact
+  // about the code, so it leaves `evidence` and rides alongside it.
+  return { evidence, rationale: scoreRationale(confidence, severity) };
 }
 
 function describeSource(source: FanOutSite["collectionSource"]): string {

@@ -17,7 +17,9 @@ For how an agent should _use_ this output, see
 
 ## Migrating from `0.5.0` to `0.6.0`
 
-- **New required field on every finding:** `fingerprint`. The finding's
+- **New required field on every finding:** `fingerprint`.
+- **New optional field:** `score_rationale` — how `confidence` and
+  `severity` were arrived at, as a base value plus named deltas. The finding's
   stable identity — `<type>::<file>::<symbol>`, plus `::<discriminator>`
   when the detector sets one.
 
@@ -688,6 +690,29 @@ This is the identifier `crimes ignore`, `crimes unignore`,
 `crimes feedback` and `crimes triage` accept; none of them take an `id`.
 Pass it through verbatim rather than reconstructing it, and quote it when
 building a shell command — the embedded path may contain spaces.
+
+New in `schema_version` 0.6.0.
+
+### `score_rationale`
+
+How this finding's `confidence` and `severity` were arrived at:
+
+```json
+"score_rationale": [
+  "confidence 0.74 = 0.58 base + 0.14 (100% field overlap) + 0.10 (1 disagreement on a critical field) - 0.08 (one side extends an interface)",
+  "severity raised by: 1 disagreement on identifier field"
+]
+```
+
+Separate from [`evidence`](#evidence) on purpose. `evidence` is receipts
+— facts about the code a reader can go and check. This is arithmetic
+about the finding itself. They were mixed until 0.6.0, which meant a
+consumer rendering "the evidence" showed a scoring trace as though it
+were a fact about the repository.
+
+Present only for detectors built on `ConfidenceLadder` /
+`SeverityLadder` — 45 findings of 9,981 on airflow. A detector with a
+flat confidence has no derivation to show and omits the field.
 
 New in `schema_version` 0.6.0.
 

@@ -9,7 +9,11 @@ import type {
   PackageManifest,
 } from "../manifest/types.js";
 import { isPinnedGitSpecifier } from "../manifest/build.js";
-import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreRationale,
+} from "../scoring/confidence.js";
 import { classifyScope } from "../util/scope-class.js";
 
 /**
@@ -278,9 +282,7 @@ function reportUndeclared(
     "this is a statement about this repository's records only — no registry " +
       "was contacted and no claim is made about the packages themselves",
   );
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
+  const rationale = scoreRationale(confidence, severity);
 
   void ctx;
 
@@ -298,6 +300,7 @@ function reportUndeclared(
       "applicable package.json. They resolve today through hoisting; a clean " +
       "install can fail.",
     evidence,
+    score_rationale: rationale,
     effort: "quick",
     fix_shape: "declare each imported package in the manifest that uses it",
     scores: {
@@ -413,9 +416,7 @@ function reportLockGaps(
     "the manifest and the lock disagree, so `install --frozen-lockfile` in CI " +
       "will resolve differently from a local install",
   );
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
+  const rationale = scoreRationale(confidence, severity);
 
   return {
     id: "",
@@ -431,6 +432,7 @@ function reportLockGaps(
       "in the committed lockfile. The two records disagree about what this " +
       "repo installs.",
     evidence,
+    score_rationale: rationale,
     effort: "quick",
     fix_shape: "re-run the package manager's install and commit the lockfile",
     scores: {
@@ -533,9 +535,7 @@ function reportUnpinned(manifest: ManifestIndex, anchor: PackageManifest): Findi
   evidence.push(
     "no registry was contacted; this is a reading of the specifier text only",
   );
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
+  const rationale = scoreRationale(confidence, severity);
 
   return [
     {
@@ -554,6 +554,7 @@ function reportUnpinned(manifest: ManifestIndex, anchor: PackageManifest): Findi
         `${mutable.length} dependency specifier(s) are not pinned to immutable ` +
         "content. Two installs of this commit can produce different code.",
       evidence,
+      score_rationale: rationale,
       effort: "quick",
       fix_shape: "pin to a commit, a published version, or a vendored copy",
       scores: {

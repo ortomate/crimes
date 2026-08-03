@@ -184,6 +184,25 @@ export interface Finding {
    */
   fix_shape: string;
   scores: FindingScores;
+  /**
+   * How this finding's `confidence` and `severity` were arrived at —
+   * the base value and each named delta that moved it.
+   *
+   *   "confidence 0.74 = 0.58 base + 0.14 (100% field overlap) …"
+   *   "severity raised by: 1 disagreement on a critical field"
+   *
+   * Separate from {@link Finding.evidence} on purpose. `evidence` is
+   * the receipts — facts about the code that a reader can go and check.
+   * This is arithmetic about the finding itself. Mixing them meant a
+   * consumer rendering "the evidence" showed a scoring trace as though
+   * it were a fact about the repository, and a consumer counting
+   * evidence lines counted one that is not evidence.
+   *
+   * Absent for detectors that do not use `ConfidenceLadder` /
+   * `SeverityLadder` — most of them, since a detector with a flat
+   * confidence has no derivation to show.
+   */
+  score_rationale?: string[];
   suggested_actions?: SuggestedAction[];
   related_files?: string[];
   /**

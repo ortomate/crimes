@@ -1,7 +1,11 @@
 import { z } from "zod";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
-import { ConfidenceLadder, SeverityLadder } from "../scoring/confidence.js";
+import {
+  ConfidenceLadder,
+  SeverityLadder,
+  scoreRationale,
+} from "../scoring/confidence.js";
 import type { ContractDisagreement, ContractDriftPair } from "../risk/types.js";
 import { resolveDiscriminators } from "./disambiguate.js";
 
@@ -185,6 +189,7 @@ function buildFinding(
     .add(!sameFile, "declarations are in different files", 0.06)
     .add(disagreements.length >= 3, `${disagreements.length} disagreements`, 0.06);
 
+  const built = buildEvidence(pair, disagreements, confidence, severity);
   return {
     id: "",
     type: "contract_drift",
@@ -210,7 +215,8 @@ function buildFinding(
       `\`${pair.left.name}\` and \`${pair.right.name}\` appear to describe the ` +
       `same record but disagree on ${describeCount(disagreements.length, "field")}. ` +
       `Nothing in the build checks the two declarations against each other.`,
-    evidence: buildEvidence(pair, disagreements, confidence, severity),
+    evidence: built.evidence,
+    score_rationale: built.rationale,
     effort: "medium",
     fix_shape: "derive one declaration from the other, or share one schema",
     scores: {
@@ -244,7 +250,7 @@ function buildEvidence(
   disagreements: ContractDisagreement[],
   confidence: ConfidenceLadder,
   severity: SeverityLadder,
-): string[] {
+): { evidence: string[]; rationale: string[] } {
   const evidence: string[] = [];
 
   evidence.push(
@@ -277,10 +283,9 @@ function buildEvidence(
     );
   }
 
-  evidence.push(confidence.explain());
-  const escalation = severity.explain();
-  if (escalation !== undefined) evidence.push(escalation);
-  return evidence;
+  // The ladder trace is arithmetic about the finding, not a fact
+  // about the code, so it leaves `evidence` and rides alongside it.
+  return { evidence, rationale: scoreRationale(confidence, severity) };
 }
 
 function suggestUnification(pair: ContractDriftPair): string {
