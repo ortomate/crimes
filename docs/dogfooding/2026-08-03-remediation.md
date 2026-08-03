@@ -466,12 +466,10 @@ Each of these is a real decision, not an oversight.
 true non-blank lines would drop every number 15–25% and effectively
 retune thresholds repo-wide. That is calibration, not a bugfix.
 
-**`weak_test_signal` still does not follow assertion helpers.** This is
-the largest remaining noise source (619 findings, **0 act from both
-judges**) and it is *not* a contained fix: `ParsedPyFile` exposes no
-general call data, only `dateCalls` and `ioCalls`. Crediting "this test
-calls a helper that asserts" requires adding call extraction to the
-Python parser. Feature-sized; scope it deliberately.
+**`weak_test_signal` follows assertion helpers as of `0.18.0`** (§1.16)
+— this entry is superseded. What remains deliberate is the *limit*: two
+hops, same file, receiver empty or `self`/`cls`. Cross-file helpers are
+still unresolved (§4d), which is why airflow only improved 12%.
 
 **`agent_risk` still collapses into length.** Fixing it changes ranking
 across every report and is a scoring-model decision, not a defect fix.
