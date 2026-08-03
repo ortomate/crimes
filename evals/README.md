@@ -79,9 +79,12 @@ with an agent improvement, or a detector bug fix with a regression.
 detector id** in the agent's response text. An answer that describes the
 same defect in prose scores zero on both.
 
-The `0.18.0` run is the clearest case on record. 19 of codex's 48
-scenarios moved; **all 12 drops carried a substantive response** — none
-empty, truncated, or errored:
+The clearest case on record came from the (later invalidated —
+see below) `0.18.0` run. 19 of codex's 48 scenarios moved; **all 12
+drops carried a substantive response** — none empty, truncated, or
+errored. The example below is from `messy-ts-app`, a TypeScript fixture
+untouched by the change that invalidated that run, so the comparison
+holds:
 
 ```
 0.17.1  "The most likely cause is `direct_date` in `src/billing.ts`…"   1.00
@@ -109,6 +112,30 @@ Fixing this means matching a detector's human-readable charge and
 `name` as well as its id, and treating a file path mentioned in any form
 as a reference. Until then, treat the aggregate as directional and read
 the per-scenario details before making a claim.
+
+### Run evals from a checkout nothing else will touch
+
+**A baseline is only valid if every scenario ran against the same
+build.** The runner scans fixtures with the built CLI, so a `pnpm build`
+part-way through silently splits the run across two products.
+
+This invalidated `0.18.0`. The run took 45 minutes; another session
+landed two `weak_test_signal` fixes and rebuilt `packages/core/dist`
+17 minutes before the end. **34 of 48 codex scenarios completed against
+the old build and 14 against the new one** — a number nothing was
+measured at. The directory was removed rather than kept with a caveat: a
+wrong baseline is worse than a missing one, because the next run
+compares against it.
+
+Before starting a run:
+
+- Check `git status` and the recent log. If anyone else is working in
+  this tree, don't start.
+- Prefer a dedicated checkout or worktree, built once, so a rebuild
+  elsewhere cannot reach it.
+- Afterwards, confirm no commit landed inside the run window
+  (`git log --since` against the run's start) and that `dist` mtimes
+  predate it.
 
 ### Identity-only bumps: carry the baseline forward
 
