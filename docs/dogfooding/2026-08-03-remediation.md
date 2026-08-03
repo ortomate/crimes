@@ -672,7 +672,11 @@ folded into them — each is a separate behaviour change.
    `large_file` outranking `contract_drift` because it sat inside the
    agent-signal band (0.31–0.53); 0.3 is the band's floor. **New
    concern**: zulip's top 20 is now 16/20 `sync_io_in_hotpath`, which is
-   a concentration of its own and the next thing to look at.
+   a concentration of its own. **Parked by the maintainer** — the score
+   is no longer a length ranking, but its shape is unsettled and is the
+   next release's focus. What is measured and what is merely believed
+   are separated in `docs/calibration-followups.md` §
+   "`agent_risk`: what we know and what we believe".
 6. ~~**Repo-level findings are invisible in the default view.**~~
    **Done** in `0.18.1` — `92af2cc`. A `Repo-level` section above the
    per-file groups, driven by an explicit type list rather than a path

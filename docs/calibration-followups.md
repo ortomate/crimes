@@ -19,6 +19,8 @@ unexamined.
 | [`exact_duplicate_block` non-determinism](#adjacent-found-while-measuring) | **Fixed** in `9ab8bdc` |
 | [`unbounded_async_fanout` in the index builders](#what-is-deliberately-still-visible-and-why) | **Fixed** in `9ab8bdc` |
 | [`large_file` has no `docs` shape](#self-scan-triage-policy-016x) | **Fixed** in `26c8c4b` |
+| [`blast_radius` scale](#blast_radius-three-shapes-and-the-numbers-behind-each) | **Fixed** in `0ac0a5e` — log-scaled |
+| [`agent_risk` shape](#agent_risk-what-we-know-and-what-we-believe) | **Parked** — decoupled in `0.18.1`; the shape is the next release's focus |
 
 ---
 
@@ -452,3 +454,118 @@ agree or disagree with, which the suppression never allowed.
 
 Self-scan default view: 254 findings, 0 `high` — five of them these
 prose entries, which were previously hidden.
+
+
+---
+
+## `blast_radius`: three shapes, and the numbers behind each
+
+**Disposition: fixed in `0ac0a5e` (0.18.1).** Recorded here because two
+shapes were tried and discarded in one session, and the discarded ones
+are the argument for the third.
+
+Measured on hono, whole repo, `--all`, 376 findings:
+
+| shape | distinct values | modal value | share at 1.0 |
+|---|---|---|---|
+| linear `min(t/50, 1)` | 22 | `0` = 54% | 8.5% |
+| quartile rank | 4 | `0.25` = 53% | 31.6% |
+| log `log1p(t)/log1p(2000)` | **40** | `0` = 54% | **0.0%** |
+
+The linear score saturated (47% of zulip findings at exactly 1.0 was the
+original complaint). Quartile ranking was the standing recommendation
+and removed the top-end pinning, but cost resolution — 22 distinct
+values down to 4 — and could not separate a tied block bigger than a
+quartile, so hono's 54%-at-0 simply became 53%-at-0.25. It also gave up
+cross-repo comparability.
+
+Log scaling bounds the top by construction, keeps every distinct closure
+a distinct score, and restores comparability via a fixed reference.
+
+The 54% modal value at `0` survives all three shapes and **should**:
+54% of hono's finding-bearing files have no importers. That is a fact
+about hono, not a scoring artefact, and quartile ranking only relabelled
+it.
+
+Direct fan-in was planned as a strict tiebreaker on the closure. It ships
+as a bounded 15% contributor instead, because a strict tiebreak is
+invisible at the two decimals `scores` are reported to — at a closure of
+197 the gap to 198 is 0.0006, so hono's plateau would have kept reading
+the same value six times.
+
+---
+
+## `agent_risk`: what we know and what we believe
+
+**Disposition: parked. The shape of this score is the focus of the next
+release.** The 0.18.1 change (`ce0ccab`) removed a defect; it did not
+settle what this score should be, and the difference matters.
+
+### What we know — measured, reproducible
+
+- **It was a length ranking.** Top 20 by rank before the change: 15 of
+  20 on `ebg` and 18 of 20 on zulip were `large_function` /
+  `large_file`. On zulip — a repo that is **71% Python** — the top 20
+  contained **zero Python findings**.
+- **Two mechanisms caused it**, not one. Length detectors fire on almost
+  every large file *and* scale their own intrinsic with line count, so
+  they won on volume and on score simultaneously. Separately, the
+  fallback intrinsic for the ~18 detectors that express none of their
+  own was derived from severity, which re-coupled the two axes
+  `CLAUDE.md` and PRD §10 both say must stay separate.
+- **Decoupling worked, on both languages.** After `ce0ccab`:
+  zulip/zerver structural 18→0 of the top 20 and Python 0→20 of 20;
+  hono structural 14→0, distinct detector types in the top 20 8→10, with
+  `boolean_naming_drift`, `option_bag_junk_drawer`,
+  `name_behavior_mismatch` and `hardcoded_localhost` at the top.
+- **The ceiling had to be measured.** At 0.4 — the first value tried —
+  212 zulip findings pinned to the cap and `large_file` still outranked
+  `contract_drift`, because 0.4 sits *inside* the agent-signal band
+  (0.31–0.53). 0.3 is that band's floor.
+- **One monoculture replaced another.** zulip's top 20 is now 16 of 20
+  `sync_io_in_hotpath`.
+
+### What we believe — not yet established
+
+- **That the class table is the right abstraction.** Sorting types into
+  `structural` / `agent_signal` / `standard` is a hand-maintained
+  judgement about ~60 detectors. It is legible and it works, but nothing
+  validates it beyond the author's reading of each charge. A detector
+  added without a class silently lands in `standard`.
+- **That a hard ceiling is the right mechanism.** It is blunt: every
+  structural finding above the cap collapses to exactly 0.3, which is
+  the same plateau problem `blast_radius` was just fixed for. A
+  monotonic squash would preserve order within the class.
+- **That the `sync_io_in_hotpath` concentration is acceptable.** It is
+  at least a differentiated detector firing on a repo that genuinely has
+  a lot of blocking I/O in Python, rather than a length proxy. But 16 of
+  20 is not obviously better than 18 of 20; it may just be a more
+  interesting monoculture. We do not know whether the fix improved
+  *ranking* or only improved *which detector dominates*.
+- **That per-detector intrinsics are calibrated against each other.**
+  They were each chosen locally, by whoever wrote the detector. Nothing
+  has ever compared `sync_io_in_hotpath`'s 0.5–0.7 band against
+  `contract_drift`'s. The band structure the ceiling was fitted to is
+  therefore itself unvalidated.
+- **That the evals can see any of this.** `agent_risk` drives rank
+  order, and the eval fixtures are small and mostly-clean, so a ranking
+  change may not move the aggregate at all. Confirming this change
+  helped an agent probably needs a scenario built for it.
+
+### What the next release needs to answer
+
+1. Is a hard ceiling right, or should the structural class be squashed
+   monotonically so it keeps internal order?
+2. Are per-detector intrinsics calibrated against each other, and what
+   would calibrating them look like?
+3. Is one detector at 16 of 20 a problem in itself — should the ranking
+   diversify across detector types deliberately, the way the default
+   view already diversifies across files?
+4. Can any of this be measured other than by reading top-20 lists? A
+   ranking-quality metric would turn all of the above from taste into
+   evidence.
+
+Until those are answered, `ce0ccab` stands as a defect fix — the score
+is no longer a length ranking, and no longer correlated with severity by
+construction — and nothing more should be read into the specific
+numbers.

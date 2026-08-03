@@ -39,6 +39,21 @@
  * local badness and its agent risk are different questions, and
  * answering the second with the first is exactly the collapse being
  * fixed.
+ *
+ * ## This is a defect fix, not a settled design
+ *
+ * The score is no longer a length ranking. What its shape *should* be
+ * is an open question and the focus of the next release — including
+ * whether a hard ceiling is the right mechanism (it collapses every
+ * structural finding above the cap to exactly 0.3, the same plateau
+ * problem `blast_radius` was just fixed for), whether per-detector
+ * intrinsics are calibrated against each other at all, and whether
+ * zulip's new 16-of-20 `sync_io_in_hotpath` concentration is an
+ * improvement or just a different monoculture.
+ *
+ * `docs/calibration-followups.md` § "`agent_risk`: what we know and
+ * what we believe" separates the measured facts from the assumptions.
+ * Read it before retuning any number in this file.
  */
 
 /**
