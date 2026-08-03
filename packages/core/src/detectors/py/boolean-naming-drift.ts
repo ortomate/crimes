@@ -127,13 +127,15 @@ export const booleanNamingDriftPyDetector: LanguagePyDetector = {
         ...shown.map(
           (a) =>
             `\`${a.name}\` = <${a.initializerKind.replace(/_/g, " ")}> at line ${a.line}` +
-            (a.functionName !== undefined ? ` in ${a.functionName}()` : "") +
-            (a.attributeTarget ? " (instance attribute)" : ""),
+            (a.functionName !== undefined ? ` in ${a.functionName}()` : ""),
         ),
         ...(offenders.length > shown.length
           ? [`…+${offenders.length - shown.length} more`]
           : []),
         "convention: is_ / has_ / should_ / can_ prefix, or an idiomatic bare name",
+        "local bindings only — class attributes, instance attributes and " +
+          "annotated declarations are published interface, not a naming choice " +
+          "a reader can make freely",
       ],
       effort: "quick",
       fix_shape: "rename to an is_/has_/should_ prefix",
@@ -166,11 +168,30 @@ export const booleanNamingDriftPyDetector: LanguagePyDetector = {
 };
 
 function isDrift(assignment: PyAssignment, allowed: ReadonlySet<string>): boolean {
-  // Only names we are certain hold a boolean. An annotated `: bool` also
-  // counts — the annotation proves the type, but the name still hides it
-  // from every call site that doesn't look at the declaration.
-  const annotatedBool = assignment.annotation === "bool";
-  if (!annotatedBool && !BOOLEAN_INITIALIZER_KINDS.has(assignment.initializerKind)) {
+  // The charge is scoped to *local bindings inside a function*, because
+  // that is the only place its own rationale holds: a reader fifty lines
+  // from `retry = True` has nothing but the name to go on.
+  //
+  // Everything else on this list is a **declaration site**, where the
+  // type is written down next to the name and where the name is part of
+  // somebody's interface:
+  //
+  //  - A class-body attribute is published API. Renaming DRF's `many`
+  //    (`Serializer(many=True)`) or pydantic's `strip_whitespace` is a
+  //    semver-major change, and this detector was proposing it at
+  //    `effort: "quick"`. For Django's `Meta.abstract` and
+  //    `Migration.atomic` it is not even possible — the framework reads
+  //    those names.
+  //  - An instance attribute (`self.coerce_to_string = True`) is the
+  //    same interface one indirection along.
+  //  - An annotated binding already says `: bool`. Flagging it charged
+  //    the reader for taking this detector's own advice, which is
+  //    literally "rename it, or add a `: bool` annotation".
+  if (assignment.functionName === undefined) return false;
+  if (assignment.attributeTarget) return false;
+  if (assignment.annotation !== undefined) return false;
+
+  if (!BOOLEAN_INITIALIZER_KINDS.has(assignment.initializerKind)) {
     return false;
   }
   const name = assignment.name;

@@ -208,6 +208,89 @@ describe("direct_date.py", () => {
   });
 });
 
+describe("boolean_naming_drift.py — declaration sites are not local bindings", () => {
+  it("does not flag a class-body attribute", async () => {
+    // DRF's `many`, `public`, `coerce_to_string`; pydantic's
+    // `strip_whitespace`, `fail_fast`, `repr`; Django's
+    // `Meta.abstract` and `Migration.atomic`. Every one is part of a
+    // type's published interface, so the "rename it" fix this detector
+    // offers at effort:"quick" is a semver-major change to someone's
+    // public API — and for the Django pair it is not even possible, the
+    // framework reads those names.
+    expect(
+      await run(
+        booleanNamingDriftPyDetector,
+        "rest_framework/serializers.py",
+        [
+          "class ListSerializer(BaseSerializer):",
+          "    many = True",
+          "    public = False",
+          "",
+          "class Migration(migrations.Migration):",
+          "    atomic = False",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not flag a binding already annotated : bool", async () => {
+    // The detector's own suggested fix is "rename it, or add a `: bool`
+    // annotation". Flagging a binding that already has one charges the
+    // reader for taking the advice.
+    expect(
+      await run(
+        booleanNamingDriftPyDetector,
+        "pydantic/types.py",
+        [
+          "def build():",
+          "    strip_whitespace: bool = False",
+          "    fail_fast: bool = True",
+          "    strict: bool = False",
+          "    coerce: bool = True",
+          "    return strip_whitespace",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not flag an instance attribute set in __init__", async () => {
+    expect(
+      await run(
+        booleanNamingDriftPyDetector,
+        "rest_framework/fields.py",
+        [
+          "class Field:",
+          "    def __init__(self):",
+          "        self.coerce_to_string = True",
+          "        self.default_empty_html = False",
+          "        self.partial = True",
+          "        self.allow_blank_value = False",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("still flags an unannotated local binding, which is the actual charge", async () => {
+    // The rationale is that a reader fifty lines from the assignment has
+    // no clue what `retry` holds. That is true of a local and of nothing
+    // else here.
+    const found = await run(
+      booleanNamingDriftPyDetector,
+      "src/billing.py",
+      [
+        "def charge(invoice):",
+        "    retry = True",
+        "    partial = False",
+        "    dunning = True",
+        "    escalate = False",
+        "    return retry",
+      ].join("\n"),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]!.evidence.join(" ")).toMatch(/`retry`/);
+  });
+});
+
 describe("mixed_utc_local_methods.py", () => {
   it("fires only when both families appear", async () => {
     const found = await run(
