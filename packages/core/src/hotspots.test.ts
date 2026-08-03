@@ -165,4 +165,48 @@ describe("hotspots", () => {
     const calmIdx = report.hotspots.findIndex((h) => h.file === "calm.ts");
     expect(hotIdx).toBeLessThan(calmIdx);
   });
+
+  it("does not rank a manifest or lockfile as a hotspot", {
+    timeout: 30000,
+  }, async () => {
+    // hono's #1 hotspot was `package.json` at risk 0.72 — 29 changes in
+    // 90 days and one `low` finding. A manifest churns because versions
+    // move, which is not what "this file is risky to change" means, and
+    // `scan` does not even analyse it.
+    const root = await makeRepo({});
+    await initGitRepo(root);
+    await writeFile(join(root, "src.ts"), "export const x = 1;\n", "utf8");
+    await git(root, ["add", "."]);
+    await git(root, ["commit", "-m", "init", "--no-verify"]);
+
+    for (let i = 0; i < 8; i++) {
+      await writeFile(
+        join(root, "package.json"),
+        JSON.stringify({ name: "app", version: `0.0.${i}` }),
+        "utf8",
+      );
+      await writeFile(join(root, "pnpm-lock.yaml"), `lockfileVersion: ${i}\n`, "utf8");
+      await writeFile(join(root, "CHANGELOG.md"), `# ${i}\n`, "utf8");
+      await git(root, ["add", "."]);
+      await git(root, ["commit", "-m", `bump ${i}`, "--no-verify"]);
+    }
+
+    const report = await hotspots({ root });
+    const files = report.hotspots.map((h) => h.file);
+    expect(files).not.toContain("package.json");
+    expect(files).not.toContain("pnpm-lock.yaml");
+    expect(files).not.toContain("CHANGELOG.md");
+  });
+
+  it("says so when there is no churn signal to rank on", {
+    timeout: 30000,
+  }, async () => {
+    // On a quiet repo every row scores the same and the order collapses
+    // to alphabetical — while the output still prints a confident
+    // percentage. Say which situation the reader is in.
+    const root = await makeRepo({});
+    const report = await hotspots({ root });
+    expect(report.git_available).toBe(false);
+    expect(report.ranking_note).toMatch(/churn/i);
+  });
 });

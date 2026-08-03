@@ -42,6 +42,11 @@ export function formatHotspotsReport(
       report.history_limited_reason ?? "shallow clone — older commits are unavailable";
     lines.push(colour.yellow(`  (history limited: ${reason})`));
   }
+  // A degenerate ranking prints the same confident percentages as a real
+  // one. Say which the reader is looking at.
+  if (report.git_available && report.ranking_note) {
+    lines.push(colour.yellow(`  (${report.ranking_note})`));
+  }
 
   lines.push("");
 

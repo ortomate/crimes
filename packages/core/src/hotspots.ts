@@ -5,6 +5,7 @@ import type { Detector } from "./detector.js";
 import type { Finding, Severity } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { collectChurn } from "./git/churn.js";
+import { isNeverReportable } from "./util/scope-class.js";
 import { scan } from "./scan.js";
 
 export type HighestSeverity = "none" | Severity;
@@ -48,6 +49,13 @@ export interface HotspotsReport {
   /** Short reason string. Only set when `history_limited` is true. */
   history_limited_reason?: string;
   /**
+   * Set when the ranking rests on less than it appears to — no churn
+   * signal at all, or every row scoring identically so the order is
+   * really alphabetical. The percentages are still accurate; what this
+   * says is that they do not separate the rows.
+   */
+  ranking_note?: string;
+  /**
    * Optional presentation metadata. Commands that cap the returned list
    * populate these fields so agents can tell whether more rows exist.
    */
@@ -87,6 +95,34 @@ const SEVERITY_RANK: Record<HighestSeverity, number> = {
  * window scores 1.0 on the churn axis.
  */
 const CHURN_CAP = 20;
+
+/**
+ * Files that churn for reasons unrelated to how risky they are to
+ * change, and which `crimes scan` does not analyse anyway.
+ *
+ * hono's top hotspot was `package.json` at risk 0.72 — 29 changes in 90
+ * days, one `low` finding. A manifest moves because versions move; a
+ * lockfile moves because the manifest did; a changelog moves because
+ * everything else did. Ranking them first buries the source files the
+ * command exists to surface, and it is also where `hotspots` and `scan`
+ * visibly disagreed about which files are even in scope.
+ */
+const NOT_A_HOTSPOT_RE =
+  /(^|\/)(package(-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|npm-shrinkwrap\.json|bun\.lockb?|Cargo\.lock|poetry\.lock|uv\.lock|Gemfile\.lock|go\.sum|composer\.lock|requirements(-\w+)?\.txt|CHANGELOG(\.\w+)?|AUTHORS|CONTRIBUTORS)$/i;
+
+/**
+ * Is this file eligible to be ranked as a hotspot?
+ *
+ * The universe must match what `scan` looks at, or the two commands
+ * describe different repositories. Generated and vendored code is
+ * excluded for the same reason it is excluded from findings, and
+ * churn-only bookkeeping files are excluded because their churn does not
+ * mean what the score says it means.
+ */
+function isRankable(file: string): boolean {
+  if (NOT_A_HOTSPOT_RE.test(file)) return false;
+  return !isNeverReportable(file);
+}
 
 /**
  * Aggregate change-risk score in [0, 1], rounded to 2 decimal places.
@@ -148,6 +184,8 @@ export async function hotspots(options: HotspotsOptions = {}): Promise<HotspotsR
     git_available: churn.gitAvailable,
     hotspots: filtered,
   };
+  const note = rankingNote(filtered, churn.gitAvailable);
+  if (note !== undefined) report.ranking_note = note;
   if (churn.historyLimited) {
     report.history_limited = true;
     if (churn.historyLimitedReason) {
@@ -155,6 +193,27 @@ export async function hotspots(options: HotspotsOptions = {}): Promise<HotspotsR
     }
   }
   return report;
+}
+
+/**
+ * Say when the ordering carries less information than the percentages
+ * suggest — a scanner whose whole value is being trustworthy should not
+ * print "risk 0.30 (30%)" down a list whose order is really
+ * `localeCompare`.
+ */
+function rankingNote(rows: Hotspot[], gitAvailable: boolean): string | undefined {
+  if (!gitAvailable) {
+    return "no churn signal (not a git repository, or git is unavailable) — rows are ranked by finding severity alone";
+  }
+  if (rows.length === 0) return undefined;
+  if (rows.every((r) => r.change_count === 0)) {
+    return "no file changed in this window — rows are ranked by finding severity alone";
+  }
+  const distinct = new Set(rows.map((r) => r.risk));
+  if (distinct.size === 1) {
+    return "every file scores the same risk in this window — the order below is alphabetical, not a ranking";
+  }
+  return undefined;
 }
 
 interface ChurnRow {
@@ -171,6 +230,7 @@ function buildHotspotRows(findings: Finding[], churnRows: ChurnRow[]): Hotspot[]
   );
   return rows
     .filter((h) => h.change_count > 0 || h.finding_count > 0)
+    .filter((h) => isRankable(h.file))
     .sort(compareHotspots);
 }
 
