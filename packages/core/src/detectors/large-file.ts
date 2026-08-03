@@ -12,7 +12,7 @@ type LargeFileShape = "domain" | "test_file" | "docs";
  * `.json`, `.yaml`, and friends are data, and a 3000-line config is a
  * finding worth keeping.
  */
-const DOCS_EXT_RE = /\.(md|mdx|markdown|rst|adoc|asciidoc|txt)$/i;
+export const DOCS_EXT_RE = /\.(md|mdx|markdown|rst|adoc|asciidoc|txt)$/i;
 
 /**
  * Default line budget for the `docs` shape.

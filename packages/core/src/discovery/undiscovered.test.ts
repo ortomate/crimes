@@ -174,12 +174,14 @@ describe("collectDiscoveryWarnings", () => {
   });
 
   it("still calls an unscanned extension unscanned even inside a dot-directory", async () => {
+    // `.vue`, not `.yml`: YAML became discoverable in 0.18.1 when the
+    // structured-data extensions were added to DEFAULT_SOURCE_INCLUDES.
     const root = await makeRepo({
       "main.ts": "export const x = 1;\n",
-      ".github/workflows/ci.yml": "on: push\n",
+      ".github/components/Widget.vue": "<template/>\n",
     });
     const warnings = await warningsFor(root);
-    expect(warnings.find((w) => w.kind === "files_not_discovered")?.subject).toBe(".yml");
+    expect(warnings.find((w) => w.kind === "files_not_discovered")?.subject).toBe(".vue");
     expect(warnings.some((w) => w.kind === "files_in_hidden_path")).toBe(false);
   });
 

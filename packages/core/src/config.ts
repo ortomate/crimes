@@ -200,8 +200,18 @@ export const DEFAULT_SOURCE_INCLUDES: string[] = [
   "**/*.{py,pyi}",
   // Other popular source languages — universal pack only for now
   "**/*.{rs,go,rb,java,kt,scala,swift,c,h,cpp,hpp,cs,php,ex,exs,lua,sh,bash,zsh}",
-  // Documentation (docs_code_drift detects broken links here)
-  "**/*.{md,mdx}",
+  // Documentation. Must stay in step with `large_file`'s `DOCS_EXT_RE`:
+  // that detector has recognised seven prose extensions since 0.17.0
+  // and only two of them were ever discovered, so the `docs` line
+  // budget was unreachable for `.rst`, `.adoc` and `.txt` at default
+  // config — the shape existed and could not fire.
+  "**/*.{md,mdx,markdown,rst,adoc,asciidoc,txt}",
+  // Structured data. `large_file` deliberately does *not* give these the
+  // prose budget ("a 3000-line config is a finding worth keeping"), and
+  // that rule was equally unreachable because the files were never
+  // discovered. Manifests and lockfiles are excluded below: they are
+  // long by nature and nobody hand-maintains their length.
+  "**/*.{json,yaml,yml,toml}",
 ];
 
 export const DEFAULT_CONFIG: CrimesConfig = {
@@ -216,6 +226,20 @@ export const DEFAULT_CONFIG: CrimesConfig = {
     "**/*.min.js",
     "**/*.generated.*",
     "**/.crimes/**",
+    // Machine-maintained data whose length is not a maintainability
+    // signal. Added with the `.json`/`.yaml` includes above — without
+    // these a lockfile is the largest "file" in most repositories.
+    "**/package-lock.json",
+    "**/pnpm-lock.yaml",
+    "**/yarn.lock",
+    "**/npm-shrinkwrap.json",
+    "**/Cargo.lock",
+    "**/poetry.lock",
+    "**/uv.lock",
+    "**/composer.lock",
+    "**/*.lock",
+    "**/tsconfig*.json",
+    "**/pnpm-workspace.yaml",
   ],
   thresholds: {
     largeFileLines: 300,

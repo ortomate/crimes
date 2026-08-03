@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   ConfigParseError,
   DEFAULT_CONFIG,
+  DEFAULT_SOURCE_INCLUDES,
   DEFAULT_SUPPRESSIONS_PATH,
   loadConfig,
   loadConfigDetailed,
@@ -26,6 +27,33 @@ async function writeConfig(root: string, body: unknown): Promise<void> {
     "utf8",
   );
 }
+
+import { DOCS_EXT_RE } from "./detectors/large-file.js";
+
+describe("DEFAULT_SOURCE_INCLUDES", () => {
+  it("discovers every extension large_file has a docs shape for", () => {
+    // These two lists drifted: `large_file` recognised seven prose
+    // extensions from 0.17.0 and only `.md` / `.mdx` were ever
+    // discovered, so the `docs` line budget could not fire for `.rst`,
+    // `.adoc`, `.markdown`, `.asciidoc` or `.txt` at default config.
+    // A shape that cannot be reached is not a feature.
+    const globbed = DEFAULT_SOURCE_INCLUDES.join(" ");
+    for (const ext of ["md", "mdx", "markdown", "rst", "adoc", "asciidoc", "txt"]) {
+      expect(DOCS_EXT_RE.test(`x.${ext}`), `${ext} should match DOCS_EXT_RE`).toBe(true);
+      expect(globbed, `${ext} should be discoverable`).toContain(ext);
+    }
+  });
+
+  it("discovers structured data but not machine-maintained lockfiles", () => {
+    const globbed = DEFAULT_SOURCE_INCLUDES.join(" ");
+    expect(globbed).toContain("json");
+    expect(globbed).toContain("yaml");
+    const excluded = DEFAULT_CONFIG.exclude.join(" ");
+    expect(excluded).toContain("pnpm-lock.yaml");
+    expect(excluded).toContain("package-lock.json");
+    expect(excluded).toContain("*.lock");
+  });
+});
 
 describe("loadConfig", () => {
   it("returns DEFAULT_CONFIG when no crimes.config.json exists", async () => {
