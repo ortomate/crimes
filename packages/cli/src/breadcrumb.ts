@@ -61,6 +61,40 @@ export function emitDetectorsDisabledBreadcrumb(
 }
 
 /**
+ * Tell the user about a detector that did not run because it ships
+ * gated.
+ *
+ * A detector that is off by default is invisible otherwise, and a
+ * scanner whose whole value is being trustworthy should not quietly
+ * decline to look at something. Unlike the `detectors.disable`
+ * breadcrumb this fires for a single detector, because the user did not
+ * choose this one — we did.
+ *
+ *   crimes: parallel_destination did not run (off by default).
+ *           Enable it with "detectors": { "enable": ["parallel_destination"] }.
+ *
+ * Fires even under `--no-color` / a piped stdout, unlike the
+ * `detectors.disable` breadcrumb next to it. That one reports a choice
+ * the *user* made and can be told to stay quiet about; this one reports
+ * a choice *we* made on their behalf, and a scan that silently declines
+ * to run a detector is the same failure mode as a scan that silently
+ * skips files. It goes to stderr, so piped JSON is unaffected.
+ */
+export function emitDefaultOffDetectorsBreadcrumb(
+  gated: readonly string[],
+  options: BreadcrumbOptions = {},
+): void {
+  if (gated.length === 0) return;
+  const stderr = options.stderr ?? process.stderr;
+  const names = [...gated].sort().join(", ");
+  const list = gated.map((id) => `"${id}"`).join(", ");
+  stderr.write(
+    `crimes: ${names} did not run (off by default).\n` +
+      `        Enable with "detectors": { "enable": [${list}] }.\n`,
+  );
+}
+
+/**
  * One-line stderr breadcrumb fired by every scan-like command when one or
  * more feedback-sourced suppressions resurfaced (their pinned minor is
  * older than the current crimes minor). The calibration loop relies on

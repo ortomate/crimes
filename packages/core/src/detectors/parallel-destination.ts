@@ -24,6 +24,22 @@ import type { IaIndex, IaRouteSignal } from "../ia/types.js";
 export const parallelDestinationDetector: LanguageJsDetector = {
   id: "parallel_destination",
   name: "Parallel Destination",
+  /**
+   * Off unless `detectors.enable` names it.
+   *
+   * Measured on n8n `packages/frontend/editor-ui`: **2,819 findings
+   * across 134 files, 52.8% of that package's entire report**, and zero
+   * findings on every other repo in the corpus. The pairs are Vue
+   * composables matched on the token `use` —
+   * `useNodeHelpers` against `useWorkflowDocumentNodeGroups`, evidence
+   * "shared tokens: use, node", with the detector's own output
+   * recording "no nav, doc, or import link between them".
+   *
+   * A repo with genuinely parallel route trees is still served by
+   * turning it on. A repo that merely uses a naming convention should
+   * not have half its report be this.
+   */
+  defaultOff: true,
   description:
     "Flags pairs of route files that appear to serve overlapping user " +
     "intent across different parts of the IA.",

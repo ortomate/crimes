@@ -44,6 +44,22 @@ interface BaseDetector {
    * detectors.
    */
   optionsSchema?: z.ZodType<unknown>;
+  /**
+   * When true this detector does **not** run unless the user names it in
+   * `detectors.enable`.
+   *
+   * Reserved for detectors whose output is dominated by one repo shape
+   * badly enough that leaving them on costs more than they return, but
+   * which are worth keeping for the repos they do serve. It is a product
+   * decision, not a way to park a bug: a detector that is simply wrong
+   * gets fixed or deleted.
+   *
+   * The one detector carrying it is `parallel_destination` — 2,819
+   * findings on n8n's `editor-ui`, 52.8% of that package's whole report,
+   * from pairing Vue composables on the token `use`, and zero findings
+   * on every other repo in the corpus.
+   */
+  defaultOff?: true;
 }
 
 /**
@@ -136,6 +152,22 @@ export interface AssetDetector {
    * `detectors.options.<id>`. Same contract as {@link Detector.optionsSchema}.
    */
   optionsSchema?: z.ZodType<unknown>;
+  /**
+   * When true this detector does **not** run unless the user names it in
+   * `detectors.enable`.
+   *
+   * Reserved for detectors whose output is dominated by one repo shape
+   * badly enough that leaving them on costs more than they return, but
+   * which are worth keeping for the repos they do serve. It is a product
+   * decision, not a way to park a bug: a detector that is simply wrong
+   * gets fixed or deleted.
+   *
+   * The one detector carrying it is `parallel_destination` — 2,819
+   * findings on n8n's `editor-ui`, 52.8% of that package's whole report,
+   * from pairing Vue composables on the token `use`, and zero findings
+   * on every other repo in the corpus.
+   */
+  defaultOff?: true;
   run(ctx: AssetDetectorContext): Promise<PreFinding[]> | PreFinding[];
 }
 

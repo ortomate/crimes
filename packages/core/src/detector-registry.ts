@@ -244,7 +244,7 @@ export function collectKnownIds(
   return ids;
 }
 
-function applyEnableDisable<T extends { id: string }>(
+function applyEnableDisable<T extends { id: string; defaultOff?: true }>(
   available: T[],
   config: CrimesConfig,
   knownIds: Set<string>,
@@ -259,16 +259,40 @@ function applyEnableDisable<T extends { id: string }>(
     if (!knownIds.has(id)) throw new UnknownDetectorError(id);
   }
 
+  const enableSet = new Set(enable);
+
   let pool = available;
   if (enable.length > 0) {
-    const enableSet = new Set(enable);
     pool = pool.filter((d) => enableSet.has(d.id));
   }
+  // A `defaultOff` detector runs only when named. This is checked after
+  // the allowlist rather than inside it so that an `enable` list for
+  // unrelated detectors does not quietly switch a gated one on, and so
+  // that `disable` still wins — the filter below runs last.
+  pool = pool.filter((d) => d.defaultOff !== true || enableSet.has(d.id));
   if (disable.length > 0) {
     const disableSet = new Set(disable);
     pool = pool.filter((d) => !disableSet.has(d.id));
   }
   return pool;
+}
+
+/**
+ * Detector ids that ship gated and were therefore not in this run.
+ *
+ * Returns the ids the CLI should tell the user about: `defaultOff`
+ * detectors the config did not opt into. A detector the user explicitly
+ * disabled is their decision and is not reported here.
+ */
+export function defaultOffDetectorIds(
+  available: readonly { id: string; defaultOff?: true }[],
+  config: CrimesConfig,
+): string[] {
+  const enable = new Set(config.detectors?.enable ?? []);
+  return available
+    .filter((d) => d.defaultOff === true && !enable.has(d.id))
+    .map((d) => d.id)
+    .sort();
 }
 
 export class UnknownDetectorError extends Error {

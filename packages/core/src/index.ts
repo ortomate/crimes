@@ -386,6 +386,7 @@ export {
   buildDetectorRegistry,
   builtInAssetDetectors,
   builtInDetectors,
+  defaultOffDetectorIds,
   filterAssetDetectors,
   filterDetectors,
   UnknownDetectorError,

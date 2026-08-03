@@ -1,6 +1,70 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_CONFIG } from "./config.js";
 import type { Detector } from "./detector.js";
-import { builtInDetectors, groupDetectorsByPack } from "./detector-registry.js";
+import {
+  builtInDetectors,
+  filterDetectors,
+  groupDetectorsByPack,
+} from "./detector-registry.js";
+
+describe("default-off detectors", () => {
+  function configWith(
+    detectors: Partial<NonNullable<typeof DEFAULT_CONFIG.detectors>>,
+  ): typeof DEFAULT_CONFIG {
+    return {
+      ...DEFAULT_CONFIG,
+      detectors: { ...DEFAULT_CONFIG.detectors, ...detectors },
+    };
+  }
+
+  it("leaves parallel_destination out of a default scan", () => {
+    // 2,819 findings on n8n's editor-ui — 52.8% of that package's entire
+    // report — from pairing Vue composables on the token `use`, and zero
+    // findings on every other repo in the corpus.
+    const ids = filterDetectors(builtInDetectors, DEFAULT_CONFIG).map((d) => d.id);
+    expect(ids).not.toContain("parallel_destination");
+  });
+
+  it("runs it when the config asks for it by name", () => {
+    const ids = filterDetectors(
+      builtInDetectors,
+      configWith({ enable: ["parallel_destination"] }),
+    ).map((d) => d.id);
+    expect(ids).toContain("parallel_destination");
+  });
+
+  it("keeps every other detector on by default", () => {
+    const defaultIds = new Set(
+      filterDetectors(builtInDetectors, DEFAULT_CONFIG).map((d) => d.id),
+    );
+    const offByDefault = builtInDetectors
+      .filter((d) => !defaultIds.has(d.id))
+      .map((d) => d.id);
+    // Exactly one detector is gated. Adding another is a product
+    // decision, not a refactor, so it has to change this list.
+    expect(offByDefault).toEqual(["parallel_destination"]);
+  });
+
+  it("does not resurrect a default-off detector via an unrelated enable list", () => {
+    const ids = filterDetectors(
+      builtInDetectors,
+      configWith({ enable: ["large_function"] }),
+    ).map((d) => d.id);
+    expect(ids).toContain("large_function");
+    expect(ids).not.toContain("parallel_destination");
+  });
+
+  it("still lets disable win over an explicit enable", () => {
+    const ids = filterDetectors(
+      builtInDetectors,
+      configWith({
+        enable: ["parallel_destination"],
+        disable: ["parallel_destination"],
+      }),
+    ).map((d) => d.id);
+    expect(ids).not.toContain("parallel_destination");
+  });
+});
 
 describe("groupDetectorsByPack", () => {
   it("returns separate lists per pack", () => {
