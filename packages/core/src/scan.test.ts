@@ -88,6 +88,28 @@ describe("scan", () => {
     }
   });
 
+  it("reports nothing in a file scope-class calls never-reportable", async () => {
+    // `isNeverReportable` was consulted by the 0.16.0 detectors and by
+    // nobody else, so the ~50 detectors that predate it reported freely
+    // on generated code. On airflow that was 44 findings across 15
+    // `.gen.ts` files — from large_function, large_file,
+    // option_bag_junk_drawer, high_fan_in_fan_out and four others.
+    const big = Array.from({ length: 800 }, () => "// line").join("\n");
+    const root = await makeRepo({
+      "src/client.gen.ts": big,
+      "src/generated/api.ts": big,
+      "vendor/lib.ts": big,
+      "src/real.ts": big,
+    });
+
+    const report = await scan({ root });
+    const files = new Set(report.findings.map((f) => f.file));
+    expect(files).toContain("src/real.ts");
+    expect(files).not.toContain("src/client.gen.ts");
+    expect(files).not.toContain("src/generated/api.ts");
+    expect(files).not.toContain("vendor/lib.ts");
+  });
+
   it("ignores files under dist/ and node_modules/", async () => {
     const root = await makeRepo({});
     const report = await scan({ root });

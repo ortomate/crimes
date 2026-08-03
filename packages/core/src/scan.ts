@@ -16,6 +16,7 @@ import {
 import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import { buildCoverage } from "./discovery/coverage.js";
 import { CoverageWarningLog } from "./discovery/coverage-warnings.js";
+import { isNeverReportable } from "./util/scope-class.js";
 import { collectDiscoveryWarnings } from "./discovery/undiscovered.js";
 import { discoverAssetFiles, runAssetDetectorsForRoot } from "./scan-assets.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
@@ -116,6 +117,29 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     detectors: assetDetectors,
   });
   findings.push(...assetFindings);
+
+  // One place enforces the never-reportable policy, because ~50
+  // detectors predate `scope-class` and none of them ask.
+  //
+  // `isNeverReportable` was written in 0.16.0 and consulted only by the
+  // detectors added alongside it. Everything older reported freely on
+  // generated and vendored code: on airflow that was 44 findings across
+  // 15 `.gen.ts` files, from `large_function`, `large_file`,
+  // `option_bag_junk_drawer`, `high_fan_in_fan_out`,
+  // `magic_domain_literal_scatter`, `name_behavior_mismatch`,
+  // `boolean_naming_drift` and `logic_in_comments` — a machine-written
+  // API client accused of having a God Function.
+  //
+  // Filtering here rather than teaching every detector to check means
+  // the policy cannot drift back out of sync, and a detector added
+  // tomorrow inherits it without knowing it exists.
+  // Not recorded in `coverage.warnings`: those files *were* analysed and
+  // this is deliberate policy, not an accidental gap. Conflating the two
+  // would make the field that exists to expose silent skips report an
+  // intended one.
+  const reportable = findings.filter((f) => !isNeverReportable(f.file));
+  findings.length = 0;
+  findings.push(...reportable);
 
   const coverage = buildCoverage({
     files: inputs.allFiles,

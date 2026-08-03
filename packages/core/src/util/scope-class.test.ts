@@ -4,6 +4,7 @@ import {
   isNeverReportable,
   isProductionScope,
   looksGeneratedSource,
+  looksMinifiedSource,
   scopeConfidenceMultiplier,
 } from "./scope-class.js";
 
@@ -53,6 +54,48 @@ describe("classifyScope", () => {
     expect(classifyScope("src\\__generated__\\schema.ts")).toBe("generated");
     expect(classifyScope("test\\fixtures\\user.ts")).toBe("fixture");
     expect(classifyScope("src\\billing.test.ts")).toBe("test");
+  });
+});
+
+describe("classifyScope — shapes found in the corpus", () => {
+  it("recognises protobuf output", () => {
+    expect(classifyScope("proto/events_pb2.py")).toBe("generated");
+    expect(classifyScope("proto/events_pb2_grpc.py")).toBe("generated");
+    expect(classifyScope("proto/events_pb2.pyi")).toBe("generated");
+  });
+
+  it("recognises minified bundles as vendored", () => {
+    // drf checks in google-code-prettify under `static/`, which no
+    // vendor-directory rule catches: `prettify-min.js` and
+    // `prettify-1.0.js`.
+    expect(classifyScope("rest_framework/static/rest_framework/js/prettify-min.js")).toBe(
+      "vendored",
+    );
+    expect(classifyScope("docs/theme/js/jquery.min.js")).toBe("vendored");
+    expect(classifyScope("assets/app.min.css")).toBe("vendored");
+  });
+
+  it("does not mistake an ordinary file for a minified one", () => {
+    expect(classifyScope("src/admin.js")).toBe("production");
+    expect(classifyScope("src/terminal.ts")).toBe("production");
+  });
+});
+
+describe("looksMinifiedSource", () => {
+  it("recognises a bundle whose newlines were stripped", () => {
+    const minified = `var q=null;${"a".repeat(900)}`;
+    expect(looksMinifiedSource(minified)).toBe(true);
+  });
+
+  it("does not flag ordinary source at this repo's 90-column width", () => {
+    const source = Array.from({ length: 200 }, (_, i) => `  const v${i} = ${i};`).join(
+      "\n",
+    );
+    expect(looksMinifiedSource(source)).toBe(false);
+  });
+
+  it("does not flag an empty file", () => {
+    expect(looksMinifiedSource("")).toBe(false);
   });
 });
 

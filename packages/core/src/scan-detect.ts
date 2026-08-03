@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { looksMinifiedSource } from "./util/scope-class.js";
 import { relative, sep } from "node:path";
 import { parseFile } from "@crimes/language-js";
 import { parsePyFile } from "@crimes/language-py";
@@ -257,6 +258,10 @@ export async function runDetectorsForFile(args: {
     args.langPack.claims("language-js", args.absolutePath)
   ) {
     const source = await readFile(args.absolutePath, "utf8");
+    // A minified bundle is vendored code whatever its filename says, and
+    // every finding in one is about code nobody wrote. See
+    // {@link looksMinifiedSource}.
+    if (looksMinifiedSource(source)) return findings;
     const parsed = parseFile({ absolutePath: args.absolutePath, source });
     const jsCtx: LanguageJsDetectorContext = {
       kind: "language-js",
