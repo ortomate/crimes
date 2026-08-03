@@ -73,6 +73,43 @@ delta** (a detector started or stopped firing). Distinguish the two in
 the commit message — future readers shouldn't confuse a scorer fix
 with an agent improvement, or a detector bug fix with a regression.
 
+### What `structural_pass_rate` does and does not measure
+
+`referenced_findings` and `expected_priority` look for the **literal
+detector id** in the agent's response text. An answer that describes the
+same defect in prose scores zero on both.
+
+The `0.18.0` run is the clearest case on record. 19 of codex's 48
+scenarios moved; **all 12 drops carried a substantive response** — none
+empty, truncated, or errored:
+
+```
+0.17.1  "The most likely cause is `direct_date` in `src/billing.ts`…"   1.00
+0.18.0  "…temporal inconsistency in `generateInvoice`: `src/billing.ts`
+         reads the wall clock seven times…"                             0.00
+```
+
+Same root cause, same file, same five `Date.now()` calls.
+`review-05-permission-and-parallel` fails all eight of its checks while
+opening `**Permission IA drift — block merge.**` — the checker wants
+`permission_ia_drift`.
+
+Two consequences when reading any delta:
+
+1. **A move can be pure phrasing.** Codex's `0.17.1 → 0.18.0` −5pp
+   exceeded its ±3pp band and was still not a product regression. Look
+   at the responses before concluding anything; `structural_score.details`
+   names the exact check and what it observed.
+2. **The check is insensitive in the other direction too.** A change
+   that makes findings *more accurate* need not move this number at all,
+   because it does not change whether the agent quotes an id. Do not
+   read a flat result as "the fix did nothing".
+
+Fixing this means matching a detector's human-readable charge and
+`name` as well as its id, and treating a file path mentioned in any form
+as a reference. Until then, treat the aggregate as directional and read
+the per-scenario details before making a claim.
+
 ### Identity-only bumps: carry the baseline forward
 
 Step 3 is skipped for a bump whose entire effect is on **finding
