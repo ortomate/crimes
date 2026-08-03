@@ -479,6 +479,49 @@ describe("weak_test_signal.py", () => {
     ).toEqual([]);
   });
 
+  it("counts pytest.warns as a real assertion", async () => {
+    // `pytest.warns` fails when the warning is not emitted, which is
+    // exactly what `pytest.raises` does for exceptions. pydantic writes
+    // it 175 times in `tests/`.
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_config.py",
+        [
+          "def test_generate_schema_deprecation_warning():",
+          "    with pytest.warns(PydanticDeprecatedSince210, match='deprecated'):",
+          "        build()",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("counts a bare warns() the same way it counts a bare raises()", async () => {
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_config.py",
+        "def test_a():\n    with warns(UserWarning):\n        build()\n",
+      ),
+    ).toEqual([]);
+  });
+
+  it("credits a test marked @pytest.mark.xfail", async () => {
+    // The marker is the expectation: the test asserts that this code
+    // still fails, and an unexpected pass is reported as XPASS.
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "tests/test_meta.py",
+        [
+          "@pytest.mark.xfail(reason='Invalid JSON Schemas are expected to fail.')",
+          "def test_invalid_json_schema_raises():",
+          "    TypeAdapter(int).json_schema()",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
   it("only runs on test files", async () => {
     expect(
       await run(weakTestSignalPyDetector, "src/billing.py", "def test_a():\n    pass\n"),

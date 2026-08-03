@@ -233,6 +233,8 @@ export interface PyAssignment {
  * - `assert_statement` — a bare `assert`.
  * - `unittest_method` — the `self.assert*` family.
  * - `pytest_raises` — `pytest.raises(...)`, usually as a context manager.
+ * - `pytest_warns` — `pytest.warns(...)`. It fails when the warning is
+ *   not emitted, so it asserts exactly as much as `pytest_raises` does.
  * - `explicit_fail` — `self.fail(...)` / `pytest.fail(...)`. unittest's
  *   idiom for "reaching this line is the failure" is a deliberate
  *   assertion written inside-out, not an absent one.
@@ -246,6 +248,7 @@ export interface PyAssertion {
     | "assert_statement"
     | "unittest_method"
     | "pytest_raises"
+    | "pytest_warns"
     | "explicit_fail"
     | "raises_on_invalid";
   /** Method name for the unittest family, e.g. `"assertEqual"`. */

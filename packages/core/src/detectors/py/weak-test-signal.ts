@@ -12,9 +12,12 @@ import { intrinsicFor, plural, severityScore } from "./shared.js";
  *
  * A test is credited when any of these appears **inside its line span**:
  * a bare `assert` statement, a `unittest` `self.assert*` call,
- * `self.fail(...)` / `pytest.fail(...)`, `pytest.raises(...)`, or
- * pydantic's `model_dump_json(warnings='error')` — a call written only
- * for its raise-on-bad-data behaviour.
+ * `self.fail(...)` / `pytest.fail(...)`, `pytest.raises(...)`,
+ * `pytest.warns(...)`, or pydantic's `model_dump_json(warnings='error')`
+ * — a call written only for its raise-on-bad-data behaviour.
+ *
+ * It is credited without reading its body at all when the test carries
+ * `@pytest.mark.xfail`, because that marker is itself the expectation.
  *
  * It is also credited when any of those is reached **through a call**,
  * which is the change that made this detector usable. Python's dominant
@@ -96,6 +99,21 @@ const MAX_HELPER_HOPS = 2;
 const BENCHMARK_FIXTURE = "benchmark";
 const BENCHMARK_DECORATOR = /^(pytest\.mark\.)?benchmark\b/;
 
+/**
+ * `@pytest.mark.xfail` — the marker *is* the assertion.
+ *
+ * A test marked xfail asserts that the code under test still fails. The
+ * body often has nothing else in it, because there is nothing else to
+ * say: pydantic's `test_invalid_json_schema_raises` is one call and a
+ * reason string reading "Invalid JSON Schemas are expected to fail."
+ * An unexpected pass is reported as XPASS, and under `strict` it fails
+ * the run, so the expectation is enforced either way.
+ *
+ * Unlike a benchmark this stays in the denominator. It is a real test
+ * with a real expectation; it just does not write it as an `assert`.
+ */
+const EXPECTS_FAILURE_DECORATOR = /^(pytest\.mark\.)?xfail\b/;
+
 /** Receivers whose trailing name can be resolved against this file. */
 const RESOLVABLE_RECEIVER = /^(self|cls)$/;
 
@@ -155,7 +173,9 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     // would report `test_totals` as asserting nothing. It is a real
     // test; accusing it would be exactly the kind of false positive
     // that gets a detector disabled.
-    const direct = tests.filter((fn) => !assertsWithin(ctx.parsed, fn));
+    const direct = tests.filter(
+      (fn) => !expectsFailure(fn) && !assertsWithin(ctx.parsed, fn),
+    );
 
     // The line span only reaches assertions written *inside* the test.
     // The dominant Python idiom is to write them once in a shared
@@ -189,7 +209,8 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
           ]
         : []),
       "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, " +
-        "`pytest.raises`, `model_dump_json(warnings='error')`, and any of those " +
+        "`pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, " +
+        "`model_dump_json(warnings='error')`, and any of those " +
         `reached through up to ${MAX_HELPER_HOPS} same-file helper calls`,
     ];
 
@@ -287,6 +308,11 @@ function nestedFunctions(parsed: ParsedPyFile): Set<ParsedPyFunction> {
 function isBenchmark(fn: ParsedPyFunction): boolean {
   if (fn.paramNames.includes(BENCHMARK_FIXTURE)) return true;
   return fn.decorators.some((d) => BENCHMARK_DECORATOR.test(d));
+}
+
+/** Does this test declare that failure is the expected outcome? */
+function expectsFailure(fn: ParsedPyFunction): boolean {
+  return fn.decorators.some((d) => EXPECTS_FAILURE_DECORATOR.test(d));
 }
 
 /** Does any assertion fall inside this function's line span? */

@@ -185,7 +185,7 @@ const RAISING_SERIALIZERS = new Set(["model_dump_json", "model_dump"]);
  * Recognise an assertion.
  *
  * Covers bare `assert` (handled at the statement level, not here), the
- * `unittest` `self.assert*` family, `pytest.raises`, the explicit
+ * `unittest` `self.assert*` family, `pytest.raises`, `pytest.warns`, the explicit
  * `self.fail(...)` / `pytest.fail(...)` idiom, and calls whose whole
  * purpose is to raise on invalid data. Each is real test strength, and
  * a file that uses only one of them should not read as untested to
@@ -207,6 +207,12 @@ export function matchAssertionCall(
   }
   if (callee === "pytest.raises" || callee === "raises") {
     return { kind: "pytest_raises", line };
+  }
+  // `warns` fails when the warning is *not* emitted, so it is the same
+  // shape of assertion as `raises` and is credited on the same terms —
+  // including the bare form, which `raises` has always accepted.
+  if (callee === "pytest.warns" || callee === "warns") {
+    return { kind: "pytest_warns", line };
   }
   if (method === "fail" && FAIL_RECEIVERS.test(receiver)) {
     return { kind: "explicit_fail", method, line };

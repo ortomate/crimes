@@ -433,6 +433,25 @@ def test_c():
     expect(parsed.assertions[0]!.functionName).toBe("test_a");
   });
 
+  it("counts pytest.warns, qualified and bare, as an assertion", async () => {
+    const parsed = await parse(
+      `
+def test_a():
+    with pytest.warns(UserWarning):
+        pass
+
+def test_b():
+    with warns(DeprecationWarning, match='gone'):
+        pass
+`,
+      "/repo/tests/test_x.py",
+    );
+    expect(parsed.assertions.map((a) => a.kind)).toEqual([
+      "pytest_warns",
+      "pytest_warns",
+    ]);
+  });
+
   it("counts self.fail as an explicit failure signal", async () => {
     const parsed = await parse(
       `
