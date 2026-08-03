@@ -471,11 +471,24 @@ retune thresholds repo-wide. That is calibration, not a bugfix.
 hops, same file, receiver empty or `self`/`cls`. Cross-file helpers are
 still unresolved (§4d), which is why airflow only improved 12%.
 
-**`agent_risk` still collapses into length.** Fixing it changes ranking
-across every report and is a scoring-model decision, not a defect fix.
+~~**`agent_risk` still collapses into length.**~~ **Resolved in
+`0.18.1`** — see §4.5. The maintainer took the decision; severity is no
+longer an input and structural findings are capped.
 
-**No detector was disabled or gated.** The sunset shortlist is a
-recommendation awaiting a decision.
+~~**No detector was disabled or gated.**~~ **Resolved in `0.18.1`** —
+`Detector.defaultOff` exists and `parallel_destination` is the one
+detector carrying it. See §4.11. The rest of the sunset shortlist was
+fixed rather than gated.
+
+~~**`blast_radius`'s score is still pinned at 1.0 on 47% of zulip
+findings.**~~ **Resolved in `0.18.1`** — the standing recommendation
+(quartile rank, direct count as tiebreaker) was taken. Two caveats the
+decision did not anticipate, both measured: resolution drops from 22
+distinct values to 4 on hono, and it does not fix the modal-share
+problem where more than half the data is tied (hono 54% at 0 → 53% at
+0.25). The 47% figure itself was **not re-measured** — `zulip/zerver`
+showed 0% at 1.0 even before, so it must come from a whole-repo scan
+including the JS frontend. Original text follows.
 
 **`blast_radius`'s score is still pinned at 1.0 on 47% of zulip
 findings.** 0.18.0 fixed what the number is *called*, not how it is
@@ -610,27 +623,34 @@ be wrong — see the strikethroughs.
 These were found while fixing the blockers and are deliberately *not*
 folded into them — each is a separate behaviour change.
 
-4b. **Nested `test_*` functions are counted as tests.**
-   `weak_test_signal` treats any `test_*`-named function as a test
-   regardless of nesting, so a `def test_view(request)` declared *inside*
-   a real test — a parameterised action, a decorated view stub — is
-   reported as a silent test. This is **9 of 23** survivors in zulip's
-   `test_message_delete.py` and **5 of 71** in `test_decorators.py`. Fix
-   is to exclude a `test_*` function whose span sits inside another
-   test's. Small, and the highest-precision item on this list.
+4b. ~~**Nested `test_*` functions are counted as tests.**~~ **Done** in
+   `0.18.1` — `f303882`. Measured on zulip `zerver/tests` (whole tree):
+   17 of 40 claimed silent tests were nested functions, 42.5%, and two
+   files left the report entirely. **The entry was right about the
+   counts and slightly wrong about their cause**: `test_message_delete.py`
+   was 9 of 23, of which *eight* are nested — the ninth is a genuine
+   miss (`capture_send_event_calls` is a base-class context manager in
+   another file, so it is 4d). `test_decorators.py` was 5 of 71 and all
+   five are nested. The exclusion is drawn at *any* enclosing function
+   rather than at an enclosing test, because that is where pytest's own
+   collection boundary sits.
 
-4c. **`pytest.warns(...)` is not credited as an assertion** though
-   `pytest.raises` is. It fails when the warning is not emitted, so it is
-   the same thing. **36 occurrences** in pydantic's uncredited calls —
-   the highest-volume single item. Same shape:
-   `@pytest.mark.xfail`, where the expectation of failure *is* the
-   assertion.
+4c. ~~**`pytest.warns(...)` is not credited as an assertion.**~~ **Done**
+   in `0.18.1` — `e2c4762`. `@pytest.mark.xfail` landed with it.
+   Measured on pydantic `tests`: 22 files / 76 claimed silent tests →
+   15 / 45. **One number in the entry needs restating**: the "36
+   occurrences" figure counts uncredited `pytest.warns` *call sites*,
+   which is not the same measurement as tests credited — 31
+   claimed-silent tests is what the change is worth on that tree.
+   pydantic writes `pytest.warns` 175 times in `tests/`.
 
 4d. **Cross-file assertion helpers are unresolved**, which is what
    airflow's 12% improvement is waiting on (§1.16). Needs a Python
    symbol index that does not exist. Feature-sized; scope it
    deliberately, and note it would also serve any other Python detector
-   that wants to follow a call.
+   that wants to follow a call. **Still open** — deliberately not
+   attempted in the 0.18.1 pass; it is the one item here that is a
+   feature rather than a correction.
 
 4e. **JS syntax errors have no `coverage.warnings[]` signal.** The
    Python pack surfaces `hasSyntaxErrors`; the JS pack has no public
@@ -641,74 +661,161 @@ folded into them — each is a separate behaviour change.
 
 ### Real problems
 
-5. **`agent_risk` is a length ranking.** Top 20 on ebg: 15
-   `large_function`/`large_file`. On zulip: 18 of 20, and **zero Python**
-   on a repo that is 71% Python. `CLAUDE.md` says it "must not be
-   collapsed into severity".
-6. **Repo-level findings are invisible in the default view.** `scan`
-   groups by file, so cal.com's highest-severity finding (anchored on
-   `package.json`) never appears; seven of ten 0.16 detectors are absent
-   from n8n's default view despite firing in the JSON.
-7. **`commented_out_code` matches English prose.** 8,019 findings on
-   airflow — **41.1% of the entire report is the Apache licence header**
-   (7,320 at line range `(1,16)`/`(1,17)`). Every Apache-licensed repo
-   hits this. Also flags Rust `///` doc comments and long prose.
-8. **tsconfig path aliases** in `dependency_provenance_gap` — resolved
-   only from a *root* `tsconfig.json`, so cal.com (which has none, normal
-   for Next.js) reported `@components/*`, `.` and `..` as undeclared
-   packages.
-9. **`sync_io_in_hotpath` has no working hotpath test.** Fires on
-   `if __name__ == "__main__"` scripts, Django management commands and
-   `@cache`-decorated functions. Also a file-level finding wearing one
-   function's `symbol` and `lines` (a span covering 81% of a file), which
-   corrupts any ±N-line excerpt built from it.
-10. **`pass_through_abstraction` fabricates chains from method names.**
-    Confirmed on zulip, cal.com and n8n; confidence *rises* with the
-    number of unrelated files joined (0.92 across three repositories on
-    `delete`, 0.98 across four on `has`). The single-file arm is a
-    different code path and looks sound.
-11. **`parallel_destination`: 2,819 findings from 134 files** — 53% of
-    one n8n package — pairing Vue composables on the token `use`. Zero on
-    every other repo. Strongest default-off candidate.
-12. **`boolean_naming_drift`** flags framework-owned names that cannot be
-    renamed (Django `Migration.atomic`, `Meta.abstract`), Pydantic fields
-    already annotated `: bool`, and names its own convention exempts. It
-    proposes semver-major renames of public API options at
-    `effort: "quick"`.
-13. **`scope-class` misses vendored trees** — drf's vendored
-    google-code-prettify, `pydantic/v1/`, `_pb2.py`, a file whose first
-    line is `# @generated by protoc`, and two airflow paths that *do*
-    match `GENERATED_RE` and are `isNeverReportable` yet were reported.
-14. **`hotspots`** ranks manifest churn #1 (`package.json` at 72% on
-    hono), operates over a different file universe than `scan`, and on a
-    quiet repo degenerates to alphabetical order while still printing
-    confident percentages.
-15. **`mixed_utc_local_methods` cannot fire on modern Python.** It matches
-    bare `datetime.utcnow()` but not a wrapper (`timezone.utcnow()`),
-    which the parser's `dateCalls` never sees. Airflow has 775 `utcnow()`
-    sites and 21 files mixing both; the detector found zero.
-16. **`cross_language_route_drift` is confidently wrong.** On PostHog its
-    28 "backend routes" came entirely from two sidecar services; zero
-    from PostHog's own Django/DRF API, because it matches decorator
-    routing only. The `backend.length === 0` guard that would have
-    suppressed it was defeated by those sidecars. Result: one
-    high-severity finding comparing PostHog's test suite to a Stripe
-    mock. `cross_language_type_drift`, by contrast, is the 0.15 release's
-    genuine success — keep it.
+5. ~~**`agent_risk` is a length ranking.**~~ **Done** in `0.18.1` —
+   `ce0ccab`. Severity is no longer an input at all (the fallback
+   intrinsic derived from it was the collapse, for the ~18 detectors
+   that set none of their own), and findings are classified
+   `structural` / `agent_signal` / `standard` with a ceiling on the
+   first. Measured on the top 20 by rank: zulip/zerver structural 18→0
+   and Python 0→20 of 20; hono structural 14→0 with distinct types 8→10.
+   **The ceiling had to be measured, not guessed** — 0.4 left
+   `large_file` outranking `contract_drift` because it sat inside the
+   agent-signal band (0.31–0.53); 0.3 is the band's floor. **New
+   concern**: zulip's top 20 is now 16/20 `sync_io_in_hotpath`, which is
+   a concentration of its own and the next thing to look at.
+6. ~~**Repo-level findings are invisible in the default view.**~~
+   **Done** in `0.18.1` — `92af2cc`. A `Repo-level` section above the
+   per-file groups, driven by an explicit type list rather than a path
+   heuristic. On n8n `packages/cli` it surfaces five findings that were
+   in the JSON and nowhere in the view, including
+   `dependency_provenance_gap` on `package.json` and
+   `agent_permission_sprawl` on `AGENTS.md`. A section rather than a
+   scoring boost: the problem was the grouping, not the ranking.
+7. ~~**`commented_out_code` matches English prose.**~~ **Done** in
+   `0.18.1` — `f3a0b19`. **Confirmed to the number**: airflow 8,019 →
+   45, and 7,320 of those were the licence header, 41.2% of a 17,745-
+   finding report. The whole report drops to 9,771. Cause: the code-token
+   list was bare words, and the header contains three of them
+   ("**for** additional information", "may not **use** this file", "the
+   License **for** the specific language"). Matching now requires code
+   *syntax*. 680 further non-licence blocks stopped firing; two sampled
+   at random were both false positives (a licence header behind a
+   shebang, a Go package doc comment).
+8. ~~**tsconfig path aliases** in `dependency_provenance_gap`.~~
+   **Done** in `0.18.1` — `6908ddf`. Two independent causes, both
+   confirmed on cal.com. `.` and `..` slipped through a relative-path
+   guard that required a trailing slash — a one-character fix. Aliases
+   are now collected from every tsconfig under `apps/` / `packages/` /
+   `libs/` / `services/`, not just a root one cal.com does not have.
+   Patterns only: resolving an alias to a *file* still needs the root
+   `baseUrl`, but knowing a specifier is an alias is enough to stop
+   calling it a missing dependency.
+9. ~~**`sync_io_in_hotpath` has no working hotpath test.**~~
+   **Mostly done** in `0.18.1` — `b330cd2`. Findings are now one per
+   enclosing function, so `symbol`, `lines` and evidence describe the
+   same code: airflow span median 8→1 line, max **4,196→185**. Django
+   management commands and `@cache`-decorated functions are exempt
+   (`cli_command`, and a new `memoised` shape). Splitting per function
+   multiplied volume 494→1,108, capped to the 3 worst per file at 811.
+   **The `if __name__ == "__main__"` half is NOT fixed** — those
+   functions classify as `domain` and I found no signal separating them
+   from real domain code without reading module-level control flow.
+10. ~~**`pass_through_abstraction` fabricates chains from method
+    names.**~~ **Done** in `0.18.1` — `2e9b2da`. **Worse than the entry
+    says**: the 0.98 `has` chain on n8n starts at `Set.prototype.has`
+    and joins four unrelated registries, each delegating to its own
+    private Map. A member call (`this.repo.delete(…)`) is no longer
+    followed at all — its tail names a method on an object whose type
+    was never read — and a cross-file step now requires the target to be
+    exported. n8n `packages/cli`: 13 findings / 7 chains, all 7 at
+    confidence ≥0.9 → 6 findings / **0 chains**. The surviving 6 are
+    clusters, which the entry correctly called sound.
+11. ~~**`parallel_destination`: 2,819 findings from 134 files.**~~
+    **Done** in `0.18.1` — `20e4e52`. Confirmed exactly: 2,819 findings,
+    134 files, **52.8%** of n8n `packages/frontend/editor-ui`. It is now
+    the first and only detector to ship gated behind
+    `Detector.defaultOff`; the package's report drops 5,342 → 2,523. A
+    gated detector is announced on stderr even under `--no-color`,
+    because the user did not make that choice — we did.
+12. ~~**`boolean_naming_drift`** flags framework-owned names.~~ **Done**
+    in `0.18.1` — `67ae2ce`. Confirmed on drf and pydantic: `many`
+    (`Serializer(many=True)`), `public`, `coerce_to_string`,
+    `strip_whitespace`, `fail_fast`, `repr` — all published API, all
+    flagged at `effort: "quick"`. The charge is now scoped to
+    *unannotated locals inside a function*, which is the only place its
+    own rationale holds. Class attributes, instance attributes and
+    annotated bindings are excluded. drf 7→1, pydantic 34→20. The
+    annotated case was self-contradictory: the detector's own suggested
+    fix is "rename it, **or add a `: bool` annotation**".
+13. ~~**`scope-class` misses vendored trees.**~~ **Mostly done** in
+    `0.18.1` — `9d6a871`. The last clause was the serious one and is
+    **worse than stated**: not two airflow paths but **15 files carrying
+    44 findings**, all from the ~50 detectors that predate
+    `isNeverReportable` and never ask it. The policy is now enforced once
+    in `scan`, so a detector added tomorrow inherits it. Classifier also
+    widened for `_pb2.py` / `*.pb.go` and for minified bundles by name;
+    drf's `prettify-1.0.js` needed content sniffing because it is
+    minified but not *named* minified. airflow 44→0, drf 2→0.
+    **`pydantic/v1/` is NOT fixed** — no general rule separates a bundled
+    legacy copy from any other `v1/` API directory.
+14. ~~**`hotspots`** ranks manifest churn #1.~~ **Done** in `0.18.1` —
+    `f58061b`. All three parts confirmed on hono, and the first two share
+    a cause: the row set was the union of *every churned path* with every
+    file carrying a finding. Restricted to files `scan` could report on,
+    plus an explicit manifest / lockfile / changelog list. hono's #1 goes
+    from `package.json` (risk 0.72, 29 changes, one *low* finding) to
+    `src/adapter/aws-lambda/handler.ts`. A `ranking_note` now states when
+    the order is really `localeCompare`.
+15. ~~**`mixed_utc_local_methods` cannot fire on modern Python.**~~
+    **NO CHANGE MADE — the entry's premise is wrong**, and acting on it
+    would have been a large regression. `beb569f`. Measured on airflow:
+    728 of 740 `utcnow()` receivers are `timezone`, and
+    `airflow_shared.timezones.timezone.utcnow()` returns
+    `dt.datetime.now(tz=utc)` — timezone-**aware**. That is not the
+    naive-UTC trap this detector charges; it is the fix it *recommends*.
+    Matching any `<x>.utcnow()` would have produced ~728 high-confidence
+    false positives. Airflow's whole tree has exactly one
+    `datetime.datetime.utcnow()` and it is inside a comment. **Zero
+    findings is the correct answer.** A regression test now pins the
+    decision. The narrow technical claim (a wrapper is not matched) is
+    true, but whether that is a defect needs 4d.
+16. ~~**`cross_language_route_drift` is confidently wrong.**~~ **Done**
+    in `0.18.1` — `c0135ff`. Confirmed on a real slice of PostHog: one
+    HIGH-severity finding accusing `/api/projects/*` of drifting from a
+    Stripe mock. **One correction**: it is *one* sidecar service, not
+    two — all five decorator-routed Python files in PostHog live in
+    `services/stripe-mock`, against 90 DRF `router.register` calls the
+    detector cannot see. An orphan is now only reported when the backend
+    declares at least one route sharing its first path segment. Match
+    *count* would have been the wrong test — the detector's own
+    canonical positive has zero matches too.
 
 ### Annoyances
 
-17. `--all` is a byte-for-byte no-op in `--format json` while the human
-    output advertises it.
+17. ~~`--all` is a byte-for-byte no-op in `--format json`.~~ **Done** in
+    `0.18.1` — `ad2e679`. Confirmed with `cmp` (42 findings either way;
+    human output 63→485 lines). **Framed backwards in the entry**: json
+    already emits everything, and teaching it to honour `--all` would
+    mean teaching the machine contract to withhold findings by default.
+    The flag is made *honest* instead — a stderr line when it had no
+    effect — which leaves stdout byte-identical. Covers `--flat` and
+    `--top`, which had the identical defect.
 18. Default-view suppression is a *file* cap (`scan.topFiles`), not a
     finding budget — no compression on small repos.
-19. `explain` exits 2 on `oversized_raster`, a type the scanner emits;
-    its copy-paste `crimes ignore` block is not shell-safe.
-20. `verdict` fails on `master`-default repos (tries only `origin/main`,
-    `main`) and costs two full scans to report "unchanged".
+19. ~~`explain` exits 2 on `oversized_raster`.~~ **Done** in `0.18.1` —
+    `4fb9887`. **Wider than the entry**: asset detectors live in their
+    own registry that `explain` never searched, so
+    `raster_should_be_vector` and `svg_with_embedded_raster` were
+    unexplainable too. The `crimes ignore` line is now single-quoted, and
+    the pasted command was run end-to-end against a `my src/big file.ts`
+    fixture to prove it works. Same fix applied to `crimes feedback
+    recheck`'s command fields, which had the identical defect.
+20. ~~`verdict` fails on `master`-default repos.~~ **Done** in `0.18.1`
+    — `6be5681`. `refs/remotes/origin/HEAD` is consulted first —
+    guessing by name order would silently compare against the wrong
+    branch on a repo with both — then a widened candidate list. The
+    two-scan cost is halved by reusing the base scan when both refs
+    resolve to the same tree: hono `verdict --base HEAD` 12.3s/15.8s →
+    7.0s/7.1s over two runs each. **An earlier single 40.6s measurement
+    did not reproduce and is not quoted.** Lands in `diff`, so it is also
+    half of §21.
 21. `diff` human output is three integers with no locations, and runs two
     full scans.
-22. No `fingerprint` field in the JSON, though four commands require one.
+22. ~~No `fingerprint` field in the JSON.~~ **Done** in `0.18.1` —
+    `286c24e`. `schema_version` 0.5.0 → **0.6.0**; migration note in
+    `docs/json-schema.md`. Both load-bearing properties re-checked after
+    the change: byte-identical re-scans (`cmp` clean on messy-ts-app and
+    hono) and fingerprint uniqueness (hono 376/376 unique).
 23. `lines` absent on 12–16% of findings; `symbol` undefined on 20 of 34
     types.
 24. `.json`/`.yaml`/`.txt`/`.rst`/`.adoc` absent from
