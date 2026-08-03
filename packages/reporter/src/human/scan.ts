@@ -1,4 +1,5 @@
 import type { Finding, ScanReport } from "@crimes/core";
+import { isRepoLevelFinding } from "@crimes/core";
 import { formatHumanReportFlat } from "./scan-flat.js";
 import {
   groupByFile,
@@ -45,6 +46,7 @@ export function formatHumanReport(
   if (options.showAll === true) {
     renderAllFindings(lines, report, context);
   } else {
+    renderRepoLevelSection(lines, partition.repoLevel, context);
     renderGroupedFindings(lines, partition, context);
   }
 
@@ -65,9 +67,53 @@ interface RenderContext {
 
 interface FindingPartition {
   resurfaced: Finding[];
+  repoLevel: Finding[];
   domain: Finding[];
   nonDomain: Finding[];
 }
+
+/**
+ * Repo-level findings, above the per-file groups.
+ *
+ * They are anchored on `package.json` / `AGENTS.md` / a config file,
+ * which carry one finding each, so they can never place in a top-N
+ * *file* ranking — on n8n `packages/cli` both were in the JSON and
+ * neither was visible; on cal.com this hid the report's highest-severity
+ * finding. Rendered as their own section rather than given a scoring
+ * boost, because the problem was the grouping, not the ranking.
+ */
+function renderRepoLevelSection(
+  lines: string[],
+  findings: Finding[],
+  context: RenderContext,
+): void {
+  if (findings.length === 0) return;
+  lines.push("");
+  lines.push(context.colour.bold("Repo-level"));
+  findings.slice(0, REPO_LEVEL_CAP).forEach((finding, index) => {
+    lines.push(
+      ...renderFinding(finding, index + 1, context.colour, {
+        noColor: context.isColorDisabled,
+        ...(context.feedbackHints ? { feedbackHints: context.feedbackHints } : {}),
+      }),
+    );
+  });
+  if (findings.length > REPO_LEVEL_CAP) {
+    lines.push(
+      context.colour.dim(
+        `   …+${findings.length - REPO_LEVEL_CAP} more repo-level findings (--all)`,
+      ),
+    );
+  }
+}
+
+/**
+ * Cap for the repo-level section. Small on purpose: these are
+ * whole-repository claims and there are never many of them, so a long
+ * list here means something has gone wrong with a detector rather than
+ * with the repo.
+ */
+const REPO_LEVEL_CAP = 5;
 
 function renderHeader(report: ScanReport, context: RenderContext): string[] {
   const { colour, isColorDisabled } = context;
@@ -95,10 +141,16 @@ function partitionFindingsForScan(findings: Finding[]): FindingPartition {
     f.previously_triaged === true || f.previously_baselined === true;
   const resurfaced = findings.filter(isResurfaced);
   const fresh = findings.filter((f) => !isResurfaced(f));
+  // Repo-level findings leave the per-file pool entirely — showing them
+  // in both places would double-report, and leaving them in the pool is
+  // what made them invisible.
+  const repoLevel = fresh.filter(isRepoLevelFinding);
+  const perFile = fresh.filter((f) => !isRepoLevelFinding(f));
   return {
     resurfaced,
-    domain: fresh.filter((f) => f.tier !== "nonDomain"),
-    nonDomain: fresh.filter((f) => f.tier === "nonDomain"),
+    repoLevel,
+    domain: perFile.filter((f) => f.tier !== "nonDomain"),
+    nonDomain: perFile.filter((f) => f.tier === "nonDomain"),
   };
 }
 

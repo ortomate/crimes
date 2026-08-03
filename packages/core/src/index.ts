@@ -257,6 +257,7 @@ export type {
 } from "./diff.js";
 export { fingerprintFinding, FINGERPRINT_PATTERN } from "./fingerprint.js";
 export { shellQuote } from "./util/shell-quote.js";
+export { isRepoLevelFinding } from "./scoring/repo-level.js";
 export type {
   CoverageWarning,
   CoverageWarningKind,
