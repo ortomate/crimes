@@ -33,7 +33,7 @@ import { partitionFindings } from "./suppressions.js";
 import type { TriageEntry } from "./triage.js";
 import { applyTriageFilter, type ApplyTriageFilterOptions } from "./triage-filter.js";
 import {
-  assignIds as assignIdsHelper,
+  assignIdsAndFingerprints as assignIdsHelper,
   tagTierAndSortByRankScore,
 } from "./context-helpers.js";
 import { safeRealpath } from "./util/realpath.js";

@@ -6,6 +6,7 @@ import { formatExplainReport } from "./explain.js";
 function explainReport(scores: Partial<FindingScores>): ExplainReport {
   const finding: Finding = {
     id: "crime_00001",
+    fingerprint: "",
     type: "large_function",
     pack: "language-js",
     detector_id: "large_function.js",

@@ -9,11 +9,32 @@ This page is the **stable product API**. Treat it as a public contract:
 any breaking change to a field name, type, or required-ness will bump
 `schema_version`.
 
-Documented as of `schema_version: "0.5.0"`. The source of truth in code
+Documented as of `schema_version: "0.6.0"`. The source of truth in code
 is [`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
 
 For how an agent should _use_ this output, see
 [`agent-usage.md`](./agent-usage.md).
+
+## Migrating from `0.5.0` to `0.6.0`
+
+- **New required field on every finding:** `fingerprint`. The finding's
+  stable identity — `<type>::<file>::<symbol>`, plus `::<discriminator>`
+  when the detector sets one.
+
+This is the handle four commands accept — `crimes ignore`, `crimes
+unignore`, `crimes feedback`, `crimes triage` — and until now the JSON
+did not contain it. `id` is positional and only means something inside
+the report that produced it, so a consumer wanting to act on a finding
+had to rebuild the fingerprint from the other fields and hope its
+construction matched the one in `fingerprintFinding` — including the
+discriminator rule, which is exactly the part a reimplementation gets
+wrong.
+
+Nothing was renamed or removed, so a consumer that ignores unknown keys
+needs no change. A consumer validating with `additionalProperties:
+false`, or one that hard-checks `schema_version === "0.5.0"`, must
+accept the new field and the new version. Baseline, suppressions and
+triage files written at `0.5.0` are still read without migration.
 
 ## Migrating from `0.4.0` to `0.5.0`
 
@@ -648,6 +669,27 @@ A scan-local identifier in the form `crime_NNNNN` (5-digit zero-padded). IDs
 are assigned after sorting, so a given finding may get a different id between
 runs if the set of findings changes. Use `id` for citing within a single
 report; do not persist it across scans.
+
+### `fingerprint`
+
+The finding's identity **across** scans, and the one to persist. Format:
+
+```
+<type>::<file>::<symbol>
+<type>::<file>::<symbol>::<discriminator>
+```
+
+`symbol` is the empty string for file-level findings, so a `todo_density`
+fingerprint ends in `::`. The fourth segment is present only for detectors
+that legitimately emit more than one finding for the same
+`(type, file, symbol)` triple — see [`discriminator`](#discriminator).
+
+This is the identifier `crimes ignore`, `crimes unignore`,
+`crimes feedback` and `crimes triage` accept; none of them take an `id`.
+Pass it through verbatim rather than reconstructing it, and quote it when
+building a shell command — the embedded path may contain spaces.
+
+New in `schema_version` 0.6.0.
 
 ### `type`
 

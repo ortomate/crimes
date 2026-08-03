@@ -28,6 +28,7 @@ async function tempPath(): Promise<string> {
 function makeFinding(overrides: Partial<Finding> = {}): Finding {
   return {
     id: "crime_00001",
+    fingerprint: "",
     type: "large_function",
     pack: "language-js",
     detector_id: "large_function.js",
@@ -841,6 +842,7 @@ describe("suppressionsForFile", () => {
 
   const findingOnFile: Finding = {
     id: "crime_00001",
+    fingerprint: "",
     type: "large_function",
     pack: "language-js",
     detector_id: "large_function.js",
@@ -859,6 +861,7 @@ describe("suppressionsForFile", () => {
 
   const findingDateOnFile: Finding = {
     id: "crime_00002",
+    fingerprint: "",
     type: "direct_date",
     pack: "language-js",
     detector_id: "direct_date.js",

@@ -3,7 +3,7 @@
  *
  * Bumping `schema_version` is a breaking change.
  */
-export const SCHEMA_VERSION = "0.5.0" as const;
+export const SCHEMA_VERSION = "0.6.0" as const;
 
 import type { Pack } from "./pack.js";
 import type { Tier } from "./scoring/tier.js";
@@ -105,6 +105,21 @@ export interface SuggestedAction {
 export interface Finding {
   /** Stable per-scan id, e.g. `crime_01982`. */
   id: string;
+  /**
+   * The finding's stable identity across scans —
+   * `<type>::<file>::<symbol>` plus `::<discriminator>` when the
+   * detector sets one. Computed by {@link fingerprintFinding} and
+   * stamped during the scan / context finalisation pass.
+   *
+   * Present in the JSON because it is the *only* handle four commands
+   * accept: `crimes ignore`, `crimes unignore`, `crimes feedback` and
+   * `crimes triage` all address a finding this way, and `id` is
+   * per-scan so it cannot be used for any of them. Without this field
+   * a JSON consumer had to re-derive the fingerprint from the other
+   * fields and hope the construction matched — including the
+   * discriminator rule, which most consumers would get wrong.
+   */
+  fingerprint: string;
   /** Machine-readable type, e.g. `large_function`. */
   type: string;
   /**
@@ -258,7 +273,7 @@ export interface Finding {
  * `run()` methods; callers outside the finaliser always work with the
  * fully-formed `Finding`.
  */
-export type PreFinding = Omit<Finding, "pack" | "detector_id">;
+export type PreFinding = Omit<Finding, "pack" | "detector_id" | "fingerprint">;
 
 export interface ScanSummary {
   total: number;

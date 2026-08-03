@@ -4,7 +4,7 @@ import { SCHEMA_VERSION } from "./finding.js";
 
 describe("SCHEMA_VERSION", () => {
   it("is 0.5.0 — blast-radius importer counts split", () => {
-    expect(SCHEMA_VERSION).toBe("0.5.0");
+    expect(SCHEMA_VERSION).toBe("0.6.0");
   });
 });
 
@@ -12,6 +12,7 @@ describe("Finding shape", () => {
   it("accepts a finding with explicit pack + detector_id", () => {
     const f: Finding = {
       id: "crime_00001",
+      fingerprint: "",
       type: "large_file",
       detector_id: "large_file",
       pack: "universal",
@@ -33,6 +34,7 @@ describe("Finding shape", () => {
     // Task 3.3: pack and detector_id are now required on every Finding.
     const f: Finding = {
       id: "crime_00002",
+      fingerprint: "",
       type: "large_file",
       pack: "language-js",
       detector_id: "large_file.js",

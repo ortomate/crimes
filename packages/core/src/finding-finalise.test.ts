@@ -6,6 +6,7 @@ import type { Finding } from "./finding.js";
 function makeFinding(type: string, overrides: Partial<Finding> = {}): Finding {
   return {
     id: "",
+    fingerprint: "",
     type,
     pack: "language-js",
     detector_id: `${type}.js`,

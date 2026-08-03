@@ -40,6 +40,7 @@ const sampleReport: ScanReport = {
   findings: [
     {
       id: "crime_00001",
+      fingerprint: "",
       type: "large_function",
       pack: "language-js",
       detector_id: "large_function.js",
@@ -57,6 +58,7 @@ const sampleReport: ScanReport = {
     },
     {
       id: "crime_00002",
+      fingerprint: "",
       type: "todo_density",
       pack: "universal",
       detector_id: "todo_density",
@@ -319,6 +321,7 @@ const sampleContext: ContextReport = {
   findings: [
     {
       id: "crime_00001",
+      fingerprint: "",
       type: "large_function",
       pack: "language-js",
       detector_id: "large_function.js",
@@ -336,6 +339,7 @@ const sampleContext: ContextReport = {
     },
     {
       id: "crime_00002",
+      fingerprint: "",
       type: "todo_density",
       pack: "universal",
       detector_id: "todo_density",
@@ -558,6 +562,7 @@ const sampleDiff: DiffReport = {
   new_findings: [
     {
       id: "crime_00001",
+      fingerprint: "",
       type: "large_function",
       pack: "language-js",
       detector_id: "large_function.js",
@@ -575,6 +580,7 @@ const sampleDiff: DiffReport = {
     },
     {
       id: "crime_00002",
+      fingerprint: "",
       type: "todo_density",
       pack: "universal",
       detector_id: "todo_density",
@@ -593,6 +599,7 @@ const sampleDiff: DiffReport = {
   fixed_findings: [
     {
       id: "crime_00003",
+      fingerprint: "",
       type: "large_function",
       pack: "language-js",
       detector_id: "large_function.js",
@@ -1003,6 +1010,7 @@ const sampleBaselineCheck: BaselineCheckReport = {
   new_findings: [
     {
       id: "crime_00001",
+      fingerprint: "",
       type: "large_function",
       pack: "language-js",
       detector_id: "large_function.js",
@@ -1295,6 +1303,7 @@ function buildStubFinding(
   const type = opts.type ?? "large_function";
   return {
     id: nextStubFindingId(),
+    fingerprint: "",
     type,
     pack: "language-js",
     detector_id: `${type}.js`,
@@ -1395,6 +1404,7 @@ describe("renderRiskProfileLine — blast radius counts", () => {
 function stubFinding(scores: Partial<FindingScores>): Finding {
   return {
     id: "x",
+    fingerprint: "",
     type: "t",
     pack: "language-js",
     detector_id: "t.js",
@@ -1597,6 +1607,7 @@ describe("formatContextHumanReport — finding handles resolve in `crimes explai
       findings: [
         {
           id: "crime_00001",
+          fingerprint: "",
           type: "large_function",
           detector_id: "large_function",
           pack: "language-js",

@@ -69,6 +69,25 @@ describe("scan", () => {
     }
   });
 
+  it("carries a fingerprint on every finding", async () => {
+    // `crimes ignore`, `unignore`, `feedback` and `triage` all address a
+    // finding by fingerprint, and the JSON never contained one — so the
+    // only way to use those four commands from the machine-readable
+    // output was to re-derive `<type>::<file>::<symbol>::<discriminator>`
+    // by hand and hope it matched.
+    const big = Array.from({ length: 800 }, () => "// line").join("\n");
+    const root = await makeRepo({
+      "big.ts": big,
+      "src/suite.test.ts": `describe("a", () => { it("x", () => {}); });\n`,
+    });
+
+    const report = await scan({ root });
+    expect(report.findings.length).toBeGreaterThan(0);
+    for (const finding of report.findings) {
+      expect(finding.fingerprint).toBe(fingerprintFinding(finding));
+    }
+  });
+
   it("ignores files under dist/ and node_modules/", async () => {
     const root = await makeRepo({});
     const report = await scan({ root });
@@ -295,6 +314,7 @@ describe("scan", () => {
 function makeFinding(severity: Finding["severity"], i = 1): Finding {
   return {
     id: `crime_${String(i).padStart(5, "0")}`,
+    fingerprint: "",
     type: "large_function",
     pack: "language-js",
     detector_id: "large_function.js",
@@ -476,6 +496,7 @@ describe("tagTierAndSortByRankScore — recencyEnabled: false", () => {
   function makeScoredFinding(file: string, agentRisk: number, recency: number): Finding {
     return {
       id: "crime_00001",
+      fingerprint: "",
       type: "large_function",
       pack: "language-js",
       detector_id: "large_function.js",

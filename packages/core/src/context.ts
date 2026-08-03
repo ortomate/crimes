@@ -5,7 +5,7 @@ import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import {
-  assignIds,
+  assignIdsAndFingerprints,
   buildGuidance,
   buildRisk,
   tagTierAndSortByRankScore,
@@ -299,7 +299,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     scoring,
   });
   tagTierAndSortByRankScore(findings, config);
-  assignIds(findings);
+  assignIdsAndFingerprints(findings);
 
   const likely_tests = await findLikelyTests({ root, fileRel, targetAbs, allFiles });
 

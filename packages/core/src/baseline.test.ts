@@ -20,6 +20,7 @@ import { SCHEMA_VERSION } from "./finding.js";
 function makeFinding(overrides: Partial<Finding>): Finding {
   return {
     id: "crime_00001",
+    fingerprint: "",
     type: "large_function",
     pack: "language-js",
     detector_id: "large_function.js",

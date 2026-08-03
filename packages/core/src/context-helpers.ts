@@ -162,8 +162,18 @@ function rankScore(f: Finding, recencyEnabled: boolean): number {
   return ar * (1 + rec * 0.5);
 }
 
-export function assignIds(findings: Finding[]): void {
+/**
+ * Stamp both handles a consumer can hold a finding by.
+ *
+ * `id` is positional and only means anything within the report that
+ * produced it. `fingerprint` is the stable one — it survives across
+ * scans and is what `crimes ignore` / `unignore` / `feedback` / `triage`
+ * accept. Both are assigned here, after sorting, because this is the one
+ * point every report shape passes through.
+ */
+export function assignIdsAndFingerprints(findings: Finding[]): void {
   findings.forEach((f, i) => {
     f.id = `crime_${String(i + 1).padStart(5, "0")}`;
+    f.fingerprint = fingerprintFinding(f);
   });
 }

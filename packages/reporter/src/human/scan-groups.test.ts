@@ -19,6 +19,7 @@ const PLAIN = plainColour();
 function finding(overrides: Partial<Finding>): Finding {
   return {
     id: "crime_00001",
+    fingerprint: "",
     type: "large_function",
     pack: "language-js",
     detector_id: "large_function.js",
@@ -73,6 +74,7 @@ describe("symbol rendering", () => {
       finding({ charge: "Loaded Agent", symbol: "permissions.allow" }),
       finding({
         id: "crime_00002",
+        fingerprint: "",
         charge: "Policy Doppelgänger",
         symbol: 'admin role "admin" rule',
       }),
