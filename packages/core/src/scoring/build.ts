@@ -34,6 +34,11 @@ import type { CollectChurnResult } from "../git/churn.js";
 import type { ImportGraph } from "../imports/types.js";
 import { TEST_DIR_RE, isTestFile, testBaseCovers } from "../util/test-files.js";
 import { quartileScores } from "./quartile.js";
+import {
+  agentRiskClassOf,
+  NEUTRAL_INTRINSIC,
+  STRUCTURAL_CEILING,
+} from "./agent-risk-class.js";
 
 export interface ChurnIndex {
   /** Returns [0,1] churn for a file, from git log over the configured window. */
@@ -424,23 +429,12 @@ const _SEVERITY_NUMERIC: Record<Severity, number> = {
 };
 
 /**
- * Fallback intrinsic agent-risk for the detectors that don't express one
- * of their own. Derived from severity because it is the only signal
- * available for those findings — deliberately compressed relative to
- * SEVERITY_NUMERIC so a fallback finding doesn't outrank a detector that
- * actually made a judgement.
- *
- * Detectors SHOULD set `scores.agent_risk` themselves. See
- * `docs/scoring.md`.
- */
-const FALLBACK_INTRINSIC: Record<Severity, number> = {
-  high: 0.75,
-  medium: 0.55,
-  low: 0.4,
-};
-
-/**
  * Compute `agent_risk` from the unified formula. Pure — no side effects.
+ *
+ * Severity is not an input. Deriving the fallback intrinsic from it was
+ * how `agent_risk` stayed correlated with severity for the ~18 detectors
+ * that express no intrinsic of their own; a flat neutral value says what
+ * is actually known about those findings, which is nothing.
  *
  *   agent_risk = 0.40 * intrinsic     (the detector's own judgement)
  *              + 0.20 * churn
@@ -462,8 +456,12 @@ const FALLBACK_INTRINSIC: Record<Severity, number> = {
  * is still reported per finding; it just no longer dominates this score.
  */
 export function computeAgentRisk(args: {
-  severity: Severity;
-  /** Detector-supplied intrinsic agent risk. Falls back to severity. */
+  /**
+   * Finding type (or pack-qualified detector id). Decides the
+   * agent-risk class — see `scoring/agent-risk-class.ts`.
+   */
+  type: string | undefined;
+  /** Detector-supplied intrinsic agent risk. */
   intrinsic?: number | undefined;
   churn: number;
   test_gap: number;
@@ -472,10 +470,14 @@ export function computeAgentRisk(args: {
   const intrinsic =
     typeof args.intrinsic === "number" && Number.isFinite(args.intrinsic)
       ? clamp01(args.intrinsic)
-      : FALLBACK_INTRINSIC[args.severity];
+      : NEUTRAL_INTRINSIC;
   const raw =
     0.4 * intrinsic + 0.2 * args.churn + 0.2 * args.test_gap + 0.2 * args.blast_radius;
-  return round(clamp01(raw));
+  const scored = round(clamp01(raw));
+
+  const klass = agentRiskClassOf(args.type);
+  if (klass === "structural") return Math.min(scored, STRUCTURAL_CEILING);
+  return scored;
 }
 
 /**
@@ -540,7 +542,7 @@ export function finaliseFindingScores(
   // 30 of 48 detectors set this; prior to 0.12.2 it was discarded.
   const intrinsic = finding.scores.agent_risk;
   finding.scores.agent_risk = computeAgentRisk({
-    severity: finding.severity,
+    type: finding.detector_id ?? finding.type,
     intrinsic,
     churn,
     test_gap,

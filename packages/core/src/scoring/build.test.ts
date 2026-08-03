@@ -459,14 +459,14 @@ describe("test_gap — Python naming conventions", () => {
     // whole point is that a well-tested Python module stops being ranked
     // as if it had no test at all.
     const riskTested = computeAgentRisk({
-      severity: "medium",
+      type: "swallowed_error",
       intrinsic: 0.5,
       churn: 0,
       test_gap: tested,
       blast_radius: 0,
     });
     const riskUntested = computeAgentRisk({
-      severity: "medium",
+      type: "swallowed_error",
       intrinsic: 0.5,
       churn: 0,
       test_gap: untested,
@@ -562,7 +562,7 @@ describe("test_gap — Python naming conventions", () => {
 describe("computeAgentRisk", () => {
   it("follows the documented unified formula", () => {
     const got = computeAgentRisk({
-      severity: "high",
+      type: "swallowed_error",
       intrinsic: 0.8,
       churn: 0.65,
       test_gap: 0.2,
@@ -575,7 +575,7 @@ describe("computeAgentRisk", () => {
 
   it("clamps to <= 1 when every input is at maximum", () => {
     const got = computeAgentRisk({
-      severity: "high",
+      type: "swallowed_error",
       intrinsic: 1,
       churn: 1,
       test_gap: 1,
@@ -585,22 +585,53 @@ describe("computeAgentRisk", () => {
     expect(got).toBeGreaterThan(0.9);
   });
 
-  it("falls back to a severity-derived intrinsic when the detector sets none", () => {
-    const high = computeAgentRisk({
-      severity: "high",
-      churn: 0,
-      test_gap: 0,
-      blast_radius: 0,
+  it("uses a neutral intrinsic — not severity — when the detector sets none", () => {
+    // The fallback used to be derived from severity, which is how
+    // `agent_risk` stayed correlated with severity for the ~18 detectors
+    // that express no intrinsic. Severity is no longer an input at all.
+    expect(
+      computeAgentRisk({
+        type: "swallowed_error",
+        churn: 0,
+        test_gap: 0,
+        blast_radius: 0,
+      }),
+    ).toBe(0.12); // 0.40 * NEUTRAL_INTRINSIC (0.3)
+  });
+
+  it("caps a structural finding so it cannot outrank an agent signal", () => {
+    // 15 of the top 20 on ebg and 18 of 20 on zulip were
+    // `large_function` / `large_file` — and zero Python findings on a
+    // repo that is 71% Python. A big function is tedious to edit, not
+    // deceptive.
+    const hugeFunction = computeAgentRisk({
+      type: "large_function",
+      intrinsic: 1,
+      churn: 1,
+      test_gap: 1,
+      blast_radius: 1,
     });
-    const low = computeAgentRisk({
-      severity: "low",
-      churn: 0,
-      test_gap: 0,
-      blast_radius: 0,
+    const modestDrift = computeAgentRisk({
+      type: "contract_drift",
+      intrinsic: 0.7,
+      churn: 0.3,
+      test_gap: 0.3,
+      blast_radius: 0.3,
     });
-    expect(high).toBe(0.3); // 0.40 * 0.75
-    expect(low).toBe(0.16); // 0.40 * 0.40
-    expect(high).toBeGreaterThan(low);
+    expect(hugeFunction).toBe(0.3);
+    expect(modestDrift).toBeGreaterThan(hugeFunction);
+  });
+
+  it("applies the cap through a pack-qualified id too", () => {
+    expect(
+      computeAgentRisk({
+        type: "large_function.py",
+        intrinsic: 1,
+        churn: 1,
+        test_gap: 1,
+        blast_radius: 1,
+      }),
+    ).toBe(0.3);
   });
 
   it("lets the detector's own judgement outrank severity", () => {
@@ -609,14 +640,14 @@ describe("computeAgentRisk", () => {
     // misleading name) must be able to outrank a high-severity one it
     // considers mechanical.
     const lowButConfusing = computeAgentRisk({
-      severity: "low",
+      type: "swallowed_error",
       intrinsic: 0.85,
       churn: 0,
       test_gap: 0,
       blast_radius: 0,
     });
     const highButMechanical = computeAgentRisk({
-      severity: "high",
+      type: "swallowed_error",
       intrinsic: 0.35,
       churn: 0,
       test_gap: 0,
@@ -627,14 +658,14 @@ describe("computeAgentRisk", () => {
 
   it("ignores a non-finite intrinsic rather than producing NaN", () => {
     const got = computeAgentRisk({
-      severity: "medium",
+      type: "swallowed_error",
       intrinsic: Number.NaN,
       churn: 0.5,
       test_gap: 0,
       blast_radius: 0,
     });
     expect(Number.isFinite(got)).toBe(true);
-    expect(got).toBe(0.32); // 0.40 * 0.55 + 0.20 * 0.5
+    expect(got).toBe(0.22); // 0.40 * NEUTRAL_INTRINSIC (0.3) + 0.20 * 0.5
   });
 });
 
