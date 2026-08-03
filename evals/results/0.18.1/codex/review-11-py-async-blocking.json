@@ -1,0 +1,54 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "codex",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:41:10.597Z",
+  "run_id": "21dc6730-dbb4-45f3-8383-c2614f14d0dc",
+  "response": "The latency collapse is caused by synchronous I/O blocking the event loop in `api/routes.py`. Low CPU is consistent with workers waiting on network, disk, sleep, or subprocesses while every other coroutine is prevented from running.\n\nRanked by likely contribution:\n\n1. `export_invoice` — `subprocess.run()` at line 31 and `time.sleep()` at line 32  \n   Both execute inside an async route handler. `time.sleep()` unconditionally freezes the event loop, while `subprocess.run()` blocks until the child exits. This is probably the worst endpoint per request.\n\n2. `get_invoice` — `requests.get()` at line 21 and `open()` at line 23  \n   `requests.get()` blocks for the full upstream round trip and can become especially damaging when that service slows or lacks a tight timeout. The file read adds another blocking operation. If this endpoint receives substantially more traffic than exports, it may be the largest aggregate contributor.\n\n3. Everything else  \n   The clock handling, import cycle, large function, deep imports, and boolean naming finding are real maintainability or correctness risks, but they do not explain load-dependent p99 collapse with low CPU.\n\nRecommended order of remediation:\n\n- Replace `requests` with a reused async HTTP client such as `httpx.AsyncClient`, with explicit connect/read timeouts and connection limits.\n- Replace `time.sleep()` with `await asyncio.sleep()`.\n- Use `asyncio.create_subprocess_exec()` or move CPU/blocking subprocess work to a bounded worker queue.\n- Move file access off the event loop—ideally cache/preload the data, otherwise use `asyncio.to_thread()` or an async file mechanism.\n- Add a concurrency test proving one slow request does not stall unrelated requests.\n\nThe scan establishes the blocking calls, but not endpoint traffic or call duration. Production traces should distinguish whether `get_invoice`’s frequency or `export_invoice`’s per-call blocking time dominates.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import",
+      "crime_00009": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

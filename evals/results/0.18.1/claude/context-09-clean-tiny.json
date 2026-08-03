@@ -1,0 +1,38 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:17:57.372Z",
+  "run_id": "81be848e-c103-4764-9170-8747e0e6c64f",
+  "response": "# `crimes context src/add.ts` — nothing found\n\n```\nCRIMES CONTEXT\nfile: src/add.ts\nrisk: NONE  (0 findings)\n\nAgent guidance\n  (no findings on this file and no deterministic related files)\n\nRelated files\n  (no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings)\n\nLikely tests\n  · src/add.test.ts\n\nClues\n  · churn: 1 commits over 90d · last touched 3 months ago · 1 author\n  · test gap: bottom-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n## What that means\n\n**`risk: none`, zero findings** — no structural, duplication, testability, or dependency crimes on this file. The file is three lines: a single pure `add(a, b)` with explicit types and no side effects, no I/O, no branching.\n\nSupporting clues:\n- **Churn is 1 commit in 90 days, one author, last touched ~3 months ago.** Nobody is fighting over this file.\n- **`likely_tests: [\"src/add.test.ts\"]`** — there is a direct test neighbour. Run it after your edit.\n- **No related files** — and crimes says why: no shared domain tokens, no domain-prefix filenames, no same-directory siblings, no importers surfaced. Editing this file has no known blast radius inside the fixture.\n\nThe `test_gap` label reads `\"unknown\"` in JSON (rendered as \"bottom-quartile\"), which is a *low-signal* reading on a 3-file repo, not a claim that the file is untested — `src/add.test.ts` exists.\n\n## One thing context doesn't show you\n\n`crimes scan` on this repo reports a single low finding, and it is **not** on `src/add.ts`:\n\n> **Phantom Accomplice** (`dependency_provenance_gap`, low, confidence 0.56) on `package.json` — `vitest` is imported at `src/add.test.ts` but declared in no applicable manifest. Confidence is discounted 0.12 precisely \"because only test or fixture files are affected.\"\n\nThat's a repo-hygiene item (`quick` effort: declare `vitest` in the manifest), not a hazard for your edit. It only matters if your edit adds test cases — a clean install could fail to resolve `vitest`.\n\n## Verdict: safe to extend\n\nGo ahead. This is the low-risk case crimes is designed to get out of your way on:\n\n1. Edit `src/add.ts` freely — no god function, no duplication, no hidden side effects, no importers to break.\n2. Run `src/add.test.ts` afterward.\n3. Post-edit gate if you want it: `crimes scan --changed --format json` and confirm nothing new appeared.\n\nThe only caution worth stating is generic rather than crimes-derived: `add` is a pure function with no callers in this fixture, so crimes cannot tell you who depends on its signature. In a real repo, a signature change would want a `blast_radius` check first — here there simply is no neighbourhood to check.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:29:23.864Z",
+  "run_id": "33bed829-5261-4d2e-8b92-9b616fb49ee2",
+  "response": "`crimes context src/Card.tsx` — MEDIUM, 3 findings, 0 importers, no test file, 2 commits/90d. Low blast radius and low churn, so this is a safe file to rewrite wholesale rather than patch. I'm proposing rather than editing: `evals/fixtures/` is scanner input, so changing it would move the eval baseline.\n\nOne thing the scan doesn't say but the source does — the layout is already broken, not just fragile: the two children are `width: 720` and `width: 240` (960px) inside a `width: 800` parent with `padding: 24`. It overflows today at every viewport.\n\n## The refactor\n\nThe three findings share one root cause: **every visual decision is an inline literal**. Inline `style` has no place to put a token reference, a breakpoint, or a `:focus-visible` rule — so escaping tokens, breaking at small widths, and having no focus affordance all follow from the same choice. Move styling to the Tailwind theme + classes and all three become expressible.\n\n### 1. `accessible_interaction_risk` (medium, conf 0.85) — line 10\n\nThe suggested action is `role=\"button\"` + `tabIndex={0}`, but don't apply it here. `children` is an arbitrary `ReactNode`, so if a consumer passes a link or input you get interactive content nested inside a button role — invalid ARIA and a worse keyboard trap than the current state. The card is a *container*, not a control.\n\nGive the interaction its own real element:\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate?: () => void;\n  actionLabel?: string;\n};\n```\n\n```tsx\n{onActivate && (\n  <button\n    type=\"button\"\n    onClick={onActivate}\n    className=\"mt-gutter rounded-token px-gutter py-2 text-body\n               focus-visible:outline-2 focus-visible:outline-offset-2\n               focus-visible:outline-focus\"\n  >\n    {actionLabel}\n  </button>\n)}\n```\n\nKeyboard reachability, Enter/Space activation, and a visible focus ring all come free from `<button>`. Note the existing `outlineColor: \"#1a73e8\"` was inert — inline `outlineColor` with no `outlineStyle` renders nothing, so there is currently no focus indicator at all.\n\nIf the whole-card click surface is genuinely wanted, keep the button as the accessible primitive and add a card-level `onClick` purely as a pointer enhancement — never as the only path.\n\n### 2. `design_token_escape` (low, conf 0.75) — 9 raw values, 4 kinds\n\n`tailwind.config.ts` defines exactly three colors (`brand`, `surface`, `ink`) and `Card.tsx` uses six, plus a shadow and a radius. So this can't be fixed by mapping onto the existing scale — **the scale is missing the roles**. Extend it, then reference by name:\n\n```ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      \"ink-muted\": \"#333333\",   // was #333333 inline\n      \"ink-subtle\": \"#666666\",  // was #666666 inline\n      border: \"#cccccc\",        // was #cccccc inline\n      focus: \"#1a73e8\",         // was the inert outlineColor\n    },\n    extend: {\n      boxShadow: { card: \"0 2px 4px rgb(0 0 0 / 0.2)\" },\n      spacing: { gutter: \"1.5rem\", sidebar: \"15rem\" },\n      borderRadius: { token: \"0.5rem\" },\n      fontSize: {\n        body: \"clamp(1rem, 0.95rem + 0.25vw, 1.125rem)\",\n        caption: \"clamp(0.8125rem, 0.79rem + 0.12vw, 0.875rem)\",\n      },\n      maxWidth: { card: \"64rem\" },\n    },\n  },\n};\n```\n\nFlag for review: `background: \"#ff00aa\"` has no plausible token role — that's placeholder hot pink, not a design decision. Don't launder it into the theme as `accent`. Resolve it with whoever owns the design system; `bg-surface` is the likely intent.\n\nThe agent-risk framing in the finding is the real point: an agent extending this file copies the literals forward. Once the values live in the theme, the cheapest thing to copy is also the correct thing.\n\n### 3. `responsive_fragility` (low, conf 0.65) — 3 fixed sizes, no `@media`\n\nPer the `fix_shape`, drive this from container queries and a fluid scale rather than pixel media queries — the card has 0 importers today, so its width is a function of wherever it gets dropped, not of the viewport.\n\n- `width: 800` → `w-full max-w-card` (fluid down, capped up)\n- `height: 600` → `min-h-[37.5rem]` (fixed height clips overflowing content)\n- `720` / `240` two-column → a grid that collapses:\n\n```tsx\n<div className=\"grid gap-gutter grid-cols-1\n                @3xl:grid-cols-[minmax(0,1fr)_theme(spacing.sidebar)]\">\n```\n\n- `fontSize: 18` → `text-body`, the `clamp()` above\n\n`minmax(0,1fr)` is what actually kills the overflow bug — the main column can shrink below its content's intrinsic width instead of forcing 960px into an 800px box.\n\n### Resulting component\n\n```tsx\nexport function Card({ children, onActivate, actionLabel = \"Open card\" }: CardProps) {\n  return (\n    <article\n      className=\"@container mx-auto w-full max-w-card min-h-[37.5rem] p-gutter\n                 rounded-token border border-border bg-surface text-ink shadow-card\"\n    >\n      <div className=\"grid gap-gutter grid-cols-1\n                      @3xl:grid-cols-[minmax(0,1fr)_theme(spacing.sidebar)]\">\n        <div className=\"text-body text-ink-muted\">{children}</div>\n        <aside className=\"text-caption text-ink-subtle\">sidebar</aside>\n      </div>\n\n      {onActivate && (\n        <button\n          type=\"button\"\n          onClick={onActivate}\n          className=\"mt-gutter rounded-token px-gutter py-2 text-body\n                     focus-visible:outline-2 focus-visible:outline-offset-2\n                     focus-visible:outline-focus\"\n        >\n          {actionLabel}\n        </button>\n      )}\n    </article>\n  );\n}\n```\n\nZero raw style values in JSX, so all three detectors go quiet structurally rather than by threshold-dodging.\n\n## Verification\n\n`test_gap` is 1.0 on all three findings and `crimes context` found no test file at all. The a11y fix is the one that silently regresses — a later agent can revert to `<div onClick>` and nothing fails. Add `src/Card.test.tsx` covering tab-reachability and Enter/Space activation of the action button; that converts the finding into a guarded invariant instead of a one-time cleanup.\n\nThen re-run `crimes scan` and expect 3 → 0. What would keep findings alive: leaving any inline `style` with literals (`design_token_escape` re-fires at ≥5 values), keeping a fixed `width`/`height` (`responsive_fragility` at ≥3), or taking the `role=\"button\"` shortcut on the container instead of shipping a real `<button>`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:13:38.503Z",
+  "run_id": "4bc70631-0570-42ec-8439-a9b6d6779a1a",
+  "response": "## The cycle\n\n`crime_00001` gives you the ring; the three files give you the edges:\n\n```\nsrc/application/billing-flow.ts:1   → domain/billing.js        (chargeCustomer)\nsrc/domain/billing.ts:2             → presentation/invoice-view.js  (renderInvoice)\nsrc/presentation/invoice-view.ts:3  → application/billing-flow.js   (runBillingFlow)\n```\n\nAll three are value imports, and each imported symbol is *called* by the importer. So this isn't only an import cycle — it's a call cycle with no base case:\n\n`runBillingFlow()` → `chargeCustomer(100)` → `renderInvoice(100)` → `runBillingFlow()` → …\n\nIf the reported runtime error is `RangeError: Maximum call stack size exceeded`, that's the whole explanation, and it will reproduce no matter which module is the entry point. A partially-initialized-module error (`renderInvoice is not a function`) is *not* what you'll see here — all three exports are hoisted function declarations, so ESM live bindings resolve fine.\n\n## Break `src/domain/billing.ts:2`\n\nThe edge to cut is **`domain/billing.ts` → `presentation/invoice-view.ts`**.\n\nWhy that one and not the other two:\n\n- It's the only edge in the ring that is *independently* wrong. `crime_00003` flags it against the configured rule `domain cannotImport presentation` (`crimes.config.json:10`). The other two edges are legal under the same config: `application → domain` is the intended direction of dependency, and nothing forbids `presentation → application`.\n- The two findings overlap on this single line, which is the useful signal in the report — cutting it clears both `crime_00001` and `crime_00003` at once. Cutting either other edge would clear the cycle and leave the layer violation standing.\n- Direction of change: presentation should depend on domain, never the reverse. Domain code that knows how to render an invoice string can't be reused by a second consumer (an API response, a PDF job) without dragging the view along.\n\nNote the scan's generic `break_cycle` suggestion offers `import type` as an option — that doesn't apply here. `renderInvoice` is invoked at runtime, so the edge can't be demoted to a type-only import.\n\n### Concrete shape\n\nMake `chargeCustomer` return data, and let presentation render it:\n\n```ts\n// src/domain/billing.ts — no presentation import\nexport function chargeCustomer(amount: number): { amount: number } {\n  return { amount };\n}\n```\n\n```ts\n// src/presentation/invoice-view.ts\nimport { chargeCustomer } from \"../domain/billing.js\";\n\nexport function renderInvoice(amount: number): string {\n  const charge = chargeCustomer(amount);\n  return `Invoice: ${charge.amount}`;\n}\n```\n\nThat leaves `application → domain` and `presentation → domain` — a DAG, and `runBillingFlow` drops out of the recursion entirely. Depending on who is supposed to orchestrate, you may also want `presentation` to stop calling back into `application` at all and have the application layer drive the render.\n\n## One other runtime-failure candidate\n\n`crime_00004` flags `some-pkg` as imported at `src/application/billing-flow.ts:4` but declared in no `package.json`. If your error is `ERR_MODULE_NOT_FOUND` rather than a stack overflow, that's your actual cause and the cycle is a red herring — it resolves today only through hoisting and will break on a clean install. Cheap to rule out first: `npm ls some-pkg`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "deep_import",
+      "crime_00003": "layer_violation",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Deep Import Abuse": "deep_import",
+      "Layer Violation": "layer_violation",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      }
+    ]
+  }
+}

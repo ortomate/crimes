@@ -547,6 +547,57 @@ real repos, not here.
 If a future change is expected to move the aggregate, take repeat
 samples (`pnpm run evals -- --label r2`) before claiming it.
 
+### 0.18.1 baseline — no measurable movement, and that is not the same as no effect
+
+`pnpm run evals` at `a6cb5d4`, 96/96 in 31 minutes, results in
+`evals/results/0.18.1/`.
+
+| agent | 0.17.0 | 0.17.1 | 0.18.1 | move vs 0.17.1 | 2σ band |
+|---|---|---|---|---|---|
+| claude | 0.84 | 0.82 | **0.85** | +3pp | ±6pp |
+| codex | 0.57 | 0.56 | **0.54** | −2pp | ±3pp |
+
+**Both moves sit inside the noise band and neither is claimable.**
+
+The run window was verified clean, which is the rule `a13277a` added
+after 0.18.0 was invalidated for spanning two builds: every `dist` was
+built once at 08:11:44–08:11:50 (CLI last), the run covered
+08:12:09–08:43:18, and no build or commit landed inside it.
+
+`per_scenario_kind` swung hard again — codex `bugfix` 0.57 → 0.33,
+`context` 0.46 → 0.69, `review` 0.53 → 0.39. Per the README that field
+holds 7–8 scenarios per kind and must not be quoted without repeat
+samples. The `bugfix` drop was investigated rather than assumed, both
+ways:
+
+- The expected findings **still fire**. `cross_language_type_drift` = 1
+  on `13-polyglot-monorepo`, `timezone_unsafe_parse` = 1 on
+  `01-messy-ts-app`.
+- The responses are **correct**. Codex identifies the plan-tier drift
+  exactly (`free|pro|team|scale` against `free|pro|enterprise`, both
+  directions, with a generate-from-one-contract fix) and gives the right
+  timezone fix (append `Z`, and it explicitly sets aside the unrelated
+  second literal). Neither response contains the literal detector id, so
+  both score zero.
+
+That is the artefact `0434d3b` documented: `structural_pass_rate` matches
+detector **ids** in response text, so it is blind in both directions —
+it cannot see a correct answer phrased in prose, and it cannot see a
+finding becoming more accurate.
+
+**This is why a flat aggregate is not evidence the work did nothing.**
+The 0.18.1 group removed 8,019 → 45 `commented_out_code` findings on
+airflow, 2,819 → 0 `parallel_destination` on n8n, and a
+high-severity PostHog finding comparing a frontend to a Stripe mock.
+None of those repos is in the fixture set, and none of those defects
+exists at fixture scale. The evidence for this pass is in §1 and §4's
+measurements on real repositories, not here.
+
+Two changes in this group *should* be visible to a ranking-sensitive
+metric and are not, because no such metric exists yet: `agent_risk`
+(§4.5) and `blast_radius` (§2). Building one is the open question
+recorded in `docs/calibration-followups.md`.
+
 ### Migration note for anyone with pinned entries
 
 Suppressions and baselines naming a **`commented_out_code`**,

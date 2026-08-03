@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:23:17.802Z",
+  "run_id": "40a6569c-6e30-488f-aa2c-1681a168a06d",
+  "response": "## What the scan actually gives you\n\nFive findings, three of which are duplication:\n\n| ID | Type | Where | Group |\n|---|---|---|---|\n| `crime_00003` | `near_duplicate_block` (0.85) | `sanitize-a.ts:10-36` + b + c | **3 sanitise helpers** |\n| `crime_00005` | `duplicated_role_status_plan_check` (0.70) | `policy.ts` + all 3 `sanitize-*.ts` | **3 role checks** |\n| `crime_00004` | `exact_duplicate_block` (0.95) | `telemetry-a.ts:6-19` + `telemetry-b.ts` | telemetry (out of scope below) |\n\nThe two `low` findings (`crime_00001`/`00002`, `Date.now()`) sit *inside* the telemetry duplicate — they're one fix, not two.\n\n## The thing the scan can't tell you\n\nI read the three files. The two groups are not the same kind of problem, and that's what makes the ordering non-arbitrary:\n\n**The three sanitisers are byte-identical modulo identifier names.** `sanitizeUserInput` / `sanitizeText` / `cleanMessage` differ only in `working` → `cleaned` → `normalised`. Consolidation is mechanical and provably behaviour-preserving.\n\n**The three role guards are three different predicates:**\n\n```ts\nsanitize-a.ts:6  assertAdminA = role === \"admin\"                     // strict\nsanitize-b.ts:5  assertAdminB = role === \"admin\" || role === \"owner\" // broader — grants owner\nsanitize-c.ts:5  assertAdminC = role !== \"admin\"                     // inverted\n```\n\n`crime_00005`'s \"2 different expression shapes\" is the detector pointing at exactly this. Collapsing these three into one `isAdmin` would silently revoke `owner` access. That is a permission regression, not a refactor.\n\nAlso relevant: `grep` finds **zero imports anywhere in the fixture**. All six functions are exported with no in-repo call sites — so step 2 is an API change, not an internal one. You cannot see who depends on `assertAdminB`'s owner grant.\n\n## The two-step change set\n\n### Step 1 — consolidate the sanitisers (mechanical, zero behaviour change)\n\nNew `src/sanitize.ts` holding one copy of the body, canonically named:\n\n```ts\nexport function sanitizeText(input: string): string { /* the shared body, verbatim */ }\n```\n\nThen:\n- Delete the three bodies from `sanitize-a/b/c.ts`.\n- **Move `assertAdminA/B/C` into `policy.ts` completely unchanged** — pure relocation, no semantics touched.\n- `sanitize-a/b/c.ts` become thin re-export shims (`export { sanitizeText as cleanMessage } from \"./sanitize\"`) for one release, then delete. In-repo they have no callers, but they're public exports.\n\n**Why this step first:** it's the risk-free one, and it does the work step 2 depends on — it puts all three divergent guards in one file, side by side, where the divergence is legible in a single screen. You cannot make a good decision about `|| role === \"owner\"` while it's hidden in a sanitiser module.\n\n### Step 2 — reconcile the role checks (semantic, needs a decision)\n\n`policy.ts` becomes the single source:\n\n```ts\nexport function isAdmin(role: string): boolean {\n  return role === \"admin\";\n}\n\n/** Deliberately broader than isAdmin: owner is granted too. Was assertAdminB. */\nexport function isContentAdministrator(role: string): boolean {\n  return isAdmin(role) || role === \"owner\";\n}\n\nexport function canEditBilling(role: string): boolean  { return isAdmin(role); }\nexport function canSeeAuditLog(role: string): boolean  { return isAdmin(role); }\nexport function canImpersonate(role: string): boolean  { return isAdmin(role); }\n```\n\nMapping, each preserving exact behaviour:\n- `assertAdminA` → `isAdmin`\n- `assertAdminB` → `isContentAdministrator` (**keeps `owner`**)\n- `assertAdminC` → delete; callers write `!isAdmin(role)` — an inverted named predicate is how the drift started\n\nKeep `canEditBilling` / `canSeeAuditLog` / `canImpersonate` as three separate functions. The duplication worth removing is the **literal `\"admin\"`**, not the function count — these are three distinct capabilities that will legitimately diverge (audit-log read is the first one that usually opens up).\n\nThe one thing to escalate rather than decide in code: **is `assertAdminB`'s owner grant intentional, or is it the drift?** Same for `assertAdminC`'s inversion. Ship the plan preserving both, and put the question in the PR description.\n\n## Verification\n\nStep 1 is checkable by construction: diff the extracted body against all three originals after normalising identifiers — it should be empty. There are no tests in this fixture (`test_gap: 0.5` on every finding), so if this were a real repo I'd write characterisation tests against the current sanitiser output *before* step 1, not after.\n\nStep 2: a table test over `[\"admin\", \"owner\", \"member\", \"\"]` × each exported predicate, asserting the new implementation matches the old one's truth table exactly.\n\n## Expected scan delta — with one caveat\n\nAfter step 1: `crime_00003` clears.\n\n**`crime_00005` will also disappear after step 1 — and that's misleading.** The detector requires `files.size >= 3` (`packages/core/src/detectors/duplicated-role-status-plan-check.ts:77`). Moving the three guards into `policy.ts` drops the file count from 4 to 1, so the finding goes quiet from a *pure relocation*, before any of the actual drift is resolved. Don't read a clean scan after step 1 as permission to skip step 2. The three divergent predicates are still there, just co-located.\n\n## Deliberately not in this change set\n\nThe telemetry pair (`crime_00004` + the two `Date.now()` lows) is a separate third change: extract `recordSanitiseEvent` to one module and inject a clock while you're in there. It's a different surface (observability, not domain policy), it has no ordering dependency on the two steps above, and bundling it would put a determinism change in a PR whose reviewers are checking permission semantics.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "direct_date",
+      "crime_00003": "near_duplicate_block",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -552,6 +552,23 @@ settle what this score should be, and the difference matters.
   change may not move the aggregate at all. Confirming this change
   helped an agent probably needs a scenario built for it.
 
+### What the 0.18.1 eval run added
+
+Nothing, and that is itself the finding. `structural_pass_rate` moved
++3pp for claude and −2pp for codex, both inside the noise band, on a
+release that rebuilt the ranking twice over.
+
+The metric matches detector **ids** in response text, so it cannot see a
+ranking change at all — an agent that quotes the right id still quotes
+it whether that finding ranked 1st or 30th. The belief listed above
+("that the evals can even see a ranking change") is now measured rather
+than assumed: **they cannot.**
+
+That moves question 4 below from nice-to-have to blocking. There is
+currently no way to tell whether the `agent_risk` change improved
+ranking, and no amount of re-running the existing suite will produce
+one.
+
 ### What the next release needs to answer
 
 1. Is a hard ceiling right, or should the structural class be squashed

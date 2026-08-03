@@ -1,0 +1,65 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "codex",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:25:35.571Z",
+  "run_id": "8fd9307d-a67f-46a2-a567-7f72349f182b",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a scan-driven extraction plan. I’ll first run the requested JSON scan against the fixture, then separate true pre-split contract blockers from cleanup that can safely follow.\n\nThe global `crimes` binary is not installed in this shell. I’m switching to the repository’s locally built CLI—the documented equivalent for an unpublished checkout—and will keep the scan target unchanged.\n\nThe live scan matches the supplied context: five findings, including one high-severity contract divergence. I’m inspecting the three source files and the deployment manifests now so the plan names the actual boundary, migration sequence, and acceptance gates rather than treating every finding as equally urgent.\n\nThe scan completed successfully using the repository’s local CLI. It confirmed five findings: one high, three medium, and one low.\n\nThe split should not proceed until the externally visible billing contract is consistent. Three findings are release blockers; two are follow-up cleanup.\n\n## Fix before the split\n\n1. **Unify the `Plan` contract — `crime_00001`**\n\n   Python permits `free | pro | team | scale`; TypeScript permits `free | pro | enterprise`. This is the highest-risk finding and will cause rejected or unrenderable responses.\n\n   Before extraction:\n\n   - Decide which plans genuinely exist and how deprecated plans migrate.\n   - Define the enum in a billing-owned OpenAPI schema.\n   - Generate the TypeScript type/client from that schema.\n   - Add contract tests covering every supported value and rejection of unsupported values.\n\n2. **Align the plan-change HTTP method — `crime_00003`**\n\n   The client sends `PUT`, while billing exposes `POST`. Pick one method—preferably based on whether replacement or an action is intended—and update both contract and implementation. Test the endpoint through the generated client.\n\n3. **Resolve the undeclared workspace route — `crime_00005`**\n\n   The frontend calls `POST /api/workspaces`, while the backend exposes `/api/teams`. Freeze one public resource vocabulary and align every path before introducing a network/team boundary.\n\n   While fixing routes, correct the literal `:id` URLs in `workspaceSeats` and `changeWorkspacePlan`; they currently do not interpolate the supplied `id`, although the scan did not flag that.\n\n## Can follow after the split\n\n- **`getWorkspace` naming — `crime_00002`:** Not a split blocker. An HTTP client getter performing `fetch` is conventional and does not necessarily imply a business mutation. Validate whether this is useful signal; otherwise record it as a false positive rather than renaming public client APIs solely for the detector.\n- **Team/workspace terminology rename — `crime_00004`:** A wholesale rename can follow, but the mapping cannot remain implicit. Choose the canonical external term before freezing OpenAPI, document the legacy `team ↔ workspace` mapping, and schedule internal renames independently.\n\n## Extraction plan\n\n1. **Freeze ownership and semantics**\n\n   - Assign the new billing team ownership of plans, seats, billing routes, and the OpenAPI contract.\n   - Decide the canonical resource term and supported plan set.\n   - Inventory callers beyond the web client, authentication assumptions, persistence, secrets, scheduled work, and downstream events.\n\n2. **Establish the contract**\n\n   - Create a versioned OpenAPI specification for get/create tenant, seat lookup, and plan change.\n   - Specify request and response schemas, authentication, error bodies, retry behavior, and idempotency.\n   - Generate the web client instead of maintaining handwritten route strings and plan unions.\n   - Add provider and consumer contract tests covering the three blocker findings.\n\n3. **Make billing independently deployable**\n\n   The fixture currently has an `APIRouter`, but no visible application entrypoint or test/deployment machinery. Add:\n\n   - A FastAPI application entrypoint that mounts the router.\n   - Dependency lock/build configuration and a container or equivalent artifact.\n   - Health/readiness endpoints, structured logs, metrics, tracing, and alert ownership.\n   - Environment-specific configuration and secret references.\n   - Independent CI, deployment permissions, rollback instructions, and an operational runbook.\n   - Explicit database/schema ownership and a migration plan if production billing state exists.\n\n4. **Preserve a stable caller boundary**\n\n   Route billing traffic through the existing gateway or reverse proxy so the web application does not immediately depend on a new hostname, CORS policy, or service discovery mechanism. If paths must change, provide temporary compatibility routes with a dated removal plan.\n\n5. **Deploy and cut over incrementally**\n\n   - Deploy the new service without moving traffic.\n   - Run smoke and contract tests against it.\n   - Shadow safe reads where possible, then canary a small percentage of traffic.\n   - Compare responses, errors, latency, plan distribution, and seat calculations.\n   - Move writes only after ownership and idempotency behavior are verified.\n   - Retain a tested rollback route to the monolith until the observation window closes.\n\n6. **Remove the old implementation**\n\n   Once traffic and state ownership have moved, delete the monolith routes, revoke obsolete credentials, remove compatibility paths after their deadline, and transfer dashboards/on-call documentation.\n\n## Exit gates\n\nProceed with the organizational split only when:\n\n- `crime_00001`, `crime_00003`, and `crime_00005` are absent on a fresh scan.\n- Generated-client contract tests pass against the deployed service.\n- Every billing endpoint has one documented owner and one canonical schema.\n- Rollback and state-migration procedures have been exercised.\n- JSON and TOML manifests have been reviewed or added to scan coverage—the current scan skipped three `.json` files and `pyproject.toml`, exactly where dependency and deployment assumptions may live.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

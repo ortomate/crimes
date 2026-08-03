@@ -1,0 +1,34 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:20:23.043Z",
+  "run_id": "79bc91a2-63ca-420a-9d34-4753fa15af89",
+  "response": "I ran `crimes` before touching anything. Here's what it says about `reverse_entry` (`billing/ledger.py:16-22`).\n\n## Protection if I get it wrong: effectively none\n\n`crimes context billing/ledger.py` is blunt about it:\n\n```\nLikely tests\n  (no test file matched the target basename ... and no test file imports it)\nClues\n  · test gap: top-quartile\n```\n\nNo test file exists for `ledger.py`, and no test imports it — directly or transitively. `reverse_entry` has never been executed by the suite.\n\nThe one thing that *looks* like indirect protection is a trap. `reporting.py` imports `post_entry` (not `reverse_entry`), and `tests/test_reporting.py` is the single high-severity finding in the scan:\n\n> 4 of 4 test functions contain no assertion — 0 total assertions across 4 tests\n\nSo even the sibling function in the file I'd be editing is only exercised by tests that stay green whatever it returns. `crimes explain crime_00001` names the exact failure mode I'd hit: *\"it will change the code under test, see the suite pass, and conclude the change was safe.\"*\n\nThe coverage numbers actively lie here. The repo has a `.coverage` DB, and:\n\n```\nbilling/ledger.py       6      1    83%   Missing: 17\n```\n\n83% covered, one missed line — and line 17 is the return statement of `reverse_entry`, the exact thing I've been asked to change. A coverage gate would wave this through. The covered 83% is `post_entry`, reached only through assertion-free tests.\n\n## What the change could affect\n\n- **In-repo callers of `reverse_entry`: zero.** Nothing imports it (`grep` confirms; `blast_radius: 0`, `blast_radius_direct_importers: 0`). That cuts both ways — a signature or key-name change breaks nothing the scanner can see, which also means the repo cannot tell me if I broke a real consumer. Any caller is outside this package, so the local test suite is not a safety net for the public shape of this function.\n- **The real coupling is the entry dict contract, not the import graph.** `reverse_entry` hardcodes the four keys `post_entry` produces (`account`, `net`, `gross`, `region`). If reversal changes that shape — renames a key, adds a field, returns an object instead of a dict — `post_entry` (`ledger.py:6`) and `build_report` (`reporting.py:7`), which reads `entry[\"gross\"]` to compute `total`, are the two places that go out of sync. `crimes context` flags both as related files in the same directory.\n- **`gross` is negated, not recomputed.** `post_entry` derives `gross` via `rate_for(region)`; `reverse_entry` just flips the sign. If I change reversal to recompute instead of negate, I inherit `rates.py`'s rounding and default-rate fallback behaviour. That module *is* genuinely protected — `tests/test_rates.py` asserts on real values, including the unknown-region fallback — so that dependency is the one edge in this graph I can lean on.\n\n## What I'd do before editing\n\nWrite assertions for `reverse_entry` first — there's nothing to regress against otherwise. It's a pure function over a dict, so a characterization test is cheap: assert the round-trip `reverse_entry(post_entry(...))` negates `net` and `gross` and preserves `account`/`region`. Separately, the four hollow tests in `test_reporting.py` should get real assertions (`effort: small`, `risk: low` per the finding) — otherwise the `build_report` → `post_entry` path stays unguarded while I'm changing the file next door.\n\nMinor scan gap worth knowing: `crimes.config.json` only includes `**/*.py`, so `pyproject.toml` and `crimes.config.json` itself were never read — no detector checked test configuration or coverage thresholds.\n\nNo files changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

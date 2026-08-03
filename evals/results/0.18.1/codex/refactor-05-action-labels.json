@@ -1,0 +1,78 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "codex",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:31:33.257Z",
+  "run_id": "2626759e-f84a-4fe5-a138-ca724d34d3f0",
+  "response": "I’m using the repository’s crimes risk skill to validate the supplied scan evidence and frame the refactor recommendation without changing the fixture.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m checking the repository’s locally built CLI—the documented fallback—against the same fixture.\n\nThe scan confirms both `action_label_drift` and `copy_ia_drift` for the same `delete` alias group: `archive`, `delete`, and `remove` appear across all three components.\n\nI’d standardize on:\n\n- `Delete user`\n- `Delete team`\n- `Delete seat`\n\n`Delete` most clearly communicates an irreversible destructive action. `Archive` implies reversibility, while `Remove` can mean merely detaching membership. This recommendation assumes the underlying behavior really is destructive; otherwise the actions should remain semantically distinct.\n\nRefactor order:\n\n1. **SeatList.tsx first** — both labels are noncanonical (`Remove member`, `Archive member`), and the file anchors both findings. Change them to `Delete seat`.\n2. **TeamList.tsx** — change `Archive team` to `Delete team`; normalize `Delete the seat` to `Delete seat`.\n3. **UserList.tsx** — retain `Delete user`; change `Remove member` to `Delete user`.\n\nIf normalization leaves two identical controls in a component, that exposes a separate duplicate-affordance problem worth consolidating.\n\nFinding attribution:\n\n- `action_label_drift` covers the broader code/IA surface: JSX labels plus navigation-derived signals. Each `Archive` or `Remove` → `Delete` change addresses this finding.\n- `copy_ia_drift` is the frontend-only variant, restricted to JSX label literals. The same edits address it because every relevant occurrence in this fixture comes from JSX `label` props.\n\nThat input overlap is why the two findings have identical evidence, severity, confidence, anchor, and related files here. They are not generally duplicates: `action_label_drift` can detect drift involving non-JSX navigation signals that `copy_ia_drift` ignores. Also, `SeatList.tsx` being the reported file is a deterministic anchoring choice, not proof that it alone caused the drift.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "docs_code_drift",
+      "crime_00004": "orphaned_destination",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "action_label_drift",
+      "crime_00009": "copy_ia_drift",
+      "crime_00010": "permission_ia_drift",
+      "crime_00011": "command_drift_docs_code_drift",
+      "crime_00012": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

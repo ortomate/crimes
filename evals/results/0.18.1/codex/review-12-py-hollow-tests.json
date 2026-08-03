@@ -1,0 +1,46 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:41:35.963Z",
+  "run_id": "35a070d2-ef61-4d02-9273-d9773895184e",
+  "response": "The suite genuinely provides only smoke coverage for the reporting workflow:\n\n- `build_report`\n- report export\n- JSON report export\n- report round-tripping\n\nThose paths are executed, so the tests can catch crashes, import failures, and some unexpected exceptions.\n\nThey only look behaviorally covered, however. All four tests in `tests/test_reporting.py` contain zero assertions. They do not verify report contents, exported output, JSON structure, persisted data, or whether a round trip preserves the original report. Incorrect results will still pass as long as nothing raises.\n\nThe scan does not establish genuine protection for any other package behavior. In particular, `.coverage` was not read, so this result provides no line or branch coverage evidence. `pyproject.toml` and `crimes.config.json` were also excluded from discovery.\n\nRefactor assessment: treat the reporting API as exercised but not correctness-tested. Before refactoring, add assertions against returned values and observable export/round-trip results—especially exact fields, serialization shape, and equality after reloading.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

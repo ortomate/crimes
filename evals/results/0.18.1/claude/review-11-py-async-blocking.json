@@ -1,0 +1,54 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "claude",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:42:15.740Z",
+  "run_id": "7df5ab89-d19b-482d-b5c9-85bb5248d411",
+  "response": "## The mechanism\n\nEvery finding that matters here is one bug in two places: **blocking calls inside `async def` handlers**.\n\nFastAPI runs `async def` handlers directly on the event loop. A blocking call there doesn't park *that request* — it parks the loop thread, which is the only thread accepting connections, reading sockets, and dispatching every other in-flight request on that worker. The thread is asleep in a syscall, not computing, so **CPU stays flat while the queue behind it grows**. That is exactly the \"p99 collapses, CPU low\" signature you're seeing. Under low load the queue drains between stalls and p50 looks fine; past the point where blocked-seconds-per-second approaches 1, the tail goes vertical.\n\n`api/routes.py:37` — `def health()` (no `async`) — is the only handler that's *right*: FastAPI pushes sync handlers to a threadpool. Note it won't stay green either, since dispatch still needs the loop.\n\n## Ranked by contribution\n\n**1. `export_invoice` — `subprocess.run(...)` + `time.sleep(2)` (routes.py:31–32)**\n\nThe worst offender, and it's really one blocker: each export holds the event loop for `render_time + 2s`, guaranteed, unbounded on top. `subprocess.run` has no `timeout=`; `time.sleep(2)` is a hardcoded 2-second full-loop stall for a handler that returns `{\"status\": \"queued\"}` — nothing is queued, it's synchronous work pretending to be async. At **0.5 exports/sec you have already saturated the loop**, and every `GET /invoices/*` in flight eats that 2s+ as pure queueing delay. This is the dominant tail contributor: rare, very long stalls are what move p99 without moving p50 or CPU.\n\n**2. `get_invoice` — `requests.get(...)` (routes.py:21)**\n\nThe dominant *baseline* contributor. It's on your highest-traffic path, it blocks the loop for the full round trip to `billing.internal`, and **it has no `timeout=`** — so upstream tail latency becomes your tail latency for every concurrent request, and an upstream hang becomes a total outage. Also: module-level `requests.get` builds a fresh `Session` per call, so you pay TCP + TLS handshake every request, roughly doubling the blocked window versus a pooled client. At ~30ms per call this saturates the loop somewhere around 30 rps — \"moderate load.\"\n\n**3. `get_invoice` — `open()` / `read()` (routes.py:23)**\n\nReal but small. `/etc/billing/rates.json` is local and page-cached, so it's tens of microseconds most of the time. It contributes to the tail only when the page is cold or the filesystem stalls (network mount, container layer). The bigger issue is that it re-reads static config on every request — it belongs at startup.\n\n## Not contributing\n\nThe scan ranks `direct_date` (crime_00002) as `high`, level with the hot-path findings. **For this question that ranking is wrong** — it's a testability and correctness problem, not a latency one. Same for the mixed UTC/local clocks, the 61-line `build_invoice`, the `rendering.py ↔ invoicing.py` import cycle, both deep imports, and the `stale` naming. All legitimate; none of them make the loop block. Fix them on their own schedule.\n\nOne tool caveat worth knowing: both hot-path findings report `blast_radius: 0` because nothing *imports* `routes.py`. For entry points, importer count is the wrong proxy — these two functions serve 100% of traffic.\n\n## Fixes, in the order I'd land them\n\n1. **Emergency mitigation, one word each:** drop `async` from both handlers. FastAPI then runs them in the threadpool, converting an event-loop stall into a bounded threadpool-slot consumption. Ships in minutes, buys you the tail back.\n2. **`export_invoice`:** delete `time.sleep(2)` outright, and make it actually queued — hand the render to a background worker and return `202`. If it must stay inline, `await asyncio.create_subprocess_exec(...)` with a timeout.\n3. **`get_invoice`:** `httpx.AsyncClient` created once at app startup (pooled), with an explicit total timeout. Hoist the rates file read to startup.\n4. Add event-loop lag as a metric — it's the signal that would have named this on day one, and it's the only way to confirm the #1/#2 ordering above against your real traffic mix.\n\nTwo other things I noticed while reading, unrelated to latency: `subprocess.run(check=True)` raises `CalledProcessError` straight into a 500 with no handler, and `customer_id` is `%`-interpolated into the URL path unquoted.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import",
+      "crime_00009": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

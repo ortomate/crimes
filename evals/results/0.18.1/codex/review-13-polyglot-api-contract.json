@@ -1,0 +1,59 @@
+{
+  "scenario": "review-13-polyglot-api-contract",
+  "agent": "codex",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:42:42.476Z",
+  "run_id": "ced4fe68-c8fa-42bf-86b9-c3d9c11cb122",
+  "response": "I’m using the repository’s `crimes-codebase-risk` review workflow to validate the scan findings against the actual client and API code, then I’ll rank only genuine contract disagreements by production impact.\n\nThe client and billing API disagree in six concrete places. Ranked by the production failure users would encounter:\n\n1. Plan changes always fail with HTTP 405\n\n   [workspace-client.ts:34](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:34) sends `PUT /api/teams/:id/plan`, while [routes.py:25](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py:25) only accepts `POST`.\n\n   Production effect: every plan-change request is rejected before its payload is considered. This is the most immediate, total feature outage.\n\n2. Plan changes do not transmit the requested plan\n\n   `changeWorkspacePlan(id, plan)` never uses `plan`. The API expects a required `plan` query parameter.\n\n   Production effect: after correcting the method, requests would still fail with HTTP 422 because `plan` is missing.\n\n3. Plan changes and seat lookups send the literal tenant ID `:id`\n\n   Both URLs contain the static text `:id`:\n\n   - [workspace-client.ts:28](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:28)\n   - [workspace-client.ts:34](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:34)\n\n   The `id` function argument is never interpolated. FastAPI will interpret `:id` as the `{team_id}` value.\n\n   Production effect: these requests target the wrong tenant. The current seats handler ignores `team_id`, masking the defect by returning free-plan seats; once handlers use the ID, this becomes incorrect data or a cross-tenant correctness risk. The scan’s route normalization did not expose this disagreement.\n\n4. Workspace creation targets a nonexistent route\n\n   [workspace-client.ts:23](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:23) sends `POST /api/workspaces`; the API declares `POST /api/teams` at [routes.py:15](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py:15).\n\n   Production effect: workspace creation returns HTTP 404.\n\n5. Workspace reads target a nonexistent route\n\n   [workspace-client.ts:18](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:18) calls `GET /api/workspaces/{id}`; the backend exposes `GET /api/teams/{team_id}` at [routes.py:10](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/routes.py:10).\n\n   Production effect: loading an existing workspace returns HTTP 404. This dynamic URL was invisible to the literal-route scan.\n\n6. The plan sets disagree\n\n   [plans.py:10](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/api/billing/plans.py:10) defines:\n\n   `free | pro | team | scale`\n\n   [workspace-client.ts:10](/Users/andrew/dev/crimes/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:10) defines:\n\n   `free | pro | enterprise`\n\n   Production effect:\n\n   - The API can return `team` or `scale`, contradicting the client’s `Workspace` type and potentially breaking UI branching, labels, or controls.\n   - The client can request `enterprise`, which is absent from the canonical Python enum.\n   - TypeScript does not validate responses at runtime, and the current API handler accepts `plan: str`, so this may silently propagate invalid state rather than cleanly reject it.\n\nThe underlying terminology also differs—“workspace” in the client versus “team” in the API. That does not independently break the wire contract, but it has already caused the two `/api/workspaces` route errors and makes future drift more likely.\n\nThe scan’s `name_behavior_mismatch` finding for `getWorkspace` is not a client/API contract disagreement. A getter fetching remote data is normal here; it does not mutate billing state. The actionable scan findings are the route, method, type, and concept drift, supplemented by the missed dynamic-route and unsent-parameter defects above.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_route_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

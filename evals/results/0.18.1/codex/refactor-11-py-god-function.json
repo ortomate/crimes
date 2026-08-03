@@ -1,0 +1,54 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "codex",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:35:29.156Z",
+  "run_id": "0c640da2-35d5-4d30-8064-f63b348cfc4c",
+  "response": "The riskiest function to modify is `build_invoice` in `domain/invoicing.py` (lines 15–75).\n\nIts risk goes well beyond 61 lines:\n\n- It nests five levels deep, creating many coupled execution paths.\n- Its five parameters suggest it coordinates several responsibilities.\n- It directly reads time at lines 20, 21, and 53, mixing naive local time with naive UTC. Tests cannot reliably freeze these values, and behavior can differ by host timezone.\n- Its module participates in an import cycle with `api/rendering.py`, so moving helpers or imports carelessly could expose partially initialized modules.\n- The module has two direct and three transitive importers, giving changes a meaningful blast radius.\n- The reported test-gap score is `0.5`, so these branches may not be sufficiently characterized.\n\nConcrete refactor plan:\n\n1. Add characterization tests around the current public behavior, covering every major branch, boundary dates, tax/discount combinations, empty inputs, and failure cases.\n2. Add a `now` callable or `Clock` dependency to `build_invoice`. Use one timezone-aware UTC instant per invocation instead of calling `datetime.now()`/`utcnow()` throughout.\n3. Identify the distinct phases in the function—likely validation/normalization, line-item calculation, tax calculation, totals, and result assembly—and extract them into private pure helpers.\n4. Replace deep conditional nesting with guard clauses and named predicates. Preserve calculation order and rounding behavior exactly.\n5. Keep `build_invoice` as a thin orchestrator: capture the time, call each pure phase, then construct the invoice.\n6. Break the `domain.invoicing` ↔ `api.rendering` cycle separately by moving shared types/constants into a dependency-free leaf module. Do not conceal it with local imports.\n7. Run focused tests after each extraction, then the full suite. Also compare before/after scan output and treat any new high-severity finding as a blocker.\n\nThe key is to separate behavior before changing it: first make time deterministic, then extract pure calculations one at a time, and only afterward simplify the orchestration.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import",
+      "crime_00009": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

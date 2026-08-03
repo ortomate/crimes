@@ -1,0 +1,53 @@
+{
+  "scenario": "bugfix-13-polyglot-plan-drift",
+  "agent": "claude",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:16:09.932Z",
+  "run_id": "c1092c1d-1eda-4d96-bedf-1697911fbc34",
+  "response": "Confirmed against the fixture source. The scan's top finding is the whole story, and two of the lower-ranked findings explain why the bug survived and why the upgrade path is broken even after you fix it.\n\n## The mechanism\n\n`Plan` is declared as a **closed set in both languages, by hand, twice** (`crime_00001`, high, confidence 0.75):\n\n| | values |\n|---|---|\n| `packages/api/billing/plans.py:10` | `free`, `pro`, `team`, `scale` |\n| `packages/web/src/workspace-client.ts:10` | `free`, `pro`, `enterprise` |\n\nThe Python enum is the canonical list — its own docstring says so (\"The canonical list of tiers lives here. The web client keeps its own copy... and the two have drifted\"), and it's the side wired to `SEATS_INCLUDED`, where `scale` = 50 seats. The newest tier (`scale`, and `team` before it) was added to the enum and never added to the TypeScript union.\n\nSo the API accepts and returns `scale` correctly, and the web client's contract says that value cannot exist. Any runtime check on the web side that mirrors that union — a zod/valibot schema, a dropdown's option list, an exhaustive `switch` with a `default: throw` — rejects a value the server just handed it. Worth being precise here: the union on line 10 is a *type*, and types erase at runtime, so the union itself isn't throwing the error. It's whatever runtime validator was written from that union that throws. The drift is the root cause; the union is where you fix it.\n\nThe drift runs both ways. TypeScript carries `enterprise`, which the backend has never heard of. And `change_team_plan` at `routes.py:26` takes `plan: str`, not `plan: Plan` — so if the UI ever sends `enterprise`, FastAPI won't reject it, the handler echoes it straight back, and you get an unvalidated phantom tier flowing into the system. That's the mirror-image bug waiting behind this one.\n\n## Why it went unnoticed\n\n`crime_00004` (Concept Alias Drift) is the reason this class of bug persists here: the same concept is `team` in Python and `workspace` in TypeScript across all three files. Someone adding `scale` to `plans.py` and grepping the repo for `team` finds four Python functions and zero TypeScript. The vocabulary split hides half the code from anyone — human or agent — doing the obvious search.\n\n`test_gap` is **1.0 on every finding**. Nothing tests the boundary in either direction.\n\n## The other half: the upgrade path is broken anyway\n\nEven once validation accepts `scale`, the plan change won't land — two route drifts sit on that exact flow:\n\n- `crime_00003` — the client calls `PUT /api/teams/:id/plan` (`workspace-client.ts:34`); the backend declares that path as `POST` (`routes.py:25`). The path exists, so this is a **405, not a 404** — which reads like a permissions problem in logs and sends you chasing auth.\n- `crime_00005` — `POST /api/workspaces` (`workspace-client.ts:23`) matches no backend route at all; the backend only declares `/api/teams`. That's a 404 that looks like a data problem.\n\nAlso, `changeWorkspacePlan` accepts a `plan` argument and never sends it — no body, no query param. And every `fetch` uses the literal string `\"/api/teams/:id/plan\"`; `:id` is never interpolated. Those aren't detector findings, but they're on the same path and you'll hit them next.\n\n## What stops it recurring\n\nThe fix that matters is structural, not the three-line union edit:\n\n1. **One source of truth, generated.** Make the Python enum canonical (it already is, de facto — it owns `SEATS_INCLUDED`). Emit the TypeScript from it: FastAPI already gives you an OpenAPI document, so `openapi-typescript` gets you the union *and* the route table for free. That closes `crime_00001`, `00003`, and `00005` with one mechanism, which is why the scan tags both route findings with `align_api_contract`/generate-the-client.\n2. **Make drift a CI failure, not a runtime surprise.** Regenerate in CI and fail on a dirty diff. A hand-maintained copy that \"should\" be kept in sync is exactly what already failed.\n3. **Type the endpoint.** `change_team_plan(team_id: str, plan: str)` → `plan: Plan`, so an unknown tier is a 422 at the edge instead of an echo.\n4. **Pick one name for the concept** (the detector suggests `organization`) and rename across both languages, or document the mapping at the boundary. Otherwise the next person to add a tier repeats the same half-search.\n\nThe first two are the ones that actually prevent recurrence; 3 and 4 stop the failure from being silent and hard to find when something else drifts.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": "packages/api/billing/plans.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": "packages/web/src/workspace-client.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      }
+    ]
+  }
+}

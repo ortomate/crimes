@@ -1,0 +1,72 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:37:08.788Z",
+  "run_id": "22d9adc2-57ae-4ce4-a067-961cc898799c",
+  "response": "I’m using the `crimes-codebase-risk` review guidance to interpret the supplied scan conservatively, with emphasis on evidence and release impact. I’ll keep unrelated repository findings out of the IA decision.\n\nThe scan shows eight directly relevant findings, collapsing into five IA drift clusters. Although none are `high`, several should block IA-quality sign-off.\n\n| Issue | Evidence | Recommendation |\n|---|---|---|\n| `/admin` permission drift | Nav, route guards, and docs use `admin`, `manager`, and `owner` for the same destination | **Blocker.** Resolve the intended access policy and centralize it. Inconsistent permissions can expose or hide functionality incorrectly. |\n| Tenant vocabulary drift | `organisation`, `team`, and `workspace` appear across nav and separate routes | **Block pending product clarification.** If these are synonyms, choose one canonical concept and route. If distinct, document their boundaries and give each an unambiguous label. |\n| Unreachable destinations | `/organisation`, `/workspace`, `/billing-plans`, and `/admin/billing-plans` have no detected nav, docs, or imports | **Block IA sign-off if these routes are meant to ship.** Wire them into a journey or retire them. In particular, decide which billing-plans URL is authoritative. Intentional deep links may be downgraded after verification. |\n| Stale CLI documentation | `iaq teams`, `iaq workspace`, and `iaq refresh` are documented, while the binary advertises only `get` and `list` | **Block documentation release.** Users following the shipped docs would hit missing commands. Update the docs or restore the commands. |\n| `/admin` “missing” documentation link | `docs/routes.md` links to `/admin`, while `src/routes/admin.ts` evidently exists | **Follow-up / likely detector false positive.** The detector appears to interpret an application URL as a filesystem-relative Markdown link. Verify the routing convention before changing the doc. If confirmed, record: `crimes feedback docs_code_drift::docs/routes.md:: --verdict fp --note \"Application route /admin is implemented by src/routes/admin.ts; it is not a filesystem link.\"` |\n\nThe `action_label_drift` and `copy_ia_drift` records describe the same `archive`/`delete`/`remove` evidence in components. Treat them as one non-blocking copy-consistency follow-up, outside the requested route/nav/docs scope.\n\n`missing_agent_context` and `dependency_provenance_gap` are also outside the IA review. The undeclared `commander` dependency may independently matter for release readiness, but it is not an IA consistency finding.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "docs_code_drift",
+      "crime_00004": "orphaned_destination",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "action_label_drift",
+      "crime_00009": "copy_ia_drift",
+      "crime_00010": "permission_ia_drift",
+      "crime_00011": "command_drift_docs_code_drift",
+      "crime_00012": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      }
+    ]
+  }
+}

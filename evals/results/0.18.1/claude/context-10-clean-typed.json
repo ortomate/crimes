@@ -1,0 +1,38 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.18.1",
+  "timestamp": "2026-08-03T20:18:26.381Z",
+  "run_id": "b411ce94-bee6-474e-b04d-862424117647",
+  "response": "`crimes context src/billing.ts --format json` confirms it: **zero findings on this file.**\n\n```json\n\"risk\":         { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"findings\":     [],\n\"likely_tests\": [\"src/billing.test.ts\"],\n\"related_files\": []\n```\n\n**likely_tests:** `src/billing.test.ts`\n\n## Why this module is low risk to edit\n\n**No findings, and nothing suppressed into silence.** The repo-level scan reports exactly one finding — `dependency_provenance_gap` on `package.json` (`vitest` imported by `src/billing.test.ts` but undeclared). That's a manifest hygiene issue, low severity (0.25), agent_risk 0.13, and it doesn't touch `src/billing.ts` at all.\n\n**Nothing depends on it.** `related_files` is empty, with the reason stated explicitly: *\"no neighbourhood signal — no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings.\"* Blast radius is 0. `format()` has one consumer in the repo: its own test.\n\n**It's genuinely small and pure.** 10 lines: a `Money` interface with a closed currency union (`\"USD\" | \"EUR\" | \"GBP\"`) and a single `format()` function that destructures and returns a template string. No `Date.now()`, no `process.env`, no I/O, no branching, no hidden side effects — so none of the testability or agent-risk detectors have anything to grab. Change the output format and you get a deterministic test failure, not a runtime surprise.\n\n**Tests actually cover the behaviour.** `test_gap.raw` is 0. The two test cases (`USD 12.50`, `EUR 7.00`) pin both the currency prefix and the `toFixed(2)` padding — the two things you'd most plausibly break.\n\n**Cold, single-author history.** `commits_90d: 1`, `unique_authors_90d: 1`, last touched 2026-05-18. No churn hotspot, no competing edits, no bug-fix thrash.\n\n**Two caveats worth naming, neither a blocker:**\n\n- `test_gap.label` is `\"unknown\"`, not `\"covered\"` — the raw score is 0 because nothing flagged a gap, not because coverage was measured. The tests exist and are targeted, but crimes isn't asserting a coverage percentage here.\n- The one thing an edit *could* widen: the `currency` union is a public exported type. Adding a member is additive, but removing or renaming one breaks any downstream consumer — of which this fixture has none, though a real repo might.\n\nPractical read: safe to edit directly. Run `src/billing.test.ts` after; that's the whole verification surface.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}
