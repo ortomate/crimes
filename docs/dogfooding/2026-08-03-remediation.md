@@ -1,7 +1,7 @@
 # Remediation of the 0.14 → 0.17 dogfooding round
 
 **Date:** 2026-08-03
-**Version:** `0.17.3` (patch bumps — findings moved, no release, no tag)
+**Version:** `0.18.0` (no release, no tag — see §3)
 **Round report:** [`2026-08-02-0.14-to-0.17.md`](./2026-08-02-0.14-to-0.17.md)
 **Friction log:** [`2026-08-02-log.md`](./2026-08-02-log.md)
 
@@ -12,8 +12,11 @@ The round found ~30 verified defects.
   class closed — §4.4a plus six detectors it had not named, the
   discovery that every discriminated finding was unignorable, and
   blocker 3 (scan determinism). Tests 1,911 → 1,950.
+- **Third pass (`0.18.0`, §1c):** the remaining three blockers, done in
+  parallel worktrees. Tests 1,950 → 2,011.
 
-All test-driven, `pnpm verify` green at every commit.
+**Every blocker in §4 is now closed.** All test-driven, `pnpm verify`
+green at every commit.
 
 This document is the handoff. It records what changed, what was
 deliberately *not* changed, and what is left — enough to resume cold.
@@ -337,6 +340,122 @@ Residual: a scan pair straddling UTC midnight can still disagree. That
 is bounded and predictable rather than continuous, and it is documented
 on the function.
 
+### 1.16 `weak_test_signal` did not follow assertion helpers — `4456904`, `8db9487`
+
+Blocker 1, and the largest noise source in the product: **619 findings,
+0 acted on, from both blind judges.**
+
+The queue said the fix needed call extraction in the Python parser,
+which `ParsedPyFile` did not have — only `dateCalls` and `ioCalls`. That
+was right. `PyCall` is now a general capability (callee, receiver, line,
+arg count, keywords, enclosing functions), not a one-off; `dateCalls` /
+`ioCalls` were deliberately **not** folded into it, because their
+`kind` / `timezoneAware` fields are Python-API knowledge that belongs in
+the pack rather than re-derived in `core`.
+
+> **The queue's premise was partly wrong.** It gave
+> `assert_valid_user()` as the motivating example. That call was
+> *already* credited — the existing matcher is `/^assert[A-Z_]/` and
+> `assert` is followed by `_`. The real false positive is the helper
+> **not** named `assert*`: zulip's `self.verify_action()`,
+> pydantic's `import_from()`.
+
+Helper following is **two hops, same file, receiver empty or
+`self`/`cls`** — and each limit was measured rather than guessed. A
+third hop credits **zero** additional tests on zulip and drf. Allowing
+any receiver changed zulip's result by **zero**, while risking
+`client.check(x)` being credited against an unrelated module-level
+`check`.
+
+| repo | files flagged | silent tests |
+|---|---|---|
+| zulip | 47 → **19** | 467 → **56** |
+| pydantic | 52 → **33** | 236 → **96** |
+| drf | — | 60 → **29** |
+| airflow | — | 790 → **696 (12%)** |
+
+**Airflow's 12% is a poor result and is reported as one.** Its helpers
+live in `conftest.py` and in base classes in other modules — exactly the
+case the same-file limit declines to guess at, because there is no
+Python symbol index to resolve them with. Expect airflow-shaped repos to
+still find this detector noisy.
+
+All three smaller corrections landed: `self.fail` (matched only on a
+framework receiver, so a project-local `job.fail("retry")` stays a state
+transition), `@pytest.mark.benchmark`, and
+`model_dump_json(warnings='error')`. The benchmark exemption went wider
+than the brief for a measured reason: in pydantic's benchmark suites
+**201 of 203** tests declare `benchmark` as a *parameter* and none carry
+the decorator.
+
+### 1.17 `coverage.warnings[]` — the scan now says what it skipped — `707ddf6`, `eedf2c3`
+
+Blocker 2. Nine warning kinds (`files_not_discovered`, `files_excluded`,
+`files_not_followed`, `files_in_hidden_path`, `files_unreadable`,
+`files_unparsed`, `files_partial_parse`, `index_truncated`,
+`index_unavailable`), each aggregated by subject with a count and up to
+five example paths — 1,226 `.vue` files are one warning, not 1,226.
+
+Four silent-skip paths the queue did not list turned up:
+
+- **`ImportGraph` truncation at 5,000 files.** `imports/build.ts`
+  already computed `limited` / `limitedReason`; nothing carried it to
+  the report. Above the cap `blast_radius`, fan-in and cycles are
+  advisory and said so nowhere.
+- **Whole-index failure.** Every `safelyBuild*` in `indexes.ts` returns
+  `undefined` on throw, silently zeroing a signal repo-wide.
+- **Symlinks.** zulip's `docs/*.md` are symlinks;
+  `followSymbolicLinks: false` drops them.
+- **Read/parse swallowing is wider than the one site named** —
+  `jsx/shape-index.ts`, `petty/build.ts`, `ia/build.ts` (×3),
+  `imports/build.ts`, `imports/python.ts` (×2).
+
+The reference set is `git ls-files --cached --others
+--exclude-standard`, one cheap process that already knows `.gitignore`,
+rather than a second filesystem walk that would either miss it or
+reimplement it. Non-Git roots get **no** discovery-gap warnings rather
+than a guess.
+
+> **The queue's "gitignored counts" was already obsolete.** `.gitignore`
+> has been honoured since `3968042` (§1.2), so gitignored files are not
+> a coverage gap. Verified on hono: `node_modules` and `dist` correctly
+> produce no warning.
+
+`SCHEMA_VERSION` was **not** bumped for this — an optional additive
+field on `coverage`, matching the precedent of
+`universal_only_by_extension` (0.13.0) and `by_package` (0.15.0). It
+moved anyway, for an unrelated reason (§1.18).
+
+### 1.18 `blast_radius` called a reachability closure an importer count — `e379126`
+
+Blocker 4. `transitiveImporterCount` returns the size of the transitive
+importer closure. It was stored as `blast_radius_importers` and rendered
+as "N importers".
+
+Measured on hono: **six files all report 197** while their direct fan-in
+ranges from 2 to 70 — the strongly-connected-component plateau, the same
+signature as zulip's 866-findings-on-798. Six files appear in their own
+"importer" closure, because the walk goes round the cycle back to the
+start.
+
+```
+scores.blast_radius_transitive_importers   // renamed from blast_radius_importers
+scores.blast_radius_direct_importers       // new
+```
+
+`scan` / `context` now print `blast top-quartile (70 direct / 197
+transitive importers)`; `explain` prints both integers.
+
+> **The queue over-credited `explain`.** It said `explain` "renders it
+> honestly". `explain` did say *transitive* — better than
+> `scan`/`context` — but it inverted the capped score rather than
+> reading the measured count, so **798 rendered as "50+"**, and it never
+> mentioned direct fan-in at all. Less wrong is not right.
+
+`schema_version` 0.4.0 → **0.5.0**: a field rename is a breaking wire
+change. No fingerprint changes, so no pinned suppression or baseline is
+invalidated by it.
+
 ---
 
 ## 2. Deliberately not changed
@@ -359,6 +478,23 @@ across every report and is a scoring-model decision, not a defect fix.
 
 **No detector was disabled or gated.** The sunset shortlist is a
 recommendation awaiting a decision.
+
+**`blast_radius`'s score is still pinned at 1.0 on 47% of zulip
+findings.** 0.18.0 fixed what the number is *called*, not how it is
+scaled — the closure saturates a fixed cap of 50 on any repo with a
+large strongly-connected component. Two options, both requiring a full
+eval re-baseline: score direct fan-in instead (cheapest, but discards
+real reach signal), or keep the closure and quartile-rank it within the
+scan as `test_gap` already does (removes saturation by construction,
+but `blast_radius` stops being comparable across repos). The second,
+with the direct count as an in-quartile tiebreaker, is the standing
+recommendation. It is a **calibration** change and must be recorded as
+one.
+
+**`transitiveImporterCount` still counts a file as its own importer**
+when the file sits on an import cycle. Left deliberately: it is the
+number `blast_radius` has always normalised, and changing it moves every
+score. Documented on the function rather than silently corrected.
 
 ---
 
@@ -427,18 +563,26 @@ fingerprint (§1.14).
 
 ### Blockers
 
-1. **`weak_test_signal` assertion helpers.** 619 findings, 0 act. Needs
-   py-parser call extraction (§2). Also: count `self.fail`, exempt
-   `@pytest.mark.benchmark`, and credit
-   `model_dump_json(warnings='error')`.
-2. **`coverage.warnings[]`.** A single field every silent-skip path
-   populates. Would have surfaced four of the eleven bugs fixed above.
-   Feeds: files skipped by extension (`.vue` — 1,226 in n8n, in *no*
-   coverage field; `.hbs`/`.html` — 749 in zulip; `.ipynb` — 42 in
-   mlflow), read failures (`EMFILE` swallowed as "no functions" in
-   `ast-hash/function-index.ts:72-79`), `hasSyntaxErrors` (computed,
-   never surfaced), and gitignored/excluded counts. Schema addition,
-   minor bump.
+**None. All four are closed** — 1 and 2 and 4 in `0.18.0` (§1.16–1.18),
+3 in `0.17.3` (§1.15), 4a in `0.17.2` (§1.12–1.14).
+
+The list below is kept because each entry records what was measured, and
+because three of the four entries contained a claim that turned out to
+be wrong — see the strikethroughs.
+
+
+1. ~~**`weak_test_signal` assertion helpers.**~~ **Done** in `0.18.0` —
+   see §1.16. All three smaller corrections landed too. **The premise
+   in this entry was partly wrong**: the existing matcher
+   `/^assert[A-Z_]/` already credited `assert_valid_user()`, because
+   `assert` is followed by `_`. The real false positive is the helper
+   *not* named `assert*` — zulip's `self.verify_action()`.
+2. ~~**`coverage.warnings[]`.**~~ **Done** in `0.18.0` — see §1.17.
+   Nine warning kinds, four more silent-skip paths than this entry
+   listed. **The "gitignored counts" half of this entry was already
+   obsolete** when it was written: `.gitignore` has been honoured since
+   `3968042` (§1.2), so gitignored files are not a coverage gap and are
+   correctly absent from the warnings.
 3. ~~**Finding ids are not stable across runs.**~~ **Done** in `0.17.3`
    — see §1.15. Two consecutive scans of n8n `packages/cli` and of hono
    are now byte-identical. The 202-of-3,593 figure recorded here was
@@ -448,11 +592,13 @@ fingerprint (§1.14).
    The zulip figure (139 of 3,759) was measured the same way and was
    never re-checked — treat it as unverified rather than as a
    still-open number.
-4. **`blast_radius` prints a component size as a per-file count.** zulip:
-   3,759 findings, **37 distinct values**; 866 share `798`, 825 share
-   `324`; pinned at 1.0 on 47%. The report says `slack.py` has 798
-   importers; it has 5. `explain` renders it honestly ("50+ transitive,
-   cap reached"); `scan` and `context` do not.
+4. ~~**`blast_radius` prints a component size as a per-file count.**~~
+   **Done** in `0.18.0` — see §1.18. **This entry over-credited
+   `explain`**: it did say "transitive", but it inverted the capped
+   score instead of reading the measured count, so 798 rendered as
+   "50+". It was less wrong than `scan`/`context`, not right.
+   The **score** saturation (pinned at 1.0 on 47%) was deliberately not
+   touched — see §2.
 
 4a. ~~**Three detectors still collide on fingerprints.**~~ **Done** in
    `0.17.2` — see §1.12–1.14. Nine detectors fixed, not the four listed
@@ -460,6 +606,40 @@ fingerprint (§1.14).
    content-identical pairs. A standing uniqueness gate is in
    `scan.test.ts`. The related discovery — that every discriminated
    finding was unignorable by both id and fingerprint — is §1.14.
+
+### New, surfaced by the 0.18.0 work
+
+These were found while fixing the blockers and are deliberately *not*
+folded into them — each is a separate behaviour change.
+
+4b. **Nested `test_*` functions are counted as tests.**
+   `weak_test_signal` treats any `test_*`-named function as a test
+   regardless of nesting, so a `def test_view(request)` declared *inside*
+   a real test — a parameterised action, a decorated view stub — is
+   reported as a silent test. This is **9 of 23** survivors in zulip's
+   `test_message_delete.py` and **5 of 71** in `test_decorators.py`. Fix
+   is to exclude a `test_*` function whose span sits inside another
+   test's. Small, and the highest-precision item on this list.
+
+4c. **`pytest.warns(...)` is not credited as an assertion** though
+   `pytest.raises` is. It fails when the warning is not emitted, so it is
+   the same thing. **36 occurrences** in pydantic's uncredited calls —
+   the highest-volume single item. Same shape:
+   `@pytest.mark.xfail`, where the expectation of failure *is* the
+   assertion.
+
+4d. **Cross-file assertion helpers are unresolved**, which is what
+   airflow's 12% improvement is waiting on (§1.16). Needs a Python
+   symbol index that does not exist. Feature-sized; scope it
+   deliberately, and note it would also serve any other Python detector
+   that wants to follow a call.
+
+4e. **JS syntax errors have no `coverage.warnings[]` signal.** The
+   Python pack surfaces `hasSyntaxErrors`; the JS pack has no public
+   equivalent — `ts.createSourceFile` keeps `parseDiagnostics` off the
+   public `SourceFile` type. Reaching it means an internal-API
+   dependency, which was judged not worth it *in a field whose entire
+   value is being trustworthy*. Revisit if a supported signal appears.
 
 ### Real problems
 
