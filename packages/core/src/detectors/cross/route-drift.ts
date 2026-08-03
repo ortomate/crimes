@@ -42,6 +42,38 @@ export function normalisePath(path: string): string {
   return out.toLowerCase();
 }
 
+/**
+ * The first path segment — the namespace a route or call belongs to.
+ * `/api/projects/2` → `api`, `/v1/customers` → `v1`, `/` → `""`.
+ *
+ * ## Why an orphan outside every backend namespace is not drift
+ *
+ * "Drift" means two sides that describe the same API have fallen out of
+ * step. It presupposes they are the same API. A frontend call into a
+ * namespace the backend declares nothing in is not a renamed route — it
+ * is a call to some *other* service, and the route table in front of us
+ * simply does not describe it.
+ *
+ * PostHog is the case that forced this. Every decorator-routed Python
+ * file in that repo lives in `services/stripe-mock`, a Stripe API mock
+ * that owns `/v1/*` and `/_health`; PostHog's own API is Django/DRF
+ * `router.register` (90 registrations across 18 `urlpatterns` files),
+ * none of which this detector can see. The `backend.length === 0` guard
+ * that was supposed to stop a one-sided repo reporting was defeated by
+ * the mock's 9 routes, and the result was a single **high**-severity
+ * finding accusing PostHog's `/api/projects/*` frontend of drifting
+ * from a Stripe mock.
+ *
+ * Segment-level ownership is the cheapest correct test. It costs one
+ * `Set` and it keeps the genuine case — a backend that owns `/api` and
+ * is missing `/api/teams` — reporting exactly as before.
+ */
+function firstPathSegment(normalised: string): string {
+  const trimmed = normalised.replace(/^\/+/, "");
+  const slash = trimmed.indexOf("/");
+  return slash === -1 ? trimmed : trimmed.slice(0, slash);
+}
+
 interface BackendRoute {
   file: string;
   method: string;
@@ -92,13 +124,20 @@ export const crossLanguageRouteDriftDetector: CrossLanguageDetector = {
       byPath.set(route.normalised, bucket);
     }
 
+    // Namespaces the backend demonstrably owns. See
+    // {@link firstPathSegment} for why an orphan outside all of them is
+    // not evidence of drift.
+    const backendNamespaces = new Set(backend.map((r) => firstPathSegment(r.normalised)));
+
     const orphans: FrontendCall[] = [];
     const methodMismatches: Array<{ call: FrontendCall; routes: BackendRoute[] }> = [];
 
     for (const call of frontend) {
       const matches = byPath.get(call.normalised);
       if (!matches || matches.length === 0) {
-        orphans.push(call);
+        if (backendNamespaces.has(firstPathSegment(call.normalised))) {
+          orphans.push(call);
+        }
         continue;
       }
       // `route`/`websocket` declare no verb, so they match anything.
@@ -171,7 +210,14 @@ function buildOrphanFinding(orphans: FrontendCall[], backend: BackendRoute[]): F
     ...(orphans.length > shown.length ? [`…+${orphans.length - shown.length} more`] : []),
     `${backend.length} backend ${plural(backend.length, "route")} declared across ` +
       `${new Set(backend.map((b) => b.file)).size} ${plural(new Set(backend.map((b) => b.file)).size, "file")}`,
+    `backend owns: ${[
+      ...new Set(backend.map((b) => `/${firstPathSegment(b.normalised)}`)),
+    ]
+      .sort()
+      .slice(0, 6)
+      .join(", ")} — calls outside those namespaces are not counted here`,
     "matched on literal path strings — a route or URL assembled at runtime is invisible to this check",
+    "decorator routing only — Django `urlpatterns` and DRF `router.register` are not read, so a repo using them looks routeless",
   ];
 
   const relatedFiles = [

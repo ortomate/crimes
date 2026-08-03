@@ -112,6 +112,45 @@ def create_invoice():
     expect(found[0]!.evidence.join(" ")).toMatch(/\/api\/teams/);
   });
 
+  it("stays quiet when the only backend routes are a sidecar in another namespace", async () => {
+    // PostHog. Every decorator-routed Python file in the repo lives in
+    // `services/stripe-mock`, a Stripe API mock; PostHog's own API is
+    // Django/DRF `router.register`, which this detector cannot see. The
+    // `backend.length === 0` guard was defeated by the mock's 9 routes,
+    // so the result was one *high*-severity finding accusing PostHog's
+    // frontend of drifting from a Stripe mock.
+    expect(
+      await run(crossLanguageRouteDriftDetector, {
+        "services/stripe-mock/src/routes.py": `
+@app.get("/v1/{resource}")
+def list_resource(resource):
+    return []
+
+@app.post("/v1/webhook_endpoints")
+def create_webhook():
+    return {}
+`,
+        "frontend/src/lib/api.ts": `
+          await fetch("/api/projects/2/");
+          await fetch("/api/projects/2/insights");
+          await fetch("/admin/auth_check");
+        `,
+      }),
+    ).toEqual([]);
+  });
+
+  it("still reports a missing path inside a namespace the backend does own", async () => {
+    // The distinction is namespace ownership, not match count. Here the
+    // backend declares `/api/...`, so a missing `/api/teams` is real
+    // drift and must survive the sidecar guard.
+    const found = await run(crossLanguageRouteDriftDetector, {
+      "api/routes.py": backend,
+      "src/client.ts": `await fetch("/api/teams");`,
+    });
+    expect(found).toHaveLength(1);
+    expect(found[0]!.evidence.join(" ")).toMatch(/\/api\/teams/);
+  });
+
   it("stays quiet when every call matches a route", async () => {
     expect(
       await run(crossLanguageRouteDriftDetector, {
