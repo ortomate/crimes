@@ -5,18 +5,82 @@ import { JS_EXTENSIONS } from "../discovery/language-pack-router.js";
 const JS_EXT_SET = new Set<string>(JS_EXTENSIONS);
 
 const SINGLE_LINE_COMMENT_RE = /^\s*(?:\/\/|#|--)\s?(.*)$/;
-const CODE_TOKEN_RE =
-  /\b(?:def|fn|function|class|let|var|const|return|if|for|while|import|from|use|pub|public|private|protected|interface|impl|struct|enum|match|switch)\b/;
+
+/**
+ * Documentation comments, which are prose by definition.
+ *
+ * Rust's `///` and `//!` are the ones that bit: a doc comment carrying a
+ * `# Examples` block is *full* of `use` and `fn`, so the more idiomatic
+ * the documentation the more likely it was to be reported as dead code.
+ */
+const DOC_COMMENT_RE = /^\s*(?:\/\/[/!]|#!)/;
+
+/**
+ * Lines that are code because of their **shape**, not because they
+ * contain a word that also appears in English.
+ *
+ * The previous rule was a bare-word alternation over `def|fn|class|…|
+ * for|use|if|match|return|while`. Every one of those after `impl` is
+ * also an ordinary English word, and that is not a corner case: on
+ * airflow it made the Apache licence header — "distributed with this
+ * work **for** additional information", "you may not **use** this
+ * file", "the License **for** the specific language" — clear the
+ * three-hit threshold on prepositions alone. 7,320 findings, 41% of the
+ * entire report, one per file, every Apache-licensed repo.
+ *
+ * A keyword now has to be *used* as a keyword: `def name(`, `class
+ * Name`, `import x`, `return <something>`, an assignment, a call, a
+ * brace. Prose containing the same words does not match, because prose
+ * does not have the punctuation.
+ */
+const CODE_LINE_PATTERNS: RegExp[] = [
+  // def foo( | fn foo( | function foo( — the name and the paren are what
+  // make it a definition; "def" alone is not enough.
+  /^(?:async\s+|pub\s+|public\s+|private\s+|protected\s+|static\s+)*(?:def|fn|function)\s+[A-Za-z_$][\w$]*\s*[(<]/,
+  // class Foo: | struct Foo { | impl Trait for Foo {
+  // Must *open a body*, which is what stops "class of request arrives
+  // first and returns…" — a sentence — from reading as a declaration.
+  /^(?:pub\s+|public\s+|private\s+|protected\s+|abstract\s+|final\s+)*(?:class|struct|enum|impl|interface|trait)\s+[A-Za-z_$][\w$]*.*[:{]\s*$/,
+  // Imports in their real syntactic forms. "use this helper for…" is a
+  // sentence; `use serde::Deserialize;` is not.
+  /^import\s+[A-Za-z_$][\w$.]*(?:\s+as\s+[\w$]+)?\s*[;,]?$/,
+  /^from\s+[\w$.]+\s+import\s+\S/,
+  /^use\s+[\w:{}, ]+;$/,
+  /^#?\s*include\s+[<"]/,
+  // Declaration with an initialiser: let x = 1, const y: T = z
+  /^(?:const|let|var|val)\s+[A-Za-z_$][\w$]*\s*(?::[^=]*)?=\s*\S/,
+  // A bare control-flow statement on its own line
+  /^(?:pass|break|continue|return|yield)\s*;?$/,
+  // return / raise / yield carrying an expression with code punctuation
+  /^(?:return|yield|raise|throw|assert|del|await)\s+.*[=+\-*/%()[\]{}<>|&]/,
+  // return self.x | raise ValueError — a single dotted operand
+  /^(?:return|yield|raise|throw|del)\s+[A-Za-z_$][\w$.]*\s*;?$/,
+  // Control flow that opens a block: if x:, for (…) {, match v {
+  /^(?:if|elif|else|while|for|switch|match|case|try|catch|except|finally|with|do)\b.*[:{]\s*$/,
+  // Assignment: x = 1, self.y += 2, a[0] = b
+  /^[A-Za-z_$][\w$.[\]"']*\s*(?:\+|-|\*|\/|\|\||&&|\?\?|\/\/|\*\*)?=[^=~]\s*\S/,
+  // A call statement alone on the line
+  /^[A-Za-z_$][\w$.]*\s*\([^)]*\)\s*[;:{,]?\s*$/,
+  // Brackets, and any line terminated the way a statement is
+  /^[}\])]+\s*[;,)]?\s*$/,
+  /[;{]\s*$/,
+];
 const MINIMUM_RUN = 4;
 const MINIMUM_CODE_HITS = 3;
+
+function looksLikeCode(line: string): boolean {
+  const trimmed = line.trim();
+  if (trimmed.length === 0) return false;
+  return CODE_LINE_PATTERNS.some((re) => re.test(trimmed));
+}
 
 /**
  * Universal-pack variant of `commented_out_code`. Runs on every file
  * except those claimed by the language-js pack (which has an AST-aware
  * variant under the same abstract `type`). Uses line-level regex
- * detection: a run of >= 4 single-line comments where >= 3 contain
- * code-shaped tokens (function/def/class/let/var/const/return/if/for/while/etc.)
- * is the trigger.
+ * detection: a run of >= 4 single-line comments where >= 3 are
+ * *syntactically* code — see {@link CODE_LINE_PATTERNS} — is the
+ * trigger. Documentation comments never participate.
  */
 export const commentedOutCodeUniversalDetector: UniversalDetector = {
   id: "commented_out_code",
@@ -52,11 +116,19 @@ export const commentedOutCodeUniversalDetector: UniversalDetector = {
     };
 
     for (let i = 0; i < lines.length; i += 1) {
-      const m = SINGLE_LINE_COMMENT_RE.exec(lines[i]!);
+      const raw = lines[i]!;
+      // A doc comment breaks the run rather than extending it: a block
+      // that mixes `///` documentation with `//` disabled code is two
+      // different things, and only the second one is the charge.
+      if (DOC_COMMENT_RE.test(raw)) {
+        flushRun(i);
+        continue;
+      }
+      const m = SINGLE_LINE_COMMENT_RE.exec(raw);
       if (m) {
         if (runStart < 0) runStart = i;
         runCount += 1;
-        if (CODE_TOKEN_RE.test(m[1] ?? "")) runCodeHits += 1;
+        if (looksLikeCode(m[1] ?? "")) runCodeHits += 1;
       } else {
         flushRun(i);
       }
@@ -81,7 +153,7 @@ function buildFinding(file: string, startLine: number, endLine: number): Finding
       "Code left in comments stales — agents may revive incorrect snippets.",
     evidence: [
       `${endLine - startLine + 1} consecutive comment lines (lines ${startLine}–${endLine})`,
-      ">=3 lines contain code-shaped tokens (def/fn/function/class/let/var/const/etc.)",
+      ">=3 lines are syntactically code (a declaration, import, assignment, call, or brace) rather than prose containing keywords",
     ],
     effort: "quick",
     fix_shape: "delete the commented block (history preserves it)",
