@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 import { diff } from "./diff.js";
 import type { Finding, Severity } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
+import { treeHashForRef } from "./git/archive.js";
 import { isGitRepo, NotAGitRepoError } from "./git/changed-files.js";
 
 const execFileAsync = promisify(execFile);
@@ -79,9 +80,10 @@ export interface VerdictOptions {
   /** Absolute or relative path to the repo. Defaults to cwd. */
   root?: string;
   /**
-   * Base ref. When omitted, {@link resolveDefaultBase} picks one — prefer
-   * `origin/main`, then `main`. Throws {@link NoDefaultBaseError} if neither
-   * resolves.
+   * Base ref. When omitted, {@link resolveDefaultBase} picks one — what
+   * `origin/HEAD` points at when the repo says, else `origin/main`,
+   * `main`, `origin/master`, `master`. Throws
+   * {@link NoDefaultBaseError} if none resolves.
    */
   base?: string;
   /** Head ref. Defaults to `"HEAD"`. */
@@ -243,16 +245,56 @@ function summariseVerdict(args: {
 }
 
 /**
- * Pick a default base ref. Prefer `origin/main` when it exists, then `main`.
- * Throws {@link NoDefaultBaseError} when neither resolves — the CLI surfaces
- * that as an exit-code-2 error pointing the user at `--base`.
+ * Ordered fallbacks, used only when the repo does not say what its
+ * default branch is. `master` is included because a great many repos
+ * never renamed, and omitting it meant `crimes verdict` refused to run
+ * on them at all rather than guessing slightly wrong.
+ */
+const BASE_CANDIDATES = ["origin/main", "main", "origin/master", "master"];
+
+/**
+ * Pick a default base ref.
+ *
+ * **Ask git before guessing.** `refs/remotes/origin/HEAD` is what the
+ * remote says its default branch is, so when it is set it beats any
+ * name-ordered candidate list — a repo whose remote defaults to
+ * `master` while a local `main` also exists would otherwise be compared
+ * against the wrong branch silently, which is worse than the failure
+ * this replaces.
+ *
+ * Falls back to {@link BASE_CANDIDATES} when `origin/HEAD` is unset,
+ * which is the common case for a repo cloned with `--single-branch` or
+ * created locally. Throws {@link NoDefaultBaseError} when nothing
+ * resolves — the CLI surfaces that as exit 2 pointing at `--base`.
  */
 export async function resolveDefaultBase(root: string): Promise<string> {
-  const candidates = ["origin/main", "main"];
-  for (const ref of candidates) {
+  const fromRemote = await remoteDefaultBranch(root);
+  if (fromRemote !== undefined && (await refExists(root, fromRemote))) {
+    return fromRemote;
+  }
+  for (const ref of BASE_CANDIDATES) {
     if (await refExists(root, ref)) return ref;
   }
-  throw new NoDefaultBaseError(candidates);
+  throw new NoDefaultBaseError(BASE_CANDIDATES);
+}
+
+/**
+ * What `refs/remotes/origin/HEAD` points at, as a ref usable directly
+ * (`origin/master`). Undefined when the symbolic ref is unset, which is
+ * not an error — plenty of working repos never have it.
+ */
+async function remoteDefaultBranch(cwd: string): Promise<string | undefined> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+      { cwd },
+    );
+    const ref = stdout.trim();
+    return ref.length > 0 ? ref : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function refExists(cwd: string, ref: string): Promise<boolean> {
@@ -274,8 +316,8 @@ async function refExists(cwd: string, ref: string): Promise<boolean> {
  *
  * Throws:
  * - {@link NotAGitRepoError} when `root` is not inside a git repository.
- * - {@link NoDefaultBaseError} when `base` is omitted and neither
- *   `origin/main` nor `main` resolves.
+ * - {@link NoDefaultBaseError} when `base` is omitted and no default
+ *   branch resolves.
  * - {@link UnknownGitRefError} when an explicit ref fails to resolve.
  */
 export async function verdict(options: VerdictOptions = {}): Promise<VerdictReport> {
@@ -315,6 +357,16 @@ export async function verdict(options: VerdictOptions = {}): Promise<VerdictRepo
     summary,
   });
 
+  // "no new findings and no fixed findings" is true of an unchanged
+  // verdict either way, but it reads as a judgement about the code when
+  // the real answer is that there was nothing to judge. Say which.
+  const reasons = [...judged.reasons];
+  const baseTree = await treeHashForRef({ repoRoot: root, ref: base });
+  const headTree = await treeHashForRef({ repoRoot: root, ref: head });
+  if (baseTree !== undefined && baseTree === headTree) {
+    reasons.push(`${base} and ${head} resolve to identical trees — nothing to compare`);
+  }
+
   const report: VerdictReport = {
     schema_version: SCHEMA_VERSION,
     report_type: "verdict",
@@ -326,7 +378,7 @@ export async function verdict(options: VerdictOptions = {}): Promise<VerdictRepo
     head,
     verdict: judged.verdict,
     summary,
-    reasons: judged.reasons,
+    reasons,
     recommended_actions,
     new_findings: diffReport.new_findings,
     fixed_findings: diffReport.fixed_findings,

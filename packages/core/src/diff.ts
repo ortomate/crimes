@@ -3,7 +3,7 @@ import { loadConfig } from "./config.js";
 import { fingerprintFinding } from "./fingerprint.js";
 import type { Finding } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
-import { withRefCheckout } from "./git/archive.js";
+import { treeHashForRef, withRefCheckout } from "./git/archive.js";
 import { isGitRepo, NotAGitRepoError } from "./git/changed-files.js";
 import { scan } from "./scan.js";
 import { loadSuppressionsForRoot, partitionFindings } from "./suppressions.js";
@@ -212,8 +212,21 @@ export async function diff(options: DiffOptions): Promise<DiffReport> {
     throw new NotAGitRepoError(root);
   }
 
+  // Two refs resolving to the same tree have byte-identical content, so
+  // the second scan is guaranteed to return what the first one did. It
+  // was run anyway. On hono, `verdict --base HEAD` — a commit against
+  // itself — took 12.3s / 15.8s over two runs and now takes 7.0s / 7.1s.
+  //
+  // Reusing the first result rather than short-circuiting the whole diff
+  // keeps every field honest — `unchanged` is still the real count of
+  // findings present on both sides, which a fabricated empty report
+  // could not report. The saving is half the work, not all of it, and
+  // half of an accurate answer beats all of a wrong one.
   const baseFindings = await scanRef({ root, ref: options.base });
-  const headFindings = await scanRef({ root, ref: head });
+  const baseTree = await treeHashForRef({ repoRoot: root, ref: options.base });
+  const headTree = await treeHashForRef({ repoRoot: root, ref: head });
+  const identicalTrees = baseTree !== undefined && baseTree === headTree;
+  const headFindings = identicalTrees ? baseFindings : await scanRef({ root, ref: head });
 
   const { new_findings, fixed_findings, unchanged_findings } = classifyDiff({
     baseFindings,

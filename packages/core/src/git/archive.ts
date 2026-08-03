@@ -8,6 +8,33 @@ import { isGitRepo, NotAGitRepoError, UnknownGitRefError } from "./changed-files
 const execFileAsync = promisify(execFile);
 
 /**
+ * The tree object a ref resolves to.
+ *
+ * Two refs with the same tree hash have byte-identical content whatever
+ * their commit history says, so a scan of one is a scan of the other.
+ * That is what lets `diff` and `verdict` skip a second export-and-scan
+ * instead of proving the same thing the expensive way.
+ *
+ * Returns undefined when the ref does not resolve; callers treat that as
+ * "cannot prove identical" and fall back to scanning both sides, so a
+ * failure here costs time and never correctness.
+ */
+export async function treeHashForRef(args: {
+  repoRoot: string;
+  ref: string;
+}): Promise<string | undefined> {
+  try {
+    const { stdout } = await execFileAsync("git", ["rev-parse", `${args.ref}^{tree}`], {
+      cwd: args.repoRoot,
+    });
+    const hash = stdout.trim();
+    return hash.length > 0 ? hash : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Export a Git ref's tree into a fresh temporary directory and return its
  * absolute path. The working tree is **not** touched — the export is done
  * via `git archive`, which streams the committed tree of the requested ref

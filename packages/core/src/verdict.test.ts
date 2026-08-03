@@ -309,6 +309,40 @@ describe("resolveDefaultBase (against a real git repo)", () => {
     // Brand new repo with no commits — `main` does not yet point anywhere.
     await expect(resolveDefaultBase(repo)).rejects.toBeInstanceOf(NoDefaultBaseError);
   });
+
+  it("finds `master` on a repo that never renamed its default branch", async () => {
+    // `verdict` tried `origin/main` and `main` and nothing else, so on
+    // any repo still defaulting to `master` it refused to run at all.
+    const raw = await mkdtemp(join(tmpdir(), "crimes-verdict-master-"));
+    const masterRepo = await realpath(raw);
+    await git(masterRepo, "init", "--initial-branch=master", "--quiet");
+    await git(masterRepo, "config", "commit.gpgsign", "false");
+    await writeFile(join(masterRepo, "f.ts"), "export const x = 1;\n", "utf8");
+    await git(masterRepo, "add", "-A");
+    await git(masterRepo, "commit", "-m", "init", "--quiet");
+
+    expect(await resolveDefaultBase(masterRepo)).toBe("master");
+    await rm(masterRepo, { recursive: true, force: true });
+  });
+
+  it("prefers what origin/HEAD points at over the candidate order", async () => {
+    // A repo whose remote default is `master` while a local `main` also
+    // exists. Guessing by name order picks the wrong one; asking git
+    // does not.
+    await writeFile(join(repo, "f.ts"), "export const x = 1;\n", "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "init", "--quiet");
+    await git(repo, "branch", "master");
+    await git(repo, "update-ref", "refs/remotes/origin/master", "master");
+    await git(
+      repo,
+      "symbolic-ref",
+      "refs/remotes/origin/HEAD",
+      "refs/remotes/origin/master",
+    );
+
+    expect(await resolveDefaultBase(repo)).toBe("origin/master");
+  });
 });
 
 describe("verdict (end-to-end against a real git repo)", () => {
@@ -320,6 +354,47 @@ describe("verdict (end-to-end against a real git repo)", () => {
 
   afterEach(async () => {
     await rm(repo, { recursive: true, force: true });
+  });
+
+  it("answers `unchanged` from the tree hashes without scanning either side", async () => {
+    // Two identical trees cannot produce different findings, so the
+    // second of the two full scans this used to run was pure cost. On
+    // hono, `verdict --base HEAD` went from 12.3s to 7.0s.
+    await writeFile(join(repo, "f.ts"), bigFunctionSource("bigFn"), "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "init", "--quiet");
+
+    const started = Date.now();
+    const report = await verdict({ root: repo, base: "HEAD" });
+    const elapsed = Date.now() - started;
+
+    expect(report.verdict).toBe("unchanged");
+    expect(report.summary.new).toBe(0);
+    expect(report.summary.fixed).toBe(0);
+    // The finding exists on both sides — this is not an empty repo.
+    // Saying so is the point: `unchanged` here means "identical trees",
+    // not "clean".
+    expect(report.reasons.join(" ")).toMatch(/identical tree/i);
+    // A scan of this repo is not instant; the short circuit is.
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  it("still scans when the trees differ", {
+    timeout: 30000,
+  }, async () => {
+    // The guard must key on tree identity, not on ref identity — a
+    // commit that changes nothing but the message is still unchanged,
+    // and a different ref with different content still gets scanned.
+    await writeFile(join(repo, "f.ts"), "export const x = 1;\n", "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "base", "--quiet");
+    await writeFile(join(repo, "fresh.ts"), bigFunctionSource("freshFn"), "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "head", "--quiet");
+
+    const report = await verdict({ root: repo, base: "HEAD~1" });
+    expect(report.verdict).toBe("worse");
+    expect(report.reasons.join(" ")).not.toMatch(/identical tree/i);
   });
 
   it("reports a `worse` verdict when a new God Function is introduced", {
