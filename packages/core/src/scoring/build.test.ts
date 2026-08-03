@@ -8,6 +8,7 @@ import { discoverFiles } from "../discovery/index.js";
 import { DEFAULT_CONFIG } from "../config.js";
 import { buildImportGraph } from "../imports/build.js";
 import {
+  blastRadiusScore,
   buildScoringContext,
   computeAgentRisk,
   finaliseFindingScores,
@@ -208,14 +209,16 @@ describe("buildScoringContext > blast_radius", () => {
     const files = await discover(root);
     const imports = await buildImportGraph({ root, files });
     const ctx = await buildScoringContext({ root, files, imports });
-    // The score is a quartile rank within the scan, not a normalised
-    // count: leaf reaches furthest, mid next, a and b not at all.
-    expect(ctx.blastRadius.forFile("src/leaf.ts")).toBe(1);
-    expect(ctx.blastRadius.forFile("src/mid.ts")).toBe(0.75);
-    expect(ctx.blastRadius.forFile("src/a.ts")).toBe(0.25);
+    // Log-scaled and bounded: leaf reaches furthest, mid next, a and b
+    // not at all. Small counts sit low on the curve by design — the
+    // scale exists so a 1500-importer file cannot pin the top.
     expect(ctx.blastRadius.forFile("src/leaf.ts")).toBeGreaterThan(
       ctx.blastRadius.forFile("src/mid.ts"),
     );
+    expect(ctx.blastRadius.forFile("src/mid.ts")).toBeGreaterThan(
+      ctx.blastRadius.forFile("src/a.ts"),
+    );
+    expect(ctx.blastRadius.forFile("src/a.ts")).toBe(0);
     // transitiveCountForFile exposes the raw reachability count the score
     // is normalised from.
     expect(ctx.blastRadius.transitiveCountForFile("src/leaf.ts")).toBe(3);
@@ -226,6 +229,36 @@ describe("buildScoringContext > blast_radius", () => {
     expect(ctx.blastRadius.directCountForFile("src/leaf.ts")).toBe(1);
     expect(ctx.blastRadius.directCountForFile("src/mid.ts")).toBe(2);
     expect(ctx.blastRadius.directCountForFile("src/a.ts")).toBe(0);
+  });
+
+  it("separates a strongly-connected plateau by direct fan-in", () => {
+    // hono has six files all reporting a transitive closure of 197 while
+    // their direct fan-in ranges from 2 to 70 — every member of a
+    // strongly-connected component has the same closure by definition.
+    // Under the previous linear score, and under quartile ranking, all
+    // six read identically.
+    const shallow = blastRadiusScore(197, 2);
+    const deep = blastRadiusScore(197, 70);
+    expect(deep).toBeGreaterThan(shallow);
+    // Visible at the two decimals `scores` are reported to — a strict
+    // tiebreaker would have been a 0.0006 difference and invisible.
+    expect(deep - shallow).toBeGreaterThan(0.05);
+  });
+
+  it("lets reach outweigh fan-in", () => {
+    // Direct fan-in must inform the score without being able to
+    // overturn a real difference in reach.
+    expect(blastRadiusScore(1000, 0)).toBeGreaterThan(blastRadiusScore(100, 250));
+  });
+
+  it("bounds the top instead of saturating into it", () => {
+    // The corpus peak is 1527 (n8n packages/cli). It must score high
+    // and still leave room, so the biggest file in a repo is not tied
+    // with everything above a threshold.
+    const peak = blastRadiusScore(1527, 216);
+    expect(peak).toBeLessThan(1);
+    expect(peak).toBeGreaterThan(blastRadiusScore(244, 70));
+    expect(blastRadiusScore(50_000, 5000)).toBe(1);
   });
 
   it("returns 0 when no import graph is available", async () => {

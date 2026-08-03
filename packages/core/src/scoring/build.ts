@@ -232,7 +232,7 @@ export async function buildScoringContext(
     repoPaths,
     imports: options.imports,
   });
-  const blastRadius = buildBlastRadiusIndex({ repoPaths, imports: options.imports });
+  const blastRadius = buildBlastRadiusIndex({ imports: options.imports });
 
   return { churn, testGap, blastRadius, recency, churnResult };
 }
@@ -334,41 +334,59 @@ function buildTestGapIndex(args: {
 }
 
 /**
- * Blast radius, quartile-ranked within the scan.
+ * Blast radius on a log scale, bounded and comparable across repos.
  *
- * ## Why not the raw normalised count
+ * ## Three shapes, and why this is the third
  *
- * The previous score was `min(transitive / 50, 1)`. On any repo with a
- * large strongly-connected component that saturates: **47% of zulip's
- * findings scored exactly 1.0**, and on hono six files all reported a
- * transitive closure of 197 while their direct fan-in ranged from 2 to
- * 70. A score that is 1.0 for half the report does not rank anything.
+ * **Linear (`min(transitive / 50, 1)`)** saturated: 47% of zulip's
+ * findings scored exactly 1.0, and hono had six files all reporting a
+ * closure of 197 while their direct fan-in ranged from 2 to 70. A score
+ * that is 1.0 for half a report ranks nothing.
  *
- * Quartile-ranking removes the saturation by construction — the same
- * treatment `test_gap` already gets — at the cost of comparability
- * across repos. `blast_radius` becomes "how far-reaching is this file
- * *relative to this repository*", which is what a reader triaging one
- * report actually wants. The absolute integers remain available and
- * unchanged as `blast_radius_transitive_importers` and
- * `blast_radius_direct_importers` for anyone who needs them.
+ * **Quartile-ranked** removed the top-end pinning but cost more than
+ * the decision anticipated: hono went from 22 distinct values to 4, and
+ * it could not separate a tied block larger than a quartile (54% of
+ * hono findings at 0 became 53% at 0.25). It also gave up cross-repo
+ * comparability.
  *
- * ## The tiebreaker
+ * **Log-scaled** is what this is. `log1p(reach) / log1p(REFERENCE)`
+ * bounds the top by construction while keeping every distinct count a
+ * distinct score, and a fixed reference means two repos' numbers mean
+ * the same thing again.
  *
- * Ranking on the closure alone leaves the plateau intact *within* a
- * quartile: every member of a strongly-connected component has the same
- * closure by definition. The direct fan-in count breaks those ties, so
- * the file 70 modules import outranks the one 2 modules import even
- * though both reach 197. The composite key is
- * `transitive * (maxDirect + 1) + direct`, which is exact — direct can
- * never outweigh a difference in transitive.
+ * ## The reference
+ *
+ * {@link BLAST_RADIUS_LOG_REFERENCE} is 2000 — roughly 30% above the
+ * largest closure in the corpus (n8n `packages/cli`, 1527; hono peaks
+ * at 244). Chosen so no real repository clamps and the top of the range
+ * stays reachable rather than hypothetical. A repo larger than the
+ * corpus clamps at 1.0, which is the correct behaviour for a bounded
+ * score, not a regression to saturation.
+ *
+ * ## Direct fan-in: a bounded contributor, not a strict tiebreaker
+ *
+ * The plan was for direct fan-in to break exact ties in the closure.
+ * Implemented literally that is invisible: at a closure of 197 the gap
+ * to 198 is 0.0006, and `scores` are reported to two decimals, so
+ * hono's six-file plateau would still read 0.70 six times — failing at
+ * exactly the case the tiebreaker exists for.
+ *
+ * So direct fan-in carries a fixed 15% of the score instead. It cannot
+ * dominate — a difference in closure of any size outweighs it — but it
+ * does separate the members of a strongly-connected component, which is
+ * the thing a reader needs. On hono's plateau: closure 197 with 2
+ * direct importers scores 0.62, the same closure with 70 scores 0.71.
+ *
+ * The absolute integers remain available and unrounded as
+ * `blast_radius_transitive_importers` and
+ * `blast_radius_direct_importers`.
  */
 function buildBlastRadiusIndex(args: {
-  repoPaths: string[];
   imports: ImportGraph | undefined;
 }): BlastRadiusIndex {
   const transitiveMemo = new Map<string, number>();
   const directMemo = new Map<string, number>();
-  const { repoPaths, imports } = args;
+  const { imports } = args;
 
   const transitiveFor = (repoPath: string): number => {
     if (!imports) return 0;
@@ -388,20 +406,10 @@ function buildBlastRadiusIndex(args: {
     return count;
   };
 
-  const ranked = new Map<string, number>();
-  if (imports) {
-    const direct = repoPaths.map(directFor);
-    const maxDirect = direct.reduce((max, d) => Math.max(max, d), 0);
-    const keys = repoPaths.map(
-      (path, i) => transitiveFor(path) * (maxDirect + 1) + direct[i]!,
-    );
-    const scores = quartileScores(keys);
-    repoPaths.forEach((path, i) => ranked.set(path, scores[i]!));
-  }
-
   return {
     forFile(repoPath) {
-      return ranked.get(repoPath) ?? 0;
+      if (!imports) return 0;
+      return blastRadiusScore(transitiveFor(repoPath), directFor(repoPath));
     },
     transitiveCountForFile(repoPath) {
       return transitiveFor(repoPath);
@@ -410,6 +418,36 @@ function buildBlastRadiusIndex(args: {
       return directFor(repoPath);
     },
   };
+}
+
+/**
+ * Closure size at which the reach term reaches 1.0. See
+ * {@link buildBlastRadiusIndex} for how this number was chosen.
+ */
+const BLAST_RADIUS_LOG_REFERENCE = 2000;
+
+/**
+ * Direct fan-in at which the fan-in term reaches its 15% maximum. The
+ * corpus peak is 216 (n8n `packages/cli`).
+ */
+const DIRECT_IMPORTERS_LOG_REFERENCE = 250;
+
+/** Share of the score carried by direct fan-in. */
+const DIRECT_WEIGHT = 0.15;
+
+/**
+ * Combine reach and fan-in into the reported `blast_radius`. Exported
+ * for the unit tests, which pin the plateau-separation property.
+ */
+export function blastRadiusScore(transitive: number, direct: number): number {
+  const reach = logNormalise(transitive, BLAST_RADIUS_LOG_REFERENCE);
+  const fanIn = logNormalise(direct, DIRECT_IMPORTERS_LOG_REFERENCE);
+  return round(clamp01((1 - DIRECT_WEIGHT) * reach + DIRECT_WEIGHT * fanIn));
+}
+
+function logNormalise(count: number, reference: number): number {
+  if (count <= 0) return 0;
+  return Math.min(Math.log1p(count) / Math.log1p(reference), 1);
 }
 
 /**
