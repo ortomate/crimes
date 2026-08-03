@@ -16,6 +16,29 @@ import { intrinsicFor, lineList, severityScore } from "./shared.js";
  * The tell is the mixture, not either call alone — which is why
  * `direct_date.py` charges the individual reads and this charges the
  * inconsistency.
+ *
+ * ## Why a project's `timezone.utcnow()` wrapper is deliberately not matched
+ *
+ * The receiver must resolve to `datetime`. That looks like an obvious
+ * gap — airflow writes `timezone.utcnow()` 728 times and this detector
+ * reports nothing on the whole repo — and it was filed as one. It is
+ * not.
+ *
+ * `airflow_shared.timezones.timezone.utcnow()` is
+ * `dt.datetime.now(tz=utc)`: a timezone-**aware** datetime. It is not
+ * the naive-UTC trap this detector exists to charge; it is the fix this
+ * detector *recommends*. Matching any `<something>.utcnow()` would have
+ * turned the single most common correct idiom in the corpus into ~728
+ * high-confidence false positives.
+ *
+ * Airflow's whole tree contains exactly one `datetime.datetime.utcnow()`
+ * and it is inside a comment. Zero findings there is the right answer,
+ * arrived at for the right reason.
+ *
+ * Resolving what a wrapper actually returns needs a cross-file Python
+ * symbol index, which does not exist. Until it does, requiring the
+ * `datetime` receiver is the honest boundary: it charges what it can
+ * prove and stays silent about what it would have to guess.
  */
 export const mixedUtcLocalMethodsPyDetector: LanguagePyDetector = {
   id: "mixed_utc_local_methods.py",

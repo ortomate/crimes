@@ -245,6 +245,31 @@ describe("mixed_utc_local_methods.py", () => {
       ),
     ).toEqual([]);
   });
+
+  it("does not charge a project timezone wrapper it cannot resolve", async () => {
+    // Deliberate, and the opposite of what §15 of the remediation queue
+    // asked for. `timezone.utcnow()` is airflow's own helper and returns
+    // `datetime.now(tz=utc)` — timezone-AWARE, i.e. the fix this
+    // detector recommends, not the naive-UTC trap it charges. Airflow
+    // writes it 728 times; matching any `<x>.utcnow()` would have made
+    // every one a high-confidence false positive.
+    //
+    // If a future change teaches this detector to follow wrappers, it
+    // must resolve what the wrapper returns first. This test is the
+    // tripwire for doing it by name-matching instead.
+    expect(
+      await run(
+        mixedUtcLocalMethodsPyDetector,
+        "src/models/dagrun.py",
+        [
+          "from airflow.utils import timezone",
+          "import datetime",
+          "start = timezone.utcnow()",
+          "end = datetime.datetime.now()",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
 });
 
 describe("sync_io_in_hotpath.py", () => {
