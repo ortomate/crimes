@@ -71,8 +71,13 @@ const MAX_FINDINGS = 8;
 /**
  * Specifier prefixes that are never a package: relative paths, absolute
  * paths, URLs, Node's subpath-import protocol, and data URIs.
+ *
+ * The `(\/|$)` matters. Requiring a trailing slash excluded `./x` and
+ * `../x` while letting the bare directory specifiers `.` and `..`
+ * through — which is how cal.com came to be accused of depending on
+ * undeclared packages named `.` and `..`.
  */
-const NON_PACKAGE_RE = /^(\.{1,2}\/|\/|#|[a-z][a-z0-9+.-]*:)/i;
+const NON_PACKAGE_RE = /^(\.{1,2}(\/|$)|\/|#|[a-z][a-z0-9+.-]*:)/i;
 
 /**
  * Path-alias shapes that resolve through tsconfig / bundler config
@@ -159,6 +164,7 @@ function reportUndeclared(
   anchor: PackageManifest,
 ): Finding | undefined {
   const undeclared = new Map<string, UndeclaredImport>();
+  const aliasPatterns = ctx.imports?.aliasPatterns ?? [];
 
   for (const edge of edges) {
     if (!edge.external) continue;
@@ -170,7 +176,7 @@ function reportUndeclared(
     // manifest readers; until then, silence beats a confident wrong
     // answer.
     if (!isNodeResolvedSource(edge.from)) continue;
-    const packageName = packageNameOf(edge.specifier);
+    const packageName = packageNameOf(edge.specifier, aliasPatterns);
     if (packageName === undefined) continue;
     if (allowed.has(packageName.toLowerCase())) continue;
     if (isBuiltinModule(packageName)) continue;
@@ -621,13 +627,20 @@ function governs(dir: string, file: string): boolean {
  * `lodash/fp` → `lodash`; `@scope/pkg/sub` → `@scope/pkg`. Returns
  * `undefined` for anything that is not a bare package specifier.
  */
-export function packageNameOf(specifier: string): string | undefined {
+export function packageNameOf(
+  specifier: string,
+  aliasPatterns: readonly string[] = [],
+): string | undefined {
   if (specifier.length === 0) return undefined;
   if (NON_PACKAGE_RE.test(specifier) && !specifier.startsWith("node:")) {
     return undefined;
   }
   if (specifier.startsWith("node:")) return specifier;
   if (PATH_ALIAS_RE.test(specifier)) return undefined;
+  // Aliases the repo actually declares, from any tsconfig — not just the
+  // shapes hardcoded above. cal.com declares `@components/*` in a nested
+  // tsconfig and has no root one at all.
+  if (matchesAliasPattern(specifier, aliasPatterns)) return undefined;
 
   const parts = specifier.split("/");
   if (specifier.startsWith("@")) {
@@ -635,6 +648,30 @@ export function packageNameOf(specifier: string): string | undefined {
     return `${parts[0]}/${parts[1]}`;
   }
   return parts[0];
+}
+
+/**
+ * Does the specifier match a declared tsconfig `paths` key? Patterns
+ * carry at most one `*`, per the TypeScript spec.
+ */
+function matchesAliasPattern(specifier: string, patterns: readonly string[]): boolean {
+  for (const pattern of patterns) {
+    const star = pattern.indexOf("*");
+    if (star === -1) {
+      if (specifier === pattern) return true;
+      continue;
+    }
+    const prefix = pattern.slice(0, star);
+    const suffix = pattern.slice(star + 1);
+    if (
+      specifier.length >= prefix.length + suffix.length &&
+      specifier.startsWith(prefix) &&
+      specifier.endsWith(suffix)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function isBuiltinModule(packageName: string): boolean {

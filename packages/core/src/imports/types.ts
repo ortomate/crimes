@@ -44,4 +44,10 @@ export interface ImportGraph {
   limited?: boolean;
   /** Short, human-readable reason. Only set when `limited` is true. */
   limitedReason?: string;
+  /**
+   * Path-alias patterns declared by any `tsconfig.json` in the repo,
+   * e.g. `@components/*`. Consumers use this to tell an alias from a
+   * package name; it is not enough to resolve one to a file.
+   */
+  aliasPatterns?: string[];
 }

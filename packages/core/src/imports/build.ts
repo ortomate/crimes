@@ -12,7 +12,7 @@
  * must never re-walk imports themselves.
  */
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
@@ -153,6 +153,8 @@ export async function buildImportGraph(
     in: inMap,
     files,
   };
+  const aliasPatterns = collectAliasPatterns(root);
+  if (aliasPatterns.length > 0) graph.aliasPatterns = aliasPatterns;
   if (limited || python.limited) {
     graph.limited = true;
     graph.limitedReason =
@@ -401,6 +403,85 @@ function matchTsPattern(pattern: string, specifier: string): string | undefined 
   if (!specifier.startsWith(prefix)) return undefined;
   if (!specifier.endsWith(suffix)) return undefined;
   return specifier.slice(prefix.length, specifier.length - suffix.length);
+}
+
+/**
+ * Tsconfigs consulted for path aliases, in priority order.
+ *
+ * The root one is authoritative when it exists. When it does not — which
+ * is normal for a Next.js monorepo and is exactly cal.com's shape — the
+ * aliases still exist, they are just declared per workspace. Reading
+ * only the root meant `@components/*` resolved to nothing and was
+ * reported as an undeclared package.
+ *
+ * Bounded to one and two levels of the conventional workspace
+ * directories rather than a repo-wide glob: this runs on every scan, and
+ * an unbounded search for `tsconfig.json` on a large monorepo is not
+ * worth the alias coverage it would add.
+ */
+const TSCONFIG_SEARCH_DIRS = ["apps", "packages", "libs", "services"];
+
+function tsconfigCandidates(root: string): string[] {
+  const found: string[] = [];
+  const rootConfig = join(root, "tsconfig.json");
+  if (existsSync(rootConfig)) found.push(rootConfig);
+  for (const dir of TSCONFIG_SEARCH_DIRS) {
+    const base = join(root, dir);
+    if (!existsSync(base)) continue;
+    let entries: string[];
+    try {
+      entries = readdirSync(base);
+    } catch {
+      continue;
+    }
+    for (const entry of entries.sort()) {
+      const direct = join(base, entry, "tsconfig.json");
+      if (existsSync(direct)) found.push(direct);
+      // One level deeper covers `packages/platform/atoms/tsconfig.json`.
+      const nested = join(base, entry);
+      let sub: string[];
+      try {
+        sub = readdirSync(nested);
+      } catch {
+        continue;
+      }
+      for (const child of sub.sort()) {
+        const deep = join(nested, child, "tsconfig.json");
+        if (existsSync(deep)) found.push(deep);
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * Alias *patterns* declared anywhere in the repo, e.g. `@components/*`.
+ *
+ * Used only to answer "is this specifier an alias rather than a
+ * package?". Resolving an alias to a file still uses the root tsconfig's
+ * `baseUrl`, because a per-workspace `baseUrl` cannot be applied to an
+ * import written in a different workspace.
+ */
+export function collectAliasPatterns(root: string): string[] {
+  const patterns = new Set<string>();
+  for (const candidate of tsconfigCandidates(root)) {
+    for (const pattern of readPathPatterns(candidate)) patterns.add(pattern);
+  }
+  return [...patterns].sort();
+}
+
+function readPathPatterns(file: string): string[] {
+  let raw: string;
+  try {
+    raw = readFileSync(file, "utf8");
+  } catch {
+    return [];
+  }
+  const parsed = ts.parseConfigFileTextToJson(file, raw);
+  if (parsed.error || !parsed.config) return [];
+  const paths = parsed.config.compilerOptions?.paths;
+  if (!paths) return [];
+  return Object.keys(paths);
 }
 
 function loadTsconfigPaths(root: string): TsconfigPaths | undefined {

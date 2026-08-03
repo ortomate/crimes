@@ -20,6 +20,9 @@ const SHAPE_THRESHOLDS: Record<PyFunctionShape, number> = {
   django_view: 80,
   cli_command: 120,
   test_function: 150,
+  // Same budget as `domain`: memoisation says when the body runs, not
+  // how long it is allowed to be.
+  memoised: 50,
   dunder: 70,
   unknown: 60,
 };

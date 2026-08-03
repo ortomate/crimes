@@ -55,6 +55,14 @@ describe("packageNameOf", () => {
   it("passes node: specifiers through for the built-in check", () => {
     expect(packageNameOf("node:fs")).toBe("node:fs");
   });
+
+  it("rejects a bare current- or parent-directory specifier", () => {
+    // cal.com reported `.` and `..` as undeclared packages. The
+    // relative-path guard required a trailing slash, so `./x` and `../x`
+    // were excluded while the directory specifiers themselves were not.
+    expect(packageNameOf(".")).toBeUndefined();
+    expect(packageNameOf("..")).toBeUndefined();
+  });
 });
 
 describe("dependency_provenance_gap — undeclared imports", () => {
@@ -124,6 +132,26 @@ describe("dependency_provenance_gap — undeclared imports", () => {
         export const x = [readFile, path, local, aliased];
       `,
       "src/local.ts": "export const local = 1;\n",
+    });
+    expect(bySymbol(await runOn(repo), "undeclared imports")).toBeUndefined();
+  });
+
+  it("excludes an alias declared in a non-root tsconfig", async () => {
+    // cal.com has no root `tsconfig.json` — normal for a Next.js
+    // monorepo — so `@components/*`, declared in a nested one, resolved
+    // to nothing and was reported as an undeclared package.
+    const repo = await makeRepo({
+      "package.json": JSON.stringify({ name: "app" }),
+      "packages/ui/tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          baseUrl: ".",
+          paths: { "@components/*": ["./src/components/*"] },
+        },
+      }),
+      "src/a.ts": `
+        import { Button } from "@components/Button";
+        export const x = Button;
+      `,
     });
     expect(bySymbol(await runOn(repo), "undeclared imports")).toBeUndefined();
   });
