@@ -155,3 +155,25 @@ describe("exactDuplicateBlockDetector", () => {
     expect(findings).toEqual([]);
   });
 });
+
+describe("exact_duplicate_block — lines", () => {
+  it("carries the anchor file's own occurrence in `lines`", async () => {
+    // The evidence has always named every site's range
+    // (`Item.tsx:23-33`) while the structured field was unset, so a
+    // consumer had to parse prose for a number the detector already
+    // had. 46 of airflow's duplicate-block findings had no `lines`.
+    const root = await makeRepo({ "src/a.ts": FN, "src/b.ts": `\n\n\n${FN}` });
+    const findings = [
+      ...(await exactDuplicateBlockDetector.run(await ctxFor("src/a.ts", root))),
+      ...(await exactDuplicateBlockDetector.run(await ctxFor("src/b.ts", root))),
+    ];
+    expect(findings.length).toBeGreaterThan(0);
+    for (const finding of findings) {
+      expect(finding.lines, `${finding.file} should carry a line range`).toBeDefined();
+      const [start, end] = finding.lines!;
+      expect(end).toBeGreaterThanOrEqual(start);
+      // The range must describe the file the finding is attached to.
+      expect(finding.evidence.join(" ")).toContain(`${finding.file}:${start}-${end}`);
+    }
+  });
+});

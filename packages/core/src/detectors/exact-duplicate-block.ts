@@ -69,6 +69,7 @@ export function buildFinding(args: {
     a.file === b.file ? a.lines[0] - b.lines[0] : a.file.localeCompare(b.file),
   );
   const distinctFiles = Array.from(new Set(sortedSites.map((s) => s.file))).sort();
+  const anchorSite = sortedSites.find((s) => s.file === args.anchor);
 
   const evidence: string[] = [
     `hash ${args.hash.slice(0, 12)}… across ${distinctFiles.length} file(s), ` +
@@ -89,6 +90,13 @@ export function buildFinding(args: {
     severity: "medium",
     confidence: args.confidence,
     file: args.anchor,
+    // The occurrence in the anchor file. The evidence has always named
+    // every site's line range — `Item.tsx:23-33` — while the structured
+    // field was left unset, so a consumer had to parse prose to get a
+    // number the detector already had. Anchored on this file's own
+    // occurrence because `file` points here, and a range from a
+    // different file would not describe the file it is attached to.
+    ...(anchorSite ? { lines: anchorSite.lines } : {}),
     // One anchor file can be the lex-first member of several distinct
     // duplicate groups, and these findings carry no `symbol`. The body
     // hash is what separates the groups and is stable across scans of
