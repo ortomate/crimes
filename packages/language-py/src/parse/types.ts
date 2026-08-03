@@ -44,6 +44,12 @@ export type PyFunctionShape =
   | "route_handler"
   | "django_view"
   | "cli_command"
+  /**
+   * Decorated with a memoising decorator (`@cache`, `@lru_cache`,
+   * `@cached_property`). The body runs once rather than per call, so
+   * hot-path charges do not apply to it.
+   */
+  | "memoised"
   | "dunder"
   | "unknown";
 

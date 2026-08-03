@@ -1,4 +1,4 @@
-import type { PyFunctionShape, PyIoCall } from "@crimes/language-py";
+import type { PyEnclosingFunction, PyFunctionShape, PyIoCall } from "@crimes/language-py";
 import type { LanguagePyDetector } from "../../detector.js";
 import type { PreFinding as Finding, Severity } from "../../finding.js";
 import { isTestFile } from "../../util/test-files.js";
@@ -16,7 +16,16 @@ const HOT_SHAPES = new Set<PyFunctionShape>(["route_handler", "django_view", "do
  * these is anywhere in the enclosing chain, the call is exempt — the
  * same "any ancestor" policy the JS detector applies.
  */
-const EXEMPT_SHAPES = new Set<PyFunctionShape>(["test_function", "cli_command"]);
+const EXEMPT_SHAPES = new Set<PyFunctionShape>([
+  "test_function",
+  "cli_command",
+  // A memoised body runs once, not once per request. Caching a slow
+  // call is the standard *fix* for this charge, so charging the result
+  // told people their fix was the crime. `cli_command` now also covers
+  // Django's `Command(BaseCommand).handle()`, reached through
+  // `manage.py` — an entry point whose job is to read files.
+  "memoised",
+]);
 
 export const syncIoInHotpathPyDetector: LanguagePyDetector = {
   id: "sync_io_in_hotpath.py",
@@ -38,9 +47,58 @@ export const syncIoInHotpathPyDetector: LanguagePyDetector = {
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
 
-    const offenders = ctx.parsed.ioCalls.filter(isHotPathCall);
-    if (offenders.length === 0) return [];
+    const hits = ctx.parsed.ioCalls.filter(isHotPathCall);
+    if (hits.length === 0) return [];
 
+    // One finding per enclosing hot function, not one per file.
+    //
+    // The file-level shape produced a finding whose `symbol` named the
+    // first offender's function while its `lines` stretched from the
+    // first call to the last — on airflow, spans up to 4,196 lines
+    // wearing one function's name, with the evidence itself listing
+    // calls in two or three *other* functions. Any ±N-line excerpt built
+    // from that range describes code the finding is not about, and
+    // `crimes context` builds exactly such excerpts.
+    //
+    // Grouping on the innermost hot function makes `symbol`, `lines` and
+    // the evidence describe the same code, and makes each finding
+    // separately ignorable — a file with one acceptable blocking call
+    // and one real one no longer has to be suppressed wholesale.
+    const groups = new Map<string, { host: PyEnclosingFunction; calls: PyIoCall[] }>();
+    for (const call of hits) {
+      const host = call.enclosingFunctions.find((f) => HOT_SHAPES.has(f.shape));
+      if (host === undefined) continue;
+      const key = `${host.name ?? "<anonymous>"}:${host.startLine}`;
+      const group = groups.get(key);
+      if (group) group.calls.push(call);
+      else groups.set(key, { host, calls: [call] });
+    }
+
+    // Splitting per function is a correctness fix, but it also multiplies
+    // findings — on airflow, 494 file-level findings became 1,108. Cap
+    // the worst few per file and say how many were held back, rather
+    // than trading one wrong finding for four right ones nobody reads.
+    const ranked = [...groups.values()].sort(
+      (a, b) => b.calls.length - a.calls.length || a.host.startLine - b.host.startLine,
+    );
+    const shown = ranked.slice(0, MAX_FUNCTIONS_PER_FILE);
+    const withheld = ranked.length - shown.length;
+    return shown
+      .sort((a, b) => a.host.startLine - b.host.startLine)
+      .map((group) => buildFinding(ctx.file, group.host, group.calls, withheld));
+  },
+};
+
+/** Functions reported per file before the rest are summarised. */
+const MAX_FUNCTIONS_PER_FILE = 3;
+
+function buildFinding(
+  file: string,
+  host: PyEnclosingFunction,
+  offenders: PyIoCall[],
+  withheld: number,
+): Finding {
+  {
     // Blocking the event loop is categorically worse than blocking one
     // sync worker, so async handlers drive severity up. Asked of the
     // scope chain rather than by testing line containment against every
@@ -58,14 +116,10 @@ export const syncIoInHotpathPyDetector: LanguagePyDetector = {
         offenders.map((c) => `${c.callee}() line ${c.line}`).join(", "),
       lineList(offenders.map((c) => c.line)),
     ];
-    for (const call of offenders.slice(0, 4)) {
-      const host = call.enclosingFunctions.find((f) => HOT_SHAPES.has(f.shape));
-      if (host) {
-        evidence.push(
-          `${call.callee}() runs inside ${host.name ?? "an anonymous function"} (shape "${host.shape}")`,
-        );
-      }
-    }
+    evidence.push(
+      `all inside ${host.name ?? "an anonymous function"} ` +
+        `(shape "${host.shape}", lines ${host.startLine}\u2013${host.endLine})`,
+    );
     if (inAsyncHandler) {
       evidence.push(
         "at least one call sits inside an `async def` — a blocking call there stalls " +
@@ -75,6 +129,13 @@ export const syncIoInHotpathPyDetector: LanguagePyDetector = {
 
     const families = [...new Set(offenders.map((c) => c.family))].sort();
     evidence.push(`families: ${families.join(", ")}`);
+    if (withheld > 0) {
+      evidence.push(
+        `${withheld} further ${plural(withheld, "function")} in this file also ` +
+          `${withheld === 1 ? "blocks" : "block"} — the ${MAX_FUNCTIONS_PER_FILE} ` +
+          "with the most calls are reported separately",
+      );
+    }
 
     const first = offenders[0]!;
     const last = offenders[offenders.length - 1]!;
@@ -85,14 +146,14 @@ export const syncIoInHotpathPyDetector: LanguagePyDetector = {
       charge: "Blocking the Hot Path",
       severity,
       confidence: 0.8,
-      file: ctx.file,
-      ...(first.enclosingFunctions[0]?.name !== undefined
-        ? { symbol: first.enclosingFunctions[0].name }
-        : {}),
-      lines: [first.line, last.line],
+      file,
+      ...(host.name !== undefined ? { symbol: host.name } : {}),
+      // Bounded by the function this finding is about, so an excerpt
+      // built from the range shows the code being charged.
+      lines: [Math.max(host.startLine, first.line), Math.min(host.endLine, last.line)],
       summary:
         `${offenders.length} blocking I/O ${plural(offenders.length, "call")} ` +
-        `inside request- or domain-path ${plural(offenders.length, "function")}` +
+        `inside \`${host.name ?? "an anonymous function"}\`` +
         (inAsyncHandler ? ", at least one of them in an async handler" : "") +
         ". Each one holds the worker — or the event loop — for its full duration.",
       evidence,
@@ -120,9 +181,9 @@ export const syncIoInHotpathPyDetector: LanguagePyDetector = {
       ],
     };
 
-    return [finding];
-  },
-};
+    return finding;
+  }
+}
 
 /**
  * A call counts when a hot shape appears in its enclosing chain and no

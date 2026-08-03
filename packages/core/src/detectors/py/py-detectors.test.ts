@@ -208,6 +208,83 @@ describe("direct_date.py", () => {
   });
 });
 
+describe("sync_io_in_hotpath.py — the finding must describe the code it names", () => {
+  it("does not span the whole file wearing one function's symbol", async () => {
+    // airflow: spans up to 4,196 lines, `symbol` naming the first
+    // offender's function while the evidence cited calls in others. Any
+    // ±N-line excerpt built from that range is meaningless.
+    const filler = Array.from({ length: 40 }, () => "    pass").join("\n");
+    const found = await run(
+      syncIoInHotpathPyDetector,
+      "src/jobs/runner.py",
+      [
+        "def first_handler(request):",
+        "    requests.get('http://a')",
+        filler,
+        "",
+        "def second_handler(request):",
+        "    requests.get('http://b')",
+        filler,
+      ].join("\n"),
+    );
+    // One finding per enclosing function, each bounded by that function.
+    expect(found).toHaveLength(2);
+    for (const finding of found) {
+      const [start, end] = finding.lines!;
+      expect(finding.symbol).toBeDefined();
+      // The span must not reach past the function it names.
+      expect(end - start).toBeLessThan(45);
+    }
+    expect(found.map((f) => f.symbol).sort()).toEqual([
+      "first_handler",
+      "second_handler",
+    ]);
+  });
+
+  it("does not fire inside a Django management command", async () => {
+    // `Command.handle()` is a CLI entry point. Reading files and making
+    // requests is its job, exactly like a Click command.
+    expect(
+      await run(
+        syncIoInHotpathPyDetector,
+        "src/management/commands/backfill.py",
+        [
+          "class Command(BaseCommand):",
+          "    def handle(self, *args, **options):",
+          "        requests.get('http://a')",
+          "        open('/tmp/x').read()",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not fire inside a memoised function", async () => {
+    // `@cache` means the body runs once, not once per request — which is
+    // the standard fix for exactly this charge.
+    expect(
+      await run(
+        syncIoInHotpathPyDetector,
+        "src/config.py",
+        [
+          "@functools.lru_cache",
+          "def load_settings():",
+          "    return open('/etc/app.conf').read()",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("still fires on a genuine blocking call in a route handler", async () => {
+    const found = await run(
+      syncIoInHotpathPyDetector,
+      "src/api.py",
+      '@app.get("/x")\nasync def handler():\n    return requests.get("http://x")\n',
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]!.symbol).toBe("handler");
+  });
+});
+
 describe("boolean_naming_drift.py — declaration sites are not local bindings", () => {
   it("does not flag a class-body attribute", async () => {
     // DRF's `many`, `public`, `coerce_to_string`; pydantic's

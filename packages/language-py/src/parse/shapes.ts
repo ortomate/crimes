@@ -38,6 +38,21 @@ const PYTEST_DECORATORS = /^pytest\.(fixture|mark)\b/;
 const DJANGO_VIEW_BASES =
   /(^|\.)(View|TemplateView|ListView|DetailView|CreateView|UpdateView|DeleteView|FormView|RedirectView|APIView|ViewSet|ModelViewSet|GenericAPIView)$/;
 
+/**
+ * Django management commands. `Command.handle()` is a CLI entry point
+ * reached by `manage.py <name>`, so reading files and making requests is
+ * its job — the same reasoning that exempts a Click command.
+ */
+const DJANGO_COMMAND_BASES = /(^|\.)(BaseCommand|AppCommand|LabelCommand|NoArgsCommand)$/;
+
+/**
+ * Memoising decorators. A memoised function's body runs once rather than
+ * once per call, so a blocking call inside it is not on the hot path —
+ * caching is the standard *fix* for that charge, not an instance of it.
+ */
+const MEMOISE_DECORATORS =
+  /(^|\.)(cache|lru_cache|cached_property|cached|memoize|memoized)$/;
+
 const UNITTEST_BASES =
   /(^|\.)(TestCase|IsolatedAsyncioTestCase|SimpleTestCase|TransactionTestCase)$/;
 
@@ -100,7 +115,20 @@ export function classifyShape(input: ShapeInput): ShapeResult {
     }
   }
 
-  // 3. CLI commands — Click / Typer.
+  // 3. CLI commands — Click / Typer, plus Django's manage.py commands.
+  if (classBases.some((b) => DJANGO_COMMAND_BASES.test(b))) {
+    const base = classBases.find((b) => DJANGO_COMMAND_BASES.test(b))!;
+    return {
+      shape: "cli_command",
+      evidence: [`method on ${className ?? "class"}(${base})`],
+    };
+  }
+  for (const dec of decorators) {
+    if (MEMOISE_DECORATORS.test(dec.split("(")[0] ?? dec)) {
+      return { shape: "memoised", evidence: [`decorated @${dec}`] };
+    }
+  }
+
   for (const dec of decorators) {
     const head = dec.split("(")[0] ?? dec;
     const method = lastSegment(head);
