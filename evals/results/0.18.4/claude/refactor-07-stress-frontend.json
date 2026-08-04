@@ -1,0 +1,72 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.18.4",
+  "timestamp": "2026-08-04T23:26:25.223Z",
+  "run_id": "72c6f586-e901-4829-b934-4363bdd8a063",
+  "response": "I ran `crimes context src/Card.tsx` and read the file plus the neighbouring `tailwind.config.ts`. Below is the proposal — **I haven't edited anything**, since `evals/fixtures/` is deliberate scanner input and rewriting it would move the eval baseline.\n\n## What context adds beyond the scan\n\n```\nrisk: MEDIUM  (3 findings: 0 high, 1 medium, 2 low)\nLikely tests   (none found — no sibling, __tests__/, .test/.spec match, no importer)\nClues          churn: 2 commits/90d · last touched 3 months ago · 1 author\n               test gap: top-quartile\n```\n\nTwo things shape the plan:\n\n- **Blast radius is 0, test gap is 1.0.** Nothing imports `Card.tsx` and nothing tests it. The refactor is safe to make aggressively — but there is no safety net, so behaviour-preserving arithmetic (which px value maps to which utility) has to be exact rather than eyeballed.\n- **`tailwind.config.ts` sits right there.** The design system isn't hypothetical — `brand` / `surface` / `ink` are declared. That upgrades `design_token_escape` from \"you have no tokens\" to \"you have tokens and this file routed around them,\" which is the version that actually misleads an agent extending the file.\n\nOne thing the config explains: it sets `theme.colors`, not `theme.extend.colors`. That's a hard override — it deletes Tailwind's entire default palette, so there is no `white`, `black`, or `gray-500`. That's plausibly *why* the author reached for `#333333` and `#666666`: the token scale is real but too thin to express the component. So this isn't a mechanical find-and-replace; it needs token *decisions*.\n\n---\n\n## 1. `design_token_escape` → name the values, extend the scale\n\n`fingerprint=design_token_escape::src/Card.tsx::` · 9 raw values across 4 kinds\n\nCard uses seven distinct colours against a three-colour palette. Four need new tokens:\n\n```ts\n// tailwind.config.ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      // promoted out of src/Card.tsx\n      \"surface-accent\": \"#ff00aa\", // was: background\n      \"ink-strong\": \"#0a0a0a\",     // was: color\n      \"ink-muted\": \"#333333\",      // was: body text\n      \"ink-subtle\": \"#666666\",     // was: sidebar text\n      border: \"#cccccc\",\n      focus: \"#1a73e8\",            // was: outlineColor\n    },\n    boxShadow: {\n      card: \"0 2px 4px rgb(0 0 0)\",\n    },\n  },\n};\n```\n\nI kept the shadow fully opaque to stay behaviour-preserving, but flag it: `rgb(0, 0, 0)` with no alpha is almost certainly unintended — real card shadows are `rgb(0 0 0 / 0.1–0.2)`. That's a design call, not a refactor call, so it shouldn't ride along silently.\n\nThe point of hoisting these isn't tidiness. It's that the next agent to touch this file now copies `bg-surface-accent` forward instead of `#ff00aa`, which is precisely the propagation this detector exists to stop.\n\n## 2. `responsive_fragility` → drop the inert width, collapse the columns\n\n`fingerprint=responsive_fragility::src/Card.tsx::` · `width: 800`, `width: 720`, `fontSize: 18`, no `@media`\n\nThe outer element carries both `width: 800` and `maxWidth: 1024`. The max-width is dead code — the element is always exactly 800px and can never reach 1024, so the constraint never fires. The fix reads the author's intent off the `maxWidth` and makes it the real one:\n\n| before | after | note |\n|---|---|---|\n| `width: 800, maxWidth: 1024` | `w-full max-w-5xl` | `max-w-5xl` = 64rem = the original 1024 |\n| `width: 720` (body) | `flex-1 min-w-0` | fluid; `min-w-0` so long content can shrink |\n| `width: 240` (sidebar) | `w-full md:w-60` | `w-60` = 240px, stacks below `md` |\n| `fontSize: 18 / 14` | `text-lg / text-sm` | exact Tailwind equivalents |\n| `height: 600` | *removed* | — |\n\nThat last row isn't in the finding — the detector flags widths and font sizes, not heights. But a fixed 600px height on a component whose only prop is arbitrary `children` clips or overflows the moment content grows, and it's the same class of defect. Worth fixing in the same pass.\n\n## 3. `accessible_interaction_risk` → this one needs a decision first\n\n`fingerprint=accessible_interaction_risk::src/Card.tsx::` · `line 10: <div> with onClick has no role / aria-label / tabIndex`\n\nThe finding's `fix_shape` is *\"use semantic elements; add ARIA only when semantics don't fit.\"* This is a case where they may genuinely not fit, so the answer branches on intent:\n\n**If the whole card is one action** — wrap in a real `<button>`:\n\n```tsx\nexport function Card({ children, onActivate, label }: CardProps) {\n  return (\n    <button\n      type=\"button\"\n      onClick={onActivate}\n      aria-label={label}\n      className=\"block w-full max-w-5xl p-6 text-left bg-surface-accent\n                 text-ink-strong border border-border shadow-card\n                 focus-visible:outline focus-visible:outline-2 outline-focus\"\n    >\n      <div className=\"flex flex-col gap-6 md:flex-row\">\n        <div className=\"min-w-0 flex-1 text-lg text-ink-muted\">{children}</div>\n        <div className=\"w-full text-sm text-ink-subtle md:w-60\">sidebar</div>\n      </div>\n    </button>\n  );\n}\n```\n\n**Caveat that decides it:** `children: React.ReactNode` means callers can pass links or inputs, and interactive content nested inside a `<button>` is invalid HTML with genuinely broken keyboard behaviour. If `children` is arbitrary, don't wrap — put a real `<button>` *inside* the card for the action, or keep the div and do the ARIA properly:\n\n```tsx\n<div\n  role=\"button\"\n  tabIndex={0}\n  aria-label={label}\n  onClick={onActivate}\n  onKeyDown={(e) => {\n    if (e.key === \"Enter\" || e.key === \" \") {\n      e.preventDefault();\n      onActivate();\n    }\n  }}\n>\n```\n\nNote the `onKeyDown` handler. The finding's `suggested_actions` entry lists `role=\"button\"`, `aria-label`, and `tabIndex={0}` — but stops there. Those three alone put the element in the tab order and announce it as a button while Enter and Space still do nothing, which is arguably worse than the current state: it promises an affordance it doesn't honour. `role=\"button\"` obligates you to synthesise the key handling that a real `<button>` gives free. That looks like a gap in the detector's suggested action, not just in this file.\n\nBoth variants also replace the inline `outlineColor` with `focus-visible:outline` — setting an outline *colour* without ensuring an outline *renders* was decorative.\n\n## Also worth changing: `onClick={() => console.log(\"clicked\")}`\n\nNot flagged by any detector, but a hardcoded `console.log` as the entire click behaviour means the component has no way to be useful. Hence `onActivate` in both variants above. This changes the public prop signature — free to do here (0 importers), but it's the one part of this refactor that wouldn't be in a real codebase.\n\n## Verification\n\nSince `test_gap` is 1.0 and there's no test to catch a regression:\n\n1. Re-run `crimes scan` — all three fingerprints should clear. If `design_token_escape` survives, a raw value was missed; if `responsive_fragility` survives, check whether the detector wants a `@media` query in-file (its evidence line calls out `no @media query found`) versus accepting Tailwind's `md:` prefixes — that's worth confirming rather than assuming, since the fixture has no Tailwind build wired up.\n2. Add `src/Card.test.tsx` covering keyboard activation (Enter and Space both call `onActivate`) and the accessible name. That's the assertion most likely to silently rot.\n\nOne open question I'd want answered before writing the code: `package.json` has no dependencies at all, so while `tailwind.config.ts` declares the tokens, nothing proves Tailwind is in the pipeline. If it isn't, the same refactor holds with CSS custom properties (`var(--surface-accent)`) and a stylesheet instead of utility classes — the token names and the responsive breakpoints carry over unchanged.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "line 10: <div> with onClick has no role / aria-label / tabIndex": "accessible_interaction_risk",
+      "9 hard-coded style values across 4 kinds (color, px, rgb, shadow)": "design_token_escape",
+      "line 10: color #ff00aa": "design_token_escape",
+      "line 10: color #0a0a0a": "design_token_escape",
+      "line 10: color #cccccc": "design_token_escape",
+      "line 10: color #1a73e8": "design_token_escape",
+      "line 10: rgb rgb(0, 0, 0)": "design_token_escape",
+      "+4 more raw value(s)": "design_token_escape",
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

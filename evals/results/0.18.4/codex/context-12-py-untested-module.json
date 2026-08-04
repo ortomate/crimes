@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.18.4",
+  "timestamp": "2026-08-04T23:16:23.670Z",
+  "run_id": "10c3930c-6d54-4ded-878d-d773fb39ed7d",
+  "response": "I’m using the `crimes-codebase-risk` workflow because this is a pre-edit impact and test-protection check. I’ll inspect the ledger module with `crimes context`, then confirm the relevant imports and tests without changing anything.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m switching to the repository’s locally built CLI—the same scanner implementation, invoked directly. No files are being modified.\n\n`billing/ledger.py` has effectively no behavioral protection for changing `reverse_entry`.\n\n- `crimes context` found no matching or importing tests and rated its test gap `top-quartile` (`raw: 1`).\n- `reverse_entry` itself is never exercised by the existing tests.\n- `tests/test_rates.py` has real assertions, but only protects rate lookup behavior used by `post_entry`.\n- `tests/test_reporting.py` indirectly exercises `ledger.post_entry`, but all four tests assert nothing. They would catch an exception, not an incorrect result. `crimes scan` flags this as a high-severity `weak_test_signal`.\n\nPotential impact:\n\n- `billing.reporting` imports `post_entry`, so accidental changes to shared ledger behavior could affect report lines and totals.\n- `billing.ledger` depends on `billing.rates`; changes involving entry amount or gross-value semantics must remain compatible with its rate calculations.\n- `billing/__init__.py`, `billing/rates.py`, and `billing/reporting.py` were identified as related files, though the context relationship score was low (`0.2`, same directory).\n- Nothing currently imports `reverse_entry`, so the direct blast radius visible in this package is small—but that also means its contract is undocumented by callers and tests.\n\nThe absence of findings on `ledger.py` does not mean the change is safe: the human report explicitly calls it “Suspiciously clean.” Before changing reversal behavior, I would add focused assertions covering account/region preservation, net and gross reversal, input mutation expectations, and reversing an entry twice. No files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

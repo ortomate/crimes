@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.18.4",
+  "timestamp": "2026-08-04T23:16:56.008Z",
+  "run_id": "7bb43aa8-3ec0-4172-9977-cfd640162955",
+  "response": "I ran the pre-edit checks before touching anything. Here's what I found.\n\n## What I have to work with\n\nThe change target is `reverse_entry` in `billing/ledger.py:16-22`:\n\n```python\ndef reverse_entry(entry):\n    return {\n        \"account\": entry[\"account\"],\n        \"net\": -entry[\"net\"],\n        \"gross\": -entry[\"gross\"],\n        \"region\": entry[\"region\"],\n    }\n```\n\n## 1. What protection do I have? Effectively none.\n\n```\nCRIMES CONTEXT\nfile: billing/ledger.py\nrisk: NONE  (0 findings)\n\nLikely tests\n  (no test file matched the target basename (looked for siblings, __tests__/ and tests/\n   directories, and the .test / .spec / _test / test_ naming conventions) and no test file\n   imports it)\n\nClues\n  · churn: 1 commits over 90d · last touched 5 days ago · 1 author\n  · test gap: top-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\nThe important line is not `risk: NONE` — it's the empty **Likely tests** block and `test gap: top-quartile`. No detector fired on this file, which is not the same as the file being safe. crimes is telling me the opposite: there is no test file for `ledger.py`, and nothing else in the suite imports it, so its test gap sits in the worst quartile in the repo. If I get the reversal wrong, nothing in this repo goes red.\n\nThis is the trap in the scan output I was handed. `crimes scan` reported `\"total\": 1` and the one finding is in `tests/test_reporting.py` — the file I'm about to edit doesn't appear at all. A clean scan line for `billing/ledger.py` would be easy to read as \"well-covered, low risk.\" It means \"no crime detected,\" and the absence of tests is reported through `likely_tests` / `test_gap`, not as a finding.\n\n## 2. The one test path that touches this code asserts nothing\n\n`reverse_entry` has no test. Its sibling `post_entry` does get exercised — but only through `tests/test_reporting.py`, which is the single high finding in the scan:\n\n> `weak_test_signal` — **Weak Test Signal**, high, confidence 0.85\n> \"4 of 4 test functions in this file assert nothing. They pass as long as the code under test does not raise, which is not the same as it being correct.\"\n> - `test_build_report` (lines 11–12) asserts nothing\n> - `test_export_report` (lines 15–16) asserts nothing\n> - `test_export_report_json` (lines 19–20) asserts nothing\n> - `test_round_trip` (lines 23–25) asserts nothing\n> - 0 total assertions across 4 tests (0.0 per test, expected ≥ 1)\n\nReading the file confirms it — the docstring even says so. So a green `pytest` run proves only that nothing raised. My change could return wrong numbers, or the wrong dict shape, and the suite stays green.\n\nThe only real assertions in this repo are in `tests/test_rates.py`, covering `rate_for` and `is_zero_rated`.\n\n## 3. What else the change could affect\n\nGrep for every reference to the ledger:\n\n```\n./billing/ledger.py:6:def post_entry(...)\n./billing/ledger.py:16:def reverse_entry(entry)\n./billing/reporting.py:3:from billing.ledger import post_entry\n./billing/reporting.py:7:    entry = post_entry(account[\"account\"], 100, region)\n```\n\nThree things follow:\n\n- **`reverse_entry` has zero in-repo callers.** Nothing here defines its contract, so nothing here will catch a shape or sign regression either. Whoever consumes it is outside this package — I can't see them, and I can't test against them.\n- **It is coupled to `post_entry` by an implicit contract, not by code.** Both return the same four keys, and `reverse_entry` assumes `gross` was produced by `post_entry` as `amount * (1 + rate_for(region))`, so flipping both signs is sound. If I change reversal to *recompute* gross from the region rate rather than negate it, I create a second source of truth for the same number and take on a dependency on `billing.rates` that doesn't exist today.\n- **That recompute path inherits a silent fallback.** `rate_for` returns `DEFAULT_RATE` (0.20) for any unknown region — and that's an asserted behaviour (`test_unknown_region_falls_back_to_default`). A reversal that recomputes would silently reverse a `\"ZZ\"` entry at 20% instead of failing, and would diverge from the original posting if the rate table ever changed between posting and reversal.\n- **The dict shape is load-bearing for reporting.** `build_report` (`billing/reporting.py:6-13`) puts the entry into `lines` and reads `entry[\"gross\"]` as the report `total`. Any key rename or shape change in the ledger propagates into report output — and `test_reporting.py` will not notice, per finding above.\n\n`crimes context billing/reporting.py` lists `tests/test_reporting.py` as its likely test and reports `test gap: bottom-quartile` — a good score that the weak-test finding directly contradicts. Coverage-shaped signals here are misleading; there's even a `.coverage` file in the repo, which invites the same false comfort.\n\n## Recommended order of work\n\n1. Write a characterization test for `reverse_entry` first, pinning today's output for a known entry (both signs flipped, `account`/`region` passed through unchanged) and for the `post_entry` → `reverse_entry` round trip summing to zero. That's the safety net that doesn't currently exist.\n2. Add real assertions to the four hollow tests in `tests/test_reporting.py` — otherwise the downstream blast path stays invisible. This is the scan's own suggested action: *\"Assert on the returned value or the observable side effect.\"*\n3. Only then change the reversal logic, and keep the returned key set identical unless you also update `build_report`.\n4. Re-run `crimes scan --format json` afterwards and diff against the pre-edit run — a new high, or a rise in `agent_risk` on a touched file, means back up.\n\nI haven't modified anything yet. Say the word on what the reversal should actually do and I'll start with step 1.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

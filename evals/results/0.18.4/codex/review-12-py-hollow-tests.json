@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.18.4",
+  "timestamp": "2026-08-04T23:38:29.465Z",
+  "run_id": "69a48f09-ac83-42e2-ba99-0242073f2d32",
+  "response": "I’m using the repository’s `crimes-codebase-risk` review workflow to interpret the scan as refactor evidence, especially the distinction between test execution and behavioral protection.\n\nThe key finding is already narrow but severe: the reporting tests exercise code paths, yet none verify a result or side effect. I’m checking the actual package layout and test bodies so I can say exactly what is and is not protected without inferring beyond the evidence.\n\nThe package has one genuinely assertion-backed area: `billing.rates`. `billing.reporting` is only smoke-exercised, and `billing.ledger` has no direct tests; I’m confirming the supplied scan against the repository-local CLI because the global `crimes` binary is not installed in this shell.\n\nThe suite provides strong behavioral protection only for `billing.rates`. The rest mostly looks covered because functions are executed, but their correctness is not checked.\n\n- Genuinely covered — [tests/test_rates.py](/Users/andrew/dev/crimes/evals/fixtures/12-py-tested/tests/test_rates.py):\n  - `rate_for(\"GB\") == 0.20`\n  - `rate_for(\"DE\") == 0.19`\n  - Unknown regions fall back to `DEFAULT_RATE`\n  - GB and FR are not zero-rated\n  - These assertions will catch incorrect returned values. FR’s exact rate, DE zero-rating, and the numeric fallback value independently of `DEFAULT_RATE` remain unprotected.\n\n- Only superficially covered — [tests/test_reporting.py](/Users/andrew/dev/crimes/evals/fixtures/12-py-tested/tests/test_reporting.py):\n  - All four tests contain zero assertions.\n  - `build_report`, CSV export, and JSON export are called, so the tests catch imports, exceptions, and a few structural failures such as missing keys.\n  - They do not verify report fields, totals, ledger calculations, CSV text, JSON contents, or error handling.\n  - `test_round_trip` is especially misleading: it does not perform or validate a round trip; it merely builds and exports.\n  - Any refactor returning plausible but incorrect values can remain green.\n\n- Barely protected — [billing/ledger.py](/Users/andrew/dev/crimes/evals/fixtures/12-py-tested/billing/ledger.py):\n  - `post_entry` is exercised indirectly through the hollow reporting tests.\n  - Its gross calculation and returned `account`, `net`, and `region` values are not asserted.\n  - `reverse_entry` is never exercised at all.\n\nThe scan reports one high-severity `weak_test_signal` finding with 0 assertions across 4 reporting tests. Also, its “6 files covered” means six Python files were scanned by `crimes`, not that tests cover those files. The existing `.coverage` file was not read, so this scan provides no line-coverage evidence.\n\nFor the refactor, treat `rates` as regression-protected, `reporting` as smoke-tested only, and `ledger` as effectively unprotected. Add result assertions around ledger calculations, report shape/totals, exact export formats, unsupported formats, and reversal behavior before relying on the suite.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

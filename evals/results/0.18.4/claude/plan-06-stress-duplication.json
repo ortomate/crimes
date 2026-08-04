@@ -1,0 +1,66 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.18.4",
+  "timestamp": "2026-08-04T23:19:49.007Z",
+  "run_id": "9c892665-f56e-48e2-8ba0-1e80324aef73",
+  "response": "I read the six source files to ground the plan against what the scan reported. The scan output is accurate, but it under-describes one thing that decides the whole shape of the change set.\n\n## What the findings actually group into\n\nThree independent duplication groups, not one:\n\n| Finding | Group | Are the copies identical? |\n|---|---|---|\n| `crime_00003` | `sanitizeUserInput` / `sanitizeText` / `cleanMessage` | **Yes** — byte-identical bodies, only local identifiers renamed (`working` / `cleaned` / `normalised`) |\n| `crime_00005` | `assertAdminA/B/C` + `canEditBilling` / `canSeeAuditLog` / `canImpersonate` | **No** — see below |\n| `crime_00004` + `crime_00001/2` | `recordSanitiseEvent` ×2, each with its own `Date.now()` | Yes — exact |\n\n## The thing the scan can't tell you\n\nThe scan says `\"admin\"` is compared in 4 files using 2 expression shapes. Reading the code, the three guards are **semantically different**:\n\n- `sanitize-a.ts:7` — `role === \"admin\"`\n- `sanitize-b.ts:6` — `role === \"admin\" || role === \"owner\"` ← **grants `owner` too**\n- `sanitize-c.ts:6` — `role !== \"admin\"` ← **negated**\n\nThis is the drift the finding predicts, already happened. Naively \"extracting a single policy function\" — which is literally what `suggested_actions[0]` proposes — either grants `owner` three new capabilities or revokes them from one, depending on which shape wins. That is a privilege change dressed as a refactor, and it's why this has to be two steps rather than one.\n\nThe three `policy.ts` functions, by contrast, *are* identical and collapse for free.\n\n## Step 0 — prerequisite (small)\n\nThere are no test files in the fixture (7 files: 6 JS/TS + `package.json`), and every finding carries `test_gap: 0.5`. Step 1 is only provably mechanical if something proves it.\n\nWrite one table-driven characterization test that runs a shared input corpus through all three sanitisers and asserts they agree with each other and with pinned outputs. Cover the branch edges the body actually has: `null`/`undefined`, empty, `>1000` chars, leading `<`/`>`, `\\\\x`, `>5` runs of `[!?]{3,}`, and the `upperRatio > 0.9 && length > 30` lowercasing path. That corpus is what step 1 is verified against.\n\n## Step 1 — mechanical consolidation (zero behaviour change)\n\n```\n+ src/sanitize.ts        one body, exported as sanitizeText()\n- src/sanitize-a.ts      deleted\n- src/sanitize-b.ts      deleted\n- src/sanitize-c.ts      deleted\n  src/policy.ts          gains assertAdminA/B/C, bodies UNTOUCHED\n```\n\nTwo rules make this step reviewable as a no-op:\n\n1. **Pick sanitize-b's body verbatim** (its `cleaned` naming is the most neutral) and delete the other two. No parameterisation, no \"while I'm here\" cleanups — the diff should be pure deletion plus one moved file.\n2. **Re-home the guards without unifying them.** `assertAdminA/B/C` currently live inside the files step 1 deletes, so they have to move somewhere. Move them into `policy.ts` renamed for what they *do* — `isAdmin`, `isAdminOrOwner`, `isNotAdmin` — with bodies unchanged. Renaming is safe; merging is not, and that's step 2's job.\n\nIn this repo every finding reports `blast_radius_direct_importers: 0`, so nothing imports these — deleting outright is safe. In a real codebase you'd leave `sanitize-a.ts` as a one-line re-export shim for a release and delete it after the call sites move.\n\n**Optional rider, droppable without affecting anything else:** `telemetry-a.ts` / `telemetry-b.ts` are an exact duplicate pair, and each copy carries its own `Date.now()`. Collapsing them to one `src/telemetry.ts` with `recordSanitiseEvent(originalLength, sanitisedLength, now: () => number = Date.now)` clears three findings for one small edit, since the clock injection lands in the same file you're already touching. This is outside the sanitise/role scope you asked for — cut it if you want step 1 to stay narrow.\n\n## Step 2 — semantic unification (needs a decision first)\n\nNow everything lives in `policy.ts` and the divergence is visible in one screen. Target shape:\n\n```ts\nexport type Role = \"admin\" | \"owner\" | string;\n\nexport const isAdmin = (role: Role) => role === \"admin\";\nexport const canAdminister = (role: Role) => isAdmin(role) || role === \"owner\";\n\nexport const canEditBilling  = isAdmin;   // was 3 identical copies\nexport const canSeeAuditLog  = isAdmin;\nexport const canImpersonate  = isAdmin;\n```\n\nThree moves:\n\n- **`policy.ts`'s own trio** collapses to `isAdmin` with no decision needed — the bodies are identical.\n- **`isNotAdmin` disappears.** `role !== \"admin\"` is exactly `!isAdmin(role)`; express the negation at the call site rather than keeping a negated wrapper, which is how shape drift starts.\n- **`isAdminOrOwner` is the blocker.** It cannot be merged into `isAdmin` without a product answer.\n\n## The question that has to go to a human\n\n**Is `owner` supposed to pass the sanitise guard in `sanitize-b`, or was the `|| role === \"owner\"` added there and never backported to `a`?**\n\n- If intentional → keep `canAdminister` as a distinct, documented predicate; `isAdmin` and `canAdminister` both survive, and step 2 ships as-is.\n- If accidental → one call site's authorization is currently wrong, and this stops being a refactor. Fix it as a separate behaviour-change commit with its own test, before or after the consolidation but never inside it.\n\nIf nobody can answer, **ship step 2 with both predicates**. Two well-named predicates are a fine end state; one predicate with a guessed semantic is not.\n\n## Verification\n\nRe-run `crimes scan --format json` after each step and diff on `fingerprint`:\n\n- After step 1: `crime_00003` clears (`near_duplicate_block::src/sanitize-a.ts`), and `crime_00005`'s `related_files` should shrink from `[sanitize-a, sanitize-b, sanitize-c]` to empty — the finding survives but is now confined to `policy.ts`, which is the honest state. With the telemetry rider, `crime_00001`, `crime_00002`, `crime_00004` clear too.\n- After step 2: `crime_00005` clears. If it doesn't, the `owner` question got answered by keeping two predicates, and the remaining finding is expected — suppress it with a note rather than forcing the merge.\n\nCharacterization tests from step 0 must pass unchanged across step 1. Step 2 will change them only if the `owner` question resolves as a bug fix.\n\n## One caveat on the evidence\n\n`crime_00005`'s evidence lists `src/policy.ts:1: role === \"admin\"`, but line 1 is a comment (`// Same \\`if (role === \"admin\")\\` policy check...`). The three real occurrences in that file are lines 3, 8, and 13. The finding is correct; its occurrence count is inflated by one comment match. Worth a look at the `duplicated_role_status_plan_check` detector's comment handling if you're calibrating against this fixture — it doesn't change the plan.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "direct_date",
+      "crime_00003": "near_duplicate_block",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_evidence": {
+      "1× Date.now()": "direct_date",
+      "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching": "direct_date",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

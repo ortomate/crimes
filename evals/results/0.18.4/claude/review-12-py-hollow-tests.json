@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.18.4",
+  "timestamp": "2026-08-04T23:38:20.794Z",
+  "run_id": "b1c9060a-67fb-4d99-934c-8dbbd2b5f0d5",
+  "response": "I read the scan output plus the fixture itself (source, tests, and the `.coverage` database) to separate the two.\n\n## The headline number is a lie\n\n`coverage report` on this package says **91%**:\n\n```\nbilling/__init__.py     0 stmts    100%\nbilling/ledger.py       6 stmts     83%   missing: line 17\nbilling/rates.py        6 stmts    100%\nbilling/reporting.py   10 stmts     90%   missing: line 21\nTOTAL                  22 stmts     91%\n```\n\nOf the 22 covered statements, **6 are protected by assertions and 14 are merely executed.** The scan's single finding is the reason.\n\n## Genuinely covered — `billing/rates.py`\n\n`tests/test_rates.py` is real: 3 tests, 5 assertions, pinned to literal values.\n\n- `rate_for(\"GB\") == 0.20`, `rate_for(\"DE\") == 0.19` — the lookup table is nailed down. Change a rate and the suite goes red.\n- `rate_for(\"ZZ\") == DEFAULT_RATE` — the fallback path is protected.\n\nTwo caveats on this file, from reading it rather than from the scan:\n\n- `is_zero_rated` is only asserted **false** (`GB`, `FR`). No region in `RATES` is zero-rated, so the true branch has never executed. If your refactor introduces a 0.0 rate, nothing here catches a wrong answer.\n- `rate_for(\"ZZ\") == DEFAULT_RATE` compares the code against itself. Change `DEFAULT_RATE` from 0.2 to 0.5 and this test still passes. It protects the *fallback wiring*, not the *fallback value*.\n\n## Only looks covered — `billing/reporting.py`\n\n90% line coverage, 4 tests, **0 assertions** (`crime_00001`, high, confidence 0.85). Every test calls the function and discards the result. Concretely, all of these refactors ship green:\n\n- `build_report` returning `\"total\": entry[\"net\"]` instead of `entry[\"gross\"]` — silent revenue bug, suite passes.\n- Dropping the `\"lines\"` key, or renaming `\"total\"`.\n- Changing the CSV from `account,total` to `total,account`, or `%.2f` to `%d`.\n- `export_report(..., \"json\")` returning a JSON *string* instead of a dict — the tests never look at the return type.\n\nLine 21 — the `raise ValueError` for an unsupported format — is the one genuinely uncovered line. There is no `pytest.raises` test, so the error contract is unprotected too.\n\n## Not covered at all, and disguised — `billing/ledger.py`\n\nThis is the part the coverage number hides worst. **There is no `tests/test_ledger.py`.** Its 83% comes entirely from `post_entry` being executed transitively by the four hollow reporting tests. So ledger's coverage is borrowed from tests that assert nothing — it is 0% protected, not 83%.\n\n- `gross = amount * (1 + rate_for(region))` — the core money arithmetic. Never asserted, directly or indirectly. Invert it to `amount / (1 + rate)`, or drop the `1 +`, and everything stays green.\n- `reverse_entry` (line 17) is the honestly-uncovered line: never called, never tested. At least it *reports* as uncovered.\n- Only `amount=100` and regions `GB`/`DE`/`FR` ever reach `post_entry`, because `build_report` hardcodes the amount. No zero, no negative, no unknown region.\n\n## What this means for the refactor\n\n| Area | Reported | Actually protected |\n|---|---|---|\n| `rates.rate_for` lookup + fallback path | 100% | Yes |\n| `rates.is_zero_rated` true branch | 100% | No — never exercised |\n| `reporting.build_report` shape/totals | 90% | No |\n| `reporting.export_report` csv/json output | 90% | No |\n| `reporting` unsupported-format error | uncovered | No |\n| `ledger.post_entry` gross arithmetic | 83% | No — borrowed coverage |\n| `ledger.reverse_entry` | uncovered | No |\n\nTreat `rates.py` as the only file with a safety net. Before touching `ledger.py` or `reporting.py`, write the assertions first — the fix is small (`effort: small`, `fix_shape: \"assert on the result, not just that it ran\"`): pin the report dict shape, pin the exact CSV string, pin `post_entry`'s gross for a known region, and add a `pytest.raises(ValueError)` for the bad format. That converts 14 executed-but-unchecked statements into real coverage, and it's the cheapest thing you can do before the refactor starts.\n\nOne note on the scan's coverage warnings: the three `files_not_discovered` entries (`crimes.config.json`, `pyproject.toml`, `.coverage`) are noise here — none carry logic. No config change needed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

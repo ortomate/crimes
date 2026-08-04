@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.18.4",
+  "timestamp": "2026-08-04T23:14:07.116Z",
+  "run_id": "1fb2fe60-6e7e-4d74-950d-fd160cce5e87",
+  "response": "I ran `crimes context src/add.ts --format json` in `evals/fixtures/09-clean-tiny`. Here's what came back.\n\n## What crimes found on `src/add.ts`\n\n**Nothing.** Risk level `none` — 0 high, 0 medium, 0 low, 0 total findings.\n\n- `agent_guidance`: empty — reason given: *\"no findings on this file and no deterministic related files\"*\n- `related_files`: empty — reason: *\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"*\n- `likely_tests`: `src/add.test.ts` — the file has a direct test\n- Churn: 1 commit in 90 days, 1 author, last touched 2026-05-18. Cold, single-owner file.\n- `test_gap.raw: 0`, label `\"unknown\"` — the label is \"unknown\" rather than \"covered\" because there's no coverage data wired in, but a test file was located.\n\nThe file itself is three lines: a single pure `add(a: number, b: number): number`. That matches the finding set — there is genuinely nothing to flag.\n\n## The one repo finding, and why it isn't about this file\n\nThe full scan reports exactly one finding, `crime_00001` — **Phantom Accomplice** (`dependency_provenance_gap`), severity low, confidence 0.56. It's filed against `package.json`, not `src/add.ts`:\n\n> `vitest` is imported at `src/add.test.ts` but declared in no applicable `package.json`.\n\nThe fixture's manifest has no `dependencies` or `devDependencies` at all. `vitest` resolves today via hoisting from the monorepo root; a clean standalone install would fail. Confidence is discounted (`0.68 base − 0.12`) precisely because only test files are affected. `agent_risk` is 0.13 — near the floor.\n\nThis didn't surface in `crimes context src/add.ts` because it's a repo-level manifest finding, and `add.ts` isn't in its `related_files` (only `src/add.test.ts` is).\n\n## Is it safe to extend?\n\n**Yes.** This is about as low-risk as a file gets:\n\n- Zero findings, zero blast radius, no importers to break\n- Pure function — no I/O, no clock, no env reads, nothing to make untestable\n- A test exists right next to it, so you get an immediate feedback loop\n- Cold churn history means you're not editing something in active contention\n\nTwo things worth knowing rather than worrying about:\n\n1. **If you add a test dependency, declare it.** The `vitest` gap already shows this manifest doesn't track its dev deps. Extending the test file with a new import would widen an existing finding. Adding `vitest` (and anything new) to `devDependencies` is a `quick`-effort fix and the finding's own `suggested_actions` say exactly that.\n2. **The clean slate is the point.** This is the repo's minimal control fixture — its header comment reads *\"should produce zero crimes findings.\"* If you're editing it as a fixture rather than as ordinary code, adding complexity will change what the scanner reports about itself, which is the fixture's whole job. If you're just treating it as a normal file, ignore this.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

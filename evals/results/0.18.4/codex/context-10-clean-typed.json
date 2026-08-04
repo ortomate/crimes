@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "codex",
+  "crimes_version": "0.18.4",
+  "timestamp": "2026-08-04T23:14:53.926Z",
+  "run_id": "7b73e0e7-7403-4d92-88f3-6a8085780efc",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is a targeted risk/context inspection. I’ll follow its read-only context workflow and report the command’s evidence directly.\n\nThe skill confirms JSON is the right contract for this decision. I’m now running the requested file-context command from the `10-clean-typed` fixture so paths and test discovery are evaluated against the correct repository root.\n\nThe global `crimes` binary is not on this shell’s PATH. I’ll use the repository’s locally built CLI—the documented equivalent for an unpublished checkout—and keep the fixture as the working directory.\n\n`src/billing.ts` has no findings:\n\n- Risk level: `none`\n- Findings: `0`\n- Likely test: `src/billing.test.ts`\n\nIt is low risk to edit because there are no detected file-level risks or related-file dependencies, and churn is minimal: one commit and one author in the last 90 days. A directly named test exists, providing a clear validation target. The scan’s separate low-severity `vitest` dependency finding applies to `package.json`, not `billing.ts`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}
