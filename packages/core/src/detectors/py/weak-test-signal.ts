@@ -4,6 +4,7 @@ import type { LanguagePyDetector } from "../../detector.js";
 import type { PreFinding as Finding, Severity } from "../../finding.js";
 import { isTestFile } from "../../util/test-files.js";
 import { intrinsicFor, plural, severityScore } from "./shared.js";
+import type { PySymbolIndex } from "../../py/symbol-index.js";
 
 /**
  * `weak_test_signal.py` — test functions that assert nothing.
@@ -182,8 +183,27 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     // helper and call it, which the span cannot see. Follow the call
     // graph a bounded distance to find them.
     const helpers = buildHelperIndex(ctx.parsed);
-    const silent = direct.filter((fn) => !assertsThroughHelper(ctx.parsed, helpers, fn));
+    const credits: HelperCredit[] = [];
+    const silent = direct.filter((fn) => {
+      const credit = assertsThroughHelper({
+        parsed: ctx.parsed,
+        helpers,
+        test: fn,
+        file: ctx.file,
+        ...(ctx.pySymbols !== undefined ? { symbols: ctx.pySymbols } : {}),
+      });
+      if (credit) credits.push(credit);
+      return credit === undefined;
+    });
     const creditedViaHelper = direct.length - silent.length;
+    // Sorted and de-duplicated so the evidence line is identical
+    // between two scans of the same tree — this string is quoted into a
+    // finding, and an unstable one breaks byte-identical re-scans.
+    const crossFileSources = [
+      ...new Set(
+        credits.map((c) => c.definedIn).filter((f): f is string => f !== undefined),
+      ),
+    ].sort();
     if (silent.length === 0) return [];
 
     const minPerTest = readMinAssertions(ctx.config);
@@ -204,14 +224,30 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
       ...(creditedViaHelper > 0
         ? [
             `${creditedViaHelper} further ${plural(creditedViaHelper, "test")} ` +
-              `${creditedViaHelper === 1 ? "asserts" : "assert"} through a same-file ` +
+              `${creditedViaHelper === 1 ? "asserts" : "assert"} through a ` +
               "helper and are not counted here",
+          ]
+        : []),
+      // Name the files. A cross-file credit is a claim the reader
+      // cannot check without being told where to look, and "trust me,
+      // it asserts somewhere" is exactly the kind of verdict-without-
+      // receipts this detector charges other code for.
+      ...(crossFileSources.length > 0
+        ? [
+            `helpers resolved in ${crossFileSources
+              .slice(0, 3)
+              .map((f) => `\`${f}\``)
+              .join(", ")}` +
+              (crossFileSources.length > 3
+                ? ` and ${crossFileSources.length - 3} more`
+                : ""),
           ]
         : []),
       "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, " +
         "`pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, " +
         "`model_dump_json(warnings='error')`, and any of those " +
-        `reached through up to ${MAX_HELPER_HOPS} same-file helper calls`,
+        `reached through up to ${MAX_HELPER_HOPS} same-file helper calls, ` +
+        "or one call into a base-class or imported helper",
     ];
 
     const finding: Finding = {
@@ -352,8 +388,11 @@ function buildHelperIndex(parsed: ParsedPyFile): Map<string, ParsedPyFunction[]>
  * name. That is the difference between following a call and guessing at
  * one.
  */
-function resolvableCallNames(parsed: ParsedPyFile, fn: ParsedPyFunction): string[] {
-  const names: string[] = [];
+function resolvableCallNames(
+  parsed: ParsedPyFile,
+  fn: ParsedPyFunction,
+): ResolvableCall[] {
+  const names: ResolvableCall[] = [];
   // `parsed.calls` is sorted by line, so seek to the function's first
   // call rather than scanning the file's whole call list once per
   // function — the difference between linear and quadratic on a
@@ -361,11 +400,91 @@ function resolvableCallNames(parsed: ParsedPyFile, fn: ParsedPyFunction): string
   for (let i = firstAtOrAfter(parsed, fn.startLine); i < parsed.calls.length; i += 1) {
     const call = parsed.calls[i]!;
     if (call.line > fn.endLine) break;
-    if (call.receiver === "" || RESOLVABLE_RECEIVER.test(call.receiver)) {
-      names.push(call.name);
+    if (call.receiver === "") {
+      names.push({ name: call.name, viaSelf: false });
+    } else if (RESOLVABLE_RECEIVER.test(call.receiver)) {
+      names.push({ name: call.name, viaSelf: true });
     }
   }
   return names;
+}
+
+/**
+ * A call this file could plausibly resolve, and how.
+ *
+ * The receiver is kept rather than discarded because it decides *which*
+ * cross-file lookup is legitimate. `self.check()` is a method on the
+ * test's own class, so it resolves through that class's MRO. A bare
+ * `check()` is a module-level name, so it resolves through this file's
+ * imports. Neither resolves through a repo-wide search for the name.
+ */
+interface ResolvableCall {
+  name: string;
+  viaSelf: boolean;
+}
+
+/**
+ * Files whose assertions can stand in for a test's own.
+ *
+ * `isTestFile` covers the naming conventions; `conftest.py` is pytest's
+ * own fixture and helper module, which no naming convention marks and
+ * which is one of the two places the same-file limit was documented as
+ * missing.
+ */
+function isTestInfrastructure(file: string): boolean {
+  return isTestFile(file) || /(?:^|\/)conftest\.py$/.test(file);
+}
+
+/** How a test earned its assertion credit, for the evidence line. */
+interface HelperCredit {
+  /** Repo file the asserting helper was found in, when not this one. */
+  definedIn?: string;
+}
+
+/**
+ * Follow one call out of this file, through the symbol index.
+ *
+ * Deliberately **one** hop across the file boundary, not
+ * {@link MAX_HELPER_HOPS}. The index holds each function's line span
+ * and whether it asserts, but not its call list — so a helper in
+ * another file that itself delegates further cannot be followed, and
+ * pretending otherwise would mean inventing a chain. One hop is what
+ * the dominant idiom needs: the assertions live *in* the base-class
+ * helper, not two levels behind it.
+ */
+function assertsAcrossFiles(args: {
+  symbols: PySymbolIndex;
+  file: string;
+  className: string | undefined;
+  call: ResolvableCall;
+}): HelperCredit | undefined {
+  const { symbols, file, className, call } = args;
+  const found = call.viaSelf
+    ? className === undefined
+      ? undefined
+      : symbols.resolveMethod(file, className, call.name)
+    : symbols.resolveFunction(file, call.name);
+  if (!found?.asserts) return undefined;
+  // The assertion has to live in test infrastructure. Following a call
+  // into *production* code and crediting whatever `assert` it contains
+  // gets the meaning of the statement backwards: an `assert` in a
+  // domain function is a precondition defending it from its caller, not
+  // the caller checking a result.
+  //
+  // Found on zulip, where three test files were credited through
+  // `zerver/actions/*.py` — `do_set_realm_property` asserts
+  // `isinstance(raw_value, property_type)` about its own argument. A
+  // test that calls it and checks nothing else is precisely the hollow
+  // test this detector exists to report.
+  //
+  // Same-file resolution never needed this rule: a test file's own
+  // functions are test infrastructure by construction. Crossing the
+  // file boundary is what breaks that assumption.
+  if (!isTestInfrastructure(found.file)) return undefined;
+  // A helper found in this same file was already reachable without the
+  // index; reporting it as a cross-file credit would overstate what
+  // the index did.
+  return found.file === file ? {} : { definedIn: found.file };
 }
 
 /** Index of the first call at or after `line`, by binary search. */
@@ -388,32 +507,49 @@ function firstAtOrAfter(parsed: ParsedPyFile, line: number): number {
  * forward scan that stops at the closing line rather than a pass over
  * every call in the file.
  */
-function assertsThroughHelper(
-  parsed: ParsedPyFile,
-  helpers: Map<string, ParsedPyFunction[]>,
-  test: ParsedPyFunction,
-): boolean {
+function assertsThroughHelper(args: {
+  parsed: ParsedPyFile;
+  helpers: Map<string, ParsedPyFunction[]>;
+  test: ParsedPyFunction;
+  file: string;
+  symbols?: PySymbolIndex;
+}): HelperCredit | undefined {
+  const { parsed, helpers, test, file, symbols } = args;
   const seen = new Set<string>(test.name === undefined ? [] : [test.name]);
   let frontier = resolvableCallNames(parsed, test);
+  // `self` refers to the same object however deep the same-file chase
+  // goes, so the class whose MRO a `self.x()` resolves against is
+  // always the test's own — not that of whatever helper we are
+  // currently standing in.
+  const className = test.className;
 
   for (let hop = 0; hop < MAX_HELPER_HOPS; hop += 1) {
-    const next: string[] = [];
-    for (const name of frontier) {
-      if (seen.has(name)) continue;
-      seen.add(name);
-      const candidates = helpers.get(name);
-      if (!candidates) continue;
-      for (const candidate of candidates) {
-        if (assertsWithin(parsed, candidate)) return true;
-        if (hop + 1 < MAX_HELPER_HOPS) {
-          next.push(...resolvableCallNames(parsed, candidate));
+    const next: ResolvableCall[] = [];
+    for (const call of frontier) {
+      if (seen.has(call.name)) continue;
+      seen.add(call.name);
+      const candidates = helpers.get(call.name);
+      if (candidates) {
+        for (const candidate of candidates) {
+          if (assertsWithin(parsed, candidate)) return {};
+          if (hop + 1 < MAX_HELPER_HOPS) {
+            next.push(...resolvableCallNames(parsed, candidate));
+          }
         }
       }
+      // Only after the same-file answer comes up empty. The same-file
+      // chase is the stronger evidence — it read the helper's body —
+      // and it is also what this detector did before the index existed,
+      // so trying it first keeps the index strictly additive.
+      if (symbols) {
+        const credit = assertsAcrossFiles({ symbols, file, className, call });
+        if (credit) return credit;
+      }
     }
-    if (next.length === 0) return false;
+    if (next.length === 0) return undefined;
     frontier = next;
   }
-  return false;
+  return undefined;
 }
 
 function pickSeverity(silent: number, total: number): Severity {

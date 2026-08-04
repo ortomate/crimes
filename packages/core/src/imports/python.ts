@@ -23,6 +23,12 @@ import {
   resolvePyImports,
   type PyImportSpecifierInput,
 } from "@crimes/language-py";
+import {
+  buildPySymbolIndex,
+  collectPyFileSymbols,
+  type PyFileSymbolsInput,
+  type PySymbolIndex,
+} from "../py/symbol-index.js";
 import type { ImportEdge } from "./types.js";
 
 const PY_FILE_RE = /\.pyi?$/;
@@ -36,6 +42,23 @@ export interface BuildPythonImportEdgesOptions {
   maxFiles?: number;
   /** Where read / parse failures get recorded instead of vanishing. */
   warnings?: CoverageWarningLog;
+  /**
+   * Receives the repo-wide Python symbol index, built from this pass's
+   * parses.
+   *
+   * This function is the only place in a scan that parses every Python
+   * file *and* holds the {@link PyModuleIndex} needed to resolve a name
+   * to a file — it just used to keep `parsed.imports` and discard the
+   * rest. Handing the summary out here is what makes a cross-file
+   * symbol index cost a linear pass over data already in hand rather
+   * than a second parse of the repo.
+   *
+   * A callback rather than a return field because the symbol index is
+   * not an import-graph concern: `ImportGraph` is language-agnostic and
+   * has no business carrying a Python-specific structure through two
+   * layers of builder.
+   */
+  onSymbolIndex?: (index: PySymbolIndex) => void;
 }
 
 export interface PythonImportEdgeResult {
@@ -84,6 +107,8 @@ export async function buildPythonImportEdges(
   const index = buildPyModuleIndex(repoPaths);
 
   const specifiers: PyImportSpecifierInput[] = [];
+  const symbols: PyFileSymbolsInput[] = options.onSymbolIndex ? [] : [];
+  const wantSymbols = options.onSymbolIndex !== undefined;
   await Promise.all(
     pyFiles.map(async (abs, i) => {
       const from = repoPaths[i]!;
@@ -110,8 +135,19 @@ export async function buildPythonImportEdges(
           kind: imp.kind,
         });
       }
+      if (wantSymbols) symbols.push(collectPyFileSymbols(from, parsed));
     }),
   );
+
+  if (options.onSymbolIndex) {
+    // `Promise.all` completion order is non-deterministic. The index is
+    // keyed by file so lookups don't care, but sorting keeps the
+    // structure identical between two runs of the same tree — the same
+    // reason `specifiers` is sorted below, and a precondition for
+    // byte-identical re-scans once a detector quotes what it finds.
+    symbols.sort((a, b) => a.file.localeCompare(b.file));
+    options.onSymbolIndex(buildPySymbolIndex({ files: symbols, moduleIndex: index }));
+  }
 
   // `Promise.all` completion order is non-deterministic, so sort before
   // resolving to keep edge order stable across runs. Findings quote

@@ -25,6 +25,7 @@ export { BOOLEAN_INITIALIZER_KINDS } from "./parse/declarations.js";
 export {
   buildPyModuleIndex,
   resolvePyImports,
+  resolvePyImportedModule,
   type PyImportSpecifierInput,
   type PyModuleIndex,
   type PyResolvedEdge,

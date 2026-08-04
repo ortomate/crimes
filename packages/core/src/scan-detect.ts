@@ -26,6 +26,7 @@ import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import type { PettyIndex } from "./petty/types.js";
 import type { ScoringContext } from "./scoring/build.js";
 import type { AgentConfigIndex } from "./agents/types.js";
+import type { PySymbolIndex } from "./py/symbol-index.js";
 import type { ManifestIndex } from "./manifest/types.js";
 import type { RiskIndex } from "./risk/types.js";
 import { discoverEnvInventoryFiles } from "./risk/env-inventory.js";
@@ -64,6 +65,13 @@ export interface ScanIndexes {
   /** Repo-local agent configuration inventory (0.16.0). */
   agentConfig?: AgentConfigIndex;
   /**
+   * Repo-wide Python classes, bases and methods, with which of them
+   * assert. Built from the Python parse the import-graph pass already
+   * performs, so it is a linear pass over data already in hand rather
+   * than a second parse (0.19.0).
+   */
+  pySymbols?: PySymbolIndex;
+  /**
    * Everything the index build dropped without failing (0.17.0). Always
    * present so downstream stages can keep recording into it; `scan()`
    * folds it into `ScanReport.coverage.warnings`.
@@ -92,7 +100,17 @@ export async function buildScanIndexes(args: {
     warnings,
   });
   const petty = await safelyBuildPettyIndex({ root, allFiles, warnings });
-  const imports = await safelyBuildImportGraph({ root, allFiles, warnings });
+  // Captured out of the import-graph build because that is the one
+  // place a scan parses every Python file. See `py/symbol-index.ts`.
+  let pySymbols: PySymbolIndex | undefined;
+  const imports = await safelyBuildImportGraph({
+    root,
+    allFiles,
+    warnings,
+    onPySymbolIndex: (index) => {
+      pySymbols = index;
+    },
+  });
   const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles, warnings });
   const functionHashIndex = await safelyBuildFunctionHashIndex({
     root,
@@ -125,6 +143,7 @@ export async function buildScanIndexes(args: {
     risk,
     manifest,
     agentConfig,
+    ...(pySymbols !== undefined ? { pySymbols } : {}),
     warnings,
   };
 }
@@ -314,6 +333,7 @@ export async function runDetectorsForFile(args: {
       ia: args.indexes.ia,
       petty: args.indexes.petty,
       imports: args.indexes.imports,
+      pySymbols: args.indexes.pySymbols,
       scoring: args.indexes.scoring,
     };
     for (const detector of pyDetectors) {

@@ -1,9 +1,14 @@
-import { parsePyFile } from "@crimes/language-py";
+import { buildPyModuleIndex, parsePyFile } from "@crimes/language-py";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../../config.js";
 import type { LanguagePyDetector, LanguagePyDetectorContext } from "../../detector.js";
 import type { PreFinding } from "../../finding.js";
 import type { ImportGraph } from "../../imports/types.js";
+import {
+  buildPySymbolIndex,
+  collectPyFileSymbols,
+  type PySymbolIndex,
+} from "../../py/symbol-index.js";
 import {
   booleanNamingDriftPyDetector,
   circularDependencyPyDetector,
@@ -932,7 +937,7 @@ describe("weak_test_signal.py", () => {
     );
     expect(found).toHaveLength(1);
     expect(found[0]!.evidence.join(" ")).toMatch(
-      /1 further test asserts through a same-file helper/,
+      /1 further test asserts through a helper/,
     );
   });
 
@@ -1215,5 +1220,214 @@ describe("Python detector contract", () => {
       expect(d.whyItMatters.length).toBeGreaterThan(80);
       expect(d.description.length).toBeGreaterThan(20);
     }
+  });
+});
+
+/**
+ * Build a real repo-wide symbol index from real parses, so these tests
+ * exercise the resolution path end to end rather than a stub of it.
+ */
+async function symbolIndexFor(files: Record<string, string>): Promise<PySymbolIndex> {
+  const paths = Object.keys(files).sort();
+  const collected = [];
+  for (const path of paths) {
+    const parsed = await parsePyFile({
+      absolutePath: `/repo/${path}`,
+      source: files[path]!,
+    });
+    collected.push(collectPyFileSymbols(path, parsed));
+  }
+  return buildPySymbolIndex({ files: collected, moduleIndex: buildPyModuleIndex(paths) });
+}
+
+describe("weak_test_signal.py — cross-file assertion helpers", () => {
+  const BASE = [
+    "class ZulipTestCase:",
+    "    @contextmanager",
+    "    def capture_send_event_calls(self, expected_num_events):",
+    "        yield",
+    "        assert len(events) == expected_num_events",
+  ].join("\n");
+
+  const TEST = [
+    "from zerver.lib.test_classes import ZulipTestCase",
+    "",
+    "class DeleteMessageTest(ZulipTestCase):",
+    "    def test_delete_event_sent_after_transaction_commits(self):",
+    "        with self.capture_send_event_calls(expected_num_events=1):",
+    "            do_delete_messages()",
+  ].join("\n");
+
+  const FILES = {
+    "zerver/__init__.py": "",
+    "zerver/lib/__init__.py": "",
+    "zerver/lib/test_classes.py": BASE,
+    "zerver/tests/__init__.py": "",
+    "zerver/tests/test_message_delete.py": TEST,
+  };
+
+  it("reports the test when there is no symbol index", async () => {
+    // The floor. Same-file resolution is unchanged, so a detector run
+    // without the index behaves exactly as it did before — this is what
+    // makes the index additive rather than load-bearing.
+    const found = await run(
+      weakTestSignalPyDetector,
+      "zerver/tests/test_message_delete.py",
+      TEST,
+    );
+    expect(found).toHaveLength(1);
+  });
+
+  it("credits the test through a base-class helper in another file", async () => {
+    const pySymbols = await symbolIndexFor(FILES);
+    expect(
+      await run(weakTestSignalPyDetector, "zerver/tests/test_message_delete.py", TEST, {
+        pySymbols,
+      }),
+    ).toEqual([]);
+  });
+
+  it("still reports when the base class asserts nothing", async () => {
+    const pySymbols = await symbolIndexFor({
+      ...FILES,
+      "zerver/lib/test_classes.py": [
+        "class ZulipTestCase:",
+        "    def capture_send_event_calls(self, expected_num_events):",
+        "        yield",
+      ].join("\n"),
+    });
+    expect(
+      await run(weakTestSignalPyDetector, "zerver/tests/test_message_delete.py", TEST, {
+        pySymbols,
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("does NOT credit a same-named helper on an unrelated class", async () => {
+    // The `has()` case. `Unrelated.capture_send_event_calls` asserts,
+    // but nothing connects it to `DeleteMessageTest`. Crediting here
+    // would give a detector about false confidence some of its own.
+    const pySymbols = await symbolIndexFor({
+      "zerver/__init__.py": "",
+      "zerver/lib/__init__.py": "",
+      "zerver/lib/other.py": BASE.replace("ZulipTestCase", "Unrelated"),
+      "zerver/tests/__init__.py": "",
+      "zerver/tests/test_message_delete.py": [
+        "class DeleteMessageTest:",
+        "    def test_delete_event_sent_after_transaction_commits(self):",
+        "        with self.capture_send_event_calls(expected_num_events=1):",
+        "            do_delete_messages()",
+      ].join("\n"),
+    });
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "zerver/tests/test_message_delete.py",
+        [
+          "class DeleteMessageTest:",
+          "    def test_delete_event_sent_after_transaction_commits(self):",
+          "        with self.capture_send_event_calls(expected_num_events=1):",
+          "            do_delete_messages()",
+        ].join("\n"),
+        { pySymbols },
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("does NOT credit an assert inside production code", async () => {
+    // Found on zulip: `test_auth_backends.py` was credited through
+    // `do_set_realm_property` in `zerver/actions/realm_settings.py`,
+    // whose `assert isinstance(raw_value, property_type)` is a
+    // precondition defending the function from its caller — not the
+    // test asserting on a result. A test that calls it and checks
+    // nothing is exactly the hollow test this detector exists to find,
+    // so crediting it would be a false negative in a detector about
+    // false confidence.
+    const files = {
+      "zerver/__init__.py": "",
+      "zerver/actions/__init__.py": "",
+      "zerver/actions/realm_settings.py": [
+        "def do_set_realm_property(realm, name, raw_value):",
+        "    assert isinstance(raw_value, str)",
+        "    realm.save()",
+      ].join("\n"),
+      "zerver/tests/__init__.py": "",
+      "zerver/tests/test_auth.py": [
+        "from zerver.actions.realm_settings import do_set_realm_property",
+        "",
+        "def test_sets_property():",
+        "    do_set_realm_property(realm, 'name', 'x')",
+      ].join("\n"),
+    };
+    const pySymbols = await symbolIndexFor(files);
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "zerver/tests/test_auth.py",
+        files["zerver/tests/test_auth.py"]!,
+        { pySymbols },
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("credits a helper in conftest.py", async () => {
+    // Test infrastructure that the naming convention does not catch.
+    const files = {
+      "pkg/__init__.py": "",
+      "pkg/conftest.py": "def assert_valid(user):\n    assert user.id\n",
+      "pkg/test_users.py":
+        "from pkg.conftest import assert_valid\n\ndef test_creates():\n    assert_valid(make())\n",
+    };
+    const pySymbols = await symbolIndexFor(files);
+    expect(
+      await run(
+        weakTestSignalPyDetector,
+        "pkg/test_users.py",
+        files["pkg/test_users.py"]!,
+        {
+          pySymbols,
+        },
+      ),
+    ).toEqual([]);
+  });
+
+  it("credits a module-level helper imported from another test module", async () => {
+    // airflow's real shape: `test_athena.py` calls
+    // `validate_template_fields(self.athena)`, imported from
+    // `.../aws/utils/test_template_fields.py`, which asserts. That file
+    // is test infrastructure, so the credit stands.
+    const src =
+      "from pkg.tests.test_helpers import check_valid\n\ndef test_creates():\n    check_valid(make())\n";
+    const pySymbols = await symbolIndexFor({
+      "pkg/__init__.py": "",
+      "pkg/tests/__init__.py": "",
+      "pkg/tests/test_helpers.py": "def check_valid(user):\n    assert user.id\n",
+      "pkg/tests/test_users.py": src,
+    });
+    expect(
+      await run(weakTestSignalPyDetector, "pkg/tests/test_users.py", src, { pySymbols }),
+    ).toEqual([]);
+  });
+
+  it("says in the evidence when a credit came from another file", async () => {
+    // Evidence before judgement: a reader who wants to check the claim
+    // needs to be told which file to open.
+    const pySymbols = await symbolIndexFor({
+      ...FILES,
+      "zerver/tests/test_message_delete.py": [
+        TEST,
+        "",
+        "    def test_silent(self):",
+        "        do_delete_messages()",
+      ].join("\n"),
+    });
+    const found = await run(
+      weakTestSignalPyDetector,
+      "zerver/tests/test_message_delete.py",
+      [TEST, "", "    def test_silent(self):", "        do_delete_messages()"].join("\n"),
+      { pySymbols },
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]!.evidence.join(" ")).toMatch(/zerver\/lib\/test_classes\.py/);
   });
 });

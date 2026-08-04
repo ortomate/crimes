@@ -40,6 +40,7 @@ import type {
   SuppressionForFile,
 } from "./suppressions.js";
 import { partitionFindings } from "./suppressions.js";
+import type { PySymbolIndex } from "./py/symbol-index.js";
 
 export interface ContextOptions {
   /** Repo-relative or absolute path to the file to inspect. */
@@ -276,7 +277,14 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     aliasGroups: resolveAliasGroups(config),
   });
   const petty = await safelyBuildPettyIndex({ root, allFiles });
-  const imports = await safelyBuildImportGraph({ root, allFiles });
+  let pySymbols: PySymbolIndex | undefined;
+  const imports = await safelyBuildImportGraph({
+    root,
+    allFiles,
+    onPySymbolIndex: (index) => {
+      pySymbols = index;
+    },
+  });
   const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
   const functionHashIndex = await safelyBuildFunctionHashIndex({ root, allFiles });
   const scoring = await safelyBuildScoringContext({
@@ -297,6 +305,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     jsxShapeIndex,
     functionHashIndex,
     scoring,
+    pySymbols,
   });
   tagTierAndSortByRankScore(findings, config);
   assignIdsAndFingerprints(findings);

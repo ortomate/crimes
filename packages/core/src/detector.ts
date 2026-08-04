@@ -6,6 +6,7 @@ import type { CrimesConfig } from "./config.js";
 import type { PreFinding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
 import type { ImportGraph } from "./imports/types.js";
+import type { PySymbolIndex } from "./py/symbol-index.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import type { PettyIndex } from "./petty/types.js";
 import type { ScoringContext } from "./scoring/build.js";
@@ -426,6 +427,17 @@ export interface LanguagePyDetectorContext {
    * don't exercise cross-file dependency analysis.
    */
   imports?: ImportGraph;
+  /**
+   * Optional repo-wide Python symbol index — classes, bases, methods,
+   * and which of them assert. The only supported way to follow a call
+   * out of the current file: it resolves through the importing file's
+   * own imports and the module index, and returns `undefined` rather
+   * than guessing when it cannot.
+   *
+   * Absent in unit-test stubs, and a detector must behave correctly
+   * without it — the same-file answer stays the floor.
+   */
+  pySymbols?: PySymbolIndex;
   /**
    * Optional per-file scoring context. Same contract as the JS context —
    * finalisation happens after `run()` returns, so detectors rarely need

@@ -5,6 +5,7 @@ import { buildIaIndex } from "./ia/build.js";
 import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
 import { buildImportGraph } from "./imports/build.js";
 import type { ImportGraph } from "./imports/types.js";
+import type { PySymbolIndex } from "./py/symbol-index.js";
 import { buildJsxShapeIndex } from "./jsx/shape-index.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import { buildPettyIndex } from "./petty/build.js";
@@ -127,12 +128,24 @@ export async function safelyBuildImportGraph(args: {
   root: string;
   allFiles: string[];
   warnings?: CoverageWarningLog;
+  /**
+   * Receives the repo-wide Python symbol index, which is built from the
+   * Python parse this builder already performs. Not invoked when the
+   * graph build throws — a symbol index derived from a half-finished
+   * pass would be a silent partial answer, and this index's whole
+   * discipline is refusing to answer rather than answering on partial
+   * evidence.
+   */
+  onPySymbolIndex?: (index: PySymbolIndex) => void;
 }): Promise<ImportGraph | undefined> {
   try {
     return await buildImportGraph({
       root: args.root,
       files: args.allFiles,
       ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
+      ...(args.onPySymbolIndex !== undefined
+        ? { onPySymbolIndex: args.onPySymbolIndex }
+        : {}),
     });
   } catch {
     args.warnings?.record("index_unavailable", "imports", {

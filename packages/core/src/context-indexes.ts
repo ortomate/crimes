@@ -9,6 +9,7 @@ import type { Finding } from "./finding.js";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
 import type { IaIndex } from "./ia/types.js";
 import type { ImportGraph } from "./imports/types.js";
+import type { PySymbolIndex } from "./py/symbol-index.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import type { PettyIndex } from "./petty/types.js";
 import { finaliseFindingScores } from "./scoring/build.js";
@@ -47,6 +48,14 @@ export async function runDetectorsOnTarget(args: {
   jsxShapeIndex?: JsxShapeIndex;
   functionHashIndex?: FunctionHashIndex;
   scoring?: ScoringContext;
+  /**
+   * Same repo-wide Python symbol index `scan` builds. Threaded through
+   * so a Python detector gives `crimes context <file>` the same answer
+   * it gives `crimes scan` — without it, `context` would report a test
+   * that `scan` credits, and two commands disagreeing about the same
+   * file is worse than either answer alone.
+   */
+  pySymbols?: PySymbolIndex;
 }): Promise<Finding[]> {
   const {
     allFiles,
@@ -60,6 +69,7 @@ export async function runDetectorsOnTarget(args: {
     jsxShapeIndex,
     functionHashIndex,
     scoring,
+    pySymbols,
   } = args;
   if (!allFiles.includes(targetAbs)) return [];
 
@@ -127,6 +137,7 @@ export async function runDetectorsOnTarget(args: {
         ia,
         petty,
         imports,
+        pySymbols,
         scoring,
       });
       findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));

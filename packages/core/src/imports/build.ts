@@ -17,6 +17,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
 import { buildPythonImportEdges } from "./python.js";
+import type { PySymbolIndex } from "../py/symbol-index.js";
 import type { ImportEdge, ImportGraph } from "./types.js";
 
 const SOURCE_EXT_RE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
@@ -52,6 +53,13 @@ export interface BuildImportGraphOptions {
    * repo above the cap got advisory rankings presented as fact.
    */
   warnings?: CoverageWarningLog;
+  /**
+   * Forwarded to {@link buildPythonImportEdges}. The Python parse pass
+   * lives inside this builder, so a repo-wide Python symbol index has
+   * to be handed out from here — see that option's own note for why it
+   * is a callback rather than a field on the returned graph.
+   */
+  onPySymbolIndex?: (index: PySymbolIndex) => void;
 }
 
 interface TsconfigPaths {
@@ -96,6 +104,9 @@ export async function buildImportGraph(
     files: options.files,
     maxFiles,
     ...(options.warnings !== undefined ? { warnings: options.warnings } : {}),
+    ...(options.onPySymbolIndex !== undefined
+      ? { onSymbolIndex: options.onPySymbolIndex }
+      : {}),
   });
   edges.push(...python.edges);
   // Register every Python file, not just the ones that import something —
