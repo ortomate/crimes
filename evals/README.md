@@ -113,6 +113,74 @@ Fixing this means matching a detector's human-readable charge and
 as a reference. Until then, treat the aggregate as directional and read
 the per-scenario details before making a claim.
 
+**For ranking specifically, don't try to fix it here at all** — see the
+next section. No amount of loosening the text match makes an agent's
+response report where a finding ranked.
+
+### `ranking_quality` — the metric that can see a re-ranking
+
+```bash
+pnpm run evals:ranking                                    # current build
+pnpm run evals:ranking -- --compare evals/results/0.17.1/ranking.json
+pnpm run evals:ranking -- --cli /path/to/old/dist/index.js --label 0.17.1
+```
+
+`structural_pass_rate` is blind to ranking by construction, and the
+0.18.1 release proved it: two rebuilds of the ranking moved it by noise
+in both directions. This metric measures the **scan alone** — no agent
+is invoked. Given a scenario's expected findings as relevance labels
+(`expected_priority` graded 2, `referenced_findings` graded 1), it
+computes nDCG over the order the scan itself emitted.
+
+That makes it deterministic — **there is no noise band, so any delta is
+real** — and directly comparable between two builds, which is the whole
+point. `--cli` scans this tree's fixtures with another build's binary,
+so the fixture is held constant and the delta belongs to the scanner.
+
+Read it with three caveats, all of them load-bearing:
+
+1. **The absolute number means very little.** Many scenarios ask a
+   file-scoped question ("use `crimes context src/date.ts`"), so their
+   expected finding has no business leading a whole-repo scan. The
+   labels are identical across builds, so the *delta* is meaningful
+   even where the level is not.
+2. **Only fixtures `01` (42 findings), `02` (99), `03` (55) and `04`
+   (92) have the depth to demonstrate anything.** On a 3-finding fixture
+   every ordering scores near 1.0 and a single swap moves nDCG by 0.4.
+   The report prints `mean_ndcg_deep` (>=40 findings) as the headline
+   and marks shallow rows with `·`; ignore the shallow ones.
+3. **The mean hides the story.** Read the per-scenario table. On the
+   0.17.1 → 0.18.1 comparison the aggregate moved +0.006 while 20 of 26
+   deep scenarios moved *up* — the mean was netting out two opposite
+   effects that are the actual result (see below).
+
+#### What it says about `ce0ccab`
+
+Re-scoring 0.18.1's fixtures against 0.17.1's build — same fixtures,
+same scenarios, byte-identical between the two commits, so the delta is
+the scanner — **36 of 45 scenarios moved**, by up to ±0.47. Splitting
+the deep scenarios by whether their expected answer is a length
+detector:
+
+| deep scenarios | n | mean nDCG 0.17.1 → 0.18.1 | up | down |
+|---|---|---|---|---|
+| expect `large_function` / `large_file` | 6 | 0.459 → 0.406 (**−0.053**) | 0 | 5 |
+| expect anything else | 22 | 0.325 → 0.347 (**+0.022**) | 19 | 2 |
+
+That is exactly what `ce0ccab` set out to do — demote length findings,
+promote differentiated ones — and it is the first evidence that the
+change improved *ranking* rather than only changing which detector
+dominates. The two "down" rows in the second bucket moved by −0.004 and
+−0.003, i.e. flat.
+
+It also says something uncomfortable about the scenarios: the six that
+got worse are the ones whose labelled right answer is a length finding,
+and the product has now deliberately decided length findings should not
+lead. **Those labels encode the old ranking.** Re-labelling them would
+improve the metric without improving the product, so it has not been
+done — but nobody should read those six rows as a regression without
+saying which of the two they think is wrong.
+
 ### Run evals from a checkout nothing else will touch
 
 **A baseline is only valid if every scenario ran against the same
@@ -336,6 +404,10 @@ pnpm run evals -- --judge
 # on its fixture. Fails on any scenario↔fixture drift. Same gate the
 # evals-pr.yml workflow runs.
 pnpm run evals:verify-scenarios
+
+# Ranking quality — scan-only, no agents, no billing, deterministic.
+# Run this on any change that touches scoring or sort order.
+pnpm run evals:ranking -- --compare evals/results/0.17.1/ranking.json
 ```
 
 ## Measuring run-to-run noise

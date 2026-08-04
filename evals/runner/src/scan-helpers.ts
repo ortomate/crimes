@@ -10,10 +10,22 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "..", "..", "..");
 const CLI_DIST = resolve(REPO_ROOT, "packages", "cli", "dist", "index.js");
 
-export async function runScan(fixtureDir: string): Promise<string> {
+/**
+ * Scan a fixture with the built CLI.
+ *
+ * `cliDist` overrides which build does the scanning. Only the
+ * ranking metric passes it, and only to answer the question it exists
+ * for: scanning the *same* fixture with an old and a new crimes is the
+ * only way to attribute a ranking delta to the scanner rather than to
+ * the fixture. It is a parameter rather than an environment variable
+ * on purpose — a stray `CRIMES_EVAL_CLI` left exported would silently
+ * measure a baseline against the wrong product, which is exactly the
+ * failure that invalidated `0.18.0`.
+ */
+export async function runScan(fixtureDir: string, cliDist?: string): Promise<string> {
   const { stdout } = await execFileAsync(
     "node",
-    [CLI_DIST, "scan", fixtureDir, "--format", "json"],
+    [cliDist ?? CLI_DIST, "scan", fixtureDir, "--format", "json"],
     { maxBuffer: 1024 * 1024 * 32 },
   );
   return stdout;
