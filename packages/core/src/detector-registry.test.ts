@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "./config.js";
 import type { Detector } from "./detector.js";
 import {
+  builtInAssetDetectors,
   builtInDetectors,
+  collectKnownIds,
+  filterAssetDetectors,
   filterDetectors,
   groupDetectorsByPack,
 } from "./detector-registry.js";
@@ -31,6 +34,56 @@ describe("default-off detectors", () => {
       configWith({ enable: ["parallel_destination"] }),
     ).map((d) => d.id);
     expect(ids).toContain("parallel_destination");
+  });
+
+  it("keeps every other detector running when only a gated id is enabled", () => {
+    // The CLI tells the user, verbatim:
+    //
+    //   crimes: parallel_destination did not run (off by default).
+    //           Enable with "detectors": { "enable": ["parallel_destination"] }.
+    //
+    // Under a pure allowlist reading, following that advice silently
+    // turns off all 68 other detectors — measured on
+    // `evals/fixtures/05-stress-ia-drift`: 13 findings become 1. A tool
+    // whose own remediation advice quietly guts the scan is worse than
+    // one that never offered it.
+    const defaults = filterDetectors(builtInDetectors, DEFAULT_CONFIG).map((d) => d.id);
+    const enabled = filterDetectors(
+      builtInDetectors,
+      configWith({ enable: ["parallel_destination"] }),
+    ).map((d) => d.id);
+    expect(enabled).toEqual(
+      [...defaults, "parallel_destination"].sort(
+        (a, b) => enabled.indexOf(a) - enabled.indexOf(b),
+      ),
+    );
+    for (const id of defaults) expect(enabled).toContain(id);
+    expect(enabled).toHaveLength(defaults.length + 1);
+  });
+
+  it("does not disable the asset pass when only a gated source id is enabled", () => {
+    // Mirrors the real call in `scan.ts`, which passes the combined
+    // source + asset id set so a source id in `enable` is recognised.
+    const known = collectKnownIds(builtInDetectors, builtInAssetDetectors);
+    const defaults = filterAssetDetectors(builtInAssetDetectors, DEFAULT_CONFIG, known);
+    const enabled = filterAssetDetectors(
+      builtInAssetDetectors,
+      configWith({ enable: ["parallel_destination"] }),
+      known,
+    );
+    expect(enabled.map((d) => d.id)).toEqual(defaults.map((d) => d.id));
+    expect(enabled.length).toBeGreaterThan(0);
+  });
+
+  it("still treats a list naming a default-on detector as an allowlist", () => {
+    // The existing contract, unchanged: naming a normal detector means
+    // "only these". Adding a gated id alongside adds it to that list
+    // rather than widening it back to everything.
+    const ids = filterDetectors(
+      builtInDetectors,
+      configWith({ enable: ["large_function", "parallel_destination"] }),
+    ).map((d) => d.id);
+    expect(ids.sort()).toEqual(["large_function", "parallel_destination"]);
   });
 
   it("keeps every other detector on by default", () => {

@@ -695,9 +695,12 @@ folded into them — each is a separate behaviour change.
    claimed-silent tests is what the change is worth on that tree.
    pydantic writes `pytest.warns` 175 times in `tests/`.
 
-4d. **Cross-file assertion helpers are unresolved**, which is what
+4d. ~~**Cross-file assertion helpers are unresolved**, which is what
    airflow's 12% improvement is waiting on (§1.16). Needs a Python
-   symbol index that does not exist. Feature-sized; scope it
+   symbol index that does not exist.~~ **Done** in `0.18.3` —
+   `ce2963b`. See the note below the original text for what the scoping
+   was wrong about, and for the over-credit found before shipping.
+   Original entry, for the record: Feature-sized; scope it
    deliberately, and note it would also serve any other Python detector
    that wants to follow a call. **Still open** — deliberately not
    attempted in the 0.18.1 pass; it is the one item here that is a
@@ -709,6 +712,57 @@ folded into them — each is a separate behaviour change.
    — Python files are parsed *inside* the per-file detector loop, so no
    repo-wide index has anywhere to live yet. Three options are compared
    there with a recommendation.
+
+   **Where the scoping was wrong: the architectural blocker did not
+   exist.** All three options it compares — a second pre-pass, moving
+   the detector to the cross-language pass, a shared parse cache — are
+   answers to "Python files are parsed inside the per-file loop, so a
+   repo-wide index has nowhere to live". But `buildPythonImportEdges`
+   already parses **every** discovered Python file in the pre-pass, and
+   already builds the `PyModuleIndex` that name resolution needs. It
+   kept `parsed.imports` and discarded the rest. The index is a linear
+   pass over data already in hand; the recommended option (c) would
+   have built a cache for a parse that was already happening.
+
+   The *resolution* half of the scoping was right and load-bearing:
+   through the MRO and the importing file's own imports, never by name.
+
+   **One thing neither the scoping nor the acceptance criteria
+   anticipated, found on zulip before shipping**: three test files were
+   credited through `zerver/actions/*.py`, where `do_set_realm_property`
+   asserts `isinstance(raw_value, property_type)` about its own
+   argument. That is a *precondition defending a production function
+   from its caller*, not a test checking a result — and a test that
+   calls it and checks nothing else is exactly the hollow test this
+   detector exists to report. Crossing the file boundary silently broke
+   an assumption same-file resolution never had to state: a test file's
+   own functions are test infrastructure by construction. Cross-file
+   credits now require the helper to live in test infrastructure.
+   Caught only by reading the cited files, which is the argument for
+   naming them in the evidence.
+
+   Measured, before → after:
+
+   | | before | after |
+   |---|---|---|
+   | zulip `weak_test_signal` | 162 | 152 |
+   | zulip files reporting | 48 | 38 |
+   | zulip `test_message_delete.py` | 1 | **0** |
+   | airflow `weak_test_signal` | 435 | 380 (−12.6%) |
+   | airflow files reporting | 326 | 271 (−16.9%) |
+   | airflow claimed-silent tests | 634 | **462 (−27.1%)** |
+
+   Cost: airflow 97.1s → 99.4s over three samples each, against a ~12s
+   run-to-run spread — no measurable regression. Fingerprint collisions
+   are **identical** before and after (zulip 30/3458, airflow
+   115/9926, zero new groups), so the pre-existing `weak_test_signal`
+   discriminator issue is untouched.
+
+   Note the airflow headline is not the same quantity as the "12%" this
+   entry was written about, and should not be read as having moved it.
+   That figure was the share credited through assertion helpers; this
+   is claimed-silent tests across the repo. Both moved; only the second
+   was measured here.
 
 4e. **JS syntax errors have no `coverage.warnings[]` signal.** The
    Python pack surfaces `hasSyntaxErrors`; the JS pack has no public
@@ -1014,6 +1068,70 @@ folded into them — each is a separate behaviour change.
     `large_function` evidence line *and* a phrase an agent can write
     about unrelated code) are dropped. **The prose filter changed no
     score**, which is the point of adding it.
+
+30. **`pnpm run evals:verify-scenarios` has been failing since
+    `20e4e52`** — found while running the gate for §4d, unrelated to it.
+    `review-05-permission-and-parallel` lists `parallel_destination` in
+    `referenced_findings`, and 0.18.1 made that detector the first to
+    ship `defaultOff: true`. It no longer fires on the fixture, so the
+    scan the agent is handed does not contain it — while the scenario
+    prompt still says *"There's also a parallel destination … Use
+    `crimes scan --format json` to find these three IA drifts."*
+
+    The agent is being asked to find something that is not in its
+    context and scored 0 for not finding it. Codex scored **0/7** on
+    this scenario in the 0.18.1 run, and it is one of the six checks
+    behind that.
+
+    **This entry was framed as an eval bug. It is a product bug**, and
+    the scenario is only what surfaced it.
+
+    `crimes scan` prints, when a gated detector sits out:
+
+    ```
+    crimes: parallel_destination did not run (off by default).
+            Enable with "detectors": { "enable": ["parallel_destination"] }.
+    ```
+
+    `enable` was a pure allowlist, so **following that advice verbatim
+    turned off all 68 other detectors and the entire asset pass, with
+    no warning.** Measured on `05-stress-ia-drift`: 13 findings become
+    **1**. The tool's own remediation advice silently gutted the scan.
+    For a product whose entire value is being trustworthy about what it
+    did and did not look at, that is the worst shape a defect can take.
+
+    Fixed in `0.18.4` — naming a gated detector in `enable` is now
+    **additive**; only default-on ids form the allowlist. The original
+    ordering comment in `applyEnableDisable` was right about the case
+    it considered (an unrelated `enable` list must not resurrect a
+    gated detector, and still does not). What it did not consider was a
+    list naming *nothing but* a gated detector — which is exactly what
+    the hint tells users to write.
+
+    **The semantics fix moves no finding anywhere in this repo**: no
+    `crimes.config.json` under `evals/fixtures/`, `examples/`, or the
+    repo root uses `enable` at all, so every existing scan is
+    byte-identical across the change. Only the fixture opt-in below
+    moves anything.
+
+    With the mechanism fixed, the fixture gets a one-line
+    `crimes.config.json` rather than the 69-id enumeration the old
+    semantics would have demanded. That restores what the registry
+    already claims fixture 05 exercises, and keeps a scenario whose
+    prompt names the exact file (`src/routes/admin/billing-plans.ts`)
+    and whose second judge question is specifically about this
+    detector. Dropping the expectation instead would have gutted a
+    purpose-built scenario to make a number go green — the thing §28
+    warns against.
+
+    Impact on the fixture is **+1 finding, `parallel_destination` 0 → 1**,
+    with every other per-type count identical. It still needs its own
+    baseline, because it changes what the agent is shown.
+
+    Also found: nothing documented that any detector ships gated —
+    `docs/packs.md`, `docs/configuration.md`, `docs/json-schema.md` and
+    `docs/finding-types/ia.md` all described `parallel_destination` as
+    though it ran. Documented in the first and last of those.
 
 ---
 

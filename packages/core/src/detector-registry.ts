@@ -244,6 +244,26 @@ export function collectKnownIds(
   return ids;
 }
 
+/**
+ * Every id that names a gated detector, from either registry plus the
+ * pool being filtered.
+ *
+ * Both registries are consulted because `enable` shares one id
+ * namespace across source and asset detectors: filtering the *asset*
+ * pool has to recognise that a source-detector id like
+ * `parallel_destination` is gated, or it treats it as an allowlist
+ * entry and empties the asset pass. `available` is folded in on top so
+ * a caller passing its own detectors — which tests do — gets the same
+ * treatment for its own gated ids.
+ */
+function gatedIdsFor(available: ReadonlyArray<{ id: string; defaultOff?: true }>) {
+  const gated = new Set<string>();
+  for (const d of builtInDetectors) if (d.defaultOff === true) gated.add(d.id);
+  for (const d of builtInAssetDetectors) if (d.defaultOff === true) gated.add(d.id);
+  for (const d of available) if (d.defaultOff === true) gated.add(d.id);
+  return gated;
+}
+
 function applyEnableDisable<T extends { id: string; defaultOff?: true }>(
   available: T[],
   config: CrimesConfig,
@@ -261,14 +281,40 @@ function applyEnableDisable<T extends { id: string; defaultOff?: true }>(
 
   const enableSet = new Set(enable);
 
+  // Naming a gated detector in `enable` is *additive* — it switches
+  // that detector on without narrowing the pool. Only ids that name a
+  // default-*on* detector form the allowlist.
+  //
+  // Without this split, `enable` is a pure allowlist and the advice the
+  // CLI prints when a gated detector sits out —
+  //
+  //   crimes: parallel_destination did not run (off by default).
+  //           Enable with "detectors": { "enable": ["parallel_destination"] }.
+  //
+  // — silently turns off every other detector. Measured on
+  // `evals/fixtures/05-stress-ia-drift`: following it took the scan
+  // from 13 findings to 1, and killed the asset pass as well, with no
+  // warning. A tool whose own remediation advice quietly guts the scan
+  // is worse than one that never offered it, and this product's whole
+  // value is being trustworthy about what it did and did not look at.
+  //
+  // The original ordering comment was right about the case it
+  // considered — an `enable` list for unrelated detectors must not
+  // resurrect a gated one — and that still holds: a gated detector runs
+  // only when named. What it did not consider was a list naming
+  // *nothing but* a gated detector, which is exactly what the hint
+  // tells users to write.
+  const gated = gatedIdsFor(available);
+  const allowlist = new Set(enable.filter((id) => !gated.has(id)));
+
   let pool = available;
-  if (enable.length > 0) {
-    pool = pool.filter((d) => enableSet.has(d.id));
+  if (allowlist.size > 0) {
+    pool = pool.filter(
+      (d) => allowlist.has(d.id) || (d.defaultOff === true && enableSet.has(d.id)),
+    );
   }
-  // A `defaultOff` detector runs only when named. This is checked after
-  // the allowlist rather than inside it so that an `enable` list for
-  // unrelated detectors does not quietly switch a gated one on, and so
-  // that `disable` still wins — the filter below runs last.
+  // A `defaultOff` detector runs only when named. Checked after the
+  // allowlist so `disable` still wins — the filter below runs last.
   pool = pool.filter((d) => d.defaultOff !== true || enableSet.has(d.id));
   if (disable.length > 0) {
     const disableSet = new Set(disable);

@@ -105,3 +105,72 @@ existing users.
 Following a call into a third-party package. The index is repo-local;
 `self.assertEqual` from `unittest` is already handled by the
 `assert[A-Z_]` matcher and needs nothing.
+
+---
+
+## Outcome — shipped in `0.18.3` (`ce2963b`)
+
+Kept for the record of what this note got right and what it got wrong.
+
+### The architectural blocker did not exist
+
+"The real work is architectural" was the central claim, and it was
+false. All three options above answer the same question — *Python files
+are parsed inside the per-file detector loop, so a repo-wide index has
+nowhere to live* — and that question does not arise.
+
+`packages/core/src/imports/python.ts` (`buildPythonImportEdges`) already
+parses **every** discovered Python file in the pre-pass, and already
+builds the `PyModuleIndex` that step 3 asks for. It kept
+`parsed.imports` and threw the rest away. The symbol index is collected
+from that same parse: a linear pass over data already in hand.
+
+So the recommendation — **(c), a shared parse cache** — would have built
+a cache for a parse that was already happening. (a) would have parsed
+the repo a third time. (b) would have broken `detector_id` and every
+pinned suppression to solve a problem that was not there.
+
+The lesson worth keeping: *check where the work already happens before
+designing somewhere for it to happen.* Reading `python.ts` for five
+minutes would have replaced this entire section.
+
+### The resolution design was right, and was the whole job
+
+Steps 1–5 above survived intact. Resolution goes through the importing
+file's own imports and the module index, never through a repo-wide
+name search, and an unresolvable base is not followed.
+
+The **unique-name fallback** this note called "defensible" was
+implemented and then **not shipped**: the MRO and import paths alone met
+the acceptance criteria (`test_message_delete.py` → 0), so the fallback
+would have been unmeasured risk taken for no measured gain. If a future
+case needs it, the argument for it should be a measurement, not this
+paragraph.
+
+### What neither this note nor the acceptance criteria anticipated
+
+Crossing the file boundary silently broke an assumption same-file
+resolution never had to state: **a test file's own functions are test
+infrastructure by construction.** Following a call into *production*
+code and crediting its `assert` gets the statement backwards — an
+`assert` in a domain function is a precondition defending it from its
+caller, not the caller checking a result.
+
+Found on zulip: three test files credited through `zerver/actions/*.py`,
+where `do_set_realm_property` asserts `isinstance(raw_value,
+property_type)` about its own argument. Cross-file credits now require
+the helper to live in test infrastructure (`isTestFile`, plus
+`conftest.py`).
+
+It was caught only by opening the files named in the evidence, which is
+the argument for naming them there.
+
+### Acceptance, against the criteria above
+
+| criterion | result |
+|---|---|
+| zulip `test_message_delete.py` reports zero | **0** ✓ |
+| airflow moves meaningfully, reported before/after | claimed-silent tests 634 → **462 (−27.1%)**; findings 435 → 380; files 326 → 271 ✓ (but see the note in the remediation doc — this is not the same quantity as the "12%") |
+| a test pins the two-same-named-helpers case | `does NOT match a same-named method on an unrelated class`, plus `does NOT credit an assert inside production code` ✓ |
+| Python wall-clock does not regress ~10% | airflow 97.1s → 99.4s over three samples each, against a ~12s spread ✓ |
+| `pnpm verify`, fingerprints, byte-identical re-scans | green at 2,114 tests; collisions **identical** before and after ✓ |

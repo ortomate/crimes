@@ -332,6 +332,13 @@ no top-level export in any src/routes/** file declares this path
 
 ### Parallel Destination (`parallel_destination`)
 
+> **Off by default.** This detector produced 2,819 findings from 134
+> files on n8n's `editor-ui` — 52.8% of that package's report — and
+> nothing anywhere else in the corpus, so it ships gated. Turn it on
+> with `"detectors": { "enable": ["parallel_destination"] }`, which is
+> additive and leaves every other detector running. See
+> [`configuration.md`](../configuration.md#default-off-detectors).
+
 Two nav-like surfaces declare different routes for the same canonical
 destination — e.g. `/billing` vs `/account/billing` vs
 `/settings/subscription`.

@@ -32,19 +32,34 @@ import type { PySymbolIndex } from "../../py/symbol-index.js";
  *
  * ## The limit on following calls, and why
  *
- * **At most {@link MAX_HELPER_HOPS} hops, resolved within this file
- * only, and only for calls whose receiver is nothing or `self` / `cls`.**
+ * **At most {@link MAX_HELPER_HOPS} hops within this file, plus one
+ * hop out of it, and only for calls whose receiver is nothing or
+ * `self` / `cls`.**
  *
  * - **Two hops** because the chase saturates there. Measured over the
  *   Python corpus, allowing a third hop credits zero further tests on
  *   both zulip and drf while widening what the detector will forgive.
- * - **Same file only** because there is no repo-wide Python symbol
- *   index to resolve against, and the tempting fallback — matching a
- *   `self.<method>()` against any function of that name anywhere —
- *   guesses at an MRO we have not read. When a helper lives in
- *   `conftest.py` or a base class in another module, this detector
- *   still reports the test. That is a known and accepted miss; it is
- *   the honest one.
+ * - **One hop across files**, through the repo-wide Python symbol index
+ *   (0.18.3). The index holds each function's span and whether it
+ *   asserts, but not its call list, so a helper in another file that
+ *   itself delegates further cannot be followed — and inventing that
+ *   chain is exactly what this codebase does not do. One hop is what
+ *   the dominant idiom needs: the assertions live *in* the base-class
+ *   helper, not two levels behind it.
+ * - **Resolved, never guessed.** A `self.<method>()` is followed
+ *   through the MRO, resolving each base class through the importing
+ *   file's own imports; a bare `check()` through what this file
+ *   imports. Matching either against any function of that name
+ *   anywhere is name collision, and it is the mistake `2e9b2da`
+ *   removed from `pass_through_abstraction`. Here it would be worse,
+ *   because the failure is silent: a test credited with an assertion
+ *   it does not make is a false negative in a detector about false
+ *   confidence. A base that cannot be reached is not followed and the
+ *   test stays reported.
+ * - **Test infrastructure only, across files.** An `assert` inside
+ *   production code is a precondition defending that function from its
+ *   caller, not the caller checking a result — see
+ *   {@link isTestInfrastructure}.
  * - **Resolvable receivers only** because `client.check(x)` is a method
  *   on an object whose class we have not read. Crediting it against a
  *   module-level `check` on the trailing segment alone is name
@@ -81,11 +96,9 @@ const DEFAULT_MIN_ASSERTIONS_PER_TEST = 1;
  * line it stands on, and a four-link chain is a claim a reader cannot
  * check at a glance.
  *
- * Crossing files is deliberately out of scope. It would need a
- * repo-wide Python symbol index that does not exist yet, and the
- * `self.<base-class-method>()` case it would unlock cannot be resolved
- * by name alone without guessing at the MRO. Uncredited is the honest
- * answer there, not credited-on-a-hunch.
+ * This bounds the **same-file** chase only. Crossing files is a
+ * separate, single hop through the symbol index — see
+ * {@link assertsAcrossFiles} for why it is one rather than two.
  */
 const MAX_HELPER_HOPS = 2;
 

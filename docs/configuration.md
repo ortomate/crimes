@@ -231,9 +231,50 @@ entirely.
 
 ### `detectors.enable` / `detectors.disable`
 
-- `enable` is an allowlist. Empty or omitted means "run all built-ins".
-  When non-empty, only the listed ids run.
+- `enable` is an allowlist **over the detectors that run by default**.
+  Empty or omitted means "run all of them". When it names one or more
+  default-on detectors, only those run.
 - `disable` is a blocklist that runs **after** `enable`.
+
+#### Default-off detectors
+
+A few detectors ship gated: they exist, they are supported, and they do
+not run unless you ask for them by name. `crimes scan` says so on
+stderr when one sits out, because that is a choice we made on your
+behalf rather than one you made.
+
+| id | why it is gated |
+|---|---|
+| `parallel_destination` | 2,819 findings from 134 files on n8n's `editor-ui` — 52.8% of that package's entire report — and zero findings on every other repo in the corpus. |
+
+Naming a gated detector in `enable` is **additive**: it switches that
+detector on and leaves everything else alone.
+
+```jsonc
+{
+  // Everything that normally runs, plus parallel_destination.
+  "detectors": { "enable": ["parallel_destination"] }
+}
+```
+
+Mixing the two kinds does what it looks like — the default-on ids form
+the allowlist, and the gated id is added to it:
+
+```jsonc
+{
+  // Exactly two detectors run.
+  "detectors": { "enable": ["large_function", "parallel_destination"] }
+}
+```
+
+`disable` still wins over an explicit `enable`, so a gated detector
+named in both does not run.
+
+> This split exists because `enable` used to be a pure allowlist, which
+> made the CLI's own advice destructive: following the `Enable with …`
+> hint verbatim turned off all 68 other detectors and the asset pass,
+> with no warning. On the `05-stress-ia-drift` fixture that took a scan
+> from 13 findings to 1.
 - An unknown detector id in either list raises a CLI error (exit `2`)
   — typos should not silently no-op. See the table in
   [`json-schema.md`](./json-schema.md#type) for the full list of ids.
