@@ -56,7 +56,7 @@ export function buildCall(callNode: Node, funcStack: PyEnclosingFunction[]): PyC
  * whose value cannot be read straight off the source.
  */
 function stringLiteralValue(node: Node | null | undefined): string | undefined {
-  if (!node || node.type !== "string") return undefined;
+  if (node?.type !== "string") return undefined;
   let content: string | undefined;
   for (let i = 0; i < node.namedChildCount; i += 1) {
     const child = node.namedChild(i);
