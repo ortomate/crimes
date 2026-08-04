@@ -497,9 +497,17 @@ the same value six times.
 
 ## `agent_risk`: what we know and what we believe
 
-**Disposition: parked. The shape of this score is the focus of the next
-release.** The 0.18.1 change (`ce0ccab`) removed a defect; it did not
-settle what this score should be, and the difference matters.
+**Disposition: still parked, but no longer blocked.** The 0.18.1 change
+(`ce0ccab`) removed a defect; it did not settle what this score should
+be, and the difference matters. What has changed since this was written
+is that the blocking question — whether the evals can see a ranking
+change at all — is answered, and `ce0ccab` is measured to have improved
+ranking rather than merely believed to have. See
+"Question 4 is answered" below.
+
+**That is a reason to start measuring, not a licence to retune.** The
+class table, the 0.3 ceiling and every per-detector intrinsic are
+exactly as unvalidated as before.
 
 ### What we know — measured, reproducible
 
@@ -569,6 +577,53 @@ currently no way to tell whether the `agent_risk` change improved
 ranking, and no amount of re-running the existing suite will produce
 one.
 
+### Question 4 is answered — `ce0ccab` did improve ranking
+
+`pnpm run evals:ranking` (`d7f43f8`) measures the **scan alone**: nDCG
+over the order the scan emitted, against each scenario's expected
+findings as graded relevance labels. No agent is invoked, so there is
+no noise band — any delta is real — and `--cli` scans this tree's
+fixtures with another build's binary, holding the fixture constant so
+the delta belongs to the scanner. Fixtures and scenarios are
+byte-identical between the 0.17.1 and 0.18.1 commits, so nothing else
+could have moved.
+
+**36 of 45 scenarios moved, by up to ±0.47**, on the change where
+`structural_pass_rate` moved by noise. Splitting the 28 deep-fixture
+scenarios (fixtures 01/02/03/04, 42–99 findings; shallow ones cannot
+demonstrate a ranking change and are excluded):
+
+| deep scenarios | n | mean nDCG 0.17.1 → 0.18.1 | up | down |
+|---|---|---|---|---|
+| expect `large_function` / `large_file` | 6 | 0.459 → 0.406 (**−0.053**) | 0 | 5 |
+| expect anything else | 22 | 0.325 → 0.347 (**+0.022**) | 19 | 2 |
+
+Both "down" rows in the second bucket moved −0.004 and −0.003 — flat.
+
+So this moves from *believed* to *measured*: **`ce0ccab` demoted length
+findings and promoted differentiated ones, in the ranking and not only
+in which detector dominates.** The belief listed above — "that the
+evals can see any of this" — was true of `structural_pass_rate` and is
+now false of the suite as a whole.
+
+Three things this does **not** settle, and none of them should be read
+past:
+
+- **The headline aggregate is +0.006.** It nets the two buckets
+  against each other. Anyone quoting one number from this instrument is
+  quoting the wrong thing; the per-scenario table is the result.
+- **It says nothing about the ceiling or the intrinsics.** It compares
+  two orderings. Questions 1–3 below are still open and still need
+  their own measurements — what it provides is an instrument to
+  measure them *with*.
+- **Six scenario labels now encode the old ranking.** The six that got
+  worse are the ones whose labelled right answer is a length finding,
+  and the product has deliberately decided length findings should not
+  lead. Re-labelling them would raise the metric without improving the
+  product, so it has not been done — but nobody should read those six
+  rows as a regression without first saying which of the two they think
+  is wrong.
+
 ### What the next release needs to answer
 
 1. Is a hard ceiling right, or should the structural class be squashed
@@ -578,11 +633,35 @@ one.
 3. Is one detector at 16 of 20 a problem in itself — should the ranking
    diversify across detector types deliberately, the way the default
    view already diversifies across files?
-4. Can any of this be measured other than by reading top-20 lists? A
+4. ~~Can any of this be measured other than by reading top-20 lists? A
    ranking-quality metric would turn all of the above from taste into
-   evidence.
+   evidence.~~ **Answered** — `pnpm run evals:ranking`, see above. It
+   is the instrument questions 1–3 were waiting on.
 
-Until those are answered, `ce0ccab` stands as a defect fix — the score
-is no longer a length ranking, and no longer correlated with severity by
-construction — and nothing more should be read into the specific
-numbers.
+Questions 1–3 remain open, and the instrument now exists to settle them
+rather than argue them. Concretely, each is a measurable experiment:
+
+1. **Ceiling vs monotonic squash.** Implement the squash, run
+   `evals:ranking --compare` against the current build. A squash that
+   preserves order within the structural class should not move the
+   differentiated bucket and should move the six length-labelled
+   scenarios — if it moves neither, the ceiling was not the binding
+   constraint and the plateau is not costing anything.
+2. **Are the intrinsics calibrated against each other?** The metric
+   cannot answer this on its own: the fixtures label detector *types*,
+   not relative importance between two correct findings. This one still
+   needs a scenario built for it — two findings of different types on
+   the same file, with a defensible answer about which should lead.
+3. **Is 16-of-20 a problem in itself?** `top20_dominant_share`,
+   `top20_dominant_type` and `top20_distinct_types` ship on every row
+   of `ranking.json` and are unlabelled, so they work on zulip and hono
+   as well as on the fixtures. That measures the concentration; it does
+   not decide whether concentration is wrong, and a repo can
+   legitimately have one dominant problem.
+
+`ce0ccab` now stands as more than a defect fix — the ranking
+improvement is measured, not assumed. **The shape of the score is still
+unsettled**, and the specific constants are still fitted to an
+unvalidated band: nothing here validates the class table, the 0.3
+ceiling, or any per-detector intrinsic. Do not retune constants on the
+strength of question 4 being answered.

@@ -907,6 +907,114 @@ folded into them — each is a separate behaviour change.
     detectors, verified against the built binary (45 findings carry the
     field, zero traces left in `evidence`).
 
+### Tooling, opened and closed after 0.18.1
+
+26. ~~**`pnpm verify`'s lint step has not run since `6edfe2d`.**~~
+    **Done** — `c277e29`. **The entry framed this as an environment
+    failure; the durable half is a silent-success bug.** Biome 2.5.6
+    aborts its worker pool under memory pressure, prints
+    `[warn] Linter process terminated abnormally` as its *only* output —
+    no diagnostics, no `Checked N files` summary — and **still exits
+    0**, so `verify` reports green with lint having done nothing. That
+    is why ~16 commits landed without anyone noticing: the failure is
+    silent by construction.
+
+    Measured: the abort reproduced **four times in one session** across
+    `lint`, `format`, `check` and even `--version`, with `vm_stat`
+    showing ~55MB of genuinely free pages — matching the last pass's
+    report. It is intermittent; **100 consecutive invocations under the
+    same conditions did not reproduce it**, so no `NODE_OPTIONS` or
+    version-bump fix could be tested against it. No pnpm `ELIFECYCLE`
+    banner accompanied the abort, which is the evidence for exit 0.
+
+    The environmental cause is not ours and had cleared by the end of
+    the session. `scripts/biome.mjs` handles the part that had not:
+    biome's output is streamed unchanged, and a zero exit without a
+    `Checked N files` summary becomes a hard failure. Verified three
+    ways — real biome passes, a stub emitting the abnormal output
+    fails, a stub exiting non-zero propagates its own code.
+
+    With lint actually running, the ~16 commits from `6edfe2d` to
+    `053cd14` carry **exactly one** warning: `useOptionalChain` in
+    `packages/language-py/src/parse/calls.ts:59`. The guard then earned
+    its place within the hour by catching a `noShadowRestrictedNames`
+    error in new code.
+
+27. ~~**`pnpm run build` does not reliably order `packages/cli` after
+    `packages/reporter`.**~~ **NO CHANGE MADE — the entry does not
+    reproduce.** Measured 8 runs: 3 from a cleared `dist` and 5
+    incremental, each inserting a marker string into
+    `packages/reporter/src/human/scan.ts` and grepping
+    `packages/cli/dist/index.js`. **8 of 8 carried the change.**
+
+    The declared order is correct and enforced, not incidental:
+    `pnpm -r run` sorts topologically including `devDependencies`, and
+    `packages/cli` declares `@crimes/core` and `@crimes/reporter` there.
+    Observed order is `language-js, language-py → core → reporter →
+    cli` on every run.
+
+    One trap for whoever re-tests this: an *unused* exported constant
+    is the wrong marker. esbuild tree-shakes it out of the CLI bundle,
+    which looks exactly like a build-ordering failure. The first three
+    runs here reported a false positive for that reason before the
+    marker was moved into a string the CLI actually reaches.
+
+    The workaround in circulation — "always
+    `pnpm --filter crimes run build` afterwards" — is what you need
+    after a *package-scoped* reporter build, which is the likeliest
+    origin of the report. After a root `pnpm run build` it is
+    unnecessary. **Left open as a possibility, not a fact**: nothing
+    here proves the original observation was misattributed, only that
+    the mechanism named in the entry is not the one.
+
+28. **A ranking-quality metric.** **Done** — `d7f43f8`, and it answers
+    §5's parked question 4. `structural_pass_rate` matches a detector's
+    literal id in the response text, so it cannot see ranking at all.
+    `pnpm run evals:ranking` scores the **scan alone** — nDCG over the
+    order the scan emitted, against the scenario's expected findings as
+    graded relevance labels. No agent, so no noise band: any delta is
+    real, and `--cli` holds the fixture constant while swapping the
+    build.
+
+    On 0.17.1 → 0.18.1, **36 of 45 scenarios moved by up to ±0.47**
+    where `structural_pass_rate` moved by noise. Splitting the 28
+    deep-fixture scenarios by what they expect:
+
+    | deep scenarios | n | mean nDCG | up | down |
+    |---|---|---|---|---|
+    | expect `large_function` / `large_file` | 6 | 0.459 → 0.406 | 0 | 5 |
+    | expect anything else | 22 | 0.325 → 0.347 | 19 | 2 |
+
+    That is exactly what `ce0ccab` set out to do, and it is the first
+    evidence the change improved *ranking* rather than only changing
+    which detector dominates. **The headline mean is +0.006** because
+    it nets the two buckets against each other — the per-scenario table
+    is the deliverable, not the aggregate.
+
+    It also says something about the scenarios: the six that got worse
+    are the ones whose labelled right answer is a length finding, and
+    the product has now decided length findings should not lead. **Those
+    labels encode the old ranking.** Re-labelling them would improve the
+    metric without improving the product, so it was not done.
+
+29. ~~**Codex scores zero while answering correctly.**~~ **Done** in
+    `0.18.2` — `1faa759`. The scorer knew a finding by its slug, its
+    charge, or its `crime_NNNNN` id, but not by its own evidence — so
+    `CLAUDE.md`'s "evidence before judgement" was not applied to the
+    measurement apparatus. Measured by replay, so the 96 responses are
+    byte-identical and the whole delta is the scorer: **4 of 96 moved,
+    all codex, all from a hard 0 to a full pass**; codex 0.544 → 0.589,
+    claude unchanged at 0.854. Claude being flat is the evidence that
+    nothing was over-credited.
+
+    A string earns a place in the index only if it identifies **exactly
+    one** detector type in that scan — the `has()` rule from `2e9b2da`
+    applied to measurement. Bare line references, strings under 12
+    characters, and pure prose (`arrow declaration` is a real
+    `large_function` evidence line *and* a phrase an agent can write
+    about unrelated code) are dropped. **The prose filter changed no
+    score**, which is the point of adding it.
+
 ---
 
 ## 5. How to pick this up cold
