@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T22:35:25.091Z",
+  "run_id": "c1d12fe6-75fd-42d8-91c5-2f97fd6fcb48",
+  "response": "I’m using the repository’s crimes risk workflow because this is a pre-edit context check. I’ll run the requested command against the fixture and interpret the file-specific result.\n\nThe global `crimes` binary isn’t on this shell’s PATH. I’m switching to the repository’s locally built CLI, which produces the same context report without modifying the fixture.\n\n`crimes context` found no findings on `src/add.ts`:\n\n- Risk: `none` — 0 high, medium, or low findings\n- Likely test: `src/add.test.ts`\n- Churn: 1 commit and 1 author in the last 90 days\n- No related-file or architectural-risk signals\n- Test-gap confidence is `unknown`\n\nThe file is safe to extend. Update or add coverage in `src/add.test.ts`.\n\nThe repository-wide scan’s only finding is an unrelated low-severity dependency issue: `vitest` is imported by the test but undeclared in `package.json`. That does not make `src/add.ts` risky, though declaring `vitest` would make clean installs more reliable.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

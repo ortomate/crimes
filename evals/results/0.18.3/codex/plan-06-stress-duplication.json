@@ -1,0 +1,66 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T22:40:24.086Z",
+  "run_id": "07c62b06-cbfe-4aae-8808-f74d7e0091c4",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a change-risk planning task. I’ll verify the scan and inspect the affected helpers so the two steps preserve behavior and have clear test boundaries.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m using the repository’s locally built CLI—the documented equivalent. The source confirms one important semantic wrinkle: the three “role checks” are not currently identical (`admin`, `admin || owner`, and `role !== admin`), so consolidation must preserve those meanings rather than flatten them accidentally.\n\nThe scan reports three duplication findings:\n\n- `near_duplicate_block` — `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` share the same body across the three `sanitize-*.ts` files.\n- `duplicated_role_status_plan_check` — `\"admin\"` policy is repeated across `policy.ts` and all three sanitiser modules, with differing semantics.\n- `exact_duplicate_block` — `recordSanitiseEvent` is duplicated in both telemetry modules. This is outside the requested change set and should remain for a separate refactor.\n\n## Two-step change set\n\n1. Centralise role policy without changing semantics\n\n   Make `policy.ts` the authority for role classification by introducing `isAdmin(role)` and, if useful, `isOwner(role)`. Route every existing check through those predicates:\n\n   - `canEditBilling`, `canSeeAuditLog`, `canImpersonate` → `isAdmin(role)`\n   - `assertAdminA` → `isAdmin(role)`\n   - `assertAdminB` → `isAdmin(role) || isOwner(role)`\n   - `assertAdminC` → `!isAdmin(role)`\n\n   Preserve the existing exports as aliases or thin compatibility wrappers. This matters because the three sanitiser guards are not equivalent today: B also accepts `owner`, while C returns true for non-admins despite its misleading name.\n\n   Add a role truth-table test covering `admin`, `owner`, and an ordinary role for every public function. Then rerun the scan: `duplicated_role_status_plan_check` should disappear, while sanitiser duplication should remain.\n\n2. Extract one canonical sanitiser\n\n   Add a shared module such as `src/sanitize.ts` containing the single canonical implementation. Change:\n\n   - `sanitizeUserInput`\n   - `sanitizeText`\n   - `cleanMessage`\n\n   into aliases or one-line delegates, retaining their current names and signatures for compatibility. Do not parameterise the algorithm: the bodies currently have no behavioral differences.\n\n   Characterise the existing behavior before extraction, including nullish runtime input, trimming, control-character removal, whitespace collapse, the 1,000-character limit, angle-prefix and `\\\\x` rejection, repeated-punctuation groups, and uppercase normalization.\n\n   Rerun the scan after extraction. Expected result:\n\n   - `near_duplicate_block`: removed\n   - `duplicated_role_status_plan_check`: removed\n   - `exact_duplicate_block`: still present and explicitly deferred\n   - both `direct_date` findings: still present and outside this refactor\n\nThis ordering isolates the semantic policy change first; the second change is then a mechanical extraction with a much smaller review surface.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "direct_date",
+      "crime_00003": "near_duplicate_block",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_evidence": {
+      "1× Date.now()": "direct_date",
+      "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching": "direct_date",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

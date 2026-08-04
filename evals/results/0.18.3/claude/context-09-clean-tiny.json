@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T22:35:35.625Z",
+  "run_id": "176f0fee-4f8f-4331-9b17-ce4e1783faa7",
+  "response": "Here's the human readout from `crimes context src/add.ts`:\n\n```\nCRIMES CONTEXT\nfile: src/add.ts\nrisk: NONE  (0 findings)\n\nAgent guidance\n  (no findings on this file and no deterministic related files)\n\nRelated files\n  (no neighbourhood signal: no IA finding related_files, no shared domain tokens,\n   no domain-prefix filenames, no same-directory siblings)\n\nLikely tests\n  · src/add.test.ts\n\nClues\n  · churn: 1 commits over 90d · last touched 3 months ago · 1 author\n  · test gap: bottom-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n## What crimes found\n\n**Nothing on this file.** `risk.level: \"none\"`, `findings: []`, `agent_guidance: []`, `related_files: []`. That's a genuine clean result, not a scan failure — the run loaded all three packs (`universal`, `language-js`, `language-py`) and covered all 3 files in the repo.\n\nThe supporting clues all point the same way:\n\n- **No blast radius.** `related_files_reason` is explicit: no finding-derived neighbours, no shared domain tokens, no domain-prefix filenames, not even same-directory siblings. Nothing imports `add.ts` in a way the index picked up, so a signature change here has no known ripple.\n- **Cold file.** 1 commit in 90 days, 1 author, last touched 2026-05-18. No churn hotspot, no multi-author contention.\n- **A test exists.** `likely_tests: [\"src/add.test.ts\"]` — run that after editing.\n\nThe file itself is four lines: a single pure `add(a: number, b: number): number`. No side effects, no I/O, no ambient state, nothing for the testability or duplication detectors to bite on.\n\n## The one finding in the repo — and it isn't here\n\nThe repo-wide scan does report one finding, but it's scoped to `package.json`, not `src/add.ts`:\n\n> **Phantom Accomplice** (`dependency_provenance_gap`, low, confidence 0.56) — \"1 external package(s) are imported but declared in no applicable package.json.\"\n> `vitest` — imported at `src/add.test.ts` as `\"vitest\"`\n\nConfidence is knocked down to 0.56 explicitly because \"only test or fixture files are affected.\" It resolves today through hoisting; a clean install could fail. It doesn't touch `src/add.ts`, but it is relevant to *how* you extend: if you add tests alongside your change, you're leaning on that same undeclared `vitest`. Declaring it in `package.json` is the `quick`-effort fix.\n\n## Is the file safe to extend?\n\n**Yes — as safe as it gets.** Zero findings, zero related files, cold churn, a test file already in place, and the code is a pure function with no hidden coupling. There's no legacy constraint to preserve and no agent-risk trap (no duplicate source of truth, no misleading name, no side effect to accidentally drop).\n\nTwo honest caveats, neither a blocker:\n\n1. **\"No findings\" is a statement about detectable risk, not about correctness.** crimes is deterministic and evidence-based; it has nothing to say about whether your new behaviour is the *right* behaviour. The test file is your safety net there.\n2. **Absence of related files is partly a function of repo size.** This is a 3-file repo. In a larger codebase, an empty `related_files` would be stronger evidence of isolation than it is here — there's simply not much for the neighbourhood signal to find.\n\nPractical plan: edit freely, declare `vitest` in `package.json` if you touch the tests, and run `src/add.test.ts` afterward. If you want the post-edit gate, `crimes scan --changed --format json` from the fixture root will diff against this clean state.\n\nOne minor inconsistency I noticed while reading both outputs: the JSON reports `test_gap: {raw: 0, label: \"unknown\"}` while the human renderer prints \"test gap: bottom-quartile\" for the same field. In a 3-file repo the percentile is degenerate, so it doesn't change the answer here, but the two renderings of that field disagree.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

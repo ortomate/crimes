@@ -1,0 +1,94 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "claude",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T22:33:47.445Z",
+  "run_id": "45006b9f-b455-4aa6-b418-a3893e3a0c59",
+  "response": "## Verdict\n\n`domain/invoicing.py` — specifically `build_invoice`, lines 20–21. The scan names it directly as `crime_00001` / **Two Clocks, One Module** (`mixed_utc_local_methods`), and I confirmed it against the source.\n\n```python\nissued       = datetime.now()      # line 20 — local wall clock, naive\nperiod_start = datetime.utcnow()   # line 21 — UTC, also naive\n```\n\n## Mechanism\n\nTwo clock reads, two different zones, and **no type-level difference between them** — both return a naive `datetime` with `tzinfo=None`. Nothing downstream can tell that `issued_at` is Europe/Berlin wall time while `period_start` is UTC. They are written into the same dict (lines 67–68) and travel together into storage and rendering as if they were commensurable.\n\nThe two values differ by exactly the host's UTC offset. That's harmless in the middle of the day and wrong at the edges: whenever local wall time is within `|offset|` hours of a period boundary (midnight, and therefore month-end), the two stamps land on **different calendar days — and at month end, different billing months**.\n\nThe direction depends on which side of UTC the host sits:\n\n- **Host behind UTC** (say a US-region worker, UTC−5): local 19:00–23:59 → `utcnow()` is already 00:00–04:59 *the next day*. An invoice issued the evening of 31 Aug is stamped `period_start` = 1 Sep. This is the literal \"created late in the evening\" window.\n- **Host ahead of UTC** (an EU-region worker on Europe/Berlin, UTC+2): the mirror image — local 00:00–01:59 → `utcnow()` is still *the previous day*. An invoice created at 00:30 on 1 Sep gets an August `period_start`.\n\nEither way it is intermittent by construction: only invoices created inside a window as wide as the host offset, on the days where that window straddles a boundary, are affected. Everything else looks fine, which is why it reads as \"only sometimes.\"\n\n## Why CI never sees it\n\nCI runners are UTC. At offset 0, `datetime.now()` and `datetime.utcnow()` return **the same value**, so the two clocks agree perfectly and the bug has no way to manifest. The scan calls this out explicitly in the evidence: *\"a UTC-configured CI runner makes the two agree, so tests pass and production drifts.\"*\n\nTwo things compound it:\n\n1. **There is nothing to inject.** `crime_00002` (`direct_date`, 4 clock reads, none with a `tz=` argument) is the reason no test could pin this even if you did run CI at UTC+2 — the clock is read inline, so a test can only reach it by monkeypatching the module.\n2. **There are no tests in this repo at all.** The fixture ships zero test files, so \"passes in CI\" means \"nothing exercised the boundary,\" not \"the boundary was checked.\"\n\n## Related, and worth fixing in the same pass\n\nLine 53 has the same defect with a sharper failure mode:\n\n```python\nexpired = coupon.get(\"expires_at\") < datetime.now()\n```\n\nIf `expires_at` arrives from Postgres `timestamptz` (asyncpg/psycopg return **aware** datetimes), this raises `TypeError: can't compare offset-naive and offset-aware datetimes` at runtime. If it arrives naive-UTC from a JSON serializer, it doesn't raise — it silently mis-decides coupon expiry for a window equal to the host offset. Same root cause, different symptom.\n\n`crime_00009` (`stale` at line 79) is cosmetic. The circular dependency (`crime_00005`) and the blocking-I/O findings in `api/routes.py` (`crime_00003`/`00004`) are real problems but have nothing to do with this bug — don't let them into the fix.\n\n## Fix\n\nThree moves, in order.\n\n**1. One clock, aware, injectable.**\n\n```python\nfrom collections.abc import Callable\nfrom datetime import datetime, timezone\n\nClock = Callable[[], datetime]\n\ndef utc_now() -> datetime:\n    return datetime.now(timezone.utc)\n\ndef build_invoice(customer, line_items, coupon, region, options, *, now: Clock = utc_now):\n    issued = now()          # one read\n    ...\n```\n\n`datetime.now(timezone.utc)` rather than `utcnow()`: it returns an **aware** datetime, so a stray naive value fails loudly instead of quietly drifting, and `utcnow()` is deprecated as of Python 3.12 (this project targets ≥3.11, so you'll hit that soon).\n\n**2. Derive the period, don't re-read the clock.** `period_start` should be a *function of* `issued`, not a second observation of the world:\n\n```python\nfrom zoneinfo import ZoneInfo\n\ndef period_start_for(instant: datetime, billing_tz: str) -> datetime:\n    local = instant.astimezone(ZoneInfo(billing_tz))\n    return local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)\n\nissued       = now()\nperiod_start = period_start_for(issued, customer.billing_tz)\n```\n\nThis is where the actual product decision lives, and it needs your answer, not mine: **whose midnight defines the billing month?** UTC, the customer's zone, or the legal-entity's zone? Given the reporters are European customers, `customer.billing_tz` is the most likely correct semantics — but that's a billing-policy call, and the current code makes it *accidentally* the host's, which is the worst of the three. Whatever you pick, the boundary is then computed explicitly and is testable at a fixed instant.\n\n**3. Normalize at the boundary.** Coerce every inbound datetime to aware UTC where it enters the domain, so line 53 compares like with like:\n\n```python\nexpires_at = coupon[\"expires_at\"]\nif expires_at.tzinfo is None:\n    expires_at = expires_at.replace(tzinfo=timezone.utc)   # or reject it\nis_expired = expires_at < issued\n```\n\nConvert to local only at the presentation boundary — `format_money`'s neighbourhood in `api/rendering.py`, not in `build_invoice`.\n\n**Test that would have caught it.** With `now` injected, no TZ manipulation is needed:\n\n```python\ndef test_period_start_uses_billing_zone_at_month_end():\n    fixed = datetime(2026, 9, 1, 0, 30, tzinfo=ZoneInfo(\"Europe/Berlin\"))\n    inv = build_invoice(customer_in_berlin, [], None, \"DE\", {}, now=lambda: fixed)\n    assert inv[\"period_start\"].month == 9      # fails today: yields August\n```\n\nThat test passes on a UTC runner, which is the whole point — the fix removes the dependency on the runner's timezone rather than papering over it by setting `TZ` in CI.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import",
+      "crime_00009": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import",
+      "`stale` = <comparison> at line 79 in summarise()": "boolean_naming_drift",
+      "convention: is_ / has_ / should_ / can_ prefix, or an idiomatic bare name": "boolean_naming_drift",
+      "local bindings only — class attributes, instance attributes and annotated declarations are published interface, not a naming choice a reader can make freely": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      }
+    ]
+  }
+}

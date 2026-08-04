@@ -1,0 +1,84 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T22:46:59.509Z",
+  "run_id": "da1f28e2-1632-4f9f-9a0f-83569e5d2c36",
+  "response": "## Confirmed — the scan corroborates the duplication\n\nThree findings in the JSON, and they're not the same duplication:\n\n| Finding | Type | What it covers |\n|---|---|---|\n| `crime_00003` | `near_duplicate_block` (0.85) | `sanitizeUserInput` / `sanitizeText` / `cleanMessage` — one body hash `289f7da71f3a` across 3 files |\n| `crime_00004` | `exact_duplicate_block` (0.95) | `recordSanitiseEvent` — byte-identical in `telemetry-a.ts` / `telemetry-b.ts` |\n| `crime_00005` | `duplicated_role_status_plan_check` (0.70) | `\"admin\"` compared in 4 files using **2 distinct expression shapes** |\n\nI read all six files to check the scan rather than take it on faith. The near-duplicate call is correct and stronger than \"near\": the three sanitise bodies are identical modulo identifier renaming (`working` / `cleaned` / `normalised`). Same operations, same order, same literals (`1000`, `5`, `0.9`, `30`). There is no behavioural difference to preserve.\n\nThe role-check finding is the one that changes how you refactor. Those three guards are *not* the same predicate:\n\n- `assertAdminA` — `role === \"admin\"`\n- `assertAdminB` — `role === \"admin\" || role === \"owner\"` (owner also passes)\n- `assertAdminC` — `role !== \"admin\"` — **inverted**; returns `true` for everyone who isn't an admin\n\nConsolidate those on name-similarity and you flip an authorisation check. Keep them out of the sanitise consolidation entirely.\n\n## Proposed refactor\n\n**One canonical module, `src/sanitize.ts`, and the three originals become re-export shims.** The three bodies are identical, so this is a pure move — no parameterisation needed. Note that the scan's `fix_shape` (\"pass the differing values as args\") doesn't apply here; there are no differing values.\n\n### Public API of the consolidated function\n\n```ts\n// src/sanitize.ts\nexport function sanitizeText(input: string | null | undefined): string;\n```\n\nThree decisions behind that signature:\n\n- **Name `sanitizeText`.** Of the three existing names it's the most accurate — the function normalises and rejects text, it doesn't know anything about \"user input\" or \"messages\". It also means one of the three call-site groups needs no rename at all.\n- **Param type `string | null | undefined`, not `string`.** All three current signatures declare `string` and then open with `if (raw === null || raw === undefined) return \"\"` followed by `String(raw)`. The type lies about the contract; the runtime behaviour is the real one. Widen the type to match what the body already does, and drop the now-redundant `String()` coercion.\n- **No options object.** Adding `{ maxLength, maxPunctuationRuns, ... }` is speculative — nothing in the three copies varies. If a caller later genuinely needs a different cap, add an optional second parameter then, with today's literals as defaults. Adding it now creates configuration surface with exactly one value in use.\n\nReturn type stays `string` — every path returns one.\n\n### Files that would change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **New.** The single implementation, moved verbatim from `sanitize-a.ts:10-36`. |\n| `src/sanitize-a.ts` | Body deleted → `export { sanitizeText as sanitizeUserInput } from \"./sanitize.js\"`. |\n| `src/sanitize-b.ts` | Body deleted → `export { sanitizeText } from \"./sanitize.js\"`. |\n| `src/sanitize-c.ts` | Body deleted → `export { sanitizeText as cleanMessage } from \"./sanitize.js\"`. |\n| `src/policy.ts` | Gains `isAdmin(role)`; `canEditBilling` / `canSeeAuditLog` / `canImpersonate` delegate to it. Absorbs the three `assertAdmin*` guards **under honest names** — `isAdmin`, `isAdminOrOwner`, `isNotAdmin` — rather than merging them. |\n| `src/telemetry.ts` | **New.** `recordSanitiseEvent` moved once; `telemetry-a.ts` / `telemetry-b.ts` re-export it. Separate group from the sanitise trio — worth doing in the same pass, but it's a distinct fix. |\n\nNothing in this fixture imports anything (`grep` for `import`/`require` across `src/` returns zero hits), which matches the scan's `blast_radius: 0` and `blast_radius_direct_importers: 0` on every finding. So the shims exist purely for callers outside this package. **If you can confirm all callers are in-repo, delete the three `sanitize-*.ts` files outright and update the imports** — that's the better end state, since leaving three names pointing at one function preserves the confusion that made this look like three functions in the first place.\n\n## Two things to decide before you move the code\n\n**The character class is almost certainly wrong.** `working.replace(/[ -]/g, \"\")` is a range from space (`0x20`) to hyphen (`0x2D`) — it strips every space plus `` !\"#$%&'()*+, `` and `-`. It reads like an intended control-character strip (`[\\x00-\\x1F]`) that lost its escapes. Two consequences: the function removes all literal spaces from its output, and because `!` is inside the range while `?` is not, the later `[!?]{3,}` check can only ever match runs of `?`. Move the body **verbatim** first so the refactor is provably behaviour-preserving, then fix this as a separate commit behind a test. Consolidating first is what makes it a one-line fix instead of three.\n\n**`recordSanitiseEvent` reads `Date.now()` directly** (`crime_00001`/`crime_00002`, both `low`). Since you're touching both copies anyway, the consolidated `src/telemetry.ts` is the natural place to accept an injected clock — `recordSanitiseEvent(originalLength, sanitisedLength, now = Date.now)` — which is what makes the emitted payload assertable in a test. Cheap while the file is already open; not worth a separate pass otherwise.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "direct_date",
+      "crime_00003": "near_duplicate_block",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_evidence": {
+      "1× Date.now()": "direct_date",
+      "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching": "direct_date",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

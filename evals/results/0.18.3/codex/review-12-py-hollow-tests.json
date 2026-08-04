@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T23:02:22.494Z",
+  "run_id": "e0da7e16-5e08-460d-9793-215234edf387",
+  "response": "I’ll map the scan finding to the billing source and test files, so the coverage assessment names the protected behaviors—not just the test filenames.\n\nThe key distinction is already clear: `rates` has outcome assertions; `reporting` and the indirectly exercised ledger path merely survive execution. I’m confirming the scanner result from the fixture before summarizing the refactor risk.\n\nThe refactor is meaningfully protected only around rate lookup. Reporting and ledger mostly only look covered.\n\n- Genuinely covered — [tests/test_rates.py](/Users/andrew/dev/crimes/evals/fixtures/12-py-tested/tests/test_rates.py:6):\n\n  - `rate_for(\"GB\") == 0.20`\n  - `rate_for(\"DE\") == 0.19`\n  - Unknown regions fall back to `DEFAULT_RATE`\n  - `is_zero_rated()` returns false for GB and FR\n\n  These tests assert observable results, so incorrect changes to those behaviors should fail. They do not cover a genuinely zero-rated region or assert FR’s exact rate.\n\n- Only apparently covered — [tests/test_reporting.py](/Users/andrew/dev/crimes/evals/fixtures/12-py-tested/tests/test_reporting.py:11):\n\n  All four tests call `build_report` or `export_report`, but contain zero assertions. They protect only against exceptions for the sampled inputs. They do not protect:\n\n  - Report fields, line entries, totals, accounts, or regions\n  - CSV text, formatting, headers, or numeric precision\n  - JSON structure or values\n  - The claimed “round trip” relationship\n  - Rejection of unsupported formats\n\n- Effectively uncovered — [billing/ledger.py](/Users/andrew/dev/crimes/evals/fixtures/12-py-tested/billing/ledger.py:6):\n\n  `post_entry()` runs indirectly through the hollow reporting tests, but none of its tax arithmetic or returned fields are checked. `reverse_entry()` is not exercised at all. Both should be treated as unprotected during the refactor.\n\nThe scan’s high-severity finding captures the central problem: execution is not correctness verification. Also, the JSON `coverage` section means scanner file-discovery coverage, not test coverage; the ignored `.coverage` file provides no usable assurance here. Overall: trust the specific `rates` contracts above, but treat `reporting` and `ledger` as requiring characterization tests before refactoring.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

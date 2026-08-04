@@ -1,0 +1,72 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T22:47:14.588Z",
+  "run_id": "aaa8313b-a288-46c3-ba70-8e2c4731f66c",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is a finding-driven TypeScript refactor review. I’ll inspect its workflow, run the requested `crimes context`, then map a concrete refactor to each of the three finding types without changing files.\n\nThe global `crimes` binary isn’t installed in this shell, so I’m switching to the repository’s locally built CLI—the documented equivalent for an unpublished checkout.\n\n`crimes context src/Card.tsx --format json` confirms all three findings, with no related files or matching tests. I’d refactor the card into a non-interactive container with an explicit action:\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  return (\n    <article className=\"mx-auto grid w-full max-w-screen-lg grid-cols-1 gap-6 border border-ink/20 bg-surface p-6 text-ink shadow-sm md:grid-cols-4\">\n      <div className=\"min-w-0 text-lg md:col-span-3\">{children}</div>\n\n      <aside className=\"min-w-0 text-sm text-ink/70\">sidebar</aside>\n\n      <button\n        type=\"button\"\n        onClick={onActivate}\n        className=\"justify-self-start text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand\"\n      >\n        Open card\n      </button>\n    </article>\n  );\n}\n```\n\nHow this addresses each finding:\n\n- `accessible_interaction_risk`: removes `onClick` from the `<div>` and places it on a native `<button>`. This supplies keyboard activation, focusability, and button semantics automatically. A separate button is safer than turning the entire container into one because `children: ReactNode` could contain links or other interactive controls.\n- `design_token_escape`: replaces the raw colors, spacing, shadow, and typography values with Tailwind tokens. The project already defines `brand`, `surface`, and `ink`; derived opacity variants handle muted borders and sidebar text without introducing new hex values.\n- `responsive_fragility`: replaces the `800`, `720`, and `240` pixel widths and fixed `600` pixel height with `w-full`, a tokenized maximum width, and a one-column layout that becomes a four-column grid at the configured responsive breakpoint. `text-lg` and `text-sm` replace raw pixel font sizes, while `min-w-0` prevents long content from forcing horizontal overflow.\n\nBecause `context` reports no likely tests, I’d also add a component test covering keyboard activation and a layout/visual test at narrow and wide viewport sizes.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "line 10: <div> with onClick has no role / aria-label / tabIndex": "accessible_interaction_risk",
+      "9 hard-coded style values across 4 kinds (color, px, rgb, shadow)": "design_token_escape",
+      "line 10: color #ff00aa": "design_token_escape",
+      "line 10: color #0a0a0a": "design_token_escape",
+      "line 10: color #cccccc": "design_token_escape",
+      "line 10: color #1a73e8": "design_token_escape",
+      "line 10: rgb rgb(0, 0, 0)": "design_token_escape",
+      "+4 more raw value(s)": "design_token_escape",
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

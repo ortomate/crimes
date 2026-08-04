@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T23:01:56.463Z",
+  "run_id": "6b28ed89-00cc-483c-b6c8-0d2ad532a0df",
+  "response": "Read the package alongside the scan output. Here's the breakdown.\n\n## What the scan flagged\n\nOne finding, high severity: `tests/test_reporting.py` — **4 of 4 test functions, 0 assertions total**. Those four tests call `build_report` and `export_report` and then stop. They're green as long as nothing raises.\n\n## Genuinely protected\n\n**`billing/rates.py`** — this is the only real coverage in the package. `tests/test_rates.py` asserts on values, not on execution:\n\n- `rate_for` — both branches asserted (`\"GB\"`/`\"DE\"` hit the table, `\"ZZ\"` hits the `DEFAULT_RATE` fallback). Refactor this freely; a wrong lookup or a broken default will fail the suite.\n- `is_zero_rated` — asserted, but **only on the False side** (`billing/rates.py:17`). No rate in `RATES` is 0, so the True branch has never executed. If your refactor introduces a zero-rated region, nothing here catches a broken implementation.\n\n## Only looks covered\n\n**`billing/reporting.py`** — has a dedicated test file, four tests named after its functions, and every line executes under pytest. It will show near-100% line coverage in that `.coverage` database sitting in the repo root. It is protected against nothing:\n\n- `build_report` (`reporting.py:6`) — the dict shape, the key names, and `\"total\": entry[\"gross\"]` are all unasserted. Rename `total` to `amount_due`, drop `lines`, or point `total` at `net` instead of `gross`, and the suite stays green.\n- `export_report` (`reporting.py:16`) — the CSV format string and the JSON dict are both unasserted. `test_export_report` and `test_export_report_json` call the two branches and discard the return value. Change the column order, the `%.2f` precision, or swap the two branches: green.\n- The `raise ValueError` branch (`reporting.py:21`) is **not executed at all** — no test passes an unsupported format. So the error path has neither coverage nor assertion.\n\nThe only property those four tests actually enforce is \"does not throw on the happy path.\"\n\n## Not covered at all — and this is the part coverage will lie to you about\n\n**`billing/ledger.py`** — no test file exists for it. The scan didn't raise a separate finding here (there's no test-gap finding in this report; `test_gap` on the one finding is 0), so I'm reporting this from the file tree, not from crimes.\n\nThe trap: `post_entry` (`ledger.py:6`) *is* executed, transitively, every time a hollow `build_report` test runs. So it will appear covered in your coverage report while zero assertions in the entire suite touch it. `gross = amount * (1 + rate_for(region))` is the money math of this package, and nothing anywhere asserts that a rate is applied correctly — `test_rates.py` proves `rate_for(\"GB\") == 0.20`, but nothing proves £100 in GB comes out as 120.00.\n\n`reverse_entry` (`ledger.py:16`) is the honest case: never called by any test, never called by any production code in this package. Genuinely zero.\n\n## What this means for the refactor\n\n| File | Coverage report will say | Actually protects you |\n|---|---|---|\n| `billing/rates.py` | covered | yes — lookup + fallback |\n| `billing/reporting.py` | covered | no — shape, format, and totals all free to change |\n| `billing/ledger.py` | mostly covered (via `build_report`) | no — arithmetic entirely unasserted |\n\nTreat `rates.py` as the only safe surface. For `reporting.py` and `ledger.py` you're refactoring without a net, and the suite will actively reassure you that you aren't. Cheapest fix before you start (the finding calls it `effort: small`): add assertions on `build_report`'s returned dict and `export_report`'s two return values, plus one `pytest.raises(ValueError)` for the bad-format branch, and a single `post_entry` test asserting `gross == 120.0` for GB. That converts three of the four hollow tests into real ones and puts a stake in the ground on the arithmetic.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

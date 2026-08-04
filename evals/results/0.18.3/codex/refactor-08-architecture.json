@@ -1,0 +1,75 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T22:51:00.442Z",
+  "run_id": "087928ec-0e87-4d40-a83f-7e83308cbba7",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is an architecture-risk investigation. I’ll verify the scan and inspect the implicated imports, then map each proposed change directly to its finding.\n\nThe fixture confirms two distinct bad edges: domain → presentation, and application → a package-private subpath. The global `crimes` binary isn’t installed in this environment, so I’m invoking the repository’s built CLI directly, as the repo instructions prescribe.\n\nThe scan confirms one `layer_violation` and one `deep_import`. The clean dependency direction should become:\n\n`presentation → application → domain`, with infrastructure implementing application-owned ports.\n\n1. `crime_00003` — `layer_violation` in `src/domain/billing.ts`\n\nCurrent forbidden edge:\n\n```ts\nimport { renderInvoice } from \"../presentation/invoice-view.js\";\n```\n\nBreak this import entirely. `chargeCustomer()` should return a domain value such as `BillingResult` or `Invoice`, without rendering it. Then:\n\n- `runBillingFlow()` calls the domain and returns that result.\n- Presentation calls `runBillingFlow()` and passes its result to `renderInvoice()`.\n- `renderInvoice()` must stop calling `runBillingFlow()` recursively.\n\nThat restores `presentation → application → domain` and also breaks the high-severity three-file circular dependency (`crime_00001`). If billing genuinely requires an external capability, define a domain-owned interface and inject its implementation; do not import presentation from domain.\n\n2. `crime_00002` — `deep_import` in `src/application/billing-flow.ts`\n\nCurrent private-package edge:\n\n```ts\nimport { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n```\n\nRedirect it to the documented public entry point, if exported:\n\n```ts\nimport { publicHelper } from \"some-pkg\";\n```\n\nIf the capability is not public, don’t wrap the private path and preserve the coupling. Define an application-owned port, such as `BillingHelper`, and implement it in infrastructure using a supported package API. If no supported API exists, replace the dependency or request an upstream export.\n\nAlso declare `some-pkg` in the consuming package’s `dependencies`; that separately resolves `crime_00004`, the provenance gap.\n\n`layer_violation` and `deep_import` describe different risks:\n\n- `layer_violation` is an internal architectural-direction failure. An agent editing domain logic may unknowingly propagate presentation concepts into the domain. It is medium severity with `agent_risk: 0.26`.\n- `deep_import` crosses an external package’s encapsulation boundary. It may work today but disappear during an upgrade, and agents may copy the apparently valid private path elsewhere. It is low severity but has a slightly higher `agent_risk: 0.27` because the same churn, test-gap, and blast-radius context applies.\n\nSo the layer edge should be removed through dependency-direction refactoring, while the package edge should be redirected through a published entry point or an application-owned interface.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "deep_import",
+      "crime_00003": "layer_violation",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Deep Import Abuse": "deep_import",
+      "Layer Violation": "layer_violation",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "cycle size: 3 files": "circular_dependency",
+      "member: src/application/billing-flow.ts": "circular_dependency",
+      "member: src/domain/billing.ts": "circular_dependency",
+      "member: src/presentation/invoice-view.ts": "circular_dependency",
+      "1 deep import across 1 package": "deep_import",
+      "specifier: some-pkg/dist/internal/private/helper.js": "deep_import",
+      "src/domain/billing.ts (layer: domain) imports src/presentation/invoice-view.ts (layer: presentation)": "layer_violation",
+      "rule: domain cannotImport presentation": "layer_violation",
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`some-pkg` — imported at src/application/billing-flow.ts as \"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "\"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

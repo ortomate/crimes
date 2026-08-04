@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T22:36:19.474Z",
+  "run_id": "b723f712-47b2-4ef6-bd28-709062fc896c",
+  "response": "`crimes context src/billing.ts --format json` confirms it: **zero findings**.\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"findings\": [],\n\"agent_guidance\": []\n```\n\n**Likely tests path:** `src/billing.test.ts` — the only entry in `likely_tests`, and the file exists alongside the module.\n\n## Why this module is low risk to edit\n\n**Nothing is charged against it.** The whole-repo scan turned up exactly one finding (`dependency_provenance_gap`, low, confidence 0.56) and it's filed against `package.json` — `vitest` is imported by `src/billing.test.ts` but declared in no manifest. That's a records problem in the test harness, not a property of `billing.ts`. The file-scoped view shows `total: 0`.\n\n**It's tiny and pure.** `src/billing.ts` is 11 lines: one exported interface (`Money`) and one exported function (`format`) that destructures its argument and returns a template string. No I/O, no `Date.now()`, no `process.env`, no mutation — the same input always gives the same output, so a change is fully verifiable by reading it.\n\n**The types constrain the blast radius for you.** `currency` is a closed union (`\"USD\" | \"EUR\" | \"GBP\"`), so widening or narrowing it fails at compile time everywhere it's consumed rather than at runtime. Strict TS is doing the guardrail work an agent would otherwise have to do by grep.\n\n**No neighbourhood entanglement.** `related_files` is empty, and the tool says why: `\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"`. Nothing else in the repo is coupled to this module by any signal `crimes` tracks, so an edit doesn't ripple.\n\n**It's stable and it's covered.** Churn is 1 commit in 90 days from a single author (last touched 2026-05-18) — not a contested file where your change collides with someone else's. And a direct test file sits next to it, so you get a fast feedback loop.\n\nOne caveat on the coverage claim: `test_gap` is reported as `{\"raw\": 0, \"label\": \"unknown\"}` — `crimes` located a likely test file but is not asserting a measured coverage figure. Treat `src/billing.test.ts` as the place to run and extend, and check that it actually exercises the branch you touch rather than assuming coverage from the filename.\n\n**Practical read:** edit freely, run `src/billing.test.ts`. The only thing worth fixing in this repo is the unrelated manifest gap — add `vitest` to `devDependencies` in `package.json` so a clean install doesn't fail where hoisting currently saves it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

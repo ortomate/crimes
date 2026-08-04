@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.18.3",
+  "timestamp": "2026-08-04T22:37:08.900Z",
+  "run_id": "be4cf7c9-9128-4246-8ba0-b285f6673445",
+  "response": "The available protection is weak. The only test-risk finding is high severity: all four tests in `tests/test_reporting.py` contain no assertions, so they verify only that reporting code does not raise—not that its results are correct. None of the scan evidence shows ledger-reversal behavior being asserted.\n\nThe scan also does not establish the ledger module’s blast radius. The reported `blast_radius: 0` applies to the test finding in `tests/test_reporting.py`, not to the ledger code. Therefore, this output identifies no importers or downstream behavior that a reversal change could affect; that impact remains unknown and would require `crimes context <ledger-file> --format json`.\n\nOther caveats:\n\n- Six Python files were analyzed.\n- `crimes.config.json`, `pyproject.toml`, and `.coverage` were excluded by discovery rules.\n- Before changing reversal logic, I would treat regression protection as unproven and add focused assertions for reversed amounts, signs, balances, metadata, and round-trip behavior.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}
