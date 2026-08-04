@@ -160,6 +160,16 @@ function extractReferencedDetectorIds(
     for (const [findingId, id] of Object.entries(scanContext.detector_id_by_finding_id)) {
       if (matchesToken(response, findingId)) found.add(id);
     }
+    // Evidence is matched as a plain substring, not as a bounded token:
+    // the keys carry quotes, slashes and punctuation, and an agent
+    // wraps them in backticks or a blockquote. `buildEvidenceIndex`
+    // has already dropped anything ambiguous, so a hit here is a
+    // reference to exactly one detector type.
+    for (const [evidence, id] of Object.entries(
+      scanContext.detector_id_by_evidence ?? {},
+    )) {
+      if (response.includes(evidence)) found.add(id);
+    }
   }
   return found;
 }
@@ -282,6 +292,15 @@ function extractLeadingDetectorId(
     const idx = head.search(boundedTokenRegex(c.token));
     if (idx === -1) continue;
     if (!earliest || idx < earliest.index) earliest = { id: c.id, index: idx };
+  }
+  // Evidence keys are substrings rather than bounded tokens — same
+  // reason as in `extractReferencedDetectorIds`.
+  for (const [evidence, id] of Object.entries(
+    scanContext?.detector_id_by_evidence ?? {},
+  )) {
+    const idx = head.indexOf(evidence);
+    if (idx === -1) continue;
+    if (!earliest || idx < earliest.index) earliest = { id, index: idx };
   }
   return earliest ? earliest.id : null;
 }

@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.18.2",
+  "timestamp": "2026-08-04T02:00:39.849Z",
+  "run_id": "65f689d9-74ad-4e26-bac6-3d52a10ffcb5",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a pre-edit context check. I’ll run the requested file-specific command and base the safety call on that output, while using the supplied repo-wide scan only as supporting context.\n\nThe requested binary is not installed on `PATH` in this environment (`crimes: command not found`). I’m following the repository’s documented fallback: invoking the locally built CLI with the same arguments, from the fixture root.\n\n`src/add.ts` is safe to extend.\n\nThe context report found:\n\n- Risk level: `none`\n- Findings: 0\n- No agent guidance or related-file risks\n- Low churn: 1 commit and 1 author in the last 90 days\n- Likely test: `src/add.test.ts`\n\nThe supplied repo-wide scan has one unrelated low-severity issue: `vitest` is imported by `src/add.test.ts` but undeclared in `package.json`. This does not make `src/add.ts` risky, though a clean install may fail when running its tests.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  }
+}

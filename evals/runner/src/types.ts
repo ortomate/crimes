@@ -124,4 +124,14 @@ export interface ScanContext {
   detector_id_by_finding_id: Record<string, string>;
   /** `Temporal Recklessness` → `direct_date`. */
   detector_id_by_charge: Record<string, string>;
+  /**
+   * `0 expect/assert calls` → `weak_test_signal`, and every literal an
+   * evidence line quotes. Built by {@link buildEvidenceIndex}, which
+   * drops any string that more than one detector type could have
+   * produced.
+   *
+   * Optional: result files written before this shipped do not carry
+   * it, and replay must keep scoring them.
+   */
+  detector_id_by_evidence?: Record<string, string>;
 }

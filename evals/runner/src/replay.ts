@@ -68,9 +68,16 @@ async function main(): Promise<void> {
         );
         continue;
       }
+      // Re-derive when the stored context predates a lookup map the
+      // current scorer reads. A stored context missing
+      // `detector_id_by_evidence` is not "no evidence matched" — it is
+      // a file written before that map existed, and replaying against
+      // it would silently score the new build with the old scorer's
+      // reach and report the difference as zero.
       const scanContext =
-        stored.scan_context ??
-        (await deriveScanContext(scenario, fixtureDirById, scanContextCache));
+        stored.scan_context?.detector_id_by_evidence !== undefined
+          ? stored.scan_context
+          : await deriveScanContext(scenario, fixtureDirById, scanContextCache);
       // Result files written before the codex JSONL fix stored the raw
       // transcript as `response`. Normalise on read so replays score
       // the agent's answer, not the tool output it happened to print.

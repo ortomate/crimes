@@ -1,0 +1,66 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.18.2",
+  "timestamp": "2026-08-04T02:00:39.859Z",
+  "run_id": "10232786-ea76-4d35-95cd-cea0cd754bef",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a TypeScript risk-scan planning task. I’ll verify the scan, inspect the duplicated call sites, then propose two independently testable changes.\n\nThe scan reports three duplication findings:\n\n- `near_duplicate_block` — `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` share the same 27-line algorithm across `sanitize-a.ts`, `sanitize-b.ts`, and `sanitize-c.ts`.\n- `duplicated_role_status_plan_check` — `\"admin\"` is checked across `policy.ts` and all three sanitizer modules using two expression shapes.\n- `exact_duplicate_block` — `recordSanitiseEvent` is duplicated in `telemetry-a.ts` and `telemetry-b.ts`. This is separate from the requested sanitizer/role refactor and should be handled independently.\n\n## Two-step change set\n\n1. Centralize role policy without changing semantics\n\n   Add one canonical `isAdmin(role: string)` function to `policy.ts`. Rewrite:\n\n   - `canEditBilling`, `canSeeAuditLog`, and `canImpersonate` to delegate to `isAdmin`.\n   - `assertAdminA` as `isAdmin(role)`.\n   - `assertAdminB` as `isAdmin(role) || role === \"owner\"`.\n   - `assertAdminC` as `!isAdmin(role)`.\n\n   This distinction matters: the three sanitizer-side checks are not currently equivalent, so replacing all of them with the same boolean would silently change behavior. Add truth-table tests for `admin`, `owner`, and an ordinary role before migrating callers.\n\n2. Extract the shared sanitization implementation\n\n   Create a neutral module such as `src/sanitize.ts` exporting one canonical `sanitize(input: string): string`. Move the duplicated normalization and rejection pipeline there, then make the existing public names thin aliases/wrappers:\n\n   - `sanitizeUserInput` → `sanitize`\n   - `sanitizeText` → `sanitize`\n   - `cleanMessage` → `sanitize`\n\n   Preserve those exports initially to avoid breaking callers. Add table-driven tests covering nullish input, whitespace/control characters, length truncation, angle-bracket and `\\\\x` rejection, punctuation rejection, uppercase normalization, and normal text.\n\nAfter both changes, rerun `crimes scan --format json`. The near-duplicate sanitizer and duplicated-admin findings should disappear. The telemetry duplicate and its `Date.now()` findings will remain as an explicitly separate follow-up.",
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "direct_date",
+      "crime_00003": "near_duplicate_block",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_evidence": {
+      "1× Date.now()": "direct_date",
+      "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching": "direct_date",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check"
+    }
+  }
+}

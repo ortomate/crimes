@@ -1,0 +1,72 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.18.2",
+  "timestamp": "2026-08-04T02:00:39.880Z",
+  "run_id": "10d75a75-0d02-4766-a60f-c25c8b79a685",
+  "response": "I’m using the `crimes-codebase-risk` skill because this is a targeted investigation of a `crimes` frontend finding. I’ll run the requested context command, inspect `Card.tsx` and its local styling/token conventions, then propose—not apply—a finding-by-finding refactor.\n\nThe skill calls for JSON during planning, so I’m using that form of `crimes context`; I’m also reading the component and nearby files to make the token recommendations match this fixture rather than inventing an unrelated design system.\n\nThe fixture doesn’t have a global `crimes` binary on `PATH`, so the requested command could not start. I found the repository’s built CLI and will rerun the exact context check through that local executable; the source inspection already confirms the clickable wrapper, raw visual literals, and rigid two-column sizing.\n\nThe context report adds two important constraints: no related implementation files or likely tests were found, and the file’s test-gap score is `1` (“unknown”). That favors a small semantic refactor plus focused component tests, without pretending there is an established local CSS architecture beyond the Tailwind token config. I’m checking the human-form report once before finalizing the proposal, as the skill prescribes for user-facing interpretation.\n\n`crimes context` confirms all three findings and reports no nearby tests. I’d refactor the card into a non-interactive layout container with an explicit action:\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  return (\n    <article className=\"@container w-full max-w-screen-lg border border-card-border bg-surface p-6 text-ink shadow-sm\">\n      <div className=\"grid grid-cols-1 gap-6 @md:grid-cols-3\">\n        <div className=\"min-w-0 text-base @md:col-span-2 @md:text-lg\">\n          {children}\n        </div>\n\n        <aside className=\"min-w-0 text-sm text-muted\">sidebar</aside>\n      </div>\n\n      <button\n        type=\"button\"\n        className=\"mt-6 rounded bg-brand px-4 py-2 text-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand\"\n        onClick={onActivate}\n      >\n        Open card\n      </button>\n    </article>\n  );\n}\n```\n\nHow this maps to the findings:\n\n- `accessible_interaction_risk`: Replace the clickable `<div>` with a native `<button>`. This provides keyboard activation, focusability, and button semantics automatically. Because `children` is arbitrary React content, wrapping the entire card in a button could create invalid nested interactions; an explicit action is safer. If the action navigates, use `<a href>` instead.\n- `design_token_escape`: Replace inline colors, spacing, shadow, and focus values with Tailwind tokens. Reuse `brand`, `surface`, and `ink`; add semantic `card-border` and `muted` tokens to `tailwind.config.ts`. If the magenta background is intentional, create a named card/accent token rather than copying `#ff00aa`.\n- `responsive_fragility`: Remove the fixed `800`, `720`, `600`, and `240` dimensions. `w-full` plus `max-w-screen-lg` makes the outer card fluid, while the container-responsive grid collapses to one column and expands to a 2:1 layout when space permits. Tokenized `text-base`/`text-lg` replaces raw `18px`.\n\nI would also add a component test confirming the action is discoverable by role and activates with both keyboard and pointer input. No files were changed.",
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "line 10: <div> with onClick has no role / aria-label / tabIndex": "accessible_interaction_risk",
+      "9 hard-coded style values across 4 kinds (color, px, rgb, shadow)": "design_token_escape",
+      "line 10: color #ff00aa": "design_token_escape",
+      "line 10: color #0a0a0a": "design_token_escape",
+      "line 10: color #cccccc": "design_token_escape",
+      "line 10: color #1a73e8": "design_token_escape",
+      "line 10: rgb rgb(0, 0, 0)": "design_token_escape",
+      "+4 more raw value(s)": "design_token_escape",
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  }
+}

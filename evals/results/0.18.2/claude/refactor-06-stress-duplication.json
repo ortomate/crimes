@@ -1,0 +1,84 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.18.2",
+  "timestamp": "2026-08-04T02:00:37.402Z",
+  "run_id": "50deb8db-6546-4141-88c5-e9929736585e",
+  "response": "## The duplication is real — and tighter than the scan says\n\n`crimes scan --format json` reports it as `near_duplicate_block` at 0.85 confidence (`crime_00003`), grouping `sanitize-a.ts:10-36` / `sanitize-b.ts:9-35` / `sanitize-c.ts:9-35`. I verified the bodies directly by normalising the identifiers and diffing:\n\n- `sanitizeUserInput` (`raw`/`working`) vs `sanitizeText` (`input`/`cleaned`) — **identical**\n- `sanitizeText` vs `cleanMessage` (`value`/`normalised`) — **identical**\n\nSo these aren't *near* duplicates, they're **exact duplicates modulo three renamed identifiers**. That upgrades the refactor: consolidation is a provably behaviour-preserving rename, not a merge that needs parameterisation.\n\n### One hazard that will bite a naive consolidation\n\n`sanitize-a.ts:13` reads as `working.replace(/[ -]/g, \"\")` in any editor, but the source bytes are `/[\\0-\\037]/g` — a **raw NUL through 0x1F control-character range** embedded literally in the file. Retyping that line as `[ -]` (space-to-hyphen) silently swaps a control-char stripper for a punctuation stripper. **Copy the bytes; do not retype the regex.**\n\nRelated, and worth deciding deliberately once you're down to one copy: because `\\t`, `\\n`, `\\r` fall inside `\\0-\\037`, they are *deleted* before the `/\\s+/g → \" \"` collapse ever runs. `\"hello\\tworld\"` becomes `\"helloworld\"`, not `\"hello world\"`. That's today's behaviour in all three copies. Consolidating first, then fixing it in one place, is exactly the payoff.\n\n## The scan's `fix_shape` is wrong here — don't parameterise\n\n`crime_00003` suggests *\"consolidate into one helper; pass the differing values as args.\"* There are **no differing values** in the bodies. Adding an options object would be speculative generality on a function with zero callers. Recommended API is deliberately minimal:\n\n```ts\n// src/sanitise.ts\n/** Control chars U+0000–U+001F. Copy these bytes; do not retype the class. */\nconst CONTROL_CHARS = /[\\u0000-\\u001F]/g;\n\nexport const MAX_LENGTH = 1000;\nexport const MAX_REPEATED_PUNCTUATION = 5;\nexport const SHOUT_RATIO = 0.9;\nexport const SHOUT_MIN_LENGTH = 30;\n\nexport function sanitise(raw: string | null | undefined): string;\n```\n\nTwo notes on that signature. The param widens from `string` to `string | null | undefined` because all three bodies open with `if (raw === null || raw === undefined) return \"\"` — null-tolerance is real behaviour that the old `string` type was lying about. And the thresholds are exported so tests assert against the constant instead of re-hardcoding `1000`. Add an options object only when a second caller actually needs a different limit.\n\n## The admin guards are the actual trap\n\n`crime_00005` flags `\"admin\"` across 4 files in 2 expression shapes. The three hoisted guards are **not** equivalent, and merging them mechanically would invert a permission:\n\n| Location | Body | Meaning |\n|---|---|---|\n| `sanitize-a.ts:6` `assertAdminA` | `role === \"admin\"` | admin only |\n| `sanitize-b.ts:5` `assertAdminB` | `role === \"admin\" \\|\\| role === \"owner\"` | admin **or owner** |\n| `sanitize-c.ts:5` `assertAdminC` | `role !== \"admin\"` | **inverted** — true when *not* admin |\n\nAlso: none of the three sanitise bodies call its own guard, and nothing in the repo imports them. All three guards are **dead code**. The cheapest correct consolidation is deletion, not merging — which on its own removes 3 of the 7 occurrence sites and one of the two expression shapes.\n\nFor `policy.ts`, keep the three capability functions distinct and delegate:\n\n```ts\n// src/policy.ts\nexport const ADMIN_ROLE = \"admin\";\n\nexport function isAdmin(role: string): boolean {\n  return role === ADMIN_ROLE;\n}\n\n// Three distinct capabilities that happen to coincide today.\n// Keep them separate so they can diverge without a call-site hunt.\nexport function canEditBilling(role: string): boolean { return isAdmin(role); }\nexport function canSeeAuditLog(role: string): boolean { return isAdmin(role); }\nexport function canImpersonate(role: string): boolean { return isAdmin(role); }\n```\n\nDo **not** collapse those three into one `isAdmin` export. Identical bodies, different authority questions — that's the drift the finding is warning about, not an invitation to fuse the permissions.\n\n## Files that would change\n\n| File | Change |\n|---|---|\n| `src/sanitise.ts` | **new** — the single `sanitise()` above, regex bytes copied from `sanitize-a.ts:13` |\n| `src/sanitize-a.ts` | **delete** (body → `sanitise.ts`; `assertAdminA` is dead) |\n| `src/sanitize-b.ts` | **delete** (`assertAdminB`'s owner-or-admin rule → `policy.ts` only if a caller appears) |\n| `src/sanitize-c.ts` | **delete** (`assertAdminC` is inverted *and* dead — do not port) |\n| `src/policy.ts` | **modify** — add `ADMIN_ROLE` + `isAdmin`, delegate the three capabilities |\n| `src/telemetry.ts` | **new** — one `recordSanitiseEvent`, clock injected |\n| `src/telemetry-a.ts`, `src/telemetry-b.ts` | **delete** — byte-identical per `crime_00004` |\n| `src/sanitise.test.ts` | **new** — every finding carries `test_gap: 0.5`; pin behaviour *before* deleting copies |\n\nNo import rewrites are needed: `grep` for `import`/`require` across `src/` and `package.json` returns nothing, there's no barrel and no `main`/`exports` field. That's why every finding shows `blast_radius: 0` — it's accurate, not a gap. If this were a published package, the three old names would need deprecated re-export shims; here they don't.\n\n## Expected scan delta\n\nAll 5 findings clear. `crime_00003` and `crime_00004` go once there's one copy of each. `crime_00001`/`crime_00002` (`direct_date` at `telemetry-*.ts:16`) collapse to one on consolidation and clear entirely when you take the `inject_clock` action — `recordSanitiseEvent(originalLength, sanitisedLength, now: () => number = Date.now)`. `crime_00005` clears once `\"admin\"` lives only in `policy.ts`.\n\n## Sequencing\n\nCharacterisation tests against `sanitizeUserInput` first — including a `\\t`/`\\n` case and a control-char case, so the regex-byte hazard is caught by a red test rather than by review. Then point them at `sanitise()`, then delete the copies. Guards get deleted, not ported. `policy.ts` and `telemetry.ts` are independent commits.\n\nOne aside, since this is the `crimes` repo: `crime_00005`'s evidence lists `src/policy.ts:1: role === \"admin\"`, but line 1 is the comment `// Same \\`if (role === \"admin\")\\` policy check copied across three call sites.` The detector is counting an occurrence inside a comment, inflating the count from 6 to 7. Separate from this refactor, but probably a real bug in `duplicated_role_status_plan_check.js`.\n\nHappy to implement this — say the word and I'll do the tests-first sequence above.",
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "direct_date",
+      "crime_00003": "near_duplicate_block",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_evidence": {
+      "1× Date.now()": "direct_date",
+      "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching": "direct_date",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check"
+    }
+  }
+}

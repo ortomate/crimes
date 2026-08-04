@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "codex",
+  "crimes_version": "0.18.2",
+  "timestamp": "2026-08-04T02:00:39.850Z",
+  "run_id": "982579c7-9b09-44ca-b11b-288b503543ac",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is a file-context risk inspection. I’ll run the requested context command against the fixture and report the JSON evidence directly.\n\nThe global `crimes` binary isn’t on this shell’s PATH. I’m switching to the repository’s locally built CLI, which is the documented equivalent for an unpublished checkout.\n\n`src/billing.ts` is low risk to edit:\n\n- Findings: none (`risk.level: \"none\"`, total `0`)\n- Likely test: `src/billing.test.ts`\n- Low churn: 1 commit and 1 author in the last 90 days\n- No related-file or dependency-neighborhood signals\n- No special agent guidance required\n\nThe repository-level `dependency_provenance_gap` applies to `package.json`, not `src/billing.ts`.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.18.2",
+  "timestamp": "2026-08-04T02:00:39.831Z",
+  "run_id": "8626392d-a2cc-4e65-84df-a6029997c5f9",
+  "response": "I ran the scan and then read the three billing modules and both test files, because the scan's answer alone doesn't tell you what *is* covered — only where it found a crime.\n\n## What the scan reported\n\nOne finding, `weak_test_signal` (high, confidence 0.85), on `tests/test_reporting.py`: **4 of 4 test functions contain zero assertions.**\n\nThat's the whole report. No other findings — but read that carefully: `crimes` flags hollow tests, it does not certify the rest as well-tested. The `test_gap: 0` score on that finding is about the file's own test gap, not a coverage grade for the package.\n\n## Genuinely covered\n\n**`billing/rates.py`** — `tests/test_rates.py` has 3 tests with 5 real assertions on return values. `rate_for` is checked for both the hit path (`\"GB\"` → 0.20, `\"DE\"` → 0.19) and the miss path. Break the dict lookup and the suite goes red. This is the only module where that's true.\n\nTwo caveats even here:\n- `test_unknown_region_falls_back_to_default` asserts `rate_for(\"ZZ\") == DEFAULT_RATE` — it compares the code against itself. Change `DEFAULT_RATE` to 0.5 and the test still passes. It protects the *fallback mechanism*, not the fallback *value*.\n- `is_zero_rated` is only ever asserted false. No region in `RATES` is zero-rated, so the true branch has never executed. If you add a zero-rated region during the refactor, nothing tests it.\n\n## Only looks covered\n\n**`billing/reporting.py`** — `tests/test_reporting.py` calls `build_report` and `export_report` four times and asserts nothing. These tests pass as long as no exception is raised. Concretely, all of these would stay green:\n- `build_report` returning the wrong `total`, or dropping `lines` entirely\n- `export_report`'s CSV losing the `%.2f` rounding, or emitting the wrong column order\n- the JSON branch returning `{}`\n\nAnd `export_report`'s `raise ValueError` for an unsupported format is never exercised at all — no test passes a bad `fmt`. So that module has *zero* protection, not weak protection.\n\n**`billing/ledger.py`** — no test file exists. But it isn't merely untested; it's the dangerous case, because it's *transitively executed* by the hollow reporting tests. `post_entry` runs on every one of those four tests, so it shows up green in line coverage while nothing anywhere checks that `gross = amount * (1 + rate)` is the right formula. `reverse_entry` is never called by anything.\n\nThe stored `.coverage` in the repo makes the trap explicit:\n\n```\nbilling/ledger.py       6   1   83%\nbilling/rates.py        6   0  100%\nbilling/reporting.py   10   1   90%\nTOTAL                  22   2   91%\n```\n\n91% line coverage. Assertion coverage is one module out of three.\n\n## What this means for the refactor\n\nRanked by exposure:\n\n1. **`billing/ledger.py` — highest risk.** No assertions, and the coverage number actively lies about it. Write tests for `post_entry` (gross arithmetic per region) and `reverse_entry` (sign flip, field preservation) *before* touching it.\n2. **`billing/reporting.py` — high risk.** The tests exist, which is worse than nothing: a reviewer sees `test_round_trip` and assumes the round trip is checked. Add assertions on the returned dict and the CSV string, plus a `pytest.raises(ValueError)` case. The scan calls this effort `small` — it is; the four tests already construct the right inputs, they just throw the results away.\n3. **`billing/rates.py` — safe to refactor**, with the two gaps above closed if you're changing the default rate or introducing zero-rated regions.\n\nOne scan-hygiene note: the coverage warnings say `crimes.config.json`, `pyproject.toml`, and `.coverage` matched no include pattern. Irrelevant to this question — no detector needed to read them — but worth knowing the scan saw 6 Python files and nothing else.",
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls": "weak_test_signal"
+    }
+  }
+}

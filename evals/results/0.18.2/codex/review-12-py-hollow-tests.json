@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.18.2",
+  "timestamp": "2026-08-04T02:00:39.911Z",
+  "run_id": "35a070d2-ef61-4d02-9273-d9773895184e",
+  "response": "The suite genuinely provides only smoke coverage for the reporting workflow:\n\n- `build_report`\n- report export\n- JSON report export\n- report round-tripping\n\nThose paths are executed, so the tests can catch crashes, import failures, and some unexpected exceptions.\n\nThey only look behaviorally covered, however. All four tests in `tests/test_reporting.py` contain zero assertions. They do not verify report contents, exported output, JSON structure, persisted data, or whether a round trip preserves the original report. Incorrect results will still pass as long as nothing raises.\n\nThe scan does not establish genuine protection for any other package behavior. In particular, `.coverage` was not read, so this result provides no line or branch coverage evidence. `pyproject.toml` and `crimes.config.json` were also excluded from discovery.\n\nRefactor assessment: treat the reporting API as exercised but not correctness-tested. Before refactoring, add assertions against returned values and observable export/round-trip results—especially exact fields, serialization shape, and equality after reloading.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls": "weak_test_signal"
+    }
+  }
+}

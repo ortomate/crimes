@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.18.2",
+  "timestamp": "2026-08-04T02:00:39.851Z",
+  "run_id": "377b6519-32ef-4596-a0b1-1d77e7fa2dcc",
+  "response": "I’ll inspect the fixture just enough to identify the ledger module and run the file-specific `crimes context` view; the supplied repo-wide scan alone doesn’t establish the ledger code’s tests or import impact.\n\nThe global `crimes` binary isn’t installed in this environment, so I’m using the repository’s built CLI against the same fixture.\n\n`crimes context billing/ledger.py --format json` shows very little protection:\n\n- No likely tests were found: no matching ledger test and no test imports `billing/ledger.py`.\n- Its test-gap score is maximal (`raw: 1`, `top-quartile`), so a reversal bug could pass unnoticed.\n- The only related files identified are `billing/__init__.py`, `billing/rates.py`, and `billing/reporting.py`, based solely on directory proximity—not confirmed dependency edges. These should be reviewed before changing ledger behavior.\n- Protection around reporting is also weak: all four tests in `tests/test_reporting.py` contain zero assertions. They only prove execution doesn’t raise, not that reversed entries produce correct reports.\n- The file has low churn: one commit and one author in the last 90 days. That reduces coordination risk, but provides no correctness protection.\n- The scan excludes `.coverage`, `pyproject.toml`, and `crimes.config.json`, so it cannot use coverage data or validate relevant configuration.\n\nBottom line: there is no detected test safety net for ledger reversal behavior, and downstream reporting may be affected without its current tests noticing. No files were changed.",
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls": "weak_test_signal"
+    }
+  }
+}

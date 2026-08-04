@@ -108,10 +108,38 @@ Two consequences when reading any delta:
    because it does not change whether the agent quotes an id. Do not
    read a flat result as "the fix did nothing".
 
-Fixing this means matching a detector's human-readable charge and
-`name` as well as its id, and treating a file path mentioned in any form
-as a reference. Until then, treat the aggregate as directional and read
-the per-scenario details before making a claim.
+**Partly fixed in `0.18.2`.** The scorer now also credits a finding
+whose *evidence* the response quotes — each evidence line, and each
+literal an evidence line cites. `CLAUDE.md` says evidence before
+judgement, and an agent that quotes a finding's receipts has referenced
+it at least as unambiguously as one that pastes its slug.
+
+Measured by replaying 0.18.1's stored responses, so the responses are
+identical and the delta is entirely the scorer: **4 of 96 scenarios
+moved, all of them codex, all from a hard 0 to a full pass**. Codex
+0.544 → 0.589 (+4.4pp); claude unchanged at 0.854, which is the
+evidence that nothing was over-credited.
+
+```
+bugfix-01-timezone-parse   named the literal `"2026-12-20"`
+bugfix-04-weak-tests       quoted `0 expect/assert calls` verbatim
+context-01-locale-drift    "Finding evidence, verbatim:" then quoted it
+review-01-dst-arithmetic   quoted the fix_shape line verbatim
+```
+
+A key earns a place in the index only if it identifies **exactly one**
+detector type in that scan. This is the `has()` rule from `2e9b2da`
+applied to measurement: a token that identifies more than one thing
+identifies nothing, and an ambiguous string is dropped rather than
+attributed to whichever type claimed it first. Bare line references
+(`lines 537-548`), strings under 12 characters, and pure prose
+(`arrow declaration` — a real `large_function` evidence line, and also
+a phrase an agent can write about unrelated code) are all dropped for
+the same reason. A scorer that flatters is worse than one that misses.
+
+Still unfixed: an answer that describes the defect in its own words,
+naming neither the id, the charge, nor any evidence, scores zero. That
+is what the judge pass is for.
 
 **For ranking specifically, don't try to fix it here at all** — see the
 next section. No amount of loosening the text match makes an agent's
@@ -232,6 +260,46 @@ diff and say so.
 **This applies to identity only.** If a change touches which findings
 appear, their scores, or their prose, run the evals — and if you expect
 the aggregate to move, take repeat samples before claiming it.
+
+### Scorer-only bumps: replay, don't re-run
+
+A bump whose entire effect is on the **scorer** takes its baseline from
+`evals:replay` rather than from fresh agent invocations, and this is
+the stronger instrument, not the cheaper one. The responses are held
+byte-identical, so the whole delta is the scorer — a fresh run would
+resample the noise band and mix agent jitter into a change that has
+none.
+
+| version | change | baseline from |
+|---|---|---|
+| `0.18.2` | scorer credits a finding whose evidence the response quotes | replay of `0.18.1`'s 96 responses |
+
+The procedure, since `evals:replay` writes to `evals/replay/` and not
+to a version directory:
+
+```bash
+# 1. bump packages/cli/package.json, then rebuild — replay records the
+#    version it ran under, and re-scans fixtures with the built CLI.
+pnpm run build
+# 2. re-score every stored response against the new scorer
+pnpm run evals:replay
+# 3. seed the new version directory from the replay
+mkdir -p evals/results/<new>/ && cp -R evals/replay/* evals/results/<new>/
+# 4. regenerate the summary from disk — runs 0 agents, and says so
+pnpm run evals -- --resume
+```
+
+Step 4 is safe by construction: `--resume` skips every combination
+whose result file exists, so a complete directory invokes nothing and
+only rebuilds `summary.json`. Confirm it printed
+`96 result(s) already on disk, running 0`. If it reports a number other
+than 0, the copy was incomplete — **stop**, because a partially
+re-scored directory mixes two scorers the way `0.18.0` mixed two
+builds.
+
+This applies to the *scorer* only. A change to a detector, a score, or
+finding prose changes what the agent was shown, so its responses are no
+longer replayable evidence and it needs a real run.
 
 ## Why it's not in CI as a fresh-agent runner
 

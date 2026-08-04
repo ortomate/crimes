@@ -1,0 +1,100 @@
+{
+  "scenario": "plan-11-py-import-cycle",
+  "agent": "codex",
+  "crimes_version": "0.18.2",
+  "timestamp": "2026-08-04T02:00:39.861Z",
+  "run_id": "d74b6665-9733-4719-8b79-40d01f459dab",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is explicitly a scan-led dependency/extraction plan. I’ll run the requested scan against the fixture, inspect the relevant imports and packaging metadata, then separate true extraction blockers from cleanup items.\n\nThe global `crimes` binary is not on this shell’s PATH, so the literal command returned `command not found`. I’m switching to the repository-built CLI equivalent against the same fixture; I’ll also verify the live result matches the supplied scan context before planning.\n\nThe live scan matches the supplied context: 9 findings—3 high, 5 medium, 1 low. The global `crimes` command was unavailable, so I ran the repository-built equivalent:\n\n```bash\nnode packages/cli/dist/index.js scan evals/fixtures/11-py-service --format json\n```\n\nBlocking status should follow package boundaries, not severity alone.\n\n| Finding | Extraction status | Reason |\n|---|---|---|\n| `circular_dependency`: `api/rendering.py` ↔ `domain/invoicing.py` | **Blocks service integration** | The cycle can already cause `ImportError`, and prevents reliable clean-environment/import-order testing after installing the new package. It does not prevent building the tax wheel in isolation, but must be resolved before cutover is complete. |\n| `deep_import`: `api/rendering.py` → `tax.rules.regional.eu.vat_bands` | **Blocks encapsulation** | The service reaches into tax internals. A separately versioned package needs a supported public API so its internal layout can change safely. |\n| `deep_import`: `tax/vat.py` → its own `vat_bands` module | **Untidy, fix during move** | This is internal coupling rather than a cross-package dependency. It does not stop extraction, but should become an explicit relative import inside the new package. |\n| Direct/mixed clock usage in `domain/invoicing.py` | **Not a blocker** | Serious correctness and testability debt, but outside the tax implementation. Keep it out of the extraction unless the tax API gains time-dependent behavior. |\n| Large `build_invoice` function | **Not a blocker** | Makes consumer migration riskier, but tax use is already isolated behind `apply_vat`. Avoid combining this refactor with package extraction. |\n| Blocking I/O in `api/routes.py` | **Not a blocker** | High-severity runtime debt, but unrelated to package ownership or imports. |\n| Boolean naming drift | **Merely untidy** | No effect on the extraction boundary. |\n\nOne additional packaging blocker sits outside the detector results: `crimes` did not scan `pyproject.toml`, and the current file contains only basic project metadata—no build-system configuration or declared dependencies.\n\n## Extraction plan\n\n1. **Characterize the tax contract**\n\n   Add tests around `apply_vat()` covering known regions, unknown-region fallback, zero/negative amounts, and the currently exposed band identifier. Decide whether `STANDARD_BAND` is genuinely part of the public tax contract or whether `describe_cap()` should stop displaying it.\n\n2. **Break the API/domain import cycle**\n\n   Remove `domain.invoicing → api.rendering`. Prefer having `build_invoice()` return domain values and formatting `total` at the API/presentation boundary. Move `LINE_ITEM_CAP` into a dependency-free domain policy module if both sides still need it.\n\n   Add clean-process import tests for both `api.routes` and `domain.invoicing`; importing in only one order can hide Python cycles.\n\n3. **Create the installable tax distribution**\n\n   Give it a distinctive import namespace rather than the generic `tax` name. Add its own `pyproject.toml`, PEP 517 build backend, `src/` package layout, version, Python requirement, and package-data rules if needed.\n\n   Suggested internal shape:\n\n   ```text\n   packages/invoice_tax/\n     pyproject.toml\n     src/invoice_tax/\n       __init__.py\n       vat.py\n       rules/regional/eu/vat_bands.py\n     tests/\n   ```\n\n4. **Define one public surface**\n\n   Re-export supported operations from `invoice_tax/__init__.py`, such as `apply_vat`. Export `STANDARD_BAND` only if consumers truly require it; do not expose the mutable `BANDS` mapping.\n\n   Within `vat.py`, use a relative private import. Consumers must import only from `invoice_tax`, eliminating the blocking deep import from `api/rendering.py`.\n\n5. **Cut over the service**\n\n   Declare the distribution as a service dependency and replace all `tax.*` imports with public-root imports. Remove the old in-repository `tax` package only after an import search confirms there are no remaining consumers.\n\n6. **Prove separate installability**\n\n   Build a wheel, install it into a clean virtual environment, and run its tests without the service source tree on `PYTHONPATH`. Then install the service against that wheel and run the import-order and integration tests.\n\n7. **Rescan and gate completion**\n\n   Rerun `crimes scan --format json`. Completion requires:\n\n   - No `api/rendering.py` ↔ `domain/invoicing.py` cycle.\n   - No service import reaching into tax internals.\n   - No new high-severity findings.\n   - Tax wheel imports and tests pass independently.\n\nThe clock, large-function, blocking-I/O, and naming findings should remain explicitly tracked as follow-up debt rather than expanding this extraction into a broad refactor.",
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/rendering.py",
+        "observed": "api/rendering.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tax/rules/regional/eu/vat_bands.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import",
+      "crime_00009": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import",
+      "`stale` = <comparison> at line 79 in summarise()": "boolean_naming_drift",
+      "convention: is_ / has_ / should_ / can_ prefix, or an idiomatic bare name": "boolean_naming_drift",
+      "local bindings only — class attributes, instance attributes and annotated declarations are published interface, not a naming choice a reader can make freely": "boolean_naming_drift"
+    }
+  }
+}
