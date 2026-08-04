@@ -23,7 +23,13 @@
 
 import { spawn } from "node:child_process";
 
-const SUMMARY = /Checked \d+ files? in /;
+// Biome names the summary line after the verb it performed: `Checked`
+// for a read-only pass, `Formatted` for `format --write`, `Fixed` for a
+// write pass that applied changes. Missing one of these is a silent
+// scoring failure of exactly the kind this guard exists to prevent —
+// the step would fail on a *successful* run — so the list is widened
+// rather than the check narrowed to one entry point.
+const SUMMARY = /(?:Checked|Formatted|Fixed) \d+ files? in /;
 const ABNORMAL = /terminated abnormally/;
 
 const args = process.argv.slice(2);
