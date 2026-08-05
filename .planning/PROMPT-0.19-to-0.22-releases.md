@@ -208,6 +208,26 @@ Charge name → detector, so you can find them:
 
 ## Step 0 — before planning anything past R1
 
+> **DONE (2026-08-05).** Results in
+> [`docs/dogfooding/2026-08-05-choreograph-reverify.md`](../docs/dogfooding/2026-08-05-choreograph-reverify.md).
+> choreograph.cc was available locally, so the *exact* snapshot the notes
+> were written against (`5107cce`) was scanned by both builds.
+>
+> - The notes were written against **`0.17.0`** — 498/34/268/196 vs the
+>   notes' 499/34/269/196. Hypothesis confirmed.
+> - `main` gives **491** — a **−1.4%** delta. **Nothing comes out of the
+>   plan; all nine complaints reproduce**, four of them with byte-identical
+>   evidence strings.
+> - **Where this document was wrong:** "`commented_out_code` … the 499 may
+>   already be substantially smaller" — `commented_out_code` fires twice on
+>   this repo in both builds, and `parallel_destination` fires zero times.
+>   The airflow headline did not transfer. A corpus-wide delta is not a
+>   prediction for an individual repo.
+> - **R2 is re-ordered on evidence:** `--changed --base main` returns
+>   **zero** on the clean tree the notes' workflow actually starts from. It
+>   is the *post-edit* default, not "the" agent default. Scope-to-a-plan
+>   (R2.2) is promoted to R2's lead item. See §"Result 4" in the re-verify.
+
 Re-run the field notes against `main`, on a repo of the same shape
 (Next.js App Router, TypeScript strict, no tests). `cal.com` and
 `posthog` are in the corpus and are the closest available; better still,

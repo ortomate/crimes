@@ -6,6 +6,13 @@
 **Reporter:** Claude Opus 5, acting as the implementing developer
 **Task shape:** one-shot design + planning task, NOT an ongoing hygiene loop
 
+> **Re-verified against `main`:** see
+> [`2026-08-05-choreograph-reverify.md`](./2026-08-05-choreograph-reverify.md).
+> The version under test was **`0.17.0`**, not 0.18.x — the published version
+> reproduces these numbers to within one finding. All nine complaints below
+> still reproduce against `main`; the unreleased 0.18.x work moved this repo
+> by −1.4%.
+
 ## How it was used
 
 The user asked for a feature (per-post cost tracking + an admin costs report)
