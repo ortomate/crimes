@@ -4,7 +4,32 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current version:** `crimes@0.17.0` ✅ shipped — calibration, and
+- **Current version:** `crimes@0.19.0` ✅ shipped — **the backlog
+  release**, the largest span the project has published: 50 commits,
+  ~30 defect fixes, four features, two `schema_version` bumps
+  (`0.4.0` → **`0.6.0`**). `0.18.0`–`0.18.4` were internal
+  eval-baseline markers, never published; everything they carried
+  lands here. **Two JSON migrations**: `0.5.0` renames
+  `scores.blast_radius_importers` → `blast_radius_transitive_importers`
+  and adds `blast_radius_direct_importers`; `0.6.0` adds a required
+  `fingerprint` to every finding. **Pinned suppression / baseline
+  entries for twelve more detectors need re-recording** —
+  `crimes feedback recheck` surfaces them, and re-recording works now
+  (before `1499b5e` it was a silent no-op by id and a hard reject by
+  fingerprint). **The postinstall script is removed** — npm ≥ 11.18
+  turned it into an `allow-scripts` approval prompt, which was the only
+  crimes-specific output on a fresh install. Measured on real repos:
+  airflow `commented_out_code` 8,019 → 45, n8n editor-ui
+  `parallel_destination` 2,819 → 0 (first detector shipped gated off),
+  `pass_through_abstraction` fabricated chains 7 → 0, airflow
+  claimed-silent Python tests −27.1% via a repo-wide symbol index.
+  `agent_risk` stops being a length ranking, `blast_radius` moves to a
+  log scale, and repo-level findings get their own section in the human
+  view. Also fixed: `detectors.enable` naming a gated detector used to
+  disable the other 68 — the tool's own remediation advice gutted the
+  scan. Release notes:
+  [`docs/releases/v0.19.0.md`](./releases/v0.19.0.md).
+- **Previous version:** `crimes@0.17.0` ✅ shipped — calibration, and
   the first wire-format change. `schema_version` `0.3.0` → `0.4.0`:
   `Finding` gains an optional `discriminator` that `fingerprintFinding`
   folds in, so the three detectors that can report several findings per
@@ -18,7 +43,7 @@ mirror, not a planning doc.
   index builders no longer open every candidate file at once, and
   `exact_duplicate_block` evidence is reproducible run-to-run. Release
   notes: [`docs/releases/v0.17.0.md`](./releases/v0.17.0.md).
-- **Previous version:** `crimes@0.16.0` ✅ shipped — the correctness
+- **Earlier:** `crimes@0.16.0` ✅ shipped — the correctness
   and authority slate. Ten detectors that ask what code does when
   something goes wrong (`swallowed_error`, `unsafe_retry`,
   `unbounded_async_fanout`, `mock_saturation`) and where a repo keeps
@@ -29,7 +54,7 @@ mirror, not a planning doc.
   Schema stayed `0.3.0` in that release; fingerprints and existing
   detector meanings unchanged. Release notes:
   [`docs/releases/v0.16.0.md`](./releases/v0.16.0.md).
-- **Earlier:** `crimes@0.15.0` ✅ shipped —
+  Previous: `crimes@0.15.0` ✅ shipped —
   polyglot IA + monorepo coverage, and the release the whole
   wider-codebase-support arc was building toward. Three cross-language
   detectors report disagreements *between* Python and TypeScript that

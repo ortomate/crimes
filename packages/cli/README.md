@@ -15,6 +15,35 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.19.0` headline:** the backlog release — the largest span the
+project has published. 50 commits, ~30 defect fixes, four features, and
+two `schema_version` bumps (`0.4.0` → **`0.6.0`**). `0.18.0`–`0.18.4`
+were internal eval-baseline markers and were never published, so
+everything they carried lands here.
+
+**Installing is clean again.** npm ≥ 11.18 blocks install scripts by
+default, so the only crimes-specific output on a fresh install was a
+security warning asking you to approve arbitrary code execution — for a
+seven-line banner npm swallowed anyway. The postinstall script is gone.
+
+**Two JSON migrations.** `0.5.0` renamed
+`scores.blast_radius_importers` → `blast_radius_transitive_importers`
+and added `blast_radius_direct_importers` (the old name promised "N
+files import this" and delivered the transitive closure — on `hono`,
+5 vs 240 on the same file). `0.6.0` adds a required `fingerprint` to
+every finding, the handle `crimes ignore` / `unignore` / `feedback` /
+`triage` all accept. **Pinned entries for twelve more detectors need
+re-recording**; `crimes feedback recheck` surfaces them.
+
+Measured on real repositories: `commented_out_code` on airflow **8,019
+→ 45** (7,320 were the Apache licence header), `parallel_destination`
+on n8n's editor-ui **2,819 → 0** (first detector to ship gated off),
+`pass_through_abstraction`'s fabricated 0.98-confidence chains **7 →
+0**, airflow's claimed-silent Python tests **−27.1%** via a repo-wide
+symbol index. `agent_risk` stops being a length ranking; `blast_radius`
+moves to a log scale; whole-repo findings get their own section in the
+human view.
+
 **`0.17.0` headline:** calibration, and the first wire-format change —
 `schema_version` `0.3.0` → `0.4.0`. `Finding` gains an optional
 `discriminator` that `fingerprintFinding` folds in, so the three

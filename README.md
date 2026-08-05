@@ -129,9 +129,60 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.17.0`
+## Status — `crimes@0.19.0`
 
-`crimes@0.17.0` is the latest version. It is **a calibration release**,
+`crimes@0.19.0` is the latest version. It is **the backlog release** —
+the largest span the project has published. 50 commits, ~30 defect
+fixes, four features, and two `schema_version` bumps
+(`0.4.0` → **`0.6.0`**).
+
+`0.18.0` through `0.18.4` were internal eval-baseline markers and were
+never published, so everything they carried lands here.
+
+**If you consume the JSON, two migrations apply.** `0.5.0` renamed
+`scores.blast_radius_importers` → `blast_radius_transitive_importers`
+and added `blast_radius_direct_importers` — the old name promised "N
+files import this" and delivered the transitive closure, and on `hono`
+those differ by 5 vs 240 on the same file. `0.6.0` adds a required
+`fingerprint` to every finding, which is the handle `crimes ignore`,
+`unignore`, `feedback` and `triage` all accept and which the JSON did
+not contain. See
+[Migrating from `0.4.0` to `0.5.0`](./docs/json-schema.md#migrating-from-040-to-050).
+
+**Pinned suppressions and baselines for twelve more detectors need
+re-recording** (the fingerprint-collision work `0.17.0` started, run to
+completion). `crimes feedback recheck` surfaces them with a
+per-detector reason — and re-recording actually works now: before
+`1499b5e`, `crimes ignore` on a discriminated finding was a silent
+no-op by id and a hard reject by fingerprint.
+
+**Installing is clean again.** npm ≥ 11.18 blocks install scripts by
+default, so the only crimes-specific output on a fresh install was a
+security warning asking the user to approve arbitrary code execution —
+in exchange for a seven-line banner npm swallowed anyway. The
+postinstall script is gone; bare `crimes` was always the reliable
+onboarding surface.
+
+The biggest measured wins are all on real repositories:
+`commented_out_code` on airflow **8,019 → 45** (7,320 of them were the
+Apache licence header), `parallel_destination` on n8n's editor-ui
+**2,819 → 0** (now the first detector to ship gated off),
+`pass_through_abstraction`'s fabricated 0.98-confidence chains **7 →
+0**, and airflow's claimed-silent Python tests **−27.1%** via a
+repo-wide symbol index.
+
+And the worst-shaped defect in the release: `crimes scan` told users to
+write `"detectors": { "enable": ["parallel_destination"] }`, and
+`enable` was a pure allowlist — so following the tool's own advice
+verbatim **turned off the other 68 detectors and the entire asset
+pass, with no warning** (13 findings became 1). `enable` is now
+additive for gated ids.
+
+Release notes: [`docs/releases/v0.19.0.md`](./docs/releases/v0.19.0.md).
+
+### Earlier `0.17.0` work (_calibration, and the first wire-format change_)
+
+`0.17.0` was **a calibration release**,
 and the first one to change the wire format: `schema_version` goes
 `0.3.0` → `0.4.0`.
 
@@ -165,7 +216,7 @@ map insertion order used to track which read finished first.
 
 Release notes: [`docs/releases/v0.17.0.md`](./docs/releases/v0.17.0.md).
 
-### Earlier `0.16.0` work (_correctness and authority_)
+#### Earlier `0.16.0` work (_correctness and authority_)
 
 `0.16.0` is **the correctness and
 authority slate** — ten detectors that ask a different question from

@@ -19,7 +19,7 @@ Core principles:
 - Evidence before judgement. Every finding cites concrete AST or git
   evidence (line ranges, churn counts, import patterns).
 - JSON output is the product contract. Every report carries a
-  `schema_version` (currently `"0.3.0"`) and a `report_type`
+  `schema_version` (currently `"0.6.0"`) and a `report_type`
   discriminator (`"scan"`, `"context"`, `"hotspots"`, `"diff"`,
   `"baseline"`, `"baseline_check"`, `"verdict"`, `"explain"`,
   `"suppressions"`, `"audit_suppressions"`, `"triage"`). Breaking
@@ -34,7 +34,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest v0.17.0)
+## Commands (latest v0.19.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -340,7 +340,101 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.17.0 — calibration, and the first wire-format change (current release)
+## 0.19.0 — the backlog release (current release)
+
+The largest span the project has published: 50 commits, ~30 defect
+fixes, four features, two `schema_version` bumps (0.4.0 -> 0.6.0).
+Versions 0.18.0 through 0.18.4 were internal eval-baseline markers and
+were never published to npm, so everything they carried lands here.
+
+Two JSON migrations:
+
+- **0.5.0** renames `scores.blast_radius_importers` to
+  `scores.blast_radius_transitive_importers` and adds
+  `scores.blast_radius_direct_importers`. The old name promised "N files
+  import this" and delivered the transitive closure — every file that can
+  reach it. On the hono corpus `src/utils/mime.ts` has 5 direct importers
+  and a closure of 240.
+- **0.6.0** adds a required `fingerprint` field to every finding, plus an
+  optional `score_rationale`. The fingerprint is the handle `crimes
+  ignore`, `unignore`, `feedback` and `triage` all accept, and the JSON
+  did not contain it — consumers had to rebuild it from other fields and
+  hope their construction matched.
+
+Migration: pinned baseline and suppression entries for twelve more
+detectors stop matching and need re-recording — `commented_out_code`,
+`weak_test_signal`, anonymous `large_function`, `unbounded_async_fanout`,
+`swallowed_error`, `contract_drift`, `logic_in_comments`,
+`duplicate_component_shape`, `name_behavior_mismatch`,
+`duplicated_role_status_plan_check`, `negative_flag_maze`,
+`return_shape_roulette`. For the symbol-bearing ones only the ambiguous
+findings move. `crimes feedback recheck` surfaces them with a
+per-detector reason.
+
+The install is clean again. npm 11.18+ blocks install scripts by default,
+so the only crimes-specific output on a fresh `npm i crimes` was a
+security warning asking the user to approve arbitrary code execution —
+spent on a seven-line welcome banner npm swallowed anyway. The
+postinstall script is removed; bare `crimes` prints the same onboarding.
+
+Detector fixes, measured on real repositories:
+
+- `commented_out_code` matched English prose: airflow 8,019 -> 45
+  findings, 7,320 of which were the Apache licence header (41.2% of a
+  17,745-finding report). Matching now requires code syntax.
+- `parallel_destination` produced 2,819 findings from 134 files, 52.8%
+  of n8n's editor-ui package. It is now the first detector to ship gated
+  off by default, announced on stderr when it sits out.
+- `pass_through_abstraction` fabricated call chains from shared method
+  names — n8n reported a 0.98-confidence chain starting at
+  `Set.prototype.has` joining four unrelated registries. 7 chains -> 0.
+- `cross_language_route_drift` accused PostHog's `/api/projects/*` of
+  drifting from a Stripe mock. An orphan is now reported only when the
+  backend declares a route sharing its first path segment.
+- `scope-class` never-reportable policy is enforced once in `scan`
+  rather than per detector: 15 airflow files carrying 44 findings, all
+  from the ~50 detectors that predate the check. airflow 44 -> 0.
+- `boolean_naming_drift` flagged published API (`Serializer(many=True)`,
+  `strip_whitespace`, `fail_fast`) at effort "quick". Now scoped to
+  unannotated locals inside a function. drf 7 -> 1, pydantic 34 -> 20.
+- `sync_io_in_hotpath` reports one finding per enclosing function:
+  airflow span median 8 -> 1 line, max 4,196 -> 185.
+- `hotspots` ranked manifest churn first; hono's #1 moves from
+  `package.json` to `src/adapter/aws-lambda/handler.ts`.
+- Python test detection: nested `test_*` functions are no longer counted
+  as tests, `pytest.warns` and `@pytest.mark.xfail` are credited, and a
+  repo-wide Python symbol index resolves cross-file assertion helpers
+  through the MRO. airflow claimed-silent tests -27.1%.
+
+Features:
+
+- `agent_risk` stops being a length ranking. Severity is no longer an
+  input; findings classify as structural / agent_signal / standard with
+  a measured ceiling on the first. zulip/zerver top-20 structural 18 -> 0.
+- `blast_radius` moves to a log scale with a direct-fan-in tiebreaker;
+  the old score saturated at 1.0 on 47% of findings.
+- A `Repo-level` section in the human report, so whole-repo findings
+  (`dependency_provenance_gap`, `agent_permission_sprawl`) are visible
+  instead of being in the JSON and nowhere in the view.
+- `score_rationale` carries score derivation, so `evidence` goes back to
+  being receipts a reader can check.
+
+Safety fix worth naming: `crimes scan` told users to write
+`"detectors": { "enable": ["parallel_destination"] }` when a gated
+detector sat out — and `enable` was a pure allowlist, so following that
+advice turned off the other 68 detectors and the entire asset pass with
+no warning (13 findings became 1). Naming a gated detector in `enable`
+is now additive.
+
+Deliberately not changed: `mixed_utc_local_methods` was reported as
+unable to fire on modern Python. The premise is wrong — 728 of airflow's
+740 `utcnow()` receivers resolve to a timezone-aware wrapper, so matching
+them would have produced ~728 high-confidence false positives. Zero
+findings is the correct answer, and a regression test pins it.
+
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.19.0.md
+
+## 0.17.0 — calibration, and the first wire-format change
 
 The first release to move `schema_version`: 0.3.0 -> 0.4.0.
 
