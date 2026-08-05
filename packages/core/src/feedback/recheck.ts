@@ -56,7 +56,10 @@ export function resurfacedSuppressions(
       type: e.type,
       reason: e.reason,
       crimes_version_pinned: e.crimes_version_pinned,
-      hint: releaseNoteFor(e.type, currentMinor),
+      // Pass the pin as well as the current minor: a user upgrading
+      // 0.17 → 0.19 crossed 0.18's changes too, and looking up the
+      // current minor alone would tell them nothing changed.
+      hint: releaseNoteFor(e.type, currentMinor, minorKey(e.crimes_version_pinned)),
     };
     if (e.file !== undefined) hit.file = e.file;
     if (e.symbol !== undefined) hit.symbol = e.symbol;

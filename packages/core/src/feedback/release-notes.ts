@@ -1,12 +1,14 @@
+import { compareMinor, minorKey } from "../suppressions-version.js";
+
 /**
  * Per-detector release-notes map used by `crimes feedback recheck`.
- * Keyed by (detector_id, target_minor) — when a suppression resurfaces
- * for re-confirmation, we look up "what changed for this detector in
- * the current minor?" so the user can decide whether to push the pin
+ * Keyed by (detector_id, minor) — when a suppression resurfaces for
+ * re-confirmation, we look up "what changed for this detector between
+ * the pin and now?" so the user can decide whether to push the pin
  * forward (`fp`) or mark the finding resolved (`tp`).
  *
  * Entries are added as we ship detector behavioural changes. Falls
- * back to a generic message when no entry exists for the pair.
+ * back to a generic message when nothing changed across the span.
  */
 export const RELEASE_NOTES: Record<string, Record<string, string>> = {
   direct_date: {
@@ -44,10 +46,42 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
   weak_test_signal: {
     "0.17":
       "Fingerprints now carry the test's title as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every test in the file — re-record it against the test you meant.",
+    "0.18":
+      "Python: nested test_* functions are no longer counted as tests, pytest.warns and @pytest.mark.xfail are credited as assertions, and a repo-wide symbol index resolves assertion helpers in other modules through the MRO. Likely resolved — airflow's claimed-silent tests fell 27.1%. Known limitation: two tests with identical titles in one file still share a fingerprint.",
   },
   commented_out_code: {
     "0.17":
       "Fingerprints now carry a hash of the comment block as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every block in the file — re-record it against the block you meant.",
+    "0.18":
+      "Matching now requires code syntax rather than bare code-ish words, so prose no longer fires. Likely resolved if your pin was on a licence header or a doc comment — airflow went 8,019 findings to 45.",
+  },
+  parallel_destination: {
+    "0.18":
+      'Now ships gated off by default (the first detector to do so) — it produced 2,819 findings from 134 files on n8n\'s editor-ui. Your pin is inert unless you opt in with "detectors": { "enable": ["parallel_destination"] }.',
+  },
+  pass_through_abstraction: {
+    "0.18":
+      "Chains are no longer built from shared method names: a member call is not followed at all, and a cross-file step requires the target to be exported. Likely resolved — n8n went from 7 chains at confidence ≥0.9 to 0.",
+  },
+  cross_language_route_drift: {
+    "0.18":
+      "An orphaned frontend route is only reported when the backend declares at least one route sharing its first path segment, so a sidecar service is no longer compared against the whole frontend. Likely resolved if your pin was on a HIGH finding naming an unrelated backend.",
+  },
+  boolean_naming_drift: {
+    "0.18":
+      "Python: scoped to unannotated locals inside a function. Class attributes, instance attributes and annotated bindings are excluded, so published API (Serializer(many=True), strip_whitespace) no longer fires. Likely resolved — drf went 7 to 1, pydantic 34 to 20.",
+  },
+  sync_io_in_hotpath: {
+    "0.18":
+      'Python: one finding per enclosing function rather than per module, so symbol, lines and evidence describe the same code (airflow span median 8 to 1 line). Django management commands and @cache-decorated functions are exempt. Re-record the pin against the function you meant. Known limitation: `if __name__ == "__main__"` scripts still classify as domain code.',
+  },
+  agent_permission_sprawl: {
+    "0.18":
+      "Repo-level findings now render in their own section of the human report rather than being buried under per-file groups. The finding itself is unchanged — only its visibility.",
+  },
+  dependency_provenance_gap: {
+    "0.18":
+      "tsconfig path aliases are collected from every tsconfig under apps/ / packages/ / libs/ / services/, not just a root one, and the `.`/`..` relative-path guard is fixed. Likely resolved if your pin was on an aliased specifier in a monorepo.",
   },
   logic_in_comments: {
     "0.17":
@@ -91,9 +125,38 @@ export const RELEASE_NOTES_FALLBACK =
   "detector behaviour unchanged. Re-confirm or mark resolved." as const;
 
 /**
- * Look up the release-notes hint for a (detector_id, target_minor)
- * pair. Returns {@link RELEASE_NOTES_FALLBACK} when there's no entry.
+ * Look up the release-notes hints a user crossed when upgrading.
+ *
+ * With `pinnedMinor`, returns every note in `(pinnedMinor, targetMinor]`
+ * joined oldest-first. Without it, returns the note for `targetMinor`
+ * alone.
+ *
+ * The span, not the single minor, is the honest unit. This lookup keyed
+ * on the target minor *exactly* until 0.19.0, so every note went
+ * unreachable the moment the next minor shipped — 0.18.0 silently
+ * orphaned all fifteen 0.17 notes, and 0.18.0–0.18.4 were never
+ * published, so a real user upgrading 0.17 → 0.19 crosses two minors of
+ * changes at once. Under the old lookup they were told "detector
+ * behaviour unchanged" about the fingerprint change that invalidated
+ * their pin. A check that returns the fallback for a perfectly valid
+ * input is failing closed on correct input.
  */
-export function releaseNoteFor(detectorId: string, targetMinor: string): string {
-  return RELEASE_NOTES[detectorId]?.[targetMinor] ?? RELEASE_NOTES_FALLBACK;
+export function releaseNoteFor(
+  detectorId: string,
+  targetMinor: string,
+  pinnedMinor?: string,
+): string {
+  const notes = RELEASE_NOTES[detectorId];
+  if (!notes) return RELEASE_NOTES_FALLBACK;
+  if (pinnedMinor === undefined) {
+    return notes[minorKey(targetMinor)] ?? RELEASE_NOTES_FALLBACK;
+  }
+  const crossed = Object.keys(notes)
+    .filter(
+      (minor) =>
+        compareMinor(minor, pinnedMinor) > 0 && compareMinor(minor, targetMinor) <= 0,
+    )
+    .sort(compareMinor);
+  if (crossed.length === 0) return RELEASE_NOTES_FALLBACK;
+  return crossed.map((minor) => `${minor}: ${notes[minor]}`).join(" ");
 }
