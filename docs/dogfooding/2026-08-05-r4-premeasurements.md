@@ -113,3 +113,58 @@ evals/fixtures/12-py-tested/
 ```
 
 Needs its own eval baseline, since it changes what the agents are shown.
+
+---
+
+## `transitiveImporterCount` counts a file as its own importer — measured, and the answer is no change
+
+**The entry:** "Left deliberately; it is the number `blast_radius`
+normalises. Now that `blast_radius` is log-scaled with a direct-count
+term, worth revisiting."
+
+Two things were measured.
+
+**First, the saturation that motivated the log scale is gone.**
+`blast_radius == 1.0` used to sit on **47%** of findings, which is what
+`0.18.1` set out to fix:
+
+| repo | files with a transitive count | `blast_radius == 1.0` |
+|---|---|---|
+| choreograph.cc | 208 | **0 (0.0%)** |
+| crimes (self-scan) | 1,136 | **0 (0.0%)** |
+| hono | 152 | **0 (0.0%)** |
+| cal.com | 2,079 | **0 (0.0%)** |
+
+The log scale worked. There is no longer a compressed band at the top
+for an off-by-one to hide in — but there is also no longer a score
+crying out for correction.
+
+**Second, how many files the self-count can even reach:**
+
+| repo | files on a reported cycle | share |
+|---|---|---|
+| choreograph.cc | 0 of 207 | 0.0% |
+| crimes (self-scan) | 1 of 1,169 | 0.1% |
+| hono | 4 of 152 | 2.6% |
+
+**Disposition: no change, and this is the §15 shape** — the entry's
+premise is sound but acting on it buys nothing. The defect is real (a
+file on a cycle counts itself), it is confined to 0–2.6% of files, and
+its magnitude is **+1 on a log-scaled input**. Changing it would move a
+handful of scores by less than a rounding step and invalidate a
+baseline for the privilege.
+
+What is *not* wrong is the honesty: the function's doc comment already
+says what it computes —
+
+> the result is "files that can reach this one, plus this one if it is
+> cyclic", not a fan-in count
+
+— and `blast_radius_direct_importers` has existed since `0.5.0` for
+anyone who wants the fan-in number. Nothing is lying, which was the
+original reason for leaving it.
+
+**This entry can be closed as measured-and-declined** rather than
+carried forward again. It interacts with `high_fan_in_fan_out`'s
+type-only rule from `0.21.0` only in principle: that change touches
+which *severity* a fan-in gets, not what the count is.
