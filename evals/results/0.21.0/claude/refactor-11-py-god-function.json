@@ -1,0 +1,88 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "claude",
+  "crimes_version": "0.21.0",
+  "timestamp": "2026-08-05T04:12:30.156Z",
+  "run_id": "983b463c-8ee2-4c9a-8da4-2f66671d0f4b",
+  "response": "## The verdict: `build_invoice` (`domain/invoicing.py:15–75`)\n\nFour of the nine findings converge on this one function, and it carries the report's highest `agent_risk` (0.47 via `mixed_utc_local_methods`, plus 0.45 `direct_date`, 0.30 `large_function`, 0.30 `circular_dependency`):\n\n| Finding | Where it lands inside `build_invoice` |\n|---|---|\n| `mixed_utc_local_methods` | lines 20, 21, 53 |\n| `direct_date` | lines 20, 21, 53 |\n| `large_function` | the whole body, 15–75 |\n| `circular_dependency` | line 9's `format_money` import, consumed at line 72 |\n\nThe `sync_io_in_hotpath` findings score similarly (0.41) but have `blast_radius: 0` — nothing imports `api/routes.py`. They're severe and *contained*. `build_invoice` has 3 transitive importers and is where the wrong edits propagate.\n\n## What makes it risky beyond its length\n\n**1. Two clock conventions on adjacent lines, with identical types.**\n\n```python\nissued       = datetime.now()      # naive LOCAL\nperiod_start = datetime.utcnow()   # naive UTC\n```\n\nBoth are `datetime`. Nothing — annotation, name, or runtime check — distinguishes them. An agent told \"`utcnow()` is deprecated since 3.12\" makes the standard mechanical fix, `datetime.now(timezone.utc)`, which returns an **aware** datetime. Now `period_start` and `issued_at` are different kinds sharing a dict. Comparing them raises `TypeError`. Nothing in this repo compares them, so every test still passes; the failure lands in one of the 3 transitive importers, in a different file, at runtime.\n\n**2. The trap is in a different function from the edit.**\n\n`summarise()` at line 79 does `invoice[\"issued_at\"] < datetime.now()`. That comparison is correct today only because line 20 happens to also be naive-local. Change line 20 to be timezone-aware — the correct fix — and `summarise()` breaks. An agent editing `build_invoice` has no local signal that line 79 exists.\n\n**3. Line 53 compares a caller-supplied datetime to the local clock.**\n\n```python\nexpired = coupon.get(\"expires_at\") < datetime.now()\n```\n\n`expires_at` comes from outside. If the coupon store yields aware datetimes (what a `timestamptz` column or an injected fixed clock gives you), this is `TypeError`. If it yields naive **UTC**, the comparison is silently wrong by the host's offset — and it's wrong in a *directional* way: west of UTC, `datetime.now()` runs behind true UTC, so coupons that expired hours ago still read as live and over-discount. A UTC-configured CI runner makes both sides agree, so the suite endorses the bug and only production drifts. (`.get()` returning `None` is also an unguarded `TypeError`.)\n\n**4. The module does not currently import at all.** The scan hedges — \"depending on which module the process imports first, this *can* raise ImportError.\" In this fixture it raises in **both** directions; I ran it:\n\n```\nimport domain.invoicing → ImportError: cannot import name 'LINE_ITEM_CAP' from partially initialized module\nimport api.rendering    → ImportError: cannot import name 'format_money' from partially initialized module\n```\n\nBoth ends import a name defined *after* their reciprocal import statement (`LINE_ITEM_CAP` at line 12 sits below the import at line 9). There's no lucky ordering. This is why cycle-breaking is step 0: you can't write a characterization test for `build_invoice` until the module loads.\n\n**5. Five untyped positional parameters, four of them duck-typed dicts.** No agent can tell from the signature what `options` must contain. It's threaded through to `format_money`, which reads only `locale` — but `routes.py:26` passes `{\"rates\": rates}`, so `locale` is never set and `display_total` is silently always `£`. The domain layer reaching into presentation is what creates both the cycle and this bug.\n\n**6. Two latent value bugs an extraction will disturb.** The `fixed` coupon branch clamps with `min(coupon[\"value\"], subtotal)`; the `percent` branch doesn't, and `discount_total += coupon[\"bonus\"]` clamps nothing — so discount can exceed subtotal and `apply_vat` returns a negative \"total\". Any refactor that \"unifies\" those two branches changes behavior. Separately, `total` holds a VAT-**inclusive** amount while `subtotal` and `discount` are pre-tax, and there's no `tax` field — the key name misleads.\n\n## Refactor plan\n\n### Step 0 — break the cycle first (unblocks everything else)\n\nDon't move the import inside a function; that hides the cycle from every static reader without removing it. Two moves:\n\n**a.** Extract the shared constant into a leaf module:\n\n```python\n# domain/constants.py — imports nothing\nLINE_ITEM_CAP = 500\n```\n\nBoth `domain/invoicing.py` and `api/rendering.py` import from there. The `domain → api` edge is now the only one left.\n\n**b.** Delete that edge by removing rendering from the domain. Drop `display_total` from `build_invoice`'s return and let the caller format:\n\n```python\n# api/routes.py\ninvoice = build_invoice(...)\nreturn {**invoice, \"display_total\": format_money(invoice[\"total\"], options)}\n```\n\n`options` then stops being a pass-through the domain doesn't understand, and the missing-`locale` bug becomes visible at the one place that owns locale.\n\n**Verify:** `python -c \"import domain.invoicing; import api.rendering\"` succeeds in both orders.\n\n### Step 1 — characterization tests before touching logic\n\nNow that it imports, pin current behavior: subscription annual/prepaid/monthly, usage over and under `LINE_ITEM_CAP`, the default branch, zero/negative quantity skipping, percent vs. fixed coupon, stackable bonus, expired coupon. Pass `expires_at` as both naive and aware in separate tests — that asymmetry is the thing you're about to change, and it should be visible as a test that starts failing deliberately.\n\n### Step 2 — one clock convention, injected\n\nSingle aware-UTC convention, one seam:\n\n```python\ndef build_invoice(customer, line_items, coupon, region, options, *, now=None):\n    now = now or (lambda: datetime.now(timezone.utc))\n    issued = period_start = now()\n```\n\nThen fix the two consequences the injection exposes, in the same commit:\n\n- `summarise()` must take the same `now` (it currently reads the clock independently at line 79) — otherwise it compares aware against naive.\n- Line 53 must normalize: reject or coerce a naive `expires_at` at the boundary rather than comparing it. `if expires_at.tzinfo is None: expires_at = expires_at.replace(tzinfo=timezone.utc)` — an explicit assumption beats a silent offset error. Guard the missing-key case too.\n\nConvert to local only at the presentation boundary in `api/`.\n\n### Step 3 — extract pure helpers, keep the orchestrator thin\n\nThe nesting-5 pyramid is one concern: per-item pricing. It's already pure.\n\n```python\ndef price_line_item(item):        # -> (line_total, warning | None)\ndef price_line_items(items):      # -> (subtotal, skipped, warnings)\ndef discount_for(coupon, subtotal, now):  # -> float\n```\n\n`price_line_item` collapses the depth-5 nest into depth-2 in a function you can table-test per `kind`. **Preserve the clamping asymmetry exactly** in this step — if you want percent coupons clamped too, that's a behavior change and belongs in its own commit with its own test, not smuggled into an extraction.\n\n`build_invoice` becomes ~15 lines of orchestration: read the clock once, price items, apply discount, apply VAT, assemble.\n\n### Step 4 — name the output honestly\n\nRename `total` → `total_inc_vat` and add an explicit `tax` field, so a future agent adding a tax line doesn't have to reverse-engineer whether VAT is already in there. While in the file, `stale` → `is_stale` (`crime_00009`) and `expired`/`stackable` → `is_expired`/`is_stackable` — same class of drift, uncaught because they're inside the function body.\n\n### Sequencing note\n\nSteps 0 and 1 are prerequisites, not preferences — the module doesn't load and there is no test coverage, so any edit before them is unverified. Steps 2 and 3 are independent of each other and can land in either order. Step 4 is cosmetic and safe last.\n\nI did not touch the `sync_io_in_hotpath` findings in `api/routes.py` — they're real (blocking `requests.get`, `open`, `subprocess.run`, and `time.sleep(2)` inside `async def` handlers, stalling the event loop for all concurrent requests) but they're a separate fix in a separate file, and they have zero importers to propagate through.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import",
+      "crime_00009": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import",
+      "`stale` = <comparison> at line 79 in summarise()": "boolean_naming_drift",
+      "convention: is_ / has_ / should_ / can_ prefix, or an idiomatic bare name": "boolean_naming_drift",
+      "local bindings only — class attributes, instance attributes and annotated declarations are published interface, not a naming choice a reader can make freely": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "mixed_utc_local_methods",
+        "passed": false
+      }
+    ]
+  }
+}

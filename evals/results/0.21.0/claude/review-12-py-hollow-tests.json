@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.21.0",
+  "timestamp": "2026-08-05T04:21:57.995Z",
+  "run_id": "301f0de4-49f2-477f-a95d-53e7bca7067a",
+  "response": "I read the fixture as well as the scan, and decoded the `.coverage` file, because the scan alone doesn't answer the \"genuinely vs. apparently covered\" question.\n\n## Headline\n\n`coverage` reports **91% total** for this package. The honest number — code whose behaviour is actually asserted — is **one module out of three**.\n\n| Module | Line coverage | Actually verified? |\n|---|---|---|\n| `billing/rates.py` | 100% | Yes — real assertions |\n| `billing/reporting.py` | 90% | No — executed, never checked |\n| `billing/ledger.py` | 83% | No — has no test file at all |\n\n## Genuinely covered: `billing/rates.py`\n\n`tests/test_rates.py` asserts on return values, not on absence of exceptions:\n\n- `rate_for` — `\"GB\" == 0.20`, `\"DE\" == 0.19` (`test_rates.py:7-8`), unknown region falls back to `DEFAULT_RATE` (`test_rates.py:12`). Both the table-hit and the fallback branch are pinned. You can refactor `rate_for` freely; a wrong lookup or a broken default will go red.\n\nOne gap inside the covered module: `is_zero_rated` (`rates.py:17-18`) is only asserted *false*, for `GB` and `FR` (`test_rates.py:16-17`). No rate in `RATES` is zero and `DEFAULT_RATE` is `0.2`, so that assertion passes for literally any input string today. The true branch has never executed. If your refactor introduces a zero-rated region, nothing tests it.\n\n## Only looks covered: `billing/reporting.py`\n\nThis is what `crimes` flagged (`crime_00001`, high, confidence 0.85): 4 of 4 tests in `tests/test_reporting.py`, 0 assertions. Every one calls the function and drops the result on the floor (`test_reporting.py:11-25`).\n\nWhat that means concretely — all of the following changes keep the suite green:\n\n- `build_report` returning `None`, or dropping the `lines` key, or setting `total` to the net instead of the gross (`reporting.py:8-13`).\n- The CSV format string `\"account,total\\n%s,%.2f\"` changing to any other string, or losing a column (`reporting.py:18`).\n- The JSON export returning a different shape (`reporting.py:20`).\n\nThe only property these tests actually enforce is \"does not raise.\" And line 21 — `raise ValueError(\"unsupported format: %s\" % fmt)` — is the one uncovered line in the file: the error path has no test at all, hollow or otherwise.\n\n## Not covered, and misleadingly so: `billing/ledger.py`\n\nThere is no `tests/test_ledger.py`. Its 83% coverage is entirely incidental — `post_entry` gets executed because the hollow reporting tests call `build_report`, which calls it (`reporting.py:3,7`).\n\n- `gross = amount * (1 + rate_for(region))` (`ledger.py:7`) is the actual tax arithmetic in this package. It runs on every test run and is asserted by nothing. Change `1 +` to `1 -`, or multiply twice, and the suite passes.\n- `reverse_entry` (`ledger.py:16-22`) is never called by anything. Only the `def` line counts toward the 83%; the body is the one missed statement. It is completely unprotected.\n\n## The pattern to take into the refactor\n\nThe assertion boundary and the coverage boundary don't line up. Assertions exist only at the leaf (`rates.py`); everything downstream of it is exercised transitively and checked nowhere. So the suite protects *how a rate is looked up* but not *how that rate is applied to money* or *how the result is formatted for export* — which is most of what a billing refactor would touch.\n\nBefore refactoring, the cheapest sequencing is:\n\n1. Add assertions to the four existing `test_reporting.py` tests — the code paths already run, you only need to check the results. This is the `strengthen_assertions` action the scan suggests, effort \"small\".\n2. Write `tests/test_ledger.py` covering `post_entry`'s gross calculation and `reverse_entry`'s sign flip. This is the largest genuine hole and the scan does not report it.\n3. Add a case for `export_report`'s `ValueError` branch and one for `is_zero_rated` returning true.\n\nTwo notes on the tooling: the scan surfaced the hollow tests but scored that finding `test_gap: 0` and `blast_radius: 0`, and it emitted nothing at all about `ledger.py` — `weak_test_signal` finds tests that don't assert, not code that has no tests. The untested-module conclusion above comes from reading the tree, not from the JSON. The scan also warns that `pyproject.toml`, `crimes.config.json` and `.coverage` weren't scanned; that's expected given `include: [\"**/*.py\"]` and doesn't affect this analysis.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

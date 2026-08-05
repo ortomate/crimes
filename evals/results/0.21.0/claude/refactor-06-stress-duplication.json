@@ -1,0 +1,85 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.21.0",
+  "timestamp": "2026-08-05T04:01:41.649Z",
+  "run_id": "3c9528c7-b481-4ed7-ab95-683145f4f9d5",
+  "response": "## Duplication confirmed\n\n`crimes scan --format json` reports 5 findings; three of them are this cluster.\n\n**`crime_00003` — `near_duplicate_block`, medium, confidence 0.85.** One normalised body hash `289f7da71f3a` across 3 files:\n\n| File | Lines | Export |\n|---|---|---|\n| `src/sanitize-a.ts` | 10–36 | `sanitizeUserInput(raw)` |\n| `src/sanitize-b.ts` | 9–35 | `sanitizeText(input)` |\n| `src/sanitize-c.ts` | 9–35 | `cleanMessage(value)` |\n\nI verified this independently rather than trusting the hash: normalising the parameter/local names (`raw`/`working`, `input`/`cleaned`, `value`/`normalised`) and the function name makes all three bodies byte-identical (md5 `b7a0754e…` × 3). There are **no differing constants** — `1000`, `5`, `0.9`, `30` are the same in all three. That matters for the API design below: the scan's generic `fix_shape` (\"pass the differing values as args\") doesn't apply, because nothing differs.\n\nTwo adjacent findings ride along and are worth folding into the same change:\n\n- **`crime_00004`** — `recordSanitiseEvent` is a byte-exact duplicate across `telemetry-a.ts:6-19` and `telemetry-b.ts:6-19`.\n- **`crime_00001`/`crime_00002`** — the `Date.now()` at line 16 of each, which is just the same crime counted twice because the function is copied.\n\nNothing in the fixture imports any of these modules (`blast_radius: 0`, and grep finds zero `import`/`require`). So every exported name is the public surface, but there are no in-repo call sites to update.\n\n## Proposed consolidation\n\n### 1. `src/sanitize.ts` (new) — the one that answers the ask\n\n```ts\n/** Longest string the sanitiser will return. */\nexport const MAX_LENGTH = 1000;\n/** How many `!!!`/`???` runs are tolerated before the input is rejected. */\nexport const MAX_PUNCTUATION_RUNS = 5;\n/** Uppercase ratio (of non-whitespace chars) treated as shouting. */\nexport const SHOUT_RATIO = 0.9;\n/** Below this length, shouting is not down-cased. */\nexport const SHOUT_MIN_LENGTH = 30;\n\n/**\n * Normalise untrusted text: trim, strip control characters, collapse\n * whitespace, truncate, reject markup/escape-looking or punctuation-spam\n * input, and down-case shouting.\n *\n * Returns `\"\"` for rejected input — callers must treat empty as \"dropped\",\n * not as \"unchanged\".\n */\nexport function sanitize(value: string): string {\n  // …the existing body, verbatim, with `value`/`working` as the names\n}\n```\n\n**Signature: `sanitize(value: string): string` — one argument, no options object.** The three copies gave zero evidence of divergence, so an options bag would be speculative generality: four parameters that no caller ever passes and every test has to consider. Exporting the thresholds as named constants gets you the real benefit (they're addressable and assertable in tests) without the cost. If a caller later genuinely needs a different `maxLength`, add a second optional `options?: SanitizeOptions` parameter then — that's a backwards-compatible change, so nothing is lost by waiting.\n\nTwo behaviours to preserve deliberately rather than \"clean up\" during the move:\n\n- The `value === null || value === undefined` guard is unreachable under the type but real at a JS boundary — keep it.\n- The `includes(\"\\\\x\")` check tests for a literal backslash-`x` two-character sequence, and it runs *after* `/[\\u0000-\\u001f]/g` has already stripped real control characters. It is probably not doing what its author intended. Don't fix it in the same commit — but note that once there's one copy, fixing it is a one-line change instead of a three-file hunt. That's the actual argument for consolidating.\n\nAlso write the control-char regex as `/[\\u0000-\\u001f]/g`. The current files contain a **raw NUL byte** inside the character class (verified with `od -c`), which is why `diff` calls them binary.\n\n### 2. `src/telemetry.ts` (new) — clears `crime_00004`, `00001`, `00002`\n\n```ts\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: () => number = Date.now,\n): void\n```\n\nThe injected `now` is the smallest thing that satisfies the `inject_clock` suggested action; the default keeps every call site unchanged.\n\n### 3. `src/policy.ts` — `crime_00005`, and the one call that isn't mechanical\n\n```ts\nexport function isAdmin(role: string): boolean;\nexport function isAdminOrOwner(role: string): boolean;\n```\n\n`canEditBilling` / `canSeeAuditLog` / `canImpersonate` all delegate to `isAdmin`.\n\n**This one needs a decision, not a rewrite.** The three hoisted guards are *not* the same rule:\n\n- `assertAdminA`: `role === \"admin\"` → `isAdmin(role)`\n- `assertAdminB`: `role === \"admin\" || role === \"owner\"` → `isAdminOrOwner(role)` — **a different rule**, not a drifted copy\n- `assertAdminC`: `role !== \"admin\"` → `!isAdmin(role)` at the call site\n\nCollapsing all three into a single predicate would change behaviour. Don't add an `isNotAdmin` helper either — negation belongs at the call site, and a second name for the same rule is how drift starts. The open question for a human is whether `owner` was *meant* to count as admin everywhere; the scan can tell you the checks disagree, it can't tell you which is correct.\n\n## Files that would change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **new** — `sanitize`, threshold constants |\n| `src/telemetry.ts` | **new** — `recordSanitiseEvent` with injected clock |\n| `src/sanitize-a.ts` | body deleted; re-export `sanitize` as deprecated `sanitizeUserInput`; `assertAdminA` → delegates to `isAdmin` |\n| `src/sanitize-b.ts` | same, for `sanitizeText`; `assertAdminB` → `isAdminOrOwner` |\n| `src/sanitize-c.ts` | same, for `cleanMessage`; `assertAdminC` → `!isAdmin(role)` |\n| `src/policy.ts` | add `isAdmin` / `isAdminOrOwner`; the three `can*` functions delegate |\n| `src/telemetry-a.ts` | **deleted** (or a one-line re-export for one release) |\n| `src/telemetry-b.ts` | **deleted** |\n\nSequencing: land the extraction with the deprecated aliases in place so the change is behaviour-preserving and reviewable, then delete `sanitize-a/b/c.ts` in a follow-up once callers move. Since nothing in-repo imports them, that follow-up can be immediate here — the alias step is only worth it if these names are published.\n\nExpected scan delta: all five findings clear. `crime_00003` and `00004` go with the extraction, `00001`/`00002` with the injected clock, and `00005` stops firing because `\"admin\"` then appears in one file and one expression shape rather than four files and two.\n\nOne caveat on the whole plan: there are no tests in this fixture (`test_gap: 0.5` on every finding), so nothing currently proves the three copies behave identically at runtime — only that they're textually identical, which they are. The consolidation is safe on that basis, but a characterisation test against `sanitize` is what makes the *next* edit safe.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "direct_date",
+      "crime_00003": "near_duplicate_block",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_evidence": {
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

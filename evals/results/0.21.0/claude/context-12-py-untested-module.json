@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.21.0",
+  "timestamp": "2026-08-05T03:48:57.005Z",
+  "run_id": "1515046e-11b9-4b28-b729-97817181d618",
+  "response": "I ran the pre-edit checks. Nothing changed on disk.\n\n## What I ran\n\n```\n$ crimes context billing/ledger.py\nCRIMES CONTEXT\nfile: billing/ledger.py\nrisk: NONE  (0 findings)\n\nLikely tests\n  (no test file matched the target basename (looked for siblings, __tests__/ and tests/\n   directories, and the .test / .spec / _test / test_ naming conventions) and no test\n   file imports it)\n\nClues\n  · churn: 1 commits over 90d · last touched 5 days ago · 1 author\n  · test gap: top-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n```\n$ crimes scan\nCRIME SCENE REPORT\nrepo: 12-py-tested  ·  1 finding across 1 file  ·  1 high  0 medium  0 low\n\ntests/test_reporting.py  1 finding · 1 high\n   1. Weak Test Signal · test_build_report()   4 of 4 test functions contain no assertion\n     Risk: churn low · test gap bottom-quartile · blast bottom-quartile (0 direct importers)\n```\n\n## What protection you have if you get it wrong\n\n**Effectively none.** Three layers, all of which fail open:\n\n1. **`reverse_entry` has no direct test.** `likely_tests` is empty, and crimes states the reason rather than leaving it implied: no file matched the `test_` convention *and* no test file imports `billing/ledger.py`. `test_gap: top-quartile` — worst quarter in the repo.\n\n2. **The one test that reaches ledger code asserts nothing.** `tests/test_reporting.py` imports `build_report`, which calls `post_entry`. That is the repo's single high finding: *\"4 of 4 test functions contain no assertion… 0 total assertions across 4 tests.\"* It runs ledger code and would go green no matter what that code returned. So even the indirect coverage is theatre — and note `.coverage` is sitting in the repo, so a line-coverage number here would look reassuring while asserting nothing.\n\n3. **The tests that *do* assert cover the wrong thing.** `tests/test_rates.py` has real assertions, but on `billing/rates.py`. `ledger.py` imports `rate_for` from it, so those tests protect the *rate lookup* your `gross` calculation depends on — not the reversal.\n\nWorth being precise about one thing: `risk: NONE` on `ledger.py` is an absence of findings, not a clean bill of health. crimes flags what it can prove; it found nothing structurally wrong with a 22-line file. The readout says so itself — *\"Suspiciously clean.\"* The risk here lives in the test file, which is why the scan pointed at `tests/test_reporting.py` and not at the code you're about to edit.\n\n## What else the change could affect\n\ncrimes' `related_files` for `ledger.py` lists `rates.py`, `reporting.py` and `__init__.py`, but scored 0.2 each with reason \"same directory\" — that's proximity, not an import edge. I confirmed the actual edges by hand:\n\n- **`billing/reporting.py` → `post_entry`** is the only in-repo import of ledger. It reads `entry[\"gross\"]` for `report[\"total\"]`.\n- **`reverse_entry` has zero in-repo callers.** That is not the same as zero blast radius — it means the caller is outside this repo, so the dict shape it returns (`account` / `net` / `gross` / `region`) is a de facto public contract with no local consumer to break loudly if you change it.\n- **`reverse_entry` hand-mirrors `post_entry`'s key set.** They're two independent literals of the same shape. Add or rename a key in one and the other silently diverges — nothing in the repo compares them.\n- **The `net`/`gross` invariant is implicit.** `post_entry` derives `gross = amount * (1 + rate_for(region))`; `reverse_entry` negates both independently rather than re-deriving. If you change reversal to recompute from the rate instead of negating, you couple it to `rates.py` and a rate change between posting and reversal would no longer round-trip. Nothing tests that round trip — `test_round_trip` is one of the four assertion-free tests, and it doesn't even call `reverse_entry`.\n\n## What I'd do before editing\n\nWrite real assertions for `reverse_entry` first — at minimum that `reverse_entry(post_entry(...))` negates `net` and `gross` while preserving `account` and `region`, and that the key sets match. That converts the change from unprotected to checked, and it's the same fix the scan already suggests for the existing tests: *\"assert on the result, not just that it ran.\"*\n\nCoverage caveat: `crimes.config.json` includes only `**/*.py`, so `pyproject.toml`, `crimes.config.json` and `.coverage` were never read. Nothing there changes the picture, but no detector inspected the pytest config.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

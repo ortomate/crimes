@@ -1,0 +1,96 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "claude",
+  "crimes_version": "0.21.0",
+  "timestamp": "2026-08-05T03:57:33.115Z",
+  "run_id": "80704568-fba0-44e9-abb0-76dcf569b8cd",
+  "response": "I ran the scan (crimes 0.21.0), then read the four files it reports on plus the three manifests it skipped. The plan is below.\n\n## What the scan actually covered\n\nFive findings across three files. Two coverage warnings matter for an extraction specifically: `crimes.config.json` includes only `**/*.{ts,tsx,py}`, so **`pyproject.toml`, `package.json`, and the workspace wiring were never read**. Dependency and build coupling is normally the first risk in a service split, and the scan is silent on it by construction — not because it's clean. I read those separately; see B4.\n\nAlso read the zeros correctly: `blast_radius: 0` on all five findings means *nothing imports these modules*. It does not mean the packages are decoupled. `packages/web` and `packages/api` are coupled entirely over HTTP, which crimes' import graph doesn't count. The whole coupling surface here is the one crimes scored at zero.\n\nAnd `test_gap: 1.0` on all five: there are no tests in this repo at all.\n\n## The finding that reframes the plan\n\ncrime_00005 says one frontend call reaches a path no backend route declares, and flags its own limits: literal path strings only, so runtime-assembled URLs are invisible. That caveat is load-bearing here. Reading `workspace-client.ts`, **all four client functions are broken**, not one:\n\n| Client fn | Problem | Scanner saw it? |\n|---|---|---|\n| `getWorkspace` :18 | `GET /api/workspaces/{id}` — no such route | No — URL is concatenated |\n| `createWorkspace` :23 | `POST /api/workspaces` — no such route | Yes (crime_00005) |\n| `workspaceSeats` :28 | fetches the literal string `/api/teams/:id/seats`; the `id` arg is never substituted | No — normalized as a path param |\n| `changeWorkspacePlan` :34 | same literal `:id`; also `PUT` vs declared `POST`; also drops the `plan` arg entirely | Method only (crime_00003) |\n\nSo this client has never successfully called this backend. That changes the job: you are not preserving a working contract across a new org boundary, you are **establishing one**. Plan accordingly — budget for contract definition, not contract migration.\n\n## Must fix before the split\n\nThe test for \"before\" is: *does the fix require an atomic change on both sides, or would the split freeze in an ambiguity that then needs two teams to resolve?* Today each of these is one PR. After the split each becomes a cross-repo change with deploy ordering and a version negotiation.\n\n**B1 — Plan enum drift (crime_00001, high).** `plans.py:10` has `free, pro, team, scale`; `workspace-client.ts:10` has `free, pro, enterprise`. Three values disagree. This is blocking not because it's hard but because *nobody currently knows the answer*: is `enterprise` a live tier the UI ships that Python would reject, or is it dead? That question needs the people who are about to be split into two orgs. Resolve it while they're still one team.\n\nFix: make Python canonical — billing is the thing being extracted and should own its own plan catalogue — and generate the TypeScript. Ship the generated type as part of the new service's published client package.\n\n**B2 — The wire contract, all four calls (crime_00003, crime_00005, plus the two above).** Individually these are `quick`/`small`. Fix them all before the split anyway, and — more importantly — **replace hand-maintenance with generation before you hand the service over**. Fixing the four drifts without that just resets a clock: they re-drifted once already inside a single repo with a single CI, and after the split there is no shared CI to catch the next one. Emit OpenAPI from the FastAPI route table, generate the client, fail the build on diff. Do this while you can still land generator + backend + frontend in one commit.\n\nNote the ordering trap: you cannot generate a client from the route table and hand it over while the consumer calls paths that don't exist. The generation step *is* what discovers the breakage. Discover it now, not during cutover.\n\n**B3 — The wire name for the tenant concept (half of crime_00004).** Split this finding. The name that appears in **URLs and JSON payloads** ossifies at the split — after that, renaming it is a deprecation cycle across two orgs, not a rename. The names *inside* each codebase are private and can change any time.\n\nRecommendation: keep `team` on the wire. It's what the backend already declares across all four routes, and the backend is the thing being extracted — you don't want to change its public surface in the same change that changes its owner. I'd decline crimes' suggested `organization` here: introducing a *third* name for the concept at the moment you're also changing ownership is worse than committing to one of the two that already exist. Document the mapping in the generated client.\n\n**B4 — `pyproject.toml` declares no dependencies (not a crimes finding).** `routes.py:3` imports `fastapi`; `packages/api/pyproject.toml` has a `[project]` table with name/version/description and no `dependencies` key. You cannot build a deployable image from that manifest. Also settle the import root — `from billing.plans import ...` resolves against `packages/api/`, which works as a monorepo path and won't survive relocation without packaging config. Both are hard blockers on \"deployable service,\" and crimes structurally will not report either while `.toml` is outside the include globs.\n\n## Can follow after the split\n\n**A1 — Internal renames (the other half of crime_00004).** Once the wire name is fixed, `get_team` vs `getWorkspace` is each team's private business. Let the web team rename on their own schedule; it needs no coordination.\n\n**A2 — `getWorkspace` name/behaviour mismatch (crime_00002, medium).** Defer, and I'd mostly discount it. It's in `packages/web`, which isn't moving, so it never crosses the new boundary. The flagged \"side effect\" is `fetch` — a network read inside an `async` function in a file named `workspace-client.ts`. That's idiomatic, not misleading. The real defect on that line is the wrong URL (B2), which the naming finding is adjacent to but doesn't describe.\n\n**A3 — Hardening the generation loop.** Contract tests in the new service's CI, publishing the client to a registry, version-skew policy. Wants the two repos to exist first.\n\n## Sequence\n\n1. Answer the `enterprise` / `team` / `scale` question with the current owners. *(Blocks everything.)*\n2. One PR, single repo: fix all four client calls, unify the enum, emit OpenAPI, generate the client, wire the drift check into CI.\n3. Second PR: declare `fastapi` and the rest in `pyproject.toml`, add packaging config, prove `packages/api` builds standalone.\n4. Add contract tests against the generated client — there are currently zero tests, and after the split there's no shared CI backstop.\n5. Extract. Re-run `crimes scan` on both repos; the four cross-language findings should be gone, and 00002 should be the only one left, in the repo that didn't move.\n\nOne config change worth making regardless: widen `include` to cover `.toml` and `.json` so manifests are in scope. For an extraction, the manifest *is* the deliverable, and right now it's the one file nothing checks.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    },
+    "detector_id_by_evidence": {
+      "packages/api/billing/plans.py:10 — Plan declares [free, pro, team, scale]": "cross_language_type_drift",
+      "packages/web/src/workspace-client.ts:10 — Plan declares [free, pro, enterprise]": "cross_language_type_drift",
+      "shared: free, pro": "cross_language_type_drift",
+      "only in Python: scale, team — the TypeScript side will reject these values": "cross_language_type_drift",
+      "only in TypeScript: enterprise — the Python side will reject this value": "cross_language_type_drift",
+      "side-effect-like calls: fetch": "name_behavior_mismatch",
+      "2 side-effect signals in the function body": "name_behavior_mismatch",
+      "frontend: packages/web/src/workspace-client.ts:34 — PUT /api/teams/:id/plan": "cross_language_route_drift",
+      "backend:  packages/api/billing/routes.py:25 — POST /api/teams/{team_id}/plan (change_team_plan)": "cross_language_route_drift",
+      "methods declared: POST": "cross_language_route_drift",
+      "concept group \"tenant\" is named differently on each side of the boundary": "cross_language_concept_alias_drift",
+      "Python uses: team": "cross_language_concept_alias_drift",
+      "TypeScript uses: workspace": "cross_language_concept_alias_drift",
+      "packages/api/billing/plans.py:10 — docstring of Plan (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:11 — def get_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:16 — def create_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:21 — def team_seats (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:26 — def change_team_plan (team)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:17 — getWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:22 — createWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:27 — workspaceSeats() (workspace)": "cross_language_concept_alias_drift",
+      "preferred form for this group: \"organization\"": "cross_language_concept_alias_drift",
+      "\"organization\"": "cross_language_concept_alias_drift",
+      "1 frontend call reaches a path no backend route declares": "cross_language_route_drift",
+      "packages/web/src/workspace-client.ts:23 — POST /api/workspaces": "cross_language_route_drift",
+      "4 backend routes declared across 1 file": "cross_language_route_drift",
+      "backend owns: /api — calls outside those namespaces are not counted here": "cross_language_route_drift",
+      "matched on literal path strings — a route or URL assembled at runtime is invisible to this check": "cross_language_route_drift",
+      "decorator routing only — Django `urlpatterns` and DRF `router.register` are not read, so a repo using them looks routeless": "cross_language_route_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

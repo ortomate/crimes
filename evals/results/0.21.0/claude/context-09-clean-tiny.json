@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.21.0",
+  "timestamp": "2026-08-05T03:45:36.158Z",
+  "run_id": "a4708ff5-7ddb-42f8-ac8c-fe1a7faf258e",
+  "response": "## What crimes reported\n\n```\nCRIMES CONTEXT\nfile: src/add.ts\nrisk: NONE  (0 findings)\n\nAgent guidance\n  (no findings on this file and no deterministic related files)\n\nRelated files\n  (no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings)\n\nLikely tests\n  · src/add.test.ts\n\nClues\n  · churn: 1 commits over 90d · last touched 3 months ago · 1 author\n  · test gap: bottom-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n**Nothing was found — that's the actual result, not a scan failure.** `risk.level: \"none\"`, `findings: []`, `agent_guidance: []`, `related_files: []`. The file is a 3-line pure function (`add(a, b) => a + b`), so there is genuinely nothing for the detectors to bite on.\n\n## What the clues actually tell you\n\n- **`likely_tests: [\"src/add.test.ts\"]`** — the one concrete action item. Run it after editing.\n- **Churn: 1 commit in 90d, 1 author, last touched ~3 months ago.** Nobody is contending with you on this file.\n- **Blast radius: zero signal.** `related_files_reason` spells out *why* it's empty — no importers surfaced, no shared domain tokens, no same-directory siblings. In this 3-file fixture that's real, but in a large repo an empty `related_files` is weaker evidence than it looks.\n\nTwo things to read carefully rather than at face value:\n\n- **`test_gap` is `{raw: 0, label: \"unknown\"}` in the JSON** — that means *no signal*, not *well tested*. The human renderer prints \"bottom-quartile\" for the same value, which reads like a measured verdict; trust the JSON's `\"unknown\"`. (Minor renderer/schema mismatch worth noting.)\n- The repo-wide scan carries one **low** finding — `dependency_provenance_gap` (\"Phantom Accomplice\") on `package.json`: `vitest` is imported by `src/add.test.ts` but declared in no manifest. It doesn't touch `src/add.ts`, but it does touch the test you'd run to validate your edit, so a clean install could fail to run it.\n\n## Is it safe to extend?\n\n**Yes — extend it freely.** Zero findings, no importers to break, no churn contention, and a test file sitting next to it. None of the pre-edit brakes (God Function, duplicate source of truth, hidden side effects, agent-risk signals) are lit.\n\nThe honest caveat: crimes is telling you the file is clean **as it exists today**, not that whatever you add will be. A pure two-argument arithmetic function has no risk surface; if you add branching, `Date.now()`, env reads, or a second caller, you're creating the surface the detectors look for. Re-run `crimes scan --changed --format json` after the edit and diff against this baseline of zero — any new finding is unambiguously yours.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

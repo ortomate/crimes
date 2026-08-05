@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.21.0",
+  "timestamp": "2026-08-05T03:46:13.400Z",
+  "run_id": "8f7ba792-d1ee-410d-a23b-6899903ce1cd",
+  "response": "`crimes context src/billing.ts --format json` confirms it: **zero findings**, risk level `none`.\n\n```json\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 },\n\"findings\": [],\n\"likely_tests\": [\"src/billing.test.ts\"]\n```\n\n**likely_tests:** `src/billing.test.ts`\n\n## Why this module is low risk to edit\n\nThe file is 10 lines: a `Money` interface and a single pure `format(money: Money): string`.\n\n- **No findings at all.** Nothing structural (one small function, no nesting, one param), no duplication, no dependency issues, no testability crimes. The context report's own `agent_guidance_reason` says \"no findings on this file and no deterministic related files.\"\n- **Blast radius is effectively zero.** `related_files` is empty and `related_files_reason` spells out why: no IA finding related-files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings. Nothing imports it besides its own test, so a change here can't ripple.\n- **It's pure.** No `Date.now()`, no `Math.random()`, no `process.env`, no I/O — output depends only on the argument, so it's trivially testable and behaviour is fully reproducible.\n- **The type system is doing real work.** `currency` is a literal union (`\"USD\" | \"EUR\" | \"GBP\"`), so an invalid currency is a compile error rather than a runtime surprise. An agent editing this gets fast feedback from `tsc`.\n- **Direct test coverage exists.** `src/billing.test.ts` exercises `format` for two currencies with exact expected strings — a regression in the formatting logic fails loudly.\n- **Cold history.** `clues.churn` shows 1 commit in 90 days, 1 author. Nobody is contending over this file, so no merge-conflict or concurrent-change risk.\n\nOne caveat on `test_gap`: the report shows `raw: 0` with label `\"unknown\"` — that's an absence of a coverage measurement, not a measured zero. The confidence in test coverage here comes from the `likely_tests` match, not from a coverage number.\n\n## The one repo-level finding is not about this file\n\nThe scan's sole finding (`crime_00001`, \"Phantom Accomplice\", low) is on `package.json`: `vitest` is imported by `src/billing.test.ts` but declared in no applicable manifest. It resolves today via hoisting; a clean install could fail. Confidence is 0.56, discounted because only test files are affected. It's a `quick` fix — add `vitest` to the manifest's dev dependencies — and it doesn't affect the safety of editing `src/billing.ts` itself.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.21.0",
+  "timestamp": "2026-08-05T03:53:01.523Z",
+  "run_id": "e52fe431-b671-40bd-be0e-a87503c5446b",
+  "response": "Read the fixture to ground the plan. Here's what the scan actually reports and what I'd do about it.\n\n## The duplication findings (3 of 5)\n\n| id | type | conf | what |\n|---|---|---|---|\n| `crime_00003` | `near_duplicate_block` | 0.85 | one body, 3 files: `sanitizeUserInput` / `sanitizeText` / `cleanMessage` |\n| `crime_00004` | `exact_duplicate_block` | 0.95 | `recordSanitiseEvent` verbatim in `telemetry-a.ts` and `telemetry-b.ts` |\n| `crime_00005` | `duplicated_role_status_plan_check` | 0.70 | `\"admin\"` compared in 4 files, 7 occurrences |\n\nThe other two (`crime_00001`/`00002`, `direct_date`) aren't duplication but they live inside the duplicated telemetry body — one `Date.now()` reported twice because the copy was.\n\nTwo things the JSON understates, both of which shape the plan:\n\n- **The three sanitise bodies really are identical** — I diffed them; a/b/c differ only in the function name and one local identifier (`working`/`cleaned`/`normalised`). Confidence 0.85 is conservative. Consolidating them is a pure move.\n- **The three role checks are *not* identical**, and the detector's \"2 distinct expression shapes\" undercounts the semantic spread:\n\n| helper | predicate | meaning |\n|---|---|---|\n| `assertAdminA` (sanitize-a:7) | `role === \"admin\"` | true ⇒ is admin |\n| `assertAdminB` (sanitize-b:6) | `role === \"admin\" \\|\\| role === \"owner\"` | **admits owner too** |\n| `assertAdminC` (sanitize-c:6) | `role !== \"admin\"` | **inverted polarity** |\n\n`extract_policy_function` taken literally — one `isAdmin()` for all three — silently revokes owner access at B's callers and flips allow/deny at C's. That's the whole risk in this change set, and it's why it's step 2, not step 1.\n\n(Minor: one of the 7 occurrences is `policy.ts:1`, a comment quoting the check. Doesn't change the plan; delete that comment as part of step 2 or it'll keep the finding warm.)\n\n---\n\n## Step 1 — consolidate the sanitisers (zero behaviour change)\n\n**Do:**\n- New `src/sanitize.ts` exporting `sanitize(input: string): string`, body copied **verbatim** from `sanitize-a.ts:10-36`.\n- Delete the three copies. `blast_radius: 0` / `direct_importers: 0` says nothing in-repo imports them, so cut them outright rather than leaving deprecated aliases. (In a repo with real importers you'd leave `export const sanitizeText = sanitize` shims for one release.)\n- Leave `assertAdminA/B/C` where they are — they're step 2's problem.\n\n**Prove it first.** Every finding here carries `test_gap: 0.5`; there are no tests. Write table-driven characterisation tests against `sanitizeUserInput` **before** the move, covering the edge cases the body already encodes: null/undefined, >1000 chars, leading `<`/`>`, `\\x`, `!!!`×6, all-caps over 30 chars. Then re-point them at `sanitize`. That's what makes \"pure move\" checkable instead of asserted.\n\n**Why first:** it's mechanical and provably behaviour-preserving, so if anything goes red after step 2 you know which change did it. It also shrinks the surface — afterwards `sanitize-b.ts` and `sanitize-c.ts` contain *nothing but* their diverging admin guard, which makes step 2's problem impossible to miss.\n\n## Step 2 — centralise the role checks (behaviour-bearing)\n\nNew `src/authz.ts`:\n\n```ts\nexport function isAdmin(role: string): boolean {\n  return role === \"admin\";\n}\n\n/** Admin-or-owner. Deliberately distinct from isAdmin — see sanitize-b. */\nexport function canAdminister(role: string): boolean {\n  return isAdmin(role) || role === \"owner\";\n}\n```\n\nThen, per call site:\n\n- `policy.ts` — `canEditBilling` / `canSeeAuditLog` / `canImpersonate` each become `return isAdmin(role)`. Same predicate, so this is safe. **Keep all three exports** — they're distinct capabilities that may diverge later, and the names carry the meaning. Collapsing them to one function is the over-correction.\n- `assertAdminA` → delete, callers use `isAdmin`. Identical predicate.\n- `assertAdminB` → `canAdminister`. **Do not fold into `isAdmin`** — the point of centralising is one place to *read* the rules, not one predicate.\n- `assertAdminC` → delete; callers write `!isAdmin(role)`. A helper whose name says \"admin\" but whose body means \"not admin\" is exactly the shape that gets misread on the next edit.\n\n**The open question you must answer, not guess:** B's `|| \"owner\"` and C's inversion have no in-repo call sites, so intent can't be recovered from usage. Either they're deliberate (keep as above) or they're drift bugs (in which case the fix is a behaviour change that needs its own review, not a refactor). Ask each site's owner before merging; if the answer is \"drift,\" split that into a third change so the correction isn't buried in a consolidation diff.\n\n**Verify:** re-run `crimes scan --format json`. `crime_00005` should drop — `\"admin\"` should appear in `authz.ts` only. If it still fires, it's either the `policy.ts:1` comment or a site you missed.\n\n---\n\n## Explicitly out of scope\n\n- **Telemetry (`crime_00004` + `00001`/`00002`).** Worth doing next, and it's the best value in the report: merging `telemetry-a/b` into one module *and* taking `now: () => number` as a parameter clears three findings in one change. But it's a different surface (observability) with a different reviewer — its own PR, third in line.\n- **Two latent bugs in the sanitise body**, both of which survive step 1 untouched: `replace(/[ -]/g, \"\")` is a range from space to hyphen — it strips punctuation, almost certainly meant to be a control-char range like `/[\\x00-\\x1f]/`; and `includes(\"\\\\x\")` matches a literal backslash-x rather than an escape sequence. Fix these fourth, once there's one place to fix and tests to catch the blast. Fixing them mid-merge means a regression can't be attributed to the move or the fix.\n\nNothing has been changed on disk — this is the plan only.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "direct_date",
+      "crime_00003": "near_duplicate_block",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_evidence": {
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}
