@@ -377,6 +377,37 @@ number an agent sees on the *documented default path*, not on bare
 
 ## Release 3 — `0.21.0`: precision, where the false positives are
 
+> **SHIPPED 2026-08-05.** `crimes@0.21.0` is live, verified from a clean
+> install. Notes: `docs/releases/v0.21.0.md`.
+>
+> On the reporting repo: `logic_in_comments` 10 → 7,
+> `name_behavior_mismatch` 19 → 7, `direct_date` 91 → 91 with `high`
+> 4 → 1, `high_fan_in_fan_out` 36 → 36 with `types.ts` demoted.
+> Total 491 → 476.
+>
+> **Three of this section's four suggested fixes were not what shipped**,
+> because the rules did not survive contact with the files that prompted
+> them — item 1's no-adjacent-identifier rule would not have silenced the
+> representative hit (the real cause was `String.includes` matching
+> `auth` inside "Authored"); item 2's own example turned out to contain
+> two real poll timeouts, so nothing was filtered; item 3's
+> exports-are-type-only rule fails on the file it was written about.
+>
+> **Nothing became a filter** — every change is evidence or severity, per
+> this section's own caveat about the one-shot-task mode.
+>
+> **Left alone deliberately, per "do not tune more than one at a time":**
+> `logic_in_comments`'s remaining `admin` hits (four in files whose path
+> contains `admin`) are a judgement call on a sample of one repo.
+>
+> **Eval caveat worth reading:** claude `structural_pass_rate` 0.82 →
+> 0.77, the largest single-step move recorded, inside the ±6pp band but
+> **not separated from noise**. The agent-free `evals:ranking` metric
+> moved −0.0012, so the scan's ordering is where it was. Repeat samples
+> are the recorded next step. Also corrects a check run while landing
+> 0.20.1/0.20.2 that compared fingerprints and severities when the
+> scorer also reads evidence strings.
+
 > **Pre-measurements taken before touching anything:**
 > `docs/dogfooding/2026-08-05-r3-premeasurements.md`. Two of this
 > section's suggested fixes do not survive contact with the files that
@@ -427,6 +458,23 @@ legitimate outcome and §15 is the precedent.
 ---
 
 ## Release 4 — `0.22.0`: close the queue
+
+> **NOT STARTED.** Pre-measurements done and two entries already
+> answered — see `docs/dogfooding/2026-08-05-r4-premeasurements.md`:
+>
+> - **`large_file` blank lines: the entry's 15–25% is wrong.** Measured
+>   5.6–12.2% overall and **3.6–10% for actual source** across three
+>   repos. The high numbers are prose, which has had its own 1000-line
+>   budget since 0.17.0. Closer to a bugfix than the entry allows.
+> - **`transitiveImporterCount` self-count: measured, declined.** The
+>   47% `blast_radius == 1.0` saturation that motivated revisiting it is
+>   now **0.0%** across 3,575 files, and files on a cycle are 0–2.6%. The
+>   defect is +1 on a log-scaled input. §15 shape — closeable.
+> - **Cross-file Python fixtures: written and validated**, in
+>   `<scratch>/r4-fixture/`. The obvious version proved nothing — helpers
+>   named `assert_*` were already credited by `/^assert[A-Z_]/`. Renamed
+>   to `verify_*` / `expect_*`, and now 0.17.0 reports 2 findings against
+>   the current build's 1. Ready to apply; needs its own baseline.
 
 The known misses, recorded honestly rather than fixed. Fix or re-close
 each on its merits.
