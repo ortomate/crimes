@@ -85,6 +85,28 @@ export interface DateUse {
    */
   argKind?: "none" | "string-literal" | "number" | "expression";
   argValue?: string;
+  /**
+   * What the clock reading is *for*, syntactically.
+   *
+   * - `compared` — the value flows into a comparison or a branch:
+   *   `Date.now() - startedAt >= TIMEOUT`, `if (new Date() > expiry)`,
+   *   a ternary test, a `while` condition. This is the case where
+   *   reading wall time changes what the program *does*, so a test
+   *   cannot pin the behaviour without controlling the clock.
+   * - `value` — the reading is recorded, rendered or passed on:
+   *   `completed_at: new Date().toISOString()`, `setElapsed(Date.now()
+   *   - start)`, `{ startedAt: Date.now() }`. Still non-deterministic,
+   *   but the non-determinism is in the *output*, not in the control
+   *   flow.
+   *
+   * Determined by walking up the syntax tree, plus one hop through a
+   * local `const x = Date.now()` binding — the overwhelmingly common
+   * shape is to bind first and compare later. Undetermined cases are
+   * reported as `compared`, because that is the classification that
+   * preserves the existing finding: a misclassification must not
+   * silently downgrade a real one.
+   */
+  usage?: "compared" | "value";
 }
 
 /**

@@ -26,7 +26,14 @@ export const directDateDetector: LanguageJsDetector = {
     const hits = ctx.parsed.dateNowOrNewDateUses;
     if (hits.length === 0) return [];
 
-    const severity = pickSeverity(hits.length);
+    // Split the uses by what the clock reading is *for*. A reading that
+    // decides a branch changes what the program does; one that is
+    // recorded or rendered changes only what it outputs. Both are
+    // non-deterministic, and they are not the same finding.
+    const compared = hits.filter((h: DateUse) => h.usage !== "value");
+    const recorded = hits.filter((h: DateUse) => h.usage === "value");
+
+    const severity = pickSeverity(hits.length, compared.length);
     const lineList = hits.map((h: DateUse) => h.line).slice(0, 10);
     const nowCount = hits.filter((h) => h.kind === "now").length;
     const newCount = hits.length - nowCount;
@@ -36,6 +43,24 @@ export const directDateDetector: LanguageJsDetector = {
         : nowCount > 0
           ? `${nowCount}× Date.now()`
           : `${newCount}× new Date()`;
+
+    // The line that tells a reader which of the N uses to look at first.
+    // Field notes from choreograph.cc: `JobDetail.tsx` reported "9×
+    // Date.now(), 4× new Date()" and nothing else, which reads as
+    // undifferentiated noise — the reporter concluded "essentially all
+    // of it is display formatting". Two of the thirteen are poll
+    // timeouts (`if (Date.now() - startedAt >= VIDEO_POLL_TIMEOUT_MS)`),
+    // which is the risky shape exactly. The count was right and the
+    // evidence could not say so.
+    const usageLine =
+      compared.length > 0 && recorded.length > 0
+        ? `${compared.length} decide a branch or comparison (lines ${compared
+            .map((h) => h.line)
+            .slice(0, 6)
+            .join(", ")}); ${recorded.length} only record or render the reading`
+        : compared.length > 0
+          ? `all ${compared.length} decide a branch or comparison`
+          : `none decide a branch — all ${recorded.length} record or render the reading`;
 
     const finding: Finding = {
       id: "",
@@ -51,8 +76,11 @@ export const directDateDetector: LanguageJsDetector = {
         `tests to wall time.`,
       evidence: [
         breakdown,
+        usageLine,
         `lines: ${lineList.join(", ")}${hits.length > 10 ? `, …+${hits.length - 10} more` : ""}`,
-        `each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching`,
+        compared.length > 0
+          ? `a reading in a comparison changes what the code does — tests cannot pin the behaviour without controlling the clock`
+          : `these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock`,
       ],
       effort: "small",
       fix_shape: "inject a clock; pass through the domain boundary",
@@ -76,10 +104,18 @@ export const directDateDetector: LanguageJsDetector = {
   },
 };
 
-function pickSeverity(count: number): Severity {
+function pickSeverity(count: number, comparedCount: number): Severity {
   // A single use is noise. Two or more direct clock reads in one file is a
   // recurring pattern — the whole module is bound to wall time. Eight or more
   // is pervasive enough to call high.
+  //
+  // A file whose readings are *all* recorded or rendered caps at medium
+  // however many there are. Thirteen `new Date().toISOString()` calls
+  // writing timestamp columns is a real testability cost and a real
+  // finding; it is not the same thing as a poll timeout, and calling it
+  // `high` on volume alone is what made this detector read as noise on a
+  // component that formats a lot of dates.
+  if (comparedCount === 0) return count >= 2 ? "medium" : "low";
   if (count >= 8) return "high";
   if (count >= 2) return "medium";
   return "low";

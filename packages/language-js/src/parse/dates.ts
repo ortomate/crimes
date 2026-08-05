@@ -24,7 +24,7 @@ export function collectDateUse(
       const { line } = sourceFile.getLineAndCharacterOfPosition(
         node.getStart(sourceFile),
       );
-      out.push({ kind: "now", line: line + 1 });
+      out.push({ kind: "now", line: line + 1, usage: classifyUsage(node) });
     }
   }
 
@@ -35,11 +35,183 @@ export function collectDateUse(
         node.getStart(sourceFile),
       );
       const args = node.arguments;
-      const use: DateUse = { kind: "new", line: line + 1 };
+      const use: DateUse = {
+        kind: "new",
+        line: line + 1,
+        usage: classifyUsage(node),
+      };
       classifyNewDateArg(args, use);
       out.push(use);
     }
   }
+}
+
+/**
+ * Does this clock reading decide something, or is it just recorded?
+ *
+ * Field notes from choreograph.cc argued that `direct_date` "conflates
+ * reading time with recording it", and that the genuinely risky case is
+ * time used in a branch or comparison. That framing is right and this
+ * is what implements it — but note the notes' own example did **not**
+ * hold up. `JobDetail.tsx` was reported as "essentially all display
+ * formatting"; it contains two poll timeouts of the form
+ *
+ *   if (Date.now() - startedAt >= VIDEO_POLL_TIMEOUT_MS) { … }
+ *
+ * which is exactly the risky shape. Opening the file is what settled
+ * it. So this classification exists to make the *evidence* say which
+ * uses are which, not to make the finding disappear.
+ *
+ * Walks up through the expression forms a clock reading passes through
+ * on its way to a test — arithmetic (`now - start`), parentheses,
+ * `.getTime()`, non-null assertions — and stops at anything that
+ * consumes the value instead (a call argument, a property assignment, a
+ * return, a template literal).
+ *
+ * **Unknown resolves to `compared`.** A wrong answer in that direction
+ * costs a finding's severity staying where it already is; the other
+ * direction silently downgrades a real one.
+ */
+function classifyUsage(node: ts.Node, followBinding = true): "compared" | "value" {
+  let current: ts.Node = node;
+  let parent = current.parent as ts.Node | undefined;
+
+  while (parent) {
+    // A relational or equality comparison is the answer.
+    if (
+      ts.isBinaryExpression(parent) &&
+      isComparisonOperator(parent.operatorToken.kind)
+    ) {
+      return "compared";
+    }
+    // Condition position: if / while / do-while / for / ternary.
+    if (
+      (ts.isIfStatement(parent) ||
+        ts.isWhileStatement(parent) ||
+        ts.isDoStatement(parent)) &&
+      parent.expression === current
+    ) {
+      return "compared";
+    }
+    if (ts.isConditionalExpression(parent) && parent.condition === current) {
+      return "compared";
+    }
+    if (ts.isForStatement(parent) && parent.condition === current) return "compared";
+
+    // Transparent wrappers — the value keeps flowing.
+    if (
+      ts.isParenthesizedExpression(parent) ||
+      ts.isNonNullExpression(parent) ||
+      ts.isAsExpression(parent) ||
+      ts.isPrefixUnaryExpression(parent)
+    ) {
+      current = parent;
+      parent = parent.parent;
+      continue;
+    }
+    // Arithmetic keeps flowing: `Date.now() - startedAt` is still a
+    // clock reading, and it is the left-hand side of most timeouts.
+    if (
+      ts.isBinaryExpression(parent) &&
+      isArithmeticOperator(parent.operatorToken.kind)
+    ) {
+      current = parent;
+      parent = parent.parent;
+      continue;
+    }
+    // `.getTime()` / `.valueOf()` on a fresh Date is still the reading.
+    if (
+      ts.isPropertyAccessExpression(parent) &&
+      parent.expression === current &&
+      (parent.name.text === "getTime" || parent.name.text === "valueOf")
+    ) {
+      current = parent;
+      parent = parent.parent;
+      continue;
+    }
+    if (ts.isCallExpression(parent) && parent.expression === current) {
+      current = parent;
+      parent = parent.parent;
+      continue;
+    }
+
+    // A local binding: `const now = Date.now()`. Look for the name being
+    // compared anywhere in the enclosing function. One hop only — this
+    // is a syntax walk, not dataflow, and a second hop would be guessing.
+    if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
+      // `followBinding` stops the one hop becoming a loop: the scan
+      // below calls back into this function for each reference, and the
+      // declaration's own name is one of them.
+      if (!followBinding) return "value";
+      return bindingIsCompared(parent.name.text, parent) ? "compared" : "value";
+    }
+
+    // Anything else consumes the value: a call argument, a property
+    // assignment, a return, a template literal, JSX.
+    return "value";
+  }
+  return "compared";
+}
+
+function isComparisonOperator(kind: ts.SyntaxKind): boolean {
+  return (
+    kind === ts.SyntaxKind.LessThanToken ||
+    kind === ts.SyntaxKind.LessThanEqualsToken ||
+    kind === ts.SyntaxKind.GreaterThanToken ||
+    kind === ts.SyntaxKind.GreaterThanEqualsToken ||
+    kind === ts.SyntaxKind.EqualsEqualsToken ||
+    kind === ts.SyntaxKind.EqualsEqualsEqualsToken ||
+    kind === ts.SyntaxKind.ExclamationEqualsToken ||
+    kind === ts.SyntaxKind.ExclamationEqualsEqualsToken
+  );
+}
+
+function isArithmeticOperator(kind: ts.SyntaxKind): boolean {
+  return (
+    kind === ts.SyntaxKind.MinusToken ||
+    kind === ts.SyntaxKind.PlusToken ||
+    kind === ts.SyntaxKind.AsteriskToken ||
+    kind === ts.SyntaxKind.SlashToken ||
+    kind === ts.SyntaxKind.PercentToken
+  );
+}
+
+/** Is `name` read inside a comparison anywhere in the enclosing function? */
+function bindingIsCompared(name: string, from: ts.Node): boolean {
+  const scope = enclosingFunctionOrSource(from);
+  if (!scope) return true;
+  let found = false;
+  const declarationName = ts.isVariableDeclaration(from) ? from.name : undefined;
+  const visit = (n: ts.Node): void => {
+    if (found) return;
+    // Skip the binding site itself — it is a reference to the name by
+    // definition, and following it would just re-ask this question.
+    if (n === declarationName) return;
+    if (ts.isIdentifier(n) && n.text === name && classifyUsage(n, false) === "compared") {
+      found = true;
+      return;
+    }
+    ts.forEachChild(n, visit);
+  };
+  ts.forEachChild(scope, visit);
+  return found;
+}
+
+function enclosingFunctionOrSource(node: ts.Node): ts.Node | undefined {
+  let current = node.parent as ts.Node | undefined;
+  while (current) {
+    if (
+      ts.isFunctionDeclaration(current) ||
+      ts.isFunctionExpression(current) ||
+      ts.isArrowFunction(current) ||
+      ts.isMethodDeclaration(current) ||
+      ts.isSourceFile(current)
+    ) {
+      return current;
+    }
+    current = current.parent;
+  }
+  return undefined;
 }
 
 function classifyNewDateArg(

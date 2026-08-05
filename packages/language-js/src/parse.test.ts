@@ -38,13 +38,17 @@ describe("parseFile", () => {
   it("captures Date.now() and new Date() uses with line numbers", () => {
     const src = `const a = Date.now();\nconst b = new Date('2026-01-01');\n`;
     const result = parse(src);
+    // `usage: "value"` on both: each is bound to a `const` that nothing
+    // in the snippet compares. See the `usage` block below for the
+    // classification rules.
     expect(result.dateNowOrNewDateUses).toEqual([
-      { kind: "now", line: 1 },
+      { kind: "now", line: 1, usage: "value" },
       {
         kind: "new",
         line: 2,
         argKind: "string-literal",
         argValue: "2026-01-01",
+        usage: "value",
       },
     ]);
   });
@@ -52,29 +56,97 @@ describe("parseFile", () => {
   it("classifies new Date() with no args as argKind:none", () => {
     const result = parse("const a = new Date();\n");
     expect(result.dateNowOrNewDateUses).toEqual([
-      { kind: "new", line: 1, argKind: "none" },
+      { kind: "new", line: 1, argKind: "none", usage: "value" },
     ]);
   });
 
   it("classifies new Date(epoch) as argKind:number", () => {
     const result = parse("const a = new Date(1704067200000);\n");
     expect(result.dateNowOrNewDateUses).toEqual([
-      { kind: "new", line: 1, argKind: "number", argValue: "1704067200000" },
+      {
+        kind: "new",
+        line: 1,
+        argKind: "number",
+        argValue: "1704067200000",
+        usage: "value",
+      },
     ]);
   });
 
   it("classifies multi-arg new Date() as argKind:expression", () => {
     const result = parse("const a = new Date(2024, 0, 1);\n");
     expect(result.dateNowOrNewDateUses).toEqual([
-      { kind: "new", line: 1, argKind: "expression" },
+      { kind: "new", line: 1, argKind: "expression", usage: "value" },
     ]);
   });
 
   it("classifies new Date(identifier) as argKind:expression", () => {
     const result = parse("const a = new Date(ts);\n");
     expect(result.dateNowOrNewDateUses).toEqual([
-      { kind: "new", line: 1, argKind: "expression" },
+      { kind: "new", line: 1, argKind: "expression", usage: "value" },
     ]);
+  });
+
+  /**
+   * `usage` says what a clock reading is *for*: does it decide a branch,
+   * or is it recorded and rendered? `direct_date` splits its evidence
+   * and caps its severity on this.
+   *
+   * Unknown resolves to `compared`, because a misclassification in that
+   * direction leaves a finding where it already was, and the other one
+   * silently downgrades a real one.
+   */
+  describe("DateUse.usage", () => {
+    it("marks a direct comparison as compared", () => {
+      const result = parse("if (Date.now() > deadline) { stop(); }\n");
+      expect(result.dateNowOrNewDateUses[0]!.usage).toBe("compared");
+    });
+
+    it("sees through the arithmetic in a timeout check", () => {
+      // The canonical shape, and the reading is three nodes below the
+      // comparison: call -> binary minus -> binary >= -> if.
+      const result = parse("if (Date.now() - startedAt >= TIMEOUT) { stop(); }\n");
+      expect(result.dateNowOrNewDateUses[0]!.usage).toBe("compared");
+    });
+
+    it("sees through .getTime() on a fresh Date", () => {
+      const result = parse("if (new Date().getTime() > deadline) { stop(); }\n");
+      expect(result.dateNowOrNewDateUses[0]!.usage).toBe("compared");
+    });
+
+    it("follows a local binding one hop into a comparison", () => {
+      const result = parse(
+        "function f(d) {\n  const now = Date.now();\n  return now > d;\n}\n",
+      );
+      expect(result.dateNowOrNewDateUses[0]!.usage).toBe("compared");
+    });
+
+    it("marks a recorded timestamp as a value", () => {
+      const result = parse("row.completed_at = new Date().toISOString();\n");
+      expect(result.dateNowOrNewDateUses[0]!.usage).toBe("value");
+    });
+
+    it("marks a call argument as a value", () => {
+      const result = parse("setElapsed(Date.now() - startedAt);\n");
+      expect(result.dateNowOrNewDateUses[0]!.usage).toBe("value");
+    });
+
+    it("marks a bound-but-never-compared reading as a value", () => {
+      const result = parse(
+        "function f() {\n  const now = Date.now();\n  return { startedAt: now };\n}\n",
+      );
+      expect(result.dateNowOrNewDateUses[0]!.usage).toBe("value");
+    });
+
+    it("terminates on a self-referential binding", () => {
+      // The one-hop scan calls back into the classifier for every
+      // reference to the name — including the declaration's own. The
+      // first version recursed until the stack ran out.
+      const result = parse(
+        "function f() {\n  const now = Date.now();\n  return now;\n}\n",
+      );
+      expect(result.dateNowOrNewDateUses[0]!.usage).toBe("value");
+    });
   });
 
   it("collects Date method calls with family and receiver", () => {
