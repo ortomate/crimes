@@ -135,9 +135,49 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.20.0`
+## Status — `crimes@0.21.0`
 
-`crimes@0.20.0` is the latest version. It makes **the agent workflow the
+`crimes@0.21.0` is the latest version. It is **a precision release**:
+four detectors named in an outside field report as producing false
+positives, all four re-verified against `main` first and measured on
+real repositories before and after.
+
+**Three of the four fixes are not the fix the report asked for**,
+because the suggested rules did not survive contact with the files that
+prompted them. That is the most useful thing in the release.
+
+- **`logic_in_comments`** matched its domain vocabulary with
+  `String.includes`, so `auth` matched "**Auth**ored by the Curator" and
+  `utc` matched "captured that o**utc**ome". Now whole-word with a closed
+  set of inflections. choreograph 10 → 7.
+- **`direct_date`** — the report's own example turned out to contain two
+  poll timeouts (`if (Date.now() - startedAt >= VIDEO_POLL_TIMEOUT_MS)`),
+  which is exactly the risky shape it was said to lack. Nothing is
+  hidden; the evidence now names which readings decide a branch, and a
+  file whose readings are all values caps at `medium`. choreograph 91 →
+  91 findings, `high` 4 → 1.
+- **`high_fan_in_fan_out`** — the suggested "exempt type-only exports"
+  rule would not have exempted `types.ts`, which exports 24 interfaces
+  and one `const`. The importer side was already in the graph: 32 of 33
+  write `import type`. The count and the finding stay; only the p99
+  promotion is withheld.
+- **`name_behavior_mismatch`** — `const supabase = await createClient()`
+  followed by `supabase.from(…)` builds the thing the function reads
+  *through*. A shape rule, not a `createClient` allowlist. choreograph
+  19 → 7.
+
+**Nothing became a filter.** Every change is evidence or severity: a
+finding that is noise mid-task can be exactly what an audit run wants,
+and the way to serve both is to rank honestly rather than to hide.
+
+`schema_version` stays at `0.7.0` and **no fingerprints move**, so
+pinned baselines, suppressions and triage entries carry over untouched.
+
+Release notes: [`docs/releases/v0.21.0.md`](./docs/releases/v0.21.0.md).
+
+### Earlier `0.20.0` work (_scope it to the work_)
+
+`0.20.0` makes **the agent workflow the
 documented default**, and everything in it traces to one outside field
 report on a real Next.js project — checked complaint-by-complaint
 against `main` before any of it was acted on.
@@ -179,7 +219,7 @@ triage files carry over untouched.
 
 Release notes: [`docs/releases/v0.20.0.md`](./docs/releases/v0.20.0.md).
 
-### Earlier `0.19.0` work (_the backlog release_)
+#### Earlier `0.19.0` work (_the backlog release_)
 
 `0.19.0` is **the backlog release** —
 the largest span the project has published. 50 commits, ~30 defect

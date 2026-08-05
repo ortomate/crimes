@@ -12,6 +12,8 @@ import { compareMinor, minorKey } from "../suppressions-version.js";
  */
 export const RELEASE_NOTES: Record<string, Record<string, string>> = {
   direct_date: {
+    "0.21":
+      "Clock readings are now classified as deciding a branch vs being recorded or rendered. Evidence names which lines do which, and a file whose readings are all values caps at medium severity however many there are. Your pin's finding still exists; its severity may have dropped.",
     "0.7":
       "direct_date now skips test files. Likely resolved if your fp was on a test file.",
   },
@@ -84,6 +86,8 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
       "tsconfig path aliases are collected from every tsconfig under apps/ / packages/ / libs/ / services/, not just a root one, and the `.`/`..` relative-path guard is fixed. Likely resolved if your pin was on an aliased specifier in a monorepo.",
   },
   logic_in_comments: {
+    "0.21":
+      'Domain terms are matched as whole words with a closed set of inflections, not as substrings — `auth` no longer matches "Authored" and `utc` no longer matches "outcome". The nearby-code check got the same treatment in the looser direction, so `cached` now counts as the code encoding `cache`. Likely resolved if your pin was on a comment that merely contained the letters of a domain term; a few findings a spurious nearby match had been suppressing now surface for the first time.',
     "0.17":
       "Fingerprints now carry a hash of the comment block as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every rule comment in the file — re-record it against the one you meant.",
   },
@@ -96,6 +100,8 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
       "Fingerprints now carry the collection expression as a discriminator, for fan-outs whose enclosing function and per-element call are shared (schema_version 0.4.0). Re-record the pin against the fan-out you meant. Pins on fan-outs that were already uniquely named are unaffected.",
   },
   name_behavior_mismatch: {
+    "0.21":
+      "A `create*`/`make*`/`init*` call whose result is bound and then dereferenced is treated as building the thing the function reads through, not as a side effect — `const supabase = await createClient(); supabase.from(…)` no longer charges a `get*` function. Likely resolved for data-access layers. Calls made for their effect, and `fetch`, still report.",
     "0.17":
       "Fingerprints now carry the start line as a discriminator, for functions that share a name within one file (schema_version 0.4.0). Re-record the pin against the function you meant. Pins on uniquely-named functions are unaffected.",
   },
@@ -114,6 +120,10 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
   duplicate_component_shape: {
     "0.17":
       "Fingerprints now carry the structural shape hash as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every shape group anchored on that file — re-record it against the group you meant.",
+  },
+  high_fan_in_fan_out: {
+    "0.21":
+      "Fan-in is no longer promoted to medium when ≥80% of importers use `import type`. A shared type module's coupling is compile-time — change an interface and every importer fails to build. The count and the finding are unchanged; only the severity moves, and the evidence now says how many importers take types only.",
   },
   contract_drift: {
     "0.17":

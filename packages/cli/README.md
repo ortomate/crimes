@@ -15,6 +15,23 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.21.0` headline:** a precision release — four detectors named in an
+outside field report as producing false positives, all re-verified and
+measured on real repositories before and after. **Three of the four
+fixes are not the fix the report asked for**, because the suggested
+rules did not survive contact with the files that prompted them.
+`logic_in_comments` matched domain terms as substrings (`auth` from
+"Authored", `utc` from "outcome") — now whole-word, 10 → 7 on the
+reporting repo. `direct_date` now says which readings decide a branch
+and which only record one, and caps a record-only file at `medium`;
+nothing is hidden, because the report's own example turned out to
+contain two real poll timeouts. `high_fan_in_fan_out` stops promoting a
+module whose importers are ≥80% `import type` — the coupling is
+compile-time. `name_behavior_mismatch` stops charging a `get*` function
+for constructing the client it reads through, 19 → 7. **Nothing became
+a filter**: every change is evidence or severity. `schema_version` stays
+`0.7.0` and no fingerprints move.
+
 **`0.20.0` headline:** the agent workflow becomes the documented
 default. `crimes scan` gains a **working set**: `--files a.ts,b.ts`
 names it directly, `--related-to <file>` takes a file plus its

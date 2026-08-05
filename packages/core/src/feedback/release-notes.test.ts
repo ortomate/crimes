@@ -126,3 +126,30 @@ describe("releaseNoteFor", () => {
     }
   });
 });
+
+describe("0.21 precision pass", () => {
+  it("carries a note for every detector whose precision changed", () => {
+    // Four detectors were retuned in 0.21.0 off one field report. Each
+    // moves either what fires or how severely, so a pinned suppression
+    // may now be stale for a reason that has nothing to do with the
+    // code it names.
+    for (const detector of [
+      "logic_in_comments",
+      "direct_date",
+      "high_fan_in_fan_out",
+      "name_behavior_mismatch",
+    ]) {
+      expect(releaseNoteFor(detector, "0.21", "0.20"), detector).not.toBe(
+        RELEASE_NOTES_FALLBACK,
+      );
+    }
+  });
+
+  it("still reaches the 0.17 fingerprint notes from an older pin", () => {
+    // The span lookup is what makes this work; an exact-minor lookup
+    // would have orphaned them again the moment 0.21 shipped.
+    const note = releaseNoteFor("logic_in_comments", "0.21", "0.16");
+    expect(note).toMatch(/discriminator/);
+    expect(note).toMatch(/whole words|substrings/);
+  });
+});

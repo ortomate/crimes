@@ -4,7 +4,28 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current version:** `crimes@0.20.0` ✅ shipped — **the agent
+- **Current version:** `crimes@0.21.0` ✅ shipped — **a precision
+  release.** Four detectors named in an outside field report as
+  producing false positives, all four re-verified against `main` first
+  and measured on real repos before and after. **Three of the four
+  fixes are not the fix the report asked for**, because the suggested
+  rules did not survive contact with the files that prompted them:
+  `logic_in_comments` matched domain terms with `String.includes`
+  (`auth` from "Authored", `utc` from "outcome") — now whole-word with
+  a closed inflection set, choreograph 10 → 7; `direct_date`'s cited
+  example turned out to contain two real poll timeouts, so the split
+  landed in evidence and severity rather than as a filter (91 → 91
+  findings, high 4 → 1); `high_fan_in_fan_out`'s suggested
+  exempt-type-only-exports rule would not have exempted the file it was
+  written about (24 interfaces, one const), so the importer side is used
+  instead (32 of 33 `import type`); `name_behavior_mismatch` stops
+  charging a `get*` for constructing the client it reads through,
+  19 → 7. **Nothing became a filter** — every change is evidence or
+  severity, because a finding that is noise mid-task can be what an
+  audit run wants. `schema_version` stays `0.7.0`; no fingerprints
+  move. Release notes:
+  [`docs/releases/v0.21.0.md`](./releases/v0.21.0.md).
+- **Previous version:** `crimes@0.20.0` ✅ shipped — **the agent
   workflow becomes the documented default**, driven entirely by one
   outside field report checked complaint-by-complaint against `main`
   first. `crimes scan` gains a **working set**: `--files a.ts,b.ts`
@@ -31,7 +52,7 @@ mirror, not a planning doc.
   **`0.7.0`**, purely additive; no fingerprints change, so pinned
   entries carry over. Release notes:
   [`docs/releases/v0.20.0.md`](./releases/v0.20.0.md).
-- **Previous version:** `crimes@0.19.0` ✅ shipped — **the backlog
+  Previous: `crimes@0.19.0` ✅ shipped — **the backlog
   release**, the largest span the project has published: 50 commits,
   ~30 defect fixes, four features, two `schema_version` bumps
   (`0.4.0` → **`0.6.0`**). `0.18.0`–`0.18.4` were internal

@@ -34,7 +34,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest v0.20.0)
+## Commands (latest v0.21.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -342,7 +342,72 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.20.0 — scope it to the work (current release)
+## 0.21.0 — precision, where the false positives were (current release)
+
+Four detectors named in an outside field report as producing false
+positives. All four re-verified against main first, all four measured on
+real repositories before and after, and **three of the four fixes are
+not the fix the report asked for** — because the suggested rules did not
+survive contact with the files that prompted them.
+
+- `logic_in_comments` matched its domain vocabulary with
+  String.includes, so the term `auth` matched "Authored by the Curator"
+  and `utc` matched "captured that outcome". Neither file had anything
+  to do with authentication or timezones. Matching is now whole-word
+  with a closed set of inflections (-s, -ed, -ing, -ies, plus the e-drop
+  before -ing/-ed); the allowlist is what separates `owner` + `s` from
+  `auth` + `ored`. A plain word-boundary rule was tried first and broke a
+  real cal.com finding ("Do not move this before authorization check"),
+  so the vocabulary is now spelled out and grouped by concept.
+  choreograph 10 -> 7. cal.com 11 -> 11, which is not a null result: two
+  substring matches left and two findings arrived that a spurious nearby
+  match had been suppressing.
+- `direct_date` — the report cited JobDetail.tsx as "9x Date.now(), 4x
+  new Date() and essentially all of it is display formatting". Opening
+  the file found two poll timeouts of the form
+  `if (Date.now() - startedAt >= VIDEO_POLL_TIMEOUT_MS)`, which is
+  exactly the risky shape the report says the detector should narrow to.
+  So the narrowing landed as evidence and severity, not as a filter:
+  DateUse gains `usage: "compared" | "value"`, the evidence names which
+  lines decide a branch, and a file whose readings are all values caps at
+  medium severity. choreograph 91 -> 91 findings, high 4 -> 1.
+- `high_fan_in_fan_out` — the report asked to exempt modules whose
+  exports are type-only. The file it was written about exports 24
+  interfaces and one const, so that rule fails on its own example. The
+  importer side was already in the import graph and never consulted: 32
+  of that file's 33 importers write `import type`. Fan-in is no longer
+  promoted to medium when >=80% of importers are type-only. The count and
+  the finding are unchanged; the evidence now says how many importers
+  take types only. The coupling is real and compile-time — change an
+  interface and every importer fails to build, loudly, before anything
+  ships.
+- `name_behavior_mismatch` — `const supabase = await createClient()`
+  followed by `supabase.from(...)` builds the thing the function reads
+  *through*, so a `get*` function is no longer charged for it. A shape
+  rule (bound, then dereferenced, with a constructor-shaped callee), not
+  a createClient allowlist — an allowlist is a treadmill. The first
+  version was too broad and the corpus caught it: it silently dropped a
+  real `fetch` finding, since `const res = await fetch(url); res.json()`
+  fits the shape exactly. choreograph 19 -> 7, all twelve removals
+  createClient/createAdminClient.
+
+**Nothing became a filter.** Every change here is evidence or severity.
+A finding that is noise mid-task can be exactly what an audit run wants,
+and the way to serve both is to rank honestly rather than to hide.
+
+Deliberately not changed: five of choreograph's seven remaining
+logic_in_comments hits are the term `admin`, four in files whose path
+contains admin. A path-aware rule is a judgement call on a sample of one
+repository, not a bug, and the release discipline is one detector tuned
+at a time.
+
+Schema unchanged at 0.7.0. No fingerprints move, so pinned baselines,
+suppressions and triage entries carry over untouched. Severities move on
+a handful of findings, in the lenient direction only.
+
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.21.0.md
+
+## 0.20.0 — scope it to the work
 
 The most valuable way to run crimes was the least discoverable one, and
 the default view was describing a report it was not printing. Everything
