@@ -39,9 +39,39 @@ export const highFanInFanOutDetector: LanguageJsDetector = {
     const overFanOut = fanOut >= stats.fanOutCutoff;
     if (!overFanIn && !overFanOut) return [];
 
+    // How many of the importers only want types? A module every file
+    // imports *types* from is a shared type declaration, and being
+    // depended on is its entire job.
+    //
+    // Field notes from choreograph.cc: "`High Fan-In` on `types.ts`
+    // reads as a category error… consider exempting modules whose
+    // exports are type-only." The exempt-by-exports rule was measured
+    // and rejected — `src/lib/types.ts` exports 24 interfaces and
+    // exactly one `const`, so it fails an exports-are-type-only test
+    // while being exactly the module the complaint is about, and adding
+    // one constant to any types module would silently re-arm the
+    // finding.
+    //
+    // The importer side is both already in the graph and cleaner: 19 of
+    // that file's 20 importers write `import type`. So the signal is
+    // "who is asking, and for what", not "what does this file export".
+    const inEdges = ctx.imports.in.get(ctx.file) ?? [];
+    const typeOnlyIn = inEdges.filter((e) => e.typeOnly).length;
+    const mostlyTypeOnly = fanIn > 0 && typeOnlyIn / fanIn >= TYPE_ONLY_SHARE;
+
     const inP99 = fanIn >= stats.fanInP99;
     const outP99 = fanOut >= stats.fanOutP99;
-    const severity: Severity = inP99 || outP99 ? "medium" : "low";
+    // A type-only hub is not promoted on fan-in. The coupling is real
+    // and it is compile-time: change an interface and every importer
+    // fails to build — loudly, immediately, and before anything ships.
+    // That is a different kind of risk from a runtime hub, and ranking
+    // it alongside one is what made this read as a category error.
+    //
+    // Note what is *not* done: the finding is not suppressed and the
+    // count is not adjusted. "33 importers, 31 of them type-only" is a
+    // fact worth having on an audit run, and `CLAUDE.md` says evidence
+    // before judgement. Only the judgement moves.
+    const severity: Severity = (inP99 && !mostlyTypeOnly) || outP99 ? "medium" : "low";
     const confidence = 0.7;
 
     const evidence: string[] = [];
@@ -50,6 +80,14 @@ export const highFanInFanOutDetector: LanguageJsDetector = {
         `fan-in: ${fanIn} importer${fanIn === 1 ? "" : "s"} ` +
           `(p95 cutoff: ${stats.fanInCutoff}, p99: ${stats.fanInP99})`,
       );
+      if (typeOnlyIn > 0) {
+        evidence.push(
+          `${typeOnlyIn} of ${fanIn} importer${fanIn === 1 ? "" : "s"} take types only` +
+            (mostlyTypeOnly
+              ? " — a shared type module's coupling is compile-time, and being depended on is its job"
+              : ""),
+        );
+      }
     }
     if (overFanOut) {
       evidence.push(
@@ -90,6 +128,16 @@ export const highFanInFanOutDetector: LanguageJsDetector = {
     return [finding];
   },
 };
+
+/**
+ * Share of type-only importers past which fan-in stops being promoted.
+ *
+ * 0.8 rather than 1.0 because a types module routinely exports one or
+ * two constants alongside its declarations — choreograph's has a single
+ * `JOB_STUCK_THRESHOLD_SECONDS` — and a rule that a single value import
+ * defeats is a rule that quietly stops working.
+ */
+const TYPE_ONLY_SHARE = 0.8;
 
 interface FanStats {
   fanInCutoff: number | undefined;

@@ -109,3 +109,133 @@ export async function calculateInvoice(order: Order) {
     expect(findings[0]!.discriminator).toBeUndefined();
   });
 });
+
+/**
+ * Building the thing you read *through* is not a side effect.
+ *
+ * Field notes from choreograph.cc: `getChoreoByDate() → calls
+ * createClient` fired five times in `src/lib/api.ts` alone, "because a
+ * `get*` function makes a side-effect-like call — but `createClient()`
+ * is constructing the client in order to *do the read*. Every
+ * data-access layer in every Next.js app has this shape."
+ *
+ * The rule is about the shape, not the name: a `create*` whose result is
+ * bound and then dereferenced is a factory. A `createClient` allowlist
+ * would be a treadmill — the next framework calls it `getConnection` or
+ * `makePool` — and would bake one ecosystem's vocabulary into a detector
+ * about naming in general.
+ */
+describe("nameBehaviorMismatchDetector — factory calls", () => {
+  it("does not charge a reader for constructing its own client", async () => {
+    const source = `
+export async function getChoreoByDate(person: string, date: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('choreograph_posts')
+    .select('*')
+    .eq('person', person)
+    .single();
+  if (error) return null;
+  return data;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(0);
+  });
+
+  it("works for any factory name, not a `createClient` allowlist", async () => {
+    // Same shape, different name. `makeConnectionPool` would be a
+    // meaningless test here — it never matched the side-effect regex in
+    // the first place, so it would pass with or without the rule.
+    const source = `
+export async function getRows(id: string) {
+  const pool = await createConnectionPool();
+  const rows = await pool.query('select 1');
+  await pool.release();
+  return rows;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(0);
+  });
+
+  it("still charges a reader that also performs a real side effect", async () => {
+    // Only the factory call is discounted. A `get*` that builds a client
+    // AND deletes a row is exactly what this charge is for.
+    const source = `
+export async function getAndPurge(id: string) {
+  const supabase = await createClient();
+  await supabase.from('posts').select('*');
+  await deleteRecord(id);
+  await sendEmail(id);
+  return true;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.evidence.join(" ")).toMatch(/deleteRecord|sendEmail/);
+  });
+
+  it("still charges a create* call made for its effect", async () => {
+    // The return value is not used as a receiver — nothing is built to
+    // be read through, so this is a mutation with a reader's name.
+    const source = `
+export async function getCheckout(cartId: string) {
+  await createOrder(cartId);
+  await sendReceipt(cartId);
+  return true;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(1);
+  });
+
+  it("does not discount a factory whose result is only returned", async () => {
+    // `const x = createThing(); return x;` binds but never dereferences,
+    // so the shape rule does not fire — and it should not, because the
+    // function is not reading *through* anything.
+    const source = `
+export async function getThing(id: string) {
+  const made = await createThing(id);
+  await updateIndex(id);
+  return made;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(1);
+  });
+});
+
+describe("nameBehaviorMismatchDetector — the factory rule stays narrow", () => {
+  it("does not discount fetch just because the response is read", async () => {
+    // `const res = await fetch(url)` then `res.json()` fits the
+    // bound-and-dereferenced shape exactly, and a network call is a side
+    // effect whatever you do with the response. Caught on the corpus:
+    // the first version of the factory rule silently dropped a real
+    // `fetch` finding in `integrations/google-oauth.ts`.
+    const source = `
+export async function getTokens(code: string) {
+  const res = await fetch('https://oauth.example/token', { method: 'POST' });
+  const json = await res.json();
+  await saveTokens(json);
+  return json;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.evidence.join(" ")).toMatch(/fetch/);
+  });
+
+  it("does not treat a past-tense `created` binding as a factory", async () => {
+    const source = `
+export async function getSummary(id: string) {
+  const created = await createdAtFor(id);
+  await deleteStale(id);
+  await sendDigest(id);
+  return created;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(1);
+  });
+});

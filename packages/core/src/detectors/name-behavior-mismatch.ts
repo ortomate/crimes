@@ -119,9 +119,10 @@ function scoreBody(body: string): BodyScore | undefined {
     ...matches(body, STRONG_SIDE_EFFECT),
     ...matches(body, API_SIDE_EFFECT),
   ];
+  const factories = factoryCalls(body);
   const uniqueCalls = Array.from(
     new Set(calls.map((call) => call.replace(/\s*\($/, ""))),
-  );
+  ).filter((call) => !factories.has(call));
   const signals = [...uniqueCalls];
 
   const assignmentCount = matches(body, ASSIGNMENT).length;
@@ -138,6 +139,70 @@ function scoreBody(body: string): BodyScore | undefined {
 
 function matches(text: string, pattern: RegExp): string[] {
   return text.match(pattern) ?? [];
+}
+
+/**
+ * `create*` calls that build the thing the function then works
+ * *through*, rather than causing an effect.
+ *
+ * Field notes from choreograph.cc: `getChoreoByDate() → calls
+ * createClient` fired five times in one file, "because a `get*`
+ * function makes a side-effect-like call — but `createClient()` is
+ * constructing the client in order to *do the read*. Every data-access
+ * layer in every Next.js app has this shape."
+ *
+ * The shape is unmistakable once you look for it:
+ *
+ *   const supabase = await createClient()
+ *   const { data } = await supabase.from('posts').select(…)
+ *
+ * The result is bound, then dereferenced. A `create*` call made for its
+ * *effect* — `await createOrder(cart)` — has no such follow-up: the
+ * return value is returned, discarded, or destructured, not used as a
+ * receiver.
+ *
+ * Deliberately a shape rule, not a `createClient` allowlist. An
+ * allowlist is a treadmill — the next framework names it
+ * `getConnection`, `makePool`, `initSupabase` — and it would encode one
+ * ecosystem's vocabulary into a detector that is supposed to be about
+ * naming in general.
+ *
+ * Only the factory call is discounted. Everything else in the body
+ * still counts, so a `get*` that builds a client **and** deletes a row
+ * still reports.
+ */
+function factoryCalls(body: string): Set<string> {
+  const found = new Set<string>();
+  const BINDING =
+    /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+)?([A-Za-z_$][\w$]*)\s*\(/g;
+  for (const match of body.matchAll(BINDING)) {
+    const bound = match[1]!;
+    const callee = match[2]!;
+    // The callee has to *look* like a constructor. Bound-and-
+    // dereferenced alone is too broad: `const res = await fetch(url)`
+    // followed by `res.json()` fits the shape exactly, and a network
+    // call is a side effect whatever you do with the response. Caught
+    // on the corpus — the first version of this rule silently dropped a
+    // `fetch` finding in `integrations/google-oauth.ts`.
+    if (!FACTORY_NAME.test(callee)) continue;
+    // Used as a receiver later in the same body: `supabase.from(…)`.
+    const dereferenced = new RegExp(`\\b${escapeRe(bound)}\\s*(?:\\.|\\?\\.|\\[)`);
+    if (dereferenced.test(body.slice(match.index + match[0].length))) {
+      found.add(callee);
+    }
+  }
+  return found;
+}
+
+/**
+ * Names that build a thing, as opposed to doing one. Anchored at the
+ * start and requiring a capitalised remainder, so `create` matches
+ * `createClient` and `createAdminClient` but not `created`.
+ */
+const FACTORY_NAME = /^(?:create|make|build|init|connect|open)[A-Z_]/;
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function pickSeverity(body: string): Severity {
