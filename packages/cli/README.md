@@ -15,6 +15,34 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.20.0` headline:** the agent workflow becomes the documented
+default. `crimes scan` gains a **working set**: `--files a.ts,b.ts`
+names it directly, `--related-to <file>` takes a file plus its
+import-graph neighbourhood (walked both ways — what it imports and what
+imports it), and `--related-depth` widens the walk. `--fail-on` now
+works with any of the three selectors rather than only with `--changed`.
+The resolved set comes back as `working_set.files` so an agent can
+confirm what was scanned, and a path that matched nothing says so on
+stderr instead of producing a report that reads "Suspiciously clean".
+
+`--changed` is now documented as the **post-edit** selector: on a clean
+tree it correctly returns nothing, which is exactly the moment most
+agent tasks start — and why the other two exist.
+
+**The headline number now counts what the report shows.** It used to
+announce 491 findings above a body listing 339, because the other 152
+were already classified non-domain (`scripts/**` and friends) and
+collapsed into a footer. The remainder is still stated as
+`+152 in non-domain paths`, and `summary.total` in the JSON is
+unchanged. The totals are also repeated just above the closing line, so
+a long report no longer needs a second run at `--top 3` just to read
+them.
+
+`schema_version` `0.6.0` → `0.7.0` (additive: `ScanReport.working_set`,
+plus a `working_set_path_unmatched` coverage-warning kind). No
+fingerprints change, so baselines, suppressions and triage files carry
+over untouched.
+
 **`0.19.0` headline:** the backlog release — the largest span the
 project has published. 50 commits, ~30 defect fixes, four features, and
 two `schema_version` bumps (`0.4.0` → **`0.6.0`**). `0.18.0`–`0.18.4`
@@ -170,6 +198,10 @@ crimes scan .                                   # default top-10 findings
 crimes scan . --format json                     # stable JSON contract
 crimes scan . --all                             # every finding
 
+# Scope to a working set — usually what you want mid-task
+crimes scan --files a.ts,b.ts --format json     # the files your change touches
+crimes scan --related-to src/lib/api.ts         # …and its import-graph neighbours
+
 crimes scan --changed --format json             # working-tree changes only
 crimes scan --changed --base main --format json # + commits on this branch
 crimes scan --changed --fail-on high            # CI gate — exit 1 on a new high
@@ -238,14 +270,23 @@ Every finding includes **evidence** (raw facts the detector observed) and
 Aider, Continue, Copilot Workspace, …). Recommended loop:
 
 ```bash
-# 1. Before editing a file
+# 1. Planning — scope the scan to the files the change will touch.
+#    Bare `crimes scan` audits the whole repo; on a 200-file project
+#    that is ~500 findings, which is not a work list.
+crimes scan --files a.ts,b.ts --format json
+crimes scan --related-to src/lib/thing.ts --format json
+
+# 2. Before editing one file
 crimes context <file> --format json
 
-# 2. Make the change
+# 3. Make the change
 
-# 3. After editing — re-scan only what you touched
+# 4. After editing — re-scan only what you touched
 crimes scan --changed --format json
 ```
+
+`--changed` is the post-edit selector: on a clean tree it correctly
+returns nothing, which is why `--files` and `--related-to` exist.
 
 Repos that bundle [`AGENTS.md`](https://github.com/ortomate/crimes/blob/main/AGENTS.md)
 or [`.claude/skills/crimes/SKILL.md`](https://github.com/ortomate/crimes/blob/main/.claude/skills/crimes/SKILL.md)

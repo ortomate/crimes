@@ -62,10 +62,36 @@ they can't (function shape, imports, JSX, types). When a file's
 as "we couldn't parse this; no opinion" rather than "this file is
 clean".
 
+## Scope it to what you are about to change
+
+**This is the most important thing on this page.** Bare \`crimes scan\`
+audits the whole repository. On a 200-file project that is ~500
+findings, which is not a work list — it is an invitation to either
+over-fix into unrelated files or dismiss the tool. Almost every agent
+task is about a handful of files, so name them:
+
+| you are… | run |
+|---|---|
+| planning a change to known files | \`crimes scan --files a.ts,b.ts --format json\` |
+| planning a change around one module | \`crimes scan --related-to src/lib/api.ts --format json\` |
+| reviewing edits you just made | \`crimes scan --changed --format json\` |
+| reviewing a branch | \`crimes scan --changed --base main --format json\` |
+| auditing the whole repo (rare) | \`crimes scan --format json\` |
+
+\`--related-to\` walks the import graph both ways — what the file imports
+and what imports it — because both can break. \`--related-depth 2\` goes
+further. The resolved set comes back as \`working_set.files\`, so check
+what was actually scanned rather than assuming.
+
+\`--changed\` is the **post-edit** selector. Before you have written
+anything it returns nothing, which is correct and is why \`--files\` and
+\`--related-to\` exist.
+
 ## When to run it
 
 - Before editing an unfamiliar file: \`crimes context <file> --format json\`
-- Before a broad refactor: \`crimes scan <path> --format json\`
+- Before a change touching several files: \`crimes scan --files a,b,c --format json\`
+- Before a change around one module: \`crimes scan --related-to <file> --format json\`
 - After edits: \`crimes scan --changed --format json\`
 - Before merging a branch: \`crimes verdict --format json\`
 

@@ -39,7 +39,19 @@ program
   })
   .addHelpText(
     "after",
-    "\nTips:\n  run `crimes init --agents` once so coding agents auto-discover crimes.\n  run `crimes context <file>` before editing — it concentrates findings + likely tests + agent notes for one file.",
+    // The tips block used to name `init --agents` and `context <file>`
+    // and say nothing about scoping a scan. Field notes from
+    // choreograph.cc: bare `scan` on a 209-file repo returned 499
+    // findings, and the flags that would have cut that to a work list
+    // were never reached for. Scoping leads now.
+    "\nTips:\n" +
+      "  scope the scan to what you're changing — that's the whole trick:\n" +
+      "    crimes scan --files a.ts,b.ts     planning a change to known files\n" +
+      "    crimes scan --related-to <file>   …and everything importing it, or imported by it\n" +
+      "    crimes scan --changed --base main reviewing edits you already made\n" +
+      "  bare `crimes scan` audits the whole repo — useful, but rarely what you want mid-task.\n" +
+      "  run `crimes context <file>` before editing — findings + likely tests + agent notes for one file.\n" +
+      "  run `crimes init --agents` once so coding agents auto-discover crimes.",
   )
   .action(() => {
     // Bare `crimes` (no subcommand) prints a welcome banner pointing at

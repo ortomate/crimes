@@ -9,11 +9,53 @@ This page is the **stable product API**. Treat it as a public contract:
 any breaking change to a field name, type, or required-ness will bump
 `schema_version`.
 
-Documented as of `schema_version: "0.6.0"`. The source of truth in code
+Documented as of `schema_version: "0.7.0"`. The source of truth in code
 is [`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
 
 For how an agent should _use_ this output, see
 [`agent-usage.md`](./agent-usage.md).
+
+## Migrating from `0.6.0` to `0.7.0`
+
+- **New optional field on `ScanReport`:** `working_set`.
+- **New `coverage.warnings[].kind`:** `working_set_path_unmatched`.
+
+`working_set` is present only when the scan was narrowed with
+`--files` or `--related-to`, and records the *resolved* set —
+for `--related-to` that is the result of the import-graph walk, not the
+seeds you passed.
+
+```jsonc
+"working_set": {
+  "selector": "related-to",     // "files" | "related-to"
+  "seeds": ["src/lib/api.ts"],  // what you named, sorted
+  "depth": 1,                   // hops walked; "related-to" only
+  "files": [                    // what was actually scanned, sorted
+    "src/lib/api.ts",
+    "src/lib/types.ts",
+    "src/app/page.tsx"
+  ]
+}
+```
+
+It is recorded rather than left implicit because a graph walk that
+silently included or excluded a file, with no way to check, is the shape
+this codebase keeps getting bitten by. An agent must be able to confirm
+what was looked at.
+
+`--changed` continues to report through `changed_files` and sets no
+`working_set` — the two carry different information (`changed_files`
+includes files outside the discoverable source set, which a working set
+by construction cannot).
+
+Nothing was renamed or removed, so a consumer that ignores unknown keys
+needs no change. `additionalProperties: false` validators and
+`schema_version === "0.6.0"` hard-checks need updating. Baseline,
+suppressions and triage files written at `0.6.0` are read unchanged.
+
+Consumers switching on `coverage.warnings[].kind` should already
+tolerate an unrecognised value — the field documents that new kinds may
+be added in a minor.
 
 ## Migrating from `0.5.0` to `0.6.0`
 
@@ -433,9 +475,12 @@ failed?: boolean;
 
 The corresponding CLI behaviour:
 
-- `--fail-on` is **only valid** in combination with `--changed`. Passing
-  it on a plain `crimes scan` exits `2` (usage error). Pass `--changed
-  --fail-on <severity>` to opt into the gate.
+- `--fail-on` requires a **working set** — `--changed`, `--files`, or
+  `--related-to`. Passing it on a whole-repo `crimes scan` exits `2`
+  (usage error), because gating a whole-repo scan fails on the
+  repository's entire existing debt rather than on anything this run
+  did. Since 0.20.0 all three selectors gate; before that only
+  `--changed` did.
 - `--fail-on` accepts `low | medium | high`. `low` fails on any
   finding; `medium` fails on medium or high; `high` fails on high only
   — same semantics as `crimes baseline check --fail-on`.

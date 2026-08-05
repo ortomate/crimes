@@ -60,6 +60,12 @@ crimes scan . --format json
 # Show every finding, not just the top files
 crimes scan . --all
 
+# Scope a scan to the files you're about to change (pre-edit)
+crimes scan --files src/billing/tax.ts,src/billing/invoice.ts --format json
+
+# …or to one file and its import-graph neighbourhood
+crimes scan --related-to src/billing/tax.ts --format json
+
 # Scan only files changed in the working tree (post-edit gate)
 crimes scan --changed --format json
 crimes scan --changed --base main --format json
@@ -129,9 +135,53 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.19.0`
+## Status — `crimes@0.20.0`
 
-`crimes@0.19.0` is the latest version. It is **the backlog release** —
+`crimes@0.20.0` is the latest version. It makes **the agent workflow the
+documented default**, and everything in it traces to one outside field
+report on a real Next.js project — checked complaint-by-complaint
+against `main` before any of it was acted on.
+
+**`crimes scan` gains a working set.** Bare `scan` audits the whole
+repository; on a 200-file project that is ~500 findings, which is not a
+work list. Name what you are about to change instead:
+
+```bash
+crimes scan --files src/lib/api.ts,src/lib/types.ts
+crimes scan --related-to src/lib/api.ts          # …and its import-graph neighbourhood
+crimes scan --related-to src/lib/api.ts --related-depth 2
+```
+
+`--related-to` walks the graph **both ways** — what a file imports can
+break it, what imports it is what it can break. On the field-report repo
+that is **28 findings across 8 files** where the bare scan gives 491.
+`--fail-on` now works with any selector rather than only `--changed`,
+and the resolved set comes back as `working_set.files` so an agent can
+confirm what was scanned. A path matching nothing says so on stderr,
+because a typo used to produce "No crimes detected. Suspiciously clean."
+
+**`--changed` is documented as the post-edit selector.** On a clean tree
+it correctly returns nothing — which is exactly the moment most agent
+tasks start, and why the other two selectors exist.
+
+**The headline number now counts what the report shows.** It used to
+announce *491 findings across 208 files* above a body listing *339
+across 137*, because the other 152 were already classified non-domain
+(`scripts/**` and friends) and collapsed into a footer. The remainder is
+still stated as `+152 in non-domain paths`; `summary.total` in the JSON
+is unchanged. The totals are also repeated just above the closing line,
+so a long report no longer needs a second run at `--top 3` to read them.
+
+`schema_version` `0.6.0` → **`0.7.0`**, purely additive
+(`ScanReport.working_set`, plus a `working_set_path_unmatched` coverage
+warning). **No fingerprints change**, so baselines, suppressions and
+triage files carry over untouched.
+
+Release notes: [`docs/releases/v0.20.0.md`](./docs/releases/v0.20.0.md).
+
+### Earlier `0.19.0` work (_the backlog release_)
+
+`0.19.0` is **the backlog release** —
 the largest span the project has published. 50 commits, ~30 defect
 fixes, four features, and two `schema_version` bumps
 (`0.4.0` → **`0.6.0`**).
@@ -180,7 +230,7 @@ additive for gated ids.
 
 Release notes: [`docs/releases/v0.19.0.md`](./docs/releases/v0.19.0.md).
 
-### Earlier `0.17.0` work (_calibration, and the first wire-format change_)
+#### Earlier `0.17.0` work (_calibration, and the first wire-format change_)
 
 `0.17.0` was **a calibration release**,
 and the first one to change the wire format: `schema_version` goes
@@ -1018,13 +1068,46 @@ crimes scan --all          # show every finding, not just the top 10
 crimes scan --no-color     # plain output for pipes/CI
 ```
 
+#### Scoping a scan: `--files`, `--related-to`, `--changed`
+
+Bare `crimes scan` audits the whole repository. Three flags narrow it to
+a **working set** — the files you actually care about right now. They are
+mutually exclusive, because a report whose scope you cannot infer from
+the command that produced it is worse than no report.
+
+```bash
+# Name the files. Repo-relative or absolute, comma-separated or repeated.
+crimes scan --files src/lib/api.ts,src/lib/types.ts
+crimes scan --files src/lib/api.ts --files src/lib/types.ts
+
+# Name one file and take its import-graph neighbourhood, both directions:
+# what it imports (can break it) and what imports it (it can break).
+crimes scan --related-to src/lib/api.ts
+crimes scan --related-to src/lib/api.ts --related-depth 2
+```
+
+The resolved set comes back on the JSON report as `working_set.files`,
+so you can confirm what was scanned rather than assuming. A path that
+matched nothing is called out on **stderr** and in `coverage.warnings` —
+a typo that silently narrows a scan to nothing would otherwise produce a
+report reading "No crimes detected. Suspiciously clean."
+
+Cross-file indexes are always built from the whole repository, so
+`blast_radius` on a working-set scan is the blast radius of the file
+within the repo, not within the set.
+
+`--fail-on` works with any of the three.
+
 #### `crimes scan --changed`
 
 Scan only the files that have changed in the working tree (staged,
 unstaged, and untracked). With `--base <ref>`, also include everything that
-differs between `<ref>...HEAD`. This is the agent-native pre/post-edit
-loop: scan the files you are about to touch, make the change, then re-scan
-the same set and diff the findings.
+differs between `<ref>...HEAD`. This is the **post-edit** half of the
+agent loop: make the change, then re-scan the files you touched.
+
+Before you have written anything, on a clean tree, `--changed --base main`
+correctly returns nothing — which is what `--files` and `--related-to`
+are for.
 
 ```bash
 crimes scan --changed                                   # working-tree changes vs HEAD
@@ -1425,6 +1508,22 @@ Zero-config is the default. Drop a `crimes.config.json` at the repo root to over
 
 ## Using `crimes` with coding agents
 
+> ### Run this once, in every repo you want an agent to use `crimes` in:
+>
+> ```bash
+> npx crimes init --agents
+> ```
+>
+> It writes `crimes.config.json` plus a skill for Claude Code and Codex,
+> so the agent **finds `crimes` on its own** and knows which command to
+> reach for. Without it, an agent told "run crimes" has to guess.
+>
+> That guessing is measured, not hypothetical. A field report from
+> 2026-08-05 records **four steps to first run**: searching
+> `~/.claude/skills`, then `~/.claude/commands`, then `~/.claude/plugins`,
+> then a filesystem find that turned up an unrelated directory, then
+> `which crimes` (nothing), before finally guessing `npx crimes@latest`.
+
 `crimes` ships with on-disk artefacts that AI coding agents pick up
 automatically. **There is nothing to install into a prompt** — point your
 agent at the repo and it loads them itself.
@@ -1436,18 +1535,49 @@ agent at the repo and it loads them itself.
 | Cursor, Aider, Continue, Copilot Workspace       | [`AGENTS.md`](./AGENTS.md)            |
 | Anything else                                    | [`docs/agent-usage.md`](./docs/agent-usage.md) — drop the workflow into your own rules file |
 
+### Scope the scan to the work — this is the whole trick
+
+Bare `crimes scan` audits the whole repository. That is a real thing to
+want and it is almost never what you want mid-task: on a 200-file
+project it returns roughly 500 findings, which is not a work list. For
+an agent it is an invitation to over-fix into unrelated files or to
+dismiss the tool.
+
+Name the working set instead:
+
+```bash
+# You know which files the change touches.
+crimes scan --files src/lib/api.ts,src/lib/types.ts --format json
+
+# You know one file and want its neighbourhood — the import graph,
+# walked both ways, because both directions can break.
+crimes scan --related-to src/lib/api.ts --format json
+
+# You have already made the edits.
+crimes scan --changed --base main --format json
+```
+
+`--changed` is the **post-edit** selector: on a clean tree it correctly
+returns nothing, which is why the other two exist. `--fail-on` works
+with all three, and the resolved set comes back as `working_set.files`
+so you can check what was actually scanned.
+
 The recommended loop is the same for every agent:
 
 ```bash
-# 1. Before editing — get a structured per-file briefing
+# 1. Planning — scope to the files the change will touch
+crimes scan --files a.ts,b.ts --format json
+crimes scan --related-to src/lib/thing.ts --format json
+
+# 2. Before editing one file — a structured per-file briefing
 crimes context <file> --format json
 
-# 2. Make your change
+# 3. Make your change
 
-# 3. After editing — re-scan only what you touched, diff the findings
+# 4. After editing — re-scan only what you touched
 crimes scan --changed --format json
 
-# 4. For a wider triage — rank the whole repo by change-risk
+# 5. For a wider triage — rank the whole repo by change-risk
 crimes hotspots --format json
 ```
 

@@ -764,6 +764,32 @@ folded into them — each is a separate behaviour change.
    is claimed-silent tests across the repo. Both moved; only the second
    was measured here.
 
+4f. **`verdict`'s identical-tree short circuit is not a constant-time
+   path, and on a small repo it is slower than the scan it replaces.**
+   Found in `0.20.0` while fixing a flaky timing assertion in
+   `verdict.test.ts`, not by looking for it.
+
+   Measured on a synthetic repo, warm process, `verdict --base HEAD`
+   against an identical tree:
+
+   | tree | short circuit | full `scan()` of the same tree |
+   |---|---|---|
+   | 1 file | 416 ms | — |
+   | 61 files | **1762 ms** | **929 ms** |
+
+   `6be5681` is not wrong about what it measured — on hono
+   `verdict --base HEAD` genuinely went 12.3s → 7.0s, and the second of
+   two full scans genuinely was pure cost. What is wrong is the mental
+   model the optimisation invites: "identical trees, so we do two
+   `git rev-parse` calls and stop". Something on that path scales with
+   the tree, and on a small repo it costs more than just scanning.
+
+   **Not fixed here, and deliberately not guessed at.** The next step is
+   to profile the short-circuit path rather than to assume which call it
+   is; a fix chosen from the table above would be a fix chosen from two
+   data points. The flaky test that surfaced it now says so in a comment
+   instead of asserting a size-independence claim that does not hold.
+
 4e. **JS syntax errors have no `coverage.warnings[]` signal.** The
    Python pack surfaces `hasSyntaxErrors`; the JS pack has no public
    equivalent — `ts.createSourceFile` keeps `parseDiagnostics` off the

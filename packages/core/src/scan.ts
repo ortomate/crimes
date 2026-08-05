@@ -1,4 +1,4 @@
-import { basename, relative, resolve } from "node:path";
+import { basename, isAbsolute, relative, resolve } from "node:path";
 import { discoverFiles } from "./discovery/index.js";
 import type { FailOn } from "./baseline.js";
 import { severityAtLeast } from "./baseline.js";
@@ -19,7 +19,7 @@ import { CoverageWarningLog } from "./discovery/coverage-warnings.js";
 import { isNeverReportable } from "./util/scope-class.js";
 import { collectDiscoveryWarnings } from "./discovery/undiscovered.js";
 import { discoverAssetFiles, runAssetDetectorsForRoot } from "./scan-assets.js";
-import type { Finding, ScanReport, ScanSummary } from "./finding.js";
+import type { Finding, ScanReport, ScanSummary, WorkingSet } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { getChangedFiles } from "./git/changed-files.js";
 // resolveAliasGroups now lives with the alias catalogue it merges into.
@@ -27,6 +27,7 @@ import { getChangedFiles } from "./git/changed-files.js";
 // because it is part of the public @crimes/core API surface and
 // context.ts imports it from this module.
 import { resolveAliasGroups } from "./ia/aliases.js";
+import type { ImportGraph } from "./imports/types.js";
 export { resolveAliasGroups };
 import { finaliseFindingScores } from "./scoring/build.js";
 import type { ApplySuppressionsOptions, SuppressionEntry } from "./suppressions.js";
@@ -65,6 +66,27 @@ export interface ScanOptions {
    */
   base?: string;
   /**
+   * Restrict the scan to an explicit working set. Paths may be
+   * repo-relative or absolute. Narrows which files emit findings; the
+   * cross-file indexes are still built from the whole repo.
+   *
+   * This is the selector `--changed` cannot serve: an agent scoping a
+   * change it has not made yet is sitting on a clean tree, so
+   * `--changed --base main` returns nothing.
+   */
+  files?: string[];
+  /**
+   * Restrict the scan to these files plus their import-graph neighbours,
+   * in both directions — what they import and what imports them.
+   *
+   * Symmetric on purpose. "What should I look at before changing this"
+   * has two halves: the files it depends on can break it, and the files
+   * that depend on it are what it can break.
+   */
+  relatedTo?: string[];
+  /** Import-graph hops `relatedTo` walks. Default 1. */
+  relatedDepth?: number;
+  /**
    * When false, disables the recency multiplier on rank_score so findings
    * sort by agent_risk alone. Default true.
    */
@@ -102,21 +124,41 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     allFiles: inputs.allFiles,
     warnings,
   });
+  // `--related-to` is applied here rather than in `resolveScanInputs`
+  // because the walk needs the import graph, which is built above from
+  // the *whole* file set. Narrowing before the graph existed would make
+  // the working set define its own neighbourhood.
+  const workingSet = await resolveWorkingSet({
+    root,
+    allFiles: inputs.allFiles,
+    options,
+    imports: indexes.imports,
+    warnings,
+  });
+  const scanFiles = workingSet ? workingSet.absoluteFiles : inputs.files;
+
   const langPack = resolveLanguagePackRouter();
   const findings = await runDetectorsForFiles({
     root,
-    files: inputs.files,
+    files: scanFiles,
     detectors,
     config,
     indexes,
     langPack,
   });
+  // Asset detectors run over the repo, not over a file list, so a
+  // working-set scan filters their output rather than skipping the pass.
+  // Skipping it would mean `--files public/logo.png` reported nothing.
   const assetFindings = await runAssetDetectorsForRoot({
     root,
     config,
     detectors: assetDetectors,
   });
-  findings.push(...assetFindings);
+  findings.push(
+    ...(workingSet
+      ? assetFindings.filter((f) => workingSet.repoPaths.has(f.file))
+      : assetFindings),
+  );
 
   // One place enforces the never-reportable policy, because ~50
   // detectors predate `scope-class` and none of them ask.
@@ -176,6 +218,9 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   if (inputs.changedAll !== undefined) {
     report.changed_files = inputs.changedAll;
   }
+  if (workingSet) {
+    report.working_set = workingSet.summary;
+  }
   report.coverage = coverage;
 
   const resurfaced = await collectResurfaceForScan({
@@ -201,6 +246,122 @@ interface ScanInputs {
   allFiles: string[];
   files: string[];
   changedAll?: string[];
+}
+
+interface ResolvedWorkingSet {
+  /** Absolute paths, in `allFiles` order, that detectors should process. */
+  absoluteFiles: string[];
+  /** The same set as repo-relative POSIX paths, for filtering asset findings. */
+  repoPaths: Set<string>;
+  /** What lands on `ScanReport.working_set`. */
+  summary: WorkingSet;
+}
+
+/**
+ * Turn `files` / `relatedTo` into the set of files that may emit
+ * findings.
+ *
+ * Returns `undefined` when the caller named neither, which is the whole
+ * -repo case and must stay byte-identical to a scan that never knew this
+ * function existed.
+ *
+ * `relatedTo` walks the import graph in **both** directions: a file's
+ * imports can break it, and its importers are what it can break. The
+ * walk is breadth-first with a visited set, so a cycle terminates —
+ * unlike `transitiveImporterCount`, which deliberately does not
+ * cycle-break because it feeds a different question.
+ */
+async function resolveWorkingSet(args: {
+  root: string;
+  allFiles: string[];
+  options: ScanOptions;
+  imports: ImportGraph | undefined;
+  warnings: CoverageWarningLog;
+}): Promise<ResolvedWorkingSet | undefined> {
+  const { root, allFiles, options, imports, warnings } = args;
+  const named = options.relatedTo ?? options.files;
+  if (named === undefined || named.length === 0) return undefined;
+  const selector = options.relatedTo !== undefined ? "related-to" : "files";
+
+  // Map every discovered file to its repo-relative form once, so the
+  // caller's paths — absolute or relative, either separator — resolve
+  // against the same strings the report uses.
+  const rootReal = await safeRealpath(root);
+  const byRepoPath = new Map<string, string>();
+  for (const abs of allFiles) {
+    byRepoPath.set(toRepoPath(relative(rootReal, await safeRealpath(abs))), abs);
+  }
+
+  const seeds: string[] = [];
+  for (const raw of named) {
+    const abs = isAbsolute(raw) ? raw : resolve(root, raw);
+    const rel = toRepoPath(relative(rootReal, await safeRealpath(abs)));
+    if (!byRepoPath.has(rel)) {
+      // Loudly, not silently. A typo'd path that narrows the scan to
+      // nothing produces a report that reads "clean".
+      warnings.record("working_set_path_unmatched", raw, { file: rel });
+      continue;
+    }
+    seeds.push(rel);
+  }
+
+  const selected =
+    selector === "related-to"
+      ? expandThroughImports(seeds, imports, options.relatedDepth ?? 1)
+      : new Set(seeds);
+
+  const absoluteFiles = allFiles.filter((abs) => {
+    for (const [rel, candidate] of byRepoPath) {
+      if (candidate === abs) return selected.has(rel);
+    }
+    return false;
+  });
+
+  const summary: WorkingSet = {
+    selector,
+    seeds: [...seeds].sort(),
+    files: [...selected].sort(),
+  };
+  if (selector === "related-to") summary.depth = options.relatedDepth ?? 1;
+
+  return { absoluteFiles, repoPaths: selected, summary };
+}
+
+/**
+ * Breadth-first walk out from `seeds` over both in- and out-edges.
+ *
+ * With no import graph — the index failed to build, and
+ * `coverage.warnings` already says so — this degrades to the seeds
+ * themselves rather than to the whole repo. Silently widening a scan
+ * the user asked to narrow would be the worse failure.
+ */
+function expandThroughImports(
+  seeds: string[],
+  imports: ImportGraph | undefined,
+  depth: number,
+): Set<string> {
+  const selected = new Set(seeds);
+  if (!imports || depth < 1) return selected;
+  let frontier = [...seeds];
+  for (let hop = 0; hop < depth && frontier.length > 0; hop += 1) {
+    const next: string[] = [];
+    for (const file of frontier) {
+      for (const edge of imports.out.get(file) ?? []) {
+        if (edge.to.length > 0 && !selected.has(edge.to)) {
+          selected.add(edge.to);
+          next.push(edge.to);
+        }
+      }
+      for (const edge of imports.in.get(file) ?? []) {
+        if (!selected.has(edge.from)) {
+          selected.add(edge.from);
+          next.push(edge.from);
+        }
+      }
+    }
+    frontier = next;
+  }
+  return selected;
 }
 
 async function resolveScanInputs(args: {

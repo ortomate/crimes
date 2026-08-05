@@ -197,12 +197,19 @@ describe("crimes scan --changed --fail-on", () => {
     expect(parsed.failed).toBeUndefined();
   });
 
-  it("rejects --fail-on without --changed (exit 2)", async () => {
+  it("rejects --fail-on with no working set at all (exit 2)", async () => {
+    // 0.20.0 widened this from "--changed only" to "any working-set
+    // selector" — `--files` and `--related-to` gate too. What stays
+    // rejected is gating a *whole-repo* scan, which would fail on the
+    // repo's entire existing debt rather than on anything this run did.
     const root = await mkdtemp(join(tmpdir(), "crimes-cli-fail-on-misuse-"));
     await writeFile(join(root, "a.ts"), bigSource(), "utf8");
     const result = await runCli(["scan", ".", "--fail-on", "high"], root);
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toMatch(/--fail-on only applies when --changed/);
+    expect(result.stderr).toMatch(/--fail-on needs a working set/);
+    // The message names all three, because naming one sends the user to
+    // the wrong half of the loop half the time.
+    expect(result.stderr).toMatch(/--changed, --files, or --related-to/);
   });
 
   it("rejects unknown --fail-on values (exit 2)", async () => {

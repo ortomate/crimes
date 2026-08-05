@@ -178,6 +178,8 @@ manually.
 | Situation                                                       | Command                                          |
 | --------------------------------------------------------------- | ------------------------------------------------ |
 | About to edit one specific file                                 | `crimes context <file> --format json`            |
+| **About to change a known set of files**                        | **`crimes scan --files a.ts,b.ts --format json`**|
+| **About to change one module and its neighbourhood**            | **`crimes scan --related-to <file> --format json`**|
 | About to refactor across a directory                            | `crimes scan <path> --format json`               |
 | Mid-task, want to re-check only the files you have touched      | `crimes scan --changed --format json`            |
 | Reviewing a feature branch before merge                         | `crimes scan --changed --base main --format json`|
@@ -191,6 +193,43 @@ manually.
 
 If you only learn one command, learn `crimes context <file> --format json`
 — it is the cheapest, most file-specific entry point.
+
+### Scope the scan to the work
+
+**Bare `crimes scan` audits the whole repository.** That is a legitimate
+thing to want and it is almost never what you want mid-task. On a
+200-file project it returns roughly 500 findings, which is not a work
+list — it is an invitation to over-fix into unrelated files or to
+dismiss the tool. Both are worse than not running it.
+
+Every scan can be scoped to a **working set**, three ways:
+
+```bash
+# You know which files the change touches.
+crimes scan --files src/lib/api.ts,src/lib/types.ts --format json
+
+# You know one file and want its neighbourhood.
+crimes scan --related-to src/lib/api.ts --format json
+crimes scan --related-to src/lib/api.ts --related-depth 2 --format json
+
+# You have already made the edits.
+crimes scan --changed --base main --format json
+```
+
+`--related-to` walks the import graph in **both** directions — what the
+file imports and what imports it — because both can break when it
+changes. The resolved set comes back on the report as
+`working_set.files`, so you can check what was actually scanned rather
+than assuming; a path that matched nothing is called out on stderr and
+in `coverage.warnings`.
+
+`--fail-on` works with any of the three, so the CI story is available to
+all of them and not only to `--changed`.
+
+**`--changed` is the post-edit selector.** Before you have written
+anything, `--changed --base main` on a clean tree returns *nothing* —
+correctly. That is exactly the moment `--files` and `--related-to`
+exist for, and it is where most agent tasks start.
 
 ---
 

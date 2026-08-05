@@ -1,5 +1,9 @@
 import type { Finding, ScanReport, Severity } from "@crimes/core";
-import { severityCountsLine, summaryLine, suppressedCountLine } from "./scan-common.js";
+import {
+  pushSummaryRepeat,
+  scanSummaryLine,
+  suppressedCountLine,
+} from "./scan-common.js";
 import type { ColourFns } from "./shared.js";
 import { pc, plainColour, renderFinding, severityGlyph } from "./shared.js";
 import type { HumanReportOptions } from "./scan.js";
@@ -37,15 +41,7 @@ export function formatHumanReportFlat(
 }
 
 function renderFlatHeader(report: ScanReport, colour: ColourFns): string[] {
-  return [
-    colour.bold("CRIME SCENE REPORT"),
-    colour.dim(
-      `repo: ${report.repo.name}  ·  ${report.findings.length} finding${
-        report.findings.length === 1 ? "" : "s"
-      }  ·  ${severityCountsLine(report, colour)}`,
-    ),
-    "",
-  ];
+  return [colour.bold("CRIME SCENE REPORT"), scanSummaryLine(report, colour), ""];
 }
 
 function renderSeverityGroups(
@@ -90,8 +86,7 @@ function renderFlatFooter(
       ),
     );
   }
-  lines.push("");
-  lines.push(summaryLine(report, colour));
+  pushSummaryRepeat(lines, report, colour);
   const suppressedLine = suppressedCountLine(report);
   if (suppressedLine) lines.push(colour.dim(suppressedLine));
 }

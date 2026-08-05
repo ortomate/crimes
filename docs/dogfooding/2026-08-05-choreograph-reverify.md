@@ -165,6 +165,63 @@ for that half of the loop.
 
 ---
 
+## Addendum: two of the five concrete asks were already shipped
+
+Found while scoping R2, by checking what existed before adding
+anything. Recorded here because both were about to be built twice.
+
+### Ask 2 — "`scaffolding` globs in `crimes.config.json`, applied at scan time"
+
+**This ships today, on by default, and `scripts/**` is literally the
+first entry.**
+
+```ts
+// packages/core/src/config.ts
+export const DEFAULT_NON_DOMAIN_PATTERNS: string[] = [
+  "scripts/**",
+  "examples/**",
+  ...
+];
+```
+
+Measured on the same choreograph snapshot: **all 148** `scripts/`
+findings already carry `tier: "nonDomain"`. They are already excluded
+from the top-file ranking, already confidence-damped, and already
+collapsed into a single `Also flagged elsewhere · scripts/ 144
+findings` line. The config knob the notes asked for is
+`scopeTiers.nonDomain`, and it is user-overridable per repo.
+
+**So what was actually wrong is narrower, and worse.** The header
+counted findings the report then declined to show:
+
+| | header said | body listed |
+|---|---|---|
+| findings | 491 | **339** |
+| files | 208 | **137** |
+| high | 35 | **22** |
+
+A third of the demoralising number was findings crimes had already
+decided were not the point. **The headline was describing a superset of
+itself.** Fixed by making the summary line count what the report shows
+and state the remainder (`+152 in non-domain paths`); `summary.total` in
+the JSON is untouched, because the renderer is a view and the JSON is
+the contract.
+
+**Where the notes were wrong:** the mechanism existed and was working.
+The complaint was real, and its cause was in the renderer, not in
+missing configuration. Adding a `scaffolding` glob would have been a
+second way to say what `scopeTiers.nonDomain` already says — the "don't
+invent a third location" rule in `CLAUDE.md`, applied to scope classes.
+
+### Ask 4 — "exempt type-only modules from fan-in"
+
+Not shipped, but the rule as proposed would not have worked. See
+[`2026-08-05-r3-premeasurements.md`](./2026-08-05-r3-premeasurements.md):
+`src/lib/types.ts` exports 24 types and one constant, so an
+exports-are-type-only test fails on the file that prompted the ask.
+
+---
+
 ## What Step 0 cost, and what it bought
 
 One hour. It bought:

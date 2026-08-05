@@ -33,6 +33,7 @@ import {
   emitDetectorsDisabledBreadcrumb,
   emitFuturePinnedSuppressionsWarnings,
   emitResurfacedSuppressionsBreadcrumb,
+  emitUnmatchedWorkingSetPaths,
   resolveNoColor,
 } from "../breadcrumb.js";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
@@ -45,6 +46,9 @@ interface ScanCommandOptions {
   noColor: boolean;
   changed: boolean;
   base?: string;
+  files?: string[];
+  relatedTo?: string[];
+  relatedDepth?: number;
   failOn?: string;
   showSuppressed: boolean;
   showTriaged: boolean;
@@ -89,6 +93,20 @@ function warnIgnoredPresentationFlags(options: ScanCommandOptions): void {
   );
 }
 
+/**
+ * Accumulate a comma-separated path list across repeated flags, so both
+ * `--files a,b` and `--files a --files b` work. Empty segments are
+ * dropped rather than passed through as `""`, which would resolve to the
+ * repo root and quietly widen the scan to everything.
+ */
+function collectPaths(value: string, previous: string[] = []): string[] {
+  const parts = value
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  return [...previous, ...parts];
+}
+
 function isFailOn(value: string): value is FailOn {
   return VALID_FAIL_ON.has(value as FailOn);
 }
@@ -113,6 +131,21 @@ export function registerScanCommand(program: Command): void {
     .option(
       "--base <ref>",
       "Git ref to compare against when --changed is set, e.g. main or origin/main",
+    )
+    .option(
+      "--files <paths>",
+      "only report on these files (comma-separated, repo-relative or absolute)",
+      collectPaths,
+    )
+    .option(
+      "--related-to <paths>",
+      "only report on these files and their import-graph neighbours (comma-separated)",
+      collectPaths,
+    )
+    .option(
+      "--related-depth <n>",
+      "how many import hops --related-to walks (default 1)",
+      (v) => Number.parseInt(v, 10),
     )
     .option(
       "--fail-on <severity>",
@@ -185,8 +218,50 @@ export function registerScanCommand(program: Command): void {
         return;
       }
 
-      if (options.failOn !== undefined && !options.changed) {
-        process.stderr.write(`crimes: --fail-on only applies when --changed is set.\n`);
+      // `--fail-on` gates on a working set, and there are now three ways
+      // to name one. Restricting it to `--changed` would leave the
+      // pre-edit selectors unable to gate at all.
+      const hasWorkingSet =
+        options.changed ||
+        (options.files?.length ?? 0) > 0 ||
+        (options.relatedTo?.length ?? 0) > 0;
+      if (options.failOn !== undefined && !hasWorkingSet) {
+        process.stderr.write(
+          `crimes: --fail-on needs a working set — pass --changed, --files, or --related-to.\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      const selectors = [
+        options.changed ? "--changed" : undefined,
+        options.files !== undefined ? "--files" : undefined,
+        options.relatedTo !== undefined ? "--related-to" : undefined,
+      ].filter((s): s is string => s !== undefined);
+      if (selectors.length > 1) {
+        // Silently intersecting or unioning them would make the report's
+        // scope unguessable from the command line that produced it.
+        process.stderr.write(
+          `crimes: ${selectors.join(" and ")} select the working set two different ways. Pick one.\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      if (options.relatedDepth !== undefined && options.relatedTo === undefined) {
+        process.stderr.write(
+          `crimes: --related-depth only applies when --related-to is set.\n`,
+        );
+        process.exit(2);
+        return;
+      }
+      if (
+        options.relatedDepth !== undefined &&
+        (!Number.isInteger(options.relatedDepth) || options.relatedDepth < 1)
+      ) {
+        process.stderr.write(
+          `crimes: --related-depth must be a positive integer (got "${String(options.relatedDepth)}").\n`,
+        );
         process.exit(2);
         return;
       }
@@ -216,6 +291,11 @@ export function registerScanCommand(program: Command): void {
           config,
           changed: options.changed,
           base: options.base,
+          ...(options.files !== undefined ? { files: options.files } : {}),
+          ...(options.relatedTo !== undefined ? { relatedTo: options.relatedTo } : {}),
+          ...(options.relatedDepth !== undefined
+            ? { relatedDepth: options.relatedDepth }
+            : {}),
           recencyEnabled: options.recency, // Commander: true unless --no-recency
         });
         const suppressions = loadSuppressionsForRoot(root, config);
@@ -234,6 +314,10 @@ export function registerScanCommand(program: Command): void {
           showSuppressed: options.showSuppressed,
           crimesVersion: __CRIMES_VERSION__,
         });
+        emitUnmatchedWorkingSetPaths(
+          report,
+          options.relatedTo !== undefined ? "--related-to" : "--files",
+        );
         emitResurfacedSuppressionsBreadcrumb(
           countResurfacedByPinnedMinor(report.findings),
           { noColor },
@@ -252,7 +336,7 @@ export function registerScanCommand(program: Command): void {
       }
 
       const failOn =
-        options.failOn !== undefined && options.changed
+        options.failOn !== undefined && hasWorkingSet
           ? (options.failOn as FailOn)
           : undefined;
       const gatedReport =

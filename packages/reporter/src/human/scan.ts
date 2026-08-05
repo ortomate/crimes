@@ -7,7 +7,11 @@ import {
   renderFileGroups,
   renderResurfaceBlock,
 } from "./scan-groups.js";
-import { severityCountsLine, summaryLine, suppressedCountLine } from "./scan-common.js";
+import {
+  pushSummaryRepeat,
+  scanSummaryLine,
+  suppressedCountLine,
+} from "./scan-common.js";
 import type { ColourFns, FeedbackHintOptions } from "./shared.js";
 import { pc, plainColour, renderFinding } from "./shared.js";
 
@@ -35,7 +39,7 @@ export function formatHumanReport(
     topFiles: options.topFiles ?? DEFAULT_TOP_FILES,
     feedbackHints: options.feedbackHints,
   };
-  const lines = renderHeader(report, context);
+  const lines = renderHeader(report, context, { showAll: options.showAll === true });
   if (report.findings.length === 0) return lines.join("\n");
 
   const partition = partitionFindingsForScan(report.findings);
@@ -47,7 +51,7 @@ export function formatHumanReport(
     renderAllFindings(lines, report, context);
   } else {
     renderRepoLevelSection(lines, partition.repoLevel, context);
-    renderGroupedFindings(lines, partition, context);
+    renderGroupedFindings(lines, partition, report, context);
   }
 
   const suppressedLine = suppressedCountLine(report);
@@ -115,7 +119,11 @@ function renderRepoLevelSection(
  */
 const REPO_LEVEL_CAP = 5;
 
-function renderHeader(report: ScanReport, context: RenderContext): string[] {
+function renderHeader(
+  report: ScanReport,
+  context: RenderContext,
+  options: { showAll?: boolean },
+): string[] {
   const { colour, isColorDisabled } = context;
   const lines = [colour.bold("CRIME SCENE REPORT")];
   if (report.findings.length === 0) {
@@ -125,14 +133,7 @@ function renderHeader(report: ScanReport, context: RenderContext): string[] {
     lines.push(colour.green(`${cleanPrefix}No crimes detected. Suspiciously clean.`));
     return lines;
   }
-  const fileCount = new Set(report.findings.map((f) => f.file)).size;
-  lines.push(
-    colour.dim(
-      `repo: ${report.repo.name}  ·  ${report.findings.length} finding${
-        report.findings.length === 1 ? "" : "s"
-      } across ${fileCount} file${fileCount === 1 ? "" : "s"}  ·  ${severityCountsLine(report, colour)}`,
-    ),
-  );
+  lines.push(scanSummaryLine(report, colour, options));
   return lines;
 }
 
@@ -184,25 +185,32 @@ function renderAllFindings(
     );
     lines.push("");
   });
-  lines.push(summaryLine(report, context.colour));
+  pushSummaryRepeat(lines, report, context.colour, { showAll: true });
 }
 
 function renderGroupedFindings(
   lines: string[],
   partition: FindingPartition,
+  report: ScanReport,
   context: RenderContext,
 ): void {
   if (partition.domain.length === 0 && partition.nonDomain.length === 0) {
-    renderOnlyResurfacedClose(lines, partition.resurfaced);
+    renderOnlyResurfacedClose(lines, partition.resurfaced, report, context);
   } else if (partition.domain.length === 0) {
-    renderAllNonDomain(lines, partition.nonDomain, context);
+    renderAllNonDomain(lines, partition.nonDomain, report, context);
   } else {
-    renderDomainGroups(lines, partition.domain, partition.nonDomain, context);
+    renderDomainGroups(lines, partition.domain, partition.nonDomain, report, context);
   }
 }
 
-function renderOnlyResurfacedClose(lines: string[], resurfaced: Finding[]): void {
+function renderOnlyResurfacedClose(
+  lines: string[],
+  resurfaced: Finding[],
+  report: ScanReport,
+  context: RenderContext,
+): void {
   if (resurfaced.length === 0) return;
+  pushSummaryRepeat(lines, report, context.colour);
   lines.push("");
   lines.push(
     `→ Start with \`crimes context ${resurfaced[0]!.file}\` — every fresh finding is silenced; only previously-triaged or baselined findings remain.`,
@@ -212,6 +220,7 @@ function renderOnlyResurfacedClose(lines: string[], resurfaced: Finding[]): void
 function renderAllNonDomain(
   lines: string[],
   findings: Finding[],
+  report: ScanReport,
   context: RenderContext,
 ): void {
   const grouped = groupByFile(findings);
@@ -221,6 +230,7 @@ function renderAllNonDomain(
   renderFileGroups(lines, shown, context.colour, context.isColorDisabled);
   if (grouped.length > shown.length)
     renderHiddenFileCount(lines, grouped.length, shown.length, context);
+  pushSummaryRepeat(lines, report, context.colour);
   lines.push("");
   lines.push(
     `→ Start with \`crimes context ${shown[0]!.file}\` — every finding is in non-domain folders; review your scopeTiers config if that surprises you.`,
@@ -231,6 +241,7 @@ function renderDomainGroups(
   lines: string[],
   domain: Finding[],
   nonDomain: Finding[],
+  report: ScanReport,
   context: RenderContext,
 ): void {
   const grouped = groupByFile(domain);
@@ -241,6 +252,7 @@ function renderDomainGroups(
   if (grouped.length > shown.length)
     renderHiddenFileCount(lines, grouped.length, shown.length, context);
   if (nonDomain.length > 0) renderNonDomainFooter(lines, nonDomain, context);
+  pushSummaryRepeat(lines, report, context.colour);
   lines.push("");
   lines.push(
     `→ Start with \`crimes context ${shown[0]!.file}\` — it concentrates the most risk in this scan.`,

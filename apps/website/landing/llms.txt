@@ -19,7 +19,7 @@ Core principles:
 - Evidence before judgement. Every finding cites concrete AST or git
   evidence (line ranges, churn counts, import patterns).
 - JSON output is the product contract. Every report carries a
-  `schema_version` (currently `"0.6.0"`) and a `report_type`
+  `schema_version` (currently `"0.7.0"`) and a `report_type`
   discriminator (`"scan"`, `"context"`, `"hotspots"`, `"diff"`,
   `"baseline"`, `"baseline_check"`, `"verdict"`, `"explain"`,
   `"suppressions"`, `"audit_suppressions"`, `"triage"`). Breaking
@@ -34,7 +34,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest v0.19.0)
+## Commands (latest v0.20.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -64,8 +64,10 @@ Per-file / per-directory (shipped in v0.1.0):
 
 Branch / PR safety (shipped in v0.2.0):
 - `crimes scan --changed --fail-on low|medium|high` — exit 1 when the
-  changed set has a finding at or above the threshold. Only valid with
-  `--changed`. JSON gains `fail_on` and `failed` fields.
+  working set has a finding at or above the threshold. Requires a
+  working set: `--changed`, `--files`, or `--related-to` (all three
+  since v0.20.0; `--changed` only before that). JSON gains `fail_on`
+  and `failed` fields.
 - `crimes diff <base...head> --format json` — new / fixed / unchanged
   crimes between two committed refs (triple-dot range). Working-tree-safe;
   exports each ref via `git archive` into a temp dir. Findings matched
@@ -340,7 +342,88 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.19.0 — the backlog release (current release)
+## 0.20.0 — scope it to the work (current release)
+
+The most valuable way to run crimes was the least discoverable one, and
+the default view was describing a report it was not printing. Everything
+here traces to one outside field report on a real Next.js project,
+re-verified complaint-by-complaint against main before any of it was
+acted on. Two of that report's five asks turned out to be already
+shipped; a third would not have worked as proposed.
+
+`crimes scan` gains a **working set** — three mutually exclusive ways to
+narrow a scan to the files you care about:
+
+- `crimes scan --files a.ts,b.ts` — name them directly. Repo-relative or
+  absolute, comma-separated or a repeated flag.
+- `crimes scan --related-to src/lib/api.ts` — a file plus its
+  import-graph neighbourhood, walked **both** directions: what it imports
+  can break it, what imports it is what it can break. `--related-depth N`
+  widens the walk (default 1).
+- `crimes scan --changed [--base main]` — the post-edit selector.
+
+On the field-report repo, `--related-to` returns 28 findings across 8
+files where the bare scan returns 491.
+
+`--fail-on` now works with any of the three rather than only with
+`--changed`, so the CI story is available to path-scoped runs.
+
+The resolved set comes back on the JSON report as `working_set`
+(`selector`, `seeds`, `depth`, `files`) — for `--related-to` that is the
+result of the walk, not the seeds — because a graph walk that silently
+included or excluded a file, with no way to check, is not something an
+agent can rely on. A path that matched nothing warns on stderr and adds
+a `working_set_path_unmatched` coverage warning; without it a typo'd path
+produced a report reading "No crimes detected. Suspiciously clean."
+
+Cross-file indexes are always built from the whole repository, so
+`blast_radius` on a working-set scan is the blast radius of the file
+within the repo, not within the set.
+
+**`--changed` is documented as the post-edit selector.** It works well —
+491 findings to 11 on the same repo — but only after the edits exist. An
+agent scoping a change it has not made yet is sitting on a clean tree, so
+`--changed --base main` correctly returns nothing. That is exactly the
+moment `--files` and `--related-to` exist for.
+
+**The headline number now counts what the report shows.** It used to
+announce "491 findings across 208 files, 35 high" above a report body
+listing 339 across 137 with 22 high — the other 152 were already
+classified `tier: "nonDomain"` (via `scopeTiers.nonDomain`, whose first
+default entry is `scripts/**`) and already collapsed into a one-line
+"Also flagged elsewhere" footer. The summary now counts the domain
+findings the body lists and states the rest as `+152 in non-domain
+paths`. `--all` still reports the full count because `--all` lists
+everything, and `summary.total` in the JSON is untouched — the renderer
+is a view, the JSON is the contract.
+
+The summary is also repeated immediately above the report's closing line
+on any report long enough to have lost the header. `scan --top 15` on a
+209-file repo emits 296 lines, so the header scrolled off and a second
+run at `--top 3` was needed just to read the totals. It goes above the
+close, not after: the report still ends on `-> Start with crimes context
+<file>`, which is the most actionable line an agent gets.
+
+`crimes init --agents` is now the first thing in the README's agent
+section. The field report recorded four steps to first run — searching
+~/.claude/skills, ~/.claude/commands, ~/.claude/plugins, a filesystem
+find, `which crimes` — before guessing `npx crimes@latest`.
+
+Schema: `schema_version` 0.6.0 -> 0.7.0, purely additive
+(`ScanReport.working_set`, and the `working_set_path_unmatched` warning
+kind). **No fingerprints change**, so every baseline, suppression and
+triage entry carries over untouched.
+
+Not done, and recorded as not done: `crimes context --files a,b,c` — the
+field report asked for either that or `scan --related-to`, and this
+release ships the second; `context()` builds every cross-file index per
+call, so nineteen files would mean nineteen index builds. `crimes
+context` stays the deep single-file briefing; `scan --files` is the
+working-set view.
+
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.20.0.md
+
+## 0.19.0 — the backlog release
 
 The largest span the project has published: 50 commits, ~30 defect
 fixes, four features, two `schema_version` bumps (0.4.0 -> 0.6.0).

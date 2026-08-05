@@ -95,6 +95,40 @@ export function emitDefaultOffDetectorsBreadcrumb(
 }
 
 /**
+ * Tell the user a `--files` / `--related-to` path matched nothing.
+ *
+ * This is in `coverage.warnings` either way, but the human report folds
+ * it into `skipped: N files were not analysed (7 reasons) … +5 more
+ * reasons` — so the visible output of `scan --files src/typo.ts` is
+ * **"No crimes detected. Suspiciously clean."** A mistyped path that
+ * reads as a clean bill of health is the same failure mode as the
+ * `detectors.enable` allowlist bug 0.19.0 fixed, and it deserves the
+ * same treatment.
+ *
+ *   crimes: --files src/typo.ts matched no file in this repo.
+ *           The scan is narrower than you asked for.
+ *
+ * Fires even under `--no-color`, for the reason the gated-detector
+ * breadcrumb above does: it reports a gap between what was asked for and
+ * what happened, not a preference. stderr, so piped JSON is unaffected.
+ */
+export function emitUnmatchedWorkingSetPaths(
+  report: { coverage?: { warnings?: readonly { kind: string; subject: string }[] } },
+  selector: string,
+  options: BreadcrumbOptions = {},
+): void {
+  const unmatched = (report.coverage?.warnings ?? [])
+    .filter((w) => w.kind === "working_set_path_unmatched")
+    .map((w) => w.subject);
+  if (unmatched.length === 0) return;
+  const stderr = options.stderr ?? process.stderr;
+  stderr.write(
+    `crimes: ${selector} ${unmatched.join(", ")} matched no file in this repo.\n` +
+      `        The scan is narrower than you asked for.\n`,
+  );
+}
+
+/**
  * One-line stderr breadcrumb fired by every scan-like command when one or
  * more feedback-sourced suppressions resurfaced (their pinned minor is
  * older than the current crimes minor). The calibration loop relies on

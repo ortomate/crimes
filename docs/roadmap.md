@@ -4,7 +4,34 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current version:** `crimes@0.19.0` ✅ shipped — **the backlog
+- **Current version:** `crimes@0.20.0` ✅ shipped — **the agent
+  workflow becomes the documented default**, driven entirely by one
+  outside field report checked complaint-by-complaint against `main`
+  first. `crimes scan` gains a **working set**: `--files a.ts,b.ts`
+  names it, `--related-to <file>` takes a file plus its import-graph
+  neighbourhood walked both ways, `--related-depth` widens it.
+  `--fail-on` accepts any of the three selectors rather than only
+  `--changed`; selectors are mutually exclusive. The resolved set comes
+  back as `working_set.files`, and an unmatched path warns on stderr
+  instead of producing a report reading "Suspiciously clean". On the
+  field-report repo `--related-to` gives 28 findings across 8 files
+  against a bare scan's 491. **`--changed` is documented as the
+  post-edit selector** — on a clean tree it correctly returns nothing,
+  which is where most agent tasks start. **The headline now counts what
+  the report shows**: it announced 491 findings above a body listing
+  339, because the rest were already non-domain and collapsed into a
+  footer; the remainder is stated as `+152 in non-domain paths` and
+  `summary.total` is unchanged. Totals repeat above the closing line so
+  a long report needs no second run to read them. `crimes init
+  --agents` is now the loudest thing in the README's agent section —
+  the report recorded four steps to first run. Two of the report's five
+  asks were **already shipped** (`scopeTiers.nonDomain` is the
+  scaffolding knob) and a third would not have worked as proposed; both
+  are recorded in `docs/dogfooding/`. `schema_version` `0.6.0` →
+  **`0.7.0`**, purely additive; no fingerprints change, so pinned
+  entries carry over. Release notes:
+  [`docs/releases/v0.20.0.md`](./releases/v0.20.0.md).
+- **Previous version:** `crimes@0.19.0` ✅ shipped — **the backlog
   release**, the largest span the project has published: 50 commits,
   ~30 defect fixes, four features, two `schema_version` bumps
   (`0.4.0` → **`0.6.0`**). `0.18.0`–`0.18.4` were internal
@@ -29,7 +56,7 @@ mirror, not a planning doc.
   disable the other 68 — the tool's own remediation advice gutted the
   scan. Release notes:
   [`docs/releases/v0.19.0.md`](./releases/v0.19.0.md).
-- **Previous version:** `crimes@0.17.0` ✅ shipped — calibration, and
+  Previous: `crimes@0.17.0` ✅ shipped — calibration, and
   the first wire-format change. `schema_version` `0.3.0` → `0.4.0`:
   `Finding` gains an optional `discriminator` that `fingerprintFinding`
   folds in, so the three detectors that can report several findings per

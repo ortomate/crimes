@@ -391,8 +391,17 @@ detector and the offending path.
 
 Glob patterns whose findings are classified as `tier: "nonDomain"`.
 Non-domain findings appear in a separate "Also flagged elsewhere"
-footer in the default `crimes scan` human report and don't compete
-with domain findings for the default top-N file slots.
+footer in the default `crimes scan` human report, don't compete with
+domain findings for the default top-N file slots, and **are not counted
+in the report's headline** (the header states them separately as
+`+N in non-domain paths`).
+
+**This is the scaffolding knob.** One-off diagnostics, backfill scripts
+and sample code are quick and dirty by design, and a scan that leads
+with them buries the findings you can act on. `scripts/**` is in the
+default list for exactly that reason. Setting `scopeTiers.nonDomain`
+**replaces** the defaults wholesale, so re-list any of them you still
+want.
 
 ```jsonc
 {

@@ -3,8 +3,13 @@ import type { Finding, ScanReport } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 
 describe("SCHEMA_VERSION", () => {
-  it("is 0.5.0 — blast-radius importer counts split", () => {
-    expect(SCHEMA_VERSION).toBe("0.6.0");
+  // Deliberately titled without the version number. The title used to
+  // carry it ("is 0.5.0 — blast-radius importer counts split") and drifted
+  // a full version behind the assertion, so a failure here reported the
+  // wrong expectation to whoever hit it. The value is the contract; the
+  // title is not the place to restate it.
+  it("matches the version documented in docs/json-schema.md", () => {
+    expect(SCHEMA_VERSION).toBe("0.7.0");
   });
 });
 

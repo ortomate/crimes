@@ -3,7 +3,7 @@
  *
  * Bumping `schema_version` is a breaking change.
  */
-export const SCHEMA_VERSION = "0.6.0" as const;
+export const SCHEMA_VERSION = "0.7.0" as const;
 
 import type { Pack } from "./pack.js";
 import type { Tier } from "./scoring/tier.js";
@@ -301,6 +301,29 @@ export interface ScanSummary {
   low: number;
 }
 
+/**
+ * How a scan was narrowed to a subset of the repo, and to which files.
+ *
+ * The narrowing applies to which files *emit* findings. Cross-file
+ * indexes — the import graph, scoring, the risk index — are always built
+ * from the whole repo, so `blast_radius` on a working-set scan is the
+ * blast radius of the file within the repository, not within the set.
+ */
+export interface WorkingSet {
+  /** Which flag produced the set. */
+  selector: "files" | "related-to";
+  /**
+   * Repo-relative POSIX paths as the caller named them, sorted. For
+   * `files` this equals `files`; for `related-to` these are the seeds the
+   * walk started from.
+   */
+  seeds: string[];
+  /** Import-graph hops walked. Only meaningful for `related-to`. */
+  depth?: number;
+  /** Repo-relative POSIX paths actually scanned, sorted. */
+  files: string[];
+}
+
 export interface ScanReport {
   schema_version: typeof SCHEMA_VERSION;
   /** Discriminator. Always the literal `"scan"`. */
@@ -332,6 +355,20 @@ export interface ScanReport {
    * clean. Sorted, deduplicated.
    */
   changed_files?: string[];
+  /**
+   * The working set this scan was narrowed to, when the caller named one
+   * with `files` or `relatedTo`. Absent on a whole-repo scan and on
+   * `--changed`, which reports through `changed_files` instead.
+   *
+   * `files` is the *resolved* set — for `related-to` that is the result
+   * of the graph walk, not the seeds. It is recorded because a graph walk
+   * that silently included or excluded a file, with no way to check, is
+   * the shape this codebase keeps getting bitten by: an agent has to be
+   * able to confirm what was actually looked at.
+   *
+   * New in `schema_version` 0.7.0.
+   */
+  working_set?: WorkingSet;
   /**
    * Number of findings matched by an entry in `.crimes/suppressions.json`
    * during this invocation. Only present when ≥1 suppression matched —
@@ -462,6 +499,12 @@ export interface ScanReport {
  * - `index_unavailable` — a cross-file index failed to build at all, so
  *   every detector depending on it silently produced nothing.
  *   `subject` is the index id.
+ * - `working_set_path_unmatched` — a path named in `files` or
+ *   `relatedTo` matched no discovered source file, so the scan was
+ *   narrower than the caller asked for. `subject` is the path. Emitted
+ *   because a typo that quietly narrows a scan to nothing produces a
+ *   report that reads "clean", which is the most dangerous wrong answer
+ *   this tool can give.
  */
 export type CoverageWarningKind =
   | "files_not_discovered"
@@ -472,7 +515,8 @@ export type CoverageWarningKind =
   | "files_unparsed"
   | "files_partial_parse"
   | "index_truncated"
-  | "index_unavailable";
+  | "index_unavailable"
+  | "working_set_path_unmatched";
 
 /**
  * One aggregated class of skipped work.
