@@ -243,6 +243,20 @@ stale complaint is worse than no fix, because it looks like progress.
 
 ## Release 1 — `0.19.0`: ship the backlog, and fix the install
 
+> **SHIPPED 2026-08-05.** `crimes@0.19.0` is live on npm. Clean-machine
+> install verified under npm 12.0.2: the published `0.17.0` reproduces
+> the `install-scripts` warning, `0.19.0` installs as a bare
+> `added 2 packages`. Notes: `docs/releases/v0.19.0.md`.
+>
+> One thing this release nearly shipped broken, found while cutting it:
+> `feedback recheck` looked up its per-detector migration note by the
+> current minor **exactly**, so all fifteen `0.17` notes had been
+> unreachable since `0.18.0`. The release whose headline is "twelve
+> detectors need re-recording" would have told every user "detector
+> behaviour unchanged". Fixed in `7592c0c`; nine `0.18`-era entries
+> added with it. **Third instance of apparatus failing closed on correct
+> input** — trap 3 in this document, now with a third data point.
+
 **Add nothing.** The point of this release is that ~30 defect fixes and
 four features are sitting in `main` where nobody can use them. The only
 new work is the install fix, because it is one line and every install
@@ -279,6 +293,38 @@ none of them are worth delaying it for.
 ---
 
 ## Release 2 — `0.20.0`: make the agent workflow the default one
+
+> **SHIPPED 2026-08-05.** `crimes@0.20.0` is live. Notes:
+> `docs/releases/v0.20.0.md`.
+>
+> **Acceptance, as asked for:** on Step 0's repo, the documented default
+> path (`scan --related-to src/lib/creative-pass.ts`) shows an agent
+> **24 findings across 6 files**, against **491** for bare `scan`.
+>
+> Item-by-item against this section:
+>
+> 1. **Docs reframed** — README, `docs/agent-usage.md`, the `--help`
+>    tips block (which now leads with scoping), and the skill
+>    `init --agents` writes. Framed as `--changed` = post-edit,
+>    `--files` / `--related-to` = pre-edit, per Step 0's finding.
+> 2. **Scope to a plan — done, as `scan --files` / `--related-to`.**
+>    `crimes context --files a,b,c` was *not* built: `context()` builds
+>    every cross-file index per call, so 19 files means 19 index builds.
+>    The notes asked for either; this is the one that also ranks and
+>    gates. Recorded in the release notes rather than dropped.
+> 3. **`scaffolding` globs — NOT BUILT, and this document was wrong to
+>    ask for them.** The mechanism ships today as
+>    `scopeTiers.nonDomain`, on by default, with `scripts/**` as its
+>    literal first entry; all 148 `scripts/` findings already carried
+>    `tier: "nonDomain"`. What was actually broken: the header counted
+>    491 findings above a body listing 339. Fixed there. Checking
+>    `util/scope-class.ts` first — which this document told me to do —
+>    is what caught it.
+> 4. **Output ordering — done**, as a repeat above the action-close
+>    rather than a `--summary-last` flag (a flag has `--changed`'s
+>    discoverability problem).
+> 5. **Agent discoverability — done.** `init --agents` is the first
+>    thing in the README's agent section.
 
 The field notes' core finding, stated plainly: **`--changed --base main`
 is the answer, and it was not reached for.** Bare `scan` is the obvious
@@ -330,6 +376,13 @@ number an agent sees on the *documented default path*, not on bare
 ---
 
 ## Release 3 — `0.21.0`: precision, where the false positives are
+
+> **Pre-measurements taken before touching anything:**
+> `docs/dogfooding/2026-08-05-r3-premeasurements.md`. Two of this
+> section's suggested fixes do not survive contact with the files that
+> prompted them — item 3's exports-are-type-only rule would not exempt
+> `types.ts` (24 types, one const), and item 1's no-adjacent-identifier
+> rule would not silence the representative `logic_in_comments` hit.
 
 All four verified as still live against `main`. Each is a calibration
 change: corpus measurement before and after, a patch bump, an eval run.
