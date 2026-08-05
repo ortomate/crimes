@@ -30,14 +30,7 @@
   "bin": {
     "crimes": "./dist/index.js"
   },
-  "files": [
-    "dist/index.js",
-    "dist/*.js",
-    "dist/*.wasm",
-    "scripts/postinstall.mjs",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist/index.js", "dist/*.js", "dist/*.wasm", "README.md", "LICENSE"],
   "engines": {
     "node": ">=18"
   },
@@ -50,7 +43,6 @@
     "start": "node dist/index.js",
     "smoke": "node ./scripts/smoke.mjs",
     "prepack": "node ./scripts/prepack.mjs",
-    "postinstall": "node ./scripts/postinstall.mjs",
     "postpack": "node ./scripts/postpack.mjs"
   },
   "dependencies": {

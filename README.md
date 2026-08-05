@@ -415,11 +415,13 @@ What's in `0.9.0`:
   `suggested_actions` plus generic next-steps. `ExplainReport` JSON
   gains a new `likely_remedies: string[]` field (additive — the
   `Finding` wire format is byte-identical to 0.8.1).
-- **Post-install nudge.** `npm install -g crimes` now prints a
-  one-line reminder to run `crimes init --agents` (suppressed in CI
-  and behind `CRIMES_DISABLE_POSTINSTALL=1`). npm 7+ swallows
-  postinstall stdout by default — the 0.9.1 bare-`crimes` banner is
-  the reliable surface for the same nudge.
+- ~~**Post-install nudge.** `npm install -g crimes` now prints a
+  one-line reminder to run `crimes init --agents`.~~ **Removed in
+  0.19.0.** npm 7+ swallowed the output, so almost nobody saw it, and
+  npm 11.18+ turned the script itself into an `allow-scripts` approval
+  prompt — the only crimes-specific output on a fresh install was a
+  security warning. The 0.9.1 bare-`crimes` banner was always the
+  reliable surface and remains the whole onboarding story.
 - **Landing-page broken link fix.** The "Live status" link on
   [crimes.sh](https://crimes.sh) and the `llms.txt` roadmap pointer
   now resolve to `docs/roadmap.md` instead of the moved

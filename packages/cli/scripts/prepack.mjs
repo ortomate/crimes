@@ -22,10 +22,16 @@ copyFileSync(pkgPath, backupPath);
 
 const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 delete pkg.devDependencies;
-// Strip workspace-only scripts too. None of these run automatically for
-// consumers of the published tarball, and the files they reference
-// (./scripts/*.mjs, tsup, vitest, tsc) aren't shipped with the package.
-pkg.scripts = { postinstall: "node ./scripts/postinstall.mjs" };
+// Strip every script. None of them run for consumers of the published
+// tarball, and the files they reference (./scripts/*.mjs, tsup, vitest, tsc)
+// aren't shipped with the package.
+//
+// The packed manifest must declare *no lifecycle script at all*: npm >= 11.18
+// blocks install scripts by default and asks the user to approve arbitrary
+// code execution before installing. `crimes` used to spend that prompt on a
+// seven-line welcome banner that npm swallowed anyway (see 0.19.0). The smoke
+// test asserts this, so a script reintroduced here fails the release.
+delete pkg.scripts;
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 
 // Write to stderr so we don't pollute `npm pack --json` output.

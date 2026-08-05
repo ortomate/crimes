@@ -43,9 +43,10 @@ program
   )
   .action(() => {
     // Bare `crimes` (no subcommand) prints a welcome banner pointing at
-    // the three first-step commands. The postinstall message says the
-    // same thing, but npm 7+ swallows postinstall stdout/stderr by
-    // default — so this CLI path is the reliable surface.
+    // the three first-step commands. This is the *only* onboarding
+    // surface: 0.9.0 also shipped a postinstall banner, which npm 7+
+    // swallowed and npm 11.18+ turned into an allow-scripts prompt. It
+    // was removed in 0.19.0 — this path is what was always doing the work.
     process.stdout.write(welcomeBanner());
   });
 

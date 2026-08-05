@@ -705,8 +705,9 @@ Minor bump. One new detector and an expanded agent surface; the
   `ExplainReport` JSON gains a new `likely_remedies: string[]`
   field.
 - `npm install -g crimes` now prints a one-line nudge to run
-  `crimes init --agents`. Suppressed in CI and behind
-  `CRIMES_DISABLE_POSTINSTALL=1`.
+  `crimes init --agents`. (Removed in 0.19.0 — npm swallowed the
+  output, and npm 11.18+ turned the script into an `allow-scripts`
+  approval prompt.)
 
 Schema unchanged (`schema_version: "0.1.0"`).
 

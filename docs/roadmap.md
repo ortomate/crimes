@@ -459,9 +459,10 @@ Schema unchanged. `schema_version` stays at `"0.1.0"`.
   `suggested_actions` plus generic next-steps. The `ExplainReport`
   JSON gains a new `likely_remedies: string[]` field. `Finding` wire
   format unchanged.
-- **Post-install nudge.** `npm install -g crimes` now prints a
-  one-line reminder to run `crimes init --agents` (suppressed in CI
-  and behind `CRIMES_DISABLE_POSTINSTALL=1`).
+- ~~**Post-install nudge.** `npm install -g crimes` now prints a
+  one-line reminder to run `crimes init --agents`.~~ **Removed in
+  0.19.0** — npm swallowed it, and npm 11.18+ turned it into an
+  `allow-scripts` approval prompt.
 - **Landing-page broken link fix.** "Live status" and `llms.txt`
   roadmap pointer now resolve to `docs/roadmap.md`.
 

@@ -76,20 +76,14 @@ process.stdout.write(`  unpacked size: ${(packed.unpackedSize / 1024).toFixed(1)
 
 const filePaths = packed.files.map((f) => f.path).sort();
 process.stdout.write(`  files: ${filePaths.join(", ")}\n`);
-const expectedFiles = [
-  "LICENSE",
-  "README.md",
-  "dist/index.js",
-  "package.json",
-  "scripts/postinstall.mjs",
-];
+const expectedFiles = ["LICENSE", "README.md", "dist/index.js", "package.json"];
 for (const must of expectedFiles) {
   assert(filePaths.includes(must), `tarball is missing ${must}`);
 }
 for (const path of filePaths) {
   assert(!path.endsWith(".map"), `tarball should not ship sourcemaps (found ${path})`);
   assert(
-    path === "scripts/postinstall.mjs" || !path.startsWith("scripts/"),
+    !path.startsWith("scripts/"),
     `tarball should not ship dev scripts (found ${path})`,
   );
   assert(!path.startsWith("src/"), `tarball should not ship raw sources (found ${path})`);
@@ -109,6 +103,26 @@ try {
   });
   const installedBin = join(installRoot, "node_modules", ".bin", "crimes");
   process.stdout.write(`  installed bin: ${installedBin}\n`);
+
+  // npm >= 11.18 blocks install scripts by default and prints an
+  // `allow-scripts` warning asking the user to approve arbitrary code
+  // execution. A tool whose pitch is trustworthiness should not spend that
+  // prompt — least of all on a banner npm swallows anyway. Any lifecycle
+  // script in the packed manifest brings the warning back.
+  step("no install lifecycle scripts");
+  const installedManifest = JSON.parse(
+    readFileSync(join(installRoot, "node_modules", "crimes", "package.json"), "utf8"),
+  );
+  const lifecycle = ["preinstall", "install", "postinstall", "prepare"];
+  for (const name of lifecycle) {
+    assert(
+      installedManifest.scripts?.[name] === undefined,
+      `packed package.json must not declare a "${name}" script (found "${installedManifest.scripts?.[name]}") — it triggers npm's allow-scripts prompt`,
+    );
+  }
+  process.stdout.write(
+    `  → scripts: ${JSON.stringify(installedManifest.scripts ?? {})}\n`,
+  );
 
   step("crimes --version");
   const versionOut = run(installedBin, ["--version"]).stdout.trim();
