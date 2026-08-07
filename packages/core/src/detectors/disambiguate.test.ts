@@ -88,3 +88,39 @@ describe("resolveDiscriminators", () => {
     expect(findings.map((f) => f.discriminator)).toEqual(["L0", "L7"]);
   });
 });
+
+describe("resolveDiscriminators — keepUnambiguous", () => {
+  // `weak_test_signal` has no `symbol` and a discriminator that is
+  // always set and always meaningful (the test's title). Stripping it
+  // from a file that happens to hold one silent test would change that
+  // finding's fingerprint for no reason, which is the opposite of what
+  // this pass is for.
+  it("keeps a lone finding's candidate when asked to", () => {
+    const findings: Candidate[] = [
+      { lines: [10, 20], discriminator: "returns the invoice total" },
+    ];
+    resolveDiscriminators(findings, { keepUnambiguous: true });
+    expect(findings[0]!.discriminator).toBe("returns the invoice total");
+  });
+
+  it("still tie-breaks two findings that share a candidate", () => {
+    const findings: Candidate[] = [
+      { lines: [10, 20], discriminator: "creates a credential" },
+      { lines: [55, 70], discriminator: "creates a credential" },
+    ];
+    resolveDiscriminators(findings, { keepUnambiguous: true });
+    expect(findings.map((f) => f.discriminator)).toEqual([
+      "creates a credential@L10",
+      "creates a credential@L55",
+    ]);
+  });
+
+  it("leaves distinct candidates alone", () => {
+    const findings: Candidate[] = [
+      { lines: [10, 20], discriminator: "a" },
+      { lines: [55, 70], discriminator: "b" },
+    ];
+    resolveDiscriminators(findings, { keepUnambiguous: true });
+    expect(findings.map((f) => f.discriminator)).toEqual(["a", "b"]);
+  });
+});

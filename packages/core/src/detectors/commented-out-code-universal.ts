@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import type { PreFinding as Finding } from "../finding.js";
 import type { UniversalDetector } from "../detector.js";
 import { JS_EXTENSIONS } from "../discovery/language-pack-router.js";
+import { resolveDiscriminators } from "./disambiguate.js";
 
 const JS_EXT_SET = new Set<string>(JS_EXTENSIONS);
 
@@ -108,7 +110,14 @@ export const commentedOutCodeUniversalDetector: UniversalDetector = {
 
     const flushRun = (endLine: number): void => {
       if (runCount >= MINIMUM_RUN && runCodeHits >= MINIMUM_CODE_HITS && runStart >= 0) {
-        findings.push(buildFinding(ctx.file, runStart + 1, endLine));
+        findings.push(
+          buildFinding(
+            ctx.file,
+            runStart + 1,
+            endLine,
+            lines.slice(runStart, endLine).join("\n"),
+          ),
+        );
       }
       runStart = -1;
       runCodeHits = 0;
@@ -135,11 +144,42 @@ export const commentedOutCodeUniversalDetector: UniversalDetector = {
     }
     flushRun(lines.length);
 
+    // The language-js twin has carried a hash of the block's text as
+    // its discriminator since 0.17.0; this variant never got one, so
+    // every block in a non-JS file shared
+    // `commented_out_code::<file>::` and `crimes ignore` on one
+    // silenced the rest. `zproject/prod_settings_template.py` carries
+    // 18 blocks under a single fingerprint — 21 of zulip's 39
+    // colliding findings and 18 of airflow's 184.
+    //
+    // Routed through `resolveDiscriminators` rather than set
+    // unconditionally, so a file holding one block keeps the
+    // fingerprint it has always had. That leaves the two variants
+    // disagreeing for single-block files — the JS one always appends a
+    // hash — which is pre-existing and not worth churning every JS
+    // fingerprint to unify.
+    resolveDiscriminators(findings);
     return findings;
   },
 };
 
-function buildFinding(file: string, startLine: number, endLine: number): Finding {
+/**
+ * Hash the block's own text. Deliberately not `hashSlice`, which
+ * tokenises with the TypeScript scanner: this variant runs on Python,
+ * Go, Ruby and anything else the JS pack does not claim, and a
+ * TS-shaped tokenisation of a `# ...` run is a category error even
+ * where it happens to be deterministic.
+ */
+function blockHash(text: string): string {
+  return createHash("sha1").update(text).digest("hex").slice(0, 12);
+}
+
+function buildFinding(
+  file: string,
+  startLine: number,
+  endLine: number,
+  text: string,
+): Finding {
   return {
     id: "",
     type: "commented_out_code",
@@ -147,6 +187,8 @@ function buildFinding(file: string, startLine: number, endLine: number): Finding
     severity: "low",
     confidence: 0.65,
     file,
+    // Candidate only — see the `resolveDiscriminators` call above.
+    discriminator: blockHash(text),
     lines: [startLine, endLine] as [number, number],
     summary:
       `A run of ${endLine - startLine + 1} consecutive comments looks like disabled code. ` +

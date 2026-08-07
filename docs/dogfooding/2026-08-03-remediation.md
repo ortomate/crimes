@@ -840,8 +840,14 @@ folded into them — each is a separate behaviour change.
    Cost: airflow 97.1s → 99.4s over three samples each, against a ~12s
    run-to-run spread — no measurable regression. Fingerprint collisions
    are **identical** before and after (zulip 30/3458, airflow
-   115/9926, zero new groups), so the pre-existing `weak_test_signal`
-   discriminator issue is untouched.
+   115/9926, zero new groups), so the pre-existing discriminator issue
+   is untouched.
+
+   > **Correction, `0.22.0`:** those two totals were later quoted as
+   > `weak_test_signal` collisions, and they are not — they are the
+   > totals across every detector, which is what this sentence measured
+   > and all it was ever entitled to claim. Re-measured, **zero** of
+   > either repo's collisions are `weak_test_signal`. See §4g.
 
    Note the airflow headline is not the same quantity as the "12%" this
    entry was written about, and should not be read as having moved it.
@@ -929,6 +935,80 @@ folded into them — each is a separate behaviour change.
    `weak_test_signal.py` — so on `language-js` the warning is the only
    thing separating a broken file from a clean one. Recorded in
    `docs/json-schema.md` and on `CoverageWarningKind`.
+
+4g. ~~**`weak_test_signal` fingerprint collisions.**~~ **Done** in
+   `0.22.0`. The collision class is real and now closed. **The entry
+   was wrong about which detector it was, and about both Python
+   numbers**, which is why it is worth writing down rather than just
+   ticking off.
+
+   Original entry: *2 of 3,585 on n8n `packages/cli`, 30 of 3,458 on
+   zulip, 115 of 9,926 on airflow — two tests with identical titles in
+   one file, so the test-title discriminator can't separate them.
+   Folding the line range in fixes it and invalidates every pinned
+   `weak_test_signal` suppression.*
+
+   Measured, by grouping every finding by its emitted `fingerprint`:
+
+   | repo | findings | colliding | groups | `weak_test_signal` share |
+   |---|---|---|---|---|
+   | n8n `packages/cli` | 3,571 | 4 | 2 | **4 of 4** |
+   | zulip | 3,453 | 39 | 10 | **0 of 39** |
+   | airflow | 9,925 | 184 | 69 | **0 of 184** |
+
+   Only n8n's collisions are `weak_test_signal` at all, and its "2" is
+   the *group* count read as a finding count. The 30 and the 115 were
+   carried over from §4d, where they are the totals across **all**
+   detectors — §4d measured them to show the symbol index changed
+   nothing, which is true, and the attribution to `weak_test_signal`
+   was added afterwards and was never checked.
+
+   What is actually colliding is a different, larger class, and one
+   Python makes endemic:
+
+   | detector | n | why |
+   |---|---|---|
+   | `large_function` (Python) | 151 + 14 | one method name on many classes in a module — `sagemaker.py` has four `execute`s |
+   | `commented_out_code` (non-JS) | 18 + 21 | every block in a file shared one fingerprint; `prod_settings_template.py` had 18 |
+   | `sync_io_in_hotpath` (Python) | 15 + 4 | same, for the enclosing hot function |
+   | `weak_test_signal` (JS) | 4 | two `it(...)` blocks in one file with the same title |
+
+   **The fix was already in the tree.** `resolveDiscriminators`
+   (`detectors/disambiguate.ts`) has implemented exactly the right
+   policy since `0.18.x` — a candidate discriminator, kept only where
+   the symbol repeats, with the start line as a tie-break. Nine
+   detectors call it. These four did not. So the work was to supply
+   each one a candidate (the class for the two Python detectors, a hash
+   of the block for `commented_out_code`, the existing title for
+   `weak_test_signal`) and to route it through the pass.
+
+   **"Invalidates every pinned suppression" is wrong, and it is what
+   `resolveDiscriminators` rule 1 exists to prevent.** A finding whose
+   symbol is already unique in its file keeps the fingerprint it has
+   always had. Measured over four repos and 7,888 findings:
+
+   | repo | findings before → after | fingerprints retired | introduced |
+   |---|---|---|---|
+   | n8n `packages/cli` | 3,571 → 3,571 | 2 | 4 |
+   | zulip | 3,453 → 3,453 | 10 | 39 |
+   | pydantic | 487 → 487 | 4 | 8 |
+   | hono | 377 → 377 | **0** | **0** |
+
+   hono had no collisions and is byte-identical across the change. No
+   finding appears or disappears anywhere; only fingerprints that were
+   covering two or more findings move.
+
+   `weak_test_signal` needed one addition to the pass:
+   `keepUnambiguous`. Its discriminator has been part of every
+   fingerprint it emits since `schema_version` 0.4.0, so the default
+   rule would have *stripped* the title from every file holding a
+   single silent test — inflicting the exact harm rule 1 exists to
+   prevent, inverted.
+
+   Recorded in `docs/json-schema.md` (no `schema_version` bump — no
+   field changes shape) and as `0.22` entries on all four detectors in
+   `RELEASE_NOTES`. The standing gate in `scan.test.ts` gained a Python
+   half; the JS-only fixture could not have caught any of this.
 
 ### Real problems
 

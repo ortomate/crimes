@@ -1431,3 +1431,90 @@ describe("weak_test_signal.py — cross-file assertion helpers", () => {
     expect(found[0]!.evidence.join(" ")).toMatch(/zerver\/lib\/test_classes\.py/);
   });
 });
+
+describe("Python fingerprint collisions — same name, one file", () => {
+  // Measured on airflow: 184 findings collide across 69 groups, and
+  // 151 of them are `large_function`. Python's operator pattern puts
+  // `execute` on every class in a module, so `large_function::<file>::execute`
+  // covers four unrelated methods — `crimes ignore` on one silences the
+  // rest. zulip is the same shape at 14. Neither is `weak_test_signal`,
+  // which is what the queue entry said they were.
+  const longBody = (indent: string) =>
+    Array.from({ length: 60 }, (_, i) => `${indent}x = ${i}`).join("\n");
+
+  it("large_function separates two same-named methods by class", async () => {
+    const source = [
+      "class AlphaOperator:",
+      "    def execute(self, context):",
+      longBody("        "),
+      "",
+      "class BetaOperator:",
+      "    def execute(self, context):",
+      longBody("        "),
+      "",
+    ].join("\n");
+
+    const found = await run(largeFunctionPyDetector, "operators.py", source);
+    const executes = found.filter((f) => f.symbol === "execute");
+    expect(executes).toHaveLength(2);
+    expect(executes.map((f) => f.discriminator)).toEqual([
+      "AlphaOperator",
+      "BetaOperator",
+    ]);
+  });
+
+  it("large_function leaves a uniquely-named function's fingerprint alone", async () => {
+    const source = ["def build_report(rows):", longBody("    "), ""].join("\n");
+    const found = await run(largeFunctionPyDetector, "reporting.py", source);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.discriminator).toBeUndefined();
+  });
+
+  // `security.py::inner` collides four ways on airflow: `inner` is the
+  // body of four different decorators, all module-level, so there is no
+  // class to separate them. The line-number fallback is what that case
+  // gets, and it is why the fallback exists.
+  it("large_function falls back to the start line with no class to name", async () => {
+    const source = [
+      "def requires_dag(func):",
+      "    def inner(*args):",
+      longBody("        "),
+      "    return inner",
+      "",
+      "def requires_pool(func):",
+      "    def inner(*args):",
+      longBody("        "),
+      "    return inner",
+      "",
+    ].join("\n");
+
+    const found = await run(largeFunctionPyDetector, "security.py", source);
+    const inners = found.filter((f) => f.symbol === "inner");
+    expect(inners.length).toBeGreaterThanOrEqual(2);
+    const discriminators = inners.map((f) => f.discriminator);
+    expect(new Set(discriminators).size).toBe(inners.length);
+    expect(discriminators.every((d) => typeof d === "string" && /^L\d+$/.test(d!))).toBe(
+      true,
+    );
+  });
+
+  it("sync_io_in_hotpath separates two same-named hosts", async () => {
+    const source = [
+      "import requests",
+      "",
+      "class AlphaOperator:",
+      "    async def execute(self, context):",
+      "        return requests.get('https://example.test/a')",
+      "",
+      "class BetaOperator:",
+      "    async def execute(self, context):",
+      "        return requests.get('https://example.test/b')",
+      "",
+    ].join("\n");
+
+    const found = await run(syncIoInHotpathPyDetector, "operators.py", source);
+    const executes = found.filter((f) => f.symbol === "execute");
+    expect(executes).toHaveLength(2);
+    expect(new Set(executes.map((f) => f.discriminator)).size).toBe(2);
+  });
+});

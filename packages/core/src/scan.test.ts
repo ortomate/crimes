@@ -988,12 +988,49 @@ export function Panel() {
     // large_function: two anonymous callbacks collapse to the same
     // synthesized symbol.
     "src/suite.test.ts": `describe("a", () => {\n${body(200)}\n});\n\ndescribe("b", () => {\n${body(200)}\n});\n`,
-    // weak_test_signal: several assertion-free tests in one file.
+    // weak_test_signal: several assertion-free tests in one file, two of
+    // them wearing the same title — the residual case the title
+    // discriminator alone cannot separate. Found on n8n `packages/cli`
+    // in 0.22.0.
     "src/weak.test.ts": [
       `it("does the first thing", () => { setup(); });`,
       `it("does the second thing", () => { setup(); });`,
       `it("does the third thing", () => { setup(); });`,
+      `it("does the first thing", () => { setupDifferently(); });`,
     ].join("\n"),
+    // large_function.py + sync_io_in_hotpath.py: Python puts the same
+    // method name on every class in a module, which was 151 of
+    // airflow's 184 colliding findings and 15 more. The JS half of this
+    // fixture could never have caught it — the collision needs a
+    // language whose convention is one `execute` per operator class.
+    "ops/operators.py": `import requests
+
+class AlphaOperator:
+    async def execute(self, context):
+${Array.from({ length: 60 }, (_, i) => `        step_${i} = ${i}`).join("\n")}
+        return requests.get("https://example.test/a")
+
+class BetaOperator:
+    async def execute(self, context):
+${Array.from({ length: 60 }, (_, i) => `        step_${i} = ${i}`).join("\n")}
+        return requests.get("https://example.test/b")
+`,
+    // commented_out_code on a non-JS file: the universal variant never
+    // carried the block hash its language-js twin has had since 0.17.0,
+    // so zulip's `prod_settings_template.py` put 18 blocks under one
+    // fingerprint.
+    "ops/settings.py": `# def old_rate(plan):
+#     value = compute(plan)
+#     return apply_cap(value)
+# RATE = old_rate("pro")
+ACTIVE_RATE = 1
+
+# def older_limit(plan):
+#     value = lookup(plan)
+#     return apply_floor(value)
+# LIMIT = older_limit("pro")
+ACTIVE_LIMIT = 2
+`,
     // swallowed_error + unbounded_async_fanout: two of each in one
     // function, guarding / fanning out over the same callee.
     "src/jobs/sync.ts": `
@@ -1169,10 +1206,47 @@ export function limitFor(plan) {
           "negative_flag_maze",
           "return_shape_roulette",
           "swallowed_error",
+          "sync_io_in_hotpath",
           "unbounded_async_fanout",
           "weak_test_signal",
         ]),
       );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  // The list above is satisfied by any one file tripping a detector, so
+  // it cannot tell whether the *Python* half of the fixture is doing
+  // anything — and the Python half is the one that was colliding. Name
+  // the files.
+  it("discriminates the same name repeated inside one Python module", async () => {
+    const root = await makeRepo(MULTI_EMIT_FIXTURE);
+    try {
+      const report = await scan({ root });
+      const on = (file: string, type: string): Finding[] =>
+        report.findings.filter((f) => f.file === file && f.type === type);
+
+      const executes = on("ops/operators.py", "large_function");
+      expect(executes.length).toBeGreaterThanOrEqual(2);
+      expect(executes.map((f) => f.discriminator).sort()).toEqual([
+        "AlphaOperator",
+        "BetaOperator",
+      ]);
+
+      const blocking = on("ops/operators.py", "sync_io_in_hotpath");
+      expect(blocking).toHaveLength(2);
+      expect(new Set(blocking.map((f) => f.discriminator)).size).toBe(2);
+
+      const blocks = on("ops/settings.py", "commented_out_code");
+      expect(blocks).toHaveLength(2);
+      expect(new Set(blocks.map((f) => f.discriminator)).size).toBe(2);
+
+      const sameTitle = report.findings.filter(
+        (f) => f.file === "src/weak.test.ts" && f.type === "weak_test_signal",
+      );
+      expect(sameTitle.length).toBeGreaterThanOrEqual(4);
+      expect(new Set(sameTitle.map((f) => f.discriminator)).size).toBe(sameTitle.length);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

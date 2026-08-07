@@ -2,6 +2,7 @@ import type { PyFunctionShape } from "@crimes/language-py";
 import { z } from "zod";
 import type { LanguagePyDetector } from "../../detector.js";
 import type { PreFinding as Finding, Severity } from "../../finding.js";
+import { resolveDiscriminators } from "../disambiguate.js";
 import { round, severityScore } from "./shared.js";
 
 /**
@@ -109,6 +110,20 @@ export const largeFunctionPyDetector: LanguagePyDetector = {
         confidence: 0.9,
         file: ctx.file,
         symbol: fn.name,
+        // Candidate discriminator. Python puts the same method name on
+        // every class in a module — airflow's operator pattern gives
+        // `sagemaker.py` four `execute` methods — so
+        // `large_function::<file>::execute` covered four unrelated
+        // functions and `crimes ignore` on one silenced the rest. 151 of
+        // airflow's 184 colliding findings were this, and 14 of zulip's
+        // 39. The class is what actually separates them, and it is
+        // already in the evidence.
+        //
+        // `resolveDiscriminators` drops this again wherever the name is
+        // unique in the file, which is the overwhelming majority — so
+        // pins on unambiguous findings keep the fingerprints they have
+        // always had, and only the colliding ones move.
+        ...(fn.className !== undefined ? { discriminator: fn.className } : {}),
         lines: [fn.startLine, fn.endLine],
         summary: buildSummary({
           name: fn.name,
@@ -145,6 +160,7 @@ export const largeFunctionPyDetector: LanguagePyDetector = {
       });
     }
 
+    resolveDiscriminators(findings);
     return findings;
   },
 };

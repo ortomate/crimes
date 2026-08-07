@@ -2,6 +2,7 @@ import type { PyEnclosingFunction, PyFunctionShape, PyIoCall } from "@crimes/lan
 import type { LanguagePyDetector } from "../../detector.js";
 import type { PreFinding as Finding, Severity } from "../../finding.js";
 import { isTestFile } from "../../util/test-files.js";
+import { resolveDiscriminators } from "../disambiguate.js";
 import { intrinsicFor, lineList, plural, severityScore } from "./shared.js";
 
 /**
@@ -83,11 +84,44 @@ export const syncIoInHotpathPyDetector: LanguagePyDetector = {
     );
     const shown = ranked.slice(0, MAX_FUNCTIONS_PER_FILE);
     const withheld = ranked.length - shown.length;
-    return shown
+    const findings = shown
       .sort((a, b) => a.host.startLine - b.host.startLine)
-      .map((group) => buildFinding(ctx.file, group.host, group.calls, withheld));
+      .map((group) =>
+        buildFinding(
+          ctx.file,
+          group.host,
+          group.calls,
+          withheld,
+          classOf(ctx.parsed, group.host),
+        ),
+      );
+    // Grouping per function made each finding separately ignorable in
+    // principle; it did not make them separately *identifiable*. Two
+    // classes in one module each declaring `execute` produced two
+    // findings wearing `sync_io_in_hotpath::<file>::execute` — 15 of
+    // airflow's colliding findings and 4 of zulip's. The class is the
+    // candidate; `resolveDiscriminators` drops it wherever the host
+    // name is already unique in the file.
+    resolveDiscriminators(findings);
+    return findings;
   },
 };
+
+/**
+ * The class a hot host is declared on, when it is a method.
+ *
+ * `PyEnclosingFunction` carries the scope chain but not the class, so
+ * it is looked up against the parsed function list by the one key both
+ * sides agree on — the declaration's start line. Matched on the line
+ * rather than the name because the name is exactly what is ambiguous
+ * here.
+ */
+function classOf(
+  parsed: { functions: ReadonlyArray<{ startLine: number; className?: string }> },
+  host: PyEnclosingFunction,
+): string | undefined {
+  return parsed.functions.find((f) => f.startLine === host.startLine)?.className;
+}
 
 /** Functions reported per file before the rest are summarised. */
 const MAX_FUNCTIONS_PER_FILE = 3;
@@ -97,6 +131,7 @@ function buildFinding(
   host: PyEnclosingFunction,
   offenders: PyIoCall[],
   withheld: number,
+  className: string | undefined,
 ): Finding {
   {
     // Blocking the event loop is categorically worse than blocking one
@@ -148,6 +183,8 @@ function buildFinding(
       confidence: 0.8,
       file,
       ...(host.name !== undefined ? { symbol: host.name } : {}),
+      // Candidate only — see the `resolveDiscriminators` call above.
+      ...(className !== undefined ? { discriminator: className } : {}),
       // Bounded by the function this finding is about, so an excerpt
       // built from the range shows the code being charged.
       lines: [Math.max(host.startLine, first.line), Math.min(host.endLine, last.line)],

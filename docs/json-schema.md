@@ -15,6 +15,38 @@ is [`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
 For how an agent should _use_ this output, see
 [`agent-usage.md`](./agent-usage.md).
 
+## `0.22.0`: fingerprints move for findings that were colliding
+
+**No schema change** — no field is added, renamed, or retyped, and
+`schema_version` stays at `0.7.0`. What changes is the *value* of
+`fingerprint` for a small set of findings, which matters to anyone
+holding pinned entries in `.crimes/suppressions.json`,
+`.crimes/baseline.json`, or a triage file.
+
+Four detectors could emit more than one finding per
+`(type, file, symbol)` and had no way to tell them apart, so
+`crimes ignore` on one silenced its neighbours:
+
+| detector | why it collided | now discriminated by |
+| --- | --- | --- |
+| `large_function` (Python) | one method name on several classes in a module — airflow's operator pattern gives `sagemaker.py` four `execute`s | the class, else the start line |
+| `sync_io_in_hotpath` (Python) | same, for the enclosing hot function | the class, else the start line |
+| `commented_out_code` (non-JS files) | every block in a file shared one fingerprint; the language-js variant has hashed the block since `0.17.0` | a hash of the block's text |
+| `weak_test_signal` (JS) | two `it(...)` blocks in one file wearing the same title | the title, plus the start line |
+
+**Only ambiguous fingerprints move.** A finding whose `symbol` is
+already unique in its file keeps the fingerprint it has always had —
+that rule is why the churn is small. Measured across four repos and
+7,888 findings: **16 fingerprints retired, 51 introduced**, every one
+of the 16 having previously covered two or more findings. hono, which
+had no collisions, is byte-identical across the change. No finding
+appears or disappears anywhere.
+
+**What to do.** Nothing, unless `crimes scan` starts reporting a
+finding you thought you had suppressed. If it does, that pin was
+covering several findings at once: re-record it against the one you
+meant. `crimes feedback recheck` names the change per detector.
+
 ## Migrating from `0.6.0` to `0.7.0`
 
 - **New optional field on `ScanReport`:** `working_set`.

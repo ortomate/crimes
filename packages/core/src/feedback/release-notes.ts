@@ -18,6 +18,8 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
       "direct_date now skips test files. Likely resolved if your fp was on a test file.",
   },
   large_function: {
+    "0.22":
+      "Python: a method name repeated on several classes in one module no longer shares a fingerprint — the class is appended, or the start line where there is no class. airflow had 151 findings colliding this way. Your pin is unaffected unless it named a symbol that appears more than once in its file; if it did, it was covering all of them, so re-record it against the one you meant.",
     "0.6":
       "cli_command_registrar shape added — Commander DSL chains get a 200-line budget. Likely resolved for register*Command findings.",
     "0.17":
@@ -46,12 +48,16 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
       "Fingerprints now carry the shape group's body hash as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that could cover several groups — re-record it against the one you meant.",
   },
   weak_test_signal: {
+    "0.22":
+      "Two tests with identical titles in one file no longer share a fingerprint — the start line is appended to the title for that pair only. This was the known limitation recorded at 0.18. Pins on files where every title is distinct are unaffected.",
     "0.17":
       "Fingerprints now carry the test's title as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every test in the file — re-record it against the test you meant.",
     "0.18":
       "Python: nested test_* functions are no longer counted as tests, pytest.warns and @pytest.mark.xfail are credited as assertions, and a repo-wide symbol index resolves assertion helpers in other modules through the MRO. Likely resolved — airflow's claimed-silent tests fell 27.1%. Known limitation: two tests with identical titles in one file still share a fingerprint.",
   },
   commented_out_code: {
+    "0.22":
+      "Non-JS files now carry a hash of the comment block as a discriminator, which the language-js variant has done since 0.17. Every block in a Python or Go file previously shared one fingerprint — zulip's prod_settings_template.py had 18 under one. A pin on a file with a single block is unaffected; one on a multi-block file was silencing all of them, so re-record it against the block you meant.",
     "0.17":
       "Fingerprints now carry a hash of the comment block as a discriminator (schema_version 0.4.0). Your pin names an old fingerprint that covered every block in the file — re-record it against the block you meant.",
     "0.18":
@@ -74,6 +80,8 @@ export const RELEASE_NOTES: Record<string, Record<string, string>> = {
       "Python: scoped to unannotated locals inside a function. Class attributes, instance attributes and annotated bindings are excluded, so published API (Serializer(many=True), strip_whitespace) no longer fires. Likely resolved — drf went 7 to 1, pydantic 34 to 20.",
   },
   sync_io_in_hotpath: {
+    "0.22":
+      "Python: two classes in one module each declaring the same hot function no longer share a fingerprint — the class is appended. Pins naming a host that appears once in its file are unaffected.",
     "0.18":
       'Python: one finding per enclosing function rather than per module, so symbol, lines and evidence describe the same code (airflow span median 8 to 1 line). Django management commands and @cache-decorated functions are exempt. Re-record the pin against the function you meant. Known limitation: `if __name__ == "__main__"` scripts still classify as domain code.',
   },

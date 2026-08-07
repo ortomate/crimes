@@ -40,10 +40,22 @@ interface Disambiguable {
  * Grouping is by `symbol` only, so a candidate is never compared against
  * a finding that a different symbol already separates.
  *
+ * `keepUnambiguous` disables rule 1, for a detector whose candidate is
+ * **already** part of every fingerprint it has ever emitted. Stripping
+ * it would change the fingerprint of every unambiguous finding — the
+ * exact harm rule 1 exists to prevent, inverted. `weak_test_signal` is
+ * the case: it carries no `symbol`, so every finding in a file lands in
+ * one group, and its discriminator (the test's title) has been part of
+ * the fingerprint since `schema_version` 0.4.0. Such a detector wants
+ * rules 2–4 and not rule 1.
+ *
  * Call this once per file, on the array the detector is about to return.
  * Mutates in place.
  */
-export function resolveDiscriminators<T extends Disambiguable>(findings: T[]): void {
+export function resolveDiscriminators<T extends Disambiguable>(
+  findings: T[],
+  options: { keepUnambiguous?: boolean } = {},
+): void {
   const groups = new Map<string, T[]>();
   for (const finding of findings) {
     const key = finding.symbol ?? "";
@@ -54,7 +66,7 @@ export function resolveDiscriminators<T extends Disambiguable>(findings: T[]): v
 
   for (const group of groups.values()) {
     if (group.length === 1) {
-      group[0]!.discriminator = undefined;
+      if (!options.keepUnambiguous) group[0]!.discriminator = undefined;
       continue;
     }
 

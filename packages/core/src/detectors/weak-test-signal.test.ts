@@ -96,3 +96,49 @@ describe("weak_test_signal fingerprint uniqueness", () => {
     expect(new Set(discriminators).size).toBe(found.length);
   });
 });
+
+describe("weak_test_signal — two tests with the same title", () => {
+  // The residual case 0.4.0's title discriminator could not reach.
+  // Measured on n8n `packages/cli`: 4 findings in 2 groups, both a
+  // pair of identically-titled `it(...)` blocks in one file —
+  // `credentials.service.test.ts` and `source-control-import.service.test.ts`.
+  // `crimes ignore` on either silenced the other.
+  it("separates them by start line", async () => {
+    const source = [
+      "it('creates a credential', () => {",
+      "  setup();",
+      "});",
+      "it('creates a credential', () => {",
+      "  setupDifferently();",
+      "});",
+    ].join("\n");
+
+    const found = await weakTestSignalDetector.run(makeCtx(source, "src/a.test.ts"));
+    expect(found).toHaveLength(2);
+    expect(new Set(found.map((f) => f.discriminator)).size).toBe(2);
+    expect(found.map((f) => f.discriminator)).toEqual([
+      "creates a credential@L1",
+      "creates a credential@L4",
+    ]);
+  });
+
+  // Rule 1 of `resolveDiscriminators` must not apply here. The title
+  // has been part of this detector's fingerprint since schema_version
+  // 0.4.0, so dropping it from a file with one silent test would
+  // change a fingerprint that was never ambiguous — breaking pins for
+  // exactly the findings this change is not about.
+  it("leaves a lone silent test's fingerprint alone", async () => {
+    const source = [
+      "it('asserts properly', () => {",
+      "  expect(compute()).toBe(1);",
+      "});",
+      "it('proves nothing', () => {",
+      "  setup();",
+      "});",
+    ].join("\n");
+
+    const found = await weakTestSignalDetector.run(makeCtx(source, "src/b.test.ts"));
+    expect(found).toHaveLength(1);
+    expect(found[0]!.discriminator).toBe("proves nothing");
+  });
+});

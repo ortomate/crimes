@@ -1,6 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
+import { resolveDiscriminators } from "./disambiguate.js";
 const TEST_CALL = /\b(?:it|test)\s*\(\s*(["'`])([^"'`]+)\1/g;
 const ASSERTION = /\b(?:expect|assert(?:\.[A-Za-z_$][\w$]*)?)\s*\(/g;
 const WEAK_ASSERTION =
@@ -47,6 +48,10 @@ export const weakTestSignalDetector: LanguageJsDetector = {
         // stable across scans of the same code, so it is the
         // discriminator — the same shape as the literal that
         // `magic_domain_literal_scatter` uses.
+        //
+        // Two tests in one file *can* wear the same title, which the
+        // title alone cannot separate — `resolveDiscriminators` settles
+        // that pair by start line below.
         discriminator: block.title,
         summary:
           assertions.length === 0
@@ -77,7 +82,15 @@ export const weakTestSignalDetector: LanguageJsDetector = {
       });
     }
 
-    return findings.slice(0, 8);
+    const shown = findings.slice(0, 8);
+    // `keepUnambiguous`, because the title has been part of this
+    // detector's fingerprint since schema_version 0.4.0 — the default
+    // rule would strip it from every file holding a single silent test
+    // and break pins that were never ambiguous. What is wanted here is
+    // only the tie-break: two identically-titled tests in one file get
+    // the start line appended.
+    resolveDiscriminators(shown, { keepUnambiguous: true });
+    return shown;
   },
 };
 

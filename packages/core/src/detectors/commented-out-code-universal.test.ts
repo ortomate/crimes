@@ -149,3 +149,52 @@ describe("commentedOutCodeUniversalDetector", () => {
     expect(findings).toHaveLength(1);
   });
 });
+
+describe("commented_out_code (universal) — fingerprint uniqueness", () => {
+  // The language-js twin has carried a block-text hash as its
+  // discriminator since 0.17.0; this variant never got one, so every
+  // block in a Python or Go file shared `commented_out_code::<file>::`
+  // and `crimes ignore` on one silenced the rest. Measured: 18 of
+  // airflow's 184 colliding findings and 21 of zulip's 39 —
+  // `zproject/prod_settings_template.py` alone carries 18 blocks under
+  // one fingerprint.
+  const block = (n: number) =>
+    [
+      `# def old_${n}(x):`,
+      `#     y = x + ${n}`,
+      `#     return helper_${n}(y)`,
+      `# result_${n} = old_${n}(1)`,
+    ].join("\n");
+
+  it("separates two blocks in one file", async () => {
+    const source = [block(1), "active = 1", "", block(2), "more = 2"].join("\n");
+    const findings = await commentedOutCodeUniversalDetector.run(
+      makeCtx("src/settings.py", source),
+    );
+    expect(findings).toHaveLength(2);
+    const discriminators = findings.map((f) => f.discriminator);
+    expect(discriminators.every((d) => typeof d === "string" && d.length > 0)).toBe(true);
+    expect(new Set(discriminators).size).toBe(2);
+  });
+
+  // Rule 1 of `resolveDiscriminators`: a file with one block was never
+  // ambiguous, so its fingerprint must not move. Anything else would
+  // break every pinned suppression on this detector to fix the 39
+  // findings that actually collide.
+  it("leaves a lone block's fingerprint alone", async () => {
+    const findings = await commentedOutCodeUniversalDetector.run(
+      makeCtx("src/one.py", [block(1), "active = 1"].join("\n")),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.discriminator).toBeUndefined();
+  });
+
+  it("tie-breaks two byte-identical blocks by start line", async () => {
+    const source = [block(1), "active = 1", "", block(1), "more = 2"].join("\n");
+    const findings = await commentedOutCodeUniversalDetector.run(
+      makeCtx("src/twice.py", source),
+    );
+    expect(findings).toHaveLength(2);
+    expect(new Set(findings.map((f) => f.discriminator)).size).toBe(2);
+  });
+});
