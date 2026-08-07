@@ -66,7 +66,7 @@ export async function buildUniversalFile(args: {
 }
 
 /**
- * Count source lines, matching `countNonEmptyLines` in the JS pack so the
+ * Count source lines, matching `countSourceLines` in the JS pack so the
  * two packs measure the same file the same way.
  *
  * A trailing newline terminates the last line rather than starting a new

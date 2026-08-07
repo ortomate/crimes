@@ -462,9 +462,65 @@ invalidated by it.
 
 Each of these is a real decision, not an oversight.
 
-**`large_file` still counts blank lines.** Both packs do. Making it count
-true non-blank lines would drop every number 15–25% and effectively
-retune thresholds repo-wide. That is calibration, not a bugfix.
+**`large_file` still counts blank lines.** Both packs do. **Measured in
+`0.22.0`, tried, and kept** — the entry reached the right decision from
+two wrong numbers and one wrong function.
+
+**Wrong number 1: "drops every number 15–25%".** Measured across every
+file currently carrying a `large_file` finding:
+
+| repo | n | blank share, all | code files | prose files |
+|---|---|---|---|---|
+| choreograph.cc | 33 | 6.5% | **3.0%** (n=27) | 21.0% (n=6) |
+| crimes (self-scan) | 115 | 9.3% | **5.1%** (n=101) | 17.5% (n=14) |
+| hono | 26 | 8.9% | **8.9%** (n=26) | — |
+
+The high numbers are **prose**, which is blank-line separated by
+construction — and prose has had its own 1000-line `docs` budget since
+`0.17.0`, so the class where the correction bites hardest is already
+measured against a different ruler. Actual source runs **3–9%**.
+
+**Wrong number 2: "5 of 33 choreograph findings would fall below the
+300-line threshold"** (from the R4 pre-measurements). It is **8 of 33**
+— 5 code files and 3 prose ones. Also 6 of 115 on the crimes self-scan
+and 5 of 26 on hono.
+
+**Wrong function: `large_file` does not call `countNonEmptyLines`.**
+It reads `UniversalFile.lineCount`, whose `countLines` is honestly
+named and documented. The misnamed function feeds `ParsedFile.lineCount`,
+which is **read by no detector at all** — one assertion in
+`parse.test.ts` and ~30 test fixtures satisfying the type are its
+entire consumer list. The naming lie and the counting policy were never
+the same defect.
+
+**Why the counting policy stays.** The change was implemented and
+measured, not argued about:
+
+- It is a **calibration** change wearing a bugfix's clothes. It loosens
+  the detector by 3–9% while leaving the 300-line threshold alone.
+  Re-tuning to ~285 to hold strictness constant leaves nothing changed
+  but the printed number.
+- It **silences the canonical fixture finding.**
+  `examples/messy-ts-app/src/billing.ts` is 310 lines, 22 of them
+  blank — 288 non-blank, under 300. `refactor-01-large-file` goes from
+  scored to **unrankable**, and its prompt names the finding: *"src/billing.ts
+  has tripped the large_file threshold … Tie your plan to the
+  `large_file` finding's evidence."* That is the §30 shape exactly — an
+  agent asked to act on something that is not in its context, and
+  scored 0 for not finding it.
+- The **agent-free ranking metric says nothing moved.** Three scenarios
+  shift by +0.001 each. The headline mean rises 0.3582 → 0.3646 only
+  because the denominator shrank: deep scenarios 28 → 27, unrankable
+  3 → 4. Reading that as an improvement is reading a shrinking
+  denominator.
+- **Nothing user-facing lies.** §1.5 already changed the evidence line
+  to `${lines} lines` rather than "non-empty lines", and the
+  detector's own rationale is context budget — a blank line costs a
+  token and a screen row.
+
+**What did change: the name.** `countNonEmptyLines` → `countSourceLines`,
+which is a lie of exactly the kind `name_behavior_mismatch` charges.
+Behaviour-neutral; no finding moves.
 
 **`weak_test_signal` follows assertion helpers as of `0.18.0`** (§1.16)
 — this entry is superseded. What remains deliberate is the *limit*: two

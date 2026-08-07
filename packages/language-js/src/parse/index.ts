@@ -21,7 +21,7 @@ import { collectMockDeclaration, collectTestCase } from "./mocks.js";
 import { collectPassThroughFunction } from "./passthrough.js";
 import { collectPolicyExpression } from "./policy.js";
 import { collectRetrySite } from "./retry.js";
-import { countNonEmptyLines, extractDefaultExport, pickScriptKind } from "./utils.js";
+import { countSourceLines, extractDefaultExport, pickScriptKind } from "./utils.js";
 import type {
   DateArithmetic,
   DateMethodCall,
@@ -197,7 +197,7 @@ export function parseFile(input: ParseInput): ParsedFile {
   });
 
   const result: ParsedFile = {
-    lineCount: countNonEmptyLines(input.source),
+    lineCount: countSourceLines(input.source),
     functions,
     dateNowOrNewDateUses: dateUses,
     defaultExport,

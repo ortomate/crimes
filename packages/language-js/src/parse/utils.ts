@@ -17,10 +17,35 @@ export function pickScriptKind(ext: string): ts.ScriptKind {
   }
 }
 
-export function countNonEmptyLines(source: string): number {
+/**
+ * Count the lines in a source file.
+ *
+ * A trailing newline terminates the last line rather than starting a
+ * new one, so a 10-line file written with a final `\n` is 10 lines.
+ * Blank lines count — they are lines.
+ *
+ * Called `countNonEmptyLines` until `0.22.0`, which was a lie of
+ * exactly the kind `name_behavior_mismatch` charges: it never skipped a
+ * blank line. Renamed rather than changed, and the two halves of that
+ * decision are worth separating.
+ *
+ * **The name was the defect; the behaviour was not.** `large_file` does
+ * not call this — it reads `UniversalFile.lineCount`, whose `countLines`
+ * is honestly named and must stay in step with this one. Counting
+ * blank lines was measured as a deliberate keep in `0.22.0`; see
+ * `docs/dogfooding/2026-08-03-remediation.md` § "Deliberately not
+ * changed".
+ *
+ * **Nothing in production reads the field this feeds.**
+ * `ParsedFile.lineCount` is set here, asserted in `parse.test.ts`, and
+ * consumed by no detector — the ~30 other references are test fixtures
+ * satisfying the type. Kept because a parsed file having a line count
+ * is a reasonable thing for the pack's contract to say; recorded
+ * because the next person to reach for it should know it is currently
+ * unread rather than assume it is load-bearing.
+ */
+export function countSourceLines(source: string): number {
   const lines = source.split(/\r?\n/);
-  // Trim trailing empty newline if present, so a 10-line file with a final
-  // newline still reports 10 lines.
   let total = lines.length;
   if (total > 0 && lines[total - 1] === "") total -= 1;
   return total;
