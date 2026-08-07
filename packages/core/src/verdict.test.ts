@@ -356,7 +356,7 @@ describe("verdict (end-to-end against a real git repo)", () => {
     await rm(repo, { recursive: true, force: true });
   });
 
-  it("answers `unchanged` from the tree hashes without scanning either side", {
+  it("answers `unchanged` from the tree hashes without scanning the head side", {
     timeout: 30000,
   }, async () => {
     // Two identical trees cannot produce different findings, so the
@@ -395,13 +395,32 @@ describe("verdict (end-to-end against a real git repo)", () => {
     //    fixture a scan is only ~2-3× the short circuit, so the
     //    threshold would have to be so loose it proves nothing.
     //  - **"The short circuit's cost is independent of repo size."**
-    //    This is the claim the optimisation *sounds* like it makes, and
-    //    it is false: measured on a 61-file tree the short circuit took
-    //    **1762ms against a full scan's 929ms**. Whatever it saves on
-    //    hono, on a small tree it is not a constant-time path. That is
-    //    a real open question about `verdict` and it is filed rather
-    //    than papered over here — see the queue in
-    //    `docs/dogfooding/2026-08-03-remediation.md`.
+    //    Still false, but not for the reason recorded here in 0.20.0.
+    //    That note read "measured on a 61-file tree the short circuit
+    //    took 1762ms against a full scan's 929ms", and **profiling in
+    //    0.22.0 found that comparison to be a measurement-order
+    //    artifact** — whichever call runs first in a Node process pays
+    //    ~70–110ms of module-init and JIT warm-up, and `verdict` was
+    //    always measured first. Run `scan()` first and `verdict` comes
+    //    in *below* it (288ms vs 243ms), which a short circuit doing
+    //    more work than a scan cannot do.
+    //
+    //    What the path actually costs, phase by phase, at 1 / 61 / 300
+    //    files in a warm process:
+    //
+    //        2× git rev-parse       16 / 16 / 17 ms   ← genuinely constant
+    //        git archive | tar      15 / 20 / 48 ms
+    //        scan of the export     28 / 165 / 680 ms ← the base scan
+    //
+    //    The tree-scaling term is the base scan, which this
+    //    optimisation never removed and never claimed to: see the
+    //    comment on `diff()`, "the saving is half the work, not all of
+    //    it". Cold-process, at the CLI, `verdict --base HEAD` costs a
+    //    `scan` plus 24 / 43 / 110 ms at those sizes.
+    //
+    //    So the honest version of this assertion would be "one scan
+    //    plus a small constant", which is a ratio test against a real
+    //    scan — rejected just above for a different reason.
     //
     // So: a budget generous enough not to measure the machine, which
     // still catches a short circuit that regressed into doing two full

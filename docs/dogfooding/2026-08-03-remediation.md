@@ -881,6 +881,56 @@ folded into them — each is a separate behaviour change.
    data points. The flaky test that surfaced it now says so in a comment
    instead of asserting a size-independence claim that does not hold.
 
+   ~~*(entry as filed in `0.20.0`, above)*~~ **Profiled in `0.22.0`.
+   The entry does not reproduce: the 1762-vs-929 comparison is a
+   measurement-order artifact.** §27's shape.
+
+   **Whichever call runs first in a Node process is the slower one.**
+   Same 61-file tree, same process, only the order changed:
+
+   | order | first call | second call |
+   |---|---|---|
+   | `verdict` then `scan` | verdict **312 / 323 ms** | scan 227 / 212 ms |
+   | `scan` then `verdict` | scan **288 / 300 ms** | verdict 243 / 244 ms |
+
+   Module init and JIT cost ~70–110 ms and land entirely on whichever
+   call is measured first. `verdict` was always measured first. Reverse
+   the order and `verdict` comes in **below** `scan` — which a path
+   doing strictly more work than a scan cannot do.
+
+   Comparing like with like, `verdict --base HEAD` on an identical tree
+   costs **one scan plus a small constant**. Cold process, at the CLI,
+   best of three:
+
+   | files | `scan` | `verdict --base HEAD` | delta |
+   |---|---|---|---|
+   | 1 | 331 ms | 355 ms | **+24 ms** |
+   | 61 | 499 ms | 542 ms | **+43 ms** |
+   | 300 | 1007 ms | 1117 ms | **+110 ms** |
+
+   **And the constant-time part really is constant.** Phase profile in
+   a warm process:
+
+   | phase | 1 file | 61 files | 300 files |
+   |---|---|---|---|
+   | 2× `git rev-parse` | 16 ms | 16 ms | **17 ms** |
+   | `git archive \| tar` | 15 ms | 20 ms | 48 ms |
+   | scan of the exported tree | 28 ms | 165 ms | **680 ms** |
+
+   The two `rev-parse` calls the entry pictured are flat across a
+   300× change in tree size. What scales is **the base scan**, which
+   the optimisation never removed — `diff()`'s own comment says so in
+   as many words: *"The saving is half the work, not all of it, and
+   half of an accurate answer beats all of a wrong one."*
+
+   **Where the entry was wrong:** it attributed a mental model to
+   `6be5681` that `6be5681` explicitly disclaims, and it compared a
+   cold call against a warm one. Nothing is fixed because nothing is
+   broken. The test comment now carries the profile instead of the
+   artifact, and the test's own title — which claimed the short circuit
+   answered "without scanning either side" — is corrected to *head*
+   side.
+
 4e. ~~**JS syntax errors have no `coverage.warnings[]` signal.**~~
    **Done** in `0.22.0`. This entry was carried forward twice expecting
    to be re-closed, and **its premise is wrong**: a supported signal
