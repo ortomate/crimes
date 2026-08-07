@@ -1,5 +1,47 @@
 # R4 — `0.22.0`: close the queue
 
+> **Executed.** The queue is closed. What follows is the prompt as
+> written, annotated where it was wrong — the same discipline it asks
+> for of the remediation doc.
+>
+> **Four of the seven entries were wrong about themselves**, and this
+> prompt repeated three of those errors:
+>
+> - **`weak_test_signal` fingerprint collisions.** The prompt's
+>   "2 of 3,585 on n8n, 30 of 3,458 on zulip, 115 of 9,926 on airflow"
+>   is wrong twice. The n8n figure is a *group* count read as a finding
+>   count (4 findings in 2 groups of 3,571). The other two are totals
+>   across **every** detector, borrowed from §4d — **zero** of zulip's
+>   39 and **zero** of airflow's 184 collisions are `weak_test_signal`.
+>   The real class is `large_function` on a method name repeated across
+>   classes in one Python module (151 + 14), `commented_out_code` on
+>   non-JS files (18 + 21), and `sync_io_in_hotpath` (15 + 4).
+> - **"Folding the line range in … invalidates every pinned
+>   `weak_test_signal` suppression."** It does not, and
+>   `resolveDiscriminators` — which already existed and already
+>   implemented the right policy — is why: a finding whose symbol is
+>   unique in its file keeps its fingerprint. 16 retired and 51
+>   introduced across 7,888 findings; hono is byte-identical.
+> - **"§4e … expect to re-close."** There *is* a public API —
+>   `ts.NodeFlags.ThisNodeHasError` — and it costs 1262 ms → 1330 ms
+>   over n8n's 2,977 files. The entry had only ever checked
+>   `SourceFile.parseDiagnostics`.
+> - **"5 of 33 choreograph findings would fall below the 300-line
+>   threshold"** (from the pre-measurements). It is 8 of 33.
+> - **§4f** does not reproduce at all: the 1762-vs-929 ms reading is a
+>   measurement-order artifact.
+>
+> **The repeat eval sample (`--label r2` at `0.21.0`) was not run.**
+> The prompt calls it "cheap insurance"; on this machine a full run
+> took hours rather than the ~31 minutes the README records, so a
+> second one was not cheap. The `0.22.0` run is itself a near-repeat
+> sample — the only product-visible fixture change is three added
+> files — so it carries most of the same information. The open
+> question about `0.21.0`'s claude `structural_pass_rate` 0.82 → 0.77
+> is read against it in `docs/releases/v0.22.0.md` rather than settled
+> by a dedicated sample.
+
+
 You're picking up `crimes` (`/Users/andrew/dev/crimes`). The previous
 session executed
 [`PROMPT-0.19-to-0.22-releases.md`](./PROMPT-0.19-to-0.22-releases.md)
