@@ -58,9 +58,19 @@ export type ScopeClass =
 const GENERATED_RE =
   /(^|\/)(__generated__|generated|\.generated|node_modules)\/|\.(generated|gen)\.[cm]?[jt]sx?$|(^|\/)(schema|graphql|api)\.generated\.|_pb2(_grpc)?\.pyi?$|\.pb\.go$/;
 
-/** Paths that hold third-party code checked into the repo. */
+/**
+ * Paths that hold third-party code checked into the repo.
+ *
+ * `_vendor` / `.vendor` are matched alongside `vendor` because the
+ * leading underscore is the *Python* spelling of this convention, not a
+ * variant: pip ships `pip/_vendor/`, setuptools `setuptools/_vendor/`,
+ * and airflow `providers/google/src/airflow/providers/google/_vendor/`
+ * — which airflow's own `pyproject.toml` excludes from ruff under a
+ * `_vendor` glob. The prefix is anchored to `[._]` rather than made
+ * optional so `_internal/` and `_private/` stay production.
+ */
 const VENDORED_RE =
-  /(^|\/)(vendor|vendored|third[-_]party|thirdparty|external|\.yarn)\/|[.-]min\.(js|css|mjs|cjs)$/;
+  /(^|\/)[._]?(vendor|vendored|third[-_]party|thirdparty|external|\.yarn)\/|[.-]min\.(js|css|mjs|cjs)$/;
 
 /** Database / schema migration directories and the timestamped file form. */
 const MIGRATION_RE =

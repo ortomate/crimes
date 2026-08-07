@@ -18,6 +18,20 @@ describe("classifyScope", () => {
   it("recognises vendored code", () => {
     expect(classifyScope("vendor/lodash/index.js")).toBe("vendored");
     expect(classifyScope("third_party/lib.ts")).toBe("vendored");
+    // `_vendor/` is the Python convention — pip ships `pip/_vendor/`,
+    // setuptools `setuptools/_vendor/`, and airflow
+    // `providers/google/src/airflow/providers/google/_vendor/`, which
+    // airflow's own ruff config excludes as `*/_vendor/*`. The leading
+    // underscore meant none of them matched.
+    expect(classifyScope("pip/_vendor/requests/api.py")).toBe("vendored");
+    expect(
+      classifyScope(
+        "providers/google/src/airflow/providers/google/_vendor/json_merge_patch.py",
+      ),
+    ).toBe("vendored");
+    expect(classifyScope("src/.vendor/lib.py")).toBe("vendored");
+    // Not every leading underscore is a vendor tree.
+    expect(classifyScope("src/_internal/thing.py")).toBe("production");
   });
 
   it("recognises migrations, including the timestamped file form", () => {
