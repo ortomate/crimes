@@ -1,0 +1,31 @@
+{
+  "scenario": "context-04-monorepo",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:03:58.780Z",
+  "run_id": "bfdb9550-e46b-466d-9b82-429181fc1b9b",
+  "response": "## The scan doesn't answer the question — it didn't scan anything\n\nBefore the AGENTS.md advice, the honest read of that JSON:\n\n```\n\"summary\": { \"total\": 0, ... },\n\"coverage\": {\n  \"files_total\": 1,\n  \"files_by_language\": {},        ← no source files in any language pack\n  \"universal_only_by_extension\": { \".json\": 1 }\n}\n```\n\nOne file, zero source files, zero findings. I checked the fixture root:\n\n```\nevals/fixtures/04-monorepo/\n└── .crimes-eval-meta.json\n```\n\nThat single `.json` **is** the eval placeholder — `{\"upstream\": \"https://github.com/egoist/tsup\", \"sha\": \"c5e9cd96...\", ...}`. The pinned tsup checkout was never materialized, so `crimes` scanned an empty repo and correctly reported nothing.\n\n**`total: 0` here means \"nothing to look at,\" not \"the repo is clean.\"** Reading it as a clean bill of health is the exact mistake the coverage block exists to prevent.\n\n## Why `missing_agent_context` could not have fired\n\n`packages/core/src/detectors/missing-agent-context.ts:29-44` has three gates, and this scan fails two:\n\n1. `ctx.ia` must exist and have files — it anchors on the lexicographically first indexed source file (`primaryAnchor`, line 109). With no source files there's no anchor.\n2. No AGENTS.md / CLAUDE.md / `.claude/skills/*/SKILL.md` / `.agents/skills/*/SKILL.md` (line 47).\n3. **`agentContext.declaredBins.length > 0`** (line 41) — the detector only fires on repos that publish a binary, deliberately, to avoid flagging every library and fixture.\n\nThe only file present isn't a `package.json`, so `declaredBins` is empty. Even a fully-populated IA index wouldn't have emitted this finding from this tree.\n\nTo get a real answer: materialize the fixture (clone tsup at `c5e9cd96`) and re-run. tsup *does* ship a `bin`, so gate 3 will pass and the detector's verdict will turn entirely on whether upstream ships an AGENTS.md — which I can't verify offline, so I won't assert it.\n\n## The consequence, if it does fire\n\n`missing_agent_context` scores `agent_risk: 0.8` against `severity: 0.6` — it ranks high on aggregate risk precisely because the local severity is low. Nothing is broken; the cost is paid later, by everyone who lands a PR after you. An agent with no instruction file to load doesn't ask which test runner you use or which package owns the schema — it infers conventions from whatever files it happens to read first, and applies them confidently. The failure mode is plausible-looking edits that violate rules the team never wrote down.\n\n## Minimal AGENTS.md skeleton\n\nExistence at repo root clears the detector (`hasAgentContext`, line 47). But `ia/extract.ts:390` parses `<bin-name> <subcommand>` out of fenced blocks to feed `docs_code_drift` — so keep commands in real bash fences and keep them true, or you trade one finding for another.\n\n```markdown\n# AGENTS.md\n\n## What this is\nOne paragraph: what the package does, and the one thing it is not.\n\n## Layout\n- `src/` — <what lives here>\n- `src/<subdir>/` — <boundary that matters>\n\n## Commands\n```bash\npnpm install\npnpm build      # tsup\npnpm test       # vitest\npnpm lint\n```\n\n## Before you edit\n- Run the full test suite first; a red baseline is not yours to fix silently.\n- <the one convention that isn't obvious from the code>\n\n## Boundaries\n- <module A> must not import <module B> — <why>\n- Generated files: <paths> — edit the generator, not the output.\n\n## Landing a change\n- Changeset required for user-visible behaviour.\n- <PR conventions>\n```\n\nFour sections, ~30 lines. The Commands and Boundaries sections carry the actual value; the rest is scaffolding you can grow into.\n\nI didn't write the file — `evals/fixtures/` is scanner input, and adding an AGENTS.md there would change what the eval measures.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {},
+    "detector_id_by_evidence": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "missing_agent_context",
+        "observed": "missing_agent_context",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "missing_agent_context",
+        "observed": "missing_agent_context",
+        "passed": true
+      }
+    ]
+  }
+}

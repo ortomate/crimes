@@ -1,0 +1,31 @@
+{
+  "scenario": "context-04-monorepo",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:05:37.735Z",
+  "run_id": "9f667e24-d3af-49aa-ba35-de1c5e19c1fb",
+  "response": "I’m using the repo’s `crimes-codebase-risk` skill to interpret the scan contract correctly, especially the difference between “no context file” and “no finding emitted.”\n\nThe skill isn’t vendored inside the runner directory; I’m following its registered absolute location and then I’ll give the scan-based conclusion.\n\nThe payload is internally important: it reports zero findings but also says only one universal `.json` file was scanned. I’m checking the fixture’s declared package surface so the proposed file can use real commands instead of generic placeholders.\n\nThe supplied scan is inconclusive—not a clean bill of health.\n\nIt reports:\n\n- `summary.total: 0`\n- `findings: []`\n- only one universal `.json` file scanned\n- no TypeScript/JavaScript files discovered\n\nTherefore, it does **not** surface `missing_agent_context`, but it also does not demonstrate that an `AGENTS.md`, `CLAUDE.md`, or `SKILL.md` exists. The likely cause is an incomplete checkout or scanning the wrong directory. On the real hydrated monorepo, rerun:\n\n```bash\ncrimes scan . --all --format json\n```\n\nIf those files are absent, the expected finding is `missing_agent_context`. Without this surface, future agents must rediscover build commands, CLI entry points, architecture, and release constraints, increasing the risk of incorrect or unverified changes.\n\nA minimal, project-specific root `AGENTS.md`:\n\n```md\n# AGENTS.md\n\n## Project\n\nThis TypeScript repository builds the `tsup` and `tsup-node` CLI binaries.\n\n## Commands\n\n```bash\npnpm install\npnpm build\npnpm test\n```\n\nRun the build and tests before handing off a change.\n\n## Key areas\n\n- `src/cli-main.ts` — CLI startup and argument handling\n- `src/index.ts` — primary build orchestration\n- `src/esbuild/` — esbuild integration\n- `src/rollup/` — Rollup and declaration-generation integration\n- `test/` — tests and fixtures\n\n## Editing rules\n\n- Preserve existing TypeScript and module conventions.\n- Keep CLI wiring separate from build implementation.\n- Add or update tests for behavioral changes.\n- Treat public CLI behavior as compatibility-sensitive.\n- Do not publish packages, create tags, or push releases unless explicitly asked.\n```\n\nAdding that file would satisfy the detector, but the scan should first be rerun against a checkout containing the actual monorepo sources.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {},
+    "detector_id_by_evidence": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "missing_agent_context",
+        "observed": "missing_agent_context",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "missing_agent_context",
+        "observed": "missing_agent_context",
+        "passed": true
+      }
+    ]
+  }
+}

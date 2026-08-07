@@ -1,0 +1,100 @@
+{
+  "scenario": "plan-11-py-import-cycle",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:13:37.946Z",
+  "run_id": "a7bab607-562c-4c1c-8294-a41f1720c961",
+  "response": "Ran the scan (output matches what you pasted) and read all 11 files to get the import graph, since crimes reports cycles and deep imports but not the full edge list.\n\n## The fact that decides everything\n\n`tax/` is already a **leaf**. Nothing under `tax/` imports `domain` or `api`:\n\n```\ndomain/invoicing.py  → tax.vat, api.rendering\napi/rendering.py     → domain.invoicing, tax.rules.regional.eu.vat_bands\napi/routes.py        → domain.invoicing\ntax/vat.py           → tax.rules.regional.eu.vat_bands\ntax/rules/.../vat_bands.py → (nothing)\n```\n\n`apply_vat` is pure arithmetic over a dict — no clock, no I/O, no third-party imports. The extraction is genuinely small. Crimes doesn't say this anywhere; it's the *absence* of a cycle involving `tax` plus reading the four import lines.\n\n## Verdict on the nine findings\n\n**Blocks the extraction — one finding.**\n\n- **`crime_00007` — deep import, `api/rendering.py:8`** (`from tax.rules.regional.eu.vat_bands import STANDARD_BAND`). This is the only place outside `tax/` that reaches past the package boundary, and it reaches five levels deep into a module you'd want private. The moment `tax` ships as its own distribution, `tax.rules.regional.eu.vat_bands` becomes public API by accident — you can never move or rename that file without a major version, and consumers you don't control will copy the pattern. Fix it *before* you move anything.\n\n**Does not block, despite being the loudest dependency finding.**\n\n- **`crime_00005` — circular dependency `api/rendering.py` ↔ `domain/invoicing.py`** (0.95 confidence, the highest in the report). The ring is `format_money` (domain → api, line 9/72) and `LINE_ITEM_CAP` (api → domain, line 7/18). `tax` is not in it, and the extraction neither widens nor repairs it. It is a genuine bug and you should fix it — just not as a precondition here.\n\n  Two caveats that make it worth reading before you start rather than after:\n  1. **It contaminates your verification.** Whether the cycle raises `ImportError` depends on which module the process imports first, so \"the app still starts\" is not a reliable post-extraction check on this repo. Pin down import order before you cut, or you'll spend the debugging session blaming the extraction.\n  2. **Don't let it pull scope into the new package.** The textbook cycle fix is \"extract shared names into a leaf module,\" and you'll have a shiny new leaf package in hand. Resist: `LINE_ITEM_CAP` is a billing/usage cap, not a tax concept. Putting it in `tax` to break the cycle would leave you with a package that can't be described in one sentence.\n\n- **`crime_00008` — deep import inside `tax/vat.py:3`.** Intra-package: `tax` importing its own submodule by full path. It travels with the package and breaks nothing. Worth changing to a relative import (`from .rules.regional.eu.vat_bands import BANDS`) while you're in there, so the package survives being vendored or renamed — but that's tidiness, not a blocker. This is the weakest of the nine for this purpose; the detector can't tell \"reaching into someone else's internals\" from \"reaching into your own.\"\n\n**Irrelevant to this extraction — untidy, and staying behind in code you're not touching.**\n\n- `crime_00001` / `crime_00002` (two clocks, four direct clock reads, `domain/invoicing.py`) — real bugs, `domain`'s problem. `tax` reads no clock.\n- `crime_00003` / `crime_00004` (blocking I/O in async handlers, `api/routes.py`) — `routes.py` doesn't import `tax` at all.\n- `crime_00006` (`build_invoice`, 61 lines, depth 5) — marginal only in that line 63 is the single call site of `apply_vat`; the seam runs through this function, so it's where you confirm nothing else crosses.\n- `crime_00009` (`stale` naming, line 79) — unrelated.\n\n## What crimes did not measure, and you need anyway\n\nTwo gaps to close before treating this list as complete:\n\n1. **Packaging metadata was never read.** The coverage warnings say `pyproject.toml` didn't match any include glob. Every dependency finding above is import-graph-only. Reading it manually: `py-service` declares *zero* dependencies while importing `fastapi` and `requests`, so the existing manifest is already wrong — don't copy its habits into the new one. Good news for `tax`: it imports nothing at all, so the extracted distribution has no runtime dependencies.\n2. **There are no tests.** Zero test files in the repo. The uniform `test_gap: 0.5` on all nine findings is the unknown-default, not a measurement — read it as \"not assessed,\" not \"half-covered.\" You are extracting without a safety net.\n\n## Plan\n\n**Step 0 — write the tests first.** `apply_vat` is a pure function over four regions plus an unknown-region fallback (`BANDS.get(region, 0.0)` silently returns the untaxed amount — decide if that's intended). This is a handful of assertions and it's the only thing standing between you and a silent behaviour change.\n\n**Step 1 — define the public surface, in the current repo, before moving any files.** This is the `crime_00007` fix and it should land as its own reviewable, behaviour-free commit:\n\n- `tax/__init__.py` (currently empty) re-exports `apply_vat` and `STANDARD_BAND`, with an `__all__`.\n- Keep `BANDS` private — `tax/vat.py` is its only consumer, so it never needs to leave the package.\n- `REDUCED_BAND` has no consumers anywhere. Decide now: publish it or delete it. After extraction that choice costs a version bump.\n- `api/rendering.py:8` → `from tax import STANDARD_BAND`. `domain/invoicing.py:8` → `from tax import apply_vat`.\n\nNote that the only external reach into `tax` internals lives in `describe_cap()`, which nothing in the repo calls. If it's genuinely dead, deleting it removes the deep import *and* one of the two cycle edges for free — check your callers outside this repo first.\n\n**Step 2 — move.** `git mv tax/ ../tax-package/src/tax/`, new `pyproject.toml` with `name = \"tax\"`, `requires-python = \">=3.11\"`, empty `dependencies`. Because step 1 already normalised every call site, this commit is pure relocation — nothing in `domain/` or `api/` changes.\n\n**Step 3 — wire the consumer.** Add `tax` to `py-service`'s `dependencies` (and fix the missing `fastapi`/`requests` entries while you're there). Install as an editable/path dependency during the transition so you aren't publishing to iterate.\n\n**Step 4 — verify.** Run the step-0 tests against the installed package, then start the service through the real entrypoint (uvicorn), not just pytest — per the cycle caveat, those two exercise different import orders and only one of them resembles production. Re-run `crimes scan` on both repos: the new `tax` repo should report only `crime_00008`'s successor (or nothing, if you switched to a relative import), and `py-service` should have lost `crime_00007` and kept the rest.\n\n**Not in scope, but queue them:** breaking the `domain`↔`api` cycle, and the two clock findings in `domain/invoicing.py`. One forward-looking constraint on the new package's design — real VAT rates change on effective dates. If `tax` ever grows date-dependent lookup, take the date as a parameter rather than reading the clock inside the package; that's exactly the mistake `crime_00001` is describing next door, and a leaf package with no clock reads is the whole reason this extraction is easy.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import",
+      "crime_00009": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import",
+      "`stale` = <comparison> at line 79 in summarise()": "boolean_naming_drift",
+      "convention: is_ / has_ / should_ / can_ prefix, or an idiomatic bare name": "boolean_naming_drift",
+      "local bindings only — class attributes, instance attributes and annotated declarations are published interface, not a naming choice a reader can make freely": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/rendering.py",
+        "observed": "api/rendering.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tax/rules/regional/eu/vat_bands.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "deep_import",
+        "passed": false
+      }
+    ]
+  }
+}

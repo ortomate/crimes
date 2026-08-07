@@ -1,0 +1,84 @@
+{
+  "scenario": "bugfix-13-polyglot-plan-drift",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:00:24.312Z",
+  "run_id": "ca5eacf7-ea75-4596-9183-71102a343afd",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a scan-driven diagnosis. I’ll verify the scan locally, then inspect the two declarations and the validation path; I’ll keep this read-only.\n\nThe skill isn’t inside the runner checkout; its cataloged path is one level above the evaluation workspace. I’m loading it from that declared location, then I’ll run the fixture scan.\n\nThe global `crimes` binary isn’t installed in this runner (`command not found`). I’ll use the locally built CLI if present; the supplied JSON already matches the fixture and remains the scan evidence for the diagnosis.\n\nThe high-severity finding is the cause: Python’s canonical enum includes the new `scale` tier, while the web’s closed TypeScript set does not. I’m checking the human report too and separating that root cause from two unrelated route defects in the same client.\n\nThe failure is contract drift between the Python API and TypeScript web client.\n\nThe API’s canonical [`Plan` enum](</private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/13-polyglot-monorepo/packages/api/billing/plans.py:10>) allows:\n\n```text\nfree, pro, team, scale\n```\n\nBut the web’s [`Plan` union](</private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts:10>) allows:\n\n```text\nfree, pro, enterprise\n```\n\nTherefore, when the API returns the newest `scale` tier, the web contract considers it invalid and rejects the workspace. `team` has the same latent problem. Conversely, the web knows about `enterprise`, which the canonical Python enum does not.\n\nOne nuance: the TypeScript union itself cannot produce a runtime validation error—it is erased during compilation, and this fixture’s `res.json()` is unvalidated. The observed runtime error must come from a web validator or downstream check embodying the same stale allowed-value set. The scan pinpoints the underlying contract mismatch.\n\nTo stop recurrence:\n\n- Make the API enum the single source of truth.\n- Expose `Plan` through explicit FastAPI/Pydantic request and response models, then generate both the TypeScript type and runtime validator from OpenAPI.\n- Add a CI contract test proving every API plan value passes the web decoder.\n- Gate new high-risk drift with `crimes scan --changed --fail-on high` or `crimes verdict --fail-on new-high`.\n\nThe scan also found incorrect routes (`PUT` versus backend `POST`, and `/api/workspaces` versus `/api/teams`), but those would cause 405/404 responses—not this plan validation error.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    },
+    "detector_id_by_evidence": {
+      "packages/api/billing/plans.py:10 — Plan declares [free, pro, team, scale]": "cross_language_type_drift",
+      "packages/web/src/workspace-client.ts:10 — Plan declares [free, pro, enterprise]": "cross_language_type_drift",
+      "shared: free, pro": "cross_language_type_drift",
+      "only in Python: scale, team — the TypeScript side will reject these values": "cross_language_type_drift",
+      "only in TypeScript: enterprise — the Python side will reject this value": "cross_language_type_drift",
+      "side-effect-like calls: fetch": "name_behavior_mismatch",
+      "2 side-effect signals in the function body": "name_behavior_mismatch",
+      "frontend: packages/web/src/workspace-client.ts:34 — PUT /api/teams/:id/plan": "cross_language_route_drift",
+      "backend:  packages/api/billing/routes.py:25 — POST /api/teams/{team_id}/plan (change_team_plan)": "cross_language_route_drift",
+      "methods declared: POST": "cross_language_route_drift",
+      "concept group \"tenant\" is named differently on each side of the boundary": "cross_language_concept_alias_drift",
+      "Python uses: team": "cross_language_concept_alias_drift",
+      "TypeScript uses: workspace": "cross_language_concept_alias_drift",
+      "packages/api/billing/plans.py:10 — docstring of Plan (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:11 — def get_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:16 — def create_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:21 — def team_seats (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:26 — def change_team_plan (team)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:17 — getWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:22 — createWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:27 — workspaceSeats() (workspace)": "cross_language_concept_alias_drift",
+      "preferred form for this group: \"organization\"": "cross_language_concept_alias_drift",
+      "\"organization\"": "cross_language_concept_alias_drift",
+      "1 frontend call reaches a path no backend route declares": "cross_language_route_drift",
+      "packages/web/src/workspace-client.ts:23 — POST /api/workspaces": "cross_language_route_drift",
+      "4 backend routes declared across 1 file": "cross_language_route_drift",
+      "backend owns: /api — calls outside those namespaces are not counted here": "cross_language_route_drift",
+      "matched on literal path strings — a route or URL assembled at runtime is invisible to this check": "cross_language_route_drift",
+      "decorator routing only — Django `urlpatterns` and DRF `router.register` are not read, so a repo using them looks routeless": "cross_language_route_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -551,6 +551,51 @@ The investigation that produced these numbers began with an apparent
 was no regression — and with one sample per version there was no way
 to know that from the summary alone.
 
+### A second, accidental repeat sample (0.21.0 → 0.22.0)
+
+`0.22.0` is a repeat sample of `0.21.0` and nobody paid for it. Two
+independent checks say the input is identical, not merely similar:
+
+- All **14 fixtures scan byte-identically** between the published
+  `crimes@0.21.0` and the `0.22.0` build — the same bytes, not "no
+  findings moved".
+- `evals:ranking`, deterministic and agent-free, reports **no scenario
+  moved** (mean nDCG 0.3582 → 0.3582 deep, 0.4759 → 0.4759 all).
+
+The only difference is three extra files in fixture `12-py-tested`
+that an agent can open. Its scan JSON is unchanged.
+
+| | 0.21.0 | 0.22.0 | move |
+|---|---|---|---|
+| claude | 0.77 | **0.81** | +4pp |
+| codex | 0.58 | **0.58** | 0pp |
+
+Two things this settles.
+
+**`0.21.0`'s claude 0.82 → 0.77 was noise.** It was recorded as the
+largest single-step move in this metric's history and explicitly not
+separated from noise. 0.77 → 0.81 on identical input separates it.
+
+**A third of scenarios move when nothing changes**, which the
+three-sample band above could only say in aggregate:
+
+| agent | scored | moved | up | down | mean \|Δ\| |
+|---|---|---|---|---|---|
+| claude | 48 | **16** | 10 | 6 | 0.135 |
+| codex | 48 | **13** | 4 | 9 | 0.135 |
+
+Full swings on identical input are routine, not exotic: claude's
+`bugfix-04-weak-tests` went 1.00 → 0.00 and
+`refactor-01-plural-mismatch` 0.00 → 1.00; codex's `plan-04-hotspots`
+went 0.00 → 1.00. **Never read a single scenario's delta as a product
+signal.** If a per-scenario move is load-bearing for a claim, replay
+it — `evals:replay` holds the responses fixed so only the scorer
+varies.
+
+Note the direction split matches the 0.12.1 finding: codex moved on
+fewer scenarios than claude here, yet its aggregate was the one that
+did not move at all.
+
 ## Scenario↔fixture coverage discipline
 
 Every entry in a scenario's `expected_artifacts.referenced_findings`

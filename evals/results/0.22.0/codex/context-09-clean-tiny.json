@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:02:40.087Z",
+  "run_id": "03283164-1803-4688-8174-db3b6b14eabb",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a targeted context check. I’ll run the requested command against the `09-clean-tiny` fixture, then report findings, test linkage, and safe-editing guidance.\n\nThe skill file isn’t present at the advertised relative path in this fixture runner. I’m resolving its actual workspace location before running the scan so I can follow the repository workflow faithfully.\n\nThe fixture shell doesn’t have a global `crimes` binary (`command not found`). I’ll use this checkout’s locally built CLI, which is the repository-prescribed equivalent for unreleased source.\n\nThe JSON context run succeeded: `src/add.ts` has zero findings and risk level `none`. I’m also pulling the CLI’s human readout, as the skill requires for the user-facing summary.\n\n`src/add.ts` is safe to extend from `crimes`’ perspective.\n\n- Risk: `none` — 0 high, medium, or low findings.\n- No agent guidance or deterministic related files.\n- Likely test: `src/add.test.ts`; update/run it with behavioral changes.\n- Low churn: 1 commit and 1 author in 90 days.\n- The repository’s only finding is the separate low-severity undeclared `vitest` dependency in `package.json`. It may affect clean test installs but does not make `add.ts` risky.\n\nNo files were changed. The global `crimes` command was unavailable, so I ran the checkout’s built CLI equivalent.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

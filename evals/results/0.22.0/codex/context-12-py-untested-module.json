@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:06:02.648Z",
+  "run_id": "b381ecf5-aee7-487c-ab31-e415725e8f67",
+  "response": "I’m using the `crimes-codebase-risk` workflow because this is exactly a pre-edit risk check. I’ll locate the ledger reversal code, run file-level context on it, and then inspect the cited tests/import relationships—without modifying anything.\n\nThe repository’s advertised skill path isn’t present in this runner checkout, so I’m resolving the actual fixture/repository layout now. I’ll follow the documented pre-edit commands directly if the skill file itself is unavailable.\n\nThe skill is available at the enclosing project root and confirms the exact workflow: JSON for decisions, then the human readout for reporting. I found the likely target at `billing/ledger.py`; next I’m running `crimes context` against that file and checking the source/tests it identifies.\n\nThe key result is already clear: `crimes context` found no likely test for `ledger.py`, labels its test gap top-quartile, and calls the zero-finding result “suspiciously clean.” I’m doing one final read-only cross-check of the adjacent modules and tests so I can distinguish real dependency impact from mere same-directory proximity.\n\nBottom line: an incorrect `reverse_entry` implementation would very likely leave the test suite green.\n\n`crimes context billing/ledger.py` reported:\n\n```text\nrisk: NONE (0 findings)\nLikely tests: none\ntest gap: top-quartile\nNo findings on this file. Suspiciously clean.\n```\n\nWhat that means:\n\n- [`reverse_entry`](/private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/12-py-tested/billing/ledger.py:16) has no direct test and no in-repository caller.\n- The only detected ledger consumer is [`billing/reporting.py`](/private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/12-py-tested/billing/reporting.py:3), which imports `post_entry`, not `reverse_entry`.\n- Reporting’s four tests are the scan’s sole high-severity finding: all four assert nothing. They provide limited smoke protection against syntax, import, or runtime exceptions, but not incorrect ledger values—and they never exercise reversal.\n- Crimes lists `billing/__init__.py`, `invoices.py`, `rates.py`, and `reporting.py` as related, but only because they share the directory. `reporting.py` is the only actual ledger dependency found.\n- A narrowly scoped reversal change therefore has no known internal blast radius. However, `reverse_entry` looks like a public package function, so external callers unseen by this repository may depend on its dictionary contract: preserve `account` and `region`, negate `net` and `gross`.\n\nNo files were changed. Before implementing the behavior change, I would add direct assertions covering reversal values, preserved metadata, and the expected input/output contract.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

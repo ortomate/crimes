@@ -1,0 +1,43 @@
+{
+  "scenario": "plan-04-hotspots",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:11:01.587Z",
+  "run_id": "ae9d8a3e-478f-4429-9caf-a9609c3c1f54",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this task is specifically about interpreting scan findings. I’ll verify the supplied empty result against the intended fixture, then base the triage only on the JSON evidence.\n\nThe skill file isn’t inside the runner subdirectory; I’m resolving it from the workspace-level path listed for this repository before running the scan.\n\nThe global `crimes` binary isn’t installed in this environment, so I’m checking the local runner and fixture layout for the repository-provided CLI. The supplied scan is internally consistent with scanning only a lone JSON file, but not with the requested hotspot analysis.\n\nNo evidence-backed triage is possible from this scan.\n\n- `findings` is empty, so there are no `high_fan_in_fan_out`, `large_file`, or `large_function` findings to rank.\n- Coverage contains only one universal `.json` file and no TypeScript/JavaScript files.\n- Therefore, no fan-in or fan-out numbers exist to justify refactoring—or leaving alone—any source file.\n\nThe `04-monorepo` fixture appears unpopulated except for its metadata file. Restore/setup the fixture, then rerun:\n\n```bash\ncrimes scan /path/to/04-monorepo --format json --all\n```\n\nUntil that produces source-file findings, naming hotspots or inventing fan-in/fan-out figures would be unsupported.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {},
+    "detector_id_by_evidence": {}
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "high_fan_in_fan_out",
+        "observed": "high_fan_in_fan_out",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "large_file",
+        "observed": "large_file",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "high_fan_in_fan_out",
+        "observed": "high_fan_in_fan_out",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:43:45.796Z",
+  "run_id": "a07cda74-9db6-4ddd-8b44-b8d3d5e7a5ff",
+  "response": "I ran the scan, then read the fixture and verified the conclusions by mutation-testing the modules. Here's the picture.\n\n## Headline\n\n`crimes` reports one finding — `tests/test_reporting.py` (4/4 tests assert nothing). That's correct and it's the loudest problem, but it's only about half of what's unprotected. The suite is 12 green tests over 4 modules; **8 of those 12 tests verify essentially nothing about behaviour.**\n\nTo make this concrete I copied the package, injected single-line bugs, and re-ran the suite:\n\n| Injected bug | Suite result |\n|---|---|\n| `rates`: GB rate `0.20` → `0.50` | **2 failed** ✅ |\n| `rates`: `rate_for` ignores the table entirely | **1 failed** ✅ |\n| `invoices`: `tax` always `0` | **3 failed** ✅ |\n| `invoices`: `apply_credit` ignores the credit | 12 passed ❌ |\n| `ledger`: `post_entry` drops VAT entirely | 12 passed ❌ |\n| `ledger`: `post_entry` writes `net: 0` | 12 passed ❌ |\n| `reporting`: `build_report` total always `0` | 12 passed ❌ |\n| `reporting`: `export_report` emits a wrong CSV header | 12 passed ❌ |\n\n## Genuinely covered\n\n**`billing/rates.py`** — real coverage. `tests/test_rates.py` asserts concrete values (`rate_for(\"GB\") == 0.20`, unknown region → `DEFAULT_RATE`). Both mutations were caught. One real gap: `is_zero_rated` is only ever asserted in its `False` direction, and with the current `RATES` table plus `DEFAULT_RATE = 0.2` it can never return `True` — the true branch is untested because it's currently unreachable. If your refactor introduces a zero-rate region, that function is unprotected.\n\n**`billing/invoices.py`** — covered, and `crimes` was right *not* to flag it even though every test function body looks assertion-free. The assertions live in `tests/support.py`: `verify_invoice_balances` (an imported helper) and `InvoiceCase.expect_gross_for` (a base-class method). The detector followed both hops. `expect_gross_for` is the strongest test in the package — it asserts an exact gross (`1000 @ GB → 1200.0`), which is why the \"tax always 0\" mutation took down three tests.\n\n## Only looks covered\n\n**`billing/reporting.py`** — the flagged file. All four tests call the code and assert nothing, so the suite stays green whatever `build_report` returns. Both reporting mutations survived. Also note `export_report`'s `raise ValueError` branch (line 21) is never exercised at all — it's the single uncovered statement in the file.\n\n**`billing/ledger.py`** — this is the one the scan doesn't mention and the most dangerous going into a refactor. It has **no test file at all**, yet the checked-in `.coverage` DB shows lines 6–12 (`post_entry`) fully covered, because `reporting.build_report` calls it and the hollow reporting tests drag it along. So a coverage report will show ledger at ~86% statement coverage with **zero assertions anywhere in the repo touching it**. `reverse_entry`'s body (line 17) is the only genuinely uncovered statement — it is never called by anything, test or product code.\n\n**`invoices.apply_credit`** — covered, but not for what its tests claim. `test_credit_reduces_the_total` and `test_zero_credit_is_a_no_op` only call `verify_invoice_balances`, which checks the structural invariant `gross == net + tax` and `net >= 0`. That invariant holds for *any* rate and *any* credit value, so making `apply_credit` ignore its `credit` argument entirely leaves all 12 tests green. The test names promise behaviour the assertions never check. Also untested: credit larger than net, which produces a negative `net` and would trip the helper's `net >= 0` assertion — nobody has ever run that path. And `apply_credit` rebuilds the invoice from `remaining` as a fresh line, so applying two credits compounds oddly; that's unasserted too.\n\n## One trap worth flagging\n\nThe checked-in `.coverage` artifact is **inverted relative to real protection**: `rates` 100%, `reporting` ~91%, `ledger` ~86%, and `invoices.py` doesn't appear in the DB at all (0%). The best-asserted module in the package reads as untouched, and the two hollow ones read as well covered. Don't use that file to decide where the refactor is safe.\n\n## Before you refactor\n\n1. `ledger.post_entry` / `reverse_entry` need tests from scratch — highest risk, currently zero verification, and it's the module `reporting` depends on.\n2. Fix `tests/test_reporting.py` by asserting on the returned dict and the CSV/JSON strings, plus a `pytest.raises(ValueError)` for the unsupported-format branch.\n3. Add value assertions to the `apply_credit` tests so the names become true, and add the over-credit case.\n4. `rates` and `build_invoice`'s gross path you can refactor with reasonable confidence.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

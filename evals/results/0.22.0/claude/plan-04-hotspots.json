@@ -1,0 +1,43 @@
+{
+  "scenario": "plan-04-hotspots",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:10:20.970Z",
+  "run_id": "d551511c-43dc-40d6-901c-9005705f8846",
+  "response": "## I can't produce a triage order — the scan found nothing to triage\n\nThe scan output you gave me is empty, and it's empty for a mechanical reason, not because the codebase is clean:\n\n```\n\"summary\": { \"total\": 0, \"high\": 0, \"medium\": 0, \"low\": 0 },\n\"findings\": [],\n\"coverage\": {\n  \"files_total\": 1,\n  \"files_by_language\": {},\n  \"files_universal_only\": 1,\n  \"universal_only_by_extension\": { \".json\": 1 }\n}\n```\n\n`files_total: 1`, and that one file is a `.json` with no language pack claiming it. `files_by_language` is empty — zero TS/JS files were parsed. The `language-js` pack loaded fine; it just had nothing to work on.\n\nI confirmed why on disk. The `04-monorepo` fixture contains exactly one file:\n\n```\nevals/fixtures/04-monorepo/.crimes-eval-meta.json\n```\n\nThat meta file describes the fixture as a pinned checkout of `egoist/tsup` at v8.5.1, with this stated purpose:\n\n> \"Small TypeScript build tool ... modest dependency graph exercises layer_violation, circular_dependency, deep_import, and **high_fan_in_fan_out** detectors at a manageable scan time.\"\n\nSo the fixture is a *pointer* to an upstream repo that was never materialized — the vendored source tree is absent. The detectors this scenario is built around are exactly the ones that had no input.\n\n## What this means for the question\n\nThere are no `high_fan_in_fan_out`, `large_file`, or `large_function` findings — not low-confidence ones, not filtered-out ones. There is no fan-in or fan-out number anywhere in this report, so any refactor ordering I gave you would be fabricated. Fan-in/fan-out is a whole-graph measurement; with one JSON file there is no import graph at all, and blast-radius reasoning is undefined rather than just noisy.\n\nTwo things I'd flag while I'm here:\n\n- **The scan is not wrong.** Reporting zero findings over one unparsed JSON file is the correct behavior. The `coverage` block is doing its job — `files_total: 1` with an empty `files_by_language` is the tell that separates \"clean repo\" from \"nothing was scanned.\" That distinction is worth keeping visible in any future summary rendering, because a bare `total: 0` would read as a pass.\n- **This looks like a broken eval fixture, not a broken detector.** A hotspot scenario whose fixture has no source tree will silently score against an empty finding set.\n\n## To actually answer this\n\nMaterialize the fixture, then re-run:\n\n```bash\ngit clone https://github.com/egoist/tsup evals/fixtures/04-monorepo\ngit -C evals/fixtures/04-monorepo checkout c5e9cd96511f6e258eb6642ad20c08f70022be6b\ncrimes scan --format json\n```\n\nOnce `files_by_language` shows a real TS count, the `high_fan_in_fan_out` findings will carry the actual in/out degree numbers, and I can build the triage order off those — highest fan-in first (changes there propagate widest), fan-out-heavy files as second-order coordination risk, and anything scope-classed as generated, vendored, or fixture left alone regardless of its numbers.\n\nSend me that scan and I'll do the ranking. I'm not going to guess at tsup's dependency graph from memory and dress it up as evidence.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {},
+    "detector_id_by_evidence": {}
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "high_fan_in_fan_out",
+        "observed": "high_fan_in_fan_out",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "large_file",
+        "observed": "large_file",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "high_fan_in_fan_out",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -25,8 +25,13 @@ mirror, not a planning doc.
   own finding; what changed is `countNonEmptyLines`, which counted every
   line and is now `countSourceLines`. `verdict`'s short circuit was
   fine: the 1762-vs-929 ms reading that indicted it is a
-  measurement-order artifact. `schema_version` stays `0.7.0`. Release
-  notes: [`docs/releases/v0.22.0.md`](./releases/v0.22.0.md).
+  measurement-order artifact. `schema_version` stays `0.7.0`. All 14
+  eval fixtures scan byte-identically against published `0.21.0`, so
+  the run is a free repeat sample — claude 0.77 → 0.81, codex 0.58 →
+  0.58, settling 0.21.0's 0.82 → 0.77 as noise and measuring
+  per-scenario variance directly (16 of claude's 48 scenarios moved
+  with nothing changed). Release notes:
+  [`docs/releases/v0.22.0.md`](./releases/v0.22.0.md).
 - **Previous version:** `crimes@0.21.0` ✅ shipped — **a precision
   release.** Four detectors named in an outside field report as
   producing false positives, all four re-verified against `main` first

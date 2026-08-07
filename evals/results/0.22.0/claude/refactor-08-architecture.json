@@ -1,0 +1,75 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:28:45.909Z",
+  "run_id": "2bbcf3fa-c4cd-4f06-8407-a82699cece28",
+  "response": "I read the fixture rather than working from the JSON alone — the scan tells you which edges are illegal, not what crosses them. That turned up the key fact: **the layer violation and the cycle are the same import**, and removing it closes both findings.\n\n## What's actually there\n\n```\napplication/billing-flow.ts ──▶ domain/billing.ts ──▶ presentation/invoice-view.ts\n        ▲                                                          │\n        └──────────────────────────────────────────────────────────┘\n```\n\nUnder `crimes.config.json`, only rules for `from: domain` and `from: application` exist. So of the three edges in the ring:\n\n| Edge | Legal? |\n|---|---|\n| `presentation → application` | yes — no rule constrains `from: presentation` |\n| `application → domain` | yes |\n| `domain → presentation` | **no** — `domain cannotImport presentation` (crime_00003) |\n\nThe cycle exists *only* because the one illegal edge closes it. The declared architecture, if obeyed, is already acyclic — crime_00001 is a symptom, not an independent problem.\n\nOne thing the scanner doesn't say, because it reasons about imports rather than call graphs: this cycle is a live infinite recursion. `chargeCustomer` → `renderInvoice` → `runBillingFlow` → `chargeCustomer`. Any call to either entry point stack-overflows. That's my reading of the source, not a crimes finding.\n\n## Finding → change\n\n| Finding | Import | Verdict |\n|---|---|---|\n| crime_00003 `layer_violation` | `domain/billing.ts` → `../presentation/invoice-view.js` | **Break.** Delete outright — no interface. |\n| crime_00001 `circular_dependency` | (same edge) | Closes as a consequence. No separate work. |\n| crime_00002 `deep_import` | `some-pkg/dist/internal/private/helper.js` | **Redirect.** Public entry if possible; else a single infrastructure adapter. |\n| crime_00004 `provenance_gap` | (same specifier) | Declare `some-pkg` first — blocks verifying crime_00002. |\n\n### Break: the domain → presentation edge\n\nThe scan's suggested action offers \"move the collaboration behind an interface owned by the domain layer.\" Don't. A `Renderer` port injected into `chargeCustomer` would satisfy the rule while preserving the actual defect: the domain thinks rendering is its job. The tell is the return type — `chargeCustomer(): string` is a presentation type in a domain signature. Invert instead; domain returns data, presentation formats it.\n\n```ts\n// src/domain/billing.ts — now a leaf, zero imports\nexport interface Charge {\n  amount: number;\n}\n\nexport function chargeCustomer(amount: number): Charge {\n  return { amount };\n}\n\n// src/application/billing-flow.ts\nimport { chargeCustomer, type Charge } from \"../domain/billing.js\";\n\nexport function runBillingFlow(amount: number): Charge {\n  return chargeCustomer(amount);\n}\n\n// src/presentation/invoice-view.ts — unchanged import, now the only one in the ring\nimport { runBillingFlow } from \"../application/billing-flow.js\";\n\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${runBillingFlow(amount).amount}`;\n}\n```\n\nEdges become `presentation → application → domain`: strictly downward, acyclic, recursion gone. `presentation → application` stays — it's legal and load-bearing. The scan's `fix_shape: \"extract shared types to a leaf module\"` isn't needed; the domain *becomes* the leaf.\n\n### Redirect: the deep import\n\nOrder matters. `some-pkg` is in no manifest (crime_00004), so it resolves only through hoisting — you can't verify a redirect against a package that doesn't cleanly install. Declare it, then fix the specifier.\n\nIf `internalHelper` is on the public entry, it's a one-liner: `import { internalHelper } from \"some-pkg\"`. The fixture has no `node_modules`, so I can't confirm what the public surface exports — that check gates which branch you take.\n\nIf it isn't exported, quarantine it:\n\n```ts\n// src/infrastructure/some-pkg-gateway.ts\n// Sole owner of the private path into some-pkg. Upstream issue: <link>\nimport { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n\nexport function runVendorHelper(): void {\n  internalHelper();\n}\n```\n\n`application → infrastructure` is legal (only `domain` is barred from it). Be clear-eyed about what this buys: `deep_import` will re-fire on the adapter. It doesn't remove the coupling, it collapses the blast radius to one file and gives the next upgrade a single, commented place to fail.\n\n## How the two differ in agent risk\n\nFirst, honestly: **this scan's numbers don't distinguish them.** `deep_import` scores `agent_risk` 0.27, `layer_violation` 0.26. Both inherit the same `blast_radius` 0.17 / `test_gap` 0.5 across a 6-file fixture, and that shared denominator swamps the type-specific signal. Don't read the ranking as a judgement that these are equivalent hazards — read it as the aggregate having nothing to work with at this repo size.\n\nQualitatively they're different in kind:\n\n**`layer_violation` is contagious, and amplified by agent throughput.** It compiles, tests pass, it runs. The rule that makes it wrong lives only in `crimes.config.json` — not in the type system, not in the file, not anywhere an agent reading `domain/billing.ts` will encounter it. So an agent sees a working, plausible import and infers that domain-imports-presentation is this codebase's convention. The next task (\"add a refund path\") reproduces it by imitation. Risk compounds with every edit, which means it scales with how much agent work you do. Its cost is *precedent*.\n\n**`deep_import` is fragile, and indifferent to throughput.** The coupling is to someone else's private surface, so no amount of local care protects it and no local edit can fix it. It fails as a step function fired by an event outside the repo — a version bump — and stays invisible until then. For an agent it's worse than for a human in a specific way: the symbol has no public types or docs, so an agent can't reason about it, only copy the call. And when it does break, the plausible agent repairs (reach one directory deeper, pin the version, vendor the file) all entrench it. Its cost is *unrepairability*.\n\nThat maps onto the effort fields: `layer_violation` is `medium`/medium-risk because the fix is a signature change that ripples; `deep_import` is `quick`/low-risk because the fix is one specifier — assuming the symbol is public, which is exactly the assumption that needs checking.\n\nI haven't modified the fixture — it's scanner input, and you asked for a proposal. Say the word and I'll apply the changes and re-scan to confirm all four findings clear.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "deep_import",
+      "crime_00003": "layer_violation",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Deep Import Abuse": "deep_import",
+      "Layer Violation": "layer_violation",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "cycle size: 3 files": "circular_dependency",
+      "member: src/application/billing-flow.ts": "circular_dependency",
+      "member: src/domain/billing.ts": "circular_dependency",
+      "member: src/presentation/invoice-view.ts": "circular_dependency",
+      "1 deep import across 1 package": "deep_import",
+      "specifier: some-pkg/dist/internal/private/helper.js": "deep_import",
+      "src/domain/billing.ts (layer: domain) imports src/presentation/invoice-view.ts (layer: presentation)": "layer_violation",
+      "rule: domain cannotImport presentation": "layer_violation",
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`some-pkg` — imported at src/application/billing-flow.ts as \"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "\"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

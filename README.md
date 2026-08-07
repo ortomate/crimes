@@ -169,6 +169,13 @@ about themselves**.
 retyped. If you hold pinned suppressions, read the fingerprint note in
 [`docs/json-schema.md`](./docs/json-schema.md).
 
+Because all 14 eval fixtures scan **byte-identically** between `0.21.0`
+and this build, the `0.22.0` eval run is a free repeat sample: claude
+0.77 → **0.81**, codex 0.58 → **0.58**. That settles `0.21.0`'s 0.82 →
+0.77 as noise, and it measures per-scenario variance directly — **16 of
+claude's 48 scenarios and 13 of codex's moved with nothing changed**,
+two of them by a full 1.00.
+
 Release notes: [`docs/releases/v0.22.0.md`](./docs/releases/v0.22.0.md).
 
 ### Earlier `0.21.0` work (_precision, where the false positives were_)

@@ -1,0 +1,64 @@
+{
+  "scenario": "refactor-04-monorepo",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:27:19.967Z",
+  "run_id": "904772e3-1ead-4d09-90ff-f3b08cba622d",
+  "response": "## First: the scan you pasted was empty, and that wasn't the fixture being clean\n\n`evals/fixtures/04-monorepo/` contained exactly one file — `.crimes-eval-meta.json`. It's an OSS-clone fixture (egoist/tsup @ `c5e9cd9`, v8.5.1) that `pnpm evals:setup` had never materialized. Coverage confirms it: `files_total: 1`, `universal_only_by_extension: {\".json\": 1}`. Zero findings was a correct scan of an empty directory, not a verdict on the code.\n\nI ran `pnpm run evals:setup` (cloned 02/03/04 — all gitignored, working tree still clean) and re-scanned. Real numbers: **92 findings** across 62 files, **24 in your three target files**.\n\n```\nname_behavior_mismatch   4   rollup.ts:38, rollup.ts:77, index.ts:167, index.ts:291\noption_bag_junk_drawer   1   rollup.ts:38\nreturn_shape_roulette    3   esbuild/svelte.ts:9, :17, :31\nswallowed_error          1   rollup.ts:187\ndirect_date              1   rollup.ts:164\nlarge_function          10   (structural, listed below)\nlarge_file               1   index.ts\nsync_io_in_hotpath       1   index.ts:121\n```\n\n---\n\n## Group 1 — `return_shape_roulette` (svelte.ts): 3 findings, 1 underlying cause\n\nAll three fire on the same nest: `sveltePlugin` (L9), its `setup` (L17), and the `onLoad` callback (L31). The detector attributes nested returns to every enclosing function, so treat this as **one issue reported three times**, not three problems.\n\nThe actual shapes inside `onLoad` (L31–121):\n\n| Line | Shape |\n|---|---|\n| 37 | `{ errors: [{ text }] }` — svelte not installed |\n| 117 | `{ contents, warnings }` — success |\n| 119 | `{ errors: [convertMessage(error)] }` — compile threw |\n\nPlus `convertMessage` returning `{ text, location }` where `location` is `undefined` when `start`/`end` are absent, and the inline `script` preprocessor returning `{ code }` vs `{ code, map }`.\n\n**What an agent gets wrong today:** none of these functions carries a return annotation. `convertMessage` takes `({ message, start, end }: any)` — an agent adding a fourth branch has nothing to check itself against, and TypeScript will accept `{ contents, errors: [...] }` (esbuild's `OnLoadResult` makes every field optional), which esbuild silently treats as a *failure with contents attached*. The \"0% key overlap\" the detector reports is real but benign here; the danger isn't shape divergence, it's that **no shape is declared at all**.\n\n**Proposal — annotate, don't restructure.** esbuild already ships the union types; adopting them is the whole fix.\n\n```ts\nimport type { OnLoadResult, OnResolveResult, Message, Plugin } from 'esbuild'\n\nbuild.onResolve({ filter: /\\.svelte\\.css$/ }, (args): OnResolveResult => …)\nbuild.onLoad({ filter: /\\.svelte$/ }, async (args): Promise<OnLoadResult> => …)\n\n// and replace the `any`:\ntype SvelteMessage = { message: string; start?: Position; end?: Position }\nconst convertMessage = ({ message, start, end }: SvelteMessage): Message => …\n```\n\nEffort: quick. This makes the \"errors and contents are mutually exclusive\" rule enforceable and kills the `any` that currently launders Svelte's error object into esbuild's `Message` slot unchecked.\n\n---\n\n## Group 2 — `name_behavior_mismatch`: 4 findings, and only one is worth acting on\n\n**`getRollupConfig` (rollup.ts:38) — true positive, fix it.** First statement in the body is `setSilent(options.silent)`, a module-global mutation in `log.ts`. It also does async I/O (`loadPkg`, `getProductionDeps`). A `get*` name on a function that mutates global logging state is exactly the trap the detector is for: an agent that calls it to *inspect* the config — say, to add a `--print-config` flag — silently reconfigures the logger for the rest of the process.\n\nProposal: hoist the side effect to the caller. `startRollup` (L216) is the only call site.\n\n```ts\nconst startRollup = async (options: NormalizedOptions) => {\n  setSilent(options.silent)              // caller owns the side effect\n  const config = await getRollupConfig(options)   // now genuinely a getter\n  …\n}\n```\n\n**`buildStart` (rollup.ts:77) — false positive, suppress it.** This is Rollup's plugin lifecycle hook name. It is not renameable and calling `removeFiles` is its entire purpose. The detector's \"name prefix suggests a pure transformation\" heuristic doesn't know about framework-mandated hook names.\n\n**`build` (index.ts:167) and `buildAll` (index.ts:291) — noise, don't rename.** `build` is the package's primary export. In a build tool, \"build\" naming a side-effecting operation is the correct name, not a misleading one. The detector reads `build*` as a pure-transformation prefix; that heuristic is miscalibrated for this domain. Both cite `removeFiles` as the sole side-effect signal, which is the `--clean` implementation working as designed.\n\nIf you own the crimes detector, that 2-of-4 false-positive rate on this file is the actionable output here: `buildStart`/`buildEnd`/`transform`/`load`/`resolveId` on an object literal assigned to a `Plugin`-typed binding should be exempt, and `build` probably shouldn't be in the pure-prefix set at all.\n\n---\n\n## Group 3 — `option_bag_junk_drawer` (rollup.ts:38): right smell, wrong diagnosis\n\nThe finding says `getRollupConfig` \"accepts a broad `options` object with an **implicit** shape.\" That's inaccurate — the signature is `options: NormalizedOptions`, fully typed. Same for the three out-of-scope hits (`main`, `runEsbuild`).\n\nThe real problem is one level up: `Options` in `options.ts` has **73 declared fields**, and every consumer takes the whole thing. `getRollupConfig` reads 10 of them (`cjsInterop`, `clean`, `dts`, `entry`, `external`, `format`, `outDir`, `outExtension`, `silent`, `watch`); `runEsbuild` reads 38.\n\n**What an agent gets wrong today:** adding a dts-only option means editing the 73-field god-type, and nothing tells you which of the four consumers is supposed to honor it. Nothing fails if you add the field and wire it into zero of them.\n\n**Proposal — narrow at the parameter, not the definition.** Don't split `Options` (it's the public config surface and users type against it). Narrow what each consumer *declares* it needs:\n\n```ts\ntype DtsBuildOptions = Pick<NormalizedOptions,\n  | 'cjsInterop' | 'clean' | 'dts' | 'entry' | 'external'\n  | 'format' | 'outDir' | 'outExtension' | 'silent' | 'watch'>\n\nconst getRollupConfig = async (options: DtsBuildOptions): Promise<RollupConfig> => …\n```\n\nNow the compiler answers \"which options affect the dts build?\" and an agent adding an option gets a type error at the consumer that forgot it. Zero runtime change.\n\n**Bonus the scanner didn't flag:** `rollup.ts:33` exports `type RollupConfig = { inputConfig; outputConfig }`, and `watchRollup` (L193) redeclares that exact shape inline instead of using it. `runRollup` uses the named type. Two spellings of one contract in one file — trivially unified, and the kind of drift that grows.\n\n---\n\n## Group 4 — `swallowed_error` (rollup.ts:187): the one real bug in this cluster\n\nRanked lowest by the scanner (`agent_risk` 0.27), but it's the most dangerous thing in these files.\n\n```ts\nasync function runRollup(options: RollupConfig) {\n  try { … } catch (error) {\n    handleError(error)                    // sets process.exitCode = 1,\n    logger.error('dts', 'Build error')    // posts 'error' to parentPort\n  }                                       // …then returns NORMALLY\n}\n\nconst startRollup = async (options: NormalizedOptions) => {\n  …\n  try {\n    await runRollup(config)\n    parentPort?.postMessage('success')     // ← always reached, even on failure\n  } catch { parentPort?.postMessage('error') }   // ← unreachable\n}\n```\n\n`runRollup` never rethrows, so `startRollup`'s `catch` is dead code and `postMessage('success')` fires on every dts failure. This doesn't currently break the build only because `handleError` posts `'error'` first (`errors.ts:34`) and the listener in `index.ts:240` terminates the worker on the first message it sees — the stray `'success'` lands after termination.\n\n**That is load-bearing message ordering with nothing documenting it.** An agent that \"cleans up\" `handleError` by moving the `parentPort.postMessage` out, or that makes the listener non-terminating to collect diagnostics, converts every dts failure into a green build.\n\n**Proposal:**\n\n```ts\nasync function runRollup(options: RollupConfig): Promise<void> {\n  try { … } catch (error) {\n    handleError(error)\n    logger.error('dts', 'Build error')\n    throw error                    // let startRollup own the messaging\n  }\n}\n```\n\nand drop the `parentPort.postMessage('error')` out of `handleError` so worker-protocol messages originate from exactly one place. Do this **first** — it's the only change here that fixes a correctness hazard rather than a readability one.\n\n---\n\n## Sequencing\n\n1. **`swallowed_error` in `rollup.ts`** — real bug, currently masked by message ordering.\n2. **`setSilent` hoist out of `getRollupConfig`** — one call site, removes the genuine name/behavior lie.\n3. **Return-type annotations in `svelte.ts`** — mechanical, uses esbuild's own types, kills an `any`.\n4. **`Pick`-narrowed parameter types + collapse the duplicate `RollupConfig`** — no runtime change, biggest payoff for future agent edits.\n5. **Suppress `buildStart`, `build`, `buildAll`** as detector noise, or fix the heuristic upstream.\n\nThe 10 `large_function` findings (`build` at 293 lines, `mainTasks` at 194, `setup` at 106) are the reason all of the above is hard to see in the first place, but splitting them is a much larger change than the type-tightening you asked for and I'd keep it out of this pass.\n\nOne caveat on the whole plan: this is a vendored upstream fixture. If the intent was to evaluate crimes' output rather than to actually patch tsup, edits here will be blown away by the next `evals:setup` on a fresh checkout.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {},
+    "detector_id_by_evidence": {}
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "name_behavior_mismatch",
+        "observed": "name_behavior_mismatch",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/index.ts",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/rollup.ts",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/esbuild/svelte.ts",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "name_behavior_mismatch",
+        "observed": "name_behavior_mismatch",
+        "passed": true
+      }
+    ]
+  }
+}

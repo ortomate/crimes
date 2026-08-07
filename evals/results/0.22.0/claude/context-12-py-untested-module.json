@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:05:19.228Z",
+  "run_id": "ed791b46-6093-4192-9d51-1da695746adb",
+  "response": "I ran `crimes` before touching anything. Here's what it says about the blast radius and the safety net for changing `reverse_entry` in `billing/ledger.py`.\n\n## What protection you have: effectively none\n\n`crimes context billing/ledger.py` is the load-bearing result:\n\n```\n\"likely_tests\": [],\n\"likely_tests_reason\": \"no test file matched the target basename ... and no test file imports it\",\n\"test_gap\": { \"raw\": 1, \"percentile\": 1, \"label\": \"top-quartile\" }\n```\n\n`ledger.py` is the only source file in `billing/` with **zero** tests — no `tests/test_ledger.py`, and no test file imports it directly. It sits in the worst quartile for test gap in this repo.\n\nI corroborated this against the checked-in `.coverage` database. Covered lines in `ledger.py` are `[1, 3, 6, 7, 8, 9, 10, 11, 12, 16]` — line 16 is `def reverse_entry(entry):`, executed at import time. **Lines 17–22, the entire body of `reverse_entry`, have never executed under the test suite.** If you invert a sign or drop a key, the suite stays green.\n\n## The indirect net is hollow too\n\n`ledger.py` is reached transitively: `billing/reporting.py:3` imports `post_entry`, and `tests/test_reporting.py` covers `reporting.py`. That's why `post_entry`'s body (lines 7–12) shows coverage at all. But that path is exactly what the scan's single high finding is about:\n\n> `weak_test_signal` — 4 of 4 test functions in `tests/test_reporting.py` assert nothing. 0 total assertions across 4 tests.\n\nSo the only test that reaches `ledger.py` at all reaches the *other* function, and it asserts nothing. There is no assertion anywhere in this repo that depends on any value `ledger.py` produces. Contrast with `tests/test_rates.py` (real assertions) and `tests/test_invoices.py` (assertions delegated to `tests/support.py` helpers — crimes correctly did *not* flag those as weak).\n\n## What your change could affect\n\nInside this repo: nothing. `grep` for `reverse_entry` returns exactly one hit — its own definition. It has **zero callers in-tree**. That cuts both ways:\n\n- The good news is there's no internal fan-out to break.\n- The bad news is that a public function on a package with no internal callers means its consumers are outside this repo, where neither `crimes` nor the test suite can see them. Zero in-repo blast radius is not zero blast radius — it's *unmeasurable* blast radius. The finding's `blast_radius: 0` should be read that way.\n\nThe one coupling that does matter is upstream: `reverse_entry` consumes the exact dict shape `post_entry` produces (`account`/`net`/`gross`/`region`), and `post_entry` derives `gross` from `rate_for(region)` in `billing/rates.py`. If your change alters the entry contract — say, recomputing `gross` from the rate instead of negating the stored value — you're implicitly coupling reversal to `rates.py`, and `reporting.py:12` reads `entry[\"gross\"]` straight into `report[\"total\"]`.\n\n## Where crimes was less useful\n\nTwo honest caveats, since you asked what I learned:\n\n- `related_files` for `ledger.py` scored all four siblings identically at 0.2, reason `\"same directory\"` — including the empty `billing/__init__.py`. It did **not** identify that `reporting.py` imports `ledger.py`, which is the only coupling that actually matters here. The right file surfaced, but for the wrong reason; I found the real import edge by grepping.\n- The scan's coverage warnings note that `.coverage` was never read (no include pattern matched an extensionless file). So crimes' test-gap verdict is inferred from naming and import structure, not from execution data. It happened to agree with the coverage db exactly — but that agreement is confirmation, not the same measurement.\n\n## Recommendation before you change anything\n\nWrite `tests/test_ledger.py` with real assertions on `reverse_entry` *first*, capturing current behaviour — at minimum that `post_entry` → `reverse_entry` round-trips to a net-zero pair, and that `region`/`account` survive unchanged. Right now you'd be editing the least-protected function in the package with no signal if you get it wrong. That test is also the cheapest way to pin the entry-dict contract before you start moving it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

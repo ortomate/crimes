@@ -1,0 +1,31 @@
+{
+  "scenario": "bugfix-04-weak-tests",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T05:55:35.565Z",
+  "run_id": "7d504b25-84bd-475c-bf15-155d24d2e38a",
+  "response": "I can't answer the question as asked, because the scan you pasted found nothing to answer it with. Quoting the report verbatim:\n\n```json\n\"summary\": { \"total\": 0, \"high\": 0, \"medium\": 0, \"low\": 0 },\n\"findings\": [],\n```\n\nand the coverage block explains why:\n\n```json\n\"coverage\": {\n  \"files_total\": 1,\n  \"files_by_language\": {},\n  \"files_universal_only\": 1,\n  \"universal_only_by_extension\": { \".json\": 1 }\n}\n```\n\n`files_total: 1`, and that one file is a `.json`. `files_by_language` is empty — zero TS/JS files were parsed, so the weak-test detectors never ran on a single test file. There is no evidence to quote and no test to name. Anything I said about \"which test I'd strengthen first\" would be invented.\n\n**Why the scan saw one file.** The fixture directory is not checked out:\n\n```\nevals/fixtures/04-monorepo/\n└── .crimes-eval-meta.json\n```\n\nThat meta file is the whole repo — it's a materialization pointer, not source:\n\n```json\n{\n  \"upstream\": \"https://github.com/egoist/tsup\",\n  \"sha\": \"c5e9cd96511f6e258eb6642ad20c08f70022be6b\",\n  ...\n}\n```\n\nSo the `.json` in `universal_only_by_extension` *is* `.crimes-eval-meta.json`. The scan is behaving correctly — it reported honestly on an empty repo. The failure is upstream of `crimes`: the fixture was never hydrated from upstream tsup at `c5e9cd9`.\n\n**What to do next**\n\n1. Materialize the fixture (clone tsup at that pinned SHA into `evals/fixtures/04-monorepo/`), then re-run `crimes scan test --format json`. tsup is the right repo for this question — its esbuild plugin surface is exactly where the reported regression would live.\n2. Re-check the invocation while you're at it. The report's `repo.root` is the fixture root, not a `test/` subdirectory, so the `test` argument in `crimes scan test` appears not to have narrowed scope. On a populated repo that difference matters; on this one it's masked by there being nothing to scan either way.\n\nOnce there's real output I'll pick the test and name the specific assertion, quoting the evidence.\n\nOne thing worth flagging separately: a `total: 0` scan over a one-file repo is indistinguishable at a glance from a clean bill of health. The `coverage` block does contain the disproof — but only if you read it. If these evals run unattended, a `files_by_language: {}` result is worth treating as an error rather than a pass.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {},
+    "detector_id_by_evidence": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

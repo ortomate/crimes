@@ -1,0 +1,75 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T05:54:41.899Z",
+  "run_id": "a6707b6c-f705-4f19-b796-f59fbc8caa27",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow to validate the reported cycle against the actual import statements, then I’ll identify the cleanest edge to remove.\n\nThe listed skill file is not present at its advertised workspace path, so I’ll continue with the repository’s documented read-only investigation rules and inspect only the three cycle members.\n\nThe cycle is:\n\n`billing-flow.ts → billing.ts → invoice-view.ts → billing-flow.ts`\n\nBreak the import from [billing.ts](</private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/08-stress-dependency/src/domain/billing.ts:2>) to `invoice-view.ts`.\n\nWhy this edge:\n\n- It is also the reported layer violation: domain code should not depend on presentation.\n- It causes direct runtime re-entry: `runBillingFlow()` → `chargeCustomer()` → `renderInvoice()` → `runBillingFlow()`.\n- Converting it to `import type` is impossible because `renderInvoice` is called at runtime.\n\nRefactor toward this dependency direction:\n\n`presentation → application → domain`\n\nHave `chargeCustomer()` return a domain result such as `{ amount }`; let `runBillingFlow()` return that result; then let `renderInvoice()` format it. Shared result types can live in a leaf domain/types module if needed. The deep `some-pkg` import and missing dependency declaration are separate problems, not causes of this cycle.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "deep_import",
+      "crime_00003": "layer_violation",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Deep Import Abuse": "deep_import",
+      "Layer Violation": "layer_violation",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "cycle size: 3 files": "circular_dependency",
+      "member: src/application/billing-flow.ts": "circular_dependency",
+      "member: src/domain/billing.ts": "circular_dependency",
+      "member: src/presentation/invoice-view.ts": "circular_dependency",
+      "1 deep import across 1 package": "deep_import",
+      "specifier: some-pkg/dist/internal/private/helper.js": "deep_import",
+      "src/domain/billing.ts (layer: domain) imports src/presentation/invoice-view.ts (layer: presentation)": "layer_violation",
+      "rule: domain cannotImport presentation": "layer_violation",
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`some-pkg` — imported at src/application/billing-flow.ts as \"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "\"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

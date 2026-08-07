@@ -1,0 +1,64 @@
+{
+  "scenario": "refactor-04-monorepo",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:28:03.697Z",
+  "run_id": "1b949545-78f5-42b8-912e-85eebc6a3d36",
+  "response": "I’m using the `crimes-codebase-risk` workflow because this is a targeted investigation of JavaScript/TypeScript agent-risk findings. I’ll first resolve the actual fixture root—the supplied scan clearly covered only one JSON file—then inspect the three modules and return a finding-grouped refactor plan without modifying code.\n\nThe repository-local skill is stored above this runner checkout, not at `runner/.agents`; I’m resolving it from the path supplied in the environment and continuing the prescribed scan workflow.\n\nThe fixture does exist at the path named in the JSON. The zero-result report is stale or mis-executed: it says only one JSON file was discovered, while the target contains the three TypeScript modules. I’m rescanning that exact directory with the local CLI and will cross-check each finding against source.\n\nThe corrected scan reports 92 repository-wide findings, but the requested “petty” cluster is eight findings across exactly three types: four name/behavior mismatches, one broad option bag, and three return-shape findings. I’m now separating genuine API ambiguity from detector nesting effects—especially in the esbuild plugin, where callback results may be different framework contracts rather than one function’s union.\n\nThe supplied zero-finding scan did not analyze the hydrated fixture—it covered only one JSON file. Rerunning:\n\n```bash\nnode packages/cli/dist/index.js scan evals/fixtures/04-monorepo --format json\n```\n\ncovered 62 files and found 92 repository-wide findings. Eight belong to the requested cluster.\n\n### `name_behavior_mismatch` — 4 findings\n\n- [`getRollupConfig`](/private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/04-monorepo/src/rollup.ts:38): calls `setSilent`, loads package/dependency data, and creates a cleanup hook.\n- [`buildStart`](/private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/04-monorepo/src/rollup.ts:77): invokes `removeFiles`.\n- [`build`](/private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/04-monorepo/src/index.ts:167): orchestrates configuration loading, cleanup, workers, builds, watchers, asset copying, and success hooks.\n- [`buildAll`](/private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/04-monorepo/src/index.ts:291): cleans output and rebuilds every format before copying assets and running `onSuccess`.\n\nAn agent could treat `getRollupConfig` as an idempotent read, invoke `buildAll` once per format and repeatedly delete output, or assume `build` returns build artifacts instead of `Promise<void>`.\n\nRefactor plan:\n\n- Move `setSilent` to the worker/startup boundary.\n- Split `getRollupConfig` into `loadDtsRollupContext` for I/O and a pure `createDtsRollupConfig`.\n- Extract `cleanDeclarationsBeforeBuild` and assign it as `buildStart: cleanDeclarationsBeforeBuild`. `buildStart` itself cannot be renamed because Rollup owns that hook name.\n- Preserve the public `build()` API, but make it a thin, explicitly typed `Promise<void>` wrapper around `runConfiguredBuilds`.\n- Replace `buildAll` with a small `runBuildCycle` orchestrator calling `cleanBuildOutput`, `bundleAllFormats`, `copyBuildAssets`, and `runSuccessHook`.\n\n### `option_bag_junk_drawer` — 1 finding\n\n`getRollupConfig` receives all of `NormalizedOptions` while reading ten fields spanning logging, declaration inputs, cleanup, and output policy. It also mutates the nested declaration configuration:\n\n```ts\nconst dtsOptions = options.dts || {}\ndtsOptions.entry = dtsOptions.entry || options.entry\n```\n\nAn extension could silently add another dependency on an unrelated build flag or observe an `options.dts` object changed by an earlier call.\n\nRefactor plan:\n\n- Introduce readonly projections such as `DtsInputOptions`, `DtsOutputOptions`, and `DtsCleanPolicy`, using `Pick<NormalizedOptions, ...>` to retain the public field types.\n- Construct those records once at the orchestration boundary instead of forwarding the complete option bag.\n- Copy declaration options rather than mutating them:\n\n```ts\nconst dtsOptions = {\n  ...options.dts,\n  entry: options.dts?.entry ?? options.entry,\n}\n```\n\n- Keep the full normalized options only where the public `outExtension` callback contract requires it.\n\n### `return_shape_roulette` — 3 findings\n\nAll are in [`src/esbuild/svelte.ts`](/private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/04-monorepo/src/esbuild/svelte.ts:9):\n\n- `sveltePlugin`: six shapes attributed from nested callbacks.\n- `setup`: the same six nested shapes.\n- Anonymous `onLoad` callback: five shapes, including `{ errors }`, `{ contents, warnings }`, and nested preprocessor `{ code, map }` results.\n\nThe first two are largely attribution artifacts: `sveltePlugin` already returns `Plugin`, while `setup` returns `void`. The real risk is that several nested framework contracts are anonymous and implicit. An agent could confuse an esbuild resolve result with a load result, access `contents` on an error result, or return a Svelte preprocessor `{code, map}` object from the esbuild loader.\n\nRefactor plan:\n\n- Extract and type each boundary separately:\n\n```ts\nresolveSvelteCss(args: OnResolveArgs): OnResolveResult\nloadSvelteComponent(args: OnLoadArgs): Promise<OnLoadResult>\ntoEsbuildMessage(error: unknown, ...): PartialMessage\nsetupSveltePlugin(build: PluginBuild): void\n```\n\n- Add a named `SveltePluginOptions` type.\n- Replace `convertMessage(...: any)` with a typed diagnostic input plus an `unknown` error guard.\n- If compilation results are consumed internally, use a discriminated union such as `{ ok: true, contents, warnings } | { ok: false, errors }`, then adapt it to esbuild’s `OnLoadResult` at the boundary.\n- Test missing-Svelte, compile-error, success, CSS extraction, and TypeScript-preprocessing branches.\n\nThe framework-owned `buildStart`, `sveltePlugin`, and `setup` findings are reasonable false-positive candidates for scanner feedback after the extraction:\n\n```bash\ncrimes feedback 'name_behavior_mismatch::src/rollup.ts::buildStart' --verdict fp --note \"buildStart is a Rollup-required lifecycle hook whose purpose is to perform setup side effects.\"\ncrimes feedback 'return_shape_roulette::src/esbuild/svelte.ts::sveltePlugin' --verdict fp --note \"The plugin returns one explicitly typed Plugin; the reported shapes belong to nested framework callbacks.\"\ncrimes feedback 'return_shape_roulette::src/esbuild/svelte.ts::setup' --verdict fp --note \"setup returns void; the reported shapes belong to nested esbuild and Svelte callbacks.\"\n```\n\nNo files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {},
+    "detector_id_by_evidence": {}
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "name_behavior_mismatch",
+        "observed": "name_behavior_mismatch",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/index.ts",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/rollup.ts",
+        "observed": "src/rollup.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/esbuild/svelte.ts",
+        "observed": "src/esbuild/svelte.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "name_behavior_mismatch",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

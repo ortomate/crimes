@@ -1,0 +1,31 @@
+{
+  "scenario": "bugfix-04-weak-tests",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T05:58:27.687Z",
+  "run_id": "c37e0717-5a64-486a-a6d5-8d5d1e79a53f",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is an investigation of scanner output in the `crimes` codebase. I’ll first verify why the supplied scan found only JSON, then run the scan against the actual fixture test tree and inspect the implicated esbuild test.\n\nThe skill file isn’t inside this runner checkout; it lives at the absolute path listed in the session instructions. I’m reading it there, then I’ll resolve the fixture location explicitly so the scan target isn’t accidentally relative to the runner.\n\nThe zero-result scan is a setup artifact: this checkout’s `04-monorepo` fixture contains only `.crimes-eval-meta.json`, so `scan test` has no test source to analyze. I’m checking the local workspace for an already-present copy of the pinned fixture before relying on the upstream source.\n\nI found an already-materialized local copy of the same pinned `04-monorepo` fixture. I’m now running the requested `scan test --format json` from that repo root through the locally built CLI, then I’ll inspect the highest-relevance esbuild-plugin test rather than guessing from its name alone.\n\nThe materialized scan reports 27 `weak_test_signal` findings; the regression-relevant one is the assertion-free native-module plugin test in `test/index.test.ts`. I’m checking its fixture and the `run()` helper now to make the assertion target the plugin’s actual failure mode and use the suite’s real APIs.\n\nI’d strengthen `test/index.test.ts:537` first—the test directly covering the esbuild native-module plugin.\n\nFinding evidence, verbatim:\n\n> `test: \"native-node-module plugin should handle *.node(.js) import properly\"`  \n> `0 expect/assert calls`  \n> `lines 537-548`\n\nChange it to inspect the emitted bundle:\n\n```ts\nconst { output, outFiles } = await run(/* existing arguments */)\n\nexpect(outFiles).toEqual([\"input.js\"])\nexpect(output).toContain('hi = \"hi\"')\n```\n\nThe second assertion is the critical one. It proves `hi.node.js` was treated as JavaScript and bundled, so a regression that merely completes the build while mishandling the `.node` resolution will fail CI.\n\nThe supplied zero-finding result came from an unmaterialized fixture containing only `.crimes-eval-meta.json`. Rerunning against the populated fixture produced 27 `weak_test_signal` findings.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {},
+    "detector_id_by_evidence": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

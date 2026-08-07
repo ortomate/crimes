@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:09:38.464Z",
+  "run_id": "9ab4d797-4c09-44f3-8815-df4aae9f8f89",
+  "response": "I read the six source files to ground the plan. Two things in the scan output don't survive contact with the source, and both change the plan:\n\n**The three role checks are not the same check.** The detector groups them by the literal `\"admin\"`, and reports \"2 distinct expression shapes.\" There are three:\n\n| Site | Predicate | Semantics |\n|---|---|---|\n| `sanitize-a.ts:7` | `role === \"admin\"` | admin only |\n| `sanitize-b.ts:6` | `role === \"admin\" \\|\\| role === \"owner\"` | **admin or owner** |\n| `sanitize-c.ts:6` | `role !== \"admin\"` | **inverted — true for non-admins** |\n| `policy.ts:3,8,13` | `role === \"admin\"` | admin only (×3, genuinely identical) |\n\nThe finding is right that these will drift; it's already happened. So \"consolidate the three role checks\" is not a mechanical edit — collapsing `assertAdminA/B/C` into one `isAdmin()` silently revokes owner access and inverts every `assertAdminC` call site. (Minor precision note: one of the four counted files' occurrences, `policy.ts:1`, is inside a comment.)\n\n**`blast_radius: 0` does not mean \"safe to delete.\"** Nothing in this repo imports anything — there are no internal call sites and no tests. Every helper is an `export`, so the real callers are all outside the scanned tree. Renames are free internally; removals are breaking changes to consumers you can't see from here.\n\nThat's why the split below is sanitisers-then-policy rather than one change: step 1 is provably behaviour-preserving, step 2 requires a product decision.\n\n---\n\n## Step 1 — Consolidate the sanitisers (mechanical, behaviour-preserving)\n\nCovers `crime_00003` (near-duplicate, 3 files) and `crime_00004` (exact duplicate, telemetry ×2).\n\nThe three bodies are identical modulo identifier renames (`raw`/`input`/`value`, `working`/`cleaned`/`normalised`). Verified line-by-line — there is no behavioural difference to preserve, so this can land without a policy decision.\n\n**1a. New `src/sanitize.ts`** holding one implementation, lifted verbatim from `sanitize-a.ts:10-36`.\n\n> ⚠️ `working.replace(/[  ]/g, \"\")` on line 13 of each file contains **raw control bytes** — `od` shows the class is `[\\x00-\\x1f]`, not the space-and-hyphen it renders as. Retype it as `/[\\u0000-\\u001F]/g` rather than copy-pasting through a terminal, or you will silently change what gets stripped. Same applies to the two `\\s+` and `[!?]{3,}` classes: move them byte-identically.\n\n**1b. Turn the three old files into re-export shims**, preserving the public names:\n\n```ts\n// src/sanitize-b.ts\nexport { sanitize as sanitizeText } from \"./sanitize.js\";\n```\n\nThis keeps external consumers working. Deleting the shims is a separate, semver-visible decision — don't fold it in here.\n\n**1c. Same treatment for telemetry.** `recordSanitiseEvent` is byte-identical across `telemetry-a.ts` and `telemetry-b.ts`; move it to `src/telemetry.ts`, re-export from both. While the body is in hand, take the `crime_00001`/`crime_00002` fix (`Date.now()` at line 16 of each): give it an optional injected clock, `now: () => number = Date.now`. That's the finding's own `inject_clock` suggestion, it's a default parameter so no call site changes, and it makes the helper testable. It's cheap here and expensive later — after this step the two `direct_date` findings collapse into one site instead of two.\n\n**Before touching anything:** there are no tests. Write characterization tests against `sanitizeUserInput` first — empty/null input, the 1000-char truncation boundary, the `<`/`>` prefix rejection, the `\\\\x` literal, the `>5` punctuation-run rejection, and the upper-ratio branch at `>0.9 && length > 30`. Assert current behaviour, quirks included. Do not \"fix\" the `\\s+` collapse re-introducing spaces after the control strip, or anything else that looks wrong — step 1 is a move, not a repair. Anything you want to fix goes in a third change with its own review.\n\nVerification: the characterization tests pass unchanged against the consolidated helper, and `crimes scan` drops `crime_00003` and `crime_00004`.\n\n## Step 2 — Consolidate the role checks (semantic — needs a decision)\n\nCovers `crime_00005`.\n\nSplit this by whether the sites are actually equivalent:\n\n**2a. The provable part.** `policy.ts`'s three functions are byte-identical predicates. Introduce `src/authz.ts` with `export const isAdmin = (role: string) => role === \"admin\";` and have `canEditBilling`, `canSeeAuditLog`, and `canImpersonate` each delegate. No behaviour change, no decision needed. Land this half even if 2b stalls.\n\n**2b. The part that needs an owner.** Three questions, and someone who owns authorization has to answer them — do not guess:\n\n1. **Is `assertAdminB`'s `owner` intentional or a drifted copy?** If intentional, the codebase has two distinct concepts and the target is two predicates — `isAdmin` and something like `canAdminister` (admin-or-owner) — not one. If it's drift, folding it into `isAdmin` revokes owner access and is a production behaviour change that needs its own rollout.\n2. **Is `assertAdminC`'s inversion intentional?** Its name says \"assert admin\" and it returns `true` for non-admins. Either the name or the body is a bug. Renaming it to `isNotAdmin` and expressing it as `!isAdmin(role)` fixes the misleading name without changing behaviour — that's the safe move, and it's the one I'd take absent an answer.\n3. **Should `role` stay a bare `string`?** A `type Role = \"admin\" | \"owner\" | ...` union is the change that actually stops this recurring, because it makes a fourth divergent inline check a type error rather than a scan finding.\n\nIf nobody can answer (1) in a timely way, ship 2a plus the (2) rename, and leave `assertAdminB` alone with a comment recording the open question. Partial consolidation with an explicit note beats a consolidation that quietly changes who can do what.\n\nVerification here is not \"the finding disappears\" — write a table-driven test over `{admin, owner, member, \"\", \"ADMIN\"}` × each surviving predicate, capture current answers first, and diff after. `crime_00005` may legitimately persist at reduced count if the answer to (1) is \"two concepts.\"\n\n---\n\n**Why this order.** Step 1 is behaviour-preserving and unblocked; step 2's larger half is blocked on a question you don't control. Sequencing them the other way stalls the whole change set behind an authz conversation. They're also independent — step 1 touches sanitiser bodies, step 2 touches guards already hoisted out of those bodies (the fixture comments confirm the hoisting was deliberate), so there's no merge contention and step 2 can start in parallel once (1) is answered.\n\n**Rollback.** Step 1 reverts cleanly — it's a move plus shims. Step 2b is the one that can change production access; keep it in its own commit so it can be reverted without dragging the sanitiser consolidation back out.\n\n**Scope I'd hold back.** Deleting the re-export shims, fixing the `\\s+`-after-control-strip quirk, and introducing the `Role` union are each worth doing and each deserve their own change. Bundling them into a \"cleanup\" PR is how a behaviour-preserving refactor turns into an incident.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "direct_date",
+      "crime_00003": "near_duplicate_block",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_evidence": {
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

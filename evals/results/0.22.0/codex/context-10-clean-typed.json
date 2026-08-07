@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:03:43.781Z",
+  "run_id": "7df2a5ad-0294-427d-a6e5-7645f2f80d84",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a targeted `crimes context` inspection. I’ll run the requested JSON command against the fixture and report only what the context output establishes.\n\nThe skill file lives at the evaluation workspace level rather than this runner directory, so I’m resolving it from the provided absolute location before executing the scan.\n\nThe fixture has no global `crimes` binary on `PATH`. I’m locating the repository’s built/local CLI and will invoke that same `context` command from the fixture root.\n\nThe local TypeScript launcher tried to create its IPC socket through a sandbox-blocked temp alias. I’m rerunning it with the permitted private temp directory; this does not change the fixture or scan behavior.\n\n`src/billing.ts` has no findings:\n\n- Risk: `none` (`0` high, medium, or low findings)\n- Likely test: `src/billing.test.ts`\n- Related files: none\n\nIt is low risk to edit because no risk detectors fired, there are no deterministic dependency/neighbourhood signals, and churn is minimal—one commit by one author in the last 90 days. The repository-level `dependency_provenance_gap` applies to `package.json`, not `billing.ts`. Test-gap status is `unknown`, so the likely test should still be run after editing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

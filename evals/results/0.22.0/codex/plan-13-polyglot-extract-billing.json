@@ -1,0 +1,96 @@
+{
+  "scenario": "plan-13-polyglot-extract-billing",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:20:56.782Z",
+  "run_id": "904473b0-805d-4234-90b5-4d89563e1fa1",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is an extraction-risk planning task. I’ll run the requested scan first, then inspect the billing boundary just enough to turn each finding into a sequenced pre-/post-split plan.\n\nThe skill lives at the evaluation workspace level rather than inside the runner directory, so I’m resolving that path before touching the fixture.\n\nThe exact command is unavailable on `PATH` (`crimes: command not found`). I’m switching to the repository-built CLI, which the project instructions specify for unpublished checkouts, and will run the same JSON scan against the fixture before planning.\n\nThe live scan matches the supplied report: 5 findings (1 high, 3 medium, 1 low), plus unscanned JSON/TOML. The central migration risk is an already-broken contract, so I’m now checking the actual route shapes and package manifests to separate cutover blockers from cleanup.\n\nThe billing API should not be split in its current state. The scan confirms that the web client and Python API already disagree on plan values and HTTP routes; a network/service boundary would make those failures harder to diagnose and coordinate.\n\nI ran the requested JSON scan from the fixture. Because `crimes` was not on `PATH`, I used the repository-built equivalent:\n\n```bash\nnode packages/cli/dist/index.js scan --format json\n```\n\nIt returned the supplied 5 findings: 1 high, 3 medium, and 1 low.\n\n## What must be fixed before the split\n\n| Finding | Decision | Required action |\n|---|---|---|\n| `crime_00001` — plan type drift | **Blocker** | Decide the supported plan set—`free/pro/team/scale`, `enterprise`, or a deliberate combination. Make the billing-owned OpenAPI schema canonical and generate the TypeScript type/client from it. |\n| `crime_00003` — `PUT` versus `POST` | **Blocker** | Define one operation. Recommended: `PUT /…/{id}/plan` with `{ \"plan\": \"…\" }`, because setting a plan is naturally idempotent. Update both provider and client contract tests. |\n| `crime_00005` — `/workspaces` has no backend route | **Blocker** | Choose one public resource path. Preserve `/api/teams` initially if compatibility matters, or introduce a versioned replacement with an explicit compatibility alias. |\n| `crime_00004` — team/workspace terminology | **Cleanup may follow** | The public contract must choose and document one term before the split, but renaming every internal Python and TypeScript symbol can happen afterward. Do not let the two teams independently redefine the mapping. |\n| `crime_00002` — `getWorkspace` uses `fetch` | **Not a blocker; likely false positive** | An asynchronous `get*` method performing an HTTP GET still behaves like a read. Rename to `fetchWorkspace` later only if that matches project conventions. |\n\nFor `crime_00002`, the appropriate feedback would be:\n\n```bash\ncrimes feedback 'name_behavior_mismatch::packages/web/src/workspace-client.ts::getWorkspace' \\\n  --verdict fp \\\n  --note \"An async get client method performs an HTTP GET; fetch is the read operation promised by the name.\"\n```\n\nManual inspection also exposed two pre-split blockers adjacent to the reported route drift:\n\n- `workspaceSeats` and `changeWorkspacePlan` send literal `:id` segments rather than interpolating the supplied ID.\n- `changeWorkspacePlan` does not transmit its `plan` argument at all, while FastAPI currently expects it as a query parameter.\n\n## Extraction plan\n\n1. **Characterize and freeze the existing behavior**\n\n   Add provider contract tests and web-client integration tests for all four operations: fetch tenant, create tenant, fetch seats, and change plan. Cover every supported plan value, invalid values, 404s, 405s, and response shapes. Every scan finding currently has `test_gap: 1`, so the split should not begin without this safety net.\n\n2. **Establish a billing-owned contract**\n\n   Create a versioned OpenAPI document owned by the new billing team. It must define:\n\n   - The canonical tenant terminology and route namespace.\n   - The complete `Plan` enum.\n   - Request bodies, responses, and error schemas.\n   - Authentication and authorization requirements.\n   - Idempotency and retry behavior.\n\n   Generate the TypeScript client and its `Plan` type from this document. The web package should stop maintaining handwritten copies of billing routes and enums.\n\n3. **Make billing independently deployable while still in the monorepo**\n\n   Package the Python code as a standalone FastAPI application with an entry point, locked runtime dependencies, health/readiness endpoints, configuration, logging, and deployment artifact. The current [`pyproject.toml`](</private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/13-polyglot-monorepo/packages/api/pyproject.toml>) contains metadata but no FastAPI/server dependencies or launch configuration.\n\n   Establish that the service owns billing state. If tenant identity or other data remains elsewhere, access it through an explicit API or event contract—not a shared database or cross-package import.\n\n4. **Integrate through a compatibility boundary**\n\n   Replace [`workspace-client.ts`](</private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/13-polyglot-monorepo/packages/web/src/workspace-client.ts>) with the generated client or a thin domain adapter around it. Configure the billing base URL per environment.\n\n   Initially proxy the existing `/api/...` routes to the new service. This preserves browser-origin, authentication, and rollback behavior while traffic is migrated.\n\n5. **Deploy and cut over incrementally**\n\n   Deploy the service to staging, run contract and end-to-end tests against the deployed endpoint, then canary production traffic. Monitor request rate, latency, error status, plan-change failures, and schema-validation failures. Rollback should be a routing change to the old implementation, not a redeploy.\n\n6. **Transfer ownership after operational proof**\n\n   Assign the billing team ownership of the service, OpenAPI schema, migrations, deployment, alerts, and on-call runbook. The web team owns only the generated-client integration and UI behavior. Define compatibility and deprecation rules before removing the old routes.\n\n7. **Perform post-split cleanup**\n\n   After the compatibility window:\n\n   - Unify internal `team`/`workspace` naming.\n   - Optionally rename `getWorkspace` if desired.\n   - Remove proxy routes and handwritten compatibility types.\n   - Move to a separate repository only if organizationally useful; independent build and deployment should be proven first.\n\n## Cutover gates\n\nDo not cut traffic over until:\n\n- `crimes scan --format json` reports no plan-type or route-drift findings.\n- JSON and TOML are included in scan coverage, or their exclusion is explicitly reviewed. These files contain the deployment and dependency boundary that the current scan missed.\n- Contract tests pass against both the compatibility endpoint and deployed service.\n- The service builds and starts without monorepo-only imports.\n- Authentication, observability, data ownership, rollback, and on-call ownership have been exercised and documented.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    },
+    "detector_id_by_evidence": {
+      "packages/api/billing/plans.py:10 — Plan declares [free, pro, team, scale]": "cross_language_type_drift",
+      "packages/web/src/workspace-client.ts:10 — Plan declares [free, pro, enterprise]": "cross_language_type_drift",
+      "shared: free, pro": "cross_language_type_drift",
+      "only in Python: scale, team — the TypeScript side will reject these values": "cross_language_type_drift",
+      "only in TypeScript: enterprise — the Python side will reject this value": "cross_language_type_drift",
+      "side-effect-like calls: fetch": "name_behavior_mismatch",
+      "2 side-effect signals in the function body": "name_behavior_mismatch",
+      "frontend: packages/web/src/workspace-client.ts:34 — PUT /api/teams/:id/plan": "cross_language_route_drift",
+      "backend:  packages/api/billing/routes.py:25 — POST /api/teams/{team_id}/plan (change_team_plan)": "cross_language_route_drift",
+      "methods declared: POST": "cross_language_route_drift",
+      "concept group \"tenant\" is named differently on each side of the boundary": "cross_language_concept_alias_drift",
+      "Python uses: team": "cross_language_concept_alias_drift",
+      "TypeScript uses: workspace": "cross_language_concept_alias_drift",
+      "packages/api/billing/plans.py:10 — docstring of Plan (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:11 — def get_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:16 — def create_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:21 — def team_seats (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:26 — def change_team_plan (team)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:17 — getWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:22 — createWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:27 — workspaceSeats() (workspace)": "cross_language_concept_alias_drift",
+      "preferred form for this group: \"organization\"": "cross_language_concept_alias_drift",
+      "\"organization\"": "cross_language_concept_alias_drift",
+      "1 frontend call reaches a path no backend route declares": "cross_language_route_drift",
+      "packages/web/src/workspace-client.ts:23 — POST /api/workspaces": "cross_language_route_drift",
+      "4 backend routes declared across 1 file": "cross_language_route_drift",
+      "backend owns: /api — calls outside those namespaces are not counted here": "cross_language_route_drift",
+      "matched on literal path strings — a route or URL assembled at runtime is invisible to this check": "cross_language_route_drift",
+      "decorator routing only — Django `urlpatterns` and DRF `router.register` are not read, so a repo using them looks routeless": "cross_language_route_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": "packages/web/src/workspace-client.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

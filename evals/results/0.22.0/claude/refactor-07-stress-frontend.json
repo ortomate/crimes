@@ -1,0 +1,72 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:23:12.166Z",
+  "run_id": "1d52409f-1bfa-4aa2-b124-b04ad3203fe7",
+  "response": "`crimes context src/Card.tsx` adds two things the scan JSON alone doesn't: the file has **0 direct importers** and **no test file** anywhere (test gap top-quartile, churn 2 commits/90d). So this is a safe refactor mechanically — nothing downstream breaks — but there's also no test to catch a visual regression. That shapes the recommendation: prefer changes that are provably behaviour-preserving, and call out explicitly the one place where they can't be.\n\n## The refactor\n\n**1. `accessible_interaction_risk` (medium, 0.85) — line 10 `<div onClick>`**\n\nThe suggested action offers two paths; only one is right here. `role=\"button\" tabIndex={0}` on the root is the wrong one, because the root wraps arbitrary `children` — you'd be turning the entire card, including anything interactive inside it, into one click target, and you'd owe hand-written Enter/Space handlers. Making the root an actual `<button>` is worse: interactive children inside a button is invalid nesting.\n\nThe fix is to stop overloading the container and give the action its own element: keep the card a plain `<div>`, add a real `<button type=\"button\">` for the interaction. That gets keyboard reachability, screen-reader semantics, and Enter/Space for free rather than reimplemented.\n\n**2. `design_token_escape` (low, 0.75) — 9 raw values, 4 kinds**\n\nMove the values out of `style={{}}` and onto the token scale. The catch, and it's the substantive one: `tailwind.config.ts` defines exactly three colors (`brand`, `surface`, `ink`) and `Card.tsx` uses **seven** — `#ff00aa`, `#0a0a0a`, `#333333`, `#666666`, `#cccccc`, `#1a73e8`, plus `rgb(0,0,0)` in the shadow. None of them are near the existing three (`#ff00aa` is hot magenta; nothing in the config is remotely close). So this is not a mechanical substitution — mapping these onto existing tokens would silently change the rendering. The config has to grow, and naming the new tokens is a design-system decision:\n\n```ts\n// tailwind.config.ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      // promoted from src/Card.tsx literals — names need design sign-off\n      accent: \"#ff00aa\",\n      \"ink-strong\": \"#0a0a0a\",\n      \"ink-muted\": \"#333333\",\n      \"ink-subtle\": \"#666666\",\n      border: \"#cccccc\",\n      focus: \"#1a73e8\",\n    },\n    extend: {\n      boxShadow: { card: \"0 2px 4px rgb(0 0 0)\" },\n      fontSize: { \"fluid-body\": \"clamp(1rem, 0.95rem + 0.4cqi, 1.125rem)\" },\n    },\n  },\n};\n```\n\n`padding: 24` → `p-6` and `maxWidth: 1024` → `max-w-5xl` are exact (24px, 64rem), so those carry over with no visual change.\n\n**3. `responsive_fragility` (low, 0.65) — `width: 800`, `width: 720`, `fontSize: 18`**\n\n`width: 800` → `w-full max-w-5xl` (the `maxWidth: 1024` already there becomes the real constraint). The nested `720` / `240` pair is a 3:1 two-column layout that **isn't actually implemented** — both children are plain blocks, so the \"sidebar\" currently stacks below rather than sitting beside. Making that intent explicit as a grid is the fix, and the finding's `fix_shape` points at container queries over pixel media queries — correct for a component that doesn't know its own viewport. `fontSize: 18` → a `clamp()` entry on the type scale.\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  /** Omit to render a non-interactive card. */\n  onActivate?: () => void;\n  actionLabel?: string;\n};\n\nexport function Card({ children, onActivate, actionLabel = \"Open card\" }: CardProps) {\n  return (\n    <div className=\"@container w-full max-w-5xl border border-border bg-accent p-6 text-ink-strong shadow-card\">\n      <div className=\"grid gap-6 @2xl:grid-cols-[3fr_1fr]\">\n        <div className=\"text-fluid-body text-ink-muted\">{children}</div>\n        <aside className=\"text-sm text-ink-subtle\">sidebar</aside>\n      </div>\n      {onActivate ? (\n        <button\n          type=\"button\"\n          onClick={onActivate}\n          className=\"mt-6 rounded focus-visible:outline-2 focus-visible:outline-focus\"\n        >\n          {actionLabel}\n        </button>\n      ) : null}\n    </div>\n  );\n}\n```\n\nI ran this through `crimes scan --all` in a scratch copy (the fixture itself is untouched — it's scanner input): **0 findings**. All three clear, because moving values out of `style={{}}` removes what both style detectors key on, and the `<button>` satisfies the a11y detector.\n\n## Three things I deliberately did not decide\n\n- **`height: 600` is dropped, not converted.** A fixed height on a container holding arbitrary `children` is an overflow bug waiting to happen, and no detector flagged it. Dropping it is the right call but it *is* a visual change — if that height is load-bearing, use `min-h-[37.5rem]` instead.\n- **`boxShadow: \"0 2px 4px rgb(0, 0, 0)\"` is fully opaque black.** Almost certainly meant to be `rgb(0 0 0 / 0.2)` or similar. I preserved it exactly in the `card` token rather than silently fixing it — flagging it as a separate decision.\n- **`@container` / `@2xl:` need Tailwind v4** (or the container-queries plugin on v3). Worth noting: `package.json` declares no dependencies at all, so `tailwind.config.ts` is currently aspirational. If Tailwind isn't really wired up, the same refactor works with a CSS Module plus custom properties for the tokens — the structure is identical, only the delivery mechanism changes.\n\nGiven the file has no tests and no importers, I'd add a render test alongside this — one assertion that the action is reachable by role (`getByRole(\"button\", { name: \"Open card\" })`) is enough to lock in the a11y fix that finding #1 is about.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "line 10: <div> with onClick has no role / aria-label / tabIndex": "accessible_interaction_risk",
+      "9 hard-coded style values across 4 kinds (color, px, rgb, shadow)": "design_token_escape",
+      "line 10: color #ff00aa": "design_token_escape",
+      "line 10: color #0a0a0a": "design_token_escape",
+      "line 10: color #cccccc": "design_token_escape",
+      "line 10: color #1a73e8": "design_token_escape",
+      "line 10: rgb rgb(0, 0, 0)": "design_token_escape",
+      "+4 more raw value(s)": "design_token_escape",
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

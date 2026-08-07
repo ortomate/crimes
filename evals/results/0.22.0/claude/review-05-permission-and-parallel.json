@@ -1,0 +1,139 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:38:32.923Z",
+  "run_id": "99904b86-28fd-4b27-9cdf-a4498a211258",
+  "response": "## The three IA drifts\n\n### 1. `/admin` described three ways — `permission_ia_drift` (crime_00011) → **BLOCK MERGE**\n\nThe scan's evidence, confirmed against the files:\n\n```\ndestination: /admin\ntokens: admin, manager, owner\nnav (src/nav.ts:6): nav attr role=admin\nroute_guard (src/routes/admin.ts:2): role literal \"admin\"\nroute_guard (src/routes/admin.ts:4): role literal \"owner\"\nroute_guard (src/routes/admin.ts:9): role literal \"manager\"\n```\n\n- `src/nav.ts:10` — `{ href: \"/admin\", label: \"Admin Console\", role: \"admin\" }`\n- `src/routes/admin.ts:4` — `export const requiredRole = \"owner\"`\n- `docs/routes.md:12-14` — \"## Manager-only screens … reachable only by a manager\"\n\nThis is more than naming. `src/routes/admin.ts:9` short-circuits **before** the owner gate on line 10:\n\n```ts\nif (currentUser.role === \"manager\") return { ok: true, legacy: true };\nif (currentUser.role !== \"owner\") return null;\n```\n\nSo the declared contract (`requiredRole = \"owner\"`) is not the enforced contract — managers get in through a legacy branch. Three files each look authoritative in isolation, and the code disagrees with itself. Block: pick one token, route every surface through a single exported check, and make the legacy `manager` path an explicit decision (keep + document, or delete + migrate) rather than a leftover.\n\n### 2. `/admin/billing-plans` vs `/billing-plans` — `parallel_destination` (crime_00004) → **WARN**\n\n```\nroutes: /admin/billing-plans, /billing-plans\nshared tokens: billing, plan\nno nav, doc, or import link between them\n```\n\nCorroborated by two more findings: both files are also `orphaned_destination` (crime_00005, crime_00006) — nothing navigates to, links to, or imports either one. Both are one-line stubs returning `[]`, and `src/nav.ts:2` notes nav \"doesn't include Billing at all.\"\n\nThat profile — parallel, orphaned, empty — reads as scaffolding mid-flight, not shipped duplication, which is why confidence is only 0.6. Warn: force a canonical-owner decision before either file grows real logic (`merge_or_document`). Blocking on two empty stubs would be a false gate; leaving it silent means the split calcifies.\n\n### 3. Docs reference `iaq` subcommands the bin doesn't ship — `command_drift_docs_code_drift` (crime_00012) → **WARN**\n\n```\ndocs/routes.md:23 references \"iaq teams\"\ndocs/routes.md:27 references \"iaq workspace\"\ndocs/routes.md:31 references \"iaq refresh\"\nadvertised: iaq: get, list\n```\n\nVerified: `bin/iaq.ts` registers exactly `list` and `get`. All three documented commands are fabrications from the reader's perspective — `iaq refresh` in particular has no analogue in the bin at all.\n\nWarn, not ignore. A human hits \"command not found\" and moves on; an agent told to \"fix the refresh command\" reads `docs/routes.md:31`, believes the command exists, and either invents an implementation or edits the wrong file. Cheap fix (0.8 confidence, `effort: small`) — regenerate the docs block from the Commander definitions or assert it in CI.\n\n## Highest agent-risk: the permission drift\n\n**The `/admin` permission drift, by a wide margin** — and note that this contradicts the tool's own ranking, which is worth calling out.\n\nThe scan scores `agent_risk` as parallel_destination **0.23** > permission_ia_drift **0.15** = command_drift **0.15**. That ordering is an artifact, not a judgement: crime_00011 is anchored on `docs/routes.md`, a file with no importers and no test surface, so it takes `blast_radius: 0` and `test_gap: 0` and the aggregate collapses — even while `severity` correctly sits at 0.65, the highest of the three. A finding whose *related_files* are the real risk surface (`src/nav.ts`, `src/routes/admin.ts`) shouldn't be scored on the doc it was anchored to.\n\nOn the substance, the permission drift wins on every agent-specific axis:\n\n- **Three plausible answers, no tiebreaker.** An agent asked to \"add a role check to the admin route\" reads one of three files, each internally coherent and confidently worded. Two of three choices are wrong, and nothing in the file it lands in signals that the other two exist.\n- **Being wrong produces an authorization outcome.** The other two drifts cost a wasted navigation or a failed command — recoverable, visible. Here, an agent that \"cleans up\" the stale branch at `admin.ts:9` silently revokes access for every manager in production; one that aligns the docs to `requiredRole` documents away a live privilege path that still grants entry. Both edits look like tidying and pass any test suite that doesn't exist.\n- **The drift is self-reinforcing.** Each surface is a source of truth for the next agent. Fixing one without the other two leaves the repo just as ambiguous, with one more file claiming to be canonical.\n\nRanking the other two behind it: `parallel_destination` is second — an agent updating billing will plausibly patch one route and miss the twin — but both files are empty and unreachable, so the blast radius today is zero. `command_drift` is third: highest determinism, lowest stakes, and the failure is loud.\n\n**Two side observations on the scan itself**, since you're reading the JSON:\n\n- crime_00003 (`docs_code_drift`, `docs/routes.md:14 → /admin (not found)`) looks like a false positive. `/admin` is a real route (`src/routes/admin.ts`); the link checker resolved a route path as a filesystem path. Candidate for `crimes feedback docs_code_drift::docs/routes.md:: --verdict fp`.\n- crime_00009 (`action_label_drift`) and crime_00010 (`copy_ia_drift`) carry byte-identical summaries and evidence on the same file, differing only in `fix_shape`. That's one finding reported twice, and it inflates `summary.low` by one.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "docs_code_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "action_label_drift",
+      "crime_00010": "copy_ia_drift",
+      "crime_00011": "permission_ia_drift",
+      "crime_00012": "command_drift_docs_code_drift",
+      "crime_00013": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Parallel Destination": "parallel_destination",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "no AGENTS.md found at repo root": "missing_agent_context",
+      "no CLAUDE.md found at repo root": "missing_agent_context",
+      "no .claude/skills/*/SKILL.md present": "missing_agent_context",
+      "no .agents/skills/*/SKILL.md present": "missing_agent_context",
+      "package.json declares bin(s): iaq — agents have no way to discover commands": "missing_agent_context",
+      "alias group: tenant": "concept_alias_drift",
+      "aliases found: organisation, team, workspace": "concept_alias_drift",
+      "\"organisation\" in 2 file(s): src/nav.ts, src/routes/organisation.ts": "concept_alias_drift",
+      "\"organisation\"": "concept_alias_drift",
+      "\"team\" in 3 file(s): src/components/TeamList.tsx, src/nav.ts, src/routes/teams.ts": "concept_alias_drift",
+      "\"workspace\" in 2 file(s): src/nav.ts, src/routes/workspace.ts": "concept_alias_drift",
+      "docs/routes.md:14 → /admin (not found)": "docs_code_drift",
+      "routes: /admin/billing-plans, /billing-plans": "parallel_destination",
+      "files: src/routes/admin/billing-plans.ts, src/routes/billing-plans.ts": "parallel_destination",
+      "shared tokens: billing, plan": "parallel_destination",
+      "no nav, doc, or import link between them": "parallel_destination",
+      "route path: /admin/billing-plans": "orphaned_destination",
+      "file: src/routes/admin/billing-plans.ts": "orphaned_destination",
+      "no in-repo import targets this route file": "orphaned_destination",
+      "route path: /billing-plans": "orphaned_destination",
+      "file: src/routes/billing-plans.ts": "orphaned_destination",
+      "route path: /organisation": "orphaned_destination",
+      "file: src/routes/organisation.ts": "orphaned_destination",
+      "route path: /workspace": "orphaned_destination",
+      "file: src/routes/workspace.ts": "orphaned_destination",
+      "destination: /admin": "permission_ia_drift",
+      "tokens: admin, manager, owner": "permission_ia_drift",
+      "nav (src/nav.ts:6): nav attr role=admin": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:2): role literal \"admin\"": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:2): role literal \"manager\"": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:4): role literal \"owner\"": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:9): role literal \"manager\"": "permission_ia_drift",
+      "+2 more signal(s)": "permission_ia_drift",
+      "docs/routes.md:23 references \"iaq teams\"": "command_drift_docs_code_drift",
+      "docs/routes.md:27 references \"iaq workspace\"": "command_drift_docs_code_drift",
+      "\"iaq workspace\"": "command_drift_docs_code_drift",
+      "docs/routes.md:31 references \"iaq refresh\"": "command_drift_docs_code_drift",
+      "\"iaq refresh\"": "command_drift_docs_code_drift",
+      "advertised: iaq: get, list": "command_drift_docs_code_drift",
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`commander` — imported at bin/iaq.ts as \"commander\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 7,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": "src/routes/admin.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": "src/nav.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  }
+}

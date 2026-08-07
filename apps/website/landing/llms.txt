@@ -390,6 +390,14 @@ turned out to be wrong about themselves.
 
 Schema unchanged at 0.7.0. No field is added, renamed or retyped.
 
+All 14 eval fixtures scan byte-identically between published 0.21.0 and
+this build, and the agent-free ranking metric reports no scenario
+moved — so the 0.22.0 eval run is a repeat sample of 0.21.0 rather
+than a new measurement. claude 0.77 -> 0.81, codex 0.58 -> 0.58. That
+settles 0.21.0's claude 0.82 -> 0.77 as noise, and it measures
+per-scenario variance directly: 16 of claude's 48 scenarios and 13 of
+codex's moved with nothing changed, two of them by a full 1.00.
+
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.22.0.md
 
 ## 0.21.0 — precision, where the false positives were

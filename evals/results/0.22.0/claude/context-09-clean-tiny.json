@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:01:20.521Z",
+  "run_id": "36415a56-e4cf-4844-bf3a-3dee51ca80b2",
+  "response": "## What crimes found on `src/add.ts`: nothing\n\n```\nrisk.level:  none        findings: 0 (high 0 / medium 0 / low 0)\nlikely_tests: src/add.test.ts\nrelated_files: []  — \"no neighbourhood signal\"\nagent_guidance: []  — \"no findings on this file and no deterministic related files\"\nchurn: 1 commit in 90d, 1 author, last touched 2026-05-18\n```\n\nThis is a genuine clean result, not a coverage gap. The scan's `coverage` block confirms the file was actually analyzed: 3 files total, 2 classified as `js`, with `language-js` among the loaded packs. `src/add.ts` is a 3-line pure function (`add(a, b) => a + b`) with a direct unit test next to it.\n\n## The one repo finding is not about this file\n\nThe whole-repo scan has exactly one finding, `crimes_00001` — **Phantom Accomplice** (`dependency_provenance_gap`), low severity, confidence 0.56, filed against `package.json`:\n\n- `vitest` is imported by `src/add.test.ts` but declared in no `package.json` — the manifest has no `dependencies` or `devDependencies` at all. I confirmed this by reading the file.\n- Confidence is explicitly discounted (`0.68 base − 0.12`) because only test files are affected. It resolves today via hoisting; a clean install could fail.\n- `agent_risk` is 0.13 — the lowest band.\n\nThis is orthogonal to editing `add.ts`. It only becomes yours if you add a test that pulls in another undeclared package.\n\n## Is it safe to extend?\n\nYes — this is about as low-risk an edit target as exists. Zero findings, zero blast radius (nothing imports it), one commit of history, a colocated test that exercises the current behavior.\n\nTwo caveats worth naming rather than glossing over:\n\n1. **`test_gap` reads `{raw: 0, label: \"unknown\"}`**, not \"well tested.\" Crimes located `src/add.test.ts` as a likely test by filename convention but did not assert the *new* code you add will be covered. Extending `add.ts` with a second export gives you a file that still has a test — for the old function. Add cases as you go; the tool won't flag the gap for you here.\n2. **If your extension needs a new import**, declare it in `package.json` first. The manifest is currently empty of dependencies, so the existing Phantom Accomplice finding is a standing invitation to make the same mistake again.\n\nBeyond that, no guardrails to respect — no related files to keep in sync, no contracts, no side effects, no churn hotspot.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

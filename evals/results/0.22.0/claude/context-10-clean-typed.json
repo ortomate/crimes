@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:02:18.143Z",
+  "run_id": "f7ca30e9-79b9-47ba-bd76-04f7119bfb4e",
+  "response": "**Confirmed: zero findings on `src/billing.ts`.**\n\n```\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 }\n\"findings\": []\n```\n\n**likely_tests: `src/billing.test.ts`**\n\n## Why this module is low risk to edit\n\n**Nothing to trip over.** No findings at any severity, and `agent_guidance` is empty with the reason `\"no findings on this file and no deterministic related files\"` — the scanner has no cautions to give you.\n\n**Blast radius is effectively zero.** `related_files` is empty, and the reason is explicit: `\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"`. Nothing else in the repo is coupled to it, so a change here can't propagate.\n\n**It's small and total.** The file is 11 lines: one `Money` interface and one pure `format(money: Money): string`. The currency field is a closed union (`\"USD\" | \"EUR\" | \"GBP\"`), so the compiler — not a runtime check — enforces the input domain. `format` reads only its argument, has no side effects, no I/O, no `Date.now()`/`process.env`, and no branching. You can reason about it entirely from its signature.\n\n**There's a test sitting right next to it.** `src/billing.test.ts` is the deterministic co-located match, so an edit has an immediate feedback loop.\n\n**Churn is cold and uncontested.** `commits_90d: 1`, `unique_authors_90d: 1`, last touched 2026-05-18 — no concurrent work to collide with.\n\n## One caveat on the file-level clean bill\n\n`test_gap` reports `raw: 0` with `label: \"unknown\"` — that's \"not measured,\" not \"fully covered.\" The test file exists; its actual coverage of `format` wasn't computed. Worth a glance before changing the formatting logic.\n\nSeparately, the repo-level scan carries one low finding that isn't attributed to this file but touches its test: `dependency_provenance_gap` (Phantom Accomplice, confidence 0.56) on `package.json` — `vitest` is imported at `src/billing.test.ts` but declared in no manifest. It resolves today via hoisting; a clean install could fail and take your feedback loop with it. Quick fix: declare `vitest` in `package.json` devDependencies.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

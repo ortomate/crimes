@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.22.0",
+  "timestamp": "2026-08-07T06:11:42.489Z",
+  "run_id": "f70df2fc-2abe-47a3-b790-b13f1aebc335",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is explicitly a scan-driven refactor plan. I’ll verify the live findings, inspect the six relevant modules and tests, then shape the work into two behavior-preserving steps.\n\nThe skill file lives at the evaluation workspace level rather than this nested runner checkout, so I’m resolving it from its declared absolute path before running the scan.\n\nThe global `crimes` binary is not installed in this sandbox. I’m locating the repository’s built CLI (the documented fallback) and will run that against the fixture; no files have been changed.\n\nThe live scan matches the supplied report: three medium duplication findings. Source inspection reveals an important semantic trap—the three `assertAdmin*` helpers are not equivalent (`admin`, `admin|owner`, and `not admin`)—so the plan must centralize policy without flattening those meanings. I’m checking file context and available verification hooks before finalizing the two commits.\n\nThe live JSON scan reports three duplication findings, all medium severity:\n\n| Finding | Evidence | Scope |\n|---|---|---|\n| `near_duplicate_block` | Same sanitising body in `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` | [sanitize-a.ts](</private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/06-stress-duplication/src/sanitize-a.ts:10>), `sanitize-b.ts:9`, `sanitize-c.ts:9` |\n| `duplicated_role_status_plan_check` | `\"admin\"` checked across four files using differing expressions | [policy.ts](</private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/06-stress-duplication/src/policy.ts:1>) and all three sanitizer modules |\n| `exact_duplicate_block` | Identical `recordSanitiseEvent` in two telemetry files | [telemetry-a.ts](</private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/06-stress-duplication/src/telemetry-a.ts:6>) and `telemetry-b.ts:6` |\n\nThe two `direct_date` findings are not duplication findings.\n\n## Two-step change set\n\n1. `refactor(policy): establish one role-policy authority`\n\n   Make [policy.ts](</private/tmp/claude-501/-Users-andrew-dev-crimes/31ec6848-6241-4e9f-8dd7-0c4cc25d2561/scratchpad/eval-022/evals/fixtures/06-stress-duplication/src/policy.ts:1>) the sole owner of role interpretation:\n\n   - Introduce `isAdmin`, `isAdminOrOwner`, and `isNotAdmin`, with only `isAdmin` comparing against `\"admin\"`.\n   - Have `canEditBilling`, `canSeeAuditLog`, and `canImpersonate` delegate to `isAdmin`.\n   - Replace or re-export `assertAdminA/B/C` from the sanitizer modules using the corresponding shared policies.\n   - Preserve existing behavior: `assertAdminB` permits `owner`, while `assertAdminC` currently means “not admin.” They must not all be blindly replaced with the same predicate.\n   - Add a characterization matrix covering `admin`, `owner`, and an ordinary role for every existing exported check.\n\n   This should remove the role-check finding while leaving the public export names available.\n\n2. `refactor(sanitize): extract the canonical sanitizer`\n\n   Add one shared module, such as `src/sanitize.ts`, containing the current sanitising algorithm once.\n\n   - Route `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` to that implementation using re-export aliases or one-line compatibility wrappers.\n   - Preserve the existing order and thresholds: null handling, trimming, control-character removal, whitespace collapse, 1,000-character cap, rejection rules, punctuation threshold, and uppercase normalization.\n   - Test all boundary cases and assert that the three legacy entry points return identical results.\n   - Once downstream imports are known to be migrated, the compatibility modules can be removed in a later breaking cleanup.\n\nPolicy goes first because it removes the unrelated role logic from the sanitizer modules, leaving the second extraction narrowly focused on text behavior.\n\nAfter both changes, run `pnpm verify` and rescan the fixture. The sanitizer and role-policy duplication findings should disappear with no new high findings. The telemetry duplicate—and its two `Date.now()` findings—should remain unchanged; consolidating telemetry belongs in a separate follow-up rather than expanding this two-step change set.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "direct_date",
+      "crime_00003": "near_duplicate_block",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check"
+    },
+    "detector_id_by_evidence": {
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}
