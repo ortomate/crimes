@@ -15,11 +15,30 @@ The round found ~30 verified defects.
 - **Third pass (`0.18.0`, §1c):** the remaining three blockers, done in
   parallel worktrees. Tests 1,950 → 2,011.
 
-**Every blocker in §4 is now closed.** All test-driven, `pnpm verify`
-green at every commit.
+- **`0.19.0` – `0.21.0`:** the backlog, the working set, and a
+  precision pass over four field-reported false positives.
+- **`0.22.0`:** **the queue in §4 is closed.** Seven remaining
+  entries, every one reproduced first. Four turned out to be wrong
+  about themselves — §4g about which detector it described, §2's
+  `large_file` about the size of its own effect *and* about which
+  function it named, §4e about whether a public API existed, and §4f
+  about whether there was a defect at all. Three were fixed, four
+  re-closed with a measurement. Tests 2,195 → 2,210.
+
+**Every blocker and every queue entry in §4 is now closed.** All
+test-driven, `pnpm verify` green at every commit.
 
 This document is the handoff. It records what changed, what was
 deliberately *not* changed, and what is left — enough to resume cold.
+
+**What is left is no longer in §4.** Three things were opened rather
+than closed by the `0.22.0` pass, and each is a feature rather than a
+correction: honouring a repo's own tooling excludes (with a
+`coverage.warnings[]` entry per skipped path, so it cannot become a
+silent-suppression mechanism — see §13); deciding
+`sync_io_in_hotpath` by reachability from a `__main__` block rather
+than by file (see §9); and unifying the two `commented_out_code`
+variants, which still disagree about single-block files.
 
 ---
 
