@@ -129,6 +129,28 @@ completely clean, because it carries `exclude = ["*"]` under
 
 ---
 
+## One thing already fixed on `main` and not yet published
+
+`0.22.0`'s `files_partial_parse` warning ships an overstated sentence
+for `language-js`: *"detectors that judge a whole file declined to run
+on it"*. That is true of `language-py`, where `weak_test_signal.py`
+returns `[]` on a partial tree, and false of the JS pack, whose
+detectors deliberately keep running. Found by scanning a throwaway repo
+with the published tarball and reading the JSON — the only place the
+string is visible.
+
+Fixed on `main` (`ff158e1`) with the copy split per pack, **and
+deliberately not published**: cutting `0.22.1` for one sentence was
+started and reverted. See `evals/README.md` § "When *not* to bump at
+all" for why, including the `verify-build` tension it exposed — any
+patch bump between releases forces the landing page to advertise a
+version that is not on npm.
+
+**If you cut `0.23.0`, this rides along. If a release slips a long
+way, consider shipping it on its own.**
+
+---
+
 ## What is actually open
 
 Nothing is a *correction* any more. All three of these are features,
