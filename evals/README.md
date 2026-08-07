@@ -233,6 +233,23 @@ Before starting a run:
   (`git log --since` against the run's start) and that `dist` mtimes
   predate it.
 
+### When *not* to bump at all
+
+The trigger above is "a change that would move the eval baseline". A
+change to `coverage.warnings[]` is wire output but it is not
+`findings[]`, and if no fixture emits the warning, the baseline cannot
+move — so there is nothing to redirect and no bump is owed.
+
+`0.22.1` was started and reverted for exactly this reason: a corrected
+`files_partial_parse` sentence is only emitted for a file with syntax
+errors, no fixture has one, and all 14 fixtures scan byte-identically.
+Bumping would have moved the results directory to a version with
+nothing new in it — and, because `verify-build` asserts the landing
+page matches `packages/cli/package.json`, it would also have made the
+website advertise a version that is not on npm. **Check the fixtures
+before reaching for the bump; "the wire format can change" is not the
+same claim as "the baseline moves".**
+
 ### Identity-only bumps: carry the baseline forward
 
 Step 3 is skipped for a bump whose entire effect is on **finding
@@ -249,7 +266,6 @@ when the wire output moves. Record it here instead of running:
 |---|---|---|
 | `0.17.2` | fingerprint discriminators for nine detectors; n8n's finding count identical at 16,325 before and after | `0.17.1` |
 | `0.17.3` | recency quantised to whole UTC days + a total sort tiebreaker. **Not** structurally identity-only — `scores.recency` can move on a repo with files 7–14 days old. Measured on both fixtures instead: zero recency values change, nothing added, removed, rescored or reordered | `0.17.1` |
-| `0.22.1` | a `coverage.warnings[].detail` sentence, corrected for `language-js`. Wire output, so the directory has to move — but the string is only emitted for a file with syntax errors and **no fixture has one**, so all 14 scan byte-identically | `0.22.0` |
 
 The `0.17.3` row is a different kind of justification from `0.17.2` and
 should not be copied without doing the same work. `0.17.2` could not
