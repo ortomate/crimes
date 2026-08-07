@@ -83,7 +83,7 @@
       "path": "evals/fixtures/12-py-tested",
       "name": "py-tested",
       "kind": "hand-crafted",
-      "purpose": "Python package with three modules at three different coverage levels: rates.py has real asserting tests, reporting.py has a test file that asserts nothing, ledger.py has no test at all. Exercises weak_test_signal.py and is the fixture that proves the 0.14.0 test_gap fix — Python's test_ prefix convention now pairs, so these three do not all score test_gap 1.0."
+      "purpose": "Python package with four modules at four different coverage levels: rates.py has real asserting tests, reporting.py has a test file that asserts nothing, ledger.py has no test at all, and invoices.py is genuinely covered by a test file containing no assertion of its own — every one is made in tests/support.py, through an imported helper and a unittest base class. Exercises weak_test_signal.py in both directions, and the invoices case is the only fixture that can see the 0.18.3 cross-file Python symbol index at all: pre-index builds report tests/test_invoices.py, current builds credit it. Also the fixture that proves the 0.14.0 test_gap fix — Python's test_ prefix convention now pairs, so these do not all score test_gap 1.0."
     },
     {
       "id": "13",
