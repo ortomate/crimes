@@ -770,6 +770,43 @@ export interface ParsedFile {
   mockDeclarations?: MockDeclaration[];
   /** Functions whose whole body forwards one call. */
   passThroughFunctions?: PassThroughFunction[];
+  /**
+   * The parser recovered from at least one syntax error in this file,
+   * so every collection above describes a *partial* tree.
+   *
+   * Absent rather than `false` when the file parsed cleanly, which is
+   * the convention the rest of this interface follows.
+   *
+   * Read from `ts.NodeFlags.ThisNodeHasError`, which is public in
+   * `typescript.d.ts` and is set by the parser on the node it failed
+   * at. The signal was previously believed to require an internal-API
+   * dependency, because the only route looked at was
+   * `SourceFile.parseDiagnostics` — which genuinely is internal. The
+   * flag is not, it is read during the traversal the parser already
+   * makes, and it costs nothing measurable (n8n `packages/cli`, 2,977
+   * files: 1262 ms → 1330 ms).
+   *
+   * **Script kind decides what "an error" is**, which is the trap here.
+   * `<T>(v)` is a type assertion in a `.ts` file and an unclosed JSX
+   * tag in a `.tsx` one, so checking this flag against a tree parsed
+   * uniformly as TSX reports 12 of hono's 307 files as broken — all of
+   * which compile. {@link pickScriptKind} already does the right thing
+   * per extension; this field is only trustworthy because of that.
+   *
+   * With the script kind right, this is **1 file in 39,177** across
+   * n8n, cal.com, posthog and choreograph.cc — n8n's
+   * `scripts/block-npm-install.js`, which writes `'\033[0;31m'`. TS
+   * calls an octal escape an error and the parser flags it, but the
+   * tree is complete and the script runs, so calling that a partial
+   * parse slightly overstates. It is reported anyway: a discriminator
+   * was tried (require a synthesised zero-width node, the parser's
+   * marker for "expected a token and did not find one") and **rejected
+   * on measurement** — an unclosed function body, which is a genuinely
+   * partial tree, produces no such node either, so the filter fails
+   * *open* on the case that matters. An over-report at 0.003% is the
+   * cheaper error.
+   */
+  hasSyntaxErrors?: boolean;
 }
 
 export interface ParseInput {

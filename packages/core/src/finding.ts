@@ -492,8 +492,11 @@ export interface ScanReport {
  *   functions, imports and symbols are missing from every cross-file
  *   index. `subject` is the pack id.
  * - `files_partial_parse` — the parser recovered but flagged syntax
- *   errors, so whole-file detectors declined to judge. `subject` is the
- *   pack id.
+ *   errors, so everything reported about that file describes the part
+ *   that parsed. `subject` is the pack id. On `language-py` the
+ *   whole-file detectors additionally decline to judge; on
+ *   `language-js` (0.22.0) they still run, so the warning is the only
+ *   thing separating a broken file from a clean one.
  * - `index_truncated` — a cross-file index hit its file cap. `subject`
  *   is the index id; `files` counts what fell outside the cap.
  * - `index_unavailable` — a cross-file index failed to build at all, so

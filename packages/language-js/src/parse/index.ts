@@ -146,8 +146,16 @@ export function parseFile(input: ParseInput): ParsedFile {
   const mockDeclarations: MockDeclaration[] = [];
   const passThroughFunctions: PassThroughFunction[] = [];
   let defaultExport: string | undefined;
+  let hasSyntaxErrors = false;
 
   const visit = (node: ts.Node): void => {
+    // The parser recovers from a syntax error and hands back a partial
+    // tree, exactly as tree-sitter does for Python — so record it the
+    // same way. `ThisNodeHasError` is public in `typescript.d.ts` and
+    // is set on the node the parser failed at; we are already visiting
+    // every node, so reading it is free. See `ParsedFile.hasSyntaxErrors`
+    // for why the script kind is what makes it trustworthy.
+    if ((node.flags & ts.NodeFlags.ThisNodeHasError) !== 0) hasSyntaxErrors = true;
     // `collectFunction` runs first so the function-like nodes we visit
     // are recorded before any nested calls are inspected — the sync-I/O
     // collector walks the partially-populated `functions[]` to build
@@ -215,5 +223,6 @@ export function parseFile(input: ParseInput): ParsedFile {
   if (passThroughFunctions.length > 0) {
     result.passThroughFunctions = passThroughFunctions;
   }
+  if (hasSyntaxErrors) result.hasSyntaxErrors = true;
   return result;
 }

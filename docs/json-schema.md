@@ -402,7 +402,7 @@ interface CoverageWarning {
 | `files_in_hidden_path` | dot segment (`".github"`)           | Under a dot-directory, which the walker skips regardless of `include`.        |
 | `files_unreadable`     | errno code (`"EMFILE"`, `"EACCES"`) | `readFile` threw. This is usually your machine, not your repo.                |
 | `files_unparsed`       | pack id (`"language-js"`)           | Read, but the parser threw. Missing from every cross-file index.              |
-| `files_partial_parse`  | pack id (`"language-py"`)           | Parsed with syntax errors; whole-file detectors declined to judge.            |
+| `files_partial_parse`  | pack id (`"language-py"` / `"language-js"`) | Parsed with syntax errors, so anything reported is about the part that parsed. |
 | `index_truncated`      | index id (`"imports"`)              | A cross-file index hit its file cap; `files` counts what fell outside it.     |
 | `index_unavailable`    | index id (`"imports"`, `"ia"`, …)   | The index failed to build, so its detectors silently produced nothing.        |
 

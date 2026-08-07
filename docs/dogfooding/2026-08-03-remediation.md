@@ -502,10 +502,39 @@ with the direct count as an in-quartile tiebreaker, is the standing
 recommendation. It is a **calibration** change and must be recorded as
 one.
 
-**`transitiveImporterCount` still counts a file as its own importer**
-when the file sits on an import cycle. Left deliberately: it is the
-number `blast_radius` has always normalised, and changing it moves every
-score. Documented on the function rather than silently corrected.
+~~**`transitiveImporterCount` still counts a file as its own
+importer**~~ **Measured in `0.22.0` and declined — closed, not carried
+forward.** This is the §15 shape: the premise is sound and acting on it
+buys nothing. Full numbers in
+[`2026-08-05-r4-premeasurements.md`](./2026-08-05-r4-premeasurements.md).
+
+The entry was carried forward on the grounds that `blast_radius` was
+log-scaled with a direct-count term in `0.18.1`, so the off-by-one was
+worth revisiting. Two things were measured before touching it:
+
+| repo | files with a transitive count | `blast_radius == 1.0` | files on a reported cycle |
+|---|---|---|---|
+| choreograph.cc | 208 | 0 (0.0%) | 0 of 207 (0.0%) |
+| crimes (self-scan) | 1,136 | 0 (0.0%) | 1 of 1,169 (0.1%) |
+| hono | 152 | 0 (0.0%) | 4 of 152 (2.6%) |
+| cal.com | 2,079 | 0 (0.0%) | — |
+
+**The 47% saturation that motivated revisiting it is gone** — 0.0% on
+every repo measured, across 3,575 files. There is no longer a
+compressed band at the top for an off-by-one to hide in, and no score
+crying out for correction. The defect is real, confined to 0–2.6% of
+files, and worth **+1 on a log-scaled input**: changing it would move a
+handful of scores by less than a rounding step and invalidate a
+baseline for the privilege.
+
+**Where the entry was wrong: nothing is lying, so "documented rather
+than silently corrected" was the whole answer all along.** The
+function's doc comment already says it computes "files that can reach
+this one, plus this one if it is cyclic, not a fan-in count", and
+`blast_radius_direct_importers` has carried the fan-in number since
+`0.5.0`. It interacts with `0.21.0`'s `high_fan_in_fan_out` type-only
+rule only in principle: that change touches which *severity* a fan-in
+gets, not what the count is. **No code was written.**
 
 ---
 
@@ -790,12 +819,60 @@ folded into them — each is a separate behaviour change.
    data points. The flaky test that surfaced it now says so in a comment
    instead of asserting a size-independence claim that does not hold.
 
-4e. **JS syntax errors have no `coverage.warnings[]` signal.** The
-   Python pack surfaces `hasSyntaxErrors`; the JS pack has no public
-   equivalent — `ts.createSourceFile` keeps `parseDiagnostics` off the
-   public `SourceFile` type. Reaching it means an internal-API
-   dependency, which was judged not worth it *in a field whose entire
-   value is being trustworthy*. Revisit if a supported signal appears.
+4e. ~~**JS syntax errors have no `coverage.warnings[]` signal.**~~
+   **Done** in `0.22.0`. This entry was carried forward twice expecting
+   to be re-closed, and **its premise is wrong**: a supported signal
+   was there the whole time.
+
+   Original text, for the record: *The Python pack surfaces
+   `hasSyntaxErrors`; the JS pack has no public equivalent —
+   `ts.createSourceFile` keeps `parseDiagnostics` off the public
+   `SourceFile` type. Reaching it means an internal-API dependency,
+   which was judged not worth it in a field whose entire value is being
+   trustworthy.*
+
+   **Where the entry was wrong: it checked one route and concluded
+   there was none.** `SourceFile.parseDiagnostics` genuinely is
+   internal, and still is on TypeScript 5.9.3. But
+   `ts.NodeFlags.ThisNodeHasError` is **public in
+   `typescript.d.ts`**, `Node.flags` is public, and the parser sets the
+   flag on the node it failed at. `parseFile` already visits every node
+   — so the signal is one bitwise AND inside a traversal that was
+   already happening. Two other public routes exist and are both worse:
+   `Program.getSyntacticDiagnostics` needs a `Program` the JS pack
+   never builds, and `ts.transpileModule(…, { reportDiagnostics: true })`
+   does a full emit we throw away — measured at 589–787 ms against
+   `createSourceFile`'s 113–177 ms over the same 304 files, a 5× parse
+   cost for the same answer.
+
+   Measured cost of the flag, over n8n `packages/cli`, 2,977 files:
+   **1262 ms → 1330 ms**, inside the run-to-run spread on the two
+   smaller trees.
+
+   **The trap this walked into first, and it is trap 1 again: check
+   what the measurement actually reads.** The first probe parsed
+   everything as `ScriptKind.TSX` and reported **12 of hono's 307
+   files** as broken — all of which compile. `<T>(v)` is a type
+   assertion in a `.ts` file and an unclosed JSX tag in a `.tsx` one.
+   `pickScriptKind` already gets this right per extension; the flag is
+   only trustworthy because of it, and a test now says so.
+
+   With the script kind right, the false-positive rate over n8n,
+   cal.com, posthog and choreograph.cc is **1 file in 39,177**: n8n's
+   `scripts/block-npm-install.js`, which writes `'\033[0;31m'`. TS
+   calls an octal escape an error, so the parser flags it, but the tree
+   is complete and the script runs — reporting it as a partial parse
+   slightly overstates. A discriminator was tried and **rejected on
+   measurement**: requiring a synthesised zero-width node (the parser's
+   marker for "expected a token and did not find one") also fails to
+   fire on an unclosed function body, which *is* a genuinely partial
+   tree. A filter that fails open on the case that matters is worse
+   than a 0.003% over-report.
+
+   JS whole-file detectors still run on a partial tree, unlike
+   `weak_test_signal.py` — so on `language-js` the warning is the only
+   thing separating a broken file from a clean one. Recorded in
+   `docs/json-schema.md` and on `CoverageWarningKind`.
 
 ### Real problems
 

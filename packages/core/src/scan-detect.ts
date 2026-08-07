@@ -282,6 +282,14 @@ export async function runDetectorsForFile(args: {
     // {@link looksMinifiedSource}.
     if (looksMinifiedSource(source)) return findings;
     const parsed = parseFile({ absolutePath: args.absolutePath, source });
+    // Same statement as the Python branch below, for the same reason:
+    // the parser recovered and handed back a partial tree, so anything
+    // this file did or did not report is about the part that parsed.
+    // Silence here is what made a syntax error indistinguishable from
+    // a clean file.
+    if (parsed.hasSyntaxErrors) {
+      args.indexes.warnings?.record("files_partial_parse", "language-js", { file });
+    }
     const jsCtx: LanguageJsDetectorContext = {
       kind: "language-js",
       file,

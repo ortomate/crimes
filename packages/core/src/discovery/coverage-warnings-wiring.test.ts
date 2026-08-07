@@ -143,6 +143,38 @@ describe("scan() surfaces warnings on the report", () => {
     expect(partial?.examples).toEqual(["app.py"]);
   });
 
+  it("reports a TypeScript file that only parsed partially", async () => {
+    const root = await makeRepo({
+      "src/broken.ts": "export function add(a: number): number {\n  return a + 1;\n",
+    });
+    const report = await scan({ root });
+    const partial = report.coverage?.warnings?.find(
+      (w) => w.kind === "files_partial_parse",
+    );
+    expect(partial?.subject).toBe("language-js");
+    expect(partial?.files).toBe(1);
+    expect(partial?.examples).toEqual(["src/broken.ts"]);
+  });
+
+  // The signal has to fail *open* on correct input, which is the whole
+  // risk in reading a parser flag. `<T>(v)` is a type assertion in a
+  // `.ts` file and a broken JSX tag in a `.tsx` one, so a check that
+  // parses everything as TSX flags 12 of hono's 307 files — all of
+  // which compile. Script kind is per extension for exactly this
+  // reason, and this test is what says so.
+  it("does not flag syntax valid for the file's own script kind", async () => {
+    const root = await makeRepo({
+      "src/generic.ts": "export const cast = <T>(v: unknown): T => v as T;\n",
+      "src/arrow.ts": "export const id = <T,>(v: T): T => v;\n",
+      "src/view.tsx": 'export const C = () => <div className="a">{1}</div>;\n',
+      "src/legacy.js": "export default function f(a) { return a?.b ?? 1; }\n",
+    });
+    const report = await scan({ root });
+    expect(
+      report.coverage?.warnings?.find((w) => w.kind === "files_partial_parse"),
+    ).toBeUndefined();
+  });
+
   it("omits the field entirely when nothing was skipped", async () => {
     const root = await makeRepo({ "src/main.ts": "export const x = 1;\n" });
     const report = await scan({ root });
