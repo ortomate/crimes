@@ -64,3 +64,29 @@ describe("CoverageWarningLog", () => {
     expect(new CoverageWarningLog().isEmpty()).toBe(true);
   });
 });
+
+describe("files_partial_parse — the detail must be true of the pack it names", () => {
+  // Found by scanning a throwaway repo with the published 0.22.0 and
+  // reading the JSON, which is the only place this string is visible.
+  // The sentence was written for `language-py`, where
+  // `weak_test_signal.py` genuinely returns [] on a partial tree. The
+  // JS pack was given the same warning in 0.22.0 and its detectors
+  // deliberately keep running — so the shared copy told the user the
+  // tool had declined to do work it had in fact done. A verdict
+  // without receipts, in the field whose whole job is receipts.
+  it("does not claim JS detectors declined to run", () => {
+    const log = new CoverageWarningLog();
+    log.record("files_partial_parse", "language-js", { file: "src/broken.ts" });
+    const [warning] = log.build();
+    expect(warning?.detail).not.toMatch(/declined/);
+    expect(warning?.detail).toMatch(/parsed with syntax errors/);
+    expect(warning?.detail).toMatch(/part(?:s)? that parsed/);
+  });
+
+  it("still says so for Python, where they do decline", () => {
+    const log = new CoverageWarningLog();
+    log.record("files_partial_parse", "language-py", { file: "app.py" });
+    const [warning] = log.build();
+    expect(warning?.detail).toMatch(/declined to (?:run|judge)/);
+  });
+});

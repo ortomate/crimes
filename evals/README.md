@@ -249,6 +249,7 @@ when the wire output moves. Record it here instead of running:
 |---|---|---|
 | `0.17.2` | fingerprint discriminators for nine detectors; n8n's finding count identical at 16,325 before and after | `0.17.1` |
 | `0.17.3` | recency quantised to whole UTC days + a total sort tiebreaker. **Not** structurally identity-only — `scores.recency` can move on a repo with files 7–14 days old. Measured on both fixtures instead: zero recency values change, nothing added, removed, rescored or reordered | `0.17.1` |
+| `0.22.1` | a `coverage.warnings[].detail` sentence, corrected for `language-js`. Wire output, so the directory has to move — but the string is only emitted for a file with syntax errors and **no fixture has one**, so all 14 scan byte-identically | `0.22.0` |
 
 The `0.17.3` row is a different kind of justification from `0.17.2` and
 should not be copied without doing the same work. `0.17.2` could not
