@@ -34,7 +34,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest v0.21.0)
+## Commands (latest v0.22.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -342,7 +342,57 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.21.0 — precision, where the false positives were (current release)
+## 0.22.0 — close the queue (current release)
+
+The remediation queue carried since 0.18.0, finished. Seven entries,
+every one reproduced before it was touched, and four of the seven
+turned out to be wrong about themselves.
+
+- Fingerprint collisions are gone. Four detectors could emit more than
+  one finding per (type, file, symbol) with no way to tell them apart,
+  so `crimes ignore` on one silenced its neighbours: `large_function`
+  and `sync_io_in_hotpath` on a method name repeated across classes in
+  one Python module (airflow's operator pattern gives sagemaker.py four
+  `execute`s), `commented_out_code` on non-JS files where every block
+  in a file shared one fingerprint, and `weak_test_signal` on two
+  identically-titled `it(...)` blocks. Zero collisions now on n8n
+  packages/cli, zulip and airflow, down from 4, 39 and 184.
+- Only ambiguous fingerprints move. A finding whose symbol is already
+  unique in its file keeps the fingerprint it has always had: across
+  four repos and 7,888 findings, 16 retired and 51 introduced, and hono
+  (which had no collisions) is byte-identical. The queue's claim that
+  the fix "invalidates every pinned weak_test_signal suppression" is
+  wrong, and so was its claim that the collisions were
+  `weak_test_signal` at all — zero of zulip's and zero of airflow's
+  are.
+- A JavaScript syntax error is no longer indistinguishable from a clean
+  file. `coverage.warnings[]` gains files_partial_parse for
+  language-js. The entry said no public API existed; ts.NodeFlags
+  .ThisNodeHasError is public and is read inside a traversal that was
+  already happening, at 1262 ms → 1330 ms over n8n's 2,977 files, with
+  a false-positive rate of 1 file in 39,177.
+- `large_file` still counts blank lines — implemented, measured and
+  reverted. The queue's "drops every number 15–25%" is prose: code
+  files run 3–9%, and prose has had its own 1000-line budget since
+  0.17.0. Dropping blank lines silences the bundled fixture's own
+  `large_file` finding and makes a purpose-built eval scenario
+  unrankable. What did change is `countNonEmptyLines`, which counted
+  every line and is now `countSourceLines`.
+- `verdict`'s identical-tree short circuit was fine. The 1762 ms
+  against a scan's 929 ms that indicted it is a measurement-order
+  artifact: whichever call runs first in a Node process pays ~70–110 ms
+  of warm-up, and verdict was always measured first. Reverse the order
+  and verdict comes in below scan.
+- Two Python classification items reproduced and re-closed with their
+  counter-examples named, and `_vendor/` — the Python spelling of
+  `vendor/`, used by pip, setuptools and airflow — added to the
+  vendored-scope rule.
+
+Schema unchanged at 0.7.0. No field is added, renamed or retyped.
+
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.22.0.md
+
+## 0.21.0 — precision, where the false positives were
 
 Four detectors named in an outside field report as producing false
 positives. All four re-verified against main first, all four measured on

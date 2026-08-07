@@ -152,10 +152,24 @@ These run against the **built** `dist/`, so run `pnpm --filter
 @crimes/website build` before `node apps/website/scripts/verify-build.mjs`
 locally, or you will be checking a stale page.
 - **JSON schema only if it changed.** If the schema gained fields,
-  also update [`docs/json-schema.md`](./json-schema.md) and the pinned
-  fixture at [`docs/fixtures/messy-ts-app.json`](./fixtures/messy-ts-app.json).
-  Major schema changes also bump `schema_version` in
+  also update [`docs/json-schema.md`](./json-schema.md). Major schema
+  changes also bump `schema_version` in
   [`finding.ts`](../packages/core/src/finding.ts).
+- **[`docs/fixtures/messy-ts-app.json`](./fixtures/messy-ts-app.json) —
+  every release, not only schema ones.** Regenerate with:
+
+  ```bash
+  node packages/cli/dist/index.js scan examples/messy-ts-app \
+    --format json > docs/fixtures/messy-ts-app.json
+  ```
+
+  > This used to sit under the schema bullet, conditional on the schema
+  > changing. It is the "full example output" three docs pages link to,
+  > and any detector change makes it wrong — `0.21.0` tuned
+  > `direct_date` and `logic_in_comments`, the schema did not move, and
+  > the pinned example advertised evidence lines the tool had stopped
+  > emitting until `0.22.0` caught it. A detector release is exactly
+  > when this file goes stale.
 
 `CHANGELOG.md` is intentionally not maintained — the GitHub Release
 page is the canonical changelog surface.

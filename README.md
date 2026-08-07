@@ -135,9 +135,45 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.21.0`
+## Status — `crimes@0.22.0`
 
-`crimes@0.21.0` is the latest version. It is **a precision release**:
+`crimes@0.22.0` is the latest version. It **closes the remediation
+queue** carried since `0.18.0` — seven entries, every one reproduced
+before it was touched, and **four of the seven turned out to be wrong
+about themselves**.
+
+- **Fingerprint collisions are gone.** Four detectors could emit more
+  than one finding per `(type, file, symbol)` with no way to tell them
+  apart, so `crimes ignore` on one silenced its neighbours. Zero
+  collisions now on n8n `packages/cli`, zulip and airflow, down from
+  4, 39 and 184. **Only ambiguous fingerprints move** — across four
+  repos and 7,888 findings, 16 retired and 51 introduced, and hono
+  (which had none) is byte-identical.
+- **The queue said those collisions were `weak_test_signal`.** Zero of
+  zulip's and zero of airflow's are. The real class is `large_function`
+  on a method name repeated across classes in one Python module, and
+  `commented_out_code` on non-JS files.
+- **A JavaScript syntax error is no longer indistinguishable from a
+  clean file.** `coverage.warnings[]` gains `files_partial_parse` for
+  `language-js`. The entry said no public API existed; there is one,
+  and it costs 1262 ms → 1330 ms over n8n's 2,977 files.
+- **`large_file` still counts blank lines**, implemented and reverted
+  on measurement: it is 3–9% for code (the 15–25% in the queue was
+  prose), and dropping them silences the bundled fixture's own
+  `large_file` finding. What changed is `countNonEmptyLines`, which
+  counted every line — now `countSourceLines`.
+- **`verdict`'s short circuit was fine**; the 1762-vs-929 ms reading
+  that indicted it was a measurement-order artifact.
+
+`schema_version` stays at `0.7.0` — no field is added, renamed or
+retyped. If you hold pinned suppressions, read the fingerprint note in
+[`docs/json-schema.md`](./docs/json-schema.md).
+
+Release notes: [`docs/releases/v0.22.0.md`](./docs/releases/v0.22.0.md).
+
+### Earlier `0.21.0` work (_precision, where the false positives were_)
+
+`crimes@0.21.0` is **a precision release**:
 four detectors named in an outside field report as producing false
 positives, all four re-verified against `main` first and measured on
 real repositories before and after.

@@ -4,7 +4,30 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current version:** `crimes@0.21.0` ✅ shipped — **a precision
+- **Current version:** `crimes@0.22.0` ✅ shipped — **the remediation
+  queue, closed.** Seven entries carried since `0.18.0`, every one
+  reproduced before it was touched, and **four of the seven turned out
+  to be wrong about themselves**. Fingerprint collisions are gone: four
+  detectors could emit more than one finding per `(type, file, symbol)`
+  with no way to tell them apart, so `crimes ignore` on one silenced
+  its neighbours — zero collisions now on n8n `packages/cli`, zulip and
+  airflow, down from 4, 39 and 184, and **only ambiguous fingerprints
+  move** (16 retired and 51 introduced across 7,888 findings; hono,
+  which had none, is byte-identical). The queue said those collisions
+  were `weak_test_signal`; zero of zulip's and zero of airflow's are —
+  the real class is `large_function` on a method name repeated across
+  classes in one Python module. `coverage.warnings[]` now reports a
+  JavaScript syntax error, which the entry said had no public API to
+  read; there is one, at 1262 ms → 1330 ms over n8n's 2,977 files, with
+  a 1-in-39,177 false-positive rate. `large_file` counting blank lines
+  was implemented and reverted on measurement — 3–9% for code against
+  the queue's 15–25%, and dropping them silences the bundled fixture's
+  own finding; what changed is `countNonEmptyLines`, which counted every
+  line and is now `countSourceLines`. `verdict`'s short circuit was
+  fine: the 1762-vs-929 ms reading that indicted it is a
+  measurement-order artifact. `schema_version` stays `0.7.0`. Release
+  notes: [`docs/releases/v0.22.0.md`](./releases/v0.22.0.md).
+- **Previous version:** `crimes@0.21.0` ✅ shipped — **a precision
   release.** Four detectors named in an outside field report as
   producing false positives, all four re-verified against `main` first
   and measured on real repos before and after. **Three of the four
@@ -25,7 +48,7 @@ mirror, not a planning doc.
   audit run wants. `schema_version` stays `0.7.0`; no fingerprints
   move. Release notes:
   [`docs/releases/v0.21.0.md`](./releases/v0.21.0.md).
-- **Previous version:** `crimes@0.20.0` ✅ shipped — **the agent
+- **Earlier:** `crimes@0.20.0` ✅ shipped — **the agent
   workflow becomes the documented default**, driven entirely by one
   outside field report checked complaint-by-complaint against `main`
   first. `crimes scan` gains a **working set**: `--files a.ts,b.ts`

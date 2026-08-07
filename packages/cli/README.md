@@ -15,6 +15,23 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.22.0` headline:** the remediation queue carried since `0.18.0`,
+closed — seven entries, every one reproduced before it was touched, and
+**four of the seven turned out to be wrong about themselves**.
+Fingerprint collisions are gone: four detectors could emit more than
+one finding per `(type, file, symbol)` with no way to tell them apart,
+so `crimes ignore` on one silenced its neighbours. Zero collisions now
+on n8n `packages/cli`, zulip and airflow, down from 4, 39 and 184 — and
+**only ambiguous fingerprints move**, so a pin on a finding whose
+symbol is unique in its file is untouched. The queue said those
+collisions were `weak_test_signal`; zero of zulip's and zero of
+airflow's are. `coverage.warnings[]` now reports a JavaScript syntax
+error, which the entry said had no public API to read (it has one,
+costing 1262 ms → 1330 ms over n8n's 2,977 files). `large_file` still
+counts blank lines — implemented, measured at 3–9% for code rather
+than the queue's 15–25%, and reverted because dropping them silences
+the bundled fixture's own finding. `schema_version` stays `0.7.0`.
+
 **`0.21.0` headline:** a precision release — four detectors named in an
 outside field report as producing false positives, all re-verified and
 measured on real repositories before and after. **Three of the four

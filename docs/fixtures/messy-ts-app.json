@@ -26,8 +26,9 @@
       "summary": "8 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
       "evidence": [
         "2× Date.now(), 6× new Date()",
+        "1 decide a branch or comparison (lines 4); 7 only record or render the reading",
         "lines: 4, 8, 13, 17, 22, 29, 33, 40",
-        "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching"
+        "a reading in a comparison changes what the code does — tests cannot pin the behaviour without controlling the clock"
       ],
       "effort": "small",
       "fix_shape": "inject a clock; pass through the domain boundary",
@@ -413,8 +414,9 @@
       "summary": "7 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
       "evidence": [
         "5× Date.now(), 2× new Date()",
+        "none decide a branch — all 7 record or render the reading",
         "lines: 57, 63, 92, 198, 238, 250, 273",
-        "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching"
+        "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock"
       ],
       "effort": "small",
       "fix_shape": "inject a clock; pass through the domain boundary",
@@ -573,7 +575,7 @@
       "type": "logic_in_comments",
       "charge": "Logic in the Alibi",
       "severity": "medium",
-      "confidence": 0.71,
+      "confidence": 0.74,
       "file": "src/billing.ts",
       "lines": [
         39,
@@ -584,14 +586,14 @@
       "evidence": [
         "comment says: \"Only owners can refund enterprise plans unless billing support approves.\"",
         "rule terms: only, unless",
-        "domain terms not found nearby: owner, plan, billing"
+        "domain terms not found nearby: owner, plan, billing, refund"
       ],
       "effort": "small",
       "fix_shape": "lift the prose rule to an assert / type / test / config check",
       "scores": {
         "severity": 0.5,
-        "confidence": 0.71,
-        "agent_risk": 0.34,
+        "confidence": 0.74,
+        "agent_risk": 0.35,
         "churn": 0.2,
         "test_gap": 0,
         "blast_radius": 0,
@@ -969,8 +971,9 @@
       "summary": "1 direct use of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
       "evidence": [
         "1× Date.now()",
+        "all 1 decide a branch or comparison",
         "lines: 18",
-        "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching"
+        "a reading in a comparison changes what the code does — tests cannot pin the behaviour without controlling the clock"
       ],
       "effort": "small",
       "fix_shape": "inject a clock; pass through the domain boundary",
