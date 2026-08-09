@@ -4,7 +4,41 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current version:** `crimes@0.22.0` ✅ shipped — **the remediation
+- **Current version:** `crimes@0.23.0` ✅ shipped — **the score's
+  missing inputs.** `agent_risk` is the differentiator PRD §10 says must
+  not collapse into severity, and its heaviest term is the detector's
+  own intrinsic judgement — **28 of 70 registered detectors expressed
+  none**. They were not scored as unknown: the `NEUTRAL_INTRINSIC`
+  fallback of `0.30` sits *below all 29 expressed agent-signal bases*
+  (0.35–0.80), so `contract_drift`, `swallowed_error`,
+  `duplicated_policy`, `permission_ia_drift`, `unsafe_retry` and
+  `mock_saturation` were ranked beneath the tool's own most lenient
+  charge. Nothing enforced the field, and the class such findings land
+  in (`standard`) has **zero members across all 70 detectors**, so the
+  fallback path was invisible in the class table too. The constant meant
+  to prevent that inversion — `STRUCTURAL_CEILING = 0.3` — turns out to
+  be fitted to a band that does not exist: rebuilding `ce0ccab`, the
+  commit that chose it, and scanning the exact tree its comment cites
+  gives an agent-signal population running from **0.12** (not 0.31),
+  every quoted figure a per-type *maximum*, **45% of the population at
+  or below 0.30** on the day it was chosen, and `contract_drift` — the
+  type the comment says a `large_file` must not outrank — firing **zero
+  times** on that tree. `INTRINSIC_DEFAULTS` now declares all 28 in one
+  table with each value anchored to a named expressed peer, plus a gate
+  that reads the detector sources and fails when a new detector
+  expresses neither. Deterministic split: scenarios labelling a
+  previously-suppressed type +0.0772 (7 up / 1 down), scenarios
+  labelling only always-expressed types −0.0053 (**0 up** / 22 down —
+  uniform displacement, since those labels were chosen while the 28 were
+  suppressed). No finding added or removed on the corpus; hono's top-20
+  concentration lift falls 6.00 → 2.80, mlflow's 2.85 → 2.59. **The
+  mechanism was measured and deliberately not changed**: a monotonic
+  squash scores 13 up / 0 down on the differentiated bucket and clears
+  structural out of the top 20 on four of five corpus repos, but landing
+  it alongside the input fix would make neither attributable.
+  `schema_version` stays `0.7.0`. Release notes:
+  [`docs/releases/v0.23.0.md`](./releases/v0.23.0.md).
+- **Previous version:** `crimes@0.22.0` ✅ shipped — **the remediation
   queue, closed.** Seven entries carried since `0.18.0`, every one
   reproduced before it was touched, and **four of the seven turned out
   to be wrong about themselves**. Fingerprint collisions are gone: four
@@ -32,7 +66,7 @@ mirror, not a planning doc.
   per-scenario variance directly (16 of claude's 48 scenarios moved
   with nothing changed). Release notes:
   [`docs/releases/v0.22.0.md`](./releases/v0.22.0.md).
-- **Previous version:** `crimes@0.21.0` ✅ shipped — **a precision
+- **Earlier:** `crimes@0.21.0` ✅ shipped — **a precision
   release.** Four detectors named in an outside field report as
   producing false positives, all four re-verified against `main` first
   and measured on real repos before and after. **Three of the four

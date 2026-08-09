@@ -20,7 +20,9 @@ unexamined.
 | [`unbounded_async_fanout` in the index builders](#what-is-deliberately-still-visible-and-why) | **Fixed** in `9ab8bdc` |
 | [`large_file` has no `docs` shape](#self-scan-triage-policy-016x) | **Fixed** in `26c8c4b` |
 | [`blast_radius` scale](#blast_radius-three-shapes-and-the-numbers-behind-each) | **Fixed** in `0ac0a5e` — log-scaled |
-| [`agent_risk` shape](#agent_risk-what-we-know-and-what-we-believe) | **Parked** — decoupled in `0.18.1`; the shape is the next release's focus |
+| [`agent_risk` shape](#agent_risk-what-we-know-and-what-we-believe) | **Inputs fixed** in `0.23.0`; the *mechanism* is still parked — see below |
+| [The intrinsics were never calibrated](#0230--the-intrinsics-were-never-calibrated) | **Fixed** in `0.23.0` — 28 detectors had no judgement, only a fallback |
+| [`STRUCTURAL_CEILING`'s stated band](#the-band-the-ceiling-was-fitted-to-does-not-exist) | **Refuted** in `0.23.0`; constant unchanged and still unvalidated |
 
 ---
 
@@ -665,3 +667,180 @@ unsettled**, and the specific constants are still fitted to an
 unvalidated band: nothing here validates the class table, the 0.3
 ceiling, or any per-detector intrinsic. Do not retune constants on the
 strength of question 4 being answered.
+
+---
+
+## `0.23.0` — the intrinsics were never calibrated
+
+**Status: fixed.** All three questions above were run. Question 2 turned
+out to be the root cause of the other two, so it is the only one this
+release changed.
+
+### The defect: 28 detectors had no judgement, only a fallback
+
+`agent_risk = 0.40*intrinsic + 0.20*churn + 0.20*test_gap +
+0.20*blast_radius`, and the intrinsic is the only genuinely
+agent-specific term in it. **28 of 70 registered detectors set no
+`scores.agent_risk`** and fell through to `NEUTRAL_INTRINSIC` (0.30),
+described in the source as saying "what is actually known: nothing".
+
+Measured across the corpus, that is not what it said. The 29 *expressed*
+agent-signal bases run **0.35 to 0.80**, so 0.30 sat **below every one
+of them**. A detector that declined to score itself was ranked beneath
+the most lenient deliberate judgement anyone had made — and the group
+that declined includes `contract_drift`, `swallowed_error`,
+`duplicated_policy`, `permission_ia_drift`, `unsafe_retry` and
+`mock_saturation`.
+
+The list was not curated. It is every detector whose source never
+assigns the field, which is why it accumulated silently: nothing
+enforced it, and `standard` — the class such a detector lands in — has
+**zero members across all 70 detectors**, so the fallback path was
+invisible in the class table too.
+
+### The band the ceiling was fitted to does not exist
+
+`STRUCTURAL_CEILING`'s comment justified 0.3 like this:
+
+> the agent-signal band runs 0.31–0.53 (`sync_io_in_hotpath` 0.43–0.53,
+> `direct_date` 0.51, `commented_out_code` 0.41, `contract_drift`
+> ~0.36) … 0.3 puts the whole structural class at or below the bottom
+> of the agent-signal band.
+
+Checked by building `ce0ccab` itself — the commit that chose the
+constant — and scanning the exact tree the comment cites:
+
+| type | claimed | measured at `ce0ccab` |
+|---|---|---|
+| `sync_io_in_hotpath` | 0.43–0.53 | **0.20**–0.53 |
+| `direct_date` | 0.51 | **0.18**–0.51 |
+| `commented_out_code` | 0.41 | **0.14**–0.41 |
+| `contract_drift` | ~0.36 | **0 findings — does not fire on that tree** |
+| the band itself | "0.31–0.53" | min **0.12**, p50 0.35, max 0.53 |
+
+Every quoted figure is that type's **maximum**. The band was read off
+the head of each type's distribution rather than off the distribution,
+and **45% of the agent-signal population sat at or below 0.30** on the
+day the constant was chosen. It is 47–75% across the corpus today. The
+ceiling never put structural "below the band"; it put it level with the
+band's median.
+
+The anchor was also circular: `contract_drift` expresses no intrinsic,
+so its position in "a `large_file` still outranked a genuine contract
+drift" was the fallback, not a judgement about contract drift.
+
+**This is a documentation correction, not a licence to move the
+constant.** 0.3 is unchanged and still unvalidated.
+
+### What shipped
+
+`INTRINSIC_DEFAULTS` in `detector-defaults.ts` — one table, every value
+anchored to a *named expressed peer*, with the anchor written next to
+it. A single table is the point: intrinsics can only be calibrated
+against each other where they can be seen next to each other.
+
+A gate in `detector-defaults.test.ts` reads the detector sources and
+fails when a registered detector expresses neither its own intrinsic nor
+a declared one. It reads source rather than carrying a hand-written list
+because a list cannot see a detector added tomorrow — which is the hole
+that let 28 accumulate.
+
+`NEUTRAL_INTRINSIC` is deliberately **left at 0.30** rather than raised
+to the expressed median. Built-ins can no longer reach it, so reaching
+it now means a detector is missing from the table. Raising it would make
+that omission harder to notice.
+
+### Measured effect — a product delta
+
+Deterministic (`evals:ranking`), split by whether a scenario's labelled
+answer is one of the previously-suppressed types:
+
+| bucket | n | mean nDCG | up | down |
+|---|---|---|---|---|
+| labels a previously-suppressed type | 12 | 0.5441 → **0.6213** (+0.0772) | 7 | 1 |
+| labels only always-expressed types | 33 | 0.4510 → 0.4458 (−0.0053) | **0** | 22 |
+
+Read the second row carefully. Nothing went *up* and the drops are
+uniform and tiny — this is displacement, not regression: 28 detectors
+that could not previously surface now do, and everything else shifts
+down a rank. **Those labels were chosen while those 28 were
+suppressed**, which is the same caveat §28 records about the six
+length-labelled scenarios, arriving from a different direction.
+
+The headline aggregate moves +0.0167 (all) and −0.0044 (deep). Only
+three deep-fixture scenarios label any of the 28 at all — itself
+evidence that the deep fixtures were labelled against a ranking these
+detectors could not reach.
+
+On the corpus, no finding was added or removed anywhere, and the change
+is conservative: it moves a head only where the suppressed detectors
+actually fire.
+
+| repo | top-20 dominant, before → after | concentration lift |
+|---|---|---|
+| hono | `option_bag_junk_drawer` 5/20 → `swallowed_error` 6/20 | **6.00 → 2.80** |
+| mlflow | `sync_io_in_hotpath` 11/20 → 10/20 | 2.85 → 2.59 |
+| pydantic, drf, zulip/zerver | unchanged | unchanged |
+
+### Question 1 — ceiling vs monotonic squash: measured, not taken
+
+A monotonic squash (`min(scored, 0.3)` → `scored * 0.3`) was
+implemented and measured before being reverted.
+
+| deep bucket | n | mean nDCG | up | down |
+|---|---|---|---|---|
+| no structural expectation | 19 | 0.3700 → 0.3799 (+0.0098) | **13** | **0** |
+| priority IS structural | 7 | 0.3658 → 0.3399 (−0.0259) | 0 | 7 |
+
+Both columns are unanimous. It also took structural findings out of the
+top 20 entirely on four of five corpus repos — including pydantic, whose
+top 20 still led with `large_function` 5/20 under the ceiling, and drf's
+15/20. **So the ceiling was not doing the job its comment claims.**
+
+The prediction recorded above was that a squash "should not move the
+differentiated bucket". It moved both, because at 2-decimal rounding a
+monotonic map cannot re-spread the clamped tail without also lowering
+the whole class — the two effects are not separable at the current
+precision. That is a fact about the mechanism worth keeping.
+
+**Not taken**, on grounds of attribution rather than merit: stacking a
+second compensation on top of the missing intrinsics would put two
+findings-moving changes in one baseline and make neither attributable.
+The evidence stands for whoever picks the mechanism up.
+
+### Question 3 — concentration is mostly the repo, not the ranking
+
+The "16 of 20 `sync_io_in_hotpath`" figure is **stale**: measured at
+`0.22.0` it is 12 of 20.
+
+More usefully, comparing the dominant type's share of the top 20 against
+its share of the population the head is drawn from (the agent-signal
+class — structural is capped out of the head by design):
+
+| repo | dominant | head share | population share | lift |
+|---|---|---|---|---|
+| zulip/zerver | `sync_io_in_hotpath` | 0.60 | 0.50 | **1.20** |
+| mlflow | `sync_io_in_hotpath` | 0.55 | 0.19 | 2.85 |
+| hono | `option_bag_junk_drawer` | 0.25 | 0.04 | 6.00 |
+
+**zulip's monoculture is zulip's, not the ranking's.** At lift 1.20 the
+head is very nearly a faithful sample of a repo that genuinely has a lot
+of blocking I/O in Python — which is what the original entry suspected
+but could not show. Where the lift *is* high (hono, mlflow), the cause
+is a per-detector intrinsic sitting high relative to its peers, so
+question 3 reduces to question 2 rather than standing beside it.
+
+### What is still open
+
+- **The mechanism.** Ceiling vs squash, with the evidence above.
+- **The class table.** Still hand-maintained, and `standard` still has
+  zero members — it is an unlabelled-default bucket, not a considered
+  third category, and its behaviour (no adjustment) is the permissive
+  one.
+- **Cross-pack disagreement.** The same charge carries different
+  intrinsics in different packs: `sync_io_in_hotpath` is 0.55 in the JS
+  detector and 0.50 / 0.70 in the Python one. Nothing reconciles them.
+- **The 41 expressed intrinsics.** Still literals inside their
+  detectors, so they are calibrated only by reading 41 files. Moving
+  their bases into `INTRINSIC_DEFAULTS` would put the whole calibration
+  in one place; it was out of scope here.

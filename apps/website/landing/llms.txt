@@ -34,7 +34,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest v0.22.0)
+## Commands (latest v0.23.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -342,7 +342,67 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.22.0 — close the queue (current release)
+## 0.23.0 — the score's missing inputs (current release)
+
+`agent_risk` is the score that makes crimes something other than a
+linter, and its heaviest term is the detector's own judgement about how
+badly a finding will mislead an agent. 28 of 70 registered detectors
+were not making one.
+
+- Silence was not scored as unknown. A detector that set no intrinsic
+  fell back to NEUTRAL_INTRINSIC (0.30), which sits below all 29
+  expressed agent-signal bases (0.35–0.80). So crimes ranked
+  contract_drift, swallowed_error, duplicated_policy,
+  permission_ia_drift, unsafe_retry and mock_saturation beneath its own
+  most lenient charge — a verdict nobody entered.
+- Nothing enforced the field, and the class those findings land in
+  (`standard`) has zero members across all 70 detectors, so the
+  fallback path was invisible in the class table too.
+- The constant meant to prevent that inversion, STRUCTURAL_CEILING =
+  0.3, was fitted to a band that does not exist. Rebuilding ce0ccab —
+  the commit that chose it — and scanning the exact tree its comment
+  cites: sync_io_in_hotpath is 0.20–0.53 against a claimed 0.43–0.53,
+  direct_date 0.18–0.51 against 0.51, commented_out_code 0.14–0.41
+  against 0.41, and contract_drift, the type the comment says a
+  large_file must not outrank, produces zero findings on that tree.
+  Every quoted figure is a per-type maximum, and 45% of the
+  agent-signal population sat at or below 0.30 on the day the constant
+  was chosen.
+- INTRINSIC_DEFAULTS declares all 28 in one table, each value anchored
+  to a named expressed peer. One table is the point: intrinsics can
+  only be calibrated against each other where they can be seen next to
+  each other. A gate reads the detector sources and fails when a new
+  detector expresses neither, so this cannot re-accumulate.
+- NEUTRAL_INTRINSIC deliberately stays at 0.30. Built-ins can no longer
+  reach it, so reaching it now means a detector is missing from the
+  table; raising it would make that omission harder to notice.
+
+Measured deterministically with the agent-free ranking metric, split by
+whether a scenario's labelled answer is a previously-suppressed type:
+suppressed types 0.5441 -> 0.6213 (+0.0772, 7 up / 1 down),
+always-expressed types 0.4510 -> 0.4458 (-0.0053, 0 up / 22 down). The
+second row is displacement rather than regression — those labels were
+chosen while the 28 detectors could not surface.
+
+On real repositories no finding is added or removed, and heads move
+only where the suppressed detectors fire. Where they do,
+over-concentration falls: hono's top-20 dominant-type lift 6.00 ->
+2.80, mlflow's 2.85 -> 2.59.
+
+Two things were measured and deliberately not changed. A monotonic
+squash of the structural class scores 13 up / 0 down on the
+differentiated bucket and clears structural findings out of the top 20
+on four of five corpus repos — not taken, because two findings-moving
+changes in one baseline make neither attributable. And zulip's "16 of
+20 sync_io_in_hotpath" concentration is stale (12 of 20) and mostly the
+repo's own mix, not the ranking's: against the population the head is
+drawn from, its lift is 1.20.
+
+Schema unchanged at 0.7.0. Scores and ordering move.
+
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.23.0.md
+
+## 0.22.0 — close the queue
 
 The remediation queue carried since 0.18.0, finished. Seven entries,
 every one reproduced before it was touched, and four of the seven

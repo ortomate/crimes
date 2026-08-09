@@ -487,6 +487,127 @@
     },
     {
       "id": "crime_00012",
+      "type": "contract_drift",
+      "charge": "Contract Split-Brain",
+      "severity": "high",
+      "confidence": 0.82,
+      "file": "src/api/state.ts",
+      "lines": [
+        4,
+        7
+      ],
+      "symbol": "User",
+      "summary": "`User` and `User` appear to describe the same record but disagree on 1 field. Nothing in the build checks the two declarations against each other.",
+      "evidence": [
+        "A: `User` (interface) — src/api/state.ts:4, 2 field(s)",
+        "B: `User` (interface) — src/billing.ts:4, 5 field(s)",
+        "matched because: both names reduce to the concept \"user\" (`User` / `User`)",
+        "matched because: 2 shared field(s), 100% of the smaller declaration",
+        "1 field-level disagreement(s):",
+        "  createdAt: A is absent, B is declared (number) (field present on one side only) [timestamp field]"
+      ],
+      "score_rationale": [
+        "confidence 0.82 = 0.58 base + 0.14 (100% field overlap) + 0.10 (1 disagreement(s) on critical field(s))",
+        "severity raised by: a critical field is absent from one side, declarations are in different files, disagreement on timestamp field, the disagreement is about the field's type, not just its optionality"
+      ],
+      "effort": "medium",
+      "fix_shape": "derive one declaration from the other, or share one schema",
+      "scores": {
+        "severity": 0.9,
+        "confidence": 0.82,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0,
+        "agent_risk": 0.37
+      },
+      "suggested_actions": [
+        {
+          "kind": "unify_contract",
+          "description": "Keep one declaration and have the other reference it (`type User = User`, or a named projection such as `Pick<User, …>`) so a future field change reaches both.",
+          "risk": "medium"
+        },
+        {
+          "kind": "resolve_field_disagreements",
+          "description": "Decide the correct shape for `createdAt` and apply it to both declarations in one change.",
+          "risk": "medium"
+        }
+      ],
+      "related_files": [
+        "src/billing.ts"
+      ],
+      "pack": "language-js",
+      "detector_id": "contract_drift.js",
+      "tier": "domain",
+      "fingerprint": "contract_drift::src/api/state.ts::User"
+    },
+    {
+      "id": "crime_00013",
+      "type": "contract_drift",
+      "charge": "Contract Split-Brain",
+      "severity": "high",
+      "confidence": 0.82,
+      "file": "src/api/state.ts",
+      "lines": [
+        9,
+        12
+      ],
+      "symbol": "Invoice",
+      "summary": "`Invoice` and `Invoice` appear to describe the same record but disagree on 6 fields. Nothing in the build checks the two declarations against each other.",
+      "evidence": [
+        "A: `Invoice` (interface) — src/api/state.ts:9, 2 field(s)",
+        "B: `Invoice` (interface) — src/billing.ts:19, 11 field(s)",
+        "matched because: both names reduce to the concept \"invoice\" (`Invoice` / `Invoice`)",
+        "matched because: 2 shared field(s), 100% of the smaller declaration",
+        "6 field-level disagreement(s):",
+        "  createdAt: A is absent, B is declared (number) (field present on one side only) [timestamp field]",
+        "  currency: A is absent, B is declared (string) (field present on one side only) [money field]",
+        "  discountCents: A is absent, B is declared (number) (field present on one side only) [money field]",
+        "  subtotalCents: A is absent, B is declared (number) (field present on one side only) [money field]",
+        "  taxCents: A is absent, B is declared (number) (field present on one side only) [money field]",
+        "  userId: A is absent, B is declared (string) (field present on one side only) [identifier field]"
+      ],
+      "score_rationale": [
+        "confidence 0.82 = 0.58 base + 0.14 (100% field overlap) + 0.10 (6 disagreement(s) on critical field(s))",
+        "severity raised by: 6 disagreements, a critical field is absent from one side, declarations are in different files, disagreement on identifier field / money field / timestamp field, the disagreement is about the field's type, not just its optionality"
+      ],
+      "effort": "medium",
+      "fix_shape": "derive one declaration from the other, or share one schema",
+      "scores": {
+        "severity": 0.96,
+        "confidence": 0.82,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0,
+        "agent_risk": 0.37
+      },
+      "suggested_actions": [
+        {
+          "kind": "unify_contract",
+          "description": "Keep one declaration and have the other reference it (`type Invoice = Invoice`, or a named projection such as `Pick<Invoice, …>`) so a future field change reaches both.",
+          "risk": "medium"
+        },
+        {
+          "kind": "resolve_field_disagreements",
+          "description": "Decide the correct shape for `createdAt`, `currency`, `discountCents` and apply it to both declarations in one change.",
+          "risk": "medium"
+        }
+      ],
+      "related_files": [
+        "src/billing.ts"
+      ],
+      "pack": "language-js",
+      "detector_id": "contract_drift.js",
+      "tier": "domain",
+      "fingerprint": "contract_drift::src/api/state.ts::Invoice"
+    },
+    {
+      "id": "crime_00014",
       "type": "negative_flag_maze",
       "charge": "Negative Flag Maze",
       "severity": "low",
@@ -528,7 +649,7 @@
       "fingerprint": "negative_flag_maze::src/petty.ts::::9361fc296993"
     },
     {
-      "id": "crime_00013",
+      "id": "crime_00015",
       "type": "name_behavior_mismatch",
       "charge": "False Identity",
       "severity": "medium",
@@ -571,7 +692,7 @@
       "fingerprint": "name_behavior_mismatch::src/billing.ts::calculateRefundPreview"
     },
     {
-      "id": "crime_00014",
+      "id": "crime_00016",
       "type": "logic_in_comments",
       "charge": "Logic in the Alibi",
       "severity": "medium",
@@ -614,7 +735,7 @@
       "fingerprint": "logic_in_comments::src/billing.ts::::424ab731a4d3"
     },
     {
-      "id": "crime_00015",
+      "id": "crime_00017",
       "type": "commented_out_code",
       "charge": "Commented-Out Corpse",
       "severity": "medium",
@@ -657,7 +778,7 @@
       "fingerprint": "commented_out_code::src/billing.ts::::42a4bbb39f1f"
     },
     {
-      "id": "crime_00016",
+      "id": "crime_00018",
       "type": "dst_naive_arithmetic",
       "charge": "DST-Naive Day Math",
       "severity": "medium",
@@ -699,7 +820,7 @@
       "fingerprint": "dst_naive_arithmetic::src/date.ts::"
     },
     {
-      "id": "crime_00017",
+      "id": "crime_00019",
       "type": "hardcoded_localhost",
       "charge": "Dev-Server URL",
       "severity": "medium",
@@ -741,7 +862,7 @@
       "fingerprint": "hardcoded_localhost::src/api/files.ts::"
     },
     {
-      "id": "crime_00018",
+      "id": "crime_00020",
       "type": "hardcoded_local_path",
       "charge": "Localhost-on-Disk",
       "severity": "medium",
@@ -783,7 +904,7 @@
       "fingerprint": "hardcoded_local_path::src/api/files.ts::"
     },
     {
-      "id": "crime_00019",
+      "id": "crime_00021",
       "type": "concept_alias_drift",
       "charge": "Concept Alias Drift",
       "severity": "medium",
@@ -830,7 +951,7 @@
       "fingerprint": "concept_alias_drift::docs/billing.md::"
     },
     {
-      "id": "crime_00020",
+      "id": "crime_00022",
       "type": "large_function",
       "charge": "God Function",
       "severity": "high",
@@ -873,7 +994,7 @@
       "fingerprint": "large_function::src/billing.ts::generateInvoice"
     },
     {
-      "id": "crime_00021",
+      "id": "crime_00023",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "medium",
@@ -914,7 +1035,7 @@
       "fingerprint": "todo_density::src/todo.ts::"
     },
     {
-      "id": "crime_00022",
+      "id": "crime_00024",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -958,7 +1079,55 @@
       "fingerprint": "boolean_naming_drift::src/api/state.ts::"
     },
     {
-      "id": "crime_00023",
+      "id": "crime_00025",
+      "type": "swallowed_error",
+      "charge": "Catch and Release",
+      "severity": "low",
+      "confidence": 0.78,
+      "file": "src/billing.ts",
+      "lines": [
+        245,
+        247
+      ],
+      "symbol": "generateInvoice → catch_clause",
+      "summary": "A failure in `generateInvoice` is caught and discarded — the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed). The caller sees success and there is no record the operation failed.",
+      "evidence": [
+        "protected operation: if (body.length === 0) throw new Error(\"empty body\"); (+1 more statement(s))",
+        "handler kind: try/catch (line 245)",
+        "what happens to the failure: the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed)",
+        "missing signal: no rethrow or rejected promise; no logging, telemetry, or error-wrapping call; no typed error result the caller could branch on; the error is never inspected",
+        "the catch declares no binding, so the error object is not even available to the handler"
+      ],
+      "score_rationale": [
+        "confidence 0.78 = 0.72 base + 0.06 (handler contains only a comment)"
+      ],
+      "effort": "small",
+      "fix_shape": "propagate, or record the error with enough context to act on",
+      "scores": {
+        "severity": 0.35,
+        "confidence": 0.78,
+        "churn": 0.2,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0,
+        "agent_risk": 0.3
+      },
+      "suggested_actions": [
+        {
+          "kind": "propagate_or_record",
+          "description": "Rethrow, or record the failure with the error value attached so the stack survives.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "swallowed_error.js",
+      "tier": "domain",
+      "fingerprint": "swallowed_error::src/billing.ts::generateInvoice → catch_clause"
+    },
+    {
+      "id": "crime_00026",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "low",
@@ -1001,7 +1170,7 @@
       "fingerprint": "direct_date::src/api/state.ts::"
     },
     {
-      "id": "crime_00024",
+      "id": "crime_00027",
       "type": "date_string_concat",
       "charge": "Date String Sewing",
       "severity": "low",
@@ -1043,7 +1212,7 @@
       "fingerprint": "date_string_concat::src/date.ts::"
     },
     {
-      "id": "crime_00025",
+      "id": "crime_00028",
       "type": "locale_drift",
       "charge": "Host-Locale Drift",
       "severity": "low",
@@ -1085,7 +1254,7 @@
       "fingerprint": "locale_drift::src/date.ts::"
     },
     {
-      "id": "crime_00026",
+      "id": "crime_00029",
       "type": "singular_plural_type_mismatch",
       "charge": "Plural Mismatch",
       "severity": "low",
@@ -1127,7 +1296,127 @@
       "fingerprint": "singular_plural_type_mismatch::src/api/state.ts::"
     },
     {
-      "id": "crime_00027",
+      "id": "crime_00030",
+      "type": "orphaned_destination",
+      "charge": "Orphaned Destination",
+      "severity": "low",
+      "confidence": 0.65,
+      "file": "src/routes/account/subscription.tsx",
+      "summary": "Route /account/subscription appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
+      "evidence": [
+        "route path: /account/subscription",
+        "file: src/routes/account/subscription.tsx",
+        "no nav source references this destination",
+        "no internal doc link references this destination",
+        "no in-repo import targets this route file"
+      ],
+      "effort": "quick",
+      "fix_shape": "delete the orphan destination or wire it up",
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.65,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0,
+        "agent_risk": 0.29
+      },
+      "suggested_actions": [
+        {
+          "kind": "link_or_retire",
+          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "orphaned_destination.js",
+      "tier": "domain",
+      "fingerprint": "orphaned_destination::src/routes/account/subscription.tsx::"
+    },
+    {
+      "id": "crime_00031",
+      "type": "orphaned_destination",
+      "charge": "Orphaned Destination",
+      "severity": "low",
+      "confidence": 0.65,
+      "file": "src/routes/team/index.tsx",
+      "summary": "Route /team appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
+      "evidence": [
+        "route path: /team",
+        "file: src/routes/team/index.tsx",
+        "no nav source references this destination",
+        "no internal doc link references this destination",
+        "no in-repo import targets this route file"
+      ],
+      "effort": "quick",
+      "fix_shape": "delete the orphan destination or wire it up",
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.65,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0,
+        "agent_risk": 0.29
+      },
+      "suggested_actions": [
+        {
+          "kind": "link_or_retire",
+          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "orphaned_destination.js",
+      "tier": "domain",
+      "fingerprint": "orphaned_destination::src/routes/team/index.tsx::"
+    },
+    {
+      "id": "crime_00032",
+      "type": "orphaned_destination",
+      "charge": "Orphaned Destination",
+      "severity": "low",
+      "confidence": 0.65,
+      "file": "src/routes/workspace/members.tsx",
+      "summary": "Route /workspace/members appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
+      "evidence": [
+        "route path: /workspace/members",
+        "file: src/routes/workspace/members.tsx",
+        "no nav source references this destination",
+        "no internal doc link references this destination",
+        "no in-repo import targets this route file"
+      ],
+      "effort": "quick",
+      "fix_shape": "delete the orphan destination or wire it up",
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.65,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0,
+        "agent_risk": 0.29
+      },
+      "suggested_actions": [
+        {
+          "kind": "link_or_retire",
+          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "orphaned_destination.js",
+      "tier": "domain",
+      "fingerprint": "orphaned_destination::src/routes/workspace/members.tsx::"
+    },
+    {
+      "id": "crime_00033",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "medium",
@@ -1170,7 +1459,7 @@
       "fingerprint": "weak_test_signal::src/billing.test.ts::::renders the enterprise plan"
     },
     {
-      "id": "crime_00028",
+      "id": "crime_00034",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -1213,7 +1502,7 @@
       "fingerprint": "boolean_naming_drift::src/petty.ts::"
     },
     {
-      "id": "crime_00029",
+      "id": "crime_00035",
       "type": "svg_with_embedded_raster",
       "charge": "SVG With Embedded Raster",
       "severity": "high",
@@ -1252,7 +1541,7 @@
       "fingerprint": "svg_with_embedded_raster::src/assets/partner-logo.svg::"
     },
     {
-      "id": "crime_00030",
+      "id": "crime_00036",
       "type": "docs_code_drift",
       "charge": "Docs-Code Drift",
       "severity": "low",
@@ -1288,7 +1577,7 @@
       "fingerprint": "docs_code_drift::docs/teams.md::"
     },
     {
-      "id": "crime_00031",
+      "id": "crime_00037",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "low",
@@ -1331,248 +1620,59 @@
       "fingerprint": "weak_test_signal::src/billing.test.ts::::creates an invoice"
     },
     {
-      "id": "crime_00032",
-      "type": "contract_drift",
-      "charge": "Contract Split-Brain",
-      "severity": "high",
-      "confidence": 0.82,
-      "file": "src/api/state.ts",
+      "id": "crime_00038",
+      "type": "dependency_provenance_gap",
+      "charge": "Phantom Accomplice",
+      "severity": "low",
+      "confidence": 0.56,
+      "file": "package.json",
       "lines": [
-        4,
-        7
+        1,
+        1
       ],
-      "symbol": "User",
-      "summary": "`User` and `User` appear to describe the same record but disagree on 1 field. Nothing in the build checks the two declarations against each other.",
+      "symbol": "undeclared imports",
+      "summary": "1 external package(s) are imported but declared in no applicable package.json. They resolve today through hoisting; a clean install can fail.",
       "evidence": [
-        "A: `User` (interface) — src/api/state.ts:4, 2 field(s)",
-        "B: `User` (interface) — src/billing.ts:4, 5 field(s)",
-        "matched because: both names reduce to the concept \"user\" (`User` / `User`)",
-        "matched because: 2 shared field(s), 100% of the smaller declaration",
-        "1 field-level disagreement(s):",
-        "  createdAt: A is absent, B is declared (number) (field present on one side only) [timestamp field]"
+        "1 external package(s) imported with no declaring manifest",
+        "  `vitest` — imported at src/billing.test.ts as \"vitest\"",
+        "manifests searched: package.json",
+        "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted",
+        "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded",
+        "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves"
       ],
       "score_rationale": [
-        "confidence 0.82 = 0.58 base + 0.14 (100% field overlap) + 0.10 (1 disagreement(s) on critical field(s))",
-        "severity raised by: a critical field is absent from one side, declarations are in different files, disagreement on timestamp field, the disagreement is about the field's type, not just its optionality"
+        "confidence 0.56 = 0.68 base - 0.12 (only test or fixture files are affected)"
       ],
-      "effort": "medium",
-      "fix_shape": "derive one declaration from the other, or share one schema",
+      "effort": "quick",
+      "fix_shape": "declare each imported package in the manifest that uses it",
       "scores": {
-        "severity": 0.9,
-        "confidence": 0.82,
-        "churn": 0.05,
-        "test_gap": 0.5,
+        "severity": 0.25,
+        "confidence": 0.56,
+        "churn": 0.1,
+        "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
         "blast_radius_direct_importers": 0,
         "recency": 0,
-        "agent_risk": 0.23
+        "agent_risk": 0.24
       },
       "suggested_actions": [
         {
-          "kind": "unify_contract",
-          "description": "Keep one declaration and have the other reference it (`type User = User`, or a named projection such as `Pick<User, …>`) so a future field change reaches both.",
-          "risk": "medium"
-        },
-        {
-          "kind": "resolve_field_disagreements",
-          "description": "Decide the correct shape for `createdAt` and apply it to both declarations in one change.",
-          "risk": "medium"
+          "kind": "declare_dependency",
+          "description": "Add `vitest` to the dependencies of the package that imports them.",
+          "risk": "low"
         }
       ],
       "related_files": [
-        "src/billing.ts"
+        "src/billing.test.ts"
       ],
-      "pack": "language-js",
-      "detector_id": "contract_drift.js",
+      "pack": "universal",
+      "detector_id": "dependency_provenance_gap",
       "tier": "domain",
-      "fingerprint": "contract_drift::src/api/state.ts::User"
+      "fingerprint": "dependency_provenance_gap::package.json::undeclared imports"
     },
     {
-      "id": "crime_00033",
-      "type": "contract_drift",
-      "charge": "Contract Split-Brain",
-      "severity": "high",
-      "confidence": 0.82,
-      "file": "src/api/state.ts",
-      "lines": [
-        9,
-        12
-      ],
-      "symbol": "Invoice",
-      "summary": "`Invoice` and `Invoice` appear to describe the same record but disagree on 6 fields. Nothing in the build checks the two declarations against each other.",
-      "evidence": [
-        "A: `Invoice` (interface) — src/api/state.ts:9, 2 field(s)",
-        "B: `Invoice` (interface) — src/billing.ts:19, 11 field(s)",
-        "matched because: both names reduce to the concept \"invoice\" (`Invoice` / `Invoice`)",
-        "matched because: 2 shared field(s), 100% of the smaller declaration",
-        "6 field-level disagreement(s):",
-        "  createdAt: A is absent, B is declared (number) (field present on one side only) [timestamp field]",
-        "  currency: A is absent, B is declared (string) (field present on one side only) [money field]",
-        "  discountCents: A is absent, B is declared (number) (field present on one side only) [money field]",
-        "  subtotalCents: A is absent, B is declared (number) (field present on one side only) [money field]",
-        "  taxCents: A is absent, B is declared (number) (field present on one side only) [money field]",
-        "  userId: A is absent, B is declared (string) (field present on one side only) [identifier field]"
-      ],
-      "score_rationale": [
-        "confidence 0.82 = 0.58 base + 0.14 (100% field overlap) + 0.10 (6 disagreement(s) on critical field(s))",
-        "severity raised by: 6 disagreements, a critical field is absent from one side, declarations are in different files, disagreement on identifier field / money field / timestamp field, the disagreement is about the field's type, not just its optionality"
-      ],
-      "effort": "medium",
-      "fix_shape": "derive one declaration from the other, or share one schema",
-      "scores": {
-        "severity": 0.96,
-        "confidence": 0.82,
-        "churn": 0.05,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.23
-      },
-      "suggested_actions": [
-        {
-          "kind": "unify_contract",
-          "description": "Keep one declaration and have the other reference it (`type Invoice = Invoice`, or a named projection such as `Pick<Invoice, …>`) so a future field change reaches both.",
-          "risk": "medium"
-        },
-        {
-          "kind": "resolve_field_disagreements",
-          "description": "Decide the correct shape for `createdAt`, `currency`, `discountCents` and apply it to both declarations in one change.",
-          "risk": "medium"
-        }
-      ],
-      "related_files": [
-        "src/billing.ts"
-      ],
-      "pack": "language-js",
-      "detector_id": "contract_drift.js",
-      "tier": "domain",
-      "fingerprint": "contract_drift::src/api/state.ts::Invoice"
-    },
-    {
-      "id": "crime_00034",
-      "type": "orphaned_destination",
-      "charge": "Orphaned Destination",
-      "severity": "low",
-      "confidence": 0.65,
-      "file": "src/routes/account/subscription.tsx",
-      "summary": "Route /account/subscription appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
-      "evidence": [
-        "route path: /account/subscription",
-        "file: src/routes/account/subscription.tsx",
-        "no nav source references this destination",
-        "no internal doc link references this destination",
-        "no in-repo import targets this route file"
-      ],
-      "effort": "quick",
-      "fix_shape": "delete the orphan destination or wire it up",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.65,
-        "churn": 0.05,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.23
-      },
-      "suggested_actions": [
-        {
-          "kind": "link_or_retire",
-          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "orphaned_destination.js",
-      "tier": "domain",
-      "fingerprint": "orphaned_destination::src/routes/account/subscription.tsx::"
-    },
-    {
-      "id": "crime_00035",
-      "type": "orphaned_destination",
-      "charge": "Orphaned Destination",
-      "severity": "low",
-      "confidence": 0.65,
-      "file": "src/routes/team/index.tsx",
-      "summary": "Route /team appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
-      "evidence": [
-        "route path: /team",
-        "file: src/routes/team/index.tsx",
-        "no nav source references this destination",
-        "no internal doc link references this destination",
-        "no in-repo import targets this route file"
-      ],
-      "effort": "quick",
-      "fix_shape": "delete the orphan destination or wire it up",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.65,
-        "churn": 0.05,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.23
-      },
-      "suggested_actions": [
-        {
-          "kind": "link_or_retire",
-          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "orphaned_destination.js",
-      "tier": "domain",
-      "fingerprint": "orphaned_destination::src/routes/team/index.tsx::"
-    },
-    {
-      "id": "crime_00036",
-      "type": "orphaned_destination",
-      "charge": "Orphaned Destination",
-      "severity": "low",
-      "confidence": 0.65,
-      "file": "src/routes/workspace/members.tsx",
-      "summary": "Route /workspace/members appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
-      "evidence": [
-        "route path: /workspace/members",
-        "file: src/routes/workspace/members.tsx",
-        "no nav source references this destination",
-        "no internal doc link references this destination",
-        "no in-repo import targets this route file"
-      ],
-      "effort": "quick",
-      "fix_shape": "delete the orphan destination or wire it up",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.65,
-        "churn": 0.05,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.23
-      },
-      "suggested_actions": [
-        {
-          "kind": "link_or_retire",
-          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "orphaned_destination.js",
-      "tier": "domain",
-      "fingerprint": "orphaned_destination::src/routes/workspace/members.tsx::"
-    },
-    {
-      "id": "crime_00037",
+      "id": "crime_00039",
       "type": "large_file",
       "charge": "God File",
       "severity": "medium",
@@ -1613,7 +1713,7 @@
       "fingerprint": "large_file::src/billing.ts::"
     },
     {
-      "id": "crime_00038",
+      "id": "crime_00040",
       "type": "raster_should_be_vector",
       "charge": "Icon-Sized Raster",
       "severity": "low",
@@ -1651,55 +1751,7 @@
       "fingerprint": "raster_should_be_vector::src/assets/check-icon.png::"
     },
     {
-      "id": "crime_00039",
-      "type": "swallowed_error",
-      "charge": "Catch and Release",
-      "severity": "low",
-      "confidence": 0.78,
-      "file": "src/billing.ts",
-      "lines": [
-        245,
-        247
-      ],
-      "symbol": "generateInvoice → catch_clause",
-      "summary": "A failure in `generateInvoice` is caught and discarded — the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed). The caller sees success and there is no record the operation failed.",
-      "evidence": [
-        "protected operation: if (body.length === 0) throw new Error(\"empty body\"); (+1 more statement(s))",
-        "handler kind: try/catch (line 245)",
-        "what happens to the failure: the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed)",
-        "missing signal: no rethrow or rejected promise; no logging, telemetry, or error-wrapping call; no typed error result the caller could branch on; the error is never inspected",
-        "the catch declares no binding, so the error object is not even available to the handler"
-      ],
-      "score_rationale": [
-        "confidence 0.78 = 0.72 base + 0.06 (handler contains only a comment)"
-      ],
-      "effort": "small",
-      "fix_shape": "propagate, or record the error with enough context to act on",
-      "scores": {
-        "severity": 0.35,
-        "confidence": 0.78,
-        "churn": 0.2,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.16
-      },
-      "suggested_actions": [
-        {
-          "kind": "propagate_or_record",
-          "description": "Rethrow, or record the failure with the error value attached so the stack survives.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "swallowed_error.js",
-      "tier": "domain",
-      "fingerprint": "swallowed_error::src/billing.ts::generateInvoice → catch_clause"
-    },
-    {
-      "id": "crime_00040",
+      "id": "crime_00041",
       "type": "oversized_raster",
       "charge": "Oversized Raster",
       "severity": "low",
@@ -1736,58 +1788,6 @@
       "detector_id": "oversized_raster",
       "tier": "domain",
       "fingerprint": "oversized_raster::src/assets/hero-banner.png::"
-    },
-    {
-      "id": "crime_00041",
-      "type": "dependency_provenance_gap",
-      "charge": "Phantom Accomplice",
-      "severity": "low",
-      "confidence": 0.56,
-      "file": "package.json",
-      "lines": [
-        1,
-        1
-      ],
-      "symbol": "undeclared imports",
-      "summary": "1 external package(s) are imported but declared in no applicable package.json. They resolve today through hoisting; a clean install can fail.",
-      "evidence": [
-        "1 external package(s) imported with no declaring manifest",
-        "  `vitest` — imported at src/billing.test.ts as \"vitest\"",
-        "manifests searched: package.json",
-        "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted",
-        "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded",
-        "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves"
-      ],
-      "score_rationale": [
-        "confidence 0.56 = 0.68 base - 0.12 (only test or fixture files are affected)"
-      ],
-      "effort": "quick",
-      "fix_shape": "declare each imported package in the manifest that uses it",
-      "scores": {
-        "severity": 0.25,
-        "confidence": 0.56,
-        "churn": 0.1,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.14
-      },
-      "suggested_actions": [
-        {
-          "kind": "declare_dependency",
-          "description": "Add `vitest` to the dependencies of the package that imports them.",
-          "risk": "low"
-        }
-      ],
-      "related_files": [
-        "src/billing.test.ts"
-      ],
-      "pack": "universal",
-      "detector_id": "dependency_provenance_gap",
-      "tier": "domain",
-      "fingerprint": "dependency_provenance_gap::package.json::undeclared imports"
     },
     {
       "id": "crime_00042",

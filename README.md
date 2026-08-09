@@ -135,9 +135,46 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.22.0`
+## Status — `crimes@0.23.0`
 
-`crimes@0.22.0` is the latest version. It **closes the remediation
+`crimes@0.23.0` is the latest version. `agent_risk` is the score that
+makes `crimes` something other than a linter, and its heaviest term is
+the detector's own judgement about how badly a finding will mislead an
+agent. **28 of 70 detectors were not making one.**
+
+- **Silence was not scored as unknown.** A detector that set no
+  intrinsic fell back to `0.30` — *below all 29 of the expressed
+  agent-signal bases*, which run 0.35–0.80. So the tool ranked
+  `contract_drift`, `swallowed_error`, `duplicated_policy` and
+  `permission_ia_drift` beneath its own most lenient charge.
+- **The constant that was supposed to prevent that was fitted to a band
+  that does not exist.** Rebuilding `ce0ccab` and scanning the tree its
+  comment cites: the agent-signal population starts at **0.12**, not
+  0.31; every figure in the quoted band is a per-type *maximum*; and
+  `contract_drift`, the type the comment says a `large_file` must not
+  outrank, **produces no findings on that tree at all**.
+- **One table, each value anchored to a named peer.** Intrinsics can
+  only be calibrated against each other where they can be seen next to
+  each other. A gate reads the detector sources and fails when a new
+  detector expresses neither, so this cannot re-accumulate.
+- **Conservative in practice.** No finding is added or removed anywhere
+  on the corpus, and heads move only where the suppressed detectors
+  actually fire — where they do, over-concentration *falls* (hono's
+  top-20 lift 6.00 → 2.80).
+- **The mechanism was measured and deliberately left alone.** A
+  monotonic squash scores 13 up / 0 down on the differentiated bucket
+  and takes structural findings out of the top 20 on four of five corpus
+  repos. Not taken: two findings-moving changes in one baseline make
+  neither attributable.
+
+`schema_version` stays at `0.7.0` — no field is added, renamed or
+retyped. Scores and ordering move.
+
+Release notes: [`docs/releases/v0.23.0.md`](./docs/releases/v0.23.0.md).
+
+### Earlier `0.22.0` work (_the queue, closed_)
+
+`crimes@0.22.0` **closes the remediation
 queue** carried since `0.18.0` — seven entries, every one reproduced
 before it was touched, and **four of the seven turned out to be wrong
 about themselves**.
@@ -176,7 +213,8 @@ and this build, the `0.22.0` eval run is a free repeat sample: claude
 claude's 48 scenarios and 13 of codex's moved with nothing changed**,
 two of them by a full 1.00.
 
-Release notes: [`docs/releases/v0.22.0.md`](./docs/releases/v0.22.0.md).
+Earlier release notes:
+[`docs/releases/v0.22.0.md`](./docs/releases/v0.22.0.md).
 
 ### Earlier `0.21.0` work (_precision, where the false positives were_)
 

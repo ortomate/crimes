@@ -15,6 +15,24 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.23.0` headline:** `agent_risk` is what makes `crimes` more than a
+linter, and its heaviest term is the detector's own judgement about how
+badly a finding will mislead an agent — **28 of 70 detectors were not
+making one**. They were not scored as unknown either: the fallback
+`0.30` sits *below all 29 expressed agent-signal bases* (0.35–0.80), so
+`contract_drift`, `swallowed_error`, `duplicated_policy` and
+`permission_ia_drift` ranked beneath the tool's own most lenient charge.
+The constant meant to prevent exactly that was fitted to a band that
+does not exist: rebuilding `ce0ccab` and scanning the tree its comment
+cites, the agent-signal population starts at **0.12**, not 0.31, every
+quoted figure is a per-type *maximum*, and `contract_drift` — the type
+the comment says a `large_file` must not outrank — fires **zero times**
+on that tree. All 28 now carry a declared intrinsic in one table, each
+anchored to a named expressed peer, with a gate that reads the detector
+sources so it cannot re-accumulate. No finding is added or removed on
+the corpus; where heads move, over-concentration falls (hono's top-20
+lift 6.00 → 2.80). `schema_version` stays `0.7.0`.
+
 **`0.22.0` headline:** the remediation queue carried since `0.18.0`,
 closed — seven entries, every one reproduced before it was touched, and
 **four of the seven turned out to be wrong about themselves**.

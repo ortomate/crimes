@@ -40,6 +40,15 @@ silent-suppression mechanism — see §13); deciding
 than by file (see §9); and unifying the two `commented_out_code`
 variants, which still disagree about single-block files.
 
+- **`0.23.0`: `agent_risk`'s inputs**, the oldest open item in the
+  file. §5 was parked at `0.18.1` as "the next release's focus" and sat
+  four releases. Picked up, and the root cause was not among the three
+  questions it left open: **28 of 70 detectors expressed no intrinsic at
+  all**, so the heaviest term in the formula was a fallback that sat
+  below every deliberate judgement. Three of §5's own claims turned out
+  to be wrong, including the band its constant was fitted to. The three
+  A/B/C features above are untouched and still open.
+
 ---
 
 ## 1. What was fixed
@@ -1097,6 +1106,39 @@ folded into them — each is a separate behaviour change.
    next release's focus. What is measured and what is merely believed
    are separated in `docs/calibration-followups.md` §
    "`agent_risk`: what we know and what we believe".
+
+   **Picked up in `0.23.0`, four releases later. Three of this entry's
+   own claims are wrong**, and the root cause was none of the three
+   questions it left open.
+
+   - **"0.3 is the band's floor" is false.** Rebuilt `ce0ccab` and
+     scanned the tree it cites: the agent-signal population runs from
+     **0.12**, not 0.31, and **45% of it sat at or below 0.30** on the
+     day the constant was chosen. Every figure in the quoted band is a
+     per-type *maximum* — the band was read off the head of each type's
+     distribution.
+   - **The `contract_drift` comparison is circular.** `contract_drift`
+     expresses no intrinsic, so its position was `NEUTRAL_INTRINSIC`,
+     not a judgement about contract drift. **28 of 70 detectors** were
+     in that position, and 0.30 sits below all 29 expressed
+     agent-signal bases (0.35–0.80) — silence scored as less
+     agent-hostile than the most lenient deliberate judgement.
+   - **"16/20" is stale**: 12/20 at `0.22.0`. And the concentration is
+     mostly not the ranking's — against the population the head is
+     drawn from, zulip's lift is **1.20**. zulip has a lot of blocking
+     I/O in Python. Where lift is high (hono 6.00, mlflow 2.85) the
+     cause is an uncalibrated intrinsic, so the question collapses into
+     the one above.
+
+   `0.23.0` fixed the inputs — `INTRINSIC_DEFAULTS`, one table with each
+   value anchored to a named expressed peer, plus a source-reading gate
+   so it cannot re-accumulate. **The mechanism is still parked.** A
+   monotonic squash was implemented and measured (13 up / 0 down on the
+   differentiated bucket, structural out of the top 20 on four of five
+   corpus repos) and deliberately not taken, so two findings-moving
+   changes would not land in one baseline. Full evidence in
+   `docs/calibration-followups.md` § "`0.23.0` — the intrinsics were
+   never calibrated".
 6. ~~**Repo-level findings are invisible in the default view.**~~
    **Done** in `0.18.1` — `92af2cc`. A `Repo-level` section above the
    per-file groups, driven by an explicit type list rather than a path
