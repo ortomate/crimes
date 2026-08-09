@@ -1,7 +1,10 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   DETECTOR_DEFAULTS,
   GENERIC_DEFAULT,
+  INTRINSIC_DEFAULTS,
   getDefaultsFor,
 } from "./detector-defaults.js";
 import { builtInDetectors, builtInAssetDetectors } from "./detector-registry.js";
@@ -60,7 +63,96 @@ describe("detector-defaults", () => {
   });
 });
 
+describe("agent-risk intrinsics", () => {
+  it("declares an intrinsic for every detector that does not express one", () => {
+    // The defect this gate exists to stop: 28 of 70 detectors set no
+    // `scores.agent_risk`, so they fell back to NEUTRAL_INTRINSIC (0.30)
+    // — a value *below every one of the 29 expressed agent-signal bases*,
+    // which run 0.35–0.80. A detector that declined to score itself was
+    // therefore ranked below the most lenient deliberate judgement ever
+    // made, including `contract_drift`, which the STRUCTURAL_CEILING
+    // comment names as the thing a `large_file` must not outrank.
+    const missing = detectorsWithoutExpressedIntrinsic().filter(
+      (id) => INTRINSIC_DEFAULTS[stripPackSuffix(id)] === undefined,
+    );
+    expect(
+      missing,
+      `these detectors express no scores.agent_risk and have no declared intrinsic — ` +
+        `add one to INTRINSIC_DEFAULTS: ${missing.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("keeps every declared intrinsic inside the measured expressed band", () => {
+    // Calibration is only meaningful against the values already in use.
+    // Measured across the corpus at 0.22.0, expressed agent-signal bases
+    // run 0.35 (boolean_naming_drift, commented_out_code) to 0.80
+    // (missing_agent_context). A declared value outside that range is
+    // claiming to be more or less agent-hostile than anything a detector
+    // author has ever asserted, which needs its own argument.
+    for (const [type, intrinsic] of Object.entries(INTRINSIC_DEFAULTS)) {
+      expect(
+        intrinsic,
+        `${type} intrinsic below the expressed floor`,
+      ).toBeGreaterThanOrEqual(0.2);
+      expect(
+        intrinsic,
+        `${type} intrinsic above the expressed ceiling`,
+      ).toBeLessThanOrEqual(0.8);
+    }
+  });
+
+  it("no longer leaves a differentiated finding on the neutral fallback", () => {
+    // `contract_drift` is the specific inversion recorded in
+    // scoring/agent-risk-class.ts. It sets no intrinsic of its own, so
+    // before this table its agent_risk was 0.4 * 0.30 + context.
+    expect(getDefaultsFor("contract_drift").intrinsic).toBeGreaterThan(0.3);
+  });
+});
+
 /** Mirror of `assignPackAndDetectorId`'s suffixing, in reverse. */
 function stripPackSuffix(id: string): string {
   return id.replace(/\.(js|py|x)$/, "");
+}
+
+/**
+ * Registered detector ids whose source never assigns `scores.agent_risk`.
+ *
+ * This reads the detector sources rather than carrying a hand-written
+ * list, because "does this detector express an intrinsic?" is a property
+ * of the source and a hand-written list cannot see a detector added
+ * tomorrow — which is exactly the hole that let 28 of them accumulate.
+ * The same reasoning as the fingerprint-uniqueness gate in `scan.test.ts`:
+ * a policy nobody enforces is a policy that regresses.
+ */
+function detectorsWithoutExpressedIntrinsic(): string[] {
+  const dir = resolve(import.meta.dirname, "detectors");
+  const sources = new Map<string, string>();
+  const walk = (d: string): void => {
+    for (const entry of readdirSync(d, { withFileTypes: true })) {
+      const full = resolve(d, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) {
+        sources.set(full, readFileSync(full, "utf8"));
+      }
+    }
+  };
+  walk(dir);
+
+  const out: string[] = [];
+  for (const d of [...builtInDetectors, ...builtInAssetDetectors]) {
+    // Match the detector to its source by the `id:` literal it declares,
+    // so a rename cannot silently drop a detector out of this gate.
+    const owning = [...sources.values()].filter((src) =>
+      new RegExp(`id:\\s*["'\`]${d.id.replace(/[.*+?^$()|[\]\\]/g, "\\$&")}["'\`]`).test(
+        src,
+      ),
+    );
+    if (owning.length === 0) {
+      throw new Error(
+        `detector ${d.id} has no source file declaring its id — the intrinsic gate cannot see it`,
+      );
+    }
+    if (!owning.some((src) => /agent_risk\s*:/.test(src))) out.push(d.id);
+  }
+  return out.sort();
 }

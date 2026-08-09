@@ -3,6 +3,11 @@ import type { Effort } from "./finding.js";
 export interface DetectorDefaults {
   effort: Effort;
   fix_shape: string;
+  /**
+   * Declared agent-risk intrinsic, used only when the detector emits no
+   * `scores.agent_risk` of its own. See {@link INTRINSIC_DEFAULTS}.
+   */
+  intrinsic?: number;
 }
 
 export const GENERIC_DEFAULT: DetectorDefaults = {
@@ -290,6 +295,141 @@ export const DETECTOR_DEFAULTS: Record<string, DetectorDefaults> = {
   },
 };
 
+/**
+ * Declared agent-risk intrinsics for the detectors that express none of
+ * their own.
+ *
+ * ## The defect this closes
+ *
+ * `agent_risk = 0.40*intrinsic + 0.20*churn + 0.20*test_gap +
+ * 0.20*blast_radius`, and the intrinsic is the only genuinely
+ * agent-specific term in it. **28 of 70 registered detectors set no
+ * `scores.agent_risk`**, so they fell through to `NEUTRAL_INTRINSIC`
+ * (0.30) — described in `scoring/agent-risk-class.ts` as a value that
+ * "says what is actually known: nothing".
+ *
+ * Measured across the corpus at `0.22.0`, that is not what it says. The
+ * 29 *expressed* agent-signal bases run **0.35 to 0.80**:
+ *
+ * ```
+ * 0.80 missing_agent_context          0.52 magic_domain_literal_scatter
+ * 0.70 concept_alias_drift            0.52 option_bag_junk_drawer
+ * 0.70 duplicated_navigation_source   0.50 dst_naive_arithmetic
+ * 0.65 mixed_utc_local_methods        0.50 hardcoded_local_path
+ * 0.65 route_metadata_drift           0.50 hardcoded_localhost
+ * 0.65 cross_language_type_drift      0.50 negative_flag_maze
+ * 0.60 name_behavior_mismatch         0.48 commented_out_code (js)
+ * 0.60 docs_code_drift                0.45 direct_date
+ * 0.60 cross_language_route_drift     0.40 date_string_concat
+ * 0.58 weak_test_signal               0.40 locale_drift
+ * 0.56 return_shape_roulette          0.40 singular_plural_type_mismatch
+ * 0.55 sync_io_in_hotpath (js)        0.35 boolean_naming_drift
+ * 0.55 timezone_unsafe_parse          0.35 commented_out_code (universal)
+ * 0.55 logic_in_comments
+ * ```
+ *
+ * 0.30 sits **below every one of them**. A detector that declined to
+ * score itself was therefore ranked below the most lenient deliberate
+ * judgement any author has made — and the group that declined includes
+ * `contract_drift`, `swallowed_error`, `duplicated_policy` and
+ * `permission_ia_drift`, which are among the most agent-hostile charges
+ * the tool makes.
+ *
+ * The inversion is documented in the codebase itself.
+ * {@link STRUCTURAL_CEILING}'s comment justifies 0.3 by saying a ceiling
+ * of 0.4 left "a `large_file` still outranking a genuine contract
+ * drift". `contract_drift` sets no intrinsic, so its position in that
+ * comparison was the fallback, not a judgement about contract drift.
+ *
+ * ## How these values were chosen
+ *
+ * Each is anchored to a *named expressed peer* rather than picked. The
+ * anchor is given per entry so the reasoning can be argued with. This is
+ * the point of a single table: intrinsics can only be calibrated against
+ * each other where they can be seen next to each other.
+ *
+ * Structural entries matter less than they look — those findings are
+ * capped by {@link STRUCTURAL_CEILING} — but they still order the class
+ * internally, which is the half of the ranking the cap does not decide.
+ */
+export const INTRINSIC_DEFAULTS: Record<string, number> = {
+  // ── Multiple sources of truth that can disagree ──
+  // Anchors: duplicated_navigation_source 0.70, magic_domain_literal_scatter 0.52.
+  /** Two places that must agree about authorisation. Just under nav-source. */
+  duplicated_policy: 0.65,
+  /** Same charge, scoped to role/status/plan gates. */
+  duplicated_role_status_plan_check: 0.65,
+  /** One key, two values. The classic thing an agent reads once and trusts. */
+  config_drift: 0.6,
+  /** Two routes to one destination. Below policy: wrong, not unsafe. */
+  parallel_destination: 0.55,
+  /** Copies that differ *subtly* mislead more than copies that don't. */
+  near_duplicate_block: 0.5,
+  /** Literal duplication. Common and often benign; near commented_out_code. */
+  exact_duplicate_block: 0.45,
+  /** Two components with one shape — a fork waiting to happen. */
+  duplicate_component_shape: 0.45,
+
+  // ── Names and docs that misdescribe behaviour ──
+  // Anchors: name_behavior_mismatch 0.60, docs_code_drift 0.60, boolean_naming_drift 0.35.
+  /** A documented command that no longer matches the code. Peer of docs_code_drift. */
+  command_drift_docs_code_drift: 0.6,
+  /** Permission names that drift are read as authorisation facts. */
+  permission_ia_drift: 0.6,
+  /** One action, several labels. Below name_behavior_mismatch: cosmetic surface. */
+  action_label_drift: 0.5,
+  /** Copy/IA inconsistency — misleading, rarely load-bearing. */
+  copy_ia_drift: 0.45,
+  /** A destination nothing reaches. Misleads about reachability, not behaviour. */
+  orphaned_destination: 0.45,
+
+  // ── Contracts whose two halves can drift apart ──
+  // Anchors: cross_language_type_drift 0.65, return_shape_roulette 0.56.
+  /** The same charge as cross_language_type_drift, within one language. */
+  contract_drift: 0.65,
+  /** Agent-specific by construction; below missing_agent_context 0.80. */
+  agent_permission_sprawl: 0.6,
+  /** An import the manifest does not declare. An agent assumes it resolves. */
+  dependency_provenance_gap: 0.55,
+
+  // ── Tests that do not protect what they appear to ──
+  // Anchor: weak_test_signal 0.58.
+  /** A test that mocks its subject proves nothing, and looks like coverage. */
+  mock_saturation: 0.6,
+
+  // ── Side effects and failure modes that are not where you would look ──
+  // Anchor: sync_io_in_hotpath 0.55.
+  /** A discarded error is invisible: the agent reads the call as safe. */
+  swallowed_error: 0.65,
+  /** Retrying a non-idempotent operation. Correct-looking, wrong. */
+  unsafe_retry: 0.6,
+  /** Unbounded concurrency — fine until the input grows. */
+  unbounded_async_fanout: 0.55,
+  /** A layer that only forwards. Tightened hard in 0.18.1, so kept modest. */
+  pass_through_abstraction: 0.45,
+
+  // ── Structural (capped by STRUCTURAL_CEILING; orders the class internally) ──
+  // Anchors: large_function 0.55, large_file 0.45, todo_density 0.20.
+  /** A cycle is genuinely hard to reason about a piece at a time. */
+  circular_dependency: 0.45,
+  /** A crossed boundary misleads about what may depend on what. */
+  layer_violation: 0.45,
+  /** Fan-out says "this file knows too much", but says nothing false. */
+  high_fan_in_fan_out: 0.35,
+  /** Interaction risk is real but local and visible. */
+  accessible_interaction_risk: 0.35,
+  /** Reaching past a package boundary. Mechanical. */
+  deep_import: 0.3,
+  /** An escaped design token. Cosmetic drift. */
+  design_token_escape: 0.3,
+  /** Layout fragility. Visible on sight, unlike the agent-signal charges. */
+  responsive_fragility: 0.3,
+  /** Two files with one name. Confusing to navigate, near todo_density. */
+  finder_duplicate_filename: 0.25,
+};
+
 export function getDefaultsFor(detectorType: string): DetectorDefaults {
-  return DETECTOR_DEFAULTS[detectorType] ?? GENERIC_DEFAULT;
+  const base = DETECTOR_DEFAULTS[detectorType] ?? GENERIC_DEFAULT;
+  const intrinsic = INTRINSIC_DEFAULTS[detectorType];
+  return intrinsic === undefined ? base : { ...base, intrinsic };
 }

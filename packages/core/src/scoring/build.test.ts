@@ -622,18 +622,85 @@ describe("computeAgentRisk", () => {
     expect(got).toBeGreaterThan(0.9);
   });
 
-  it("uses a neutral intrinsic — not severity — when the detector sets none", () => {
+  it("uses a neutral intrinsic — not severity — for a type with no declared value", () => {
     // The fallback used to be derived from severity, which is how
-    // `agent_risk` stayed correlated with severity for the ~18 detectors
-    // that express no intrinsic. Severity is no longer an input at all.
+    // `agent_risk` stayed correlated with severity for the detectors that
+    // express no intrinsic. Severity is no longer an input at all.
+    //
+    // This used to be asserted on `swallowed_error`. That detector now
+    // carries a declared intrinsic, and the substitution matters: an
+    // unknown type is the only remaining route to NEUTRAL_INTRINSIC, so
+    // it is the only thing that can still pin this behaviour.
     expect(
       computeAgentRisk({
-        type: "swallowed_error",
+        type: "not_a_real_type",
         churn: 0,
         test_gap: 0,
         blast_radius: 0,
       }),
     ).toBe(0.12); // 0.40 * NEUTRAL_INTRINSIC (0.3)
+  });
+
+  it("uses the detector's declared intrinsic when it expresses none", () => {
+    // `contract_drift` sets no `scores.agent_risk`. Before
+    // INTRINSIC_DEFAULTS it fell to NEUTRAL_INTRINSIC (0.30), which is
+    // below every one of the 29 expressed agent-signal bases — so the
+    // detector that declined to score itself was ranked beneath the most
+    // lenient judgement any author had made.
+    expect(
+      computeAgentRisk({
+        type: "contract_drift",
+        churn: 0,
+        test_gap: 0,
+        blast_radius: 0,
+      }),
+    ).toBe(0.26); // 0.40 * 0.65
+
+    // The neutral fallback still applies to a type nobody has declared.
+    expect(
+      computeAgentRisk({
+        type: "not_a_real_type",
+        churn: 0,
+        test_gap: 0,
+        blast_radius: 0,
+      }),
+    ).toBe(0.12); // 0.40 * NEUTRAL_INTRINSIC
+  });
+
+  it("lets a detector's own intrinsic win over the declared default", () => {
+    // The table is a fallback, not an override: detectors that scale
+    // their intrinsic with evidence must keep doing so.
+    expect(
+      computeAgentRisk({
+        type: "contract_drift",
+        intrinsic: 0.9,
+        churn: 0,
+        test_gap: 0,
+        blast_radius: 0,
+      }),
+    ).toBe(0.36); // 0.40 * 0.9, not 0.40 * 0.65
+  });
+
+  it("resolves a declared intrinsic through a pack-qualified id", () => {
+    // `computeAgentRisk` is handed `detector_id ?? type`, so a Python
+    // detector arrives as `circular_dependency.py`. Losing the lookup
+    // there would silently reinstate the neutral fallback for the whole
+    // Python pack — the same class of bug as the `.py` defaults split.
+    expect(
+      computeAgentRisk({
+        type: "circular_dependency.py",
+        churn: 0,
+        test_gap: 0,
+        blast_radius: 0,
+      }),
+    ).toBe(
+      computeAgentRisk({
+        type: "circular_dependency",
+        churn: 0,
+        test_gap: 0,
+        blast_radius: 0,
+      }),
+    );
   });
 
   it("caps a structural finding so it cannot outrank an agent signal", () => {
@@ -694,6 +761,8 @@ describe("computeAgentRisk", () => {
   });
 
   it("ignores a non-finite intrinsic rather than producing NaN", () => {
+    // Falls back the same way a missing intrinsic does — to the type's
+    // declared value, and only then to NEUTRAL_INTRINSIC.
     const got = computeAgentRisk({
       type: "swallowed_error",
       intrinsic: Number.NaN,
@@ -702,7 +771,17 @@ describe("computeAgentRisk", () => {
       blast_radius: 0,
     });
     expect(Number.isFinite(got)).toBe(true);
-    expect(got).toBe(0.22); // 0.40 * NEUTRAL_INTRINSIC (0.3) + 0.20 * 0.5
+    expect(got).toBe(0.36); // 0.40 * declared 0.65 + 0.20 * 0.5
+
+    const undeclared = computeAgentRisk({
+      type: "not_a_real_type",
+      intrinsic: Number.NaN,
+      churn: 0.5,
+      test_gap: 0,
+      blast_radius: 0,
+    });
+    expect(Number.isFinite(undeclared)).toBe(true);
+    expect(undeclared).toBe(0.22); // 0.40 * NEUTRAL_INTRINSIC (0.3) + 0.20 * 0.5
   });
 });
 

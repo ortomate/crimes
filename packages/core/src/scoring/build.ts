@@ -547,7 +547,7 @@ export function computeAgentRisk(args: {
   const intrinsic =
     typeof args.intrinsic === "number" && Number.isFinite(args.intrinsic)
       ? clamp01(args.intrinsic)
-      : NEUTRAL_INTRINSIC;
+      : declaredIntrinsicFor(args.type);
   const raw =
     0.4 * intrinsic + 0.2 * args.churn + 0.2 * args.test_gap + 0.2 * args.blast_radius;
   const scored = round(clamp01(raw));
@@ -555,6 +555,27 @@ export function computeAgentRisk(args: {
   const klass = agentRiskClassOf(args.type);
   if (klass === "structural") return Math.min(scored, STRUCTURAL_CEILING);
   return scored;
+}
+
+/**
+ * The intrinsic to use for a detector that supplied none.
+ *
+ * Prefers the detector's declared value from `INTRINSIC_DEFAULTS`, which
+ * is anchored against the expressed bases. `NEUTRAL_INTRINSIC` remains
+ * only for a type nobody has declared — and because 0.30 sits below every
+ * expressed agent-signal base, reaching it is a signal that a detector is
+ * missing from the table, not a considered score. The gate in
+ * `detector-defaults.test.ts` keeps built-ins out of that path.
+ *
+ * The id is stripped of its pack suffix first: `computeAgentRisk` is
+ * handed `detector_id ?? type`, so the Python pack arrives as
+ * `circular_dependency.py` while the table is keyed on the abstract
+ * charge — the same split `getDefaultsFor` documents.
+ */
+function declaredIntrinsicFor(type: string | undefined): number {
+  if (typeof type !== "string" || type.length === 0) return NEUTRAL_INTRINSIC;
+  const declared = getDefaultsFor(type.replace(/\.(js|py|x)$/, "")).intrinsic;
+  return typeof declared === "number" ? clamp01(declared) : NEUTRAL_INTRINSIC;
 }
 
 /**

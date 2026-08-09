@@ -59,27 +59,79 @@
 /**
  * Ceiling applied to `structural` findings' `agent_risk`.
  *
- * Chosen from the measured distribution rather than by taste. On zulip's
- * `zerver` tree the agent-signal band runs 0.31–0.53
- * (`sync_io_in_hotpath` 0.43–0.53, `direct_date` 0.51,
- * `commented_out_code` 0.41, `contract_drift` ~0.36). A ceiling of 0.4
- * sat *inside* that band, so a `large_file` still outranked a genuine
- * contract drift — the exact inversion this change exists to remove.
+ * ## The justification this comment used to give was wrong
  *
- * 0.3 puts the whole structural class at or below the bottom of the
- * agent-signal band, which is what "length detectors get a low floor"
- * has to mean if it means anything. Structural findings are still
- * reported, still carry their own severity, and still sort among
- * themselves by churn and test gap.
+ * It read: *"the agent-signal band runs 0.31–0.53 (`sync_io_in_hotpath`
+ * 0.43–0.53, `direct_date` 0.51, `commented_out_code` 0.41,
+ * `contract_drift` ~0.36) … 0.3 puts the whole structural class at or
+ * below the bottom of the agent-signal band."*
+ *
+ * Checked in `0.23.0` by building `ce0ccab` itself — the commit that
+ * introduced this constant — and scanning the exact tree it cites:
+ *
+ * | type | claimed | measured at `ce0ccab` |
+ * |---|---|---|
+ * | `sync_io_in_hotpath` | 0.43–0.53 | **0.20**–0.53 |
+ * | `direct_date` | 0.51 | **0.18**–0.51 |
+ * | `commented_out_code` | 0.41 | **0.14**–0.41 |
+ * | `contract_drift` | ~0.36 | **0 findings — does not fire on that tree** |
+ * | the band itself | "0.31–0.53" | min **0.12**, p50 0.35, max 0.53 |
+ *
+ * Every quoted figure is that type's *maximum*; the band was read off
+ * the head of each type's distribution rather than the distribution.
+ * **45% of the agent-signal population sat at or below 0.30** on the day
+ * the constant was chosen, so 0.3 never put structural "below the
+ * band" — it put it level with the band's median. Today it is 47–75%
+ * across the corpus.
+ *
+ * Worse, the anchor was circular. `contract_drift` expresses no
+ * intrinsic of its own, so whatever position it held came from
+ * {@link NEUTRAL_INTRINSIC}, not from a judgement about contract drift.
+ * `0.23.0` closed that half — see `INTRINSIC_DEFAULTS` in
+ * `detector-defaults.ts`, which gives all 28 such detectors a declared,
+ * peer-anchored value.
+ *
+ * ## What the constant is now
+ *
+ * **Still 0.3, and still unvalidated.** Correcting the rationale does
+ * not by itself choose a different number, and `0.23.0` deliberately
+ * changed the inputs rather than the mechanism so the two are not
+ * confounded in one baseline. A monotonic squash (`scored * CEILING`)
+ * was implemented and measured as the alternative: it moves the
+ * differentiated bucket 13 up / 0 down and takes structural out of the
+ * top 20 on four of five corpus repos, at the cost of the
+ * length-labelled scenarios §28 has already disowned. That evidence is
+ * recorded in `docs/calibration-followups.md`; the change was not taken,
+ * because stacking a second compensation on top of the missing
+ * intrinsics would have made either one impossible to attribute.
+ *
+ * Structural findings are still reported, still carry their own
+ * severity, and still sort among themselves by churn and test gap.
  */
 export const STRUCTURAL_CEILING = 0.3;
 
 /**
- * Intrinsic used for a detector that supplies none.
+ * Last-resort intrinsic, for a finding type nothing has declared.
  *
  * Previously this was derived from severity, which reintroduced the
- * collapse for the ~18 detectors that set no intrinsic of their own. A
- * flat neutral value says what is actually known: nothing.
+ * collapse for the detectors that set no intrinsic of their own. A flat
+ * value was meant to say what is actually known: nothing.
+ *
+ * **It did not say that.** Measured in `0.23.0`: 28 of 70 registered
+ * detectors reached this fallback, and 0.30 sits *below every one of the
+ * 29 expressed agent-signal bases*, which run 0.35–0.80. Silence was
+ * therefore scored as "less agent-hostile than the most lenient
+ * judgement anyone has made" — a verdict nobody entered, applied to
+ * `contract_drift`, `swallowed_error`, `duplicated_policy` and
+ * `permission_ia_drift` among others.
+ *
+ * Built-in detectors no longer reach it: `INTRINSIC_DEFAULTS` in
+ * `detector-defaults.ts` declares a peer-anchored value for each, and a
+ * gate in `detector-defaults.test.ts` fails when a new detector expresses
+ * neither. **Reaching this constant now means a detector is missing from
+ * that table**, which is a different thing from a considered score — so
+ * the value is left where it is rather than raised to the expressed
+ * median. Raising it would make the omission harder to notice.
  */
 export const NEUTRAL_INTRINSIC = 0.3;
 
