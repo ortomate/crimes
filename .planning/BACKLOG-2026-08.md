@@ -50,19 +50,68 @@ every future scoring claim expensive.**
 
 ## P0 — measurement correctness (cheap, unblocks everything else)
 
-### 0.1 The self-scan is 86% artifact
+### 0.1 The self-scan is 86% artifact — ✅ **DONE**
 
-`evals/results/**` is not excluded in `crimes.config.json`. Add it.
-Consider `.planning/**` too (18 findings).
+Fixed. `evals/results/**`, `.planning/prototypes/**` and
+`docs/fixtures/**` added to `crimes.config.json`, plus the 12 default
+exclusions the config had silently fallen behind on (see 0.2).
 
-Before/after must be recorded: the point is to make the self-scan a
-usable signal again, not to make a number smaller. Expect roughly
-2,220 → ~320. **Verify the remaining ~320 are real** — that is the
-actual deliverable, and it is the first honest self-scan in months.
+| | before | after |
+|---|---|---|
+| findings | 2,362 | **331** |
+| high | 415 | **8** |
 
-Not findings-moving for the eval baseline (no fixture emits these), so
-per `evals/README.md` § "When *not* to bump at all", **check the
-fixtures before reaching for a bump**.
+**404 of 415 "high" findings were artifact.** Confirmed not
+findings-moving: `evals:ranking` is byte-identical and no fixture reads
+the root config, so no bump was owed per `evals/README.md` § "When *not*
+to bump at all".
+
+The surviving 8 highs are all legible: `duplicated_policy` in
+`dependency-provenance-gap.ts` (13 variants of one rule across 12
+files — worth a real look), `large_function` on `scan`,
+`runDetectorsForFile`, `context` and `weak-test-signal.py run`,
+`large_file` on `scoring/build.ts` (686 lines), and two
+`hardcoded_local_path` in prose docs quoting real session paths.
+
+**The self-scan ratchets.** It was 2,220 earlier the same day and 2,362
+after committing one eval baseline — every release added ~140 findings
+purely by storing its own results. That is now capped.
+
+### 0.2 A user `exclude` silently falls behind the defaults
+
+Found by doing 0.1, and it is **a product-level footgun, not a
+repo-local mistake**.
+
+`mergeConfig` does `exclude: override.exclude ?? base.exclude` —
+wholesale replacement, which is the documented contract (remediation
+doc §1.3, and `scopeTiers.nonDomain` says the same). So any user who
+sets `exclude` at all inherits **nothing** from `DEFAULT_CONFIG`, and
+must re-list it by hand.
+
+This repo's own config had done that — and then fell behind. When the
+`.json` / `.yaml` includes landed, `DEFAULT_CONFIG` gained 12 patterns
+(`**/pnpm-lock.yaml`, the other 8 lockfiles, `**/tsconfig*.json`,
+`**/pnpm-workspace.yaml`). `crimes.config.json` was never updated, so
+`pnpm-lock.yaml` was being scanned and reported as a **high** `large_file`
+at 5,469 lines — in the repo of the tool whose own `CLAUDE.md` says
+"Defaults exclude … lockfiles".
+
+The 12 patterns are now re-listed here, but that is a patch on the
+symptom. Options worth weighing:
+
+- **Merge instead of replace**, with an explicit opt-out for users who
+  really want to start from nothing. Changes a documented contract.
+- **Keep replace, but warn** when a user `exclude` omits patterns the
+  default carries — cheap, and it fits the "be trustworthy about what
+  you looked at" rule better than silence.
+- **`extends` / `excludeAdd`** as a separate additive key.
+
+Whichever is chosen, note that `crimes init` writes a config with an
+`exclude` array, so **the documented first-run command puts every user
+into this state**. That is the same shape as §1.1 (init wrote a JS-only
+config that made crimes see *less* than no config at all) and §30 (the
+tool's own remediation hint gutted the scan) — a third instance of
+"following our own advice degrades the scan silently".
 
 ---
 

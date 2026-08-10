@@ -97,7 +97,7 @@ files, no shared state. Dispatch them as subagents.
 
 | stream | scope | shares files with |
 |---|---|---|
-| **S1** | P0.1 self-scan config + verify the surviving findings | nothing |
+| **S1** | P0.2 config merge-vs-replace — decide and implement | `config.ts`, `init-detect.ts` |
 | **S2** | P1.1 (A) tooling excludes — Python half only | `scope-class`, `coverage.warnings[]` |
 | **S3** | P1.2 (B) `sync_io_in_hotpath` reachability | `sync-io-in-hotpath.py`, py call-following |
 | **S4** | P1.3 (C) `commented_out_code` unification + the P2.3 cross-pack intrinsic audit | both `commented-out-code*.ts` |
@@ -127,12 +127,12 @@ themselves.
 
 ## How to proceed
 
-1. **Do P0 first, alone.** It is one line of config, it is not
-   findings-moving for the eval baseline (check the fixtures rather than
-   assuming), and it makes the self-scan usable — which every other
-   stream then benefits from. The deliverable is not the smaller number;
-   it is a review of the ~320 findings that survive.
-2. **Then dispatch S2–S4 in parallel**, each in its own worktree.
+1. **P0.1 is already done** — the self-scan went 2,362 → 331 findings
+   and 415 → 8 high, confirmed not findings-moving (`evals:ranking`
+   byte-identical). **The self-scan is a usable signal again; use it.**
+   Doing it surfaced P0.2, which is a product-level footgun and is now
+   S1's job.
+2. **Dispatch S1–S4 in parallel**, each in its own worktree.
 3. **Reconvene before any eval run.** Decide as one step which changes
    share a baseline and which need their own, then run once.
 4. **Record where each entry turns out to be wrong, in the doc it came
