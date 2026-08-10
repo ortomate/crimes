@@ -2,7 +2,7 @@ import type { Dirent } from "node:fs";
 import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { DEFAULT_SOURCE_INCLUDES } from "@crimes/core";
+import { DEFAULT_CONFIG, DEFAULT_SOURCE_INCLUDES } from "@crimes/core";
 
 export interface RepoShape {
   isMonorepo: boolean;
@@ -102,17 +102,13 @@ export async function generateConfig(options: GenerateConfigOptions): Promise<st
   // Start from the same list a zero-config scan uses. `crimes init` must
   // never make crimes see less than it would with no config at all.
   const include = [...DEFAULT_SOURCE_INCLUDES];
-  const exclude = [
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/build/**",
-    "**/.next/**",
-    "**/out/**",
-    "**/coverage/**",
-    "**/*.min.js",
-    "**/*.generated.*",
-    "**/.crimes/**",
-  ];
+  // Derived, never hand-copied. The literal list that used to live here
+  // fell 11 patterns behind when the `.json`/`.yaml` includes landed —
+  // every lockfile and `tsconfig*.json` — so `crimes init` wrote a config
+  // that scanned `pnpm-lock.yaml` and reported it as a high `large_file`.
+  // The suite pinning this function's "does not narrow the scan"
+  // invariant only ever checked `include`, so nothing caught it.
+  const exclude = [...DEFAULT_CONFIG.exclude];
   let scopeTiers = [
     "scripts/**",
     "examples/**",

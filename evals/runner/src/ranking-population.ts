@@ -271,3 +271,88 @@ export function floorPlacement(depths: readonly number[], floor: number): FloorP
     suggested_floor: suggested,
   };
 }
+
+/* ── Rendering ─────────────────────────────────────────────────────
+ * Kept beside the diagnostics rather than in `ranking-run.ts`, which
+ * crimes flagged for `large_function` on both render paths the moment
+ * these blocks were inlined there. The scanner was right.
+ */
+
+function pad(s: string, n: number): string {
+  return s.length >= n ? s : s + " ".repeat(n - s.length);
+}
+
+function fmtDelta(n: number | null): string {
+  if (n === null) return "n/a";
+  return `${n >= 0 ? "+" : ""}${n.toFixed(4)}`;
+}
+
+/**
+ * The deep-set composition block: what the headline mean rests on, and
+ * whether any of it is one precision fix from falling over.
+ */
+export function renderDepthComposition(
+  margins: readonly DepthMargin[],
+  placement: FloorPlacement,
+  floor: number,
+): string[] {
+  const lines: string[] = [`  deep-set composition (floor ${floor}):`];
+  for (const m of margins) {
+    lines.push(
+      `    ${pad(m.fixture, 22)} ${String(m.total_findings).padStart(3)} findings ` +
+        `(${String(m.margin).padStart(3)} spare)  ` +
+        `${String(m.deep_scenarios).padStart(2)} scenarios = ` +
+        `${(m.share * 100).toFixed(0).padStart(3)}% of the aggregate` +
+        `${m.cliff ? "  ⚠ CLIFF" : ""}`,
+    );
+  }
+  lines.push(
+    `    floor ${placement.floor} sits between ${placement.nearest_below ?? "—"} and ` +
+      `${placement.nearest_above ?? "—"} findings ` +
+      `(slack: ${placement.margin_below ?? "—"} below, ` +
+      `${placement.margin_above ?? "—"} above)` +
+      `${
+        placement.well_placed
+          ? ""
+          : `  ⚠ badly placed, suggest ${placement.suggested_floor}`
+      }`,
+  );
+
+  const cliffs = margins.filter((m) => m.cliff);
+  if (cliffs.length === 0) return lines;
+
+  lines.push("");
+  for (const m of cliffs) {
+    lines.push(
+      `  ⚠ ${m.fixture} is ${m.margin} finding(s) from leaving the deep set, and ` +
+        `carries ${(m.share * 100).toFixed(0)}% of it.`,
+    );
+  }
+  lines.push(`    A change that removes findings can move the headline by more than any`);
+  lines.push(`    scoring change ever has, without touching the scoring. Compare with`);
+  lines.push(`    --compare and read delta_on_stable_set, not the headline.`);
+  return lines;
+}
+
+/**
+ * The `--compare` verdict: whether the two headline numbers are a
+ * before/after at all, and what to quote when they are not.
+ */
+export function renderPopulationVerdict(pop: DeepPopulationDiff): string[] {
+  if (pop.comparable) {
+    return [`  deep set unchanged (n=${pop.stable}) — the delta above is real.`];
+  }
+
+  const lines = [`  ⚠ THE DEEP SET CHANGED. The delta above is NOT a before/after.`];
+  const listed = (label: string, ids: string[]) =>
+    `    ${label} (${ids.length}): ${ids.slice(0, 6).join(", ")}` +
+    (ids.length > 6 ? ` … +${ids.length - 6}` : "");
+  if (pop.left.length > 0) lines.push(listed("left ", pop.left));
+  if (pop.entered.length > 0) lines.push(listed("entered", pop.entered));
+  lines.push(
+    `    headline moved ${fmtDelta(pop.mean_delta)}, but on the ${pop.stable} ` +
+      `scenarios deep in both runs it moved ${fmtDelta(pop.delta_on_stable_set)}.`,
+  );
+  lines.push(`    Quote delta_on_stable_set. The rest is membership.`);
+  return lines;
+}

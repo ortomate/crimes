@@ -48,7 +48,29 @@ export interface CrimesConfig {
   /** Optional `$schema` URL for IDE validation. Parsed but otherwise ignored. */
   $schema?: string;
   include: string[];
+  /**
+   * Patterns to skip. **Additive to {@link DEFAULT_CONFIG}'s list** since
+   * `0.25.0` — setting this adds to the defaults rather than replacing
+   * them. Set {@link CrimesConfig.excludeDefaults} to `false` for the old
+   * wholesale-replacement behaviour.
+   */
   exclude: string[];
+  /**
+   * Whether {@link DEFAULT_CONFIG}'s `exclude` patterns still apply when
+   * the user sets their own. Defaults to `true`.
+   *
+   * Through `0.24.0` a user `exclude` replaced the defaults wholesale, so
+   * anyone who set it inherited **nothing** — and fell further behind
+   * every time a release added a default. This repo's own config did
+   * exactly that: it missed the 11 lockfile and `tsconfig` patterns added
+   * with the `.json`/`.yaml` includes, and reported `pnpm-lock.yaml` as a
+   * **high** `large_file` at 5,469 lines, in the repo of the tool whose
+   * `CLAUDE.md` says "Defaults exclude … lockfiles".
+   *
+   * `false` restores replacement, which is the only way to *un*-exclude
+   * something the defaults drop.
+   */
+  excludeDefaults?: boolean;
   thresholds: {
     largeFileLines: number;
     largeFunctionLines: number;
@@ -445,6 +467,7 @@ export const CrimesConfigSchema = z
     $schema: z.string().optional(),
     include: z.array(z.string().min(1)).optional(),
     exclude: z.array(z.string().min(1)).optional(),
+    excludeDefaults: z.boolean().optional(),
     thresholds: thresholdsSchema.optional(),
     assets: assetsSchema.optional(),
     detectors: detectorsSchema.optional(),
@@ -570,10 +593,43 @@ function formatZodIssues(issues: z.core.$ZodIssue[]): string {
   return `${path}: ${first.message}`;
 }
 
+/**
+ * Union the user's `exclude` onto the base list, defaults first and
+ * duplicates dropped, so a hand-re-listed pattern does not appear twice.
+ *
+ * `excludeDefaults: false` restores the pre-`0.25.0` wholesale
+ * replacement — including the empty list, which is a valid "scan
+ * everything discoverable".
+ */
+function mergeExclude(base: CrimesConfig, override: CrimesConfig): string[] {
+  if (override.excludeDefaults === false) return override.exclude ?? [];
+  if (override.exclude === undefined) return base.exclude;
+  return [...new Set([...base.exclude, ...override.exclude])];
+}
+
+/** {@link mergeExclude} for `assets.exclude`, which may be absent on either side. */
+function mergeAssetExclude(
+  base: CrimesConfig,
+  override: CrimesConfig,
+): string[] | undefined {
+  const overrideList = override.assets?.exclude;
+  const baseList = base.assets?.exclude;
+  if (override.excludeDefaults === false) return overrideList;
+  if (overrideList === undefined) return baseList;
+  if (baseList === undefined) return overrideList;
+  return [...new Set([...baseList, ...overrideList])];
+}
+
 function mergeConfig(base: CrimesConfig, override: CrimesConfig): CrimesConfig {
   const merged: CrimesConfig = {
     include: override.include ?? base.include,
-    exclude: override.exclude ?? base.exclude,
+    // `exclude` is additive: a user who names one directory keeps every
+    // default. Replacement was the contract through 0.24.0 and it made
+    // each new default pattern a silent regression for every existing
+    // config — see CrimesConfig.excludeDefaults for the case that
+    // prompted the change. `excludeDefaults: false` opts back out, and is
+    // the only way to un-exclude something the defaults drop.
+    exclude: mergeExclude(base, override),
     thresholds: {
       ...base.thresholds,
       ...stripUndefined(override.thresholds ?? {}),
@@ -603,6 +659,9 @@ function mergeConfig(base: CrimesConfig, override: CrimesConfig): CrimesConfig {
     },
   };
   if (override.$schema !== undefined) merged.$schema = override.$schema;
+  if (override.excludeDefaults !== undefined) {
+    merged.excludeDefaults = override.excludeDefaults;
+  }
   if (override.thresholds?.largeFunction !== undefined) {
     merged.thresholds.largeFunction = { ...override.thresholds.largeFunction };
   }
@@ -620,12 +679,14 @@ function mergeConfig(base: CrimesConfig, override: CrimesConfig): CrimesConfig {
       ...stripUndefined(override.thresholds?.assetWeight ?? {}),
     };
   }
-  // assets.include / assets.exclude each replace the default wholesale
-  // when set — same contract as the top-level `include` / `exclude`.
+  // assets.include still replaces wholesale; assets.exclude is additive,
+  // tracking the top-level `exclude` and governed by the same
+  // `excludeDefaults` opt-out. Fixing only the top-level list would have
+  // left the asset scan widening silently on every new default.
   if (override.assets !== undefined || base.assets !== undefined) {
     merged.assets = {
       include: override.assets?.include ?? base.assets?.include,
-      exclude: override.assets?.exclude ?? base.assets?.exclude,
+      exclude: mergeAssetExclude(base, override),
     };
   }
   if (override.detectors !== undefined) merged.detectors = override.detectors;

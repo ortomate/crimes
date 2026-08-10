@@ -24,6 +24,8 @@ import {
   depthMargins,
   diffDeepPopulation,
   floorPlacement,
+  renderDepthComposition,
+  renderPopulationVerdict,
 } from "./ranking-population.js";
 import { type RankedFinding, type RankingScore, scoreRanking } from "./ranking.js";
 import { runScan } from "./scan-helpers.js";
@@ -197,44 +199,13 @@ function render(report: RankingReport, outPath: string): void {
   lines.push("");
   lines.push(`  · = shallow fixture, cannot demonstrate a ranking change`);
   lines.push("");
-
-  // Deep membership is an input to the headline mean. Print what it
-  // rests on, unprompted — a fixture that is two findings from dropping
-  // out and decides three quarters of the aggregate is the kind of thing
-  // you only look for once you have already been fooled by it.
-  lines.push(`  deep-set composition (floor ${report.depth_floor}):`);
-  for (const m of report.depth_margins) {
-    const flag = m.cliff ? "  ⚠ CLIFF" : "";
-    lines.push(
-      `    ${pad(m.fixture, 22)} ${String(m.total_findings).padStart(3)} findings ` +
-        `(${String(m.margin).padStart(3)} spare)  ` +
-        `${String(m.deep_scenarios).padStart(2)} scenarios = ` +
-        `${(m.share * 100).toFixed(0).padStart(3)}% of the aggregate${flag}`,
-    );
-  }
-  const fp = report.floor_placement;
   lines.push(
-    `    floor ${fp.floor} sits between ${fp.nearest_below ?? "—"} and ` +
-      `${fp.nearest_above ?? "—"} findings ` +
-      `(slack: ${fp.margin_below ?? "—"} below, ${fp.margin_above ?? "—"} above)` +
-      `${fp.well_placed ? "" : `  ⚠ badly placed, suggest ${fp.suggested_floor}`}`,
+    ...renderDepthComposition(
+      report.depth_margins,
+      report.floor_placement,
+      report.depth_floor,
+    ),
   );
-
-  const cliffs = report.depth_margins.filter((m) => m.cliff);
-  if (cliffs.length > 0) {
-    lines.push("");
-    for (const m of cliffs) {
-      lines.push(
-        `  ⚠ ${m.fixture} is ${m.margin} finding(s) from leaving the deep set, and ` +
-          `carries ${(m.share * 100).toFixed(0)}% of it.`,
-      );
-    }
-    lines.push(
-      `    A change that removes findings can move the headline by more than any`,
-    );
-    lines.push(`    scoring change ever has, without touching the scoring. Compare with`);
-    lines.push(`    --compare and read delta_on_stable_set, not the headline.`);
-  }
   lines.push("");
   lines.push(`  written to ${outPath}`);
   lines.push("");
@@ -281,41 +252,18 @@ function renderComparison(report: RankingReport, rawPath: string): void {
   // The deep mean is a mean over whichever scenarios cleared the floor.
   // If that set moved, the two numbers above are not a before and after,
   // and saying so is the whole point of this block.
-  const pop = diffDeepPopulation(
-    populationRows(prior),
-    populationRows(report),
-    report.depth_floor,
+  lines.push("");
+  lines.push(
+    ...renderPopulationVerdict(
+      diffDeepPopulation(
+        populationRows(prior),
+        populationRows(report),
+        report.depth_floor,
+      ),
+    ),
   );
   lines.push("");
-  if (pop.comparable) {
-    lines.push(`  deep set unchanged (n=${pop.stable}) — the delta above is real.`);
-  } else {
-    lines.push(`  ⚠ THE DEEP SET CHANGED. The delta above is NOT a before/after.`);
-    if (pop.left.length > 0) {
-      lines.push(
-        `    left  (${pop.left.length}): ${pop.left.slice(0, 6).join(", ")}` +
-          (pop.left.length > 6 ? ` … +${pop.left.length - 6}` : ""),
-      );
-    }
-    if (pop.entered.length > 0) {
-      lines.push(
-        `    entered (${pop.entered.length}): ${pop.entered.slice(0, 6).join(", ")}` +
-          (pop.entered.length > 6 ? ` … +${pop.entered.length - 6}` : ""),
-      );
-    }
-    lines.push(
-      `    headline moved ${fmtDelta(pop.mean_delta)}, but on the ${pop.stable} ` +
-        `scenarios deep in both runs it moved ${fmtDelta(pop.delta_on_stable_set)}.`,
-    );
-    lines.push(`    Quote delta_on_stable_set. The rest is membership.`);
-  }
-  lines.push("");
   process.stdout.write(`${lines.join("\n")}\n`);
-}
-
-function fmtDelta(n: number | null): string {
-  if (n === null) return "n/a";
-  return `${n >= 0 ? "+" : ""}${n.toFixed(4)}`;
 }
 
 function parseFindings(scanJson: string): RankedFinding[] {

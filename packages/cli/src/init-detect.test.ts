@@ -1,6 +1,7 @@
 import { mkdtemp, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DEFAULT_CONFIG } from "@crimes/core";
 import { describe, expect, it } from "vitest";
 import { detectRepoShape, generateConfig } from "./init-detect.js";
 
@@ -155,5 +156,45 @@ describe("generateConfig does not narrow the scan below zero-config", () => {
       tiers.some((t) => t.includes("test_") || t.includes("_test")),
       `scopeTiers should recognise a Python test file, got ${JSON.stringify(tiers)}`,
     ).toBe(true);
+  });
+});
+
+describe("generateConfig writes an exclude consistent with the defaults", () => {
+  it("does not hand-copy a stale subset of DEFAULT_CONFIG.exclude", async () => {
+    // The suite above pins this invariant for `include` and never checked
+    // `exclude`, so the hand-copied list silently fell 11 patterns behind
+    // when the .json/.yaml includes landed. Every lockfile pattern was
+    // missing, and an init-generated config scanned pnpm-lock.yaml.
+    const parsed = JSON.parse(await generateConfig({ root: ".", detect: false }));
+    const written: string[] = parsed.exclude;
+    for (const pattern of DEFAULT_CONFIG.exclude) {
+      expect(written, `init must not drop the default exclude ${pattern}`).toContain(
+        pattern,
+      );
+    }
+  });
+
+  it("keeps the lockfile patterns with detect on too", async () => {
+    const dir = await makeRepo({ "src/a.ts": "export const a = 1;" });
+    const parsed = JSON.parse(await generateConfig({ root: dir, detect: true }));
+    const joined: string = parsed.exclude.join(" ");
+    expect(joined).toContain("pnpm-lock.yaml");
+    expect(joined).toContain("package-lock.json");
+    expect(joined).toContain("tsconfig*.json");
+  });
+
+  it("still adds the repo-specific excludes detection found", async () => {
+    const dir = await makeRepo({
+      "next.config.js": "module.exports = {};",
+      "src/page.tsx": "export default function Page() { return null; }",
+    });
+    const parsed = JSON.parse(await generateConfig({ root: dir, detect: true }));
+    expect(parsed.exclude).toContain("**/.vercel/**");
+  });
+
+  it("writes each pattern once", async () => {
+    const parsed = JSON.parse(await generateConfig({ root: ".", detect: false }));
+    const written: string[] = parsed.exclude;
+    expect(new Set(written).size).toBe(written.length);
   });
 });

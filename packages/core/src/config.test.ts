@@ -1,3 +1,4 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,6 +16,14 @@ import {
 import { UnknownDetectorError } from "./detector-registry.js";
 import { policyFor } from "./detectors/large-function.js";
 import { scan } from "./scan.js";
+
+function mkTempSync(): string {
+  return mkdtempSync(join(tmpdir(), "crimes-config-sync-"));
+}
+
+function writeConfigSync(root: string, body: unknown): void {
+  writeFileSync(join(root, "crimes.config.json"), JSON.stringify(body), "utf8");
+}
 
 async function makeTempDir(): Promise<string> {
   return await mkdtemp(join(tmpdir(), "crimes-config-test-"));
@@ -469,5 +478,108 @@ describe("loadConfig — triage.resurfaceBase", () => {
     const root = await makeTempDir();
     await writeConfig(root, { triage: { resurfaceBase: 42 } });
     expect(() => loadConfig(root)).toThrowError(/resurfaceBase/);
+  });
+});
+
+describe("a user exclude keeps the defaults (P0.2)", () => {
+  it("merges a user exclude with DEFAULT_CONFIG rather than replacing it", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { exclude: ["legacy/**"] });
+    const cfg = loadConfig(root);
+    expect(cfg.exclude).toContain("legacy/**");
+    // The whole point: setting one pattern must not silently un-exclude
+    // node_modules and every lockfile.
+    for (const pattern of DEFAULT_CONFIG.exclude) {
+      expect(cfg.exclude, `default ${pattern} should survive`).toContain(pattern);
+    }
+  });
+
+  it("keeps the lockfile patterns in particular", async () => {
+    // This repo's own config fell behind by exactly these, and reported
+    // pnpm-lock.yaml as a high `large_file` at 5,469 lines.
+    const root = await makeTempDir();
+    await writeConfig(root, { exclude: ["legacy/**"] });
+    const cfg = loadConfig(root);
+    const joined = cfg.exclude.join(" ");
+    expect(joined).toContain("pnpm-lock.yaml");
+    expect(joined).toContain("package-lock.json");
+    expect(joined).toContain("tsconfig*.json");
+  });
+
+  it("does not duplicate a pattern the user re-lists by hand", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { exclude: ["**/node_modules/**", "legacy/**"] });
+    const cfg = loadConfig(root);
+    const nodeModules = cfg.exclude.filter((p) => p === "**/node_modules/**");
+    expect(nodeModules).toHaveLength(1);
+  });
+
+  it("treats an empty user exclude as adding nothing, not as opting out", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { exclude: [] });
+    const cfg = loadConfig(root);
+    expect(cfg.exclude).toEqual(DEFAULT_CONFIG.exclude);
+  });
+
+  it("excludeDefaults:false restores wholesale replacement", async () => {
+    // The escape hatch for anyone who genuinely wants to start from
+    // nothing — including re-including a path the defaults drop.
+    const root = await makeTempDir();
+    await writeConfig(root, { exclude: ["only/**"], excludeDefaults: false });
+    const cfg = loadConfig(root);
+    expect(cfg.exclude).toEqual(["only/**"]);
+  });
+
+  it("excludeDefaults:false with no exclude scans everything discoverable", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { excludeDefaults: false });
+    const cfg = loadConfig(root);
+    expect(cfg.exclude).toEqual([]);
+  });
+
+  it("excludeDefaults:true is the default and need not be written", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { exclude: ["legacy/**"], excludeDefaults: true });
+    const cfg = loadConfig(root);
+    expect(cfg.exclude).toContain("legacy/**");
+    expect(cfg.exclude).toContain("**/node_modules/**");
+  });
+
+  it("rejects a non-boolean excludeDefaults", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { excludeDefaults: "yes" });
+    expect(() => loadConfig(root)).toThrowError(ConfigParseError);
+  });
+});
+
+describe("assets.exclude keeps the defaults too (P0.2, second half)", () => {
+  it("merges a user assets.exclude with the defaults", () => {
+    // Same wholesale-replacement contract, same footgun, one flag away
+    // from the top-level list. Fixing only one half would leave the
+    // asset scan quietly widening every time a default is added.
+    const root = mkTempSync();
+    writeConfigSync(root, { assets: { exclude: ["art/**"] } });
+    const cfg = loadConfig(root);
+    expect(cfg.assets?.exclude).toContain("art/**");
+    for (const pattern of DEFAULT_CONFIG.assets?.exclude ?? []) {
+      expect(cfg.assets?.exclude, `default asset ${pattern}`).toContain(pattern);
+    }
+  });
+
+  it("is governed by the same excludeDefaults opt-out", () => {
+    const root = mkTempSync();
+    writeConfigSync(root, {
+      excludeDefaults: false,
+      assets: { exclude: ["art/**"] },
+    });
+    expect(loadConfig(root).assets?.exclude).toEqual(["art/**"]);
+  });
+
+  it("leaves assets.include on replace semantics", () => {
+    // include is a claim about what to look at; widening it by accident
+    // is a different failure from narrowing exclude by accident.
+    const root = mkTempSync();
+    writeConfigSync(root, { assets: { include: ["**/*.png"] } });
+    expect(loadConfig(root).assets?.include).toEqual(["**/*.png"]);
   });
 });
