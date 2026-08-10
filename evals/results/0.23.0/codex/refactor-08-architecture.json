@@ -1,0 +1,75 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-09T23:46:54.739Z",
+  "run_id": "f3ab2794-38df-458e-8ce4-9272338702fe",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is an architecture-risk investigation. I’ll verify the scan and inspect the three implicated source files so the proposed import changes are tied to actual symbols, not only file paths.\n\nThe skill file lives at the worktree root rather than this nested runner directory, so I’m resolving it there and continuing with the same read-only investigation.\n\nThe global `crimes` binary is not installed in this runner (`command not found`). The source imports confirm the supplied evidence; I’m now checking for the repository-built CLI so I can still run the requested JSON scan locally.\n\nThe local built CLI reproduces the four findings exactly. I’m narrowing the recommendation to the actual call graph now: the key architectural choice is where invoice formatting belongs once the domain stops calling presentation.\n\nThe scan confirms two relevant findings. The safest dependency direction is:\n\n`presentation → application → domain`, with infrastructure implementing ports owned by application/domain.\n\n| Finding | Import | Proposed action |\n|---|---|---|\n| `crime_00002` — `layer_violation`, medium, agent risk `0.30` | [billing.ts:2](/private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/08-stress-dependency/src/domain/billing.ts:2) imports `renderInvoice` from presentation | Break this import completely. Make `chargeCustomer()` return a domain-owned result such as `ChargeResult`. Have `runBillingFlow()` return that result through the application boundary, then let `invoice-view.ts` render it. |\n| `crime_00003` — `deep_import`, low, agent risk `0.27` | [billing-flow.ts:4](/private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/08-stress-dependency/src/application/billing-flow.ts:4) imports `some-pkg/dist/internal/private/helper.js` | Redirect to the documented public export—ideally `some-pkg`, or an explicitly exported public subpath. If `internalHelper` is not public, request an upstream export, replace it, or hide the integration behind an application-owned port implemented in infrastructure. |\n\nFor `crime_00002`, the resulting flow should be:\n\n```text\ninvoice-view.ts\n  → runBillingFlow()\n    → chargeCustomer()\n    ← ChargeResult\n  ← ChargeResult\n  → render invoice\n```\n\nThis also removes the domain-to-presentation edge responsible for the reported three-file `circular_dependency` (`crime_00001`). A presenter interface injected into the domain would technically remove the concrete import, but it is unnecessary here: invoice formatting belongs in presentation, so returning domain data is the cleaner boundary.\n\nFor `crime_00003`, changing the specifier does not address the separate `dependency_provenance_gap` (`crime_00004`). `some-pkg` must also be declared in this package’s `dependencies`; otherwise a clean install can still fail.\n\nThe agent-risk distinction is:\n\n- `layer_violation` breaks a repository-specific architectural rule. An agent may follow the existing inverted dependency and spread changes across layers. Here it already participates in a runtime cycle, making the refactor structurally riskier.\n- `deep_import` breaks an external package’s encapsulation boundary. It may work today, but an agent can mistake a private path for a supported API and create upgrade-sensitive code. It is more localized and usually a quicker redirect, hence the slightly lower `0.27` agent-risk score.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import",
+      "crime_00004": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "cycle size: 3 files": "circular_dependency",
+      "member: src/application/billing-flow.ts": "circular_dependency",
+      "member: src/domain/billing.ts": "circular_dependency",
+      "member: src/presentation/invoice-view.ts": "circular_dependency",
+      "src/domain/billing.ts (layer: domain) imports src/presentation/invoice-view.ts (layer: presentation)": "layer_violation",
+      "rule: domain cannotImport presentation": "layer_violation",
+      "1 deep import across 1 package": "deep_import",
+      "specifier: some-pkg/dist/internal/private/helper.js": "deep_import",
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`some-pkg` — imported at src/application/billing-flow.ts as \"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "\"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

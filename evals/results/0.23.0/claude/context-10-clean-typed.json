@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-09T23:26:44.844Z",
+  "run_id": "59d0fd6d-e610-437d-8860-3c8fa4b75e0f",
+  "response": "## `crimes context src/billing.ts` — clean\n\n```\nrisk.level: none    high: 0   medium: 0   low: 0   total: 0\nfindings: []\n```\n\n**Confirmed: zero findings on this file.** The one finding in the repo-wide scan (`dependency_provenance_gap`, \"Phantom Accomplice\") is attached to `package.json`, not `src/billing.ts` — it's about `vitest` being imported by the test file without being declared in any manifest. That's a manifest hygiene issue, not a property of the module you'd be editing.\n\n**likely_tests: `src/billing.test.ts`** — a sibling test file, colocated by naming convention.\n\n## Why this module is low risk to edit\n\nThe evidence the tool gives, rather than a vibe:\n\n- **No blast radius.** `related_files` is empty, and `related_files_reason` spells out why: *\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings.\"* Nothing else in the repo imports or shadows it, so a change here can't ripple.\n- **It has a test, and the test sits right next to it.** `likely_tests` resolved deterministically to `src/billing.test.ts`, so there's an obvious place to add a case and an obvious thing to run after a change.\n- **Cold, single-author code.** `clues.churn` shows 1 commit in 90 days, 1 unique author, last touched 2026-05-18. No concurrent editors, no hotspot behaviour, no history of repeated bug-fix churn to hint at latent fragility.\n- **The code itself is small and total.** 10 lines: a `Money` interface with a closed `\"USD\" | \"EUR\" | \"GBP\"` currency union, and one pure `format()` function. No I/O, no `Date.now()`, no `process.env`, no side effects — so behaviour is fully determined by its arguments and the type checker catches most edit mistakes before the tests do.\n- **No agent-risk signals.** `agent_guidance` is empty with the reason *\"no findings on this file and no deterministic related files\"* — there's no second source of truth, no misleading name, no hidden coupling for an agent to trip over.\n\nOne caveat worth naming: `clues.test_gap` reports `raw: 0` with `label: \"unknown\"` — the low test-gap score is a \"nothing to flag\" reading, not a measured coverage number. The confidence that this is well-tested comes from the sibling test existing, not from a coverage metric.\n\nIf you edit it, the thing most likely to bite is widening the `currency` union — that's the only value with external contract surface. Everything else is contained.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "codex",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-09T23:24:05.963Z",
+  "run_id": "493def47-a522-4b9d-9db8-26918039802a",
+  "response": "I’ll use the repository’s `crimes-codebase-risk` workflow to validate the scan against the actual Python call sites, then trace how the local and UTC-naive timestamps reach the billing-period decision.\n\nThe advertised skill file isn’t present at its listed workspace path, so I can’t apply that workflow directly. I’ll continue with the same read-only validation: rerun the scan, inspect `domain/invoicing.py` and its tests/config, and distinguish the causal finding from unrelated risks.\n\nThe `crimes` executable is not installed in this evaluation checkout (`command not found`), but the supplied JSON is complete and matches the fixture’s source locations. I’m now validating the exact boundary condition and the CI assumption from the code itself.\n\nThe responsible module is [`domain/invoicing.py`](</private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/11-py-service/domain/invoicing.py:20>), specifically:\n\n```python\nissued = datetime.now()          # naive host-local time\nperiod_start = datetime.utcnow() # naive UTC time\n```\n\nBoth values have `tzinfo=None`, so Python treats them as comparable timestamps even though they represent different time zones.\n\nAt `2026-09-30 22:30 UTC`, for example, a Berlin host observes:\n\n- `issued`: `2026-10-01 00:30` — October\n- `period_start`: `2026-09-30 22:30` — September\n\nThus the invoice date and billing period disagree around month boundaries. For continental Europe, the vulnerable window is normally the first one or two hours after local midnight—equivalently, late evening in UTC—not most of the local evening.\n\nCI misses it because its host timezone is UTC. There, `datetime.now()` and `datetime.utcnow()` produce almost identical naive values, making the error disappear. Direct, non-injectable clock reads also make boundary-time testing awkward. The scan’s `mixed_utc_local_methods` finding identifies the cause; the higher-severity blocking-I/O findings are unrelated.\n\nThe fix should be atomic:\n\n1. Inject one clock and read it once per invoice.\n2. Require timezone-aware values.\n3. Store `issued_at` in UTC.\n4. Derive the billing month in the customer’s configured billing timezone—not the server’s timezone.\n5. Replace the other direct reads at lines 53 and 79 as part of the same change.\n\n```python\nfrom collections.abc import Callable\nfrom datetime import datetime, timezone\nfrom zoneinfo import ZoneInfo\n\nClock = Callable[[], datetime]\n\ndef utc_now() -> datetime:\n    return datetime.now(timezone.utc)\n\ndef billing_period(instant: datetime, zone_name: str) -> str:\n    local = instant.astimezone(ZoneInfo(zone_name))\n    return f\"{local.year:04d}-{local.month:02d}\"\n\ndef build_invoice(..., *, billing_zone: str, now: Clock = utc_now):\n    instant = now()\n    issued = instant.astimezone(timezone.utc)\n    period = billing_period(issued, billing_zone)\n```\n\nAdd a regression test pinned to `2026-09-30 22:30 UTC` with `Europe/Berlin`, asserting an October period. Run it under both `TZ=UTC` and `TZ=Europe/Berlin`; the result must be identical.\n\nI attempted the requested fresh scan, but this checkout does not contain an installed `crimes` executable. The supplied JSON was validated directly against the fixture source.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import",
+      "crime_00009": "boolean_naming_drift"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import",
+      "Boolean Naming Drift": "boolean_naming_drift"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import",
+      "`stale` = <comparison> at line 79 in summarise()": "boolean_naming_drift",
+      "convention: is_ / has_ / should_ / can_ prefix, or an idiomatic bare name": "boolean_naming_drift",
+      "local bindings only — class attributes, instance attributes and annotated declarations are published interface, not a naming choice a reader can make freely": "boolean_naming_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

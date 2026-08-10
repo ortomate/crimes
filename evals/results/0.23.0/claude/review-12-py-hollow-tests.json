@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-09T23:59:43.795Z",
+  "run_id": "1e57d819-d4b3-4cd1-aa03-c8463ef2f800",
+  "response": "## What the scan says\n\nOne finding, `high`: `tests/test_reporting.py` — all 4 test functions assert nothing (`crime_00001`). That's the only crime in the package. But the interesting part is what the scan *doesn't* flag, and why the two facts together tell you where you're actually protected.\n\nGround truth from the fixture: `pytest` reports **12 passed**, and the committed `.coverage` reports **91%** overall (`reporting.py` 90%, `ledger.py` 83%). Both numbers are misleading.\n\n## Genuinely covered — safe to refactor\n\n**`billing/rates.py`** — `tests/test_rates.py` asserts on real return values: `rate_for(\"GB\") == 0.20`, `rate_for(\"DE\") == 0.19`, unknown region falls back to `DEFAULT_RATE`. Change the rate table or the fallback and the suite goes red. Real protection.\n\n**`billing/invoices.py`** — covered, but every assertion lives in `tests/support.py`, not in the test file. `verify_invoice_balances` asserts the balance invariant; `InvoiceCase.expect_gross_for` asserts `assertAlmostEqual(gross, 1200.0)` for a GB invoice. Note that crimes correctly stayed silent here — it followed the assertions across the file boundary into a plain-named module-level helper *and* into a `unittest` base class. This file looks identical to `test_reporting.py` at the surface (call, no local `assert`) and is not the same thing.\n\n## Only looks covered\n\n**`billing/reporting.py` — the real hole.** Four tests exercise `build_report` and `export_report`, so coverage claims 90%. Zero assertions. `build_report` could return `None`, drop the `lines` key, or compute `total` wrong, and the suite stays green. Concretely untested: that `total` equals the entry's gross, that the CSV format string is right (`\"account,total\\n%s,%.2f\"` — the header, the field order, the 2-decimal rounding are all unverified), and that the `json` branch returns the shape callers expect. The `raise ValueError` branch for an unsupported format is the one uncovered line in the 90%.\n\n**`billing/ledger.py` — no test file exists at all**, and crimes doesn't flag this (no missing-test-file detector fires; `test_gap` on the one finding is `0`). Coverage says 83% purely by accident:\n- `post_entry` is executed *transitively* through `build_report` — and since the only tests that reach it are the hollow ones, it has execution coverage and zero assertion coverage. Worst of both worlds: it reads as covered on two dashboards and is verified by neither.\n- `reverse_entry` is **never called anywhere in the repo** — not by tests, not by product code. That's the one missed line in the 83%. Sign-flip bugs here are completely invisible.\n\n## Weaker than it looks (a third category)\n\n`verify_invoice_balances` asserts `gross == net + tax`. Given `build_invoice` computes `tax = net*rate` and `gross = net*(1+rate)`, that identity holds for *any* rate — I checked with a bogus 0.99 rate and it still passes. So the three module-level invoice tests are insensitive to the entire rate lookup; only `InvoiceCase.expect_gross_for` pins an actual number. Related: `test_credit_reduces_the_total` never asserts that the total was reduced, and no test passes a credit larger than the net, so `apply_credit`'s negative-balance path is unexercised (`net >= 0` would catch it if anyone wrote that test).\n\n## Before you refactor\n\n| Area | Real protection |\n|---|---|\n| `rates.py` | Good |\n| `invoices.py` — gross/VAT math | Good (one pinned value via the base class) |\n| `invoices.py` — credit reduction, overdraft | None |\n| `reporting.py` | None — executed, unasserted |\n| `ledger.py::post_entry` | None — transitively executed, unasserted |\n| `ledger.py::reverse_entry` | None — never executed |\n\nCheapest path to actual safety: add return-value assertions to the four tests in `test_reporting.py` (crimes rates this `small` effort), then write a `tests/test_ledger.py` — it doesn't exist, and `reverse_entry` is dead-but-shipped code you should either test or delete before touching the package.\n\nOne scan caveat: `crimes.config.json` sets `include: [\"**/*.py\"]`, so `pyproject.toml` and the config itself were never read (the three `files_not_discovered` warnings). Harmless for this question.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      }
+    ]
+  }
+}

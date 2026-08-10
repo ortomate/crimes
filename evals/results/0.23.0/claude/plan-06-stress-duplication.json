@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-09T23:32:24.598Z",
+  "run_id": "22613e6d-ecda-4743-b187-d2ea1ae7f46b",
+  "response": "## The duplication findings\n\n`crimes scan --format json` reports 5 findings; three are duplication:\n\n| id | charge | conf. | what actually repeats |\n|---|---|---|---|\n| `crime_00001` | Duplicated Role / Status / Plan Check | 0.70 | literal `\"admin\"` — 7 occurrences, 4 files, **2 distinct expression shapes** |\n| `crime_00002` | Near-Duplicate Block | 0.85 | `sanitizeUserInput` / `sanitizeText` / `cleanMessage` — same 27-line body, hash `289f7da71f3a` |\n| `crime_00003` | Exact Duplicate Block | 0.95 | `recordSanitiseEvent` byte-identical in `telemetry-a.ts` and `telemetry-b.ts` |\n\nThe two `direct_date` findings (`crime_00004`, `crime_00005`) are the *same* `Date.now()` seen twice — because the function containing it is duplicated. They're a symptom of `crime_00003`, not independent work.\n\nEvery finding has `blast_radius: 0` and `blast_radius_direct_importers: 0`. I confirmed against the sources: nothing in this fixture imports anything else. That's the single most plan-shaping fact — **there are no call sites to migrate**, so no compatibility shims are needed. `test_gap: 0.5` everywhere with no test files present, so characterisation tests are the only safety net.\n\n## The trap in `crime_00001`\n\nThe detector's phrase \"2 different expression shapes\" is doing real work. Reading the three guards:\n\n```ts\n// sanitize-a.ts:7   role === \"admin\"\n// sanitize-b.ts:6   role === \"admin\" || role === \"owner\"   ← also matches owner\n// sanitize-c.ts:6   role !== \"admin\"                        ← inverted\n```\n\nThese are three *different predicates*. Only `policy.ts` (lines 3, 8, 13) holds three genuinely identical `role === \"admin\"` bodies. Collapsing all six into one `isAdmin()` would silently grant `owner` less access and invert `assertAdminC`'s callers. That's why this is a two-step change set and not one: **step 1 is mechanical, step 2 is semantic and needs a decision recorded per call site.**\n\n## Step 1 — consolidate the identical bodies (no behaviour change)\n\nTwo duplications, one mechanic: one body, three names.\n\n**1a. `src/sanitize.ts`** — new file, holds the body from `sanitize-a.ts:10-36` verbatim (the a/b/c bodies differ only in identifier names: `working` / `cleaned` / `normalised`). Delete `sanitizeUserInput`, `sanitizeText`, `cleanMessage` from the three files. No re-export aliases — with zero importers they'd be dead code.\n\n**1b. `src/telemetry.ts`** — new file, body from `telemetry-a.ts:6-19`, delete `telemetry-b.ts`. While the function is open, take `crime_00004`/`crime_00005` with it:\n\n```ts\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: () => number = Date.now,\n): void { /* …timestamp: now() */ }\n```\n\nInjecting the clock here is the whole reason to fold telemetry into step 1 rather than treating it as separate cleanup — deduplicating first means the clock seam gets built once instead of twice, and the default parameter keeps every (currently nonexistent) caller unchanged.\n\nThe three `assertAdmin*` guards stay exactly where they are during step 1. That keeps this step reviewable as pure deletion.\n\n**Before this lands:** write characterisation tests against `sanitizeUserInput` — the empty-string returns, the 1000-char truncation, the `>5` punctuation-run rejection, the `>0.9` upper-ratio lowercasing. That body has four early-return paths and a division guard; `test_gap: 0.5` means nothing currently protects them.\n\n**Expected after step 1:** `crime_00002`, `crime_00003`, `crime_00004`, `crime_00005` all clear. `crime_00001` survives — its file count drops from 4 to 4 but the occurrence list stays at 7, since the guards haven't moved.\n\n## Step 2 — one policy function, three deliberate answers\n\n`src/policy.ts` becomes the only place the literal `\"admin\"` appears:\n\n```ts\nexport function isAdmin(role: string): boolean {\n  return role === \"admin\";\n}\n\n// Billing is intentionally broader than isAdmin — owners qualify too.\nexport function isAdminOrOwner(role: string): boolean {\n  return isAdmin(role) || role === \"owner\";\n}\n\nexport const canEditBilling = (role: string) => isAdmin(role);\nexport const canSeeAuditLog = (role: string) => isAdmin(role);\nexport const canImpersonate = (role: string) => isAdmin(role);\n```\n\nThen resolve each guard on its own merits:\n\n- **`assertAdminA`** → delete, replace with `isAdmin`. Pure rename, zero risk.\n- **`assertAdminB`** → delete, replace with `isAdminOrOwner`. Keep it a *distinct named export*, not a parameter on `isAdmin`. A boolean flag like `isAdmin(role, { allowOwner: true })` reads as an implementation detail at the call site; a name states the policy. This is the one place where \"consolidate\" would have been the wrong instinct.\n- **`assertAdminC`** → delete outright, call sites use `!isAdmin(role)`. Negated-predicate helpers are a standing source of double-negative bugs (`if (!assertAdminC(role))`), and there's no reason to preserve the inversion behind a name.\n\nAlso rewrite the comment at `policy.ts:1` — it contains a literal `role === \"admin\"`, and the detector counts it as one of the seven occurrences. Leaving it means the finding won't fully clear even once the code is correct. (Whether a scanner *should* count comment text is arguable, but here it's trivially avoidable.)\n\n**Expected after step 2:** `crime_00001` clears — one expression shape, one file. Full scan should return zero findings.\n\n## Why this order\n\nStep 1 first because it's provably behaviour-preserving and shrinks the surface step 2 has to reason about: once the sanitise bodies are gone, `sanitize-a/b/c.ts` are three-line files containing nothing but a guard, and moving those guards is a diff you can read in one screen. Reversing the order would mean editing the role checks inside three near-identical 35-line files and manually verifying you made the same edit three times — exactly the failure mode the finding is warning about.\n\nThe two steps are also separately revertable, which matters because they carry different risk: step 1 can be verified by a passing test suite, step 2 cannot. `isAdminOrOwner` versus `isAdmin` for the billing path is a product question about whether owners should keep billing access — I've preserved current behaviour, but that's the assumption to confirm before merging step 2.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      }
+    ]
+  }
+}

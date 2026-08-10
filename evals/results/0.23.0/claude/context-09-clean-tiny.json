@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-09T23:26:05.693Z",
+  "run_id": "660c41f0-2b98-4154-ad79-a1921e9ace48",
+  "response": "## What crimes found on `src/add.ts`: nothing\n\n```\nCRIMES CONTEXT\nfile: src/add.ts\nrisk: NONE  (0 findings)\n\nAgent guidance\n  (no findings on this file and no deterministic related files)\n\nRelated files\n  (no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings)\n\nLikely tests\n  · src/add.test.ts\n\nClues\n  · churn: 1 commits over 90d · last touched 3 months ago · 1 author\n  · test gap: bottom-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n`risk.level: \"none\"`, `findings: []`, `agent_guidance: []`. The file is four lines — one exported pure function `add(a, b)` with no imports, no state, no side effects.\n\n## The one repo-level finding is not about this file\n\nThe scan's single finding (`crime_00001`, \"Phantom Accomplice\", low) is on `package.json`, not `src/add.ts`: `vitest` is imported by `src/add.test.ts` but declared in no manifest — the fixture's `package.json` has no `dependencies`/`devDependencies` at all. It resolves today through hoisting; a clean install can fail. Confidence is only 0.56 because \"only test or fixture files are affected.\" `crimes context src/add.ts` correctly excludes it — it doesn't touch the file you're editing.\n\n## Safe to extend?\n\nYes. Nothing here constrains an edit:\n\n- **No blast radius** — zero importers, zero related files. Changing `add` breaks nothing else in the repo.\n- **A test already covers it** — `src/add.test.ts`. Run it after editing. (The `test_gap` clue is noise on a 3-file fixture: the JSON says `raw: 0, label: \"unknown\"`, while the human renderer prints \"bottom-quartile\" — a renderer/contract mismatch, not a signal about your file.)\n- **Cold churn** — 1 commit in 90 days, 1 author. No concurrent-edit hazard.\n\nTwo things worth doing while you're in here, neither blocking:\n\n1. If your edit adds a dependency, declare it in `package.json` — the manifest is currently empty, so you'd be extending the same Phantom Accomplice gap rather than creating a new one.\n2. Zero findings on a 4-line pure function is a *low-information* clean, not a strong safety guarantee. Crimes has nothing to say because there's nothing to say yet. If you're adding real logic — branching, `Date.now()`, `process.env`, side effects — re-run `crimes context src/add.ts` after the edit; that's when the detectors actually have surface to bite on.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

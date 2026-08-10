@@ -170,6 +170,13 @@ agent. **28 of 70 detectors were not making one.**
 `schema_version` stays at `0.7.0` — no field is added, renamed or
 retyped. Scores and ordering move.
 
+Eval baseline: claude 0.81 → **0.81**, codex 0.58 → **0.63**. The codex
+move clears its ±3pp band, but `structural_pass_rate` matches literal
+detector ids in the response text and this release changed which
+findings rank highly — so read the deterministic split above, not this
+number. `0.22.0`'s repeat sample moved 13 of codex's 48 scenarios on
+provably identical input.
+
 Release notes: [`docs/releases/v0.23.0.md`](./docs/releases/v0.23.0.md).
 
 ### Earlier `0.22.0` work (_the queue, closed_)

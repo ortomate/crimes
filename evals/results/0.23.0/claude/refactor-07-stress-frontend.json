@@ -1,0 +1,72 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-09T23:41:41.545Z",
+  "run_id": "5337da13-e8f9-41a4-857d-f37c50d0441a",
+  "response": "## What `crimes context src/Card.tsx` adds over the scan\n\nThree things the scan JSON didn't tell me:\n\n- **No tests, no importers.** No test file matches `Card` by any convention, and 0 direct importers. `test_gap: 1.0` on all three findings is real, not a proxy artifact. Blast radius 0 means I can change the component's prop signature freely — nothing downstream breaks.\n- **Churn is cold** — 2 commits/90d, last touched 3 months ago, 1 author. This isn't a file being actively fought over; a single consolidated refactor won't collide with anyone.\n- **No keyed agent guidance and no neighbourhood signal.** There's no sibling component to copy conventions from, which is exactly why the raw values in here are dangerous: an agent extending this file has nothing else to imitate, so it will copy `#ff00aa` forward.\n\nOne thing neither the scan nor context caught, which I found reading the file: **the fixed widths already overflow at desktop.** `src/Card.tsx:24` is 720px and `:27` is 240px inside an 800px box with 24px padding — 960px of content in 752px of space. The responsive finding understates this; the layout is broken at *every* viewport, not just small ones.\n\nI have **not** edited the fixture — `evals/fixtures/` is scanner input, so changing it would move the eval baseline. Everything below is a proposal.\n\n---\n\n## Change 1 → `accessible_interaction_risk` (crime_00001, medium, conf 0.85)\n\n**Evidence:** `src/Card.tsx:10` — `<div>` with `onClick` and no role/aria-label/tabIndex.\n\nThe detector's `fix_shape` is \"use semantic elements; add ARIA only when semantics don't fit\" — and here semantics genuinely don't fit the obvious fix. `Card` takes arbitrary `children`, so you **cannot** make the outer element a `<button>`: nested interactive content inside a button is invalid HTML and screen readers flatten it. The correct pattern is a **stretched overlay button**.\n\nAlso worth naming: the current handler is `console.log(\"clicked\")` — debug residue, not a feature. If the card was never meant to be clickable, **deleting the `onClick` is the cheapest fix that clears this finding**, and it's the option I'd check first with whoever owns the component.\n\nAssuming it *is* meant to be interactive:\n\n```tsx\n{onActivate && (\n  <button\n    type=\"button\"\n    onClick={onActivate}\n    className=\"absolute inset-0 rounded-lg focus-visible:outline focus-visible:outline-2\n               focus-visible:outline-offset-2 focus-visible:outline-brand\"\n  >\n    <span className=\"sr-only\">{activateLabel}</span>\n  </button>\n)}\n```\n\nReal `<button>` → keyboard-reachable, Enter/Space handled by the platform, announced with an accessible name, focus ring free. Documented constraint: any interactive child (link, button) must add `relative z-10` so it paints above the overlay and receives its own clicks.\n\nIf the codebase forbids the overlay pattern, the ARIA fallback is `role=\"button\"` + `tabIndex={0}` + `aria-label` + an explicit `onKeyDown` handling both Enter *and* Space — three moving parts you now own forever, which is the argument for the real button.\n\n## Change 2 → `design_token_escape` (crime_00002, low, conf 0.75)\n\n**Evidence:** 9 raw values, 4 kinds (color, px, rgb, shadow), across lines 10/24/27.\n\nThis one is **not** a mechanical swap, and I want to flag it before you treat it as \"quick\" effort. `tailwind.config.ts` defines exactly three colors — `brand #0050ff`, `surface #f7f7fa`, `ink #111111`. **Not one of the six hexes in `Card.tsx` maps to an existing token.** The magenta `#ff00aa` background isn't a near-miss on the palette; it isn't in the palette's universe.\n\nSo this is a two-sided change: extend the token scale, *then* reference it. The mapping is a design decision, not a refactor — it needs sign-off:\n\n```ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      \"ink-muted\": \"#4a4a55\",  // was #333333 (:24) and #666666 (:27)\n      border: \"#d8d8e0\",       // was #cccccc (:18)\n      accent: \"#ff00aa\",       // was the raw card background (:16) — CONFIRM THIS\n    },\n    boxShadow: { card: \"0 2px 4px rgb(0 0 0 / 0.24)\" }, // was the inline rgb() (:19)\n  },\n};\n```\n\n`#0a0a0a` (`:17`) collapses into `ink`; `#1a73e8` (`:20`) was a hand-rolled focus blue and becomes `brand`, which is the whole point of having a token. The two greys collapsing to one `ink-muted` is the change most likely to get pushback — call it out in review rather than landing it silently.\n\n## Change 3 → `responsive_fragility` (crime_00003, low, conf 0.65)\n\n**Evidence:** widths 800px/720px/240px, `fontSize: 18` with no `@media` anywhere in the file.\n\nThe detector's `fix_shape` says \"container queries or a fluid scale, not pixel media queries\" — right call here. `Card` is a reusable wrapper with zero importers today, meaning it has no idea what it'll be dropped into. Viewport media queries would make it lie about its own width the first time someone puts it in a sidebar. `@container` on the card itself is the version that survives reuse.\n\n- `width: 800` → `w-full max-w-5xl` (fluid, capped — also drops the redundant `maxWidth: 1024`)\n- `width: 720` / `width: 240` → `flex-1 min-w-0` + `@md:w-60 shrink-0`, stacked below the breakpoint. This is also what fixes the 960-in-752 overflow.\n- `fontSize: 18` / `14` → `text-base` / `text-sm` from the type scale.\n- `height: 600` → dropped. A fixed height on a component that renders arbitrary children clips content; `min-h-*` if a floor is actually needed.\n\n---\n\n## Proposed `src/Card.tsx`\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  sidebar?: React.ReactNode;\n  onActivate?: () => void;\n  activateLabel?: string;\n};\n\nexport function Card({\n  children,\n  sidebar,\n  onActivate,\n  activateLabel = \"Open card\",\n}: CardProps) {\n  return (\n    <div\n      className=\"@container relative w-full max-w-5xl rounded-lg border border-border\n                 bg-accent p-6 text-ink shadow-card\"\n    >\n      {onActivate && (\n        <button\n          type=\"button\"\n          onClick={onActivate}\n          className=\"absolute inset-0 rounded-lg focus-visible:outline focus-visible:outline-2\n                     focus-visible:outline-offset-2 focus-visible:outline-brand\"\n        >\n          <span className=\"sr-only\">{activateLabel}</span>\n        </button>\n      )}\n\n      <div className=\"flex flex-col gap-6 @md:flex-row\">\n        <div className=\"min-w-0 flex-1 text-base\">{children}</div>\n        {sidebar && (\n          <aside className=\"shrink-0 text-sm text-ink-muted @md:w-60\">{sidebar}</aside>\n        )}\n      </div>\n    </div>\n  );\n}\n```\n\nTwo assumptions I'm stating rather than asking about: `@container` / `@md:` are Tailwind v4 built-ins — `package.json` lists no dependencies at all, so if this is v3 you need `@tailwindcss/container-queries`, or fall back to `clamp()` widths plus one `md:` breakpoint. And the sidebar became a prop because the hardcoded `\"sidebar\"` string at `:28` was placeholder text; if it's meant to be fixed content, inline it and drop the prop.\n\n## Order of operations\n\nTest gap is 1.0 and there is no test file, so nothing will catch a regression here.\n\n1. **Write the test first** — RTL: `getByRole(\"button\", { name: \"Open card\" })` reachable via keyboard, fires on Enter and Space. That single test locks in crime_00001 and fails loudly if someone reverts to a `div`.\n2. **Tokens before component.** Land `tailwind.config.ts` with design sign-off on the color mapping; the component change is mechanical once the tokens exist.\n3. **Component**, then re-run `crimes scan`. All three fingerprints (`accessible_interaction_risk::src/Card.tsx::`, `design_token_escape::src/Card.tsx::`, `responsive_fragility::src/Card.tsx::`) should disappear — if `design_token_escape` survives, a raw value got missed, since the detector counts literals rather than judging them.\n\nBlast radius 0 makes the prop-signature change (`onActivate`, `sidebar`) free right now. That's a property of the file being unused, and it expires the moment someone imports it — which is the argument for doing this before the component spreads, not after.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "line 10: <div> with onClick has no role / aria-label / tabIndex": "accessible_interaction_risk",
+      "9 hard-coded style values across 4 kinds (color, px, rgb, shadow)": "design_token_escape",
+      "line 10: color #ff00aa": "design_token_escape",
+      "line 10: color #0a0a0a": "design_token_escape",
+      "line 10: color #cccccc": "design_token_escape",
+      "line 10: color #1a73e8": "design_token_escape",
+      "line 10: rgb rgb(0, 0, 0)": "design_token_escape",
+      "+4 more raw value(s)": "design_token_escape",
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

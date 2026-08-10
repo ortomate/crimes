@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-09T23:28:50.532Z",
+  "run_id": "ea6beb23-a9db-4851-835c-8120e519285c",
+  "response": "I ran `crimes` before touching anything. Nothing changed on disk — this is reconnaissance only.\n\n## What protection you have: effectively none\n\n`crimes context billing/ledger.py`:\n\n```\nCRIMES CONTEXT\nfile: billing/ledger.py\nrisk: NONE  (0 findings)\n\nLikely tests\n  (no test file matched the target basename (looked for siblings, __tests__/ and tests/\n   directories, and the .test / .spec / _test / test_ naming conventions) and no test\n   file imports it)\n\nClues\n  · churn: 1 commits over 90d · last touched 10 days ago · 1 author\n  · test gap: top-quartile\n```\n\n`likely_tests` is empty and the JSON gives the reason explicitly: no name match *and* no test file imports it. `test_gap.percentile: 1` — top-quartile, the worst bucket in this repo. `reverse_entry` (`billing/ledger.py:16-22`) has zero direct tests.\n\n**\"risk: NONE\" here is the dangerous reading.** It means no detector fired on that file's contents, not that the file is safe to change. The file is 22 lines of straightforward dict-building, so there's nothing structural to flag — the risk is entirely in the absence of tests, which shows up in `likely_tests` and `test_gap`, not in `findings`.\n\n## What your change could affect\n\n`reverse_entry` has **no in-repo callers**:\n\n```\nbilling/ledger.py:16:def reverse_entry(entry):\nbilling/reporting.py:3:from billing.ledger import post_entry   ← post_entry only\n```\n\nThe only importer of `ledger` is `billing/reporting.py`, and it imports `post_entry`, not `reverse_entry`. That cuts both ways: a pure-internal change to `reverse_entry` breaks nothing in this repo, but it also means the repo will give you **no signal at all** if you get it wrong. If anything outside this package calls it, you're flying blind.\n\nThe real coupling is the **implicit entry contract** — the `{account, net, gross, region}` dict. `post_entry` produces it, `reverse_entry` consumes and mirrors it, and `build_report` reads `entry[\"gross\"]` straight into `report[\"total\"]` (`billing/reporting.py:12`). If your reversal work changes key names, adds a key, or shifts the sign convention on that shape, `build_report` is downstream of it.\n\n## And the downstream protection is fake\n\nThat's what the scan's single high finding is really telling you:\n\n```\n◆ HIGH  Weak Test Signal — tests/test_reporting.py:11-25  (test_build_report)\n  4 of 4 test functions in this file assert nothing. They pass as long as the\n  code under test does not raise, which is not the same as it being correct.\n  · 0 total assertions across 4 tests (0.0 per test, expected ≥ 1)\n```\n\nSo the one file downstream of `ledger` has a test file — and it is green regardless of what `build_report` returns. Sign errors, wrong keys, a `total` that's suddenly negative: all pass. Your safety net downstream is a decoration.\n\nWorth knowing, because it's a trap: `crimes context billing/reporting.py` cheerfully lists `tests/test_reporting.py` under \"Likely tests\" with no caveat. Only the repo-wide `scan` tells you those tests assert nothing. Don't read `likely_tests` as evidence of coverage.\n\nFor contrast, the detector is not just pattern-matching on missing `assert` — `tests/test_invoices.py` has no inline assertions either but was *not* flagged, because crimes followed the calls into `tests/support.py`:\n\n> counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, … and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper\n\nThat makes the `test_reporting.py` finding credible rather than noisy — it means the assertions genuinely aren't there, not that they're hiding in a helper.\n\n## What I'd do before editing\n\n1. **Write a characterization test for `reverse_entry` first**, capturing today's behaviour (`net`/`gross` both negated, `account`/`region` passed through). Right now you have nothing to regress against, so any bug you introduce is silent and permanent.\n2. **Fix `tests/test_reporting.py` if you touch the entry dict shape** — assert on `report[\"total\"]` and the CSV/JSON export output. Otherwise the one downstream consumer stays unprotected. Effort is marked `small`.\n3. **Confirm external callers of `reverse_entry`.** Zero in-repo callers means the repo can't warn you; check whoever consumes this package.\n\nTwo footnotes from the scan's coverage block: `pyproject.toml` and `crimes.config.json` matched no include pattern (the config is `\"include\": [\"**/*.py\"]`), so test config and pytest settings weren't read. There's also a committed `.coverage` database in the fixture that crimes doesn't consult — don't let its existence read as evidence of coverage; `.coverage` measures lines executed, and hollow tests execute lines just fine.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-09T23:45:10.622Z",
+  "run_id": "a874048d-921d-409a-b5c8-ceaa6e8943ce",
+  "response": "## 1. The drift is real — and worse than the finding says\n\nThe scan flags it twice (`crime_00004` `action_label_drift`, `crime_00009` `copy_ia_drift`), both on the `delete` group with aliases `archive, delete, remove`. Reading the three files corroborates it, and adds the detail the finding can't express — **the same `href` carries different verbs**:\n\n| Destination | Label | File |\n|---|---|---|\n| `/users/manage` | \"Delete user\" | `UserList.tsx:7` |\n| `/users/manage` | \"Remove member\" | `UserList.tsx:8` |\n| `/seats/manage` | \"Delete the seat\" | `TeamList.tsx:7` |\n| `/seats/manage` | \"Remove member\" | `SeatList.tsx:6` |\n| `/seats/manage` | \"Archive member\" | `SeatList.tsx:7` |\n| `/teams/manage` | \"Archive team\" | `TeamList.tsx:6` |\n\n`/seats/manage` has three verbs pointing at it, spanning two components. `/users/manage` has two, *inside a single component*. That's not synonym sloppiness — Delete/Remove/Archive normally mean three different reversibility guarantees, so the copy is currently making three incompatible promises about one endpoint.\n\nThere's a second drift the detector misses: the noun. `user` (UserList), `member` (UserList, SeatList), `seat` (TeamList) are all in the `user` alias group at `action-label-drift.ts:54`, but only `member` appears in ≥2 files, so the ≥3-qualifying-aliases gate never trips. The noun drift is genuinely present and genuinely unreported.\n\n## 2. Canonical label set\n\nThree verbs, distinguished by what survives the operation — not collapsed to one:\n\n- **Remove** — revoke a principal's access to a container. The person/account survives elsewhere. Reversible by re-inviting.\n- **Archive** — reversible soft-delete of a container-level object (team, workspace). Data retained, recoverable.\n- **Delete** — irreversible destruction. Reserved; requires a confirm step.\n\nNouns: **member** for a person in a container's context, **team** for the container. Retire `user` and `seat` from UI copy (keep `seat` for billing quantity only, where it means a license, not a person).\n\nApplied:\n\n| File | Current | Canonical |\n|---|---|---|\n| `UserList.tsx:7` | \"Delete user\" | *drop* — duplicate of the line below |\n| `UserList.tsx:8` | \"Remove member\" | \"Remove member\" ✓ (already canonical) |\n| `TeamList.tsx:6` | \"Archive team\" | \"Archive team\" ✓ |\n| `TeamList.tsx:7` | \"Delete the seat\" | \"Remove member\" — and move it to `SeatList` |\n| `SeatList.tsx:6` | \"Remove member\" | \"Remove member\" ✓ |\n| `SeatList.tsx:7` | \"Archive member\" | *drop* — people aren't archived; teams are |\n\nNet effect: `Delete` disappears from this surface entirely. That's the correct outcome if none of these three operations is actually irreversible — and if one *is*, that's a product decision to make explicitly rather than inherit from a stray label.\n\n## 3. Refactor order — TeamList.tsx first\n\n**`TeamList.tsx:7` is the single highest-risk line in the fixture.** `label=\"Delete the seat\" href=\"/seats/manage\"` attaches a destructive verb to a destination that `SeatList` describes as reversible (\"Archive member\"). An agent asked to \"implement the delete-seat flow\" reads TeamList, writes a hard delete, and silently breaks the recoverability that the neighbouring component's copy promises. It's also in the wrong file — a seat action living in the team component — so an agent working on seats won't see it at all.\n\nThen `SeatList.tsx` (drop \"Archive member\"), then `UserList.tsx` (drop \"Delete user\").\n\n**Do all three in one PR.** The detector will go quiet after the first file, and that silence is misleading. The gate at `action-label-drift.ts:120-124` requires ≥3 aliases each present in ≥2 files. Today: `archive` {Seat, Team}, `delete` {Team, User}, `remove` {Seat, User} = 3 qualifying. Fix TeamList alone and `delete` drops to 1 file (UserList) → 2 qualifying → **both findings clear** while `UserList` still says \"Delete user\" and \"Remove member\" on the same href. A green scan after step 1 of 3 is an artefact of the two-file threshold, not a finished refactor.\n\n## 4. How the two detectors differ on this fixture\n\n**They don't — and that's the interesting part.**\n\n`copy_ia_drift` is a 45-line wrapper around `action_label_drift`'s analysis (`copy-ia-drift.ts:30-37`). Both call the same `analyse()` at `action-label-drift.ts:71`. The only difference is one flag:\n\n- **`action_label_drift`** — reads every IA label signal *plus* nav entries: nav labels and nav attribute values (`action-label-drift.ts:100-112`). Broader surface, whole code area.\n- **`copy_ia_drift`** — `restrictToJsxLabel: true`, which keeps only labels whose kind starts with `jsx_` and `continue`s past nav entries entirely (`action-label-drift.ts:91, 99`). Pure UI-copy surface.\n\nOn *this* fixture the two input sets are identical, because every `delete`-group token comes from a `label=\"…\"` prop on a JSX `<NavItem>`, and `src/nav.ts` — the only nav-signal source — contains zero delete-group tokens (\"Teams\", \"Workspaces\", \"Organisations\", \"Admin Console\"). So the broader detector's extra reach picks up nothing extra. The two findings are byte-identical in evidence, aliases, anchor file, severity (`low`), and confidence (`0.6`).\n\nThe only numeric difference is `agent_risk`: 0.31 vs 0.29. Neither detector supplies its own intrinsic, so both fall through to the declared table — `action_label_drift: 0.5`, `copy_ia_drift: 0.45` (`detector-defaults.ts:380-382`) — and `0.4 × intrinsic + 0.2×churn + 0.2×test_gap + 0.2×blast_radius` yields 0.31 and 0.29. The gap is a table entry expressing \"code-surface drift is slightly more load-bearing than pure copy drift,\" not a difference in what was observed.\n\nThey would diverge on a repo where the delete verbs came from a nav config object or non-JSX string props — `action_label_drift` would fire, `copy_ia_drift` would stay silent. This fixture is pure JSX, so it can't exercise that split.\n\n**Product note:** on any JSX-only frontend these two detectors will double-count by construction — here they inflate the report from 12 findings to 13, and both `pick_canonical_label` suggested actions describe the same edit. Worth either deduping at report time when the evidence sets match, or having the fixture include a nav-config-sourced verb so the distinction is actually measured rather than assumed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "action_label_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "copy_ia_drift",
+      "crime_00010": "permission_ia_drift",
+      "crime_00011": "docs_code_drift",
+      "crime_00012": "command_drift_docs_code_drift",
+      "crime_00013": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Action Label Drift": "action_label_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "no AGENTS.md found at repo root": "missing_agent_context",
+      "no CLAUDE.md found at repo root": "missing_agent_context",
+      "no .claude/skills/*/SKILL.md present": "missing_agent_context",
+      "no .agents/skills/*/SKILL.md present": "missing_agent_context",
+      "package.json declares bin(s): iaq — agents have no way to discover commands": "missing_agent_context",
+      "alias group: tenant": "concept_alias_drift",
+      "aliases found: organisation, team, workspace": "concept_alias_drift",
+      "\"organisation\" in 2 file(s): src/nav.ts, src/routes/organisation.ts": "concept_alias_drift",
+      "\"organisation\"": "concept_alias_drift",
+      "\"team\" in 3 file(s): src/components/TeamList.tsx, src/nav.ts, src/routes/teams.ts": "concept_alias_drift",
+      "\"workspace\" in 2 file(s): src/nav.ts, src/routes/workspace.ts": "concept_alias_drift",
+      "routes: /admin/billing-plans, /billing-plans": "parallel_destination",
+      "files: src/routes/admin/billing-plans.ts, src/routes/billing-plans.ts": "parallel_destination",
+      "shared tokens: billing, plan": "parallel_destination",
+      "no nav, doc, or import link between them": "parallel_destination",
+      "route path: /admin/billing-plans": "orphaned_destination",
+      "file: src/routes/admin/billing-plans.ts": "orphaned_destination",
+      "no in-repo import targets this route file": "orphaned_destination",
+      "route path: /billing-plans": "orphaned_destination",
+      "file: src/routes/billing-plans.ts": "orphaned_destination",
+      "route path: /organisation": "orphaned_destination",
+      "file: src/routes/organisation.ts": "orphaned_destination",
+      "route path: /workspace": "orphaned_destination",
+      "file: src/routes/workspace.ts": "orphaned_destination",
+      "destination: /admin": "permission_ia_drift",
+      "tokens: admin, manager, owner": "permission_ia_drift",
+      "nav (src/nav.ts:6): nav attr role=admin": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:2): role literal \"admin\"": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:2): role literal \"manager\"": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:4): role literal \"owner\"": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:9): role literal \"manager\"": "permission_ia_drift",
+      "+2 more signal(s)": "permission_ia_drift",
+      "docs/routes.md:14 → /admin (not found)": "docs_code_drift",
+      "docs/routes.md:23 references \"iaq teams\"": "command_drift_docs_code_drift",
+      "docs/routes.md:27 references \"iaq workspace\"": "command_drift_docs_code_drift",
+      "\"iaq workspace\"": "command_drift_docs_code_drift",
+      "docs/routes.md:31 references \"iaq refresh\"": "command_drift_docs_code_drift",
+      "\"iaq refresh\"": "command_drift_docs_code_drift",
+      "advertised: iaq: get, list": "command_drift_docs_code_drift",
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`commander` — imported at bin/iaq.ts as \"commander\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

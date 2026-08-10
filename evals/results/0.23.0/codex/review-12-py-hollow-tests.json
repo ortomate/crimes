@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-10T00:00:57.625Z",
+  "run_id": "86984a6d-fc6e-4f73-8838-375669645aaa",
+  "response": "I’m using the repository’s `crimes-codebase-risk` review workflow, then I’ll inspect the tests behind the scan result so “covered” means behaviorally asserted—not merely executed.\n\nThe repo-local shortcut isn’t present in this nested runner checkout, so I’m loading the skill from its declared workspace location and continuing with the same review workflow.\n\nThe global `crimes` binary is not installed in this environment. I’ll use the repository’s locally built CLI (the documented equivalent) and read the billing/test files to map assertions to behaviors.\n\nTwo environment constraints surfaced: the TypeScript runner’s IPC socket is sandbox-blocked, and this fixture has no local `pytest` installation. I can still invoke the same CLI source through Node without that IPC layer; the test-protection assessment itself comes from the scanner evidence plus the actual assertions.\n\nThe refactor safety is uneven. The scan reports one high-severity finding:\n\n> Weak Test Signal — 4 of 4 tests in `test_reporting.py` contain no assertion.\n\n| Package area | Actual protection | Important gaps |\n|---|---|---|\n| [`billing/rates.py`](</private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/12-py-tested/billing/rates.py:12>) | Genuine. Tests assert GB/DE rates, unknown-region fallback, and non-zero status for GB/FR. | FR’s exact rate, DE zero-status, and a true zero-rated case are not protected. |\n| [`billing/invoices.py`](</private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/12-py-tested/billing/invoices.py:7>) | Partly genuine. Assertions live in the imported `verify_invoice_balances` helper and `InvoiceCase` base class. They verify `gross == net + tax`, nonnegative net, exact gross in two cases, and account preservation. The scanner correctly recognizes these indirect assertions. | `apply_credit` is only weakly protected. “reduces the total” never compares before/after totals, and “zero credit is a no-op” never compares the resulting invoice with the original. Returning any balanced invoice—including the unchanged one—could pass. |\n| [`billing/reporting.py`](</private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/12-py-tested/billing/reporting.py:6>) | Only smoke-tested. The four tests establish that selected calls do not raise. | No report fields, totals, CSV text, or JSON result are asserted. Arbitrarily wrong output would pass. Unsupported-format behavior is untested. |\n| [`billing/ledger.py`](</private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/12-py-tested/billing/ledger.py:6>) | `post_entry` is indirectly executed through the hollow reporting tests, providing minimal no-exception/required-`gross`-key protection. | Its numeric and field semantics are not asserted. `reverse_entry` is never tested at all. |\n\nThe key difference is that [`test_invoices.py`](</private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/12-py-tested/tests/test_invoices.py:14>) only *looks* assertion-free locally but reaches real assertions in [`tests/support.py`](</private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/12-py-tested/tests/support.py:14>). [`test_reporting.py`](</private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/12-py-tested/tests/test_reporting.py:11>) reaches no assertions anywhere.\n\nRefactor confidence: good for basic rate lookup, moderate for invoice construction, and poor for credit semantics, reporting, and ledger behavior. Also, the scan’s `coverage.files_total: 9` means scanner discovery—not test coverage; the `.coverage` database was not analyzed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.23.0",
+  "timestamp": "2026-08-09T23:41:37.023Z",
+  "run_id": "649172c5-272e-4da9-9992-a5d516bdd60e",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a frontend-risk investigation. I’ll run the requested file context in the fixture, inspect `Card.tsx` and its local styling/token conventions, then map the refactor directly to all three finding types.\n\nThe listed skill path isn’t present in this checkout, so I’m locating the repository-provided copy before running the scan. If it’s unavailable, I’ll continue with the documented `AGENTS.md` workflow.\n\nThe fixture confirms the raw JSX styles are bypassing a Tailwind token scale. I’m running the requested context command in the fixture now, then I’ll check the exact token names so the proposal uses this project’s vocabulary rather than inventing a parallel system.\n\nThe context adds two important constraints: there are no related files or tests, and the only established tokens are `brand`, `surface`, and `ink`. I’ll keep the proposal scoped to `Card.tsx`, reuse those tokens, and call out the few missing semantic tokens that should be added rather than silently preserving raw values.\n\n`crimes context src/Card.tsx` confirms medium overall risk: the three reported findings, no related files, and no matching tests.\n\nA suitable refactor for [Card.tsx](/private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/07-stress-frontend/src/Card.tsx) would look like this, assuming Tailwind container-query support:\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  actionLabel: string;\n  onActivate: () => void;\n};\n\nexport function Card({\n  children,\n  actionLabel,\n  onActivate,\n}: CardProps) {\n  return (\n    <article\n      className={[\n        \"@container/card\",\n        \"w-full max-w-screen-lg\",\n        \"rounded-lg border border-ink/20\",\n        \"bg-surface p-6 text-ink shadow-sm\",\n      ].join(\" \")}\n    >\n      <div\n        className={[\n          \"grid min-w-0 grid-cols-1 gap-6\",\n          \"@md/card:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]\",\n        ].join(\" \")}\n      >\n        <div className=\"min-w-0 text-base\">{children}</div>\n        <aside className=\"text-sm text-ink/70\">sidebar</aside>\n      </div>\n\n      <button\n        type=\"button\"\n        className={[\n          \"mt-6 rounded-md bg-brand px-4 py-2 text-surface\",\n          \"focus-visible:outline-2 focus-visible:outline-offset-2\",\n          \"focus-visible:outline-brand\",\n        ].join(\" \")}\n        onClick={onActivate}\n      >\n        {actionLabel}\n      </button>\n    </article>\n  );\n}\n```\n\nHow this addresses each finding:\n\n- `accessible_interaction_risk`: removes `onClick` from the non-semantic `<div>` and exposes a real `<button>` with a visible accessible name. Native keyboard activation and focus behavior come for free. Keeping the button separate also avoids wrapping arbitrary `children`—which might themselves be interactive—inside a button. If activation navigates somewhere, use `<a href>` instead.\n\n- `design_token_escape`: replaces inline hex, RGB, shadow, spacing, and typography values with the existing `brand`, `surface`, and `ink` tokens from [tailwind.config.ts](/private/tmp/claude-501/-Users-andrew-dev-crimes/ad0f3f9a-0962-407f-b4e5-9d994a4a18e5/scratchpad/wt-eval/evals/fixtures/07-stress-frontend/tailwind.config.ts). Derived muted/border treatments remain rooted in `ink`. If exact border or shadow styling matters, add semantic tokens centrally instead of reintroducing literals here.\n\n- `responsive_fragility`: removes the `800px`, `720px`, `240px`, and fixed-height layout. The card becomes `width: 100%` with a tokenized maximum width, typography uses the type scale, and the content/sidebar grid changes from one to two fluid columns based on the card’s container rather than the viewport.\n\nBecause context found no tests, I’d add a focused component test covering button role/name, Tab focus, and Enter/Space activation, plus a browser layout check at narrow and wide container widths. No files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "line 10: <div> with onClick has no role / aria-label / tabIndex": "accessible_interaction_risk",
+      "9 hard-coded style values across 4 kinds (color, px, rgb, shadow)": "design_token_escape",
+      "line 10: color #ff00aa": "design_token_escape",
+      "line 10: color #0a0a0a": "design_token_escape",
+      "line 10: color #cccccc": "design_token_escape",
+      "line 10: color #1a73e8": "design_token_escape",
+      "line 10: rgb rgb(0, 0, 0)": "design_token_escape",
+      "+4 more raw value(s)": "design_token_escape",
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}
