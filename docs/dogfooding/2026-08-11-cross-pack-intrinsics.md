@@ -99,3 +99,77 @@ P2.4 says 41 intrinsics are still literals inside their own detectors.
 This audit is what that costs: the two things most likely to drift are
 a constant nobody can see and a constant that exists in two places.
 Both are true of every row above.
+
+---
+
+# Appendix — B (`sync_io_in_hotpath`) : the named signal also fails, and why
+
+Recorded here rather than in a second file because it was found in the
+same session. **§9 of the 2026-08-03 remediation doc names a third
+signal as "the one that would work". It does not.** But measuring why
+produced a fourth that does.
+
+## The chain, traced
+
+§9's counter-example is
+`task-sdk/src/airflow/sdk/execution_time/task_runner.py` — a guard at
+line 2441 of 2442, production code, two findings the doc says are
+**correctly reported**. The proposed rule was: *a function every one of
+whose same-file call paths starts inside the guard, in a module nothing
+imports*.
+
+Traced in the file:
+
+```
+_send_error_email_notification (2010) ← finalize (2245) ← main (2340) ← guard (2441)
+_handle_trigger_dag_run        (1874) ← run      (1529) ← main (2340) ← guard (2441)
+```
+
+`finalize` and `run` have **no other same-file caller**. So every
+same-file call path to both flagged functions does start inside the
+guard, and crimes reports the module at 0 direct importers. **The
+proposed rule exempts them.** All three candidates now fail on the same
+file.
+
+## The fourth signal
+
+Candidate 2 failed because it asked the *import graph*, and airflow
+launches this module with `python -m`. But the module is not invisible —
+it is referenced 42 times across the repo, including
+`mock.patch("airflow.sdk.execution_time.task_runner.startup")`, which is
+a string the import graph cannot see.
+
+So: **count textual module references, not graph edges.** Measured over
+all 227 guarded airflow findings (137 files):
+
+| bucket | files | findings | exempt? |
+|---|---|---|---|
+| nothing references the module at all | 94 | **151** | yes — safe |
+| referenced only by tests | 35 | 60 | judgement call |
+| referenced by non-test code | 8 | 16 | **no** |
+
+`task_runner.py` lands in the last bucket — **42 references, 29 of them
+non-test — so it is correctly kept.** The signal that defeated three
+candidates is discriminated by the fourth on its first try.
+
+## The decision §9 asked for, made
+
+**`task_runner.py` stays reported.** A task-runner process is one-shot,
+but the deciding fact is not its lifetime — it is that 29 non-test files
+in the repo reference the module by name. Code that much of the codebase
+talks about is load-bearing, and a blocking email send inside it is
+worth saying whatever launches it. The one-shot reading would also
+exempt every `manage.py`-style entry point in every Django repo, which
+is a much larger silent suppression than the one being bought.
+
+## Scope
+
+Conservative rule for a first cut — exempt only the **151 findings in
+the 94 modules nothing references at all**, leaving the 60 test-only
+ones reported. That is 18.6% of airflow's `sync_io_in_hotpath` output
+and **1.5% of its report**, keeps the counter-example, and the
+test-only bucket can be revisited with its own argument.
+
+Not built in this session. It needs a repo-wide module-reference index
+in the Python pack, which is real work and belongs behind its own bump
+and its own attribution.
