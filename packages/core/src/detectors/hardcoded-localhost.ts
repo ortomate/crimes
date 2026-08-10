@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { UniversalDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 const optionsSchema = z
   .object({
@@ -130,7 +131,7 @@ export const hardcodedLocalhostDetector: UniversalDetector = {
       scores: {
         severity: severity === "high" ? 0.8 : 0.6,
         confidence: 0.9,
-        agent_risk: round(Math.min(0.5 + (hits.length - 1) * 0.1, 0.85)),
+        agent_risk: intrinsicFrom(hits.length, { base: 0.5, step: 0.1, cap: 0.85 }),
       },
       suggested_actions: [
         {
@@ -183,8 +184,4 @@ function readAllowedUrls(options: Record<string, unknown> | undefined): Set<stri
   const parsed = optionsSchema.safeParse(raw);
   if (!parsed.success) return new Set();
   return new Set(parsed.data.allowedUrls ?? []);
-}
-
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
 }

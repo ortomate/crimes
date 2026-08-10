@@ -39,6 +39,7 @@
  */
 
 import type { Severity } from "../../finding.js";
+import { intrinsicFrom } from "../../scoring/intrinsic.js";
 
 /** Matches the JS detectors' severity → `scores.severity` convention. */
 export function severityScore(s: Severity): number {
@@ -68,9 +69,13 @@ export function intrinsicFor(args: {
   step: number;
   cap: number;
 }): number {
+  // Delegates so there is exactly one copy of the ladder arithmetic in
+  // the tree. This function was the *only* factored copy; 14 universal
+  // detectors inlined the same expression by hand, and that duplication
+  // is how 7 of the 8 twice-implemented charges came to disagree. See
+  // `docs/dogfooding/2026-08-11-cross-pack-intrinsics.md`.
   const { count, base, step, cap } = args;
-  if (count <= 0) return 0;
-  return round(clamp01(Math.min(base + (count - 1) * step, cap)));
+  return intrinsicFrom(count, { base, step, cap });
 }
 
 /** Render at most `limit` line numbers, with an overflow note. */

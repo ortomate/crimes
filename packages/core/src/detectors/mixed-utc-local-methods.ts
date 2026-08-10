@@ -2,6 +2,7 @@ import type { DateMethodCall } from "@crimes/language-js";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 /**
  * Same receiver identifier calling **both** UTC and local Date
@@ -83,7 +84,7 @@ export const mixedUtcLocalMethodsDetector: LanguageJsDetector = {
       scores: {
         severity: 0.8,
         confidence: 0.85,
-        agent_risk: round(Math.min(0.65 + (offenders.length - 1) * 0.1, 0.9)),
+        agent_risk: intrinsicFrom(offenders.length, { base: 0.65, step: 0.1, cap: 0.9 }),
       },
       suggested_actions: [
         {
@@ -98,7 +99,3 @@ export const mixedUtcLocalMethodsDetector: LanguageJsDetector = {
     return [finding];
   },
 };
-
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
-}

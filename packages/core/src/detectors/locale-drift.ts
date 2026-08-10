@@ -1,6 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 const LOCALE_METHODS = new Set([
   "toLocaleString",
@@ -67,7 +68,7 @@ export const localeDriftDetector: LanguageJsDetector = {
       scores: {
         severity: severityScoreFor(severity),
         confidence: 0.85,
-        agent_risk: round(Math.min(0.4 + (offenders.length - 1) * 0.07, 0.8)),
+        agent_risk: intrinsicFrom(offenders.length, { base: 0.4, step: 0.07, cap: 0.8 }),
       },
       suggested_actions: [
         {
@@ -98,8 +99,4 @@ function pickSeverity(file: string, count: number): Severity {
 
 function severityScoreFor(s: Severity): number {
   return s === "high" ? 0.8 : s === "medium" ? 0.55 : 0.3;
-}
-
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
 }

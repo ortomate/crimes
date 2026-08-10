@@ -2,6 +2,7 @@ import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import { tokenise, tokenisePath } from "../ia/tokenise.js";
 import type { IaIndex, IaLabelSignal, IaRouteSignal } from "../ia/types.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 /**
  * Fires when a single route's vocabulary appears to drift across the
@@ -91,7 +92,11 @@ function analyseRoute(route: IaRouteSignal, ia: IaIndex): Finding[] {
       scores: {
         severity: 0.6,
         confidence,
-        agent_risk: round(Math.min(0.65 + (distinctTokenSets - 3) * 0.05, 0.85)),
+        agent_risk: intrinsicFrom(distinctTokenSets - 2, {
+          base: 0.65,
+          step: 0.05,
+          cap: 0.85,
+        }),
       },
       suggested_actions: [
         {

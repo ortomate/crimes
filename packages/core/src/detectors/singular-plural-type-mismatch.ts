@@ -9,6 +9,7 @@ import {
   singularise,
 } from "../util/pluraliser.js";
 import { isTestFile } from "../util/test-files.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 const optionsSchema = z
   .object({
@@ -90,7 +91,7 @@ export const singularPluralTypeMismatchDetector: LanguageJsDetector = {
       scores: {
         severity: severity === "medium" ? 0.55 : 0.3,
         confidence: 0.7,
-        agent_risk: round(Math.min(0.4 + (offenders.length - 1) * 0.06, 0.7)),
+        agent_risk: intrinsicFrom(offenders.length, { base: 0.4, step: 0.06, cap: 0.7 }),
       },
       suggested_actions: [
         {
@@ -170,7 +171,3 @@ function readAllowed(options: Record<string, unknown> | undefined): Set<string> 
 // the runtime path here only needs `singularise`. Reference it so
 // the import isn't flagged as unused.
 void pluralise;
-
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
-}

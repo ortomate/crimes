@@ -1,6 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 /**
  * `"…" + d.dateMethod()` (or vice versa) — building date-shaped
@@ -52,7 +53,7 @@ export const dateStringConcatDetector: LanguageJsDetector = {
       scores: {
         severity: severityScoreFor(severity),
         confidence: 0.85,
-        agent_risk: round(Math.min(0.4 + (hits.length - 1) * 0.08, 0.75)),
+        agent_risk: intrinsicFrom(hits.length, { base: 0.4, step: 0.08, cap: 0.75 }),
       },
       suggested_actions: [
         {
@@ -71,8 +72,4 @@ export const dateStringConcatDetector: LanguageJsDetector = {
 
 function severityScoreFor(s: Severity): number {
   return s === "high" ? 0.8 : s === "medium" ? 0.55 : 0.3;
-}
-
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
 }

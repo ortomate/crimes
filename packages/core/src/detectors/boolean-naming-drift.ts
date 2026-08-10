@@ -3,6 +3,7 @@ import type { TypedDeclaration } from "@crimes/language-js";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 const optionsSchema = z
   .object({
@@ -120,7 +121,7 @@ export const booleanNamingDriftDetector: LanguageJsDetector = {
       scores: {
         severity: severity === "medium" ? 0.55 : 0.3,
         confidence: 0.8,
-        agent_risk: round(Math.min(0.35 + (offenders.length - 1) * 0.06, 0.7)),
+        agent_risk: intrinsicFrom(offenders.length, { base: 0.35, step: 0.06, cap: 0.7 }),
       },
       suggested_actions: [
         {
@@ -168,8 +169,4 @@ function readAllowed(options: Record<string, unknown> | undefined): Set<string> 
   const parsed = optionsSchema.safeParse(raw);
   if (!parsed.success) return new Set();
   return new Set(parsed.data.allowedNames ?? []);
-}
-
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
 }

@@ -2,6 +2,7 @@ import type { EnclosingFunction, FunctionShape, SyncIoCall } from "@crimes/langu
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 /**
  * Function shapes where a synchronous I/O call is treated as a
@@ -109,7 +110,7 @@ export const syncIoInHotpathDetector: LanguageJsDetector = {
       scores: {
         severity: severityScore(severity),
         confidence: 0.9,
-        agent_risk: round(Math.min(0.55 + (offenders.length - 1) * 0.08, 0.9)),
+        agent_risk: intrinsicFrom(offenders.length, { base: 0.55, step: 0.08, cap: 0.9 }),
       },
       suggested_actions: [
         {
@@ -186,8 +187,4 @@ function labelFor(shape: FunctionShape): string {
 
 function severityScore(s: Severity): number {
   return s === "high" ? 0.85 : s === "medium" ? 0.6 : 0.4;
-}
-
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
 }

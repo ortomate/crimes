@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 const optionsSchema = z
   .object({
@@ -84,7 +85,7 @@ export const timezoneUnsafeParseDetector: LanguageJsDetector = {
       scores: {
         severity: severityScoreFor(severity),
         confidence: 0.9,
-        agent_risk: round(Math.min(0.55 + (unsafe.length - 1) * 0.08, 0.9)),
+        agent_risk: intrinsicFrom(unsafe.length, { base: 0.55, step: 0.08, cap: 0.9 }),
       },
       suggested_actions: [
         {
@@ -143,8 +144,4 @@ function pickSeverity(count: number): Severity {
 
 function severityScoreFor(s: Severity): number {
   return s === "high" ? 0.8 : s === "medium" ? 0.6 : 0.35;
-}
-
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
 }

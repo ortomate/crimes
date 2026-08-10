@@ -1,6 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import type { IaIndex } from "../ia/types.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 /**
  * Fires when a single destination appears in multiple nav-like source
@@ -119,7 +120,11 @@ function buildFinding(destination: string, entries: NavHit[]): Finding {
     scores: {
       severity: 0.6,
       confidence,
-      agent_risk: round(Math.min(0.7 + (distinctLabels.size - 2) * 0.05, 0.85)),
+      agent_risk: intrinsicFrom(distinctLabels.size - 1, {
+        base: 0.7,
+        step: 0.05,
+        cap: 0.85,
+      }),
     },
     suggested_actions: [
       {

@@ -76,9 +76,18 @@ changes in one baseline would be unattributable, which is the rule the
 
 ## What should happen next, in order
 
-1. **Give the universal pack `intrinsicFor`.** The formula is already
-   identical; extracting it removes the mechanism of the drift without
-   changing a single number. Findings-neutral, so it can land any time.
+1. ✅ **Give the universal pack `intrinsicFor`.** **Done.** One
+   `intrinsicFrom(count, {base, step, cap})` in
+   `packages/core/src/scoring/intrinsic.ts`; the 14 universal detectors
+   that inlined the arithmetic now call it, and `py/shared.ts`'s
+   `intrinsicFor` delegates to it, so exactly one copy of the formula
+   exists. Eleven now-dead local `round` helpers removed.
+
+   **Proven findings-neutral** on 5,164 findings across cal.com (4,633),
+   hono (377), and fixtures 01/02/05 — chosen because these are
+   universal detectors and the corpus repos measured earlier are Python.
+   All 14 are exercised (739 findings from them). Zero added, zero
+   removed, zero scores moved; `evals:ranking` byte-identical.
 2. **Close the two shape gaps** (`circular_dependency`, `deep_import`).
    These are the largest and the easiest to argue: a detector that
    cannot escalate with its own evidence is a defect regardless of which
@@ -88,10 +97,20 @@ changes in one baseline would be unattributable, which is the rule the
 4. **Reconcile the three ordinary constant gaps last** — they are the
    least consequential and the most arguable.
 
-A standing gate belongs with step 1: once both packs call one helper, a
-test can assert that any charge implemented twice declares the same
-`(base, step, cap)`, or names why not. Without that this table is a
-snapshot that rots.
+✅ **The standing gate landed with step 1**:
+`packages/core/src/scoring/intrinsic-parity.test.ts` reads the detector
+tree, extracts both packs' ladders for every twice-implemented charge,
+and fails on any disagreement not listed in `KNOWN_DISAGREEMENTS` /
+`KNOWN_SHAPE_GAPS` with a reason. Reconciling a charge means deleting a
+line. A second assertion fails when an exception stops describing
+anything real, so the table cannot rot into a blanket suppression.
+
+Mutation-checked rather than assumed: removing the
+`mixed-utc-local-methods` entry fails the build with the expected
+message. The first draft of the gate matched `intrinsicFrom` but not
+`intrinsicFor`, so it passed **vacuously** — worth naming, because a
+parity gate that silently sees nothing is exactly the apparatus failure
+this repo keeps finding.
 
 ## Relationship to P2.4
 

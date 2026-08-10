@@ -2,6 +2,7 @@ import type { LanguageJsDetector, PerFileDetectorContext } from "../detector.js"
 import type { PreFinding as Finding } from "../finding.js";
 import { tokenise } from "../ia/tokenise.js";
 import type { IaConceptAliasGroup, IaIndex } from "../ia/types.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 /**
  * Conservative Concept Alias Drift detector.
@@ -140,7 +141,11 @@ function evaluateGroup(group: IaConceptAliasGroup, ia: IaIndex): GroupEvaluation
     scores: {
       severity: severity === "medium" ? 0.55 : 0.4,
       confidence,
-      agent_risk: round(Math.min(0.7 + (qualifyingAliases.length - 3) * 0.05, 0.85)),
+      agent_risk: intrinsicFrom(qualifyingAliases.length - 2, {
+        base: 0.7,
+        step: 0.05,
+        cap: 0.85,
+      }),
     },
     suggested_actions: [
       {
