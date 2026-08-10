@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.24.0",
+  "timestamp": "2026-08-10T01:00:03.306Z",
+  "run_id": "4114fef6-7f72-42b4-b56a-ad96a04b5610",
+  "response": "## Confirmed: zero findings on `src/billing.ts`\n\n```\n\"risk\": { \"level\": \"none\", \"high\": 0, \"medium\": 0, \"low\": 0, \"total\": 0 }\n\"findings\": []\n```\n\nThe one finding in the repo-level scan (`crime_00001`, \"Phantom Accomplice\") is filed against `package.json`, not this file — `vitest` is imported by `src/billing.test.ts` but declared in no manifest. It doesn't attach to `billing.ts` and doesn't affect editing it.\n\n## Likely tests\n\n**`src/billing.test.ts`** — the only entry in `likely_tests`. That's the file to run (and to extend) when you change `billing.ts`.\n\n## Why it's low risk to edit\n\n- **No findings at any severity.** Nothing structural, no duplication, no side-effect or hidden-dependency charges. Nothing to work around before touching it.\n- **No blast radius.** `related_files` is empty, and `related_files_reason` spells out that there is *no* neighbourhood signal at all: no shared domain tokens, no domain-prefix filenames, no same-directory siblings. Nothing imports it in a way the scanner can see, so a change here doesn't propagate.\n- **A test sits directly beside it.** One module, one colocated test file — the feedback loop for a change is immediate and local.\n- **Churn is essentially flat.** 1 commit in 90 days, 1 unique author, last touched 2026-05-18. No contention, no recent thrash, no bug-fix churn pattern to inherit.\n- **The code itself is trivially scoped.** 10 lines: a `Money` interface with a literal-union currency, and one pure `format` function. No I/O, no clock, no env reads, no branching on role/status — nothing that makes behaviour hard to predict or hard to test.\n\nTwo honest caveats:\n\n1. `test_gap.label` is `\"unknown\"` (raw 0) — the scanner located a likely test file but did not verify it actually covers `format`. It's 12 lines; read it before assuming a change is caught.\n2. \"No importers\" here reflects a 3-file fixture. In a real repo the same `none` risk level would still deserve a check that the low blast radius isn't just an artifact of a small scan surface.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

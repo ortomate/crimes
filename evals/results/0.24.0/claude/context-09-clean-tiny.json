@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.24.0",
+  "timestamp": "2026-08-10T00:59:09.844Z",
+  "run_id": "7828d978-ea1a-4faa-9b64-658f9f335951",
+  "response": "`crimes context src/add.ts --format json` ran clean. Here's the human readout:\n\n```\nCRIMES CONTEXT\nfile: src/add.ts\nrisk: NONE  (0 findings)\n\nAgent guidance\n  (no findings on this file and no deterministic related files)\n\nRelated files\n  (no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings)\n\nLikely tests\n  · src/add.test.ts\n\nClues\n  · churn: 1 commits over 90d · last touched 3 months ago · 1 author\n  · test gap: bottom-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n## What crimes found\n\n**Nothing on `src/add.ts`.** `risk.level: \"none\"`, `findings: []`, `agent_guidance: []`, `related_files: []`. Both \"empty\" fields come with explicit reasons rather than silence — `related_files_reason` says there's no neighbourhood signal at all: no shared domain tokens, no domain-prefix filenames, no same-directory siblings. It's a genuinely isolated file, not one whose graph crimes failed to build.\n\nThe one useful positive: `likely_tests` points at `src/add.test.ts`. That's the file to run after you edit.\n\nChurn is one commit in 90 days, one author, last touched ~3 months ago. Nobody is fighting you for this file.\n\n## The one finding in the repo is not about this file\n\nThe repo-level scan turned up a single low-severity finding, `dependency_provenance_gap` (\"Phantom Accomplice\") — `vitest` is imported at `src/add.test.ts` but declared in no applicable `package.json`. It resolves today through hoisting; a clean install can fail. Confidence 0.56, docked from 0.68 because only test files are affected. It's anchored on `package.json`, not `src/add.ts`, which is why `crimes context` on the source file doesn't surface it.\n\nFix shape is a one-liner if you care: add `vitest` to devDependencies.\n\n## Safe to extend?\n\nYes. No structural findings, no agent-risk signals, no duplicate sources of truth, no hidden dependents to break. Extend it directly.\n\nTwo caveats, both minor:\n\n- **Verify the test actually runs before you trust it as a gate.** `likely_tests` names `src/add.test.ts`, but the undeclared-`vitest` finding means the runner is resolving through hoisting. If you extend `add.ts` and lean on that test for confidence, make sure it executes in your environment first.\n- **Absence of findings is not proof of quality.** Crimes is deterministic and scoped to change/agent risk — it says nothing about whether `add.ts` is correct, just that nothing about it is structurally risky to edit. `test_gap.raw` is 0 with `label: \"unknown\"`, meaning crimes had no basis to judge coverage depth here, not that coverage is good.\n\nOne inconsistency worth noting since this is the crimes repo itself: the JSON reports `test_gap.label: \"unknown\"` while the human renderer prints `test gap: bottom-quartile` for the same value. Those are different claims from the same data.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

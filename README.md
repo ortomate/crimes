@@ -163,6 +163,12 @@ length findings becomes a scale rather than a clamp.
 `schema_version` stays at `0.7.0`. Scores and ordering move; no finding
 is added or removed on the corpus.
 
+Eval baseline: claude 0.81 → **0.82** (+1pp), codex 0.63 → **0.61**
+(−2pp) — both inside their noise bands (±6pp / ±3pp), which is the
+expected result. `structural_pass_rate` matches literal detector ids in
+the response text and so cannot see a re-ranking at all; that blindness
+is why `evals:ranking` exists. Read the deterministic split above.
+
 Release notes: [`docs/releases/v0.24.0.md`](./docs/releases/v0.24.0.md).
 
 ### Earlier `0.23.0` work (_the score's missing inputs_)

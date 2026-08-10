@@ -1,0 +1,85 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.24.0",
+  "timestamp": "2026-08-10T01:13:47.700Z",
+  "run_id": "85854e96-0503-4fb2-96f2-608985090a27",
+  "response": "## What the scan confirms\n\nThree separate charges, and they are not the same refactor:\n\n| Finding | Charge | Confidence | What it actually covers |\n|---|---|---|---|\n| `crime_00002` | Near-Duplicate Block | 0.85 | `sanitizeUserInput` / `sanitizeText` / `cleanMessage` — same body, 3 files |\n| `crime_00003` | Exact Duplicate Block | 0.95 | `recordSanitiseEvent` — byte-identical in `telemetry-a.ts` / `telemetry-b.ts` |\n| `crime_00001` | Duplicated Role/Status/Plan Check | 0.70 | `\"admin\"` compared in 4 files, **2 distinct expression shapes** |\n\nI read the three sanitisers to check the near-duplicate claim before trusting it. It holds exactly: `sanitize-a.ts:10-36`, `sanitize-b.ts:9-35`, `sanitize-c.ts:9-35` differ **only** in the parameter and local variable names (`raw/working`, `input/cleaned`, `value/normalised`). Every regex, every threshold (1000, 5, 0.9, 30), and every early return matches. Nothing varies, so `crimes`' generic advice — \"pass the differing values as args\" — over-fits here: there are no differing values to parameterise. This is a straight three-into-one merge.\n\nThe role-check finding is the trap, and it should not be folded into the same commit. The three guards are **semantically different**:\n\n- `assertAdminA` → `role === \"admin\"`\n- `assertAdminB` → `role === \"admin\" || role === \"owner\"` ← wider\n- `assertAdminC` → `role !== \"admin\"` ← inverted\n\n`crimes` reports \"2 distinct expression shapes\" and hands you `suggested_actions: extract_policy_function` at `risk: medium`. Collapsing these into one helper silently grants or revokes access. `policy.ts`'s three functions *are* genuinely identical (all `role === \"admin\"`) and can merge; the `assertAdmin*` trio cannot, not without a product decision about whether `owner` counts.\n\n## Files that would change\n\nEvery finding reports `blast_radius: 0` and `blast_radius_direct_importers: 0` — I verified this: nothing in `src/` imports anything else, and `package.json` declares no `exports`/`main`. So there are zero internal call sites to update, and the refactor is mechanically low-risk. That also means these functions' \"public API\" is whatever consumers reach in via deep path imports, which is why the old paths need re-exports rather than deletion.\n\n**New:**\n- `src/sanitize.ts` — the one consolidated sanitiser\n- `src/telemetry.ts` — the one `recordSanitiseEvent`, with an injected clock\n\n**Modified:**\n- `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts` — bodies deleted; each keeps a deprecated re-export alias (`sanitizeUserInput` / `sanitizeText` / `cleanMessage` → `sanitizeInput`). The `assertAdminA/B/C` guards **stay put, unchanged**.\n- `src/telemetry-a.ts`, `src/telemetry-b.ts` — bodies deleted, re-export from `src/telemetry.ts`\n- `src/policy.ts` — the three genuinely-identical `role === \"admin\"` bodies delegate to one `isAdmin(role)`\n\n**Not changed:** the `assertAdminA/B/C` semantics. Separate ticket, separate decision.\n\n## Public API of the consolidated function\n\n```ts\n// src/sanitize.ts\nexport interface SanitizeOptions {\n  /** Truncate to this many chars after whitespace collapsing. Default 1000. */\n  maxLength?: number;\n  /** Reject if more than this many !!!/??? runs appear. Default 5. */\n  maxPunctuationRuns?: number;\n  /** Above this uppercase ratio (on strings longer than\n   *  `shoutingMinLength`), downcase rather than reject. Default 0.9. */\n  shoutingRatio?: number;\n  /** Default 30. */\n  shoutingMinLength?: number;\n}\n\nexport function sanitizeInput(value: string, options?: SanitizeOptions): string;\n```\n\nThree deliberate choices:\n\n**Defaults reproduce today's behaviour exactly.** `sanitizeInput(x)` must be substitutable for all three originals with no observable difference. The options object exists so the next caller who needs a 500-char cap adds an argument instead of a fourth copy — that is the failure mode being fixed. If you'd rather not speculate, ship `sanitizeInput(value: string): string` alone and add options when a second threshold is genuinely needed.\n\n**Returns `\"\"` for rejection, not `null` or a throw.** All three originals conflate \"empty input\" and \"rejected input\" as `\"\"`. Changing that is a behaviour change wearing a refactor's clothes. If callers need to tell the two apart, add `sanitizeInputVerbose(): { value: string; rejected: boolean; reason?: string }` as a *new* function later.\n\n**Keeps the `null`/`undefined` guard and the `String()` coercion.** They're unreachable under the `string` type but load-bearing for untyped JS callers, and the scan's zero blast radius means you can't see who those are.\n\nFor telemetry, injecting the clock resolves `crime_00004` and `crime_00005` at the same time:\n\n```ts\n// src/telemetry.ts\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: () => number = Date.now,     // ← the only new surface\n): void;\n```\n\nTwo things I'd flag before anyone touches the body:\n\n`working.replace(/[ -]/g, \"\")` is almost certainly a bug, not a feature. That's the character range `\\x20`–`\\x2D` — it strips spaces and most punctuation (`!\"#$%&'()*+,-`), which looks like a mangled control-character strip (`/[\\x00-\\x1f]/`). Because it removes every space first, the following `replace(/\\s+/g, \" \")` collapse only ever sees tabs and newlines. **Preserve it verbatim in the merge.** Fixing it changes output for every caller and would make a green-to-green refactor impossible to verify. File it separately.\n\nThere are no tests. Every finding carries `test_gap: 0.5`, and the fixture has no test files. Pin the current behaviour with characterisation tests against one of the three originals *before* deleting the other two — otherwise the merge is unverifiable, and the identical-bodies claim rests on my reading plus one hash rather than on anything executable.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

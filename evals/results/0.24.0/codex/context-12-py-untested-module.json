@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.24.0",
+  "timestamp": "2026-08-10T01:01:49.959Z",
+  "run_id": "ceba1aa7-1563-446a-ab50-9793863a750d",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a pre-edit impact and test-protection check. I’ll identify the reversal implementation, then run file-specific context so the report is tied to the code you’d actually change.\n\nThe advertised skill file isn’t present at the workspace path, so I can’t apply its wrapper instructions directly. I’m continuing with the repository’s documented read-only `crimes context … --format json` workflow.\n\nI found the skill at the monorepo root (the locator was relative to the repo, not the runner package). I’m reading it fully now before running the context check.\n\nThe first invocation double-resolved the file path because `--root` expects the target relative to that root. I’ve corrected it to `billing/ledger.py`; nothing has been modified.\n\n`billing/ledger.py` has effectively no test protection for changing `reverse_entry`.\n\n```text\nrisk: NONE (0 findings)\nLikely tests: none\ntest gap: top-quartile\n```\n\nKey findings:\n\n- No test file matches or imports `billing/ledger.py`; `crimes` identified zero likely tests.\n- The only nearby tests, `tests/test_reporting.py`, are a high-severity weak-test signal: all four tests contain zero assertions. They would only catch an exception, not an incorrect reversal.\n- `crimes` suggested reviewing `billing/__init__.py`, `invoices.py`, `rates.py`, and `reporting.py`, but only because they share the directory—not because it detected strong coupling.\n- `reporting.py` imports `post_entry`, not `reverse_entry`, and a source search found no current caller of `reverse_entry`.\n- The module was changed once in the last 90 days, by one author, most recently July 31, 2026.\n\nBottom line: an incorrect reversal could pass the existing suite unnoticed. Before changing it, I’d add focused tests asserting preservation of account/region and negation of both `net` and `gross`. No files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

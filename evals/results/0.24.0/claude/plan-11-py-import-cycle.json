@@ -1,0 +1,100 @@
+{
+  "scenario": "plan-11-py-import-cycle",
+  "agent": "claude",
+  "crimes_version": "0.24.0",
+  "timestamp": "2026-08-10T01:09:58.908Z",
+  "run_id": "78e550d4-7c86-4b8f-a202-9565d961be5e",
+  "response": "I ran the scan (output matches what you pasted — 9 findings, plus a stderr note that `parallel_destination` is off by default), then read every import edge in the fixture to check crimes' picture against the actual graph.\n\nHere's the single most useful fact, and crimes doesn't state it because it reports the two findings independently in two different files:\n\n```\napi/rendering.py:7   from domain.invoicing import LINE_ITEM_CAP        ← cycle edge (crime_00006)\napi/rendering.py:8   from tax.rules...vat_bands import STANDARD_BAND   ← deep import (crime_00008)\napi/rendering.py:18      used by describe_cap() — and nothing else\n```\n\nBoth imports exist for one two-line function. `describe_cap` is the sole cause of two of the nine findings.\n\n## Verdicts\n\n**Blocks the extraction — one finding**\n\n`crime_00008` — `api/rendering.py:8` reaches five levels into `tax`. It isn't a blocker because it breaks; it's a blocker because `tax/__init__.py` is empty (0 bytes, confirmed). The package has no declared surface, so today its public API is *every path under `tax/`*. Ship it as a distribution with that edge intact and you have permanently promised `tax.rules.regional.eu.vat_bands.STANDARD_BAND` to an external consumer — you can never move that file again without a major version. Fix the edge before the split, not after.\n\n**Merely untidy — one finding**\n\n`crime_00009` — `tax/vat.py:3` has the identical shape, but both ends land *inside* the extracted package. After the split it's a private import in a private tree; nobody outside can observe it. Same severity, same detector, completely different consequence, purely because of which side of the future boundary each end sits on. Fix it while you're there; don't let it gate anything.\n\n**Doesn't block, but will lie to you during the migration — one finding**\n\n`crime_00006`, the `api/rendering.py ↔ domain/invoicing.py` cycle. `tax/` is on neither side of the ring — I grepped every import statement in the repo and `tax/` has **zero outbound edges**. It is a clean leaf. So the cycle is not an extraction blocker, and you should not let it become one.\n\nBut two things connect it to this work anyway:\n\n1. `api/rendering.py` is one of the two cycle members and is exactly the file the extraction has to edit. You'll be operating inside the ring.\n2. Crimes' own evidence: *\"whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server.\"* That means **\"the test suite still passes after the split\" is not evidence the split is safe.** Your verification has to include importing the app the way uvicorn does, not just the way pytest does.\n\n**Out of scope — six findings**\n\n`crime_00001`, `00002`, `00005`, `00007` (all `domain/invoicing.py`) and `00003`, `00004` (`api/routes.py`). Real problems, none of them touch `tax/`, all stay behind. Don't bundle them in — a package extraction that also fixes timezone handling and unblocks the event loop is a change you can't bisect.\n\nOne caveat on `crime_00007`: `build_invoice` (61 lines, nesting 5) contains the **only** call site of `apply_vat`, at line 63. So any regression test on the extraction seam has to construct a full five-argument `build_invoice` call to reach it. That's not a blocker, it's a cost — it's why step 3 below is more work than it looks.\n\n## The seam\n\nOnly two names cross into `tax` today. After you fix `describe_cap`, it's one:\n\n| Symbol | Consumer | Status |\n|---|---|---|\n| `apply_vat` | `domain/invoicing.py:63` (one call site) | the real public API |\n| `STANDARD_BAND` | `api/rendering.py:18` (one use) | remove this edge — see step 1 |\n| `BANDS` | `tax/vat.py` only | internal, stays internal |\n\nOne function, one call site, no third-party dependencies, no outbound edges. This is about as cheap as an extraction gets — crimes' `blast_radius: 0.17` actually undersells it, because blast radius counts importers, not dependencies.\n\n## Plan\n\n**1. Remove `describe_cap`'s reach into `tax` internals.** This is the blocking fix and it kills half the cycle at the same time. Decide where cap-description belongs — it reads a domain constant and a tax constant to build a display string, which makes it presentation logic with no home. Simplest correct move: have `describe_cap` take `cap` and `band` as arguments and let the caller supply them, deleting both module-level imports from `api/rendering.py`. Do **not** move the imports inside the function body — crimes calls this out explicitly and it's right: a deferred import removes the error without removing the cycle, and hides it from every static reader (including the next agent).\n\n**2. Verify the cycle is gone, by import order.** After step 1, `api/rendering.py` imports nothing from `domain`, so the ring is broken outright. Confirm with `python -c \"import api.routes\"` *and* `python -c \"import domain.invoicing\"` as separate processes — one passing does not imply the other. Re-run `crimes scan` and confirm `crime_00006` and `crime_00008` are both gone. This is your checkpoint: if the cycle survives, stop here, because everything downstream will be verified against an import graph that behaves differently under test than under production.\n\n**3. Publish `tax`'s surface and pin the behaviour.** Re-export `apply_vat` from `tax/__init__.py` and switch `domain/invoicing.py:8` to `from tax import apply_vat`. Then write tests against `apply_vat` directly — the four bands plus the unknown-region fallback to `0.0` (note that a bad region silently yields no tax rather than raising; if that's wrong, it's a bug to fix *before* it becomes a published package's documented behaviour). There are currently zero test files in the repo, so this is net-new. Test `apply_vat` in isolation; do not try to test it through `build_invoice`.\n\n**4. Split.** Move `tax/` to its own repo or path, add a `[build-system]` table and a `[project]` for it, and add it as a dependency of `py-service`. Two things to settle here that crimes has no opinion on:\n- **`pyproject.toml` was never scanned** — the coverage warning says so outright. It declares one project with no `[build-system]`, no dependencies, and no packages table. There is no packaging metadata to split; you're creating it from scratch. Every packaging-level blocker is invisible to this scan.\n- **`tax` is a very generic top-level import name** to claim on an index. Pick a distribution name deliberately, and decide whether the import namespace stays `tax` (cheap, keeps every import statement working) or moves under a namespace package (more churn now, less collision risk later). I'd keep `tax` if this is an internal index and rename if it's public.\n\n**5. Tidy inside.** Now fix `crime_00009` — point `tax/vat.py` at the package's own root re-export or flatten `rules/regional/eu/` entirely. Four empty `__init__.py` files and one 14-line constants module is a five-level tree holding two names; it exists to be a fixture, but the same shape in real code is worth collapsing once nobody outside can see it.\n\n## Two calibration notes on the scan itself\n\n`test_gap` is `0.5` on all nine findings and `churn`/`recency` are flat at `0.05`/`0.57` across the board. Those are priors with no signal behind them, not measurements — there are no test files in this repo at all, so read `test_gap: 0.5` as \"unknown, and actually zero.\" Don't let the uniform `churn: 0.05` read as \"this code is stable.\"\n\nAnd the ranking is worth ignoring here. `crime_00006` (cycle) outranks `crime_00008` (deep import) on nearly every score, but for *this* task the deep import is the blocker and the cycle isn't. Aggregate risk answers \"what's most dangerous in this repo\"; it doesn't answer \"what stands between me and a clean package boundary.\" Those are different questions and only one of them was asked.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "boolean_naming_drift",
+      "crime_00006": "circular_dependency",
+      "crime_00007": "large_function",
+      "crime_00008": "deep_import",
+      "crime_00009": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Boolean Naming Drift": "boolean_naming_drift",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "`stale` = <comparison> at line 79 in summarise()": "boolean_naming_drift",
+      "convention: is_ / has_ / should_ / can_ prefix, or an idiomatic bare name": "boolean_naming_drift",
+      "local bindings only — class attributes, instance attributes and annotated declarations are published interface, not a naming choice a reader can make freely": "boolean_naming_drift",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/rendering.py",
+        "observed": "api/rendering.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tax/rules/regional/eu/vat_bands.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "parallel_destination",
+        "passed": false
+      }
+    ]
+  }
+}

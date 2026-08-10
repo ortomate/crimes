@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.24.0",
+  "timestamp": "2026-08-10T01:02:19.048Z",
+  "run_id": "9f3d4f79-3553-4358-b2af-4766d6fa479d",
+  "response": "I did not touch anything yet. Here's what `crimes` says about the ground you'd be standing on.\n\n## The protection you have on `reverse_entry`: none\n\n`crimes context billing/ledger.py` comes back `risk: NONE` — but the useful part isn't the finding count, it's the two fields underneath:\n\n```\nlikely_tests: []\nlikely_tests_reason: \"no test file matched the target basename (looked for siblings,\n  __tests__/ and tests/ directories, and the .test / .spec / _test / test_ naming\n  conventions) and no test file imports it\"\ntest_gap: raw 1, percentile 1, label \"top-quartile\"\n```\n\n`test_gap` is maxed — `billing/ledger.py` is the worst-protected file in the package. I confirmed the mechanism by hand: `grep -rn ledger billing tests` returns exactly two hits — the `def reverse_entry` on line 16, and `billing/reporting.py:3`. No test file imports `billing.ledger`, and `reverse_entry` has **zero callers anywhere in the repo**. If you get the reversal wrong, nothing in this suite turns red.\n\n`risk: NONE` on that file is the report telling you there's no crime *in* the code, not that the code is safe to change. The two readings diverge here, and the clues block is where the divergence shows.\n\n## The one green light nearby is fake\n\nThe only indirect protection would come through `billing/reporting.py`, which imports `post_entry` from the ledger. That's also the repo's single high finding:\n\n```\ntests/test_reporting.py · test_build_report · Weak Test Signal (high, confidence 0.85)\n  · 4 of 4 test functions contain no assertion\n  · 0 total assertions across 4 tests (0.0 per test, expected ≥ 1)\n  · `test_round_trip` (lines 23–25) asserts nothing\n```\n\nI read the file to check, and the evidence is literal — `test_build_report` is a one-line call with no `assert`. So the chain `test_reporting → reporting → ledger` transmits no signal at all. Those four tests pass as long as nothing raises. You could return `None` from `post_entry`... well, that one would raise. You could return the *wrong numbers* from either ledger function and all four stay green.\n\nNote the finding's own `blast_radius: 0` and `agent_risk: 0.3` describe the test file, not the ledger — don't read them as \"this doesn't matter.\"\n\nReal assertions exist in only two places, and neither covers the ledger: `tests/test_rates.py` (3 tests, genuinely asserts on `rate_for`) and `tests/test_invoices.py` (asserts via helpers in `tests/support.py`).\n\n## What your change could affect\n\n- **In-repo blast radius is zero.** Nothing calls `reverse_entry`. That cuts both ways: no internal breakage, but also no internal caller whose behaviour would flag a mistake. It's exported package surface, so any consumer outside this repo is invisible to the scan.\n- **The real coupling is an undeclared shape contract.** `reverse_entry` hand-rewrites the four keys `post_entry` produces (`account`, `net`, `gross`, `region`) rather than deriving from them. Change the entry shape in `post_entry` and the reverser silently drops the new key.\n- **There's a numeric invariant nobody wrote down.** `post_entry` sets `gross = amount * (1 + rate_for(region))`. `reverse_entry` negates `net` and `gross` *independently*, so `gross == net * (1 + rate)` survives only because both flip sign together. If you change reversal to recompute one side — e.g. re-deriving gross via `rate_for(entry[\"region\"])` instead of negating it — you'd both break that invariant for any historical rate change and add a new `ledger → rates` coupling at reversal time. No test would notice either.\n\n## Two gaps in the scan itself\n\nThe coverage block flags that `crimes.config.json` and `pyproject.toml` matched no include pattern, so no detector read them. Whatever pytest config or coverage threshold lives in `pyproject.toml` was not checked — don't assume a coverage gate is enforcing anything here.\n\n## What I'd do before editing\n\nWrite the characterisation tests for `reverse_entry` first — round-trip (`reverse(reverse(e)) == e`), sign flip on both `net` and `gross`, and `account`/`region` passthrough — so the change has something to fail against. Separately, `tests/test_reporting.py`'s four hollow tests should get assertions; right now they're worse than no tests, because they read as coverage. That's the repo's only high finding and its `fix_shape` is exactly one line: *\"assert on the result, not just that it ran.\"*\n\nTell me how you want the reversal to change and I'll start with the tests.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}
