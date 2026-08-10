@@ -53,6 +53,18 @@ const KNOWN_DISAGREEMENTS: Record<string, string> = {
 };
 
 /**
+ * Same-directory twins that knowingly disagree — two detectors sharing
+ * one `type`, neither of them a `py/` sibling.
+ */
+const KNOWN_SAME_DIR_DISAGREEMENTS: Record<string, string> = {
+  commented_out_code:
+    "language-js ramps 0.48 + 0.04/statement to 0.72; the universal twin " +
+    "is a flat 0.35. The discriminator half of this pair was unified in " +
+    "0.25.0 (both always identify a block); the intrinsic half is a " +
+    "scoring change and needs its own baseline to be attributable.",
+};
+
+/**
  * Charges where one side expresses no ladder at all and takes a flat
  * value from `INTRINSIC_DEFAULTS` while the other ramps. A different
  * defect from a constant mismatch: one side cannot escalate with its own
@@ -94,6 +106,34 @@ function charges(): string[] {
     .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts") && f !== "index.ts")
     .filter((f) => f !== "shared.ts")
     .map((f) => f.replace(/\.ts$/, ""));
+}
+
+/**
+ * Twice-implemented charges that are **not** a `py/` pair — two
+ * detectors in the same directory declaring one `type`. The first draft
+ * of this gate walked `py/` only and so could not see
+ * `commented_out_code`, which is one of the two pairs the audit was
+ * originally written about. A gate that cannot see its own motivating
+ * example is worth naming.
+ */
+function sameDirTwins(): Array<[string, string, string]> {
+  const files = readdirSync(DETECTORS).filter(
+    (f) => f.endsWith(".ts") && !f.endsWith(".test.ts"),
+  );
+  const byId = new Map<string, string[]>();
+  for (const f of files) {
+    const src = readFileSync(resolve(DETECTORS, f), "utf8");
+    const id = /^\s*id:\s*"([a-z_0-9]+)"/m.exec(src)?.[1];
+    if (!id) continue;
+    const bucket = byId.get(id);
+    if (bucket) bucket.push(f);
+    else byId.set(id, [f]);
+  }
+  const out: Array<[string, string, string]> = [];
+  for (const [id, fs] of byId) {
+    if (fs.length === 2) out.push([id, fs[0]!, fs[1]!]);
+  }
+  return out;
 }
 
 describe("cross-pack intrinsic parity", () => {
@@ -143,6 +183,35 @@ describe("cross-pack intrinsic parity", () => {
       `these entries name a charge that is no longer implemented in both ` +
         `packs — delete them: ${stale.join(", ")}`,
     ).toEqual([]);
+  });
+
+  it("sees twice-implemented charges that are not a py/ pair", () => {
+    const twins = sameDirTwins().map(([id]) => id);
+    // commented_out_code is one of the two pairs the audit was written
+    // about. The first draft of this gate walked py/ only and missed it.
+    expect(twins).toContain("commented_out_code");
+  });
+
+  it("has no unexplained disagreement between same-directory twins", () => {
+    const unexplained: string[] = [];
+    for (const [id, a, b] of sameDirTwins()) {
+      if (KNOWN_SAME_DIR_DISAGREEMENTS[id]) continue;
+      const la = readLadder(resolve(DETECTORS, a));
+      const lb = readLadder(resolve(DETECTORS, b));
+      if (!la || !lb) continue;
+      if (la.base !== lb.base || la.step !== lb.step || la.cap !== lb.cap) {
+        unexplained.push(`${id}: ${a} vs ${b}`);
+      }
+    }
+    expect(unexplained, unexplained.join("\n")).toEqual([]);
+  });
+
+  it("keeps the same-directory exceptions real too", () => {
+    const ids = sameDirTwins().map(([id]) => id);
+    const stale = Object.keys(KNOWN_SAME_DIR_DISAGREEMENTS).filter(
+      (id) => !ids.includes(id),
+    );
+    expect(stale, `no longer twice-implemented: ${stale.join(", ")}`).toEqual([]);
   });
 
   it("still records the shape gaps as one-sided", () => {

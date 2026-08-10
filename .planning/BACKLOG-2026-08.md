@@ -170,7 +170,35 @@ readings are defensible — a task-runner process is one-shot, but a
 blocking email send inside it is still worth saying. Write the decision
 down before the code.
 
-### 1.3 (C) Unify the two `commented_out_code` variants
+### 1.3 (C) Unify the two `commented_out_code` variants — ✅ **DONE (discriminator half)**
+
+**Unified toward "always identify a block"**, matching the language-js
+twin. The `0.22.0` reasoning for the conditional policy — a file with one
+block was never ambiguous, so its fingerprint must not move — holds only
+for a tree that never changes. **The conditional policy is not merely
+different, it is unstable:** `resolveDiscriminators` discards a lone
+block's candidate hash, so when an unrelated second block appears
+anywhere in the same file both findings gain discriminators and the
+first one's fingerprint changes because of a finding that is not it. A
+`crimes ignore` entry the user already wrote stops matching.
+
+Which population churns, measured: **43** universal single-block
+findings this way, **67** language-js ones the other way. The count
+agrees with the argument, but the argument is stability. Corpus:
+airflow 20, mlflow 18, pydantic 4, cal.com 1 — **42 fingerprints
+retired and 42 introduced, finding counts identical everywhere, only
+`commented_out_code` touched, hono byte-identical.** Identity-only, so
+the baseline carries forward.
+
+**The intrinsic half is deliberately left**: language-js ramps
+0.48 + 0.04/statement to 0.72, the universal twin is a flat 0.35. That
+is a scoring change and needs its own baseline. It is now asserted in
+`scoring/intrinsic-parity.test.ts` rather than silent — and finding it
+there exposed a hole in that gate's first draft, which walked `py/`
+only and so could not see one of the two pairs the audit was written
+about.
+
+<details><summary>original entry</summary>
 
 The `language-js` one always appends a block hash; the universal one
 appends it only when a file holds more than one block (`0.22.0`, so
@@ -181,6 +209,8 @@ Note these are the two entries that already showed up side by side in
 the `0.23.0` intrinsic audit (`commented_out_code` appears twice in the
 registry with different expressed bases, 0.48 JS vs 0.35 universal), so
 this is **two** kinds of divergence in one detector pair.
+
+</details>
 
 ---
 

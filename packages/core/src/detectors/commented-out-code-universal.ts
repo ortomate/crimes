@@ -152,13 +152,23 @@ export const commentedOutCodeUniversalDetector: UniversalDetector = {
     // 18 blocks under a single fingerprint — 21 of zulip's 39
     // colliding findings and 18 of airflow's 184.
     //
-    // Routed through `resolveDiscriminators` rather than set
-    // unconditionally, so a file holding one block keeps the
-    // fingerprint it has always had. That leaves the two variants
-    // disagreeing for single-block files — the JS one always appends a
-    // hash — which is pre-existing and not worth churning every JS
-    // fingerprint to unify.
-    resolveDiscriminators(findings);
+    // `keepUnambiguous` unifies this with the language-js twin, which
+    // has always appended the hash. `0.22.0` left the two disagreeing
+    // for single-block files on the grounds that unifying would churn
+    // fingerprints, and it would — but the conditional policy is not
+    // merely different, it is **unstable**: with `keepUnambiguous`
+    // false, a lone block's candidate hash is discarded, and the moment
+    // an unrelated second block appears anywhere in the same file both
+    // findings gain discriminators. The first block's fingerprint
+    // therefore changes because of a finding that is not it, and a
+    // `crimes ignore` entry a user already wrote stops matching.
+    //
+    // Measured on the corpus: unifying this way churns 43 universal
+    // single-block findings; unifying the other way would churn 67
+    // language-js ones. The count agrees with the argument, but the
+    // argument is stability — identity should not depend on how many
+    // neighbours a finding happens to have.
+    resolveDiscriminators(findings, { keepUnambiguous: true });
     return findings;
   },
 };

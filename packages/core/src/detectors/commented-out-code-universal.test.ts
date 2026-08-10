@@ -177,16 +177,21 @@ describe("commented_out_code (universal) — fingerprint uniqueness", () => {
     expect(new Set(discriminators).size).toBe(2);
   });
 
-  // Rule 1 of `resolveDiscriminators`: a file with one block was never
-  // ambiguous, so its fingerprint must not move. Anything else would
-  // break every pinned suppression on this detector to fix the 39
-  // findings that actually collide.
-  it("leaves a lone block's fingerprint alone", async () => {
+  // **Reversed in `0.25.0`, deliberately.** This used to assert that a
+  // lone block keeps an empty discriminator, on the `0.22.0` reasoning
+  // that a file with one block was never ambiguous so its fingerprint
+  // must not move. That reasoning holds only for a tree that never
+  // changes. Discarding the candidate hash makes a finding's identity a
+  // function of how many *neighbours* it has, so a second block
+  // appearing anywhere in the file re-fingerprints the first one and
+  // breaks a suppression the user already wrote. Churning 43 universal
+  // single-block findings once is the cheaper of the two.
+  it("identifies a lone block rather than leaving it anonymous", async () => {
     const findings = await commentedOutCodeUniversalDetector.run(
       makeCtx("src/one.py", [block(1), "active = 1"].join("\n")),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0]!.discriminator).toBeUndefined();
+    expect(findings[0]!.discriminator).toMatch(/^[0-9a-f]{12}$/);
   });
 
   it("tie-breaks two byte-identical blocks by start line", async () => {
@@ -196,5 +201,66 @@ describe("commented_out_code (universal) — fingerprint uniqueness", () => {
     );
     expect(findings).toHaveLength(2);
     expect(new Set(findings.map((f) => f.discriminator)).size).toBe(2);
+  });
+});
+
+describe("discriminator stability (C — the two variants unified)", () => {
+  const BLOCK_A = [
+    "# result = compute(a, b)",
+    "# if result is None:",
+    "#     raise ValueError(result)",
+    "#     return result",
+  ].join("\n");
+  const BLOCK_B = [
+    "# handler = build_handler(cfg)",
+    "# handler.register(name)",
+    "#     handler.start()",
+    "#     return handler",
+  ].join("\n");
+
+  it("gives a lone block a discriminator of its own", async () => {
+    const [only] = await commentedOutCodeUniversalDetector.run(
+      makeCtx("svc/a.py", `x = 1\n${BLOCK_A}\ny = 2\n`),
+    );
+    // Through 0.24.0 this was dropped, so the fingerprint was
+    // `commented_out_code::svc/a.py::` — an identity that says nothing
+    // about which block it is.
+    expect(only?.discriminator, "a lone block should still be identified").toBeTruthy();
+  });
+
+  it("does not change a block's identity when an unrelated block appears", async () => {
+    // The defect the conditional policy carried: identity depended on how
+    // many *other* findings shared the file, so commenting out something
+    // elsewhere silently re-fingerprinted a finding a user had already
+    // triaged, and their `crimes ignore` entry stopped matching.
+    const before = await commentedOutCodeUniversalDetector.run(
+      makeCtx("svc/a.py", `x = 1\n${BLOCK_A}\ny = 2\n`),
+    );
+    const after = await commentedOutCodeUniversalDetector.run(
+      makeCtx("svc/a.py", `x = 1\n${BLOCK_A}\ny = 2\n${BLOCK_B}\nz = 3\n`),
+    );
+    const firstBefore = before[0];
+    const firstAfter = after.find((f) => f.lines?.[0] === firstBefore?.lines?.[0]);
+    expect(after.length).toBe(2);
+    expect(firstAfter?.discriminator).toBe(firstBefore?.discriminator);
+  });
+
+  it("still separates two blocks in one file", async () => {
+    const findings = await commentedOutCodeUniversalDetector.run(
+      makeCtx("svc/a.py", `x = 1\n${BLOCK_A}\ny = 2\n${BLOCK_B}\nz = 3\n`),
+    );
+    const ds = findings.map((f) => f.discriminator);
+    expect(new Set(ds).size).toBe(findings.length);
+  });
+
+  it("matches the language-js twin's policy of always identifying a block", async () => {
+    // The two variants disagreed only for single-block files. Unified
+    // toward "always", because the alternative makes identity a function
+    // of unrelated findings — see the test above.
+    const findings = await commentedOutCodeUniversalDetector.run(
+      makeCtx("svc/solo.py", `x = 1\n${BLOCK_A}\n`),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.discriminator).toMatch(/^[0-9a-f]{12}$/);
   });
 });
