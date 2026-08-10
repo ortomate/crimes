@@ -67,6 +67,40 @@ release note without having re-derived it that round.**
 
 ---
 
+## 1b. Status — end of the first working session
+
+Nine commits, **zero agent eval runs spent**, `pnpm verify` green at
+every step, `evals:ranking` byte-identical throughout. **No version bump
+is owed on anything below** — every change is either findings-neutral or
+identity-only.
+
+| stream | state | outcome |
+|---|---|---|
+| **S0** instrument | 🟡 half | Hypothesis confirmed 3/28. Found + fixed the depth cliff (floor 40 → 28, population identical). **Scenarios still to author.** |
+| **S1** ledger | ⬜ not started | Contract defect found: the backlog's "one warning per skipped path" contradicts the shipped `CoverageWarning` type. |
+| **S2** config | ✅ done | Two bugs, not one — `mergeConfig` *and* `crimes init`. Both halves fixed, `assets.exclude` too. |
+| **S3** tooling excludes | ⬜ blocked on a decision | A reproduces exactly (85 findings, 17.5%). Needs a TOML reader — see below. |
+| **S4** reachability | 🟡 measured, not built | The signal §9 named **does not work**. A fourth one does, and the decision §9 asked for is written down. |
+| **S5** C + audit | ✅ done | Discriminator half unified (42 fingerprints, identity-only). Audit: 7 of 8 disagree. Extraction + standing gate landed. |
+
+**The one open decision: S3 needs to read `pyproject.toml`, and there is
+no TOML parser in the tree.** Options are a small dependency
+(`smol-toml`) or a targeted reader that recognises only `[table]`
+headers and `key = [...]` / `key = "..."` lines. Whichever is chosen,
+the safety property is the same and non-negotiable: **when the reader
+does not fully understand a file, it must exclude nothing.** Missing an
+exclusion costs noise; inventing one costs silence, and silence is the
+failure mode this stream exists to avoid. airflow's
+`[tool.hatch.build.targets.sdist] exclude = ["*"]` sits at line 589 of
+its `pyproject.toml`, and two further traps are now known:
+`[tool.coverage.report] skip_empty = true` (a `skip`-prefixed key that
+is not a path list) and `[tool.uv] exclude-newer = "4 days"` (an
+`exclude`-prefixed key whose value is a string). Note also that
+codespell's `skip` **is** legitimately a comma-separated string, so
+"reject all strings" is not the rule either.
+
+---
+
 ## 2. Scope — decided
 
 **In.** P0.2, P1.1 (A, Python half only), P1.2 (B), P1.3 (C) + the P2.3
