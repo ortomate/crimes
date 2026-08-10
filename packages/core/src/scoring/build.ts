@@ -553,7 +553,7 @@ export function computeAgentRisk(args: {
   const scored = round(clamp01(raw));
 
   const klass = agentRiskClassOf(args.type);
-  if (klass === "structural") return Math.min(scored, STRUCTURAL_CEILING);
+  if (klass === "structural") return round(scored * STRUCTURAL_CEILING);
   return scored;
 }
 

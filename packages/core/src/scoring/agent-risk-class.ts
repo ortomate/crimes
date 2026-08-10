@@ -23,8 +23,9 @@
  * - **`structural`** — the finding says the code is *big* or *tangled*.
  *   Real, worth reporting, and largely orthogonal to whether an agent
  *   will get it wrong: a 400-line function is tedious to edit, not
- *   deceptive. Capped at {@link STRUCTURAL_CEILING} so it can never
- *   outrank a genuine agent-risk signal.
+ *   deceptive. Scaled onto `[0, `{@link STRUCTURAL_CEILING}`]` so it can
+ *   never outrank a genuine agent-risk signal, while staying ordered
+ *   within the class.
  *
  * - **`agent_signal`** — the finding says something an agent will
  *   actively be *misled* by: two sources of truth that can disagree, a
@@ -40,16 +41,29 @@
  * answering the second with the first is exactly the collapse being
  * fixed.
  *
- * ## This is a defect fix, not a settled design
+ * ## Where the three open questions landed
  *
- * The score is no longer a length ranking. What its shape *should* be
- * is an open question and the focus of the next release — including
- * whether a hard ceiling is the right mechanism (it collapses every
- * structural finding above the cap to exactly 0.3, the same plateau
- * problem `blast_radius` was just fixed for), whether per-detector
- * intrinsics are calibrated against each other at all, and whether
- * zulip's new 16-of-20 `sync_io_in_hotpath` concentration is an
- * improvement or just a different monoculture.
+ * `ce0ccab` stopped the score being a length ranking but left its shape
+ * unsettled, on three questions. All three have now been run.
+ *
+ * - **Are the intrinsics calibrated against each other?** No — and 28
+ *   of 70 detectors had none to calibrate. Fixed in `0.23.0`; see
+ *   `INTRINSIC_DEFAULTS` in `detector-defaults.ts`.
+ * - **Is a hard ceiling the right mechanism?** No. It flattened
+ *   22.8%–61.4% of a report onto one value and handed the ordering to
+ *   `recency`. Replaced by a monotonic squash in `0.24.0` — see
+ *   {@link STRUCTURAL_CEILING}.
+ * - **Is a 16-of-20 concentration a problem in itself?** Mostly not,
+ *   and the figure was stale (12 of 20 at `0.22.0`). Against the
+ *   population the head is drawn from, zulip's lift is **1.20** — the
+ *   repo genuinely has that much blocking I/O in Python. Where lift is
+ *   high the cause was an uncalibrated intrinsic, so the question
+ *   collapsed into the first one.
+ *
+ * **Still unsettled**, and none of it is validated by the above: the
+ * *level* 0.3, the class table itself (hand-maintained, and `standard`
+ * has zero members across all 70 detectors), and the 41 intrinsics that
+ * remain literals inside their own detectors.
  *
  * `docs/calibration-followups.md` § "`agent_risk`: what we know and
  * what we believe" separates the measured facts from the assumptions.
@@ -91,22 +105,42 @@
  * `detector-defaults.ts`, which gives all 28 such detectors a declared,
  * peer-anchored value.
  *
- * ## What the constant is now
+ * ## What the constant is now — a scale, not a clamp (`0.24.0`)
  *
- * **Still 0.3, and still unvalidated.** Correcting the rationale does
- * not by itself choose a different number, and `0.23.0` deliberately
- * changed the inputs rather than the mechanism so the two are not
- * confounded in one baseline. A monotonic squash (`scored * CEILING`)
- * was implemented and measured as the alternative: it moves the
- * differentiated bucket 13 up / 0 down and takes structural out of the
- * top 20 on four of five corpus repos, at the cost of the
- * length-labelled scenarios §28 has already disowned. That evidence is
- * recorded in `docs/calibration-followups.md`; the change was not taken,
- * because stacking a second compensation on top of the missing
- * intrinsics would have made either one impossible to attribute.
+ * The value is still 0.3 and still unvalidated as a *level*. What
+ * changed in `0.24.0` is how it is applied:
+ *
+ * ```
+ * before   Math.min(scored, CEILING)     // a hard clamp
+ * after    round(scored * CEILING)       // a monotonic squash
+ * ```
+ *
+ * A clamp destroys order. Measured at `0.22.0`, it collapsed **760 of
+ * zulip/zerver's 1505 findings onto exactly 0.30**, from 31 distinct
+ * pre-clamp levels spanning 0.31–0.63 — and since
+ * `rank_score = agent_risk * (1 + recency * 0.5)`, ordering among them
+ * then fell through to `recency`, a file-age signal with nothing to say
+ * about agent risk. Across the corpus the plateau covered 22.8%–61.4%
+ * of a report.
+ *
+ * The squash keeps the class ordered by its own severity while still
+ * mapping onto `[0, CEILING]`, so a length finding still cannot outrank
+ * a differentiated one. Measured on top of `0.23.0`: the differentiated
+ * bucket moves **11 up / 0 down** (deep, deterministic), the plateau at
+ * exactly 0.30 goes from 2,778 to 46 findings on mlflow and 296 to 4 on
+ * pydantic, and the number of distinct `agent_risk` values *rises* on
+ * every corpus repo. Length findings stop leading pydantic (top-20
+ * structural 6 → 0) and drf (15 → 10), which the clamp never managed.
+ *
+ * **Both effects are inseparable at 2-decimal precision.** A monotonic
+ * map cannot re-spread the clamped tail without also lowering the rest
+ * of the class — the band has 31 slots and the input has 101 levels. So
+ * this is not only "preserve order"; it also pushes the whole structural
+ * class down. That was measured and accepted, not overlooked.
  *
  * Structural findings are still reported, still carry their own
- * severity, and still sort among themselves by churn and test gap.
+ * severity, and now sort among themselves by their own score rather
+ * than by whichever tiebreak the plateau fell through to.
  */
 export const STRUCTURAL_CEILING = 0.3;
 

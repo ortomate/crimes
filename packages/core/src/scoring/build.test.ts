@@ -726,6 +726,79 @@ describe("computeAgentRisk", () => {
     expect(modestDrift).toBeGreaterThan(hugeFunction);
   });
 
+  it("preserves order within the structural class instead of flattening it", () => {
+    // The two tests above both use maximal inputs — the single point
+    // where a hard clamp and a monotonic squash agree — which is why a
+    // mechanism change touching 22–61% of a report passed all 2,212
+    // tests. These pin the mechanism itself.
+    //
+    // Measured at 0.22.0: `Math.min(scored, CEILING)` collapsed 760 of
+    // zulip/zerver's 1505 findings onto exactly 0.30, from 31 distinct
+    // pre-clamp levels spanning 0.31–0.63. Ordering among them then fell
+    // through to `recency`, a file-age signal with nothing to say about
+    // agent risk.
+    const worse = computeAgentRisk({
+      type: "large_function",
+      intrinsic: 1,
+      churn: 1,
+      test_gap: 1,
+      blast_radius: 1,
+    });
+    const middling = computeAgentRisk({
+      type: "large_function",
+      intrinsic: 0.8,
+      churn: 0.6,
+      test_gap: 0.6,
+      blast_radius: 0.6,
+    });
+    const mild = computeAgentRisk({
+      type: "large_function",
+      intrinsic: 0.6,
+      churn: 0.2,
+      test_gap: 0.2,
+      blast_radius: 0.2,
+    });
+
+    // All three would clamp to exactly 0.30 under `Math.min`.
+    expect(worse).toBeGreaterThan(middling);
+    expect(middling).toBeGreaterThan(mild);
+  });
+
+  it("keeps the structural class at or below the ceiling", () => {
+    // Order preservation must not buy itself headroom: the whole point
+    // of the class is that a length finding cannot outrank a
+    // differentiated one, so the squash maps onto [0, CEILING] rather
+    // than rescaling past it.
+    for (const intrinsic of [0, 0.25, 0.5, 0.75, 1]) {
+      for (const ctx of [0, 0.5, 1]) {
+        const got = computeAgentRisk({
+          type: "large_function",
+          intrinsic,
+          churn: ctx,
+          test_gap: ctx,
+          blast_radius: ctx,
+        });
+        expect(got).toBeLessThanOrEqual(0.3);
+        expect(got).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it("leaves the agent-signal and standard classes untouched", () => {
+    // The squash applies to `structural` only. `swallowed_error` is
+    // agent_signal, so its score is the raw formula with no ceiling and
+    // no rescale.
+    expect(
+      computeAgentRisk({
+        type: "swallowed_error",
+        intrinsic: 0.9,
+        churn: 0.5,
+        test_gap: 0.5,
+        blast_radius: 0.5,
+      }),
+    ).toBe(0.66); // 0.40*0.9 + 0.20*0.5*3
+  });
+
   it("applies the cap through a pack-qualified id too", () => {
     expect(
       computeAgentRisk({
