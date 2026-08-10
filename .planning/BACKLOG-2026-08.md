@@ -13,7 +13,19 @@ with user-facing numbers attached:
 | carried item | measured impact |
 |---|---|
 | A — honour a repo's own tooling excludes | pydantic `v1/`: 85 findings, **17.5% of the whole report** |
-| B — `sync_io_in_hotpath` by reachability | airflow **227/811 (28%)**, mlflow 88/402 (22%), pydantic 7/19 (37%) |
+| B — `sync_io_in_hotpath` by reachability | airflow **227/811 (28%)**, mlflow 88/402 (22%), pydantic 7/19 (37%) — **note: % of that detector's findings, not of the report; see below** |
+
+> **⚠ The two rows above are in different units.** Re-derived at R7 and
+> both reproduce exactly, but A's percentage is a share of the *whole
+> report* and B's is a share of *`sync_io_in_hotpath`'s own findings*.
+> In report terms B is airflow **2.29%**, mlflow **1.36%**, pydantic
+> **1.44%** — an order of magnitude smaller than the column invites you
+> to read. Report totals are airflow 9,924 / mlflow 6,468 / pydantic
+> 487. B's `227` is also an **upper bound**: it counts sync_io findings
+> in files that merely *contain* a `__main__` guard, whereas the rule
+> §9 proposes is far stricter (every same-file call path starting inside
+> the guard, in a module nothing imports), and `task_runner.py` is a
+> guarded file that arguably should *not* be suppressed.
 | C — the two `commented_out_code` variants disagree | small, but it is the drift §24 was written about |
 
 Three things are structurally causing the drag. They are the "underlying

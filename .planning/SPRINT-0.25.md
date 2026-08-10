@@ -49,6 +49,22 @@ findings, or that detector's findings? Trap #2 says re-derive a number
 before building on it. **No stream may quote its own backlog figure in a
 release note without having re-derived it that round.**
 
+> **Executed. All three reproduce exactly (227 / 88 / 7) — and the
+> denominator is the detector's own findings, not the report.** In
+> report terms B is airflow **2.29%**, mlflow **1.36%**, pydantic
+> **1.44%**, against report totals of 9,924 / 6,468 / 487.
+>
+> **This corrects §1 of this plan, which I wrote.** "Removes 20–30% of
+> findings on some repos" conflated B's unit with A's. The honest
+> combined ceiling is A's 17.5% on pydantic plus B's ~2.3% on airflow —
+> still the largest precision release to date, but the headline must be
+> "28% of one detector's findings", never "28% of the report".
+>
+> It also means the depth cliff was less likely to fire than feared.
+> Re-centring the floor was still right and still free, but the
+> justification is "the instrument had a 15× phantom in it", not "this
+> release would certainly have triggered it".
+
 ---
 
 ## 2. Scope — decided
