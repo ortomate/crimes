@@ -122,6 +122,20 @@ directly from `evals/scenarios/*.json` against the `INTRINSIC_DEFAULTS`
 table before authoring anything. If it is 3, proceed; if it is 9, the
 sprint's central justification is weaker and that changes S0's size.
 
+> **Executed. Confirmed 3 of 28 exactly** — `plan-04-hotspots`,
+> `refactor-02-component-shape`, `review-02-react-dashboard`. 11 of the
+> 28 are referenced by no scenario at all. **And the check surfaced a
+> larger defect the entry does not mention: the depth cliff.** Fixture
+> `01` emits 42 findings against a floor of 40 and carries **75% of the
+> deep population**; losing 3 findings from it moves the headline
+> `+0.1333` on membership alone, ~15× any real movement ever shipped.
+> On a suppression release that is a phantom success waiting to happen.
+> **Guard landed first** (`ranking-population.ts`, 12 tests, no
+> arithmetic changed, no bump owed). S0's scenario work now has a second
+> and arguably more important goal: **deep scenarios off fixture `01`**,
+> to dilute the 75%. Full write-up in `evals/README.md` § "The depth
+> cliff" and `BACKLOG-2026-08.md` §3.2.
+
 **Do:** author new deep scenarios covering the differentiated detectors
 (`contract_drift`, `swallowed_error`, `duplicated_policy`,
 `permission_ia_drift`, `unsafe_retry`, `mock_saturation` are the six the

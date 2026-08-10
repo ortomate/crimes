@@ -17,6 +17,12 @@
 import { existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  type DepthMargin,
+  type PopulationRow,
+  depthMargins,
+  diffDeepPopulation,
+} from "./ranking-population.js";
 import { type RankedFinding, type RankingScore, scoreRanking } from "./ranking.js";
 import { runScan } from "./scan-helpers.js";
 import type { FixturesRegistry, Scenario } from "./types.js";
@@ -51,6 +57,13 @@ interface RankingReport {
   scored_deep: number;
   scored_all: number;
   skipped: number;
+  /**
+   * Per deep fixture, how many findings it can lose before it leaves the
+   * aggregate and what share of the aggregate it decides. Diagnostic
+   * only — nothing here feeds `mean_ndcg_deep`, which is computed
+   * exactly as it was for the nine baselines already on disk.
+   */
+  depth_margins: DepthMargin[];
   scenarios: ScenarioRanking[];
 }
 
@@ -117,8 +130,19 @@ function summarise(version: string, rows: ScenarioRanking[]): RankingReport {
     scored_deep: deep.length,
     scored_all: scored.length,
     skipped: rows.length - scored.length,
+    depth_margins: depthMargins(rows, DEPTH_FLOOR),
     scenarios: rows,
   };
+}
+
+/** The report's rows in the shape the population diagnostics take. */
+function populationRows(report: RankingReport): PopulationRow[] {
+  return report.scenarios.map((s) => ({
+    scenario: s.scenario,
+    fixture: s.fixture,
+    total_findings: s.total_findings,
+    ndcg: s.ndcg,
+  }));
 }
 
 function render(report: RankingReport, outPath: string): void {
@@ -147,6 +171,38 @@ function render(report: RankingReport, outPath: string): void {
   lines.push(`  skipped (nothing to rank):                    ${report.skipped}`);
   lines.push("");
   lines.push(`  · = shallow fixture, cannot demonstrate a ranking change`);
+  lines.push("");
+
+  // Deep membership is an input to the headline mean. Print what it
+  // rests on, unprompted — a fixture that is two findings from dropping
+  // out and decides three quarters of the aggregate is the kind of thing
+  // you only look for once you have already been fooled by it.
+  lines.push(`  deep-set composition (floor ${report.depth_floor}):`);
+  for (const m of report.depth_margins) {
+    const flag = m.cliff ? "  ⚠ CLIFF" : "";
+    lines.push(
+      `    ${pad(m.fixture, 22)} ${String(m.total_findings).padStart(3)} findings ` +
+        `(${String(m.margin).padStart(3)} spare)  ` +
+        `${String(m.deep_scenarios).padStart(2)} scenarios = ` +
+        `${(m.share * 100).toFixed(0).padStart(3)}% of the aggregate${flag}`,
+    );
+  }
+  const cliffs = report.depth_margins.filter((m) => m.cliff);
+  if (cliffs.length > 0) {
+    lines.push("");
+    for (const m of cliffs) {
+      lines.push(
+        `  ⚠ ${m.fixture} is ${m.margin} finding(s) from leaving the deep set, and ` +
+          `carries ${(m.share * 100).toFixed(0)}% of it.`,
+      );
+    }
+    lines.push(
+      `    A change that removes findings can move the headline by more than any`,
+    );
+    lines.push(`    scoring change ever has, without touching the scoring. Compare with`);
+    lines.push(`    --compare and read delta_on_stable_set, not the headline.`);
+  }
+  lines.push("");
   lines.push(`  written to ${outPath}`);
   lines.push("");
   process.stdout.write(`${lines.join("\n")}\n`);
@@ -188,8 +244,45 @@ function renderComparison(report: RankingReport, rawPath: string): void {
   lines.push(
     `  mean nDCG (all):  ${fmt(prior.mean_ndcg_all)} -> ${fmt(report.mean_ndcg_all)}`,
   );
+
+  // The deep mean is a mean over whichever scenarios cleared the floor.
+  // If that set moved, the two numbers above are not a before and after,
+  // and saying so is the whole point of this block.
+  const pop = diffDeepPopulation(
+    populationRows(prior),
+    populationRows(report),
+    report.depth_floor,
+  );
+  lines.push("");
+  if (pop.comparable) {
+    lines.push(`  deep set unchanged (n=${pop.stable}) — the delta above is real.`);
+  } else {
+    lines.push(`  ⚠ THE DEEP SET CHANGED. The delta above is NOT a before/after.`);
+    if (pop.left.length > 0) {
+      lines.push(
+        `    left  (${pop.left.length}): ${pop.left.slice(0, 6).join(", ")}` +
+          (pop.left.length > 6 ? ` … +${pop.left.length - 6}` : ""),
+      );
+    }
+    if (pop.entered.length > 0) {
+      lines.push(
+        `    entered (${pop.entered.length}): ${pop.entered.slice(0, 6).join(", ")}` +
+          (pop.entered.length > 6 ? ` … +${pop.entered.length - 6}` : ""),
+      );
+    }
+    lines.push(
+      `    headline moved ${fmtDelta(pop.mean_delta)}, but on the ${pop.stable} ` +
+        `scenarios deep in both runs it moved ${fmtDelta(pop.delta_on_stable_set)}.`,
+    );
+    lines.push(`    Quote delta_on_stable_set. The rest is membership.`);
+  }
   lines.push("");
   process.stdout.write(`${lines.join("\n")}\n`);
+}
+
+function fmtDelta(n: number | null): string {
+  if (n === null) return "n/a";
+  return `${n >= 0 ? "+" : ""}${n.toFixed(4)}`;
 }
 
 function parseFindings(scanJson: string): RankedFinding[] {

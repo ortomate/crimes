@@ -205,6 +205,36 @@ again.
   Only 3 deep-fixture scenarios label any of the 28 detectors
   un-suppressed in `0.23.0`. This is why every scoring release produces
   "aggregate down, split up".
+
+  **Reproduced exactly at `0.24.0` (R7): 3 of 28.** The named scenarios
+  are `plan-04-hotspots` (`high_fan_in_fan_out`),
+  `refactor-02-component-shape` (`duplicate_component_shape`) and
+  `review-02-react-dashboard` (`duplicated_role_status_plan_check`).
+  Across *all* scenarios, deep or shallow, 17 of the 28 are referenced
+  and **11 are referenced by nothing at all**: `agent_permission_sprawl`,
+  `config_drift`, `contract_drift`, `dependency_provenance_gap`,
+  `duplicated_policy`, `finder_duplicate_filename`, `mock_saturation`,
+  `pass_through_abstraction`, `swallowed_error`, `unbounded_async_fanout`,
+  `unsafe_retry`.
+
+  **The entry understates its own severity, and the reason is a second
+  defect it does not mention.** `mean_ndcg_deep` is a mean over whichever
+  scenarios clear `DEPTH_FLOOR = 40`, and **fixture `01` emits 42
+  findings while carrying 21 of the 28 deep scenarios (75%)**. Three
+  findings removed from `messy-ts-app` drops all 21 out at once and moves
+  the headline **0.3530 → 0.4863 (+0.1333)** with no scoring change —
+  ~15× the largest true movement ever shipped. The nine stored baselines
+  are uncontaminated (fixture `01` has been at exactly 42 throughout),
+  but that is luck: nothing had removed a finding from it in nine
+  releases, and `0.25.0` is the suppression release.
+
+  Closed as far as the instrument goes: `evals/runner/src/ranking-population.ts`
+  prints deep-set composition with a `⚠ CLIFF` marker on every run and
+  makes `--compare` report `delta_on_stable_set` instead of a false
+  before/after. **No arithmetic changed** — `mean_ndcg_deep` is
+  byte-identical, so no bump was owed (`evals/README.md` § "When *not*
+  to bump at all", the rule that reverted `0.22.1`). The remaining half
+  is the original entry: more deep scenarios, off fixture `01`.
 - **3.3 `evals/README.md` § "Fix this regardless" is stale** — the
   version-comparator bug it describes was fixed in `versions.ts`, which
   handles the `-rN` suffix properly. Delete or mark the section.

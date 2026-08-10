@@ -181,6 +181,47 @@ Read it with three caveats, all of them load-bearing:
    0.17.1 → 0.18.1 comparison the aggregate moved +0.006 while 20 of 26
    deep scenarios moved *up* — the mean was netting out two opposite
    effects that are the actual result (see below).
+4. **Deep membership is an input to the metric, and it has a cliff.**
+   See below. `--compare` now refuses to present a before/after across a
+   population change; believe it.
+
+#### The depth cliff — read this before quoting `mean_ndcg_deep`
+
+`mean_ndcg_deep` averages whichever scenarios sit on a fixture emitting
+at least `DEPTH_FLOOR` (40) findings. **Which scenarios those are is an
+input to the number, and until `0.25.0` nothing reported when it
+changed.** Measured at `0.24.0`:
+
+| fixture | findings | spare | deep scenarios | share of the aggregate |
+|---|---|---|---|---|
+| `01` messy-ts-app | 42 | **2** | **21** | **75%** |
+| `04` monorepo | 92 | 52 | 4 | 14% |
+| `02` react-dashboard | 99 | 59 | 2 | 7% |
+| `03` node-cli-tool | 55 | 15 | 1 | 4% |
+
+Remove three findings from fixture `01` and 21 of the 28 deep scenarios
+leave the aggregate simultaneously. The headline goes **0.3530 →
+0.4863, +0.1333, with no scoring change at all** — roughly **15× the
+largest real movement ever recorded** (`0.24.0`'s +0.0089 on the
+differentiated bucket, whose headline moved −0.0008).
+
+The stored record is clean: fixture `01` has emitted exactly 42 findings
+across all nine baselines on disk, so no published number is
+contaminated. **That is stability by luck, not by construction** —
+nothing had removed a finding from `messy-ts-app` in nine releases. A
+release whose changes are suppression-shaped is exactly the one that
+walks off it, and it would read the fall as its own success.
+
+`ranking-population.ts` adds two diagnostics and changes no arithmetic:
+every run prints the deep-set composition with a `⚠ CLIFF` marker, and
+`--compare` reports `delta_on_stable_set` — the movement restricted to
+scenarios deep in *both* runs — and says outright when the headline
+delta is not a before/after. **When the deep set moves, quote
+`delta_on_stable_set` and nothing else.**
+
+The durable fix is not a lower floor (that would break comparability
+with all nine baselines) but **more deep scenarios off fixture `01`**,
+which is what the P3.2 work is for.
 
 #### What it says about `ce0ccab`
 
