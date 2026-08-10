@@ -1132,13 +1132,28 @@ folded into them — each is a separate behaviour change.
 
    `0.23.0` fixed the inputs — `INTRINSIC_DEFAULTS`, one table with each
    value anchored to a named expressed peer, plus a source-reading gate
-   so it cannot re-accumulate. **The mechanism is still parked.** A
-   monotonic squash was implemented and measured (13 up / 0 down on the
-   differentiated bucket, structural out of the top 20 on four of five
-   corpus repos) and deliberately not taken, so two findings-moving
-   changes would not land in one baseline. Full evidence in
-   `docs/calibration-followups.md` § "`0.23.0` — the intrinsics were
-   never calibrated".
+   so it cannot re-accumulate. The mechanism was deliberately deferred
+   one release so two findings-moving changes would not land in one
+   baseline.
+
+   **`0.24.0` closed the mechanism half.** The ceiling became a scale
+   (`Math.min(scored, CEILING)` → `round(scored * CEILING)`), on the
+   measurement that a clamp does not rank at all: it collapsed 760 of
+   zulip/zerver's 1505 findings onto exactly 0.30, and since
+   `rank_score = agent_risk * (1 + recency * 0.5)` the order of that
+   half fell through to **file age**. The plateau is gone across the
+   corpus and length findings stop leading pydantic and drf, which the
+   clamp never managed. Re-measured from the `0.23.0` baseline rather
+   than reusing the numbers above — those were taken while the 28
+   detectors were still suppressed. Full evidence in
+   `docs/calibration-followups.md` §§ "`0.23.0` — the intrinsics were
+   never calibrated" and "`0.24.0` — the ceiling becomes a scale".
+
+   **All three of §5's open questions are now answered.** What remains
+   unsettled is narrower and stated there: the *level* 0.3, the
+   hand-maintained class table (`standard` still has zero members), the
+   two packs disagreeing about `sync_io_in_hotpath`, and 41 intrinsics
+   still living as literals in their own detectors.
 6. ~~**Repo-level findings are invisible in the default view.**~~
    **Done** in `0.18.1` — `92af2cc`. A `Repo-level` section above the
    per-file groups, driven by an explicit type list rather than a path

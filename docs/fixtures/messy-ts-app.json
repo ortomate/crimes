@@ -952,90 +952,6 @@
     },
     {
       "id": "crime_00022",
-      "type": "large_function",
-      "charge": "God Function",
-      "severity": "high",
-      "confidence": 0.95,
-      "file": "src/billing.ts",
-      "symbol": "generateInvoice",
-      "lines": [
-        50,
-        253
-      ],
-      "summary": "generateInvoice is 204 lines long (domain function threshold 60). Bodies this size usually mix unrelated responsibilities, and an agent editing one section often misses interactions in another.",
-      "evidence": [
-        "lines 50–253 (204 lines)",
-        "3.4× the domain function threshold (60 lines)",
-        "function declaration"
-      ],
-      "effort": "small",
-      "fix_shape": "extract pure helpers; keep the orchestrator thin",
-      "scores": {
-        "severity": 0.9,
-        "confidence": 0.95,
-        "agent_risk": 0.3,
-        "churn": 0.2,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "extract_function",
-          "description": "Extract cohesive sections into named helpers so each responsibility can be read, tested, and edited in isolation.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "large_function.js",
-      "tier": "domain",
-      "fingerprint": "large_function::src/billing.ts::generateInvoice"
-    },
-    {
-      "id": "crime_00023",
-      "type": "todo_density",
-      "charge": "Unfinished Business",
-      "severity": "medium",
-      "confidence": 0.7,
-      "file": "src/todo.ts",
-      "lines": [
-        1,
-        32
-      ],
-      "summary": "14 TODO/FIXME markers (424.2 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.",
-      "evidence": [
-        "6× TODO, 4× FIXME, 2× HACK, 2× XXX",
-        "424.2 markers per 1k LOC (threshold 10)"
-      ],
-      "effort": "small",
-      "fix_shape": "convert TODOs to tickets or delete; comments are not tracking",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.7,
-        "agent_risk": 0.3,
-        "churn": 0.05,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "triage_todos",
-          "description": "Convert each marker into a tracked issue or remove it. Lingering TODOs mislead humans and agents about which behaviour is intentional.",
-          "risk": "low"
-        }
-      ],
-      "pack": "universal",
-      "detector_id": "todo_density",
-      "tier": "domain",
-      "fingerprint": "todo_density::src/todo.ts::"
-    },
-    {
-      "id": "crime_00024",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -1079,7 +995,7 @@
       "fingerprint": "boolean_naming_drift::src/api/state.ts::"
     },
     {
-      "id": "crime_00025",
+      "id": "crime_00023",
       "type": "swallowed_error",
       "charge": "Catch and Release",
       "severity": "low",
@@ -1127,7 +1043,7 @@
       "fingerprint": "swallowed_error::src/billing.ts::generateInvoice → catch_clause"
     },
     {
-      "id": "crime_00026",
+      "id": "crime_00024",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "low",
@@ -1170,7 +1086,7 @@
       "fingerprint": "direct_date::src/api/state.ts::"
     },
     {
-      "id": "crime_00027",
+      "id": "crime_00025",
       "type": "date_string_concat",
       "charge": "Date String Sewing",
       "severity": "low",
@@ -1212,7 +1128,7 @@
       "fingerprint": "date_string_concat::src/date.ts::"
     },
     {
-      "id": "crime_00028",
+      "id": "crime_00026",
       "type": "locale_drift",
       "charge": "Host-Locale Drift",
       "severity": "low",
@@ -1254,7 +1170,7 @@
       "fingerprint": "locale_drift::src/date.ts::"
     },
     {
-      "id": "crime_00029",
+      "id": "crime_00027",
       "type": "singular_plural_type_mismatch",
       "charge": "Plural Mismatch",
       "severity": "low",
@@ -1296,7 +1212,7 @@
       "fingerprint": "singular_plural_type_mismatch::src/api/state.ts::"
     },
     {
-      "id": "crime_00030",
+      "id": "crime_00028",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1336,7 +1252,7 @@
       "fingerprint": "orphaned_destination::src/routes/account/subscription.tsx::"
     },
     {
-      "id": "crime_00031",
+      "id": "crime_00029",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1376,7 +1292,7 @@
       "fingerprint": "orphaned_destination::src/routes/team/index.tsx::"
     },
     {
-      "id": "crime_00032",
+      "id": "crime_00030",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1416,7 +1332,7 @@
       "fingerprint": "orphaned_destination::src/routes/workspace/members.tsx::"
     },
     {
-      "id": "crime_00033",
+      "id": "crime_00031",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "medium",
@@ -1459,7 +1375,7 @@
       "fingerprint": "weak_test_signal::src/billing.test.ts::::renders the enterprise plan"
     },
     {
-      "id": "crime_00034",
+      "id": "crime_00032",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -1502,46 +1418,7 @@
       "fingerprint": "boolean_naming_drift::src/petty.ts::"
     },
     {
-      "id": "crime_00035",
-      "type": "svg_with_embedded_raster",
-      "charge": "SVG With Embedded Raster",
-      "severity": "high",
-      "confidence": 0.95,
-      "file": "src/assets/partner-logo.svg",
-      "summary": "2 embedded base64 rasters inside the SVG (image/jpeg, image/png). The SVG mime type promises infinite scale, but the actual pixels are locked to one resolution — usually larger than a plain PNG.",
-      "evidence": [
-        "2 `<image href=\"data:image/…;base64,…\">` occurrences",
-        "embedded MIME types: image/jpeg, image/png",
-        "SVG byte size: 592 bytes (includes the base64 overhead)",
-        "re-author the raster region as vector paths, or split it out to its own asset"
-      ],
-      "effort": "small",
-      "fix_shape": "externalise the embedded raster or replace it with vector geometry",
-      "scores": {
-        "severity": 0.75,
-        "confidence": 0.95,
-        "agent_risk": 0.25,
-        "churn": 0.05,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "remove_embedded_raster",
-          "description": "Re-export the SVG from the design tool with the raster layer flattened to vector geometry, or split the embedded image out to its own PNG / WebP asset referenced by URL.",
-          "risk": "low"
-        }
-      ],
-      "pack": "universal",
-      "detector_id": "svg_with_embedded_raster",
-      "tier": "domain",
-      "fingerprint": "svg_with_embedded_raster::src/assets/partner-logo.svg::"
-    },
-    {
-      "id": "crime_00036",
+      "id": "crime_00033",
       "type": "docs_code_drift",
       "charge": "Docs-Code Drift",
       "severity": "low",
@@ -1577,7 +1454,7 @@
       "fingerprint": "docs_code_drift::docs/teams.md::"
     },
     {
-      "id": "crime_00037",
+      "id": "crime_00034",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "low",
@@ -1620,7 +1497,7 @@
       "fingerprint": "weak_test_signal::src/billing.test.ts::::creates an invoice"
     },
     {
-      "id": "crime_00038",
+      "id": "crime_00035",
       "type": "dependency_provenance_gap",
       "charge": "Phantom Accomplice",
       "severity": "low",
@@ -1672,6 +1549,129 @@
       "fingerprint": "dependency_provenance_gap::package.json::undeclared imports"
     },
     {
+      "id": "crime_00036",
+      "type": "large_function",
+      "charge": "God Function",
+      "severity": "high",
+      "confidence": 0.95,
+      "file": "src/billing.ts",
+      "symbol": "generateInvoice",
+      "lines": [
+        50,
+        253
+      ],
+      "summary": "generateInvoice is 204 lines long (domain function threshold 60). Bodies this size usually mix unrelated responsibilities, and an agent editing one section often misses interactions in another.",
+      "evidence": [
+        "lines 50–253 (204 lines)",
+        "3.4× the domain function threshold (60 lines)",
+        "function declaration"
+      ],
+      "effort": "small",
+      "fix_shape": "extract pure helpers; keep the orchestrator thin",
+      "scores": {
+        "severity": 0.9,
+        "confidence": 0.95,
+        "agent_risk": 0.13,
+        "churn": 0.2,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "extract_function",
+          "description": "Extract cohesive sections into named helpers so each responsibility can be read, tested, and edited in isolation.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "large_function.js",
+      "tier": "domain",
+      "fingerprint": "large_function::src/billing.ts::generateInvoice"
+    },
+    {
+      "id": "crime_00037",
+      "type": "todo_density",
+      "charge": "Unfinished Business",
+      "severity": "medium",
+      "confidence": 0.7,
+      "file": "src/todo.ts",
+      "lines": [
+        1,
+        32
+      ],
+      "summary": "14 TODO/FIXME markers (424.2 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.",
+      "evidence": [
+        "6× TODO, 4× FIXME, 2× HACK, 2× XXX",
+        "424.2 markers per 1k LOC (threshold 10)"
+      ],
+      "effort": "small",
+      "fix_shape": "convert TODOs to tickets or delete; comments are not tracking",
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.7,
+        "agent_risk": 0.1,
+        "churn": 0.05,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "triage_todos",
+          "description": "Convert each marker into a tracked issue or remove it. Lingering TODOs mislead humans and agents about which behaviour is intentional.",
+          "risk": "low"
+        }
+      ],
+      "pack": "universal",
+      "detector_id": "todo_density",
+      "tier": "domain",
+      "fingerprint": "todo_density::src/todo.ts::"
+    },
+    {
+      "id": "crime_00038",
+      "type": "svg_with_embedded_raster",
+      "charge": "SVG With Embedded Raster",
+      "severity": "high",
+      "confidence": 0.95,
+      "file": "src/assets/partner-logo.svg",
+      "summary": "2 embedded base64 rasters inside the SVG (image/jpeg, image/png). The SVG mime type promises infinite scale, but the actual pixels are locked to one resolution — usually larger than a plain PNG.",
+      "evidence": [
+        "2 `<image href=\"data:image/…;base64,…\">` occurrences",
+        "embedded MIME types: image/jpeg, image/png",
+        "SVG byte size: 592 bytes (includes the base64 overhead)",
+        "re-author the raster region as vector paths, or split it out to its own asset"
+      ],
+      "effort": "small",
+      "fix_shape": "externalise the embedded raster or replace it with vector geometry",
+      "scores": {
+        "severity": 0.75,
+        "confidence": 0.95,
+        "agent_risk": 0.08,
+        "churn": 0.05,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "remove_embedded_raster",
+          "description": "Re-export the SVG from the design tool with the raster layer flattened to vector geometry, or split the embedded image out to its own PNG / WebP asset referenced by URL.",
+          "risk": "low"
+        }
+      ],
+      "pack": "universal",
+      "detector_id": "svg_with_embedded_raster",
+      "tier": "domain",
+      "fingerprint": "svg_with_embedded_raster::src/assets/partner-logo.svg::"
+    },
+    {
       "id": "crime_00039",
       "type": "large_file",
       "charge": "God File",
@@ -1692,7 +1692,7 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.71,
-        "agent_risk": 0.22,
+        "agent_risk": 0.07,
         "churn": 0.2,
         "test_gap": 0,
         "blast_radius": 0,
@@ -1714,44 +1714,6 @@
     },
     {
       "id": "crime_00040",
-      "type": "raster_should_be_vector",
-      "charge": "Icon-Sized Raster",
-      "severity": "low",
-      "confidence": 0.85,
-      "file": "src/assets/check-icon.png",
-      "summary": "32×32 PNG icon-sized raster. SVG would scale cleanly across DPIs and ship smaller; the current asset locks the image to a single resolution.",
-      "evidence": [
-        "dimensions: 32 × 32 px (≤ 64 threshold both sides)",
-        "format: png",
-        "consider replacing with an SVG icon — same render at every DPI, smaller bytes"
-      ],
-      "effort": "quick",
-      "fix_shape": "ship the SVG source; rasters lose at any scale",
-      "scores": {
-        "severity": 0.35,
-        "confidence": 0.85,
-        "agent_risk": 0.17,
-        "churn": 0.05,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "switch_to_svg_icon",
-          "description": "Re-author or re-export the icon as an SVG. If the source is a designer's PNG, the original vector likely exists in Figma / Sketch / Illustrator — re-export from there.",
-          "risk": "low"
-        }
-      ],
-      "pack": "universal",
-      "detector_id": "raster_should_be_vector",
-      "tier": "domain",
-      "fingerprint": "raster_should_be_vector::src/assets/check-icon.png::"
-    },
-    {
-      "id": "crime_00041",
       "type": "oversized_raster",
       "charge": "Oversized Raster",
       "severity": "low",
@@ -1769,7 +1731,7 @@
       "scores": {
         "severity": 0.4,
         "confidence": 0.95,
-        "agent_risk": 0.15,
+        "agent_risk": 0.05,
         "churn": 0.05,
         "test_gap": 0,
         "blast_radius": 0,
@@ -1788,6 +1750,44 @@
       "detector_id": "oversized_raster",
       "tier": "domain",
       "fingerprint": "oversized_raster::src/assets/hero-banner.png::"
+    },
+    {
+      "id": "crime_00041",
+      "type": "raster_should_be_vector",
+      "charge": "Icon-Sized Raster",
+      "severity": "low",
+      "confidence": 0.85,
+      "file": "src/assets/check-icon.png",
+      "summary": "32×32 PNG icon-sized raster. SVG would scale cleanly across DPIs and ship smaller; the current asset locks the image to a single resolution.",
+      "evidence": [
+        "dimensions: 32 × 32 px (≤ 64 threshold both sides)",
+        "format: png",
+        "consider replacing with an SVG icon — same render at every DPI, smaller bytes"
+      ],
+      "effort": "quick",
+      "fix_shape": "ship the SVG source; rasters lose at any scale",
+      "scores": {
+        "severity": 0.35,
+        "confidence": 0.85,
+        "agent_risk": 0.05,
+        "churn": 0.05,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "switch_to_svg_icon",
+          "description": "Re-author or re-export the icon as an SVG. If the source is a designer's PNG, the original vector likely exists in Figma / Sketch / Illustrator — re-export from there.",
+          "risk": "low"
+        }
+      ],
+      "pack": "universal",
+      "detector_id": "raster_should_be_vector",
+      "tier": "domain",
+      "fingerprint": "raster_should_be_vector::src/assets/check-icon.png::"
     },
     {
       "id": "crime_00042",
@@ -1810,7 +1810,7 @@
       "scores": {
         "severity": 0.2,
         "confidence": 0.7,
-        "agent_risk": 0.12,
+        "agent_risk": 0.04,
         "churn": 0.2,
         "test_gap": 0,
         "blast_radius": 0,

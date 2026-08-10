@@ -135,12 +135,42 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.23.0`
+## Status — `crimes@0.24.0`
 
-`crimes@0.23.0` is the latest version. `agent_risk` is the score that
-makes `crimes` something other than a linter, and its heaviest term is
-the detector's own judgement about how badly a finding will mislead an
-agent. **28 of 70 detectors were not making one.**
+`crimes@0.24.0` is the latest version, and the other half of `0.23.0`.
+That release proved `STRUCTURAL_CEILING`'s stated rationale false and
+deliberately left the mechanism alone so the input fix stayed
+attributable. **The mechanism is now fixed too:** the ceiling applied to
+length findings becomes a scale rather than a clamp.
+
+- **A clamp does not rank — it hands ranking to something else.** It
+  collapsed **760 of zulip/zerver's 1505 findings onto exactly 0.30**,
+  from 31 distinct levels; across the corpus the plateau covered
+  22.8%–61.4% of a report. Since
+  `rank_score = agent_risk * (1 + recency * 0.5)`, the order of that
+  half was then decided by **file age**.
+- **The plateau is gone and resolution rises.** Findings sitting at
+  exactly 0.30: mlflow 2778 → **46**, zulip/zerver 777 → **4**,
+  pydantic 296 → **4**, drf 57 → **0** — with *more* distinct
+  `agent_risk` values on every repo, not fewer.
+- **Length findings stop leading**, which the clamp never managed:
+  pydantic's top-20 structural 6 → **0** (top-50 23 → **0**), drf's
+  15 → 10.
+- **It is a trade, not a free win.** At 2-decimal precision the band has
+  31 slots and the input has 101 levels, so preserving order also pushes
+  the whole structural class down. Measured and accepted.
+
+`schema_version` stays at `0.7.0`. Scores and ordering move; no finding
+is added or removed on the corpus.
+
+Release notes: [`docs/releases/v0.24.0.md`](./docs/releases/v0.24.0.md).
+
+### Earlier `0.23.0` work (_the score's missing inputs_)
+
+`agent_risk` is the score that makes `crimes` something other than a
+linter, and its heaviest term is the detector's own judgement about how
+badly a finding will mislead an agent. **28 of 70 detectors were not
+making one.**
 
 - **Silence was not scored as unknown.** A detector that set no
   intrinsic fell back to `0.30` — *below all 29 of the expressed
@@ -161,19 +191,17 @@ agent. **28 of 70 detectors were not making one.**
   on the corpus, and heads move only where the suppressed detectors
   actually fire — where they do, over-concentration *falls* (hono's
   top-20 lift 6.00 → 2.80).
-- **The mechanism was measured and deliberately left alone.** A
-  monotonic squash scores 13 up / 0 down on the differentiated bucket
-  and takes structural findings out of the top 20 on four of five corpus
-  repos. Not taken: two findings-moving changes in one baseline make
-  neither attributable.
+- **The mechanism was measured and deliberately deferred**, so two
+  findings-moving changes would not land in one baseline. It was then
+  re-measured from this baseline and shipped in `0.24.0` above.
 
 `schema_version` stays at `0.7.0` — no field is added, renamed or
 retyped. Scores and ordering move.
 
 Eval baseline: claude 0.81 → **0.81**, codex 0.58 → **0.63**. The codex
 move clears its ±3pp band, but `structural_pass_rate` matches literal
-detector ids in the response text and this release changed which
-findings rank highly — so read the deterministic split above, not this
+detector ids in the response text and that release changed which
+findings rank highly — so read its deterministic split, not this
 number. `0.22.0`'s repeat sample moved 13 of codex's 48 scenarios on
 provably identical input.
 

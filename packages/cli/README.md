@@ -15,6 +15,23 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.24.0` headline:** the other half of `0.23.0`. That release proved
+the `STRUCTURAL_CEILING` rationale false and left the mechanism alone so
+the input fix stayed attributable; the mechanism is now fixed too. The
+cap on length findings becomes a **scale rather than a clamp**
+(`Math.min(scored, 0.3)` → `scored * 0.3`). A clamp does not rank — it
+collapsed **760 of zulip/zerver's 1505 findings onto exactly 0.30** from
+31 distinct levels, covering 22.8%–61.4% of a report across the corpus,
+and since `rank_score = agent_risk * (1 + recency * 0.5)` the order of
+that half was then decided by **file age**. The plateau is gone
+(mlflow 2778 → 46, zulip 777 → 4, pydantic 296 → 4, drf 57 → 0) with
+*more* distinct `agent_risk` values on every repo, and length findings
+stop leading pydantic (top-20 structural 6 → 0) and drf (15 → 10) —
+which the clamp never managed. It is a trade, not a free win: at 2dp the
+band has 31 slots against 101 input levels, so preserving order also
+pushes the whole structural class down. Measured, deep differentiated
+bucket 11 up / 0 down. `schema_version` stays `0.7.0`.
+
 **`0.23.0` headline:** `agent_risk` is what makes `crimes` more than a
 linter, and its heaviest term is the detector's own judgement about how
 badly a finding will mislead an agent — **28 of 70 detectors were not

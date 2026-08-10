@@ -22,7 +22,8 @@ unexamined.
 | [`blast_radius` scale](#blast_radius-three-shapes-and-the-numbers-behind-each) | **Fixed** in `0ac0a5e` — log-scaled |
 | [`agent_risk` shape](#agent_risk-what-we-know-and-what-we-believe) | **Inputs fixed** in `0.23.0`; the *mechanism* is still parked — see below |
 | [The intrinsics were never calibrated](#0230--the-intrinsics-were-never-calibrated) | **Fixed** in `0.23.0` — 28 detectors had no judgement, only a fallback |
-| [`STRUCTURAL_CEILING`'s stated band](#the-band-the-ceiling-was-fitted-to-does-not-exist) | **Refuted** in `0.23.0`; constant unchanged and still unvalidated |
+| [`STRUCTURAL_CEILING`'s stated band](#the-band-the-ceiling-was-fitted-to-does-not-exist) | **Refuted** in `0.23.0`; the *level* is still unvalidated |
+| [Ceiling vs monotonic squash](#0240--the-ceiling-becomes-a-scale) | **Decided** in `0.24.0` — squash, on measurement |
 
 ---
 
@@ -832,7 +833,8 @@ question 3 reduces to question 2 rather than standing beside it.
 
 ### What is still open
 
-- **The mechanism.** Ceiling vs squash, with the evidence above.
+- ~~**The mechanism.** Ceiling vs squash, with the evidence above.~~
+  **Decided in `0.24.0`** — see the next section.
 - **The class table.** Still hand-maintained, and `standard` still has
   zero members — it is an unlabelled-default bucket, not a considered
   third category, and its behaviour (no adjustment) is the permissive
@@ -844,3 +846,112 @@ question 3 reduces to question 2 rather than standing beside it.
   detectors, so they are calibrated only by reading 41 files. Moving
   their bases into `INTRINSIC_DEFAULTS` would put the whole calibration
   in one place; it was out of scope here.
+
+---
+
+## `0.24.0` — the ceiling becomes a scale
+
+**Status: decided, on measurement.** `0.23.0` refuted the ceiling's
+stated rationale but deliberately left the mechanism alone so the input
+fix stayed attributable. This is the other half.
+
+```
+before   Math.min(scored, STRUCTURAL_CEILING)
+after    round(scored * STRUCTURAL_CEILING)
+```
+
+### Why a clamp was the wrong shape
+
+A clamp destroys order. Measured at `0.22.0`, it collapsed **760 of
+zulip/zerver's 1505 findings onto exactly 0.30**, from 31 distinct
+pre-clamp levels spanning 0.31–0.63. The plateau covered 22.8%–61.4% of
+a report across the corpus.
+
+That is worse than a tie, because `rank_score = agent_risk * (1 +
+recency * 0.5)`. With half the report on one `agent_risk`, the ordering
+of that half was decided by **`recency`** — a file-age signal with
+nothing to say about agent risk — and then by severity, confidence and
+file path. Half of pydantic's report was sorted by when its files were
+last touched.
+
+### Re-measured from `0.23.0`, not reused from R5
+
+R5's numbers (13 up / 0 down) were taken against `0.22.0`, with 28
+detectors still suppressed. They are not evidence about the squash on
+top of the intrinsics fix, so the whole measurement was re-run.
+
+Deterministic, deep fixtures:
+
+| deep bucket | n | mean nDCG | up | down |
+|---|---|---|---|---|
+| no structural expectation | 19 | 0.3668 → 0.3757 (**+0.0089**) | **11** | **0** |
+| priority IS structural | 7 | 0.3586 → 0.3382 (−0.0205) | 0 | 5 |
+
+Both columns unanimous, the same shape as against `0.22.0` and slightly
+attenuated. The headline deep mean is 0.3538 → 0.3530 — essentially
+flat, because the two buckets net out; `all` is 0.4926 → 0.4799. The
+second bucket is the length-labelled scenarios §28 has already
+disowned, plus their neighbours.
+
+### The plateau, which is the point
+
+| repo | findings at exactly 0.30 | distinct `agent_risk` values |
+|---|---|---|
+| mlflow | 2778 → **46** | 57 → 63 |
+| zulip/zerver | 777 → **4** | 42 → 48 |
+| pydantic | 296 → **4** | 43 → 46 |
+| hono | 99 → **4** | 43 → 49 |
+| drf | 57 → **0** | 17 → 21 |
+
+Resolution *rises* on every repo: the ranking says more, not less.
+
+### What it does to the head
+
+Length findings stop leading the two repos where the ceiling never
+managed it:
+
+| repo | top-20 structural | top-50 structural |
+|---|---|---|
+| pydantic | 6 → **0** | 23 → **0** |
+| drf | 15 → **10** | 45 → 34 |
+| zulip/zerver | 0 → 0 | 14 → **0** |
+| hono | 0 → 0 | 1 → 0 |
+
+drf stays structural-heavy because it *is* — 72 of its 88 findings are
+structural, so the head cannot be anything else.
+
+No finding is added or removed on any corpus repo and severity
+distributions are unchanged. Concentration does not worsen: mlflow's
+dominant-type lift falls 2.59 → 2.34, zulip holds at 1.20, hono at
+2.80, and pydantic's head becomes measurable at 1.66 where it
+previously had no agent-signal dominant type at all.
+
+On pydantic the top-5 file *set* is unchanged; the order moves.
+`core_schema.py` — 19 findings, 16 of them low, all length — goes from
+2nd to 5th, and `mypy.py` and `fields.py`, which carry high-severity
+differentiated findings, move up. The clearer effect is *within* a
+file: `_generate_schema.py`'s God Functions now rank by their own size
+and nesting (121 lines / depth 7 first) instead of by the tiebreak they
+fell through to when 296 pydantic findings shared one score.
+
+### The part that is a trade, not a free win
+
+**The two effects are inseparable at 2-decimal precision.** The
+structural band has 31 slots (`0.00`–`0.30`) and the input has 101
+levels, so a monotonic map cannot re-spread the clamped tail without
+also lowering the rest of the class. This is not only "preserve order";
+it also pushes the whole structural class down, and a typical
+`large_function` lands around 0.05–0.09 rather than 0.16–0.30.
+
+That was measured and accepted rather than overlooked. It is the reason
+the structural-labelled bucket drops, and anyone who thinks length
+findings should sit higher should reopen this rather than the class
+table.
+
+### Still unsettled
+
+The **level** 0.3 remains unvalidated — nothing here chooses it, and
+correcting a mechanism does not validate a constant. The class table is
+still hand-maintained with `standard` holding zero members, the two
+packs still disagree about `sync_io_in_hotpath`, and 41 intrinsics are
+still literals in their own detectors.

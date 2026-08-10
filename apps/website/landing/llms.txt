@@ -34,7 +34,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest v0.23.0)
+## Commands (latest v0.24.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -342,7 +342,58 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.23.0 — the score's missing inputs (current release)
+## 0.24.0 — the ceiling becomes a scale (current release)
+
+The other half of 0.23.0. That release proved STRUCTURAL_CEILING's
+stated rationale false and deliberately left the mechanism alone so the
+input fix stayed attributable. This changes the mechanism:
+
+    before   Math.min(scored, STRUCTURAL_CEILING)
+    after    round(scored * STRUCTURAL_CEILING)
+
+- A clamp does not rank; it hands ranking to something else. Measured at
+  0.22.0 it collapsed 760 of zulip/zerver's 1505 findings onto exactly
+  0.30, from 31 distinct pre-clamp levels spanning 0.31–0.63. Across the
+  corpus the plateau covered 22.8%–61.4% of a whole report.
+- That is worse than a tie. rank_score = agent_risk * (1 + recency *
+  0.5), so with half a report on one agent_risk the order of that half
+  was decided by recency — how recently the file was touched — and then
+  by severity, confidence and file path. Half of pydantic's report was
+  sorted by file age.
+- Scaling keeps the class ordered by its own severity while still
+  mapping onto [0, CEILING], so a length finding still cannot outrank a
+  differentiated one. Findings at exactly 0.30: mlflow 2778 -> 46,
+  zulip/zerver 777 -> 4, pydantic 296 -> 4, hono 99 -> 4, drf 57 -> 0.
+  Distinct agent_risk values rise on every repo (57->63, 42->48, 43->46,
+  43->49, 17->21) — the ranking says more, not less.
+- Length findings stop leading, which the clamp never managed:
+  pydantic top-20 structural 6 -> 0 and top-50 23 -> 0, drf 15 -> 10,
+  zulip/zerver top-50 14 -> 0. drf stays structural-heavy because it is
+  — 72 of its 88 findings are structural.
+
+Measured from the 0.23.0 baseline rather than reusing the earlier
+numbers, which were taken while 28 detectors were still suppressed.
+Deterministic deep fixtures: no structural expectation 0.3668 -> 0.3757
+(+0.0089, 11 up / 0 down); priority IS structural 0.3586 -> 0.3382
+(-0.0205, 0 up / 5 down). Both columns unanimous. Headline deep mean
+0.3538 -> 0.3530, essentially flat, because the buckets net out.
+
+It is a trade rather than a free win: at 2-decimal precision the
+structural band has 31 slots and the input has 101 levels, so a
+monotonic map cannot re-spread the clamped tail without also lowering
+the rest of the class. A typical large_function lands near 0.05–0.09
+rather than 0.16–0.30. Measured and accepted, not overlooked.
+
+Tests 2,218 -> 2,221, and the three new ones pin the mechanism. The two
+pre-existing ceiling tests could not: both use maximal inputs, the
+single point where a clamp and a squash agree.
+
+Schema unchanged at 0.7.0. Scores and ordering move; no finding is
+added or removed on the corpus.
+
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.24.0.md
+
+## 0.23.0 — the score's missing inputs
 
 `agent_risk` is the score that makes crimes something other than a
 linter, and its heaviest term is the detector's own judgement about how

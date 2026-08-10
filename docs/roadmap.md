@@ -4,7 +4,33 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current version:** `crimes@0.23.0` ✅ shipped — **the score's
+- **Current version:** `crimes@0.24.0` ✅ shipped — **the ceiling
+  becomes a scale.** The other half of `0.23.0`, which refuted
+  `STRUCTURAL_CEILING`'s stated rationale but deliberately left the
+  mechanism alone so the input fix stayed attributable. The cap applied
+  to length findings goes from `Math.min(scored, CEILING)` to
+  `round(scored * CEILING)`. **A clamp does not rank — it hands ranking
+  to something else**: measured at `0.22.0` it collapsed 760 of
+  zulip/zerver's 1505 findings onto exactly 0.30 from 31 distinct
+  pre-clamp levels, covering 22.8%–61.4% of a report across the corpus,
+  and since `rank_score = agent_risk * (1 + recency * 0.5)` the order of
+  that half then fell to `recency`, a file-age signal. The plateau is
+  gone — mlflow 2778 → 46, zulip/zerver 777 → 4, pydantic 296 → 4, hono
+  99 → 4, drf 57 → 0 — with *more* distinct `agent_risk` values on every
+  repo. Length findings stop leading pydantic (top-20 structural 6 → 0,
+  top-50 23 → 0) and drf (15 → 10), which the clamp never managed.
+  Re-measured from the `0.23.0` baseline rather than reusing R5's
+  numbers, which were taken while 28 detectors were still suppressed:
+  deep differentiated bucket +0.0089 (**11 up, 0 down**), structural
+  bucket −0.0205 (0 up, 5 down), headline deep mean 0.3538 → 0.3530.
+  **It is a trade**: at 2dp the band has 31 slots against 101 input
+  levels, so preserving order also pushes the whole structural class
+  down. Concentration does not worsen (mlflow lift 2.59 → 2.34, zulip
+  1.20 flat). Tests 2,218 → 2,221, the new ones pinning the mechanism
+  that the two pre-existing ceiling tests could not see because both use
+  maximal inputs. `schema_version` stays `0.7.0`. Release notes:
+  [`docs/releases/v0.24.0.md`](./releases/v0.24.0.md).
+- **Previous version:** `crimes@0.23.0` ✅ shipped — **the score's
   missing inputs.** `agent_risk` is the differentiator PRD §10 says must
   not collapse into severity, and its heaviest term is the detector's
   own intrinsic judgement — **28 of 70 registered detectors expressed
@@ -38,7 +64,7 @@ mirror, not a planning doc.
   it alongside the input fix would make neither attributable.
   `schema_version` stays `0.7.0`. Release notes:
   [`docs/releases/v0.23.0.md`](./releases/v0.23.0.md).
-- **Previous version:** `crimes@0.22.0` ✅ shipped — **the remediation
+- **Earlier:** `crimes@0.22.0` ✅ shipped — **the remediation
   queue, closed.** Seven entries carried since `0.18.0`, every one
   reproduced before it was touched, and **four of the seven turned out
   to be wrong about themselves**. Fingerprint collisions are gone: four
