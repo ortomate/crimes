@@ -184,10 +184,28 @@ again.
   members across all 70 detectors** — it is an unlabelled-default
   bucket, not a considered third category, and its behaviour (no
   adjustment) is the permissive one.
-- **2.3 Cross-pack intrinsic disagreement.** `sync_io_in_hotpath` is
-  0.55 in JS and 0.50 / 0.70 in Python; `commented_out_code` 0.48 vs
-  0.35. **Audit every charge implemented in both packs** — those two
-  were found incidentally, so the set is probably larger.
+- **2.3 Cross-pack intrinsic disagreement.** ✅ **AUDITED (R7). It is 7
+  of 8.** Full table and remediation order in
+  [`docs/dogfooding/2026-08-11-cross-pack-intrinsics.md`](../docs/dogfooding/2026-08-11-cross-pack-intrinsics.md).
+  The entry guessed "probably larger" and understated it: of the 8
+  charges implemented in both `detectors/` and `detectors/py/`, only
+  `large_function` agrees.
+
+  It is also **three** kinds of divergence, not one. Beyond ordinary
+  constant drift, `circular_dependency` and `deep_import` express *no*
+  intrinsic on the universal side, so they take a **flat** declared
+  default while Python gets a ramp — an 8-module Python cycle reaches
+  0.92, the identical TypeScript cycle is pinned at 0.45, and universal
+  `deep_import` sits at 0.30, which is `NEUTRAL_INTRINSIC` itself. And
+  `direct_date` / `sync_io_in_hotpath` carry conditions in Python that
+  the universal side has no concept of.
+
+  Direction is inconsistent (Python higher on two, lower on two), so no
+  single per-pack offset fixes it. **Reported, deliberately not fixed** —
+  seven simultaneous scoring changes in one baseline are unattributable.
+  The findings-neutral first step is giving the universal pack the
+  `intrinsicFor` helper Python already has, plus a gate asserting that a
+  twice-implemented charge declares the same `(base, step, cap)`.
 - **2.4 41 intrinsics are still literals** inside their own detectors,
   so half the calibration is only visible by reading 41 files. Moving
   their bases into `INTRINSIC_DEFAULTS` would put it in one place.
