@@ -3,6 +3,7 @@ import {
   type PopulationRow,
   diffDeepPopulation,
   depthMargins,
+  floorPlacement,
 } from "./ranking-population.js";
 
 /**
@@ -128,5 +129,77 @@ describe("diffDeepPopulation", () => {
     const d = diffDeepPopulation(withNull, withNull, 40);
     expect(d.stable).toBe(4);
     expect(d.comparable).toBe(true);
+  });
+});
+
+/**
+ * The real fixture depths at 0.24.0. `depthMargins` answers "is this
+ * fixture close to the floor"; this answers the different question "is
+ * the floor in a sensible place given every fixture we have", whose
+ * remedy is to move the constant rather than the fixture.
+ */
+const REAL_DEPTHS_0_24_0 = [1, 3, 4, 5, 9, 13, 42, 55, 92, 99];
+
+describe("floorPlacement", () => {
+  it("finds the fixtures either side of the floor", () => {
+    const p = floorPlacement(REAL_DEPTHS_0_24_0, 40);
+    expect(p.nearest_below).toBe(13);
+    expect(p.nearest_above).toBe(42);
+  });
+
+  it("measures how much either side can move before the population changes", () => {
+    const p = floorPlacement(REAL_DEPTHS_0_24_0, 40);
+    // The two sides are asymmetric because membership is `>= floor`: the
+    // 42-finding fixture is safe *at* 40 so it can lose 2, while the
+    // 13-finding one is deep *at* 40 so it can only gain 26.
+    expect(p.margin_above).toBe(2);
+    expect(p.margin_below).toBe(26);
+    expect(p.well_placed).toBe(false);
+  });
+
+  it("centring the floor in the empty gap makes it well placed", () => {
+    const p = floorPlacement(REAL_DEPTHS_0_24_0, 28);
+    // 42 - 28 = 14 to lose; 28 - 13 - 1 = 14 to gain. Balanced.
+    expect(p.margin_above).toBe(14);
+    expect(p.margin_below).toBe(14);
+    expect(p.well_placed).toBe(true);
+  });
+
+  it("recommends the centre of the gap", () => {
+    expect(floorPlacement(REAL_DEPTHS_0_24_0, 40).suggested_floor).toBe(28);
+  });
+
+  it("keeps the deep population identical anywhere inside the gap", () => {
+    // This is what licenses moving the constant without invalidating the
+    // nine stored baselines: every floor in [14, 42] selects the same
+    // four fixtures, so mean_ndcg_deep cannot move.
+    const deepAt = (floor: number) =>
+      REAL_DEPTHS_0_24_0.filter((d) => d >= floor).join(",");
+    const reference = deepAt(40);
+    for (let floor = 14; floor <= 42; floor += 1) {
+      expect(deepAt(floor)).toBe(reference);
+    }
+  });
+
+  it("reports a floor that lands exactly on a fixture depth as badly placed", () => {
+    const p = floorPlacement(REAL_DEPTHS_0_24_0, 42);
+    expect(p.margin_above).toBe(0);
+    expect(p.well_placed).toBe(false);
+  });
+
+  it("survives a distribution with nothing below the floor", () => {
+    const p = floorPlacement([50, 60], 28);
+    expect(p.nearest_below).toBeNull();
+    expect(p.margin_below).toBeNull();
+    expect(p.well_placed).toBe(true);
+  });
+
+  it("survives a distribution with nothing above the floor", () => {
+    const p = floorPlacement([1, 5], 28);
+    expect(p.nearest_above).toBeNull();
+    expect(p.margin_above).toBeNull();
+    // Nothing clears the floor at all — that is a broken instrument, not
+    // a well-placed one.
+    expect(p.well_placed).toBe(false);
   });
 });

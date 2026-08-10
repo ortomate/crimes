@@ -228,13 +228,22 @@ again.
   but that is luck: nothing had removed a finding from it in nine
   releases, and `0.25.0` is the suppression release.
 
-  Closed as far as the instrument goes: `evals/runner/src/ranking-population.ts`
-  prints deep-set composition with a `⚠ CLIFF` marker on every run and
-  makes `--compare` report `delta_on_stable_set` instead of a false
-  before/after. **No arithmetic changed** — `mean_ndcg_deep` is
-  byte-identical, so no bump was owed (`evals/README.md` § "When *not*
-  to bump at all", the rule that reverted `0.22.1`). The remaining half
-  is the original entry: more deep scenarios, off fixture `01`.
+  **Closed, and the fix was free.** Fixture depths are
+  `[1, 3, 4, 5, 9, 13, 42, 55, 92, 99]` — a 28-finding empty gap with the
+  floor perched at 40. Every floor in `[14, 42]` selects the same four
+  fixtures, so `DEPTH_FLOOR` was re-centred to **28**: `mean_ndcg_deep`
+  byte-identical at 0.3530, `scored_deep` still 28, fixture `01`'s
+  headroom 2 → 14, all nine baselines still comparable. Plus two standing
+  diagnostics in `evals/runner/src/ranking-population.ts` (20 tests) —
+  deep-set composition with `⚠ CLIFF` / `⚠ badly placed` markers on every
+  run, and `delta_on_stable_set` on `--compare` instead of a false
+  before/after. **No arithmetic changed, so no bump was owed**
+  (`evals/README.md` § "When *not* to bump at all", the rule that
+  reverted `0.22.1`).
+
+  Re-centring bought headroom but not diversity: fixture `01` still
+  carries 75% of the aggregate. The remaining half is the original
+  entry — more deep scenarios, off fixture `01`.
 - **3.3 `evals/README.md` § "Fix this regardless" is stale** — the
   version-comparator bug it describes was fixed in `versions.ts`, which
   handles the `-rN` suffix properly. Delete or mark the section.

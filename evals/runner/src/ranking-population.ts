@@ -90,9 +90,15 @@ export interface DeepPopulationDiff {
 
 /**
  * Findings of headroom at or below which a fixture is one ordinary
- * precision fix away from dropping out. Fixture `01` sits at 2.
+ * precision fix away from dropping out. Fixture `01` sat at 2.
  */
 export const CLIFF_MARGIN = 5;
+
+/**
+ * Findings of clearance the floor wants from the nearest fixture on
+ * either side before its placement stops being luck.
+ */
+export const FLOOR_CLEARANCE = 5;
 
 /**
  * Share of the deep population above which one fixture's departure
@@ -196,5 +202,72 @@ export function diffDeepPopulation(
       stablePriorMean === null || stableCurrentMean === null
         ? null
         : stableCurrentMean - stablePriorMean,
+  };
+}
+
+export interface FloorPlacement {
+  floor: number;
+  /** Deepest fixture that does *not* clear the floor. */
+  nearest_below: number | null;
+  /** Shallowest fixture that *does* clear the floor. */
+  nearest_above: number | null;
+  /** Findings the shallowest deep fixture can lose before dropping out. */
+  margin_above: number | null;
+  /** Findings the deepest shallow fixture can gain before climbing in. */
+  margin_below: number | null;
+  /** Both sides clear {@link FLOOR_CLEARANCE}, and something is deep. */
+  well_placed: boolean;
+  /** Centre of the empty gap the floor sits in. */
+  suggested_floor: number;
+}
+
+/**
+ * Where the floor sits relative to *every* fixture depth.
+ *
+ * {@link depthMargins} asks "is this fixture near the floor", and its
+ * remedy is to change the fixture. This asks the different question —
+ * "is the floor in a defensible place at all" — whose remedy is to move
+ * the constant, and which is usually the cheaper of the two.
+ *
+ * At `0.24.0` the depths were `[1, 3, 4, 5, 9, 13, 42, 55, 92, 99]`: a
+ * **28-finding empty gap** between the shallow cluster and the deep one,
+ * with the floor at 40 — perched 2 findings under the nearest deep
+ * fixture and 27 over the nearest shallow one. Every floor in `[14, 42]`
+ * selects exactly the same four fixtures, so the constant could be
+ * re-centred with `mean_ndcg_deep` byte-identical and all nine stored
+ * baselines still comparable. The cliff was free to remove; it just had
+ * to be noticed.
+ */
+export function floorPlacement(depths: readonly number[], floor: number): FloorPlacement {
+  const below = depths.filter((d) => d < floor);
+  const above = depths.filter((d) => d >= floor);
+  const nearestBelow = below.length > 0 ? Math.max(...below) : null;
+  const nearestAbove = above.length > 0 ? Math.min(...above) : null;
+
+  // A fixture leaves the deep set when it drops *below* the floor, so the
+  // headroom is the distance down to the floor itself. A shallow fixture
+  // joins when it reaches the floor, so its slack is one less than the
+  // raw distance.
+  const marginAbove = nearestAbove === null ? null : nearestAbove - floor;
+  const marginBelow = nearestBelow === null ? null : floor - nearestBelow - 1;
+
+  // Midpoint of the gap, rounded up so the deep side — the expensive
+  // direction to be wrong in — keeps the extra finding when the gap is
+  // an odd width.
+  const lo = nearestBelow ?? 0;
+  const hi = nearestAbove ?? floor;
+  const suggested = nearestAbove === null ? floor : Math.floor((lo + hi + 1) / 2);
+
+  return {
+    floor,
+    nearest_below: nearestBelow,
+    nearest_above: nearestAbove,
+    margin_above: marginAbove,
+    margin_below: marginBelow,
+    well_placed:
+      marginAbove !== null &&
+      marginAbove >= FLOOR_CLEARANCE &&
+      (marginBelow === null || marginBelow >= FLOOR_CLEARANCE),
+    suggested_floor: suggested,
   };
 }

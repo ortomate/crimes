@@ -212,16 +212,40 @@ nothing had removed a finding from `messy-ts-app` in nine releases. A
 release whose changes are suppression-shaped is exactly the one that
 walks off it, and it would read the fall as its own success.
 
-`ranking-population.ts` adds two diagnostics and changes no arithmetic:
-every run prints the deep-set composition with a `⚠ CLIFF` marker, and
-`--compare` reports `delta_on_stable_set` — the movement restricted to
-scenarios deep in *both* runs — and says outright when the headline
-delta is not a before/after. **When the deep set moves, quote
-`delta_on_stable_set` and nothing else.**
+**The fix was free, and it was the floor.** The fixture depths are
+`[1, 3, 4, 5, 9, 13, 42, 55, 92, 99]` — a **28-finding empty gap**, with
+the floor perched at 40: two findings under the nearest deep fixture and
+27 over the nearest shallow one. *Every* floor in `[14, 42]` selects the
+same four fixtures, so the constant could be re-centred with the
+population untouched. `DEPTH_FLOOR` is **28** from `0.25.0`, balancing
+the two sides at 14 findings of slack each:
 
-The durable fix is not a lower floor (that would break comparability
-with all nine baselines) but **more deep scenarios off fixture `01`**,
-which is what the P3.2 work is for.
+```
+mean_ndcg_deep  0.3530 -> 0.3530   (byte-identical)
+scored_deep     28     -> 28       (same scenarios)
+fixture 01 headroom  2  -> 14
+```
+
+All nine stored baselines stay directly comparable, because nothing
+about which scenarios are averaged changed. No fixture's findings moved
+and the metric value is unchanged, so **no bump was owed** — the rule
+that reverted `0.22.1`.
+
+Two standing diagnostics keep it honest, neither of which touches the
+arithmetic:
+
+- Every run prints the deep-set composition, plus where the floor sits
+  relative to the whole distribution. A `⚠ CLIFF` marks a fixture with
+  little headroom carrying a large share; `⚠ badly placed` marks a floor
+  that has drifted back toward the fixtures, and suggests the gap centre.
+- `--compare` reports `delta_on_stable_set` — movement restricted to
+  scenarios deep in *both* runs — and says outright when the headline
+  delta is not a before/after. **When the deep set moves, quote
+  `delta_on_stable_set` and nothing else.**
+
+Re-centring bought headroom; it did not fix the concentration. Fixture
+`01` still carries 75% of the aggregate, which is what the P3.2 work —
+**more deep scenarios off fixture `01`** — is for.
 
 #### What it says about `ce0ccab`
 

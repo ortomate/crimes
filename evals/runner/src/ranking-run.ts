@@ -19,9 +19,11 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   type DepthMargin,
+  type FloorPlacement,
   type PopulationRow,
   depthMargins,
   diffDeepPopulation,
+  floorPlacement,
 } from "./ranking-population.js";
 import { type RankedFinding, type RankingScore, scoreRanking } from "./ranking.js";
 import { runScan } from "./scan-helpers.js";
@@ -39,8 +41,21 @@ const RESULTS_DIR = resolve(REPO_ROOT, "evals", "results");
  * computed over the deep fixtures only; the all-fixtures number is
  * reported beside it so the difference is visible rather than chosen
  * silently.
+ *
+ * **Was 40 through `0.24.0`, re-centred to 28 in `0.25.0`, and the deep
+ * population is unchanged by the move.** Fixture depths are
+ * `[1, 3, 4, 5, 9, 13, 42, 55, 92, 99]` — a 28-finding empty gap, with
+ * the old floor perched 2 findings under the nearest deep fixture and 27
+ * over the nearest shallow one. Fixture `01` sat at 42 carrying 75% of
+ * the deep set, so losing 3 findings from it moved the headline by
+ * +0.1333 on membership alone, ~15× the largest real movement ever
+ * shipped. Every floor in `[14, 42]` selects the same four fixtures, so
+ * re-centring costs nothing: `mean_ndcg_deep` is byte-identical and all
+ * nine stored baselines stay comparable. 28 balances the two sides at 14
+ * findings of slack each. See `ranking-population.ts` and
+ * `evals/README.md` § "The depth cliff".
  */
-const DEPTH_FLOOR = 40;
+const DEPTH_FLOOR = 28;
 
 interface ScenarioRanking extends RankingScore {
   scenario: string;
@@ -64,6 +79,12 @@ interface RankingReport {
    * exactly as it was for the nine baselines already on disk.
    */
   depth_margins: DepthMargin[];
+  /**
+   * Where `depth_floor` sits relative to every fixture depth. When this
+   * reports `well_placed: false`, the cheap remedy is usually to move
+   * the constant into the empty gap rather than to change a fixture.
+   */
+  floor_placement: FloorPlacement;
   scenarios: ScenarioRanking[];
 }
 
@@ -131,6 +152,10 @@ function summarise(version: string, rows: ScenarioRanking[]): RankingReport {
     scored_all: scored.length,
     skipped: rows.length - scored.length,
     depth_margins: depthMargins(rows, DEPTH_FLOOR),
+    floor_placement: floorPlacement(
+      scored.map((r) => r.total_findings),
+      DEPTH_FLOOR,
+    ),
     scenarios: rows,
   };
 }
@@ -187,6 +212,14 @@ function render(report: RankingReport, outPath: string): void {
         `${(m.share * 100).toFixed(0).padStart(3)}% of the aggregate${flag}`,
     );
   }
+  const fp = report.floor_placement;
+  lines.push(
+    `    floor ${fp.floor} sits between ${fp.nearest_below ?? "—"} and ` +
+      `${fp.nearest_above ?? "—"} findings ` +
+      `(slack: ${fp.margin_below ?? "—"} below, ${fp.margin_above ?? "—"} above)` +
+      `${fp.well_placed ? "" : `  ⚠ badly placed, suggest ${fp.suggested_floor}`}`,
+  );
+
   const cliffs = report.depth_margins.filter((m) => m.cliff);
   if (cliffs.length > 0) {
     lines.push("");
