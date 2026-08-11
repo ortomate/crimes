@@ -278,6 +278,60 @@ so and stop paying for it every time.
       recorded in this file. `0.25.0` corrected four; assume this one
       contains some too. — §8 records 26 across seven streams.
 
+---
+
+## 8b. After the plan — what the queue turned up
+
+### A (`0.25.6`) — churn is silently lost through a symlinked scan root
+
+Went looking for a manifest floor on `agent_risk`. There isn't one. Found
+a product bug instead.
+
+**`git log -- <pathspec>` only matches paths git has committed.** When the
+scan root is a symlink, the pathspec exists on disk and not in history, so
+the log matches nothing, `rebaseChurnFile` drops every entry, and the
+caller receives `gitAvailable: true` with an empty file list. Churn 0 for
+every file — **presented as a measurement rather than as a failure**,
+which is why it survived.
+
+`evals/fixtures/01-messy-ts-app` is a symlink to `examples/messy-ts-app`:
+
+```
+scan evals/fixtures/01-messy-ts-app   42 findings, churn>0:  0
+scan examples/messy-ts-app            42 findings, churn>0: 42  (0.05–0.20)
+
+hotspots evals/fixtures/01-messy-ts-app  git_available: true, every change_count 0
+hotspots examples/messy-ts-app           git_available: true, src/billing.ts: 4
+```
+
+Not an eval-harness quirk. Any user scanning through a symlinked
+checkout, a workspace link or a mounted path lost the whole signal, with
+`git_available: true` to say everything was fine.
+
+**Three things follow, and the third is the uncomfortable one.**
+
+1. Fixed by resolving the scan root's real path before computing the
+   pathspec, with a regression test that fails without it — asserting
+   non-empty, because two empty lists compare equal and that is the bug.
+
+2. **The first real deep-mean movement of the sprint, and it is not
+   D1's.** `mean_ndcg_deep` 0.3449 → **0.3468** with the deep set
+   unchanged, so the delta is real. 19 scenarios moved, 10 up and 9
+   down, mean |Δ| 0.013, largest `refactor-01-mixed-utc` +0.086. §2
+   predicted D1 was "the item most likely to produce a real deep-mean
+   movement, which no release has managed since `0.24.0`". D1 produced
+   none; this did.
+
+3. **It qualifies S1's conclusion, which the whole sprint leaned on.**
+   `evals:ranking` was the instrument that could "resolve a release".
+   It was ranking fixture 01 — 70% of the deep aggregate — with `churn`
+   pinned to zero, and `recency` is *still* zero on all four deep
+   fixtures. `rank_score = agent_risk * (1 + recency * 0.5)`, so on the
+   deep set `rank_score` **is** `agent_risk`, and `agent_risk` was
+   running on three of its four terms. Two of PRD §10's six scores are
+   inert in the metric this project trusts. That is worth its own
+   investigation and did not get one here.
+
 ## 9. Outcome
 
 `0.25.0` → `0.25.5`, five patch bumps, **zero agent calls**.
@@ -509,16 +563,19 @@ entry closes with a measurement". That is the answer.
    **no structural finding above it at all**. That is what the ceiling
    was written for, and until this scenario existed nothing checked it.
 
-3. **The other new scenario immediately found something.**
-   `dependency_provenance_gap` ranks **35th of 42** — nDCG 0.19. Its
-   declared intrinsic is 0.55, but the finding is anchored on
-   `package.json`, whose `churn`, `test_gap` and `blast_radius` are all
-   exactly 0, so `agent_risk` collapses to `0.4 × 0.55 = 0.22`, the
-   formula's floor. A charge whose whole point is "an agent will assume
-   this import resolves" is buried because it is about a manifest.
-   **Not fixed here** — it is a scoring change and needs its own bump
-   and its own argument — but it is the first thing the new coverage
-   bought.
+3. **The other new scenario immediately found something — and I read it
+   wrong.** `dependency_provenance_gap` ranks 35th of 42 on fixture 01,
+   nDCG 0.19, with `agent_risk` 0.22 against a declared intrinsic of
+   0.55. I recorded that as a manifest problem: a charge buried because
+   `package.json` has no churn, tests or importers.
+
+   **That was wrong, and the commit message for `0.25.4` says it.** On
+   the corpus the same charge scores **0.25–0.42**, because a real
+   `package.json` does churn. Checked properly (§8 A), *every one of
+   fixture 01's 42 findings* has `churn: 0` — the observation was about
+   the fixture, not the charge, and not about manifests.
+
+   Chasing why produced the actual defect. See A below.
 
 4. **§4 S5 is wrong about `duplicated_policy`, and following it would
    have encoded a bug.** The claim is that "the self-scan flags it 13

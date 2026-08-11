@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -262,6 +262,39 @@ describe("collectChurn enclosing-repo lookup", () => {
     const files = result.files.map((f) => f.file).sort();
     expect(files).toContain("packages/cli/src/scan.ts");
     expect(files).toContain("README.md");
+  });
+
+  /**
+   * The failure this guards against is silent, which is why it lasted.
+   *
+   * `git log -- <pathspec>` only matches paths git has committed. A
+   * symlinked scan root produces a pathspec that exists on disk and not
+   * in history, so the log matches nothing, every entry is dropped, and
+   * the caller gets `gitAvailable: true` with an empty file list —
+   * churn 0 for every file, indistinguishable from a genuinely quiet
+   * repository.
+   *
+   * Found in the eval harness, where `evals/fixtures/01-messy-ts-app`
+   * is a symlink to `examples/messy-ts-app`: all 42 of that fixture's
+   * findings scored `churn: 0`, and it supplies 70% of the deep ranking
+   * aggregate. But it was never eval-specific — any scan through a
+   * symlinked checkout or workspace link lost the signal the same way.
+   */
+  it("follows a symlinked scan root, rather than reporting zero churn", async () => {
+    const link = join(repo, "linked-cli");
+    await symlink(join(repo, "packages", "cli"), link, "dir");
+    const viaLink = await collectChurn({ root: link, since: "10y" });
+    const viaReal = await collectChurn({
+      root: join(repo, "packages", "cli"),
+      since: "10y",
+    });
+    expect(viaLink.gitAvailable).toBe(true);
+    expect(viaLink.files.map((f) => f.file).sort()).toEqual(
+      viaReal.files.map((f) => f.file).sort(),
+    );
+    // The point of the test: not merely "equal", but non-empty. Two
+    // empty lists would also be equal, and that is the bug.
+    expect(viaLink.files.length).toBeGreaterThan(0);
   });
 
   it("reports gitAvailable=false when no enclosing repo is found", async () => {

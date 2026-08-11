@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 
 /**
@@ -235,7 +235,25 @@ function runGit(root: string, args: string[]): Promise<SpawnResult> {
 export async function collectChurn(
   options: CollectChurnOptions,
 ): Promise<CollectChurnResult> {
-  const { root, since } = options;
+  const { since } = options;
+  // Resolve symlinks before anything else touches the path.
+  //
+  // Everything below asks git about a *repo-root-relative pathspec*, and
+  // git only knows the paths it has committed. A symlinked scan root
+  // produces a pathspec that exists on disk and not in history, so
+  // `git log -- <pathspec>` matches nothing, every file is dropped by
+  // `rebaseChurnFile`, and the caller receives `gitAvailable: true` with
+  // an empty file list — churn 0 everywhere, presented as a measurement
+  // rather than as a failure.
+  //
+  // This was live: `evals/fixtures/01-messy-ts-app` is a symlink to
+  // `examples/messy-ts-app`, so all 42 of that fixture's findings scored
+  // `churn: 0` while the same scan through the real path scored 0.05 to
+  // 0.20, and `crimes hotspots` reported `git_available: true` with
+  // `change_count: 0` for every file. It is not an eval-harness quirk —
+  // any user scanning through a symlinked checkout, a workspace link or
+  // a mounted path lost the whole signal silently.
+  const root = resolveRealPath(options.root);
   // Walk upward to the enclosing git repo. This is what makes
   // `crimes hotspots packages` work from the monorepo root — the
   // sub-directory isn't its own git root, but the parent is.
@@ -288,6 +306,22 @@ export async function collectChurn(
     return result;
   } catch {
     return { gitAvailable: false, files: [] };
+  }
+}
+
+/**
+ * `realpathSync` with a fallback to the path as given.
+ *
+ * A path that does not exist, or that cannot be resolved (a permission
+ * error on an intermediate directory, a dangling link), is left alone:
+ * the callers below already degrade to `gitAvailable: false`, and
+ * failing to resolve is not a reason to lose the non-symlinked case.
+ */
+function resolveRealPath(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
   }
 }
 
