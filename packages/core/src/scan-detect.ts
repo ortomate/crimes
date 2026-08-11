@@ -13,6 +13,8 @@ import type {
   PackedFile,
 } from "./detector.js";
 import { groupDetectorsByPack } from "./detector-registry.js";
+import type { PyModuleReferenceIndex } from "./detectors/py/module-references.js";
+import { buildPyModuleReferenceIndex } from "./detectors/py/module-references.js";
 import { CoverageWarningLog } from "./discovery/coverage-warnings.js";
 import { buildUniversalContext } from "./discovery/universal-context.js";
 import type { LanguagePackRouter } from "./discovery/language-pack-router.js";
@@ -72,6 +74,11 @@ export interface ScanIndexes {
    */
   pySymbols?: PySymbolIndex;
   /**
+   * How many files mention each Python module by name. Built only when
+   * the tree contains Python; absent otherwise.
+   */
+  pyModuleRefs?: PyModuleReferenceIndex;
+  /**
    * Everything the index build dropped without failing (0.17.0). Always
    * present so downstream stages can keep recording into it; `scan()`
    * folds it into `ScanReport.coverage.warnings`.
@@ -130,6 +137,11 @@ export async function buildScanIndexes(args: {
     envInventoryFiles,
     warnings,
   });
+  const pyModuleRefs = await safelyBuildPyModuleReferenceIndex({
+    root,
+    allFiles,
+    warnings,
+  });
   const manifest = await safelyBuildManifestIndex({ root, warnings });
   const agentConfig = await safelyBuildAgentConfigIndex({ root, warnings });
 
@@ -144,8 +156,45 @@ export async function buildScanIndexes(args: {
     manifest,
     agentConfig,
     ...(pySymbols !== undefined ? { pySymbols } : {}),
+    ...(pyModuleRefs !== undefined ? { pyModuleRefs } : {}),
     warnings,
   };
+}
+
+/**
+ * Read every Python file once and count cross-module mentions.
+ *
+ * Skipped entirely on a tree with no Python, so JS-only repos pay
+ * nothing. A read that fails is recorded rather than swallowed — a
+ * module whose source went missing would otherwise look unreferenced,
+ * which is the direction that suppresses findings.
+ */
+async function safelyBuildPyModuleReferenceIndex(args: {
+  root: string;
+  allFiles: string[];
+  warnings: CoverageWarningLog;
+}): Promise<PyModuleReferenceIndex | undefined> {
+  const pyFiles = args.allFiles.filter((f) => f.endsWith(".py"));
+  if (pyFiles.length === 0) return undefined;
+
+  const sources: Array<{ file: string; source: string }> = [];
+  let unreadable = 0;
+  for (const absolute of pyFiles) {
+    try {
+      sources.push({
+        file: toRepoPath(relative(args.root, absolute)),
+        source: await readFile(absolute, "utf8"),
+      });
+    } catch {
+      unreadable += 1;
+    }
+  }
+  if (unreadable > 0) {
+    args.warnings.record("files_unreadable", "py-module-references", {
+      files: unreadable,
+    });
+  }
+  return buildPyModuleReferenceIndex(sources);
 }
 
 export async function runDetectorsForFiles(args: {
@@ -342,6 +391,7 @@ export async function runDetectorsForFile(args: {
       petty: args.indexes.petty,
       imports: args.indexes.imports,
       pySymbols: args.indexes.pySymbols,
+      pyModuleRefs: args.indexes.pyModuleRefs,
       scoring: args.indexes.scoring,
     };
     for (const detector of pyDetectors) {

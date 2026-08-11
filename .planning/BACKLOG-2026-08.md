@@ -187,7 +187,43 @@ once.
 
 </details>
 
-### 1.2 (B) `sync_io_in_hotpath` by reachability, not by file
+### 1.2 (B) `sync_io_in_hotpath` by reachability — ✅ **DONE, on a fourth signal**
+
+**§9's named signal does not work either.** Traced in `task_runner.py`:
+`_send_error_email_notification ← finalize ← main ← guard` and
+`_handle_trigger_dag_run ← run ← main ← guard`, with no other same-file
+caller and 0 direct importers — so "every same-file call path starts
+inside the guard, in a module nothing imports" exempts the two findings
+§9 says are **correctly reported**. All three candidates failed on one
+file.
+
+The fourth signal: candidate 2 asked the *import graph*, and airflow
+launches the module with `python -m`. But the repo **mentions** it 42
+times, including `mock.patch("…task_runner.startup")` — a string no
+import graph can see. So the test is "does anyone mention it?", counted
+textually, and the bar is **zero**.
+
+Measured:
+
+| repo | sync_io | after | of detector | of report |
+|---|---|---|---|---|
+| airflow | 811 | 680 | **−16%** | −1.32% |
+| mlflow | 402 | 347 | −14% | −0.85% |
+| pydantic | 17 | 11 | −35% | −1.49% |
+
+**`task_runner.py`'s two findings are still reported.** Everything
+suppressed on airflow is in `scripts/` (105), `dev/` (22) and
+`devel-common/` (4) — precisely where §9 said the charge does not
+apply. The decision §9 asked for is made and written down: a
+task-runner process is one-shot, but 29 non-test files reference the
+module, and the one-shot reading would exempt every `manage.py` in
+every Django repo.
+
+The first index was quadratic (~4,700 × ~4,700 regex executions) and
+did not finish in ten minutes; collecting each file's references once
+and inverting the map is linear, and airflow scans in 91s.
+
+<details><summary>original entry</summary>
 
 Remediation doc §9. **Read the counter-example before writing code:**
 `task-sdk/src/airflow/sdk/execution_time/task_runner.py` carries a
@@ -204,6 +240,8 @@ the machinery exists.
 readings are defensible — a task-runner process is one-shot, but a
 blocking email send inside it is still worth saying. Write the decision
 down before the code.
+
+</details>
 
 ### 1.3 (C) Unify the two `commented_out_code` variants — ✅ **DONE (discriminator half)**
 

@@ -6,6 +6,7 @@ import type { CrimesConfig } from "./config.js";
 import type { PreFinding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
 import type { ImportGraph } from "./imports/types.js";
+import type { PyModuleReferenceIndex } from "./detectors/py/module-references.js";
 import type { PySymbolIndex } from "./py/symbol-index.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import type { PettyIndex } from "./petty/types.js";
@@ -438,6 +439,14 @@ export interface LanguagePyDetectorContext {
    * without it — the same-file answer stays the floor.
    */
   pySymbols?: PySymbolIndex;
+  /**
+   * Optional repo-wide count of how many files mention each Python
+   * module by name — imports *and* dotted strings, because
+   * `mock.patch("a.b.mod.fn")` is a reference no import graph sees.
+   * Absent in unit-test stubs; a detector must behave as though every
+   * module were referenced when it is missing.
+   */
+  pyModuleRefs?: PyModuleReferenceIndex;
   /**
    * Optional per-file scoring context. Same contract as the JS context —
    * finalisation happens after `run()` returns, so detectors rarely need

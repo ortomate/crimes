@@ -3,6 +3,7 @@ import type { LanguagePyDetector } from "../../detector.js";
 import type { PreFinding as Finding, Severity } from "../../finding.js";
 import { isTestFile } from "../../util/test-files.js";
 import { resolveDiscriminators } from "../disambiguate.js";
+import { isUnreferencedScript } from "./module-references.js";
 import { intrinsicFor, lineList, plural, severityScore } from "./shared.js";
 
 /**
@@ -47,6 +48,15 @@ export const syncIoInHotpathPyDetector: LanguagePyDetector = {
   pack: "language-py",
   run(ctx) {
     if (isTestFile(ctx.file)) return [];
+
+    // A module with an entry-point guard that nothing in the repository
+    // mentions is a one-shot script: no worker to hold, no event loop to
+    // stall. 227 of airflow's 811 findings sit in guarded files, and
+    // three earlier candidate signals were rejected because each of them
+    // also exempted `task_runner.py`, which is production code. See
+    // `module-references.ts` for why the test is "does anyone mention
+    // it?" rather than "does anyone import it?".
+    if (isUnreferencedScript(ctx.file, ctx.source, ctx.pyModuleRefs)) return [];
 
     const hits = ctx.parsed.ioCalls.filter(isHotPathCall);
     if (hits.length === 0) return [];
