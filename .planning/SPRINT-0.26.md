@@ -431,3 +431,38 @@ and neither is the "unported improvement" the parity table claimed.
 4. **No Python fixture has a `__main__` guard**, so none of the 14 is
    eligible for this exemption and all scan identically. Same coverage
    hole S2 hit from the other direction.
+
+### S6 — closed with a measurement, no code
+
+Full write-up in `docs/dogfooding/2026-08-11-tooling-excludes-js.md`.
+§4 S6 offered "if the answer is 'nothing corroborates anywhere', the
+entry closes with a measurement". That is the answer.
+
+1. **Zero patterns corroborate on any of `hono`, `cal.com`, `n8n`,
+   `posthog`.** The mechanism would exclude nothing however many readers
+   were written.
+
+2. **`.eslintignore` does not exist on this corpus.** ESLint 9 replaced
+   it with flat-config `ignores`. The plan named a dead format.
+
+3. **The plan named the wrong `.gitattributes` attribute.**
+   `linguist-vendored` appears once in four repos; `linguist-generated`
+   appears 30 times and names real generated source.
+
+4. **Root `tsconfig.exclude` names nothing crimes does not already
+   exclude.** The substance is in the 12–86 *nested* tsconfigs per repo,
+   which the root-only rule deliberately does not read.
+
+5. **The corroboration rule is load-bearing, and the plan's doubt about
+   `linguist-vendored` was aimed at the wrong file.** n8n's
+   `.prettierignore` ends `# Handled by biome` / `**/*.ts`. Read as a
+   maintenance claim that excludes **18,783 TypeScript files** — the
+   whole repo. The rule that decides this is not a weighting: a tool's
+   *preferences* need corroboration; a *provenance* claim
+   (`linguist-generated`, `@generated`, `DO NOT EDIT`) does not, and
+   crimes already trusts the latter from a single source.
+
+6. **Sized follow-up, deliberately not taken here:** reading
+   `linguist-generated` into the `generated` scope class would catch 4
+   posthog files carrying **69 findings** that `GENERATED_RE` misses.
+   Different mechanism, deserves its own before/after.

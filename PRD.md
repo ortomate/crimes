@@ -1003,6 +1003,21 @@ to the safe-but-quiet answer with an explicit way out (added 0.25.0):
   `coverage.warnings[]` with the config keys that authorised it, so the
   suppression is never silent.
 
+  **`pyproject.toml` is the only source, and that is a measured
+  decision rather than a staging post.** The JavaScript equivalents were
+  costed on `hono`, `cal.com`, `n8n` and `posthog` at `0.25.3`:
+  `.eslintignore` no longer exists (ESLint 9 moved to flat-config
+  `ignores`), root `tsconfig.exclude` names nothing crimes does not
+  already exclude, and **zero patterns corroborate on any of the four**.
+  The rule is also what stops a real accident — n8n's `.prettierignore`
+  ends `# Handled by biome` / `**/*.ts`, and a reader that read a
+  formatter's ignore file as a maintenance claim would drop all 18,783
+  of its TypeScript files. See
+  `docs/dogfooding/2026-08-11-tooling-excludes-js.md`, which also sizes
+  the one JS signal that *is* worth reading — `.gitattributes`
+  `linguist-generated`, which is a provenance claim and so belongs to the
+  `generated` scope class, not to this mechanism.
+
 crimes.config.json example:
 
 {
