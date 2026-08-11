@@ -260,18 +260,48 @@ so and stop paying for it every time.
 
 ## 7. Definition of done
 
-- [ ] `pnpm verify`, smoke, fingerprint-uniqueness, byte-identical
+- [x] `pnpm verify`, smoke, fingerprint-uniqueness, byte-identical
       re-scan, the intrinsic gate and the parity gate all green.
-- [ ] Every stream re-derived its own before-state rather than quoting
-      this document.
-- [ ] `KNOWN_DISAGREEMENTS` / `KNOWN_SHAPE_GAPS` shrank by exactly the
+      — 2,318 tests, `crimes@0.25.5` smoke, fixtures 01 and 11 scan
+      byte-identically across repeat runs, 42/42 unique fingerprints.
+- [x] Every stream re-derived its own before-state rather than quoting
+      this document. — and six of them found the document wrong.
+- [x] `KNOWN_DISAGREEMENTS` / `KNOWN_SHAPE_GAPS` shrank by exactly the
       entries the release claims to have fixed, and the parity gate's
-      staleness assertion still passes.
-- [ ] Any deep-population change is reported via `delta_on_stable_set`,
-      never as a headline delta.
-- [ ] Every place an entry in this plan turned out to be wrong is
+      staleness assertion still passes. — `KNOWN_SHAPE_GAPS` is empty;
+      `KNOWN_DISAGREEMENTS` lost `boolean-naming-drift` and kept four
+      entries whose surviving differences are each argued.
+- [x] Any deep-population change is reported via `delta_on_stable_set`,
+      never as a headline delta. — S5 moved the deep set 30 → 32; the
+      guard fired and `delta_on_stable_set` is +0.0000.
+- [x] Every place an entry in this plan turned out to be wrong is
       recorded in this file. `0.25.0` corrected four; assume this one
-      contains some too.
+      contains some too. — §8 records 26 across seven streams.
+
+## 9. Outcome
+
+`0.25.0` → `0.25.5`, five patch bumps, **zero agent calls**.
+
+| stream | bump | what landed |
+|---|---|---|
+| S1 | `0.25.1` | bands re-derived (±5pp claude / ±7pp codex), scorer case-sensitivity fixed, `evals:replay --version/--out` and `evals:variance --dirs` added |
+| S2 | `0.25.2` | universal ladders for `circular_dependency` and `deep_import`; 204 corpus findings move |
+| S3 | — | both conditions shown unportable; no code, no bump |
+| S7 | `0.25.3` | test-only bucket exempted; 63 corpus findings removed |
+| S5 | `0.25.4` | two scenarios; the `STRUCTURAL_CEILING` claim now asserted |
+| S6 | — | closed with a measurement; nothing corroborates anywhere |
+| S4 | `0.25.5` | four constant gaps reconciled; 1,457 corpus findings move |
+
+The thesis held: D1 is closed apart from `weak_test_signal` and
+`commented_out_code`, both of which now say what actually blocks them
+rather than "needs its own argument".
+
+**The one that did not go to plan is S1**, and it is the one that
+matters most for the next release: `structural_pass_rate` cannot resolve
+a release at 48 scenarios, and saying so is worth more than any of the
+scoring changes. Resolving a 2pp move needs roughly 283 scenarios for
+claude and 468 for codex. Until then a full agent run is a smoke test on
+the wire output, and `evals:ranking` is the instrument.
 
 ---
 
