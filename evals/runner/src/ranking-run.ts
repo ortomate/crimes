@@ -28,7 +28,7 @@ import {
   renderPopulationVerdict,
 } from "./ranking-population.js";
 import { type RankedFinding, type RankingScore, scoreRanking } from "./ranking.js";
-import { runScan } from "./scan-helpers.js";
+import { RANKING_REFERENCE_DATE, runScan } from "./scan-helpers.js";
 import type { FixturesRegistry, Scenario } from "./types.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -66,6 +66,14 @@ interface ScenarioRanking extends RankingScore {
 
 interface RankingReport {
   crimes_version: string;
+  /**
+   * The `CRIMES_NOW` every fixture was scanned at. Recorded because
+   * `rank_score` includes a `recency` term, so a report is only
+   * comparable to another taken at the same reference date — see
+   * {@link RANKING_REFERENCE_DATE}. Absent on reports written before
+   * `0.25.7`, which were taken at whatever the wall clock said.
+   */
+  reference_date?: string;
   depth_floor: number;
   /** Mean nDCG over scored scenarios on fixtures with real depth. */
   mean_ndcg_deep: number | null;
@@ -147,6 +155,7 @@ function summarise(version: string, rows: ScenarioRanking[]): RankingReport {
   const deep = scored.filter((r) => r.total_findings >= DEPTH_FLOOR);
   return {
     crimes_version: version,
+    reference_date: RANKING_REFERENCE_DATE,
     depth_floor: DEPTH_FLOOR,
     mean_ndcg_deep: mean(deep.map((r) => r.ndcg ?? 0)),
     mean_ndcg_all: mean(scored.map((r) => r.ndcg ?? 0)),
@@ -226,6 +235,18 @@ function renderComparison(report: RankingReport, rawPath: string): void {
 
   const lines: string[] = [];
   lines.push(`  vs ${prior.crimes_version}`);
+  // A report taken at a different reference date carries a different
+  // `recency` term for every fixture edited near it, so part of any
+  // delta belongs to the calendar rather than to the build. Say so
+  // rather than letting it read as a scanner change.
+  if (prior.reference_date !== report.reference_date) {
+    lines.push("");
+    lines.push(
+      `  ⚠ REFERENCE DATE DIFFERS: ${prior.reference_date ?? "unpinned (wall clock)"} → ${report.reference_date ?? "unpinned (wall clock)"}`,
+    );
+    lines.push("    rank_score includes a recency term, so any fixture edited within");
+    lines.push("    14 days of either date contributes a delta that is not the build.");
+  }
   lines.push("");
   let moved = 0;
   for (const r of report.scenarios) {

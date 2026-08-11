@@ -13,6 +13,7 @@ import {
   computeAgentRisk,
   finaliseFindingScores,
   recencyForDate,
+  referenceNowMs,
 } from "./build.js";
 
 const execFileAsync = promisify(execFile);
@@ -855,6 +856,43 @@ describe("computeAgentRisk", () => {
     });
     expect(Number.isFinite(undeclared)).toBe(true);
     expect(undeclared).toBe(0.22); // 0.40 * NEUTRAL_INTRINSIC (0.3) + 0.20 * 0.5
+  });
+});
+
+/**
+ * `recency` makes a scan a function of wall-clock time, which makes
+ * `evals:ranking` non-reproducible: the same build scanning the same
+ * fixture ranks it differently a fortnight later, because
+ * `rank_score = agent_risk * (1 + recency * 0.5)`. `CRIMES_NOW` pins the
+ * reference so the eval harness's "deterministic, no noise band" claim
+ * is true. Product runs leave it unset.
+ */
+describe("referenceNowMs — the CRIMES_NOW override", () => {
+  it("reads the clock when unset", () => {
+    const before = Date.now();
+    const got = referenceNowMs({});
+    expect(got).toBeGreaterThanOrEqual(before);
+  });
+
+  it("accepts an ISO-8601 date", () => {
+    expect(referenceNowMs({ CRIMES_NOW: "2026-08-11T00:00:00Z" })).toBe(
+      Date.parse("2026-08-11T00:00:00Z"),
+    );
+  });
+
+  it("accepts epoch milliseconds", () => {
+    expect(referenceNowMs({ CRIMES_NOW: "1786406400000" })).toBe(1786406400000);
+  });
+
+  it("ignores a malformed value rather than pinning the scan to 1970", () => {
+    // Deliberate: `Date.parse("tuesday")` is NaN, and treating that as 0
+    // would make every file maximally stale on every scan — a silent,
+    // total loss of the signal, which is worse than not honouring the
+    // override at all.
+    const before = Date.now();
+    for (const bad of ["tuesday", "", "   "]) {
+      expect(referenceNowMs({ CRIMES_NOW: bad }), bad).toBeGreaterThanOrEqual(before);
+    }
   });
 });
 

@@ -129,9 +129,34 @@ const MS_PER_DAY = 86_400_000;
  * That is a real limit, not a solved case — it is bounded and
  * predictable rather than continuous.
  */
+/**
+ * Reference "now" for {@link recencyForDate}, overridable via
+ * `CRIMES_NOW` (ISO-8601, or epoch milliseconds).
+ *
+ * Same class of escape hatch as `CRIMES_HOME` in `feedback/paths.ts`,
+ * and it exists for one reason: **`recency` makes the scan a function of
+ * wall-clock time, which makes `evals:ranking` non-reproducible.**
+ * `rank_score = agent_risk * (1 + recency * 0.5)`, and `recency` is 1
+ * within 7 days of a file's last commit and 0 beyond 14, so the same
+ * build scanning the same fixture ranks it differently a fortnight
+ * later. The eval harness pins this so its "deterministic, no noise
+ * band" claim is true; product runs leave it unset and read the clock.
+ *
+ * A malformed value is **ignored** rather than treated as epoch 0. A
+ * typo that silently pinned every scan to 1970 — making every file
+ * maximally stale — is a worse failure than not honouring the override.
+ */
+export function referenceNowMs(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env.CRIMES_NOW;
+  if (raw === undefined || raw.trim() === "") return Date.now();
+  const asNumber = Number(raw);
+  const parsed = Number.isFinite(asNumber) ? asNumber : Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
 export function recencyForDate(
   iso: string | undefined,
-  nowMs: number = Date.now(),
+  nowMs: number = referenceNowMs(),
 ): number {
   if (!iso) return 0;
   const t = Date.parse(iso);
@@ -213,8 +238,9 @@ export async function buildScoringContext(
   }
   // One clock reading for the whole scan. Per-call `Date.now()` would
   // let a scan that straddles a day boundary score its first files
-  // differently from its last.
-  const nowMs = Date.now();
+  // differently from its last. Honours `CRIMES_NOW` — see
+  // {@link referenceNowMs}.
+  const nowMs = referenceNowMs();
   const recency: RecencyIndex = {
     forFile(repoPath) {
       return recencyForDate(latestByFile.get(repoPath), nowMs);

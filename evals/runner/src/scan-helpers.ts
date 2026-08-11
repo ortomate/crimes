@@ -11,6 +11,38 @@ const REPO_ROOT = resolve(HERE, "..", "..", "..");
 const CLI_DIST = resolve(REPO_ROOT, "packages", "cli", "dist", "index.js");
 
 /**
+ * Reference date every eval scan is run at, passed to the CLI as
+ * `CRIMES_NOW`.
+ *
+ * Without it `evals:ranking` is a function of wall-clock time and its
+ * headline claim — "deterministic, no noise band, any delta is real" —
+ * is false. `rank_score = agent_risk * (1 + recency * 0.5)`, and
+ * `recency` is 1 within 7 days of a file's last commit, decaying to 0 at
+ * 14. So a fixture edited today ranks differently from the same fixture,
+ * same build, seventeen days later, by up to 50% of `rank_score`.
+ * Measured at `0.25.6`: `14-tooling-excludes` sat at recency 1.0 the day
+ * it landed. The deep set was immune only because all four of its
+ * fixtures are months old — dormant, not absent.
+ *
+ * **Bump this deliberately, and expect the ranking to move when you
+ * do.** Every fixture edited within 14 days of the new date gains a
+ * recency boost it did not have. That is a real re-ranking of the
+ * product's own sort order, not noise — which is why the value is a
+ * committed constant rather than "today": a report is comparable to
+ * another report taken at the same reference date, and reports either
+ * side of a bump are not.
+ *
+ * The ranking report records it, so a comparison across two dates is
+ * visible rather than silent.
+ */
+export const RANKING_REFERENCE_DATE = "2026-08-11T00:00:00Z";
+
+/** Environment for a fixture scan: the pinned clock, over the caller's env. */
+function scanEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, CRIMES_NOW: RANKING_REFERENCE_DATE };
+}
+
+/**
  * Scan a fixture with the built CLI.
  *
  * `cliDist` overrides which build does the scanning. Only the
@@ -26,7 +58,7 @@ export async function runScan(fixtureDir: string, cliDist?: string): Promise<str
   const { stdout } = await execFileAsync(
     "node",
     [cliDist ?? CLI_DIST, "scan", fixtureDir, "--format", "json"],
-    { maxBuffer: 1024 * 1024 * 32 },
+    { maxBuffer: 1024 * 1024 * 32, env: scanEnv() },
   );
   return stdout;
 }
