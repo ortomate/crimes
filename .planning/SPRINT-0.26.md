@@ -330,7 +330,7 @@ checkout, a workspace link or a mounted path lost the whole signal, with
    deep set `rank_score` **is** `agent_risk`, and `agent_risk` was
    running on three of its four terms. Two of PRD §10's six scores are
    inert in the metric this project trusts. That is worth its own
-   investigation, and it got one — see E.
+   investigation, and it got one — see E, and then F.
 
 ### E — `recency` is not a bug, and that is worse
 
@@ -500,6 +500,40 @@ still disagree about what they count, and for nine releases this pair
 was filed as a constant disagreement. The gate's own doc comment now
 says what it cannot see, and tells the next person adding an exception to
 state what the two detectors *count* before arguing about the score.
+
+### F — the recency term has never been validated, and the one measurement is negative
+
+E made the metric reproducible. That made a question askable that never
+had been: **does the recency multiplier improve the ranking it is part
+of?** `--no-recency` has existed all along and the scenarios carry
+relevance labels; nobody had put the two together.
+
+Scanning every fixture both ways, **one of fifteen changes order at
+all** — `15-risky-service`, and only because it was committed this week.
+In a fortnight it will be none. On the corpus, `recency` is non-zero for
+**34.5% of posthog's 14,181 findings**.
+
+Where it can be measured it is negative: `review-15-duplicated-policy`
+0.500 → 0.431, six other scenarios unchanged, mean −0.0099.
+
+The mechanism is the interesting part. `repo/user-schema 2.ts` is the
+newest commit in that fixture, so its `contract_drift` took the 50%
+boost and displaced `duplicated_policy` — promoting a **stale duplicate
+that happened to be typed recently** above a live policy duplication.
+The term assumes recently-touched means more relevant; here it measured
+when the author typed, and in a real repo a file committed yesterday is
+often one somebody just fixed.
+
+**Not acted on.** One shallow fixture and one moved scenario cannot
+carry a decision about a multiplier this large, and reweighting on it
+would be the same unvalidated-constant mistake this project keeps
+recording. What can be said: `rank_score = agent_risk * (1 + recency *
+0.5)` applies a multiplier bigger than any single `agent_risk` input,
+nothing has ever supported it, the only labelled measurement points
+against it, and **the eval set cannot settle it** — the deep fixtures are
+old by construction and the recent ones are shallow. Settling it needs a
+fixture with synthetic git history dated relative to
+`RANKING_REFERENCE_DATE`. Sized in `evals/README.md`.
 
 ## 9. Outcome
 

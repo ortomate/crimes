@@ -240,6 +240,66 @@ not have. That is a real re-ranking of the product's own sort order, not
 noise, which is why the constant is committed rather than computed from
 today.
 
+#### The recency term itself is unvalidated, and the one measurement says it hurts
+
+Pinning the clock made a question askable that never had been: **does
+the recency multiplier improve the ranking it is part of?**
+`--no-recency` has always existed, the scenarios carry relevance labels,
+and nobody had put the two together.
+
+The answer, at `0.25.10`, is that almost nothing in the suite can be
+asked. Scanning every fixture with and without the multiplier:
+
+```
+01-messy-ts-app     order identical
+11-py-service       order identical
+12-py-tested        order identical
+14-tooling-excludes order identical
+15-risky-service    ORDER DIFFERS
+```
+
+**One fixture of fifteen exercises the term at all**, and only because
+it was committed within the last fortnight. In two weeks it will be
+none. On the corpus, by contrast, **34.5% of posthog's 14,181 findings
+carry a non-zero `recency`** — so this is a term that is live for a
+third of a real repository's report and dead across the entire deep
+eval set.
+
+Where it can be measured, it is negative:
+
+```
+review-15-duplicated-policy   on 0.431   off 0.500   -0.069
+six other fixture-15 scenarios          unchanged
+mean over the 7                on 0.2964  off 0.3063  -0.0099
+```
+
+The mechanism is worth understanding rather than just the number.
+`repo/user-schema 2.ts` is the most recently committed file in that
+fixture, so its `contract_drift` finding took the 50% boost and
+displaced `duplicated_policy` — promoting a **stale duplicate that
+happened to be typed recently** above a live policy duplication. The
+term assumes recently-touched means more relevant. On this fixture it
+measured when the author typed, not what a reader should open first, and
+in a real repository a file committed yesterday is often one somebody
+just *fixed*.
+
+**This is one shallow fixture and one moved scenario. It is nowhere near
+enough to drop or reweight the term**, and doing so on this evidence
+would be the same unvalidated-constant mistake the project keeps
+recording. It is enough to say:
+
+1. `rank_score = agent_risk * (1 + recency * 0.5)` applies a multiplier
+   larger than any single `agent_risk` input, and **no measurement has
+   ever supported it**.
+2. The only labelled measurement that exists points against it.
+3. The eval set cannot currently settle it, because the deep fixtures
+   are old by construction and the recent ones are shallow.
+
+Settling it needs a fixture with **synthetic git history** — commits
+dated relative to `RANKING_REFERENCE_DATE` at `evals:setup` time — so a
+deep fixture can carry live recency deterministically. That is the
+sized next step, and it is not taken here.
+
 Read it with three caveats, all of them load-bearing:
 
 1. **The absolute number means very little.** Many scenarios ask a
