@@ -723,10 +723,11 @@ entry closes with a measurement". That is the answer.
    (`linguist-generated`, `@generated`, `DO NOT EDIT`) does not, and
    crimes already trusts the latter from a single source.
 
-6. **Sized follow-up, deliberately not taken here:** reading
-   `linguist-generated` into the `generated` scope class would catch 4
+6. **Sized follow-up, taken in `0.25.10`:** reading
+   `linguist-generated` into the never-reportable policy catches 4
    posthog files carrying **69 findings** that `GENERATED_RE` misses.
-   Different mechanism, deserves its own before/after.
+   Measured exactly as sized — posthog 14,250 → 14,181, nothing added,
+   no surviving score moved, cal.com unchanged, no fixture affected.
 
 ### S5 (`0.25.4`) — the two free ones landed; the seven did not
 
