@@ -39,32 +39,31 @@ const KNOWN_DISAGREEMENTS: Record<string, string> = {
   "weak-test-signal":
     "universal is a binary 0.68/0.58, not a ladder at all, against python's " +
     "0.32/0.045/0.72. Widest gap of the eight; needs its own argument.",
-  "boolean-naming-drift":
-    "python uniformly lower in floor and ceiling (0.30/0.05/0.60 vs " +
-    "0.35/0.06/0.70). Ordinary drift between two hand-maintained copies.",
   "mixed-utc-local-methods":
-    "same cap, python ramps at 60% the rate (0.06 vs 0.10 step).",
+    "base and cap reconciled in 0.25.5 (python 0.62 → 0.65). The step stays " +
+    "0.06 against universal's 0.10 deliberately: JS counts UTC/local method " +
+    "calls on one receiver and python has no such method pairs, so it counts " +
+    "naive/aware mixes instead. Same charge, different unit of evidence — a " +
+    "shared base with its own ramp is the right shape.",
   // These two read as unported improvements and are not. Investigated in
   // 0.25.2: in both cases the condition the python base keys on has no
   // universal analogue, so there is nothing to port. What is left in each
   // is an ordinary constant gap, named here so it is not lost.
   "direct-date":
-    "python's base is 0.55 when a read is naive and 0.45 otherwise; the " +
-    "universal base is 0.45. NOT portable: `datetime.now()` without `tz=` " +
-    "returns a naive datetime, and JavaScript has no such thing — `Date` is " +
-    "always an absolute instant. The nearest JS hazard is parsing a string " +
-    "with no zone marker, which is a different operation and has its own " +
-    "charge (`timezone_unsafe_parse`). Residual gap for S4: cap 0.85 vs " +
-    "0.88, base and step already agree.",
+    "step and cap now agree, and so does the base on python's non-naive " +
+    "branch (0.45). What is left is the naive surcharge, which is NOT " +
+    "portable: `datetime.now()` without `tz=` returns a naive datetime, and " +
+    "JavaScript has no such thing — `Date` is always an absolute instant. " +
+    "The nearest JS hazard is parsing a string with no zone marker, which " +
+    "is a different operation with its own charge (`timezone_unsafe_parse`).",
   "sync-io-in-hotpath":
-    "python's base is 0.7 inside an `async def` and 0.5 otherwise; the " +
-    "universal base is 0.55. NOT portable, and this one is a semantic trap " +
-    "rather than a missing field: python's surcharge distinguishes blocking " +
-    "the event loop from blocking one worker in a pool. Node has no pool — " +
-    "a `readFileSync` blocks the single event loop whether or not the " +
+    "step, cap and the non-async base now agree (0.55/0.08/0.90). What is " +
+    "left is the async surcharge, NOT portable, and a semantic trap rather " +
+    "than a missing field: python's surcharge distinguishes blocking the " +
+    "event loop from blocking one worker in a pool. Node has no pool — a " +
+    "`readFileSync` blocks the single event loop whether or not the " +
     "enclosing function is `async`, so the same syntax would be scoring a " +
-    "difference that does not exist. Residual gap for S4: base 0.55 vs " +
-    "0.50 and step 0.08 vs 0.06.",
+    "difference that does not exist.",
   // Both of these were shape gaps until 0.25.2 — the universal side
   // expressed no ladder at all. It now does, so what is left is a
   // constant difference, and in both cases the difference is argued
@@ -93,8 +92,16 @@ const KNOWN_SAME_DIR_DISAGREEMENTS: Record<string, string> = {
   commented_out_code:
     "language-js ramps 0.48 + 0.04/statement to 0.72; the universal twin " +
     "is a flat 0.35. The discriminator half of this pair was unified in " +
-    "0.25.0 (both always identify a block); the intrinsic half is a " +
-    "scoring change and needs its own baseline to be attributable.",
+    "0.25.0 (both always identify a block). Deliberately NOT taken with " +
+    "the four constant gaps in 0.25.5, because it is harder than they " +
+    "are and the difference is not just a constant: the two twins count " +
+    "different units (statements vs consecutive comment lines) and the " +
+    "js one does not route through `intrinsicFrom` at all — it is a " +
+    "hand-rolled `base + n*step` rather than `base + (n-1)*step`, so " +
+    "even adopting its constants verbatim moves scores. Reconciling means " +
+    "first deciding what one unit of evidence is for this charge. Unlike " +
+    "the cross-pack pairs there is no language argument available: both " +
+    "emit the same `type` into one report.",
 };
 
 /**

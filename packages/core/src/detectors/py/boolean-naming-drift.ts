@@ -145,11 +145,15 @@ export const booleanNamingDriftPyDetector: LanguagePyDetector = {
         // Deliberately the lowest ramp of the eight. This is a
         // readability charge, not a correctness one — it should not
         // outrank a naive-datetime or a blocked event loop.
+        // Reconciled with the universal detector in 0.25.5. Both count
+        // the same unit — offending declarations — so there is no
+        // language argument for two answers, and 0.35 is the value
+        // `detector-defaults.ts` publishes as this family's anchor.
         agent_risk: intrinsicFor({
           count: offenders.length,
-          base: 0.3,
-          step: 0.05,
-          cap: 0.6,
+          base: 0.35,
+          step: 0.06,
+          cap: 0.7,
         }),
       },
       suggested_actions: [

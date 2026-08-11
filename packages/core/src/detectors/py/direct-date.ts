@@ -100,11 +100,17 @@ export const directDatePyDetector: LanguagePyDetector = {
         // Ramps with the number of reads, plus a surcharge for naive
         // ones — those carry a real runtime failure mode, not just a
         // testability cost.
+        // Cap reconciled with the universal detector in 0.25.5 (0.88 →
+        // 0.85). Base and step already agreed on the non-naive branch,
+        // and 0.45 is the value `detector-defaults.ts` publishes for
+        // this charge; the naive surcharge stays Python-only because
+        // JavaScript has no naive datetime — see the note in the
+        // universal detector.
         agent_risk: intrinsicFor({
           count: hits.length,
           base: naive.length > 0 ? 0.55 : 0.45,
           step: 0.07,
-          cap: 0.88,
+          cap: 0.85,
         }),
       },
       suggested_actions: [

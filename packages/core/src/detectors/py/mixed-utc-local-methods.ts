@@ -97,9 +97,19 @@ export const mixedUtcLocalMethodsPyDetector: LanguagePyDetector = {
         confidence: 0.85,
         // Rises with the number of offending call sites, matching the
         // JS detector's behaviour of scaling on offender count.
+        // Base reconciled with the universal detector in 0.25.5: 0.65 is
+        // the value `detector-defaults.ts` publishes for this charge, and
+        // a judgement about the charge does not change with the language.
+        //
+        // The **step** deliberately stays at 0.06 against the universal
+        // 0.10, because the two sides do not count the same thing. JS
+        // counts UTC/local method calls on one receiver; Python has no
+        // such method pairs, so this counts naive/aware mixes instead.
+        // Same charge, different unit of evidence — a shared base with a
+        // different ramp is the correct shape, not an oversight.
         agent_risk: intrinsicFor({
           count: offenders,
-          base: 0.62,
+          base: 0.65,
           step: 0.06,
           cap: 0.9,
         }),

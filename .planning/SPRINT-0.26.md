@@ -511,3 +511,69 @@ entry closes with a measurement". That is the answer.
    new fixture authoring and belongs in its own bump; `duplicated_policy`
    should start from the false positive above rather than from the plan's
    recommendation.
+
+### S4 (`0.25.5`) — four of five, and it was not a matter of taste
+
+1. **§4 S4 calls this "the only part of D1 that is purely a matter of
+   taste". It is not, and the tiebreak was already in the tree.**
+   `detector-defaults.ts` publishes a list of 29 expressed agent-signal
+   bases, and **every entry in `INTRINSIC_DEFAULTS` was anchored against
+   a value in that list**. All three disputed charges appear there with
+   their *universal* value — `mixed_utc_local_methods` 0.65,
+   `sync_io_in_hotpath` 0.55, `boolean_naming_drift` 0.35. The Python
+   bases (0.62, 0.50, 0.30) appear nowhere and nothing was calibrated
+   against them. So the reconciliation direction is decided by which
+   number has dependents, not by preference: moving the published one
+   would silently invalidate its peers.
+
+2. **The list was three and is five** — see S3. `direct_date`'s cap
+   (0.88 → 0.85) and `sync_io_in_hotpath`'s base and step
+   (0.50/0.06 → 0.55/0.08) were hidden behind the "unported improvement"
+   wording.
+
+3. **Where the two sides count different units, only the base is
+   reconciled.** `mixed_utc_local_methods` keeps its Python step of 0.06
+   against the universal 0.10, because JS counts UTC/local method calls
+   on one receiver and Python — which has no such method pairs — counts
+   naive/aware mixes. A shared judgement about the charge with its own
+   ramp is the right shape; forcing the step would be parity theatre.
+
+4. **Measured: 1,457 findings move, none appear or disappear.**
+   `sync_io_in_hotpath.py` 1,112 (+0.02..+0.05), `boolean_naming_drift.py`
+   336 (+0.02..+0.04), `direct_date.py` 9 down (−0.01..−0.02, the capped
+   tail only). Every affected finding set is byte-identical before and
+   after on all five Python repos.
+
+5. **`mixed_utc_local_methods.py` has zero findings on the entire
+   corpus**, so its base change is unobservable outside the fixtures —
+   where it does fire, and moves 0.47 → 0.48. Worth knowing before
+   anyone quotes it as a result.
+
+6. **`commented_out_code` deliberately not taken, and it is not a
+   constant gap.** The two twins count different units (statements vs
+   consecutive comment lines) and the js one does not route through
+   `intrinsicFrom` at all — it is a hand-rolled `base + n*step` rather
+   than `base + (n-1)*step`, so even adopting its constants verbatim
+   moves scores. Reconciling means first deciding what one unit of
+   evidence is for the charge. Unlike the cross-pack pairs there is no
+   language argument available: both emit the same `type` into one
+   report.
+
+### Not done in this sprint
+
+- **S5's seven fixtures.** New fixture authoring, own bump.
+- **`commented_out_code`.** See S4 above.
+- **`weak_test_signal`**, the widest of the eight gaps, which §4 S4 did
+  not include and which the parity table still says "needs its own
+  argument".
+- **`dependency_provenance_gap`'s manifest problem**, found by S5:
+  `agent_risk` collapses to the formula floor because `package.json` has
+  no churn, tests or importers.
+- **P2.1, P2.2, P2.4, P3.1, M6** — deferred by §5 and untouched here.
+   `agent_permission_sprawl`, `config_drift`, `duplicated_policy`,
+   `finder_duplicate_filename`, `mock_saturation`,
+   `pass_through_abstraction`, `unsafe_retry` remain referenced by no
+   scenario. The self-scan fires none of them, so none is free. This is
+   new fixture authoring and belongs in its own bump; `duplicated_policy`
+   should start from the false positive above rather than from the plan's
+   recommendation.

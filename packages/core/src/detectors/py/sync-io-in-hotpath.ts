@@ -209,10 +209,16 @@ function buildFinding(
       scores: {
         severity: severityScore(severity),
         confidence: 0.8,
+        // Reconciled with the universal detector in 0.25.5: both count
+        // blocking calls, so base and step should agree, and 0.55 is the
+        // anchor `detector-defaults.ts` publishes for this family. The
+        // async surcharge keeps its 0.20 spread above the base and stays
+        // Python-only — see the note in the universal detector for why
+        // it does not port to Node.
         agent_risk: intrinsicFor({
           count: offenders.length,
-          base: inAsyncHandler ? 0.7 : 0.5,
-          step: 0.06,
+          base: inAsyncHandler ? 0.75 : 0.55,
+          step: 0.08,
           cap: 0.9,
         }),
       },

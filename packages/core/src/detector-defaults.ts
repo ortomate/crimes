@@ -323,10 +323,22 @@ export const DETECTOR_DEFAULTS: Record<string, DetectorDefaults> = {
  * 0.60 cross_language_route_drift     0.40 date_string_concat
  * 0.58 weak_test_signal               0.40 locale_drift
  * 0.56 return_shape_roulette          0.40 singular_plural_type_mismatch
- * 0.55 sync_io_in_hotpath (js)        0.35 boolean_naming_drift
- * 0.55 timezone_unsafe_parse          0.35 commented_out_code (universal)
+ * 0.55 sync_io_in_hotpath              0.35 boolean_naming_drift
+ * 0.55 timezone_unsafe_parse           0.35 commented_out_code (universal)
  * 0.55 logic_in_comments
  * ```
+ *
+ * **This list is load-bearing, and that is what settled the cross-pack
+ * constant gaps in `0.25.5`.** Every entry in the table below was
+ * anchored against a value in it, so a charge implemented in both packs
+ * cannot have its published number changed without silently invalidating
+ * the peers calibrated against it. The Python bases that disagreed —
+ * `boolean_naming_drift` 0.30, `sync_io_in_hotpath` 0.50,
+ * `mixed_utc_local_methods` 0.62 — never appeared here and nothing was
+ * calibrated against them, so they moved to match rather than the other
+ * way round. Not a preference for the universal pack: a preference for
+ * the number that has dependents. The `(js)` qualifier on
+ * `sync_io_in_hotpath` is gone because there is now one value.
  *
  * 0.30 sits **below every one of them**. A detector that declined to
  * score itself was therefore ranked below the most lenient deliberate
