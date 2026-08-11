@@ -360,10 +360,18 @@ standing S5 work: authoring seven fixtures puts every new finding at
 recency 1 for a week and decaying for another, so a baseline taken the
 day they land does not reproduce a fortnight later.
 
-Documented in `evals/README.md` with the two working rules it implies.
-The fix — thread a pinned `nowMs` through `buildScoringContext`, which
-currently calls `Date.now()` at the point of use, and let the eval runner
-set it — is sized there and **not done**.
+**Fixed in `0.25.7`, having first been documented and deferred.**
+`buildScoringContext` takes its reference "now" from `CRIMES_NOW` when
+set — the same escape hatch as `CRIMES_HOME` in `feedback/paths.ts` —
+and the eval runner pins every fixture scan to a committed constant.
+Product runs leave it unset, which is correct: a user's repo really is
+a function of today. The ranking report records `reference_date` and
+`--compare` warns when two reports disagree about it.
+
+Demonstrated on identical code and fixture, varying only the calendar:
+`14-tooling-excludes` scores recency 1 at `2026-08-11` and 0 at
+`2026-09-10`. Nothing moved on the run itself, because the pinned date
+is today; from here it stays put.
 
 ## 9. Outcome
 
