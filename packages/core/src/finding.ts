@@ -502,6 +502,15 @@ export interface ScanReport {
  * - `index_unavailable` — a cross-file index failed to build at all, so
  *   every detector depending on it silently produced nothing.
  *   `subject` is the index id.
+ * - `files_excluded_by_tooling` — the repository's own linter,
+ *   type-checker, coverage run and spell-checker agree that a path is
+ *   not maintained, so crimes skipped it too. `subject` is the pattern.
+ *   Distinct from `files_excluded`, which is the *user's* crimes config:
+ *   a reader needs to tell "you told me to skip this" from "your
+ *   pyproject.toml told me to skip this". Only ever emitted when at
+ *   least two independent tools name the same path — see
+ *   `manifest/tooling-excludes.ts`.
+ *
  * - `working_set_path_unmatched` — a path named in `files` or
  *   `relatedTo` matched no discovered source file, so the scan was
  *   narrower than the caller asked for. `subject` is the path. Emitted
@@ -512,6 +521,7 @@ export interface ScanReport {
 export type CoverageWarningKind =
   | "files_not_discovered"
   | "files_excluded"
+  | "files_excluded_by_tooling"
   | "files_not_followed"
   | "files_in_hidden_path"
   | "files_unreadable"

@@ -46,6 +46,8 @@
  * property of ~80 lines rather than of a third-party grammar.
  */
 
+import ignore from "ignore";
+
 /** One `(table, key)` pair this reader is willing to act on. */
 export interface ToolingExcludeTable {
   table: string;
@@ -305,4 +307,74 @@ export function corroborate(
     });
   }
   return out.sort((a, b) => a.pattern.localeCompare(b.pattern));
+}
+
+/** One file skipped because the repo's own tooling excludes it. */
+export interface ToolingSkip {
+  /** Repo-relative path. */
+  file: string;
+  /** The corroborated pattern that matched it. */
+  pattern: string;
+  /** Tools that named the pattern. */
+  tools: string[];
+  /** `table.key` citations, so the user can find the lines. */
+  authorities: string[];
+}
+
+export interface ToolingExcludeResult {
+  /** Absolute paths that survive. */
+  kept: string[];
+  /** Everything removed, with the authority for each. */
+  skipped: ToolingSkip[];
+  /** The corroborated patterns that were applied, in order. */
+  applied: readonly CorroboratedExclude[];
+}
+
+/**
+ * Partition discovered files against a repo's corroborated tooling
+ * exclusions.
+ *
+ * Filtering *after* discovery rather than passing the patterns into the
+ * walker is deliberate: it costs nothing extra and it means the scan
+ * knows exactly which files it skipped and on whose authority, which is
+ * the whole point. A suppression nobody can enumerate is the failure
+ * mode this feature is trying not to be.
+ */
+export function applyToolingExcludes(
+  files: readonly string[],
+  toRepoRelative: (absolute: string) => string,
+  excludes: readonly CorroboratedExclude[],
+): ToolingExcludeResult {
+  if (excludes.length === 0) {
+    return { kept: [...files], skipped: [], applied: [] };
+  }
+
+  const matchers = excludes.map((e) => ({
+    entry: e,
+    ig: ignore().add(e.pattern),
+  }));
+
+  const kept: string[] = [];
+  const skipped: ToolingSkip[] = [];
+  for (const absolute of files) {
+    const rel = toRepoRelative(absolute);
+    // `ignore` rejects absolute and parent-relative paths; anything
+    // outside the root is not ours to exclude.
+    if (rel === "" || rel.startsWith("..")) {
+      kept.push(absolute);
+      continue;
+    }
+    const hit = matchers.find((m) => m.ig.ignores(rel));
+    if (!hit) {
+      kept.push(absolute);
+      continue;
+    }
+    skipped.push({
+      file: rel,
+      pattern: hit.entry.pattern,
+      tools: hit.entry.tools,
+      authorities: hit.entry.authorities,
+    });
+  }
+  return { kept, skipped, applied: excludes };
 }

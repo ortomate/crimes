@@ -71,6 +71,19 @@ export interface CrimesConfig {
    * something the defaults drop.
    */
   excludeDefaults?: boolean;
+  /**
+   * Whether to skip paths this repository's *own* tooling excludes.
+   * Defaults to `true`.
+   *
+   * A path is only skipped when at least two independent tools name it —
+   * ruff, coverage, pyright and codespell are the allowlist, and
+   * build-backend tables are deliberately absent because
+   * `[tool.hatch.build] exclude = ["*"]` describes a wheel, not
+   * maintenance. Every skipped file is reported under
+   * `coverage.warnings[]` with the config keys that authorised it, so
+   * this is never silent. See `manifest/tooling-excludes.ts`.
+   */
+  honourToolingExcludes?: boolean;
   thresholds: {
     largeFileLines: number;
     largeFunctionLines: number;
@@ -468,6 +481,7 @@ export const CrimesConfigSchema = z
     include: z.array(z.string().min(1)).optional(),
     exclude: z.array(z.string().min(1)).optional(),
     excludeDefaults: z.boolean().optional(),
+    honourToolingExcludes: z.boolean().optional(),
     thresholds: thresholdsSchema.optional(),
     assets: assetsSchema.optional(),
     detectors: detectorsSchema.optional(),
@@ -661,6 +675,9 @@ function mergeConfig(base: CrimesConfig, override: CrimesConfig): CrimesConfig {
   if (override.$schema !== undefined) merged.$schema = override.$schema;
   if (override.excludeDefaults !== undefined) {
     merged.excludeDefaults = override.excludeDefaults;
+  }
+  if (override.honourToolingExcludes !== undefined) {
+    merged.honourToolingExcludes = override.honourToolingExcludes;
   }
   if (override.thresholds?.largeFunction !== undefined) {
     merged.thresholds.largeFunction = { ...override.thresholds.largeFunction };

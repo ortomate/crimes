@@ -129,7 +129,40 @@ tool's own remediation hint gutted the scan) — a third instance of
 
 ## P1 — product work with measured impact (do these next)
 
-### 1.1 (A) Honour a repo's own tooling excludes
+### 1.1 (A) Honour a repo's own tooling excludes — ✅ **DONE (Python half)**
+
+Reproduced exactly (85 findings, 17.5%) and shipped. **pydantic
+487 → 402, −85, −17.5%**, with one `coverage.warnings[]` entry naming
+`pydantic/v1`, its 26 files, five examples and the opt-out. airflow and
+mlflow: **unchanged, no warning** — nothing corroborates.
+
+Three things the entry got wrong or did not say:
+
+- **It names the third exclusion "mypy". It is `[tool.pyright]`** —
+  pydantic has no `[tool.mypy]` table at all. Load-bearing, because
+  pyright's `exclude` takes globs and mypy's takes regexes; mypy is
+  therefore deliberately unsupported for now.
+- **"A `coverage.warnings[]` entry per skipped path" contradicts the
+  shipped contract.** `CoverageWarning.subject` is documented as never a
+  file path because it is the aggregation key. Resolved as *aggregated
+  by the pattern that authorised the skip* — 85 files, one warning.
+- **Corroboration is the safety property, and the entry does not
+  mention it.** A path is skipped only when ≥2 *independent* tools name
+  it. Across the whole corpus that is exactly one directory: mlflow's
+  ruff-only and drf's codespell-only lists corroborate at 1 and are
+  left alone.
+
+Also fixed a defect the wiring introduced and the corpus caught: the 26
+skipped files were being reported a *second* time as
+`files_not_discovered` ("no include pattern matched them"), which is
+false. `collectDiscoveryWarnings` now takes `alreadyExplained`.
+
+`evals:ranking` unmoved, no fixture has a `pyproject.toml`. Remaining:
+`.gitattributes linguist-vendored`, `tsconfig` `exclude`,
+`.eslintignore` — deliberately not built, per "ship the Python half
+first".
+
+<details><summary>original entry</summary>
 
 Full design already written in the remediation doc §13. Summary:
 `pydantic/v1` appears in **four** separate exclusions in pydantic's
@@ -151,6 +184,8 @@ silent-suppression mechanism. Requirements, non-negotiable:
 Generalises to `.gitattributes linguist-vendored`, `tsconfig` `exclude`,
 `.eslintignore`. Ship the Python half first; do not build all four at
 once.
+
+</details>
 
 ### 1.2 (B) `sync_io_in_hotpath` by reachability, not by file
 

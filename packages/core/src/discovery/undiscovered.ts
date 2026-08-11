@@ -35,6 +35,11 @@ const execFileAsync = promisify(execFile);
 const EXTENSION_LIMIT = 10;
 
 export interface CollectDiscoveryWarningsOptions {
+  /**
+   * Repo-relative paths that were dropped for a reason already recorded
+   * elsewhere, so they must not also be reported as undiscovered.
+   */
+  alreadyExplained?: readonly string[];
   /** Absolute scan root. */
   root: string;
   /** The config `include` globs the walk used. */
@@ -74,7 +79,16 @@ export async function collectDiscoveryWarnings(
       toRepoRelative(options.root, abs),
     ),
   );
-  const missed = repo.files.filter((rel) => !discovered.has(rel)).sort();
+  // Files the repo's own tooling excluded were discovered and then
+  // deliberately dropped, and they already carry a
+  // `files_excluded_by_tooling` warning naming the pattern that
+  // authorised it. Without this they fall through to
+  // `files_not_discovered`, which tells the user "no include pattern
+  // matched them" — a second, false reason for the same 26 files.
+  const alreadyExplained = new Set(options.alreadyExplained ?? []);
+  const missed = repo.files
+    .filter((rel) => !discovered.has(rel) && !alreadyExplained.has(rel))
+    .sort();
   if (missed.length === 0) return;
 
   const excluded = await partitionByExclude({

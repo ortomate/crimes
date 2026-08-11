@@ -1,5 +1,12 @@
-import { basename, isAbsolute, relative, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { basename, isAbsolute, relative, resolve, sep } from "node:path";
 import { discoverFiles } from "./discovery/index.js";
+import type { ToolingSkip } from "./manifest/tooling-excludes.js";
+import {
+  applyToolingExcludes,
+  corroborate,
+  readPyprojectExcludes,
+} from "./manifest/tooling-excludes.js";
 import type { FailOn } from "./baseline.js";
 import { severityAtLeast } from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
@@ -110,12 +117,18 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   // report here so `coverage.warnings` is the single answer to "what
   // did this scan not look at?".
   const warnings = new CoverageWarningLog();
+  // Aggregated by the pattern that authorised the skip, so pydantic's
+  // 85 files are one warning naming `pydantic/v1`, not 85 warnings.
+  for (const skip of inputs.toolingSkips ?? []) {
+    warnings.record("files_excluded_by_tooling", skip.pattern, { file: skip.file });
+  }
   await collectDiscoveryWarnings({
     root,
     include: config.include,
     exclude: config.exclude,
     discovered: inputs.allFiles,
     alsoAnalysed: assetDetectors.length > 0 ? await discoverAssetFiles(root, config) : [],
+    alreadyExplained: (inputs.toolingSkips ?? []).map((s) => s.file),
     into: warnings,
   });
   const indexes = await buildScanIndexes({
@@ -246,6 +259,13 @@ interface ScanInputs {
   allFiles: string[];
   files: string[];
   changedAll?: string[];
+  /**
+   * Files the repository's own tooling excludes. Carried out of
+   * discovery rather than recorded there because the warning log is
+   * created after `resolveScanInputs` runs; every one of these is
+   * reported under `coverage.warnings[]`.
+   */
+  toolingSkips?: ToolingSkip[];
 }
 
 interface ResolvedWorkingSet {
@@ -369,12 +389,17 @@ async function resolveScanInputs(args: {
   config: CrimesConfig;
   options: ScanOptions;
 }): Promise<ScanInputs> {
-  const allFiles = await discoverFiles({
+  const discovered = await discoverFiles({
     root: args.root,
     include: args.config.include,
     exclude: args.config.exclude,
   });
-  if (!args.options.changed) return { allFiles, files: allFiles };
+  const { allFiles, toolingSkips } = applyRepoToolingExcludes(
+    args.root,
+    discovered,
+    args.config,
+  );
+  if (!args.options.changed) return { allFiles, files: allFiles, toolingSkips };
 
   const restricted = await restrictToChanged({
     root: args.root,
@@ -385,7 +410,42 @@ async function resolveScanInputs(args: {
     allFiles,
     files: restricted.scanFiles,
     changedAll: restricted.allChangedRepoPaths,
+    toolingSkips,
   };
+}
+
+/**
+ * Drop files the repo's own tooling excludes, and say which they were.
+ *
+ * Reads `pyproject.toml` at the scan root only — a nested package's
+ * config governs its own tree and following those is a separate
+ * decision. Returns everything untouched when the file is absent,
+ * unreadable, or the user has set `honourToolingExcludes: false`.
+ */
+function applyRepoToolingExcludes(
+  root: string,
+  discovered: string[],
+  config: CrimesConfig,
+): { allFiles: string[]; toolingSkips: ToolingSkip[] } {
+  if (config.honourToolingExcludes === false) {
+    return { allFiles: discovered, toolingSkips: [] };
+  }
+  let toml: string;
+  try {
+    toml = readFileSync(resolve(root, "pyproject.toml"), "utf8");
+  } catch {
+    return { allFiles: discovered, toolingSkips: [] };
+  }
+  const corroborated = corroborate(readPyprojectExcludes(toml));
+  if (corroborated.length === 0) {
+    return { allFiles: discovered, toolingSkips: [] };
+  }
+  const result = applyToolingExcludes(
+    discovered,
+    (absolute) => relative(root, absolute).split(sep).join("/"),
+    corroborated,
+  );
+  return { allFiles: result.kept, toolingSkips: result.skipped };
 }
 
 /**
