@@ -97,12 +97,23 @@ Same root cause, same file, same five `Date.now()` calls.
 opening `**Permission IA drift — block merge.**` — the checker wants
 `permission_ia_drift`.
 
+**That last example was two separate faults, and `0.25.1` fixed one of
+them.** Since `0.18.x` the scorer accepts the charge name
+(`Permission IA Drift`) as equivalent to the slug — but it matched case
+exactly, so an agent writing the same three words as a sentence-case
+prose bullet still scored zero. See
+[§ Measured noise band](#measured-noise-band-two-repeat-pairs-4851)
+for what that cost. The surviving fault is the real one: an answer
+naming neither the slug, the charge, nor any evidence scores zero.
+
 Two consequences when reading any delta:
 
-1. **A move can be pure phrasing.** Codex's `0.17.1 → 0.18.0` −5pp
-   exceeded its ±3pp band and was still not a product regression. Look
-   at the responses before concluding anything; `structural_score.details`
-   names the exact check and what it observed.
+1. **A move can be pure phrasing.** Codex's `0.17.1 → 0.18.0` −5pp was
+   read at the time as exceeding its band and was still not a product
+   regression. (The band it was compared against, ±3pp, has since been
+   re-derived — it was too narrow. See below.) Look at the responses
+   before concluding anything; `structural_score.details` names the
+   exact check and what it observed.
 2. **The check is insensitive in the other direction too.** A change
    that makes findings *more accurate* need not move this number at all,
    because it does not change whether the agent quotes an id. Do not
@@ -355,6 +366,7 @@ none.
 | version | change | baseline from |
 |---|---|---|
 | `0.18.2` | scorer credits a finding whose evidence the response quotes | replay of `0.18.1`'s 96 responses |
+| `0.25.1` | scorer matches charge names case-insensitively | replay of `0.25.0`'s 102 responses |
 
 The procedure, since `evals:replay` writes to `evals/replay/` and not
 to a version directory:
@@ -564,18 +576,20 @@ pnpm run evals:ranking -- --compare evals/results/0.17.1/ranking.json
 
 Agents are stochastic, so a single run cannot tell you whether a
 5-point move is a real change or jitter. `evals:variance` answers that
-by comparing repeat samples of the *same* crimes version:
+by comparing repeat samples of the *same input*:
 
 ```bash
 # Canonical sample lands in evals/results/<version>/.
 pnpm run evals
 
-# Repeat samples. Any directory named <version> or <version>-* counts.
+# Deliberate repeat samples. Any directory named <version> or
+# <version>-* counts, and this form finds them automatically.
 pnpm run evals -- --label r2
-pnpm run evals -- --label r3
-
-# Per-scenario mean ± stddev across all samples for the current version.
 pnpm run evals:variance
+
+# Free repeat samples: two version directories either side of a release
+# that moved no finding on any fixture. Name them explicitly.
+pnpm run evals:variance -- --dirs evals/results/0.24.0,evals/results/0.25.0
 ```
 
 It needs at least two samples and exits 2 with a clear message
@@ -584,11 +598,158 @@ otherwise. Run it before concluding that a baseline moved: the 0.12.0
 out to be entirely measurement error, and with one sample per version
 there was no way to see that from the numbers alone.
 
+**Both samples must have been scored by the same build**, or the spread
+being measured is partly the scorer moving. `evals:variance` prints the
+`crimes_version` behind each sample and warns when they differ, but the
+warning can only see what the version field says — re-score the older
+sample first and the question does not arise:
+
+```bash
+pnpm run evals:replay -- --version 0.24.0 --out evals/replay-0.24.0
+pnpm run evals:replay -- --version 0.25.0 --out evals/replay-0.25.0
+pnpm run evals:variance -- --dirs evals/replay-0.24.0,evals/replay-0.25.0
+```
+
 Record the observed noise band in the release notes alongside the
 baseline, so the next person comparing two versions knows how big a
 move has to be before it means anything.
 
-### Measured noise band (3 samples at 0.12.1)
+### Measured noise band: two repeat pairs (48/51)
+
+**Derived at `0.25.1`. This supersedes the `0.12.1` figures below,
+which were too narrow — a no-op release exceeded the codex band on the
+first attempt.**
+
+| agent | band on `structural_pass_rate` (2σ) |
+|---|---|
+| claude | **±5pp** |
+| codex | **±7pp** |
+
+A single release's aggregate move must exceed that to mean anything at
+48 scenarios. Nothing since `0.24.0` has.
+
+#### Where the numbers come from
+
+Two repeat pairs, neither of them paid for as one. A release that moves
+no finding on any fixture hands its agents byte-identical input, so the
+version directories either side of it are a repeat sample:
+
+| pair | pairs compared | why it is a repeat sample |
+|---|---|---|
+| `0.24.0` → `0.25.0` | 48 scenarios, 158 assertions | `scan_context` byte-identical on all 96 (verified by hashing each stored context); scenarios and rubrics added-to but never edited; scorer untouched between the bumps |
+| `0.21.0` → `0.22.0` | 44 scenarios, 146 assertions | as recorded below — with 8 pairs excluded, see the correction |
+
+Both re-scored under the `0.25.1` scorer before comparing.
+
+```
+                        claude                     codex
+0.24.0 → 0.25.0    0.8228 → 0.8291  ±4.7pp    0.6203 → 0.5886  ±4.7pp
+0.21.0 → 0.22.0    0.7671 → 0.8151  ±5.0pp    0.5822 → 0.5685  ±7.5pp
+pooled                              ±4.9pp                     ±6.2pp
+```
+
+The band is **derived from per-scenario variance, not read off the
+aggregates**, and that distinction is the whole reason the old figures
+were wrong. Two aggregate samples estimate a standard deviation with
+roughly 60% error. Two samples of 48 *scenarios* estimate 48 standard
+deviations, and the aggregate is a weighted mean of them:
+
+```
+sd(aggregate) = sqrt( Σ wᵢ² · sdᵢ² ) / Σ wᵢ      wᵢ = assertion count
+```
+
+`sdᵢ` is the unbiased sample standard deviation (÷ n−1); at n=2 that is
+|Δᵢ|/√2. The version of `variance.ts` that shipped through `0.25.0`
+divided by n instead, under-reporting every band by 29% at n=2.
+
+The derivation assumes scenarios are independent. They are not quite —
+21 of the 48 sit on `messy-ts-app` and read the same scan — so the true
+band is a little wider than the arithmetic says. That is one reason the
+published figures round up rather than to nearest.
+
+#### Why the old ±6 / ±3 was wrong, and backwards
+
+The `0.12.1` derivation took three aggregate samples and reported
+σ 0.029 for claude against σ 0.012 for codex, i.e. codex the *steadier*
+agent. Both repeat pairs say the opposite, and by a clear margin. Three
+points cannot tell a 0.012 from a 0.031; the ordering was an artefact of
+the sample size, and it was the ordering that made a −5.1pp codex move
+look like a product event.
+
+#### What the pairs turned up on the way
+
+Two corrections, both of which were inflating the band with things that
+are not agent variance:
+
+1. **The scorer matched charge names case-sensitively.** An agent
+   writing "Permission IA drift" rather than "Permission IA Drift" scored
+   zero on a finding it had named. Fixed in `0.25.1`. It cost 7
+   assertions across the 316 in these two runs, and it accounted for most
+   of the single largest swing in them: codex on
+   `review-05-permission-and-parallel` fell 4/7 → 0/7 between two
+   byte-identical runs, of which three were case alone. Re-scored, that
+   scenario goes 0.43 → 0.57 and codex's band on the pair narrows from
+   ±6.1pp to ±4.7pp. **The 0.25.0 release notes' headline finding — codex
+   −5.1pp on identical input — is −3.2pp under the fixed scorer.**
+2. **`0.22.0`'s run recorded an empty `scan_context` for all four
+   `monorepo` scenarios**, so the scorer could not resolve charge names
+   or `crime_NNNN` ids for 8 of its 96 pairs. Two of those 8 are among
+   the largest movers in that pair (`plan-04-hotspots` codex 0.00 → 1.00,
+   `bugfix-04-weak-tests` claude 1.00 → 0.00). They are excluded above,
+   and `evals:variance` now excludes such pairs itself and says how many
+   it dropped. The claim below that `0.22.0` is a clean repeat sample of
+   `0.21.0` is correct about the *fixtures* and wrong about 8 of the
+   results.
+
+Both are the same failure mode as the `SCORED_FILE_EXTENSIONS` list in
+`score.ts`: measurement apparatus that fails silently, and is therefore
+read as a fact about the agent.
+
+#### Per-scenario: do not read one at all
+
+33 of 48 scenarios did not move at all between `0.24.0` and `0.25.0`,
+and the mean per-scenario σ was 0.077 (claude) / 0.103 (codex). The
+movement is concentrated: eight scenarios supply about 60% of claude's
+band. The worst, on identical input:
+
+```
+bugfix-01-messy-ts-app        codex   0.00 → 1.00
+bugfix-13-polyglot-plan-drift codex   0.00 → 0.50
+bugfix-11-py-mixed-clocks     codex   0.75 → 0.25
+plan-01-messy-ts-app          codex   0.75 → 0.25
+bugfix-08-stress-dependency   claude  1.00 → 0.60
+refactor-05-action-labels     claude  0.80 → 0.40
+```
+
+`evals:variance` prints this list with each scenario's share of its
+agent's band variance. A full 0 → 1 swing on identical input is routine.
+**Never read a single scenario's delta as a product signal.** If one is
+load-bearing for a claim, replay it — `evals:replay` holds the responses
+fixed so only the scorer varies.
+
+#### What this instrument can and cannot resolve
+
+At 48 scenarios and 158 assertions, `structural_pass_rate` resolves a
+~5pp (claude) or ~6pp (codex) move. It cannot resolve a release. Scaling
+is the usual √n, so:
+
+| to resolve, at 2σ | claude | codex |
+|---|---|---|
+| a 5pp move | 48 scenarios (today) | ~70 |
+| a 2pp move | ~283 | ~468 |
+| a 1pp move | ~1,131 | ~1,871 |
+
+Six to ten times the current scenario set, to make a 2pp move mean
+something. **Treat a full agent run as a smoke test — evidence that
+nothing catastrophic happened to the wire output — and not as a
+release's evidence.** The metric that can resolve a release is
+`evals:ranking`: deterministic, free, no band at all.
+
+### Superseded: the 3-sample band at 0.12.1
+
+Kept because the `per_scenario_kind` warning below still holds, and
+because the reasoning error is worth being able to find again. **The
+band in this table is wrong; use the one above.**
 
 Three full runs of **identical code and scorer**
 (`0.12.1`, `0.12.1-r2`, `0.12.1-r3`):
@@ -602,9 +763,10 @@ Three full runs of **identical code and scorer**
 
 Read this as:
 
-- **The per-agent aggregate is the number to trust.** A 2σ band is
+- ~~**The per-agent aggregate is the number to trust.** A 2σ band is
   roughly ±0.06 for claude and ±0.03 for codex, so treat aggregate
-  moves under ~6pp as noise.
+  moves under ~6pp as noise.~~ Superseded: ±5pp claude, ±7pp codex,
+  and the two σ values were also computed with the biased estimator.
 - **`per_scenario_kind` is not interpretable at current scenario
   counts.** Each kind holds only 7–8 scenarios, so one flipped
   assertion moves it 8–15pp, and `plan`/claude ranged 0.64–0.88 across
@@ -620,12 +782,16 @@ Read this as:
   in future, it needs enough scenarios of its own to clear the same bar
   the per-kind numbers fail — plan for that up front rather than
   discovering it after the run.
-- **Per-scenario noise and aggregate noise point in opposite
+- ~~**Per-scenario noise and aggregate noise point in opposite
   directions.** codex is about twice as noisy as claude on any single
   scenario (avg σ 0.083 vs 0.041), yet its aggregate is the *steadier*
   of the two (σ 0.012 vs 0.029) because those per-scenario errors
-  cancel. Don't infer aggregate stability from per-scenario stability,
-  or the reverse.
+  cancel.~~ **Refuted.** Both repeat pairs put codex's aggregate band
+  *wider* than claude's, which is what its larger per-scenario spread
+  predicts. The σ 0.012 was three points pretending to be a
+  distribution. The surviving half of the lesson: per-scenario errors do
+  cancel, by √n — that is why the aggregate band is ±5pp when individual
+  scenarios swing 0 → 1.
 
 The investigation that produced these numbers began with an apparent
 5-point drop between 0.10.5 and 0.12.0, including `bugfix`/claude
@@ -633,7 +799,7 @@ The investigation that produced these numbers began with an apparent
 was no regression — and with one sample per version there was no way
 to know that from the summary alone.
 
-### A second, accidental repeat sample (0.21.0 → 0.22.0)
+### The first accidental repeat sample (0.21.0 → 0.22.0)
 
 `0.22.0` is a repeat sample of `0.21.0` and nobody paid for it. Two
 independent checks say the input is identical, not merely similar:
@@ -646,6 +812,13 @@ independent checks say the input is identical, not merely similar:
 
 The only difference is three extra files in fixture `12-py-tested`
 that an agent can open. Its scan JSON is unchanged.
+
+**Correction, `0.25.1`: that holds for the fixtures and not for 8 of
+the 96 results.** The `0.22.0` run recorded an empty `scan_context` for
+every `monorepo` (fixture `04`) scenario, so its scorer was working
+slug-only on those while `0.21.0`'s had the full charge and `crime_NNNN`
+tables. Two of the swings quoted below are in that set. The band
+derivation above excludes all 8; the figures in this section do not.
 
 | | 0.21.0 | 0.22.0 | move |
 |---|---|---|---|
@@ -672,11 +845,16 @@ Full swings on identical input are routine, not exotic: claude's
 went 0.00 → 1.00. **Never read a single scenario's delta as a product
 signal.** If a per-scenario move is load-bearing for a claim, replay
 it — `evals:replay` holds the responses fixed so only the scorer
-varies.
+varies. (Two of those three are fixture-`04` scenarios, and are the
+scan_context defect above rather than the agent. The point stands on
+`refactor-01-plural-mismatch`, and on the six scenarios listed in the
+band derivation.)
 
-Note the direction split matches the 0.12.1 finding: codex moved on
+~~Note the direction split matches the 0.12.1 finding: codex moved on
 fewer scenarios than claude here, yet its aggregate was the one that
-did not move at all.
+did not move at all.~~ It matched a finding that turned out to be an
+artefact of three samples; one pair agreeing with it does not rescue
+it. On the clean pair both agents moved on 16 of 48.
 
 ## Scenario↔fixture coverage discipline
 

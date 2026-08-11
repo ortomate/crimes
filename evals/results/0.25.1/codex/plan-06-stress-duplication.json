@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.25.1",
+  "timestamp": "2026-08-11T03:40:04.440Z",
+  "run_id": "b34b5713-5d83-4773-9f19-b4cd1f0facd9",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a JavaScript duplication investigation. I’ll verify the supplied scan against the fixture, inspect the six relevant source files, then give a two-step refactor plan with ordering, compatibility, and verification points.\n\nThe skill file is attached to the parent evaluation workspace rather than this fixture runner, so the repository-relative lookup missed it. I’m loading it from the provided absolute location and continuing with the same read-only investigation.\n\nThe fixture is present, but the global `crimes` binary is not installed in this environment. Per the repository instructions, I’m resolving the locally built CLI and will run the equivalent `node packages/cli/dist/index.js scan … --format json`; the supplied JSON remains the expected contract to compare against.\n\nRunning the TypeScript entry point directly is blocked by its build-time version constant, not by the scan itself. I’m using the project’s bundler configuration to emit a temporary local CLI outside the source tree, then I’ll run the required scan and discard the temporary artifact after inspection.\n\nThe scan confirms three duplication findings; the policy consolidation should land first because it has the highest `agent_risk` and contains semantic differences that must be preserved.\n\n| Finding | Evidence | Priority |\n|---|---|---|\n| `duplicated_role_status_plan_check` | `\"admin\"` checks across 4 files in 2 expression shapes | 1 — medium, agent risk `0.37` |\n| `near_duplicate_block` | `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` share the same body | 2 — medium, agent risk `0.32` |\n| `exact_duplicate_block` | `recordSanitiseEvent` duplicated in both telemetry files | Deferred — medium, agent risk `0.29` |\n\nThe two `direct_date` findings are not duplication findings.\n\n## Change 1: Centralise role policy\n\nMake [policy.ts](/private/tmp/claude-501/-Users-andrew-dev-crimes/d0b4a6f6-acd0-4986-8afe-011e15f736b2/scratchpad/evalwt/evals/fixtures/06-stress-duplication/src/policy.ts:2) the sole authority for role comparisons:\n\n- Add `isAdmin(role: string): boolean`.\n- Keep `canEditBilling`, `canSeeAuditLog`, and `canImpersonate` as stable public APIs, but implement each through `isAdmin`.\n- Update role-check callers in the three sanitiser modules to import policy functions instead of comparing role literals locally.\n- Remove `assertAdminA/B/C` after updating their callers.\n\nPreserve the existing differences carefully:\n\n- `assertAdminA` maps directly to `isAdmin`.\n- `assertAdminB` currently accepts `\"owner\"` as well; preserve that through a clearly named policy such as `hasElevatedRole`, implemented using `isAdmin(role) || role === \"owner\"`.\n- `assertAdminC` is inverted despite its name; its callers need `!isAdmin(role)`. Replacing it blindly with `isAdmin` would change behavior.\n\nAdd table-driven policy tests covering `admin`, `owner`, and ordinary roles, especially B’s owner allowance and C’s inversion.\n\n## Change 2: Consolidate sanitisation\n\nCreate `src/sanitize.ts` with one canonical API:\n\n```ts\nexport function sanitizeText(\n  value: string | null | undefined,\n): string;\n```\n\nMove the shared implementation there unchanged. Then migrate imports as follows:\n\n- [sanitize-a.ts](/private/tmp/claude-501/-Users-andrew-dev-crimes/d0b4a6f6-acd0-4986-8afe-011e15f736b2/scratchpad/evalwt/evals/fixtures/06-stress-duplication/src/sanitize-a.ts:10): `sanitizeUserInput` → `sanitizeText`\n- [sanitize-b.ts](/private/tmp/claude-501/-Users-andrew-dev-crimes/d0b4a6f6-acd0-4986-8afe-011e15f736b2/scratchpad/evalwt/evals/fixtures/06-stress-duplication/src/sanitize-b.ts:9): existing `sanitizeText` → canonical module\n- [sanitize-c.ts](/private/tmp/claude-501/-Users-andrew-dev-crimes/d0b4a6f6-acd0-4986-8afe-011e15f736b2/scratchpad/evalwt/evals/fixtures/06-stress-duplication/src/sanitize-c.ts:9): `cleanMessage` → `sanitizeText`\n\nUpdate every caller to import from `./sanitize.js`, then delete the three old modules rather than retaining three permanent thin wrappers. Add parity tests for nullish input, trimming, control characters, whitespace, length limits, rejected prefixes, escape sequences, punctuation, and uppercase normalization.\n\nFinally, rerun `crimes scan . --format json`. The role-policy and near-duplicate fingerprints should disappear with no new high finding. The telemetry duplicate should remain explicitly deferred to a separate change, ideally combined later with the clock-injection work.",
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  }
+}

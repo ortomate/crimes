@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.25.1",
+  "timestamp": "2026-08-11T03:40:04.352Z",
+  "run_id": "cf22895d-2d80-44ed-9f2f-ad5ff9994a69",
+  "response": "## What crimes found on `src/add.ts`: nothing\n\n```\nrisk.level: \"none\"   findings: 0   (high 0 / medium 0 / low 0)\n```\n\n`crimes context src/add.ts --format json` returns an empty finding set, an empty `agent_guidance` array, and an empty `related_files` array. Crucially, the report says *why* it's empty rather than leaving you guessing:\n\n- `agent_guidance_reason`: \"no findings on this file and no deterministic related files\"\n- `related_files_reason`: \"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"\n\nThat distinction matters — this is \"the detectors ran and found nothing,\" not \"the scan didn't cover this file.\" The repo-level scan confirms coverage: 3 files total, 2 JS/TS, packs `universal` + `language-js` + `language-py` loaded.\n\n## Supporting clues\n\n- **Tests**: `likely_tests` → `src/add.test.ts`. A test file exists and is co-located, so a change here has somewhere obvious to be verified. `test_gap` is `{raw: 0, label: \"unknown\"}` — no coverage data was ingested, so treat \"has a test file\" as the signal, not \"is well covered.\"\n- **Churn**: 1 commit in 90 days, 1 author, last touched 2026-05-18. Cold, stable, uncontested file.\n- **Blast radius**: no related files, no importers surfaced. `add.ts` is a leaf.\n\nThe file itself is a 4-line pure function — `export function add(a: number, b: number): number` — with no I/O, no side effects, no branching.\n\n## The one finding in the repo is not about this file\n\nThe only charge anywhere is `dependency_provenance_gap` (\"Phantom Accomplice\", **low**, confidence 0.56) filed against `package.json`: `vitest` is imported by `src/add.test.ts` but declared in no manifest — the fixture's `package.json` has no `dependencies` or `devDependencies` block at all. It resolves today via hoisting; a clean install could fail. Confidence is discounted (`0.68 base − 0.12`) precisely because only test files are affected.\n\nThat's a build-hygiene issue in the test harness, not a risk to editing `add.ts`. Worth noting only because if you extend the file *and its test*, you're building on an undeclared dependency.\n\n## Verdict: safe to extend\n\nThis is as low-risk as an edit target gets — no findings, no importers, cold history, a test file sitting next to it. Two honest caveats:\n\n1. **`test_gap.label` is `\"unknown\"`**, not `\"covered\"`. Crimes knows a test file exists; it does not know the new code you add will be exercised. Add cases alongside whatever you add.\n2. **Absence of findings on a 4-line file is weak evidence about your change.** Nothing in this report vouches for what you're about to write — re-run `crimes scan` after the edit if the file grows meaningfully. A \"God Function\" starts as a clean one.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  }
+}

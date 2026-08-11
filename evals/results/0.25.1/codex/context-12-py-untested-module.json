@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.25.1",
+  "timestamp": "2026-08-11T03:40:04.431Z",
+  "run_id": "e4eae67e-d349-46ef-80fe-29a9da41b082",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is explicitly a pre-edit risk investigation. I’ll identify the ledger implementation, run file-level context, and report test protection plus likely blast radius without changing anything.\n\nThe skill is stored at the parent evaluation workspace rather than this fixture runner, so I’m following its absolute locator and continuing the same read-only workflow.\n\nThe target is `billing/ledger.py`; its header explicitly says it has no test file, and `reverse_entry` is currently only defined there. I’m now running `crimes context` from the fixture root to verify whether indirect tests or importers provide any protection.\n\n`crimes context billing/ledger.py` shows essentially no safety net:\n\n- No likely tests: no matching ledger test and no test imports `billing.ledger`.\n- Test gap is `top-quartile` (`raw: 1`), meaning the module is maximally under-protected.\n- The repository’s only scan finding is high severity: all four reporting tests assert nothing. Those tests exercise `post_entry` indirectly, not `reverse_entry`, so they would not catch an incorrect reversal anyway.\n- `reverse_entry` has no in-repository callers. Its immediate internal blast radius therefore appears small, though external package consumers could still depend on its current dictionary shape and sign behavior.\n- Crimes recommends reviewing the neighboring billing modules: `rates.py`, `reporting.py`, `invoices.py`, and `__init__.py`. Of these, `reporting.py` imports `post_entry`; `ledger.py` itself depends on `rates.py`.\n\nBottom line: an incorrect reversal would probably pass the existing suite unnoticed. Before changing it, I would add focused tests covering negative `net` and `gross`, preserved `account` and `region`, input immutability, and any expected double-reversal behavior. No files were changed.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  }
+}

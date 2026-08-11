@@ -88,6 +88,34 @@ describe("scoreStructural — referenced_findings", () => {
       expect(r.passed, ref).toBe(1);
     }
   });
+
+  /**
+   * The 0.25.0 regression this fixes. codex answered
+   * `review-05-permission-and-parallel` correctly twice and scored
+   * 4/7 then 0/7, because the second response wrote the charge names as
+   * sentence-case prose bullets ("Permission IA drift") instead of
+   * quoting the `crime_NNNN` ids. Nothing about the answer got worse.
+   */
+  it("credits a charge name whatever case the agent wrote it in", () => {
+    for (const ref of ["Host-Locale Drift", "Host-Locale drift", "host-locale drift"]) {
+      const r = scoreStructural(
+        `- **${ref} — Block merge.** The date helper renders in the host locale.`,
+        { referenced_findings: ["locale_drift"], expected_priority: "locale_drift" },
+        SCAN_CONTEXT,
+      );
+      expect(r.passed, ref).toBe(2);
+    }
+  });
+
+  it("still does not credit a charge the response never names", () => {
+    const r = scoreStructural(
+      "Something is wrong with the dates, but I could not say what.",
+      { referenced_findings: ["locale_drift"] },
+      SCAN_CONTEXT,
+    );
+    expect(r.passed).toBe(0);
+    expect(r.failed).toBe(1);
+  });
 });
 
 describe("scoreStructural — findings referenced by their own evidence", () => {

@@ -46,8 +46,11 @@ coverage/
 evals/fixtures/0[2-4]-*/**
 !evals/fixtures/0[2-4]-*/.crimes-eval-meta.json
 # Eval replay output (per PR run, not pinned). The pinned per-version
-# results under evals/results/<version>/ are committed.
+# results under evals/results/<version>/ are committed. `--out` targets
+# for re-scoring an older sample under the current scorer (see
+# `evals:variance`) share the prefix and are equally disposable.
 evals/replay/
+evals/replay-*/
 evals/diff-summary.md
 
 # Python bytecode + virtualenvs. The repo ships Python fixtures under

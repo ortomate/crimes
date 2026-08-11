@@ -25,24 +25,48 @@ const REPLAY_DIR = resolve(REPO_ROOT, "evals", "replay");
  * Output lands in `evals/replay/<agent>/<scenario-id>.json` with the
  * same {@link ScoreResult} shape as a fresh run but a new run_id and
  * an updated `crimes_version` reflecting the build under test.
+ *
+ * Two flags exist for the case the default does not cover — re-scoring
+ * an *older* sample so that two samples can be compared under one
+ * scorer. Without them, a scorer fix silently makes the current sample
+ * incomparable with every sample already on disk, which is exactly the
+ * comparison `evals:variance` needs:
+ *
+ * ```bash
+ * pnpm run evals:replay -- --version 0.24.0 --out evals/replay-0.24.0
+ * ```
+ *
+ * - `--version <v>` replays `evals/results/<v>/` instead of the latest.
+ * - `--out <dir>` writes somewhere other than `evals/replay/`, so two
+ *   replays can sit side by side. Relative paths resolve from the repo
+ *   root.
  */
 async function main(): Promise<void> {
-  const latest = pickLatestVersion();
-  if (!latest) {
+  const opts = parseArgs(process.argv.slice(2));
+  const sourceVersion = opts.version ?? pickLatestVersion()?.version;
+  if (!sourceVersion) {
     process.stdout.write(
       "evals:replay: no pinned results under evals/results/ yet — nothing to replay.\n",
     );
     return;
   }
+  if (!existsSync(resolve(RESULTS_DIR, sourceVersion))) {
+    process.stderr.write(
+      `evals:replay: no results directory evals/results/${sourceVersion}/.\n`,
+    );
+    process.exit(2);
+    return;
+  }
+  const outRoot = opts.out ? resolve(REPO_ROOT, opts.out) : REPLAY_DIR;
   process.stdout.write(
-    `evals:replay: replaying results pinned at ${latest.version} against the current build.\n`,
+    `evals:replay: replaying results pinned at ${sourceVersion} against the current build.\n`,
   );
 
   const scenarios = loadScenarios();
   const scenarioById = new Map(scenarios.map((s) => [s.id, s]));
   const fixtureDirById = loadFixtureDirMap();
 
-  const versionDir = resolve(RESULTS_DIR, latest.version);
+  const versionDir = resolve(RESULTS_DIR, sourceVersion);
   const replayCrimesVersion = await readCrimesVersion();
   // Memoize re-derived scan contexts per fixture — only used as a
   // fallback when a stored result predates `scan_context`.
@@ -101,7 +125,7 @@ async function main(): Promise<void> {
       if (scanContext) replayed.scan_context = scanContext;
       if (stored.judge_score) replayed.judge_score = stored.judge_score;
 
-      const outDir = resolve(REPLAY_DIR, agentName);
+      const outDir = resolve(outRoot, agentName);
       mkdirSync(outDir, { recursive: true });
       await writeFile(
         resolve(outDir, entry.name),
@@ -113,8 +137,25 @@ async function main(): Promise<void> {
   }
 
   process.stdout.write(
-    `evals:replay: ${count} result file${count === 1 ? "" : "s"} re-scored → ${REPLAY_DIR}\n`,
+    `evals:replay: ${count} result file${count === 1 ? "" : "s"} re-scored → ${outRoot}\n`,
   );
+}
+
+interface ReplayOptions {
+  version?: string;
+  out?: string;
+}
+
+function parseArgs(argv: string[]): ReplayOptions {
+  const opts: ReplayOptions = {};
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--version") opts.version = argv[++i];
+    else if (arg === "--out") opts.out = argv[++i];
+    else if (arg?.startsWith("--version=")) opts.version = arg.slice("--version=".length);
+    else if (arg?.startsWith("--out=")) opts.out = arg.slice("--out=".length);
+  }
+  return opts;
 }
 
 function pickLatestVersion(): { version: string } | undefined {

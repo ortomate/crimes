@@ -1,0 +1,72 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.25.1",
+  "timestamp": "2026-08-11T03:40:04.459Z",
+  "run_id": "8e477de4-9218-43aa-8f64-d3fa6b4419b3",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this task explicitly asks for the context-driven risk workflow. I’ll inspect its instructions, run `crimes context` on the fixture’s `Card.tsx`, then map the proposed edits directly to all three finding types.\n\nThe skill lives at the evaluation workspace level rather than inside this runner directory, so I’m following its declared absolute location and continuing with the same scoped inspection.\n\nThe skill calls for JSON context when planning. I’m now checking the exact component, nearby token infrastructure, and the context report so the proposal uses this fixture’s real conventions instead of inventing an unrelated design system.\n\nThe fixture inspection succeeded, but the globally installed `crimes` binary is not on this shell’s `PATH`. I’m resolving the repository-local built CLI next; this stays read-only and preserves the requested `context` workflow.\n\nThe context report confirms exactly three findings, no neighboring files, and no likely tests. The existing project tokens are `brand`, `surface`, and `ink`; I’m doing one final read of the fixture configuration and human context output before presenting the smallest coherent refactor.\n\n`crimes context` reports `MEDIUM` risk: one medium accessibility finding and two low frontend risks. It also found no related tests.\n\nProposed refactor for [Card.tsx](/private/tmp/claude-501/-Users-andrew-dev-crimes/d0b4a6f6-acd0-4986-8afe-011e15f736b2/scratchpad/evalwt/evals/fixtures/07-stress-frontend/src/Card.tsx:8):\n\n```tsx\nexport function Card({ children }: { children: React.ReactNode }) {\n  return (\n    <article className=\"@container w-full max-w-5xl border border-brand/20 bg-surface p-6 text-ink shadow-sm\">\n      <div className=\"grid grid-cols-1 gap-6 @md:grid-cols-[minmax(0,2fr)_minmax(12rem,1fr)]\">\n        <div className=\"min-w-0 text-base @md:text-lg\">{children}</div>\n        <aside className=\"text-sm text-ink/70\">sidebar</aside>\n      </div>\n\n      <button\n        type=\"button\"\n        className=\"mt-6 rounded bg-brand px-4 py-2 text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand\"\n        onClick={() => console.log(\"clicked\")}\n      >\n        Open card\n      </button>\n    </article>\n  );\n}\n```\n\n| Finding type | Refactor |\n|---|---|\n| `accessible_interaction_risk` | Remove `onClick` from the non-semantic `<div>` and provide an actual `<button>` with a visible name. It receives keyboard activation, focus, and button semantics natively—no manual `role`, `tabIndex`, or key handler required. Keeping arbitrary `children` outside the button also avoids nesting possible links or controls inside it. |\n| `design_token_escape` | Replace all inline literals with Tailwind design-system utilities. `brand`, `surface`, and `ink` come from [tailwind.config.ts](/private/tmp/claude-501/-Users-andrew-dev-crimes/d0b4a6f6-acd0-4986-8afe-011e15f736b2/scratchpad/evalwt/evals/fixtures/07-stress-frontend/tailwind.config.ts:3); spacing, shadow, borders, and typography use named scale values. If the original magenta is required, add a semantic token centrally instead of retaining `#ff00aa` in JSX. |\n| `responsive_fragility` | Replace `800px`/`720px` widths and the fixed height with `w-full`, a bounded `max-w`, and a fluid grid. The layout is one column by default and becomes two columns based on its container via `@container`/`@md`. Typography uses the rem-based `text-base`/`text-lg` scale rather than `18px`. |\n\nBecause context reported no likely tests, I would add a component test asserting that the named button is keyboard-accessible and invokes the handler, plus a narrow/wide viewport visual test for the grid transition. No files were changed.",
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": null,
+        "passed": false,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "line 10: <div> with onClick has no role / aria-label / tabIndex": "accessible_interaction_risk",
+      "9 hard-coded style values across 4 kinds (color, px, rgb, shadow)": "design_token_escape",
+      "line 10: color #ff00aa": "design_token_escape",
+      "line 10: color #0a0a0a": "design_token_escape",
+      "line 10: color #cccccc": "design_token_escape",
+      "line 10: color #1a73e8": "design_token_escape",
+      "line 10: rgb rgb(0, 0, 0)": "design_token_escape",
+      "+4 more raw value(s)": "design_token_escape",
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  }
+}

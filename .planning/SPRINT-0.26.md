@@ -272,3 +272,52 @@ so and stop paying for it every time.
 - [ ] Every place an entry in this plan turned out to be wrong is
       recorded in this file. `0.25.0` corrected four; assume this one
       contains some too.
+
+---
+
+## 8. Corrections to this plan, as they were found
+
+### S1 (`0.25.1`)
+
+1. **§4 S1 offers two explanations for `review-05-permission-and-parallel`
+   and the answer is neither.** It is not an unstable scenario and its
+   rubric is not ambiguous. The scorer matched charge names
+   **case-sensitively**, so codex writing "Permission IA drift" instead
+   of "Permission IA Drift" scored zero on a finding it had named
+   correctly, in a response that was otherwise as good as the one before
+   it. Three of that scenario's seven assertions were case alone. Fixed
+   in `0.25.1`.
+
+2. **§1 D5 and §4 S1 say the codex band is wrong. It is wrong in the
+   other direction too.** The documented pair was ±6pp claude / ±3pp
+   codex — codex the steadier agent. Both repeat pairs put codex's band
+   *wider*: ±5pp claude, ±7pp codex. The `0.12.1` ordering was an
+   artefact of estimating a standard deviation from three points.
+
+3. **The −5.1pp that motivated the stream is −3.2pp.** Under the fixed
+   scorer, codex's stable-48 move across `0.24.0` → `0.25.0` is
+   −3.2pp, comfortably inside the re-derived band. `0.25.0`'s release
+   notes state −5.1pp; that figure was part scorer defect.
+
+4. **§4 S1 says "two same-input samples on disk". There are four.**
+   `0.21.0`/`0.22.0` is a second pair, already documented in
+   `evals/README.md` and not referenced by the plan. Using both roughly
+   halves the error on the band estimate.
+
+5. **`0.22.0` is not a clean repeat sample of `0.21.0`.** Its run
+   recorded an **empty `scan_context` for all four `monorepo`
+   scenarios**, so 8 of its 96 results were scored slug-only against
+   `0.21.0`'s fully-resolved ones — and two of those 8 are among the
+   largest movers the README quotes as evidence of agent instability.
+   `evals:variance` now excludes such pairs and reports the count.
+
+6. **`evals:variance` was under-reporting every band it printed.** It
+   divided the sum of squared deviations by n rather than n−1, which at
+   n=2 understates the standard deviation by 29%. Corrected, which
+   also means the `0.12.1` per-scenario σ values in the README were
+   biased low as published.
+
+7. **The stream was costed as "analysis only" and it was not.** Getting
+   two samples onto one scorer needed `evals:replay --version/--out`,
+   and comparing across version directories needed `evals:variance
+   --dirs`. Neither existed. Still zero agent calls.

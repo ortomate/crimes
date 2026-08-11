@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.25.1",
+  "timestamp": "2026-08-11T03:40:04.364Z",
+  "run_id": "6ea6dc6c-5dfd-4e9d-b8fe-40deccf27cbb",
+  "response": "I read the fixture rather than working from the JSON alone — and the two clusters the plan has to cover are **not** symmetrical. That asymmetry drives everything below.\n\n## What the scan gets right, and the one thing it hides\n\n`crime_00002` and `crime_00001` both read as \"three copies, extract a helper.\" Only the first one is that.\n\n**The three sanitise bodies are pure alpha-renames.** `sanitize-a.ts:10-36`, `sanitize-b.ts:9-35`, `sanitize-c.ts:9-35` differ only in identifier names (`working` → `cleaned` → `normalised`, `raw` → `input` → `value`). Same regexes, same 1000-char clamp, same `0.9` upper-ratio threshold, same branch order. Merging them is a behaviour-preserving move.\n\n**The three role checks are not equivalent, and one is inverted:**\n\n| Site | Expression | True when |\n|---|---|---|\n| `policy.ts:3,8,13` | `role === \"admin\"` | admin |\n| `sanitize-a.ts:7` `assertAdminA` | `role === \"admin\"` | admin |\n| `sanitize-b.ts:6` `assertAdminB` | `role === \"admin\" \\|\\| role === \"owner\"` | admin **or owner** |\n| `sanitize-c.ts:6` `assertAdminC` | `role !== \"admin\"` | **everyone except admin** |\n\n`assertAdminC` returns `true` for non-admins. The name says the opposite of what it does. Taking `crime_00001`'s `suggested_actions` literally — \"a single policy function that every call site delegates to\" — grants billing access to every non-admin in the codebase. The finding's evidence block shows four `role === \"admin\"` lines and elides the rest as `+2 more occurrence(s)`, and it counts \"2 distinct expression shapes\" where there are three; the polarity flip is not visible from the JSON. This is the case for reading the call sites before acting on a duplication finding, not the case against the finding.\n\nTwo more facts that shape the plan: `grep` finds **zero imports** across `src/` — every module is a leaf whose consumers are outside this package, so `blast_radius_direct_importers: 0` means \"no internal callers,\" not \"safe to change signatures.\" And there are **no test files at all**, which is what the flat `test_gap: 0.5` is telling you.\n\n## Step 1 — Unify the sanitiser (mechanical, no behaviour change)\n\n**1a. Write the characterisation test first.** This is what turns \"they look identical\" into a receipt. One table of inputs — empty, null/undefined, whitespace-only, `<script`, `\\x` payload, `!!!!` runs, a 1200-char string, a 40-char all-caps string, a 20-char all-caps string (the `length > 30` boundary) — asserted against all three current functions. It must pass green *before* you delete anything.\n\n**1b. Extract `src/sanitize.ts`** with a single `sanitize(raw: string): string`, body lifted verbatim from `sanitize-a.ts:10-36`. Don't retype it; copy it, so the diff is provably a move.\n\n**1c. Reduce the three files to re-export aliases**, preserving each existing exported name:\n\n```ts\n// src/sanitize-b.ts\nexport { sanitize as sanitizeText } from \"./sanitize.js\";\n```\n\nRepoint the test at `sanitize()` plus the three aliases. If you can confirm the external consumers, delete the three shims outright and update them — but that's a call that needs visibility this repo doesn't have.\n\n## Step 2 — Unify the role checks (behaviour-sensitive, needs a decision)\n\n**2a. Collapse to a role table with intent-named predicates**, not one boolean function:\n\n```ts\n// src/policy.ts\nconst ADMIN_ROLES = new Set([\"admin\"]);\nconst ELEVATED_ROLES = new Set([\"admin\", \"owner\"]);\n\nexport const isAdmin = (role: string): boolean => ADMIN_ROLES.has(role);\nexport const isElevated = (role: string): boolean => ELEVATED_ROLES.has(role);\n```\n\nTwo predicates, because there are genuinely two policies here. Forcing them into one either silently grants `owner` the admin capabilities in `policy.ts`, or silently revokes whatever `assertAdminB` was gating for owners. Both are policy changes wearing a refactor's clothes.\n\n**2b. Repoint each site to the predicate that matches its current behaviour:**\n\n- `canEditBilling`, `canSeeAuditLog`, `canImpersonate` → `isAdmin(role)`. Genuinely identical; safe.\n- `assertAdminA` → `isAdmin`. Safe.\n- `assertAdminB` → `isElevated`. Safe.\n- `assertAdminC` → **`!isAdmin(role)`, behaviour preserved exactly.** Rename it to something honest (`isNotAdmin`), keep `assertAdminC` as a `@deprecated` alias, and open a follow-up to audit the external callers.\n\n**2c. Do not fix `assertAdminC` in this change set.** Whether the bug is the name or the logic depends on how callers use it, and those callers aren't in this repo. Flipping it here converts a review-only diff into one that can change access decisions. Preserve, rename, flag, decide separately with the call sites in hand. This is the one item in the plan that needs a human.\n\nCover the predicates with a small table test — `admin`, `owner`, `member`, `\"\"` — asserting the truth table above, including `isNotAdmin(\"member\") === true`. That test is the artifact that makes the eventual polarity decision reviewable.\n\n## Why this order\n\nStep 1 is a provable no-op; step 2 can change who can access billing. Running the mechanical one first means the risky diff lands on its own, small and readable, instead of buried in ~60 lines of deletion. It also helps concretely: after step 1 the three `sanitize-*.ts` files contain nothing but their `assertAdmin*` guards, so step 2's scope becomes self-evident and each file either disappears or reduces to one line. Inverting the order gives you neither benefit and reviews worse.\n\n## Verification\n\nTests green after each step, then re-run `crimes scan --format json`. Expected: `crime_00002` (near-duplicate) clears after step 1; `crime_00001` should clear after step 2, since `\"admin\"` then appears in one file only — worth confirming against the detector's file-count threshold rather than assuming.\n\n## Out of scope, but cheap\n\nThree of the five findings are the telemetry pair, and they're one edit: `recordSanitiseEvent` is byte-identical in `telemetry-a.ts:6-19` and `telemetry-b.ts:6-19`, and both `direct_date` findings (`crime_00004`, `crime_00005`) are the `Date.now()` on line 16 *inside* that duplicated block. Extracting the shared function and taking `now` as a parameter clears `crime_00003`, `00004`, and `00005` together — 3 of 5 findings for one small change. I've left it out because you asked for a two-step set covering sanitise and roles; it's an independent step 3 whenever you want it.",
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.25.1",
+  "timestamp": "2026-08-11T03:40:04.410Z",
+  "run_id": "0cd2771b-29e4-4ec3-b36a-33e24658d0f4",
+  "response": "I ran the scan, then verified its claims against the actual suite: I copied the package to a scratch dir, ran the tests, took a fresh `coverage` reading, and ran a mutation probe (break one behaviour, see if anything goes red). The scratch copy is deleted; the fixture is untouched (`git status` clean).\n\n## Headline\n\nThe suite is 12 passing tests at **97% line coverage** — and it protects **two of the four** billing modules. Coverage is actively lying to you here, in both directions.\n\n```\nbilling/rates.py       100%   ← real\nbilling/invoices.py    100%   ← half real\nbilling/reporting.py    90%   ← zero protection\nbilling/ledger.py       83%   ← zero protection, and has no test file at all\n```\n\n`crimes scan` returned one finding (`weak_test_signal` on `tests/test_reporting.py`). That finding is correct and it's the loudest problem — but it's roughly half the exposure. Two further gaps are invisible to it, for structural reasons I'll note at the end.\n\n## Mutation probe — what the suite actually catches\n\nI broke one behaviour at a time and re-ran `pytest`:\n\n| Change | Suite says |\n|---|---|\n| `rate_for` returns a wrong rate | **3 failed** ✅ |\n| `is_zero_rated` always True | **1 failed** ✅ |\n| `build_invoice` sets `tax` to 0 | **3 failed** ✅ |\n| `build_invoice` `gross` omits tax | **4 failed** ✅ |\n| `apply_credit` ignores the credit entirely | 12 passed ❌ |\n| `apply_credit` hardcodes region to `\"GB\"` | 12 passed ❌ |\n| `build_report` totals net instead of gross | 12 passed ❌ |\n| `export_report` returns `\"WRONG\"` for csv | 12 passed ❌ |\n| `export_report` returns `None` for json | 12 passed ❌ |\n| `post_entry` drops VAT | 12 passed ❌ |\n| `reverse_entry` stops negating | 12 passed ❌ |\n\nFour caught, seven survived.\n\n## Genuinely covered\n\n**`billing/rates.py`** — real assertions on real values (`tests/test_rates.py:7-16`). Both functions pinned; every mutation caught. Refactor freely.\nOne live gap: `is_zero_rated`'s true branch is unreachable today (no rate in `RATES` is 0), so it is never tested. If the refactor introduces a zero-rated region, that path ships unverified.\n\n**`billing/invoices.py::build_invoice`** — genuinely covered, and worth saying explicitly: the scan was **right not to flag `tests/test_invoices.py`**. That file looks silent — not one `assert` in it — but its assertions live in `tests/support.py`, both via the free function `verify_invoice_balances` (`support.py:16-17`) and the `InvoiceCase.expect_gross_for` base-class method (`support.py:25-26`). `expect_gross_for(\"acct_4\", [1000], \"GB\", 1200.0)` is the assertion that pins the arithmetic. Both `build_invoice` mutations were caught.\n\n## Only looks covered\n\n**`billing/reporting.py`** — the scan's finding. 4 tests, 100% of the functions exercised, **0 assertions**. Every mutation survived, including `export_report` returning the literal string `\"WRONG\"`. These tests assert one thing only: that the code doesn't raise. The one line coverage *does* miss is line 21 — the `raise ValueError` for an unsupported format — so the error path is untested as well as the happy path being unchecked.\n\n**`billing/ledger.py`** — the gap the scan does not report at all. There is **no test file for this module**, yet coverage says 83%, because `reporting.build_report` calls `post_entry` and the hollow reporting tests drag it along. That 83% is the purest form of the lie: execution with no observer. `reverse_entry` is worse than untested — it's never called by anything in the repo, so its body is the single uncovered statement (line 17). Sign-inversion logic with zero executions is the riskiest thing in the package to refactor.\n\n**`billing/invoices.py::apply_credit`** — the subtle one, and the one I'd most want you to see. It has 100% line coverage and two tests named after its behaviour (`test_credit_reduces_the_total`, `test_zero_credit_is_a_no_op`). But every assertion reaching its result is `verify_invoice_balances`, which checks an **invariant** — `gross == net + tax`, `net >= 0` — that holds for *any* invoice `build_invoice` returns. So it validates `build_invoice`'s internal consistency, not `apply_credit`'s behaviour. Nothing asserts the credit reduced anything; nothing asserts zero credit was a no-op, despite the test's name. Both mutations passed clean. Also untested: `credit > net`, which would produce a negative invoice and trip the `net >= 0` assertion — no test passes a credit that large.\n\n## Two notes on reading the JSON\n\n- The finding's `test_gap: 0` and `blast_radius: 0` describe `tests/test_reporting.py` — the test file. They are not a statement that `billing/reporting.py` is low-risk.\n- The checked-in `.coverage` is stale and partial: it records `rates`, `reporting`, `ledger`, `__init__` and **not** `invoices`. If anyone reads that artifact directly, it understates the one module that's actually well tested.\n\n## Why the scan found one of the three\n\n`weak_test_signal` detects *syntactic* silence — a test function with no assertion reachable through its helpers. That's exactly `reporting`, and it correctly cleared `test_invoices.py` by following into `support.py`. It cannot see **semantic** hollowness (`apply_credit`: assertions present, but tautological for the function under test) or **absence** (`ledger`: no test file, so no test function to flag). Treat the finding as a floor.\n\n## Before you refactor\n\n1. **`ledger.py` first** — highest risk, zero real coverage, `reverse_entry` never executed. Write a test file before changing a line.\n2. **`reporting.py`** — turn the 4 hollow tests into assertions: `total == 120.0` for GB, the exact csv string, the exact json dict, and `pytest.raises(ValueError)` for an unknown format.\n3. **`apply_credit`** — assert the resulting numbers, not the invariant. Add the over-credit case; decide deliberately whether a negative invoice is legal, because today nothing says.\n4. Keep the `support.py` pattern — it's fine, and the scanner handles it. Just don't let an invariant helper stand in for a behavioural assertion; that's precisely how `apply_credit` reached 100% coverage with no protection.",
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  }
+}

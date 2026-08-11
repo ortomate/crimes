@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "codex",
+  "crimes_version": "0.25.1",
+  "timestamp": "2026-08-11T03:40:04.430Z",
+  "run_id": "d9a10ee2-6805-434e-86fd-1ddda0371385",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is a `crimes context` inspection. I’ll run the requested JSON command in the `10-clean-typed` fixture and report only what its output supports.\n\nThe skill is stored at the evaluation workspace level rather than inside this runner directory, so I’m resolving its absolute path and continuing.\n\nThe fixture does not have a globally installed `crimes` binary on `PATH`. I’m locating the repository’s built CLI so I can execute the same command against the fixture without changing anything.\n\n`src/billing.ts` has no findings: risk level `none` with 0 high, medium, or low findings.\n\n- Likely test: `src/billing.test.ts`\n- Low edit risk because it has no detected issues, no risky related files or dependency neighborhood, and low churn—1 commit by 1 author in the last 90 days.\n- Caveat: `test_gap` is `unknown`, so the test path is inferred rather than proof of coverage.\n\nThe scan’s low-severity `dependency_provenance_gap` applies to `package.json`, not `src/billing.ts`.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  }
+}

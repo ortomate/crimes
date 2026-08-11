@@ -309,8 +309,37 @@ function matchesToken(haystack: string, token: string): boolean {
   return boundedTokenRegex(token).test(haystack);
 }
 
+/**
+ * Detector references are matched **case-insensitively**, and that is a
+ * deliberate correction rather than a convenience.
+ *
+ * The tokens this builds a pattern for are all detector references:
+ * slugs (`permission_ia_drift`), charge names (`Permission IA Drift`)
+ * and per-scan ids (`crime_00010`). An agent writing "Permission IA
+ * drift" in a prose bullet has named the finding; whether it title-cased
+ * the last word is a fact about its prose style, not about whether it
+ * read the scan. Matching case exactly made that difference worth a
+ * whole assertion, which is the same class of silent scoring failure the
+ * {@link SCORED_FILE_EXTENSIONS} comment describes — and it bit in the
+ * same way, invisibly.
+ *
+ * Measured on the stored 0.24.0 and 0.25.0 responses, case-sensitivity
+ * cost 7 assertions across 316, all of them agents naming a charge
+ * correctly. The largest was codex on
+ * `review-05-permission-and-parallel`, which fell 4/7 → 0/7 between two
+ * byte-identical runs; three of those seven were case alone. The move
+ * was on its way into `evals/README.md` as evidence of agent
+ * instability.
+ *
+ * Safe because no charge name is a common English word: all 59 in the
+ * corpus are distinctive multi-word phrases ("God Function",
+ * "Two Clocks, One Module"), so lowering the case cannot make one match
+ * incidental prose. File paths are matched by {@link extractFilePaths}
+ * and stay case-sensitive, because there `Src/Date.ts` really is a
+ * different file.
+ */
 function boundedTokenRegex(token: string): RegExp {
-  return new RegExp(`\\b${escapeRegex(token)}\\b`);
+  return new RegExp(`\\b${escapeRegex(token)}\\b`, "i");
 }
 
 function escapeRegex(s: string): string {

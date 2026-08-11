@@ -1,0 +1,55 @@
+{
+  "scenario": "context-14-what-was-not-scanned",
+  "agent": "codex",
+  "crimes_version": "0.25.1",
+  "timestamp": "2026-08-11T03:40:04.432Z",
+  "run_id": "737d264a-bfa8-4dff-8bc1-df85cc823034",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a scan/coverage interpretation task. I’ll verify the exclusion provenance, then keep the findings and coverage caveat clearly separate.\n\nThe agent-summary path in this checkout doesn’t resolve from the runner directory, so I’m switching to the skill’s registered absolute location and continuing the same read-only check.\n\n## Findings\n\nThe scan found two medium-risk issues, both in `app/pricing.py`:\n\n- `direct_date` at line 20: `datetime.now()` reads wall time directly and returns a naive datetime. Recommended fix: inject a clock and specify a timezone.\n- `todo_density` at lines 8–11: four TODO markers, or 181.8 per 1,000 lines.\n\nNo high- or low-severity findings were reported.\n\n## What was not scanned\n\nTwo Python source files under `legacy_v1/` were skipped:\n\n- `legacy_v1/discounts.py`\n- `legacy_v1/pricing.py`\n\nThis was requested by the repository’s own `pyproject.toml` configuration:\n\n- Ruff: `extend-exclude = ['legacy_v1']`\n- Coverage.py: `omit = ['legacy_v1/*']`\n- Codespell: `skip = '.git,legacy_v1/*'`\n\nSo their findings are absent—not zero. The report is useful for the included scope, but I would not trust it as a complete picture of repository risk.\n\nTo include the skipped code, set this in `crimes.config.json`:\n\n```json\n{\n  \"honourToolingExcludes\": false\n}\n```\n\nThen run:\n\n```bash\ncrimes scan . --format json\n```",
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "app/pricing.py",
+        "observed": "app/pricing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Unfinished Business": "todo_density"
+    },
+    "detector_id_by_evidence": {
+      "1× datetime.now()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "1 of 1 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20": "direct_date",
+      "181.8 markers per 1k LOC (threshold 10)": "todo_density"
+    }
+  }
+}
