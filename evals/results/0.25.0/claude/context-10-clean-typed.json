@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.25.0",
+  "timestamp": "2026-08-11T00:54:10.878Z",
+  "run_id": "e328be01-20d5-4f88-95f3-c68a4a7f8009",
+  "response": "## `crimes context src/billing.ts --format json`\n\n**No findings.** `risk.level: \"none\"` — 0 high, 0 medium, 0 low, 0 total. `findings` is `[]`, `agent_guidance` is `[]`, and `related_files` is `[]`.\n\n**likely_tests:** `src/billing.test.ts` — a sibling test that exists (the scan's dependency finding cites the same path as the file importing `vitest`).\n\n### Why it's low risk to edit\n\nThe whole file is 11 lines:\n\n```ts\nexport interface Money { amount: number; currency: \"USD\" | \"EUR\" | \"GBP\" }\nexport function format(money: Money): string { ... }\n```\n\n- **Nothing to trip over structurally.** One interface, one pure function, one expression. No branching, no nesting, no parameter sprawl — none of the structural or duplication detectors have anything to bite on.\n- **No hidden inputs.** `format` reads only its argument. No `Date.now()`, no `process.env`, no I/O, no module-level state. The output is a function of the input alone, which is exactly the shape that makes a change verifiable by a test rather than by running the app.\n- **Types constrain the change.** `currency` is a closed union of three literals and `amount` is `number`, so an edit that breaks the contract is a compile error rather than a runtime surprise.\n- **Nothing depends on it here.** `related_files` is empty with the reason *\"no neighbourhood signal\"* — no importers, no shared domain tokens, no same-directory siblings. Blast radius inside this fixture is effectively zero, so a change can't cascade.\n- **Quiet history, single author.** `clues.churn` shows 1 commit in 90 days by 1 author. Not a hotspot; no sign of repeated fixes or contention.\n- **A test sits next to it.** `test_gap.label` is `\"unknown\"` (raw 0) — the detector isn't asserting coverage quality — but `src/billing.test.ts` exists and is the obvious place to extend before changing behaviour.\n\n### One caveat from the repo-level scan\n\nThe single low finding in the scan is **not on this file**: `dependency_provenance_gap` (\"Phantom Accomplice\") on `package.json` — `vitest` is imported by `src/billing.test.ts` but declared in no manifest, so it resolves today via hoisting and could fail on a clean install. That's a quick fix (declare `vitest` in `package.json`) and it affects the ability to *run* the test, not the safety of editing `billing.ts` itself.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

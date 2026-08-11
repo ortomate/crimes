@@ -180,6 +180,18 @@ looked at, what it skipped, and whether it said so.
 move for one population: `commented_out_code` in single-block non-JS
 files.
 
+Eval baseline: claude 0.82 → **0.84**, codex 0.61 → **0.58** over 102
+combinations. **Neither is a before/after** — the scenario set grew by
+three, so read the 48 scenarios present in both runs: claude
+**+0.0pp** (0.823 → 0.823), codex **−5.1pp**. And all 96 stable pairs
+received a **byte-identical scan context**, because no fixture's
+findings moved, so this run is a free repeat sample that measures agent
+variance rather than the product: 16 of 48 scenarios moved for *each*
+agent with identical input, netting +0.0pp for one and −5.1pp for the
+other. Codex's stated ±3pp band is too narrow. `structural_pass_rate`
+cannot see most of this release anyway — the pydantic and airflow
+numbers above are the evidence.
+
 Release notes: [`docs/releases/v0.25.0.md`](./docs/releases/v0.25.0.md).
 
 ### Earlier `0.24.0` work (_the ceiling becomes a scale_)

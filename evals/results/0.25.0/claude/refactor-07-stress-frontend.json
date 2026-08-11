@@ -1,0 +1,72 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.25.0",
+  "timestamp": "2026-08-11T01:09:38.743Z",
+  "run_id": "226edee1-719c-4629-8335-37c076664c7e",
+  "response": "Ran `crimes context src/Card.tsx` against the fixture. Beyond the three findings it repeats from the scan, the context adds the facts that decide *how* to sequence the refactor:\n\n- **no tests found** — no siblings, no `__tests__/`, nothing importing it; `test_gap` is top-quartile (1.0) on all three findings.\n- **0 direct importers, churn low** (2 commits/90d, last touched 3 months ago) — nothing downstream breaks, so this is the cheapest moment to change the component's shape.\n- **`tailwind.config.ts` exists** with a real token scale (`brand`, `surface`, `ink`) — so the design system isn't missing, the file is bypassing it. That's what makes finding 2 a *token escape* rather than \"no tokens yet\".\n\nTwo things I found reading the file that the detectors don't say outright:\n\n1. `width: 800` with `maxWidth: 1024` — the `maxWidth` never binds (800 < 1024). The fixed width wins, so the \"responsive\" intent is already dead code.\n2. Inner widths `720 + 240 = 960` inside an 800px parent — this overflows *at desktop*, not just on mobile. `responsive_fragility` is understating it.\n\n## The refactor\n\n### 1. `accessible_interaction_risk` (medium, conf 0.85) — line 10/22\n\nThe naive fix (`role=\"button\" tabIndex={0}` on the existing div) is wrong here, because this div wraps arbitrary `children`. If a caller passes a link or an input, you get an interactive control nested inside an interactive control — invalid, and screen readers flatten it. `role=\"button\"` also doesn't get you Enter/Space handling; you'd have to write the `onKeyDown` yourself.\n\nSo: keep the container presentational and put a **real `<button>`** inside as the affordance. That also fixes the second half of the smell — `onClick={() => console.log(\"clicked\")}` is a placeholder; the click target should be a prop.\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onSelect?: () => void;\n  selectLabel?: string;\n};\n\nexport function Card({ children, onSelect, selectLabel = \"Open card\" }: CardProps) {\n  return (\n    <section className=\"@container w-full max-w-4xl rounded-lg border border-border bg-surface p-6 text-ink shadow-card\">\n      <div className=\"grid grid-cols-1 gap-6 @2xl:grid-cols-[minmax(0,1fr)_15rem]\">\n        <div className=\"min-w-0 text-base @2xl:text-lg text-ink-muted\">{children}</div>\n        <aside className=\"min-w-0 text-sm text-ink-subtle\">sidebar</aside>\n      </div>\n      {onSelect && (\n        <button\n          type=\"button\"\n          onClick={onSelect}\n          className=\"mt-4 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus\"\n        >\n          {selectLabel}\n        </button>\n      )}\n    </section>\n  );\n}\n```\n\nIf whole-card click is a hard product requirement, the fallback is `role=\"button\"` + `tabIndex={0}` + `aria-label` + an `onKeyDown` that fires on `Enter`/`Space` (and `preventDefault` on Space to stop page scroll) — **and** a documented constraint that `children` must be non-interactive. That's strictly worse; take it only if the design demands it.\n\n### 2. `design_token_escape` (low, conf 0.75) — 9 raw values, line 10/24\n\nMoving to Tailwind classes removes the raw values from JSX entirely, which is the durable fix — the point of this finding is that an agent extending the file copies `#333333` forward. But the swap isn't 1:1: the existing token set covers 3 of the 9 values. Extend the config first:\n\n```ts\nexport default {\n  theme: {\n    colors: {\n      brand: \"#0050ff\",\n      surface: \"#f7f7fa\",\n      ink: \"#111111\",\n      \"ink-muted\": \"#333333\",    // was line 24\n      \"ink-subtle\": \"#666666\",   // was line 27\n      border: \"#cccccc\",         // was borderColor\n      focus: \"#1a73e8\",          // was outlineColor\n    },\n    boxShadow: { card: \"0 2px 4px rgb(0 0 0 / 0.2)\" }, // was the rgb() literal\n  },\n};\n```\n\nOne value resists tokenising: **`background: \"#ff00aa\"`**. Hot magenta matches nothing in the palette and reads like a debug colour left in. I've assumed it was scaffolding and used `bg-surface` above. If it's intentional it needs a named token (`accent`) — that's a design call, not a mechanical one, so flag it rather than silently pick.\n\n### 3. `responsive_fragility` (low, conf 0.65) — line 10/24\n\nThe detector's `fix_shape` says to drive layout from container queries, not pixel media queries, and that's right for a `Card`: it's a component reused at unknown widths, so it should respond to *its own* box, not the viewport. That's why the code above uses `@container` + `@2xl:` rather than adding an `@media` block.\n\nConcretely: `w-full max-w-4xl` replaces `width: 800`/`maxWidth: 1024` (and resolves the contradiction — one constraint, not two); the fixed `720`/`240` columns become a single-column grid that promotes to `minmax(0,1fr) 15rem` only when the card is wide enough, with `min-w-0` so long content can't blow the track out; `fontSize: 18/14` become `text-lg`/`text-sm` on the rem scale. This also kills the 960-in-800 overflow, since the columns are now fractional.\n\n## Sequencing and verification\n\nDo **2 before 1 and 3** — extend the tokens first, so the markup rewrite has something to reference and you never have a commit that hard-codes values in `className`.\n\nBecause `test_gap` is 1.0 with zero test files, nothing will catch a regression here. The a11y change is the one that needs a test, since it's the only finding with user-visible consequences: render with `onSelect`, assert the control is reachable by role and fires on keyboard activation. Then re-run `crimes context src/Card.tsx` — all three should clear. Note that if you keep inline `style` and merely swap in token *variables*, `design_token_escape` may still fire on whatever raw values remain in JSX; the class-based version is what makes it go quiet.\n\nOne caveat on the plan as specified: I haven't applied any of this. `evals/fixtures/07-stress-frontend` is scanner input — editing it would move the eval baseline and require a patch bump plus an `evals/results/` re-run per the repo's versioning policy. Say the word if you want these edits applied to the fixture (or to a real `Card.tsx` elsewhere) and I'll make them.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "line 10: <div> with onClick has no role / aria-label / tabIndex": "accessible_interaction_risk",
+      "9 hard-coded style values across 4 kinds (color, px, rgb, shadow)": "design_token_escape",
+      "line 10: color #ff00aa": "design_token_escape",
+      "line 10: color #0a0a0a": "design_token_escape",
+      "line 10: color #cccccc": "design_token_escape",
+      "line 10: color #1a73e8": "design_token_escape",
+      "line 10: rgb rgb(0, 0, 0)": "design_token_escape",
+      "+4 more raw value(s)": "design_token_escape",
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

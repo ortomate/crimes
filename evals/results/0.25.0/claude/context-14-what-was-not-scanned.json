@@ -1,0 +1,55 @@
+{
+  "scenario": "context-14-what-was-not-scanned",
+  "agent": "claude",
+  "crimes_version": "0.25.0",
+  "timestamp": "2026-08-11T00:57:24.950Z",
+  "run_id": "35720290-c890-4c41-8a3a-a7a147ea1570",
+  "response": "## The findings\n\nTwo, both medium, both in the same file — `app/pricing.py`:\n\n| ID | Charge | Where | What |\n|---|---|---|---|\n| `crime_00001` | Temporal Recklessness (`direct_date`) | `app/pricing.py:20` | One direct `datetime.now()` in domain code, and it returns a **naive** datetime (no `tz=`). Tests can't pin a fixed instant without patching the module, and comparing it against an aware datetime raises `TypeError`. Confidence 0.9, `test_gap` 1.0. |\n| `crime_00002` | Unfinished Business (`todo_density`) | `app/pricing.py:8–11` | 4 TODO/FIXME markers in a ~22-line file — 181.8 per 1k LOC against a threshold of 10. In pricing logic that means an agent can't tell which branches are load-bearing and which are placeholders. |\n\nFor a billing service, the clock finding is the one that matters: a naive `datetime.now()` inside pricing is both untestable and a latent `TypeError` at any aware/naive boundary. Fix shape is the standard one — inject a clock, pass `tz=` explicitly.\n\n## What the scan did not look at\n\nThis is **not** a clean two-finding repo. The scan covered 2 files. It skipped **2 source files** — the entire **`legacy_v1/`** directory:\n\n- `legacy_v1/pricing.py`\n- `legacy_v1/discounts.py`\n\nThat's half the Python in the repo, and by the names it's a *second pricing implementation* sitting next to the one that was scanned.\n\n**On whose authority:** not mine, and not the scanner's default excludes. The repo's own `pyproject.toml` excludes `legacy_v1` in three separate tools:\n\n- `[tool.ruff]` → `extend-exclude = ['legacy_v1']`\n- `[tool.coverage.run]` → `omit = ['legacy_v1/*']`\n- `[tool.codespell]` → `skip = '.git,legacy_v1/*'`\n\ncrimes honoured that corroborated signal and told me so in `coverage.warnings`, with the exact wording that matters: *\"Findings in them are absent, not zero.\"*\n\nWorth noting what it did **not** treat as authority: `[tool.hatch.build.targets.sdist] exclude = [\"*\"]` is in the same file, and reading that as an exclude would have blanked the whole repo. It's a packaging decision, not a maintenance one, and the scan correctly ignored it.\n\n## Would I trust this as a complete picture?\n\n**No — and I'd say the report agrees with me.** It's an honest picture of the *maintained* code, not of the repo's risk. Three specific reasons not to extend it:\n\n1. The excluded code is 50% of the source files, so \"2 findings, 0 high\" describes half a codebase.\n2. `legacy_v1/` is excluded from **coverage** as well as lint — so it's untested *and* unscanned. That's the worst quadrant to be blind in, not the safest.\n3. Code excluded from ruff and codespell has had no automated pressure on it for however long the exclude has existed. Legacy pricing/discount logic that nothing lints is exactly where I'd expect the real crimes to be.\n\nThe right reading: the three tool excludes tell me the team has *decided not to maintain* `legacy_v1`. That's a legitimate decision, and crimes deferring to it is correct default behaviour. But \"we don't maintain it\" is not \"it doesn't run.\" Before touching anything in `app/pricing.py`, I'd want to know whether `legacy_v1/pricing.py` is still imported at runtime, because if it is, I'm about to change one of two pricing implementations while blind to the other.\n\n## What I'd run to check the skipped code\n\nThe scan hands me the remedy directly. There's no CLI flag for this — it's config only:\n\n```jsonc\n// crimes.config.json\n{ \"honourToolingExcludes\": false }\n```\n\nthen re-run `crimes scan --format json` and diff the finding set against this one. Everything new is risk that was previously invisible.\n\nAlongside that, two cheap checks that don't need the scanner:\n\n```bash\ngrep -rn \"legacy_v1\" --include=\"*.py\" --include=\"*.toml\" --include=\"*.cfg\" .   # is it still imported/entry-pointed?\ngit log -1 --format=\"%ai %an\" -- legacy_v1/                                    # dead, or quietly still changing?\n```\n\nIf the grep shows live imports, I'd treat the excludes as stale rather than authoritative and scan the directory as first-class code. If it's genuinely dead, the correct fix isn't to keep scanning around it — it's to delete it, so the exclude stops being a place risk can hide.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Unfinished Business": "todo_density"
+    },
+    "detector_id_by_evidence": {
+      "1× datetime.now()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "1 of 1 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20": "direct_date",
+      "181.8 markers per 1k LOC (threshold 10)": "todo_density"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "app/pricing.py",
+        "observed": "app/pricing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}

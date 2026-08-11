@@ -1,0 +1,85 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.25.0",
+  "timestamp": "2026-08-11T01:09:08.149Z",
+  "run_id": "80e84e8b-492a-423e-b218-3507d819be10",
+  "response": "I’m using the repository’s `crimes-codebase-risk` workflow because this is a change-risk investigation. I’ll validate the scan, then inspect the three implementations and their callers so the proposed API preserves behavior.\n\nThe listed skill file isn’t present in this checkout, so I can’t apply its extra instructions directly. I’ll use the repository’s documented read-only scan/context workflow as the fallback.\n\nI found the skill at the repository root (the injected path was scoped to the runner subdirectory). I’m reading that copy before continuing.\n\nThe skill’s guidance matches this task: use JSON for the refactor decision and inspect the evidence before proposing changes. I’m now checking the live fixture plus each sanitizer’s exact signature and behavior.\n\nThe live scan reproduces the supplied result: one medium `near_duplicate_block` spans the three sanitizer functions with confidence 0.85. Their bodies are behaviorally identical; only function, parameter, and local-variable names differ. I’m doing one final check of the fixture’s module surface before naming the exact file changes.\n\nThe scan confirms a medium-confidence near-duplicate:\n\n- `near_duplicate_block`, confidence `0.85`\n- Same body across:\n  - `sanitizeUserInput` at `src/sanitize-a.ts:10–36`\n  - `sanitizeText` at `src/sanitize-b.ts:9–35`\n  - `cleanMessage` at `src/sanitize-c.ts:9–35`\n\n### Proposed refactor\n\nAdd one canonical implementation:\n\n```ts\n// src/sanitize.ts\nexport function sanitizeText(\n  input: string | null | undefined,\n): string;\n```\n\nIts behavior should remain unchanged: normalize whitespace, remove control characters, cap at 1,000 characters, reject the existing unsafe patterns, and normalize excessive uppercase text.\n\nChange these files:\n\n- Add `src/sanitize.ts` with the shared implementation.\n- Update [sanitize-a.ts](/private/tmp/claude-501/-Users-andrew-dev-crimes/d0b4a6f6-acd0-4986-8afe-011e15f736b2/scratchpad/evalwt/evals/fixtures/06-stress-duplication/src/sanitize-a.ts:10) to re-export `sanitizeText` as `sanitizeUserInput`.\n- Update [sanitize-b.ts](/private/tmp/claude-501/-Users-andrew-dev-crimes/d0b4a6f6-acd0-4986-8afe-011e15f736b2/scratchpad/evalwt/evals/fixtures/06-stress-duplication/src/sanitize-b.ts:9) to re-export the canonical `sanitizeText`.\n- Update [sanitize-c.ts](/private/tmp/claude-501/-Users-andrew-dev-crimes/d0b4a6f6-acd0-4986-8afe-011e15f736b2/scratchpad/evalwt/evals/fixtures/06-stress-duplication/src/sanitize-c.ts:9) to re-export it as `cleanMessage`.\n\nFor example:\n\n```ts\n// sanitize-a.ts\nexport { sanitizeText as sanitizeUserInput } from \"./sanitize.js\";\n\n// sanitize-b.ts\nexport { sanitizeText } from \"./sanitize.js\";\n\n// sanitize-c.ts\nexport { sanitizeText as cleanMessage } from \"./sanitize.js\";\n```\n\nThis consolidates the behavior while preserving all three existing exported names. The duplicated admin-role checks are a separate scan finding and should be handled in a distinct policy refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

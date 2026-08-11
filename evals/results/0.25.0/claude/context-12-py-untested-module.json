@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.25.0",
+  "timestamp": "2026-08-11T00:56:29.043Z",
+  "run_id": "23f4b7f3-1989-4ae7-8f98-069a94cf336d",
+  "response": "I ran the pre-edit checks rather than opening an editor. Here's what they say.\n\n## Protection if you get it wrong: none\n\n`crimes context billing/ledger.py`:\n\n```\nCRIMES CONTEXT\nfile: billing/ledger.py\nrisk: NONE  (0 findings)\n\nLikely tests\n  (no test file matched the target basename (looked for siblings, __tests__/ and tests/\n   directories, and the .test / .spec / _test / test_ naming conventions) and no test\n   file imports it)\n\nClues\n  · churn: 1 commits over 90d · last touched 11 days ago · 1 author\n  · test gap: top-quartile\n\nNo findings on this file. Suspiciously clean.\n```\n\n`likely_tests` is empty and `test_gap` is `raw: 1, percentile: 1` — the worst bucket in this repo. Nothing imports `reverse_entry` either: grepping the package, the only cross-file reference into `ledger.py` is `billing/reporting.py:3` importing `post_entry`. So `reverse_entry` has **zero callers and zero tests**. You can invert its sign convention, rename its keys, or make it return `None`, and the suite stays green.\n\n`risk: NONE` here means \"no detector fired\", not \"this file is safe\" — the tool's own closing line calls it out as suspiciously clean, and the test-gap clue is the real signal.\n\n## What the change could affect\n\nBlast radius is small but the protection along it is counterfeit:\n\n- **`billing/reporting.py`** is the only consumer of `ledger.py`. `build_report` calls `post_entry` and lifts `entry[\"gross\"]` straight into `report[\"total\"]`. So while `reverse_entry` itself has no callers, anything you change about the **entry dict shape** (`account` / `net` / `gross` / `region`) breaks reporting.\n- That path's tests are the single high finding in the scan — `tests/test_reporting.py`, \"4 of 4 test functions contain no assertion… 0 total assertions across 4 tests\". `crimes context billing/reporting.py` does list `tests/test_reporting.py` as a likely test, so it *looks* covered; the scan is what tells you the coverage is hollow. Shape breakage will not turn that file red either.\n- **`billing/rates.py`** is the shared dependency: `post_entry` and `invoices.build_invoice` both call `rate_for`. If your reversal recomputes gross from the rate instead of negating the stored value, you're coupling ledger reversal to that shared logic — and to floating-point rounding differences against the stored `gross`.\n- **`billing/invoices.py`** is the one genuinely protected module here, and worth noting for contrast: `tests/test_invoices.py` looks silent but routes every assertion through `verify_invoice_balances` / `InvoiceCase` in `tests/support.py`, and crimes followed the helpers across files and correctly did *not* flag it. Real test signal in this package lives on the invoices path, not the ledger path.\n\nChurn adds nothing to lean on: 1 commit in 90 days, 1 author.\n\n## Recommendation before touching `reverse_entry`\n\n1. Write a characterization test first — `post_entry(...)` → `reverse_entry(...)` round-trip, asserting the key set and that `net`/`gross` negate. Right now there is no file to even add it to.\n2. Don't treat `tests/test_reporting.py` passing as evidence of anything; it needs assertions on `report[\"total\"]` before it protects the downstream consumer of your change.\n3. Decide explicitly whether reversal negates the stored `gross` (current behaviour, exact) or recomputes it from `rate_for(region)` — they diverge on rounding, and nothing in the repo currently pins which one is intended.\n\nOne caveat on the scan's reach: it analysed the 9 `.py` files only. `pyproject.toml`, `crimes.config.json`, and the `.coverage` file were flagged `files_not_discovered`, so any coverage configuration or exclusion in them is unread — my \"no tests\" conclusion comes from the import graph and file naming, not from a coverage report.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

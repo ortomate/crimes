@@ -1,0 +1,85 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.25.0",
+  "timestamp": "2026-08-11T01:09:13.044Z",
+  "run_id": "5c094862-d58b-4f61-b025-51298491b162",
+  "response": "## What the scan confirms\n\n`crimes scan --format json` reports 5 findings, and three of them are the duplication story:\n\n| id | charge | conf. | what it points at |\n|---|---|---|---|\n| `crime_00002` | Near-Duplicate Block | 0.85 | `sanitize-a.ts:10-36` / `sanitize-b.ts:9-35` / `sanitize-c.ts:9-35` — same body hash `289f7da71f3a`, 3 files |\n| `crime_00003` | Exact Duplicate Block | 0.95 | `telemetry-a.ts:6-19` / `telemetry-b.ts:6-19` — `recordSanitiseEvent`, byte-identical |\n| `crime_00001` | Duplicated Role/Status/Plan Check | 0.70 | `\"admin\"` compared in 4 files, **2 distinct expression shapes** |\n\nI verified the near-duplicate claim rather than trusting the hash: normalising the three identifier sets (`sanitizeUserInput`/`working`, `sanitizeText`/`cleaned`, `cleanMessage`/`normalised`) makes the three bodies **textually identical** — no behavioural divergence at all. `recordSanitiseEvent` is identical byte-for-byte. So the two duplicate findings are both pure copy-paste with zero drift *so far*, which is the cheapest possible moment to consolidate.\n\nOne correction to the scan's framing: `crime_00002`'s `fix_shape` says *\"pass the differing values as args.\"* Nothing differs. Adding parameters here would be speculative generality — the consolidated function takes no options.\n\n## The trap: don't fold the `\"admin\"` checks into the same refactor\n\n`crime_00001` is a *different* problem that happens to touch the same files, and its `suggested_actions.extract_policy_function` is only half right. The three guards are **not** duplicates:\n\n```ts\nassertAdminA(role) → role === \"admin\"              // sanitize-a.ts:7\nassertAdminB(role) → role === \"admin\" || \"owner\"   // sanitize-b.ts:6  ← wider\nassertAdminC(role) → role !== \"admin\"              // sanitize-c.ts:6  ← inverted\n```\n\nCollapsing these into one `isAdmin()` would silently grant `owner` extra reach or invert a guard. That's exactly the \"2 distinct expression shapes\" the detector is flagging, and it's why its confidence (0.70) sits below the block duplicates. Treat it as a **separate, later change**; `policy.ts`'s three functions are genuine duplicates and can be consolidated safely, the `assertAdmin*` trio cannot.\n\n## Proposed refactor\n\n**New file — `src/text/sanitize.ts`**\n\n```ts\n/**\n * Normalise untrusted user-supplied text. Returns \"\" for input that is\n * empty, absent, or fails a content guard (markup-ish prefix, escape\n * sequence, punctuation spam).\n */\nexport function sanitizeText(raw: unknown): string;\n```\n\nSignature notes:\n\n- **`raw: unknown`, not `raw: string`.** All three copies open with `if (x === null || x === undefined) return \"\"` and then `String(x)`. The declared `string` type is already a lie about the runtime contract; the move is the right moment to make the type match what the body actually handles.\n- **No options object.** Every constant (`1000`, `5`, `0.9`, `30`) is the same in all three copies. Export them as named constants if a caller ever needs to inspect them, but don't parameterise on speculation.\n- **Move the body verbatim.** Two quirks are worth preserving exactly rather than \"tidying\" mid-move: `/[ -]/g` strips spaces and hyphens (it's a two-character class, not a control-character range), which means the following `\\s+` collapse only ever sees tabs and newlines. That may or may not be intended — but a behaviour change smuggled into a consolidation is unreviewable. Fix it, if at all, in a follow-up commit with its own test.\n\n**New file — `src/telemetry/record-sanitise-event.ts`**\n\n```ts\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: () => number = Date.now,\n): void;\n```\n\nThe injected clock resolves `crime_00004` and `crime_00005` (Temporal Recklessness, `telemetry-a.ts:16` and `telemetry-b.ts:16`) in one edit — that's the leverage in doing the telemetry consolidation first. The default argument keeps every existing call site source-compatible.\n\n## Files that would change\n\n| file | change |\n|---|---|\n| `src/text/sanitize.ts` | **new** — the one real implementation |\n| `src/telemetry/record-sanitise-event.ts` | **new** — one copy, clock injected |\n| `src/sanitize-a.ts` | body deleted; `sanitizeUserInput` becomes a re-export alias of `sanitizeText`. Keeps `assertAdminA` |\n| `src/sanitize-b.ts` | body deleted; `sanitizeText` re-exported directly. Keeps `assertAdminB` |\n| `src/sanitize-c.ts` | body deleted; `cleanMessage` becomes an alias. Keeps `assertAdminC` |\n| `src/telemetry-a.ts` | body deleted; re-exports from the new module |\n| `src/telemetry-b.ts` | **deleted** outright, or re-exports if externally imported |\n| `src/policy.ts` | *optional, independent* — three identical `role === \"admin\"` bodies collapse to one `isAdmin(role)`; the three capability functions stay as named call sites |\n\nThe aliases are the safety mechanism. `blast_radius: 0` on every finding means crimes found **no importers inside this repo** — and there are no `import` statements anywhere in `src/`, so the consumers are external and invisible to the scan. Deleting `sanitizeUserInput` and `cleanMessage` outright would be a breaking change I can't verify from here; aliasing costs one line each and can be removed once callers are confirmed.\n\n## Suggested sequencing\n\n1. **Telemetry first** — exact duplicate, 0.95 confidence, smallest blast radius, and it clears three findings (`crime_00003`, `crime_00004`, `crime_00005`).\n2. **Sanitise consolidation** — verbatim body move plus aliases; clears `crime_00002`.\n3. **`policy.ts`** — collapse the three identical bodies.\n4. **`assertAdmin{A,B,C}`** — separately, deliberately, with someone who knows whether `owner` is meant to have `sanitize-b`'s reach. This is the only step that can change behaviour.\n\nSteps 1–3 are pure moves and should be behaviour-preserving; the fixture ships no tests (`test_gap: 0.5` on all five findings, and there's no test file in the tree), so I'd add a characterisation test against the current `sanitizeUserInput` output *before* step 2 — otherwise there's nothing anchoring the claim that the move changed nothing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

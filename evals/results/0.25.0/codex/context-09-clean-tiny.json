@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.25.0",
+  "timestamp": "2026-08-11T00:53:44.563Z",
+  "run_id": "dfccd587-c0eb-47f1-a043-5c21ffbbd21e",
+  "response": "I’m using the repository’s `crimes-codebase-risk` skill because this is a pre-edit TypeScript context check. I’ll run the requested file-level command and base the safety call on its JSON evidence.\n\nThe skill file lives at the evaluation workspace level rather than this runner directory, so I’m resolving its provided absolute location and continuing the same check.\n\nThe fixture has the requested file, but no global `crimes` binary is installed (`command not found`). Per the repository instructions, I’m checking for the locally built CLI and will invoke that against the fixture if available.\n\n`crimes context` found no findings on `src/add.ts`: risk level `none`, with 0 high/medium/low findings and no agent guidance.\n\nIt identified `src/add.test.ts` as the likely test. Churn is low: one commit and one author in the last 90 days.\n\nThe file is safe to extend. The repository-wide scan’s only issue is unrelated to `add.ts` itself: a low-severity dependency provenance gap because `vitest` is imported by the test but undeclared in `package.json`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}
