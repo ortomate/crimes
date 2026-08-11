@@ -467,6 +467,40 @@ newly *committed* fixture file from becoming recent. That is exactly the
 second working rule `evals/README.md` now states — re-baseline after
 adding a fixture — encountered live, one commit after writing it down.
 
+### D — `weak_test_signal` is not a constant gap, and the gate cannot see what it is
+
+The last entry in `KNOWN_DISAGREEMENTS`, carried for nine releases as
+"widest gap of the eight; needs its own argument". Here is the argument,
+and it is not about constants.
+
+The ladders do differ — universal is a binary 0.68 (no assertions) /
+0.58 (weak-only) against python's 0.32/0.045/0.72 ramp. But they are not
+comparable, because **the two detectors do not emit the same thing**:
+
+```
+universal   one finding per hollow test    3,727 findings / 1,168 files = 3.19 each
+python      one finding per file           378 findings /   378 files = 1.00 each
+```
+
+Python's intrinsic scales on the *proportion* of a file's tests that are
+silent, with a good argument in its own comment — "3 silent tests out of
+4 is a much stronger signal than 3 out of 60". Universal has no
+proportion to scale on, because it never looks at the file as a whole.
+
+So reconciling the constants first would be comparing a per-test
+judgement with a per-file one. The granularity has to be chosen before
+the number means anything, and that choice changes finding **counts**
+rather than scores — a product decision with its own release, not a
+calibration patch. **Not taken here**; the entry now says this instead of
+"needs its own argument".
+
+**The gate was structurally unable to notice.** `intrinsic-parity`
+compares `{base, step, cap}`. Two detectors can agree on all three and
+still disagree about what they count, and for nine releases this pair
+was filed as a constant disagreement. The gate's own doc comment now
+says what it cannot see, and tells the next person adding an exception to
+state what the two detectors *count* before arguing about the score.
+
 ## 9. Outcome
 
 `0.25.0` → `0.25.5`, five patch bumps, **zero agent calls**.
@@ -485,9 +519,8 @@ adding a fixture — encountered live, one commit after writing it down.
 | C | `0.25.8` | risky-service registered as fixture 15 — **D2 closed** |
 | B | `0.25.9` | `commented_out_code` on one ladder; a published anchor made reachable |
 
-The thesis held: D1 is closed apart from `weak_test_signal`, which is
-the last entry in `KNOWN_DISAGREEMENTS` still saying "needs its own
-argument". `commented_out_code` closed in `0.25.9`; both exception
+The thesis held: D1 is closed apart from `weak_test_signal`, which
+turned out not to be a constant gap at all — see D above. `commented_out_code` closed in `0.25.9`; both exception
 tables for shape gaps and same-directory twins are now empty.
 
 **D2, D3, D4 and D5 are all closed too.** What the queue after the plan

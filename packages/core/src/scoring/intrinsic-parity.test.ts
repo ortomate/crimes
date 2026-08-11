@@ -20,6 +20,19 @@ import { describe, expect, it } from "vitest";
  * disagreement is listed with a reason, so it is asserted rather than
  * silent, and reconciling one means deleting a line here. A new
  * disagreement that nobody has argued for fails the build.
+ *
+ * ## What this gate cannot see
+ *
+ * It compares `{base, step, cap}`. Two detectors can agree on all three
+ * and still disagree about something larger, and `weak_test_signal` is
+ * the standing example: the universal one emits **one finding per hollow
+ * test** and the python one **one finding per file**, so the same defect
+ * produces 3.19 findings per affected file in TypeScript and exactly 1.00
+ * in Python. No comparison of ladder constants can reach that, and for
+ * nine releases this table described the pair as a constant disagreement.
+ *
+ * When adding an exception, say what the two detectors *count* before
+ * arguing about what they score it at.
  */
 
 const DETECTORS = resolve(import.meta.dirname, "..", "detectors");
@@ -50,9 +63,22 @@ type LadderRef = { kind: "inline"; ladder: Ladder } | { kind: "shared"; name: st
  * fixing them. Deleting an entry is how a reconciliation lands.
  */
 const KNOWN_DISAGREEMENTS: Record<string, string> = {
+  // Investigated in 0.25.9. The ladder gap is real but it is the smaller
+  // half, and this table cannot see the larger one — see the note on
+  // `sameDirTwins` about what a `{base, step, cap}` comparison is blind
+  // to.
   "weak-test-signal":
-    "universal is a binary 0.68/0.58, not a ladder at all, against python's " +
-    "0.32/0.045/0.72. Widest gap of the eight; needs its own argument.",
+    "universal is a binary 0.68 (no assertions) / 0.58 (weak-only) against " +
+    "python's 0.32/0.045/0.72 ramp. But the ladders are not comparable, " +
+    "because the two detectors do not emit the same thing: **universal is " +
+    "one finding per hollow test, python is one finding per file**, scaling " +
+    "on the proportion of that file's tests that are silent. Measured " +
+    "across the corpus: 3,727 universal findings over 1,168 files (3.19 " +
+    "each) against 378 python findings over 378 files (1.00 each). " +
+    "Reconciling the constants without first choosing a granularity would " +
+    "be comparing a per-test judgement with a per-file one. That choice " +
+    "changes finding COUNTS, not just scores, so it is a product decision " +
+    "rather than a calibration one and needs its own release.",
   "mixed-utc-local-methods":
     "base and cap reconciled in 0.25.5 (python 0.62 → 0.65). The step stays " +
     "0.06 against universal's 0.10 deliberately: JS counts UTC/local method " +
