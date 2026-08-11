@@ -1,0 +1,274 @@
+# Sprint 0.26 — closing what 0.25.0 opened
+
+Sprint plan for the release after `0.25.0`. Everything here is work
+`0.25.0` deliberately left undone, plus the two carried items it did not
+touch. Nothing in this plan is speculative: every entry has a measured
+before-state already on disk.
+
+---
+
+## 1. What 0.25.0 left behind
+
+Five debts, in the order they were created.
+
+| # | debt | why it was left | size |
+|---|---|---|---|
+| **D1** | 7 of 8 cross-pack charges disagree | 7 simultaneous scoring changes are unattributable | large, splits cleanly |
+| **D2** | 9 differentiated detectors referenced by no scenario | 7 of them need fixture *content* | medium |
+| **D3** | Tooling excludes: only the Python half | "ship the Python half first" | medium |
+| **D4** | `sync_io_in_hotpath`'s test-only bucket (60 findings) | a judgement call, deferred deliberately | small |
+| **D5** | Codex's ±3pp noise band is wrong | discovered by the `0.25.0` run | small, unblocks claims |
+
+Plus two items carried from the `0.24.0` backlog that `0.25.0` did not
+touch: **P2.1** (the level `0.3` is unvalidated), **P2.2** (the class
+table, `standard` has zero members), **P2.4** (41 intrinsics still
+literals), **P3.1** (two disowned-label populations), and **P4.1** (M6
+Homebrew / binaries).
+
+---
+
+## 2. The release thesis, chosen deliberately
+
+`0.25.0` was about the denominator. The obvious follow-on is **"one
+charge, one answer"** — D1 is the largest single correctness defect the
+project currently knows about, and it is entirely undone:
+
+> The same defect scores differently depending on which language it is
+> written in. An 8-module Python import cycle reaches `0.92`; the
+> identical TypeScript cycle is fixed at `0.45` and cannot escalate at
+> all. `deep_import` in TypeScript sits at `0.30`, which is
+> `NEUTRAL_INTRINSIC` — the exact value `0.23.0` shipped to stop
+> findings falling back to.
+
+That is a user-visible, one-sentence defect with a measured population,
+and unlike `0.25.0`'s streams it moves **scores**, which
+`evals:ranking` can see directly. It is also the item most likely to
+produce a real deep-mean movement, which no release has managed since
+`0.24.0`'s `+0.0089`.
+
+**D5 must land first regardless of thesis**, because every claim this
+release makes about the agent run depends on a noise band that is
+currently known to be wrong.
+
+---
+
+## 3. Sequencing constraint, restated
+
+`0.25.0` demonstrated both halves of this the hard way.
+
+- `evals:ranking` is deterministic, free, and **can** see D1. Measure
+  every candidate individually.
+- The agent run is scarce and, at `0.25.0`, was **pure noise**: all 96
+  stable pairs got byte-identical input and codex still moved −5.1pp.
+  Do not spend one to attribute a scoring change; spend
+  `evals:ranking` instead.
+- The harness kills a backgrounded run at 10 minutes. Use
+  `pnpm run evals -- --resume` in foreground chunks, or expect to.
+  `--resume` re-bills nothing.
+
+**D1 splits into four independently-attributable changes.** Do not
+group them.
+
+---
+
+## 4. Streams
+
+### S1 — re-derive the noise bands (D5) — **do this first**
+
+**Blocks:** every agent-run claim in the release.
+
+`evals/README.md` states ±6pp for claude and ±3pp for codex, derived
+from 3 samples at `0.12.1`. The `0.25.0` run refutes the codex figure
+directly: **16 of 48 scenarios moved on byte-identical input, netting
+−5.1pp**. A band that a no-op release exceeds is not a band.
+
+**Do:** `pnpm run evals:variance` already exists and computes
+per-scenario mean ± stddev across samples for a version. There are now
+two same-input samples on disk (`0.24.0`, `0.25.0`) for the 48 stable
+scenarios — that is a free second data point requiring **zero agent
+calls**. Derive both bands from it, publish per-scenario variance, and
+mark the worst offenders.
+
+`review-05-permission-and-parallel` went 4/7 → 0/7 on identical input.
+Either it is genuinely unstable and should be reported as such, or its
+rubric is ambiguous and should be tightened. **Read that scenario before
+concluding.**
+
+**Done when:** `evals/README.md` § "Measured noise band" cites the new
+derivation and says what a delta must exceed to mean anything.
+
+**Cost:** zero agent calls. Analysis only.
+
+---
+
+### S2 — close the two shape gaps (D1, part 1)
+
+The largest and most defensible slice of D1. `circular_dependency` and
+`deep_import` express **no** intrinsic on the universal side, so they
+take a flat declared default while Python ramps with evidence.
+
+This is not a disagreement about a constant — it is one side being
+unable to escalate at all. A detector that cannot respond to its own
+evidence is a defect whichever number you prefer.
+
+**Do:** give the universal side a ladder. Anchor the constants to the
+Python pack's, or argue for different ones in the commit.
+
+**Reproduce first:** how many `circular_dependency` and `deep_import`
+findings exist on the corpus, and what is the distribution of their
+evidence counts? A ramp is pointless if every cycle is 2 modules.
+
+**Measure:** `evals:ranking` before and after. Delete the two entries
+from `KNOWN_SHAPE_GAPS` in `intrinsic-parity.test.ts` — the gate fails
+if you fix one and forget.
+
+**Own bump, own attribution.**
+
+---
+
+### S3 — port the two one-sided conditions (D1, part 2)
+
+`direct_date`'s naive-parse surcharge and `sync_io_in_hotpath`'s
+async-handler base exist only in Python and read as unported
+improvements.
+
+**Reproduce first, and be willing to stop.** Both are *plausible*
+improvements; neither has been argued. Does the universal pack have the
+information to detect a naive parse, and does it have an async-handler
+shape? If the answer is no, that is the finding and the entry closes.
+
+**Own bump.** Delete the entries from `KNOWN_DISAGREEMENTS` on success.
+
+---
+
+### S4 — reconcile the three constant gaps (D1, part 3)
+
+`boolean_naming_drift`, `mixed_utc_local_methods`, and
+`commented_out_code`'s intrinsic half (0.48-ramp vs flat 0.35).
+
+Least consequential, most arguable, and the only part of D1 that is
+purely a matter of taste. **Do it last and only if S2/S3 land cleanly.**
+Whichever direction is chosen, the losing population's scores move, so
+say which and by how much.
+
+---
+
+### S5 — scenario coverage for the 9 (D2)
+
+**Two are nearly free, and this corrects an error in the `0.25.0`
+notes.** Those notes claimed none of the nine fires on an existing deep
+fixture; that was checked against fixtures 02–04 and not 01. In fact
+fixture 01 (deep, 42 findings) already fires:
+
+- `contract_drift` — **2 findings, both high**, on `src/api/state.ts`
+- `dependency_provenance_gap` — 1 finding on `package.json`
+
+Both need a scenario and nothing else. `contract_drift` is the more
+valuable of the two: it is the type `STRUCTURAL_CEILING`'s original
+comment named as the thing a `large_file` must not outrank, and no
+scenario has ever labelled it.
+
+The remaining seven need fixture content: `agent_permission_sprawl`,
+`config_drift`, `duplicated_policy`, `finder_duplicate_filename`,
+`mock_saturation`, `pass_through_abstraction`, `unsafe_retry`.
+`duplicated_policy` is worth prioritising — it is the detector the
+self-scan flags 13 times in `dependency-provenance-gap.ts`, so this
+repo is its own fixture.
+
+**Constraint that bit last round:** adding scenarios changes the deep
+population and makes the headline mean incomparable. The guard now says
+so, but plan for it — land scenario additions in their own bump, never
+mixed with a scoring change.
+
+---
+
+### S6 — the other three tooling-exclude sources (D3)
+
+`.gitattributes linguist-vendored`, `tsconfig` `exclude`,
+`.eslintignore`. The mechanism, the allowlist discipline and the
+corroboration rule are built and tested; this is applying them to three
+more formats.
+
+**Corroboration is the open design question.** For Python, four tools
+read one file, so "two independent tools" is cheap. A JS repo has
+`tsconfig.json`, `.eslintignore` and `.gitattributes` in three separate
+files with different semantics — `linguist-vendored` is a *display*
+hint, not a maintenance claim, and may not deserve to be an authority at
+all. **Decide what corroborates what before writing a reader.**
+
+**Reproduce first:** on `hono`, `cal.com`, `n8n` and `posthog`, what
+would each source exclude, and how many pairs corroborate? If the answer
+is "nothing corroborates anywhere", the entry closes with a
+measurement — which is a good outcome and cheaper than shipping a
+mechanism nothing triggers.
+
+---
+
+### S7 — `sync_io_in_hotpath`'s test-only bucket (D4)
+
+60 airflow findings sit in modules referenced **only by tests**. `0.25.0`
+took the conservative cut (zero references) and left these reported.
+
+**The judgement:** a module a test suite exercises is not obviously
+unmaintained — but a module *only* a test suite references is also not
+obviously production. Both readings are defensible, which is exactly the
+shape of the `task_runner.py` decision, so **write the decision down
+before the code**.
+
+Small, self-contained, and the measurement already exists (94 files /
+151 findings unreferenced, 35 / 60 test-only, 8 / 16 non-test).
+
+---
+
+## 5. Explicitly deferred again, with reasons
+
+- **P2.1 the level `0.3`.** Still needs an instrument that does not
+  exist. S1 may be a step toward it; do not conflate them.
+- **P2.2 the class table.** `standard` still has zero members across all
+  70 detectors. Real, no user-facing number.
+- **P2.4 the 41 literals.** `0.25.0` moved 14 of them into named
+  `{base, step, cap}` data at their call sites, which is most of the
+  benefit. The rest can follow D1 naturally rather than as its own push.
+- **P3.1 the two disowned-label populations.** Still the honest fix is
+  new scenarios, which is S5.
+- **M6 Homebrew / binaries.** Fourth deferral. It is the only
+  user-facing *feature* on the table and it has zero eval interaction,
+  so it is the natural headline for `0.27.0` if `0.26.0` is another
+  correctness release. **Decide it as a release, not as a backlog item.**
+
+---
+
+## 6. Suggested shape
+
+```
+S1  noise bands (free, blocks claims)
+     └─► S2  shape gaps ──► S3  one-sided conditions ──► S4  constants
+S5  scenarios (own bump, never mixed with scoring)
+S6  tooling sources — measure first, may close
+S7  test-only bucket
+```
+
+S1 first and alone. S2–S4 strictly sequential, one bump each, because
+the whole point is attribution. S5, S6 and S7 are independent of the D1
+chain and of each other.
+
+**Agent-run budget: one, at the release, or zero.** `0.25.0` showed a
+full run measuring nothing but agent variance. If S1 concludes the bands
+are wide, the honest position is that `structural_pass_rate` cannot
+resolve a single release and the run is a smoke test — in which case say
+so and stop paying for it every time.
+
+## 7. Definition of done
+
+- [ ] `pnpm verify`, smoke, fingerprint-uniqueness, byte-identical
+      re-scan, the intrinsic gate and the parity gate all green.
+- [ ] Every stream re-derived its own before-state rather than quoting
+      this document.
+- [ ] `KNOWN_DISAGREEMENTS` / `KNOWN_SHAPE_GAPS` shrank by exactly the
+      entries the release claims to have fixed, and the parity gate's
+      staleness assertion still passes.
+- [ ] Any deep-population change is reported via `delta_on_stable_set`,
+      never as a headline delta.
+- [ ] Every place an entry in this plan turned out to be wrong is
+      recorded in this file. `0.25.0` corrected four; assume this one
+      contains some too.
