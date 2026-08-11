@@ -466,3 +466,48 @@ entry closes with a measurement". That is the answer.
    `linguist-generated` into the `generated` scope class would catch 4
    posthog files carrying **69 findings** that `GENERATED_RE` misses.
    Different mechanism, deserves its own before/after.
+
+### S5 (`0.25.4`) — the two free ones landed; the seven did not
+
+1. **§4 S5's correction to the `0.25.0` notes is right.** Fixture 01
+   does fire `contract_drift` (2, both high, on `src/api/state.ts`) and
+   `dependency_provenance_gap` (1, on `package.json`). Both now have a
+   scenario. `evals:verify-scenarios` reconciles 53.
+
+2. **The `STRUCTURAL_CEILING` claim holds, and now something asserts
+   it.** On fixture 01, `contract_drift` ranks 10th and 11th of 42 with
+   **no structural finding above it at all**. That is what the ceiling
+   was written for, and until this scenario existed nothing checked it.
+
+3. **The other new scenario immediately found something.**
+   `dependency_provenance_gap` ranks **35th of 42** — nDCG 0.19. Its
+   declared intrinsic is 0.55, but the finding is anchored on
+   `package.json`, whose `churn`, `test_gap` and `blast_radius` are all
+   exactly 0, so `agent_risk` collapses to `0.4 × 0.55 = 0.22`, the
+   formula's floor. A charge whose whole point is "an agent will assume
+   this import resolves" is buried because it is about a manifest.
+   **Not fixed here** — it is a scoring change and needs its own bump
+   and its own argument — but it is the first thing the new coverage
+   bought.
+
+4. **§4 S5 is wrong about `duplicated_policy`, and following it would
+   have encoded a bug.** The claim is that "the self-scan flags it 13
+   times in `dependency-provenance-gap.ts`, so this repo is its own
+   fixture". The self-scan flags it **once**, spanning 12 files; the 13
+   is a count of *variants inside that one finding*, and
+   `dependency-provenance-gap.ts` is merely where variant C lives.
+   Worse, the finding looks like a **false positive**: the 13 "variants
+   of one rule shape" are unrelated discriminated-union checks —
+   `h.kind === "add"` in `dst-naive-arithmetic.ts` against
+   `verdict.kind === "bland_fallback"` in `swallowed-error.ts`. There is
+   no policy there. Using this repo as the `duplicated_policy` fixture
+   would pin a false positive as expected behaviour.
+
+5. **Not done: fixture content for the seven.**
+   `agent_permission_sprawl`, `config_drift`, `duplicated_policy`,
+   `finder_duplicate_filename`, `mock_saturation`,
+   `pass_through_abstraction`, `unsafe_retry` remain referenced by no
+   scenario. The self-scan fires none of them, so none is free. This is
+   new fixture authoring and belongs in its own bump; `duplicated_policy`
+   should start from the false positive above rather than from the plan's
+   recommendation.

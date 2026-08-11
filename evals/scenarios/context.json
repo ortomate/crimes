@@ -144,5 +144,20 @@
       "Did the agent attribute the skip to the repo's own tooling (ruff / coverage / codespell) rather than to a crimes config or to the files simply not existing?",
       "Did the agent say that findings in the skipped directory are absent rather than zero, and name honourToolingExcludes or an equivalent way to scan it anyway?"
     ]
+  },
+  {
+    "id": "context-01-phantom-dependency",
+    "fixture": "01",
+    "kind": "context",
+    "prompt": "You are about to add a second test file to this repo. Before writing the import, use `crimes scan --format json` to check what the repo's manifests actually declare. Name the package that is imported but undeclared and the file that imports it, say what happens on a clean install in CI as opposed to on the machine where it currently works, and recommend the specific fix.",
+    "expected_artifacts": {
+      "referenced_findings": ["dependency_provenance_gap"],
+      "referenced_files": ["src/billing.test.ts", "package.json"],
+      "expected_priority": "dependency_provenance_gap"
+    },
+    "judge_questions": [
+      "Did the agent name `vitest` specifically as the undeclared package rather than describing it as 'a test dependency'?",
+      "Did the agent explain that the import resolves locally through an ambient or hoisted install and fails on a clean one, rather than treating it as a lint nit?"
+    ]
   }
 ]

@@ -225,5 +225,20 @@
       "Did the agent distinguish the three build-runner sites (runRollup / runTypeScriptCompiler / runDtsRollup), which log without the error object, from src/utils.ts jsoncParse, which returns {} and tells the caller nothing failed at all?",
       "Did the agent's replacement catch block preserve the original error — rethrow, `cause`, or a non-zero exit — rather than only improving the log message?"
     ]
+  },
+  {
+    "id": "review-01-contract-drift",
+    "fixture": "01",
+    "kind": "review",
+    "prompt": "This repo declares `User` twice and `Invoice` twice, and the two halves of each pair do not agree. Use `crimes scan --format json` to find them. Lead with the finding that names the disagreement, then say: which of the two files an agent adding a field would most likely edit, what silently breaks if it edits only that one, and where this should sit relative to the repo's structural findings (the large file, the large function). Justify that ordering with scores.agent_risk, not with severity or line count.",
+    "expected_artifacts": {
+      "referenced_findings": ["contract_drift"],
+      "referenced_files": ["src/api/state.ts", "src/billing.ts"],
+      "expected_priority": "contract_drift"
+    },
+    "judge_questions": [
+      "Did the agent rank contract_drift above the structural findings and justify it on agent_risk rather than on severity or file size?",
+      "Did the agent name the fields present on one declaration and absent from the other, rather than saying the two declarations 'differ'?"
+    ]
   }
 ]
