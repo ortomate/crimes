@@ -480,10 +480,19 @@ adding a fixture — encountered live, one commit after writing it down.
 | S5 | `0.25.4` | two scenarios; the `STRUCTURAL_CEILING` claim now asserted |
 | S6 | — | closed with a measurement; nothing corroborates anywhere |
 | S4 | `0.25.5` | four constant gaps reconciled; 1,457 corpus findings move |
+| A | `0.25.6` | churn silently lost through a symlinked scan root; first real deep-mean movement |
+| E | `0.25.7` | ranking clock pinned; the metric stops drifting with the calendar |
+| C | `0.25.8` | risky-service registered as fixture 15 — **D2 closed** |
+| B | `0.25.9` | `commented_out_code` on one ladder; a published anchor made reachable |
 
-The thesis held: D1 is closed apart from `weak_test_signal` and
-`commented_out_code`, both of which now say what actually blocks them
-rather than "needs its own argument".
+The thesis held: D1 is closed apart from `weak_test_signal`, which is
+the last entry in `KNOWN_DISAGREEMENTS` still saying "needs its own
+argument". `commented_out_code` closed in `0.25.9`; both exception
+tables for shape gaps and same-directory twins are now empty.
+
+**D2, D3, D4 and D5 are all closed too.** What the queue after the plan
+added was not more of the plan — it was two defects in the instruments
+the plan told me to trust.
 
 **The one that did not go to plan is S1**, and it is the one that
 matters most for the next release: `structural_pass_rate` cannot resolve
