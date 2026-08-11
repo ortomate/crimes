@@ -44,12 +44,27 @@ const KNOWN_DISAGREEMENTS: Record<string, string> = {
     "0.35/0.06/0.70). Ordinary drift between two hand-maintained copies.",
   "mixed-utc-local-methods":
     "same cap, python ramps at 60% the rate (0.06 vs 0.10 step).",
+  // These two read as unported improvements and are not. Investigated in
+  // 0.25.2: in both cases the condition the python base keys on has no
+  // universal analogue, so there is nothing to port. What is left in each
+  // is an ordinary constant gap, named here so it is not lost.
   "direct-date":
-    "python conditions the base on a naive-parse surcharge the universal " +
-    "side has no concept of. Looks like an unported improvement.",
+    "python's base is 0.55 when a read is naive and 0.45 otherwise; the " +
+    "universal base is 0.45. NOT portable: `datetime.now()` without `tz=` " +
+    "returns a naive datetime, and JavaScript has no such thing — `Date` is " +
+    "always an absolute instant. The nearest JS hazard is parsing a string " +
+    "with no zone marker, which is a different operation and has its own " +
+    "charge (`timezone_unsafe_parse`). Residual gap for S4: cap 0.85 vs " +
+    "0.88, base and step already agree.",
   "sync-io-in-hotpath":
-    "python conditions the base on `inAsyncHandler`; universal does not. " +
-    "Looks like an unported improvement.",
+    "python's base is 0.7 inside an `async def` and 0.5 otherwise; the " +
+    "universal base is 0.55. NOT portable, and this one is a semantic trap " +
+    "rather than a missing field: python's surcharge distinguishes blocking " +
+    "the event loop from blocking one worker in a pool. Node has no pool — " +
+    "a `readFileSync` blocks the single event loop whether or not the " +
+    "enclosing function is `async`, so the same syntax would be scoring a " +
+    "difference that does not exist. Residual gap for S4: base 0.55 vs " +
+    "0.50 and step 0.08 vs 0.06.",
   // Both of these were shape gaps until 0.25.2 — the universal side
   // expressed no ladder at all. It now does, so what is left is a
   // constant difference, and in both cases the difference is argued

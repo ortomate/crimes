@@ -110,6 +110,14 @@ export const syncIoInHotpathDetector: LanguageJsDetector = {
       scores: {
         severity: severityScore(severity),
         confidence: 0.9,
+        // The Python twin raises this base to 0.7 when a blocking call
+        // sits inside an `async def`, on the grounds that stalling the
+        // event loop is categorically worse than stalling one worker in
+        // a pool. Do not port it. Node has no pool: `readFileSync`
+        // blocks the one event loop for every concurrent request whether
+        // or not the enclosing function is declared `async`. Copying the
+        // condition across would score a difference that does not exist
+        // — and would read, wrongly, as "the sync call is fine here".
         agent_risk: intrinsicFrom(offenders.length, { base: 0.55, step: 0.08, cap: 0.9 }),
       },
       suggested_actions: [

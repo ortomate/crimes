@@ -88,6 +88,15 @@ export const directDateDetector: LanguageJsDetector = {
       scores: {
         severity: severityScoreFor(severity),
         confidence: 0.9,
+        // The Python twin raises this base to 0.55 when a read returns a
+        // *naive* datetime. Do not port it: `datetime.now()` without
+        // `tz=` yields a value carrying no offset, and JavaScript has no
+        // equivalent — `Date.now()` and `new Date()` always produce an
+        // absolute instant. There is no condition here to test.
+        //
+        // The nearest JS hazard is `new Date("2026-12-20")`, where the
+        // *string* decides UTC-or-local. That is a different operation
+        // and already has its own charge, `timezone_unsafe_parse`.
         agent_risk: intrinsicFrom(hits.length, { base: 0.45, step: 0.07, cap: 0.85 }),
       },
       suggested_actions: [

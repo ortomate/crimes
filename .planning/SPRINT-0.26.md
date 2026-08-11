@@ -364,3 +364,38 @@ so and stop paying for it every time.
    is byte-identical. A change that moves 204 corpus findings is
    invisible to the fixture set — which is an argument for S5 that S5
    does not currently make.
+
+### S3 — both entries closed as findings, no code change
+
+§4 S3 said "be willing to stop". Both stopped, for different reasons,
+and neither is the "unported improvement" the parity table claimed.
+
+1. **`direct_date`'s naive-parse surcharge cannot exist in
+   JavaScript.** Python's base rises to 0.55 when `datetime.now()` is
+   called without `tz=`, because the result carries no offset. JS has no
+   naive/aware distinction at all — `Date.now()` and `new Date()` always
+   produce an absolute instant. There is no condition to test. The
+   nearest JS hazard, `new Date("2026-12-20")`, is about the *string*
+   rather than the clock read and already has its own charge,
+   `timezone_unsafe_parse`.
+
+2. **`sync_io_in_hotpath`'s async-handler base is available and
+   wrong.** This one is the trap. The syntax exists — JS has `async`
+   functions, and adding the flag to the parser's `EnclosingFunction`
+   is a small change. But the surcharge encodes "the event loop, not one
+   worker in a pool", and **Node has no pool**: `readFileSync` blocks
+   the single event loop whether or not the enclosing function is
+   `async`. Porting it would score a difference that does not exist, and
+   would imply the sync call is more acceptable in a non-async handler.
+
+   Worth stating because the plan's own test — "does it have an
+   async-handler shape?" — answers *yes* and gets the wrong result. The
+   question that decides it is what the condition *means*, not whether
+   it can be computed.
+
+3. **Two constant gaps were hiding behind the conditions, and are now
+   S4's.** With the surcharges set aside: `direct_date` differs only in
+   cap (0.85 vs 0.88) — base and step already agree.
+   `sync_io_in_hotpath` differs in base (0.55 vs 0.50) and step (0.08 vs
+   0.06). Neither was visible while the entry said "unported
+   improvement", so S4's list of three is really a list of five.
