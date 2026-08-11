@@ -50,6 +50,24 @@ const KNOWN_DISAGREEMENTS: Record<string, string> = {
   "sync-io-in-hotpath":
     "python conditions the base on `inAsyncHandler`; universal does not. " +
     "Looks like an unported improvement.",
+  // Both of these were shape gaps until 0.25.2 — the universal side
+  // expressed no ladder at all. It now does, so what is left is a
+  // constant difference, and in both cases the difference is argued
+  // rather than accidental. That is the distinction this table exists to
+  // hold: "nobody reconciled these" and "these two populations are not
+  // the same population" look identical in a diff.
+  "circular-dependency":
+    "universal 0.45/0.06/0.70 vs python 0.68/0.07/0.92. The python base is " +
+    "argued on ImportError at import time — a python cycle can crash at " +
+    "startup depending on which module the process imports first, which a " +
+    "TypeScript cycle cannot. Reconciling would mean deciding that failure " +
+    "mode does not matter, which nobody has argued.",
+  "deep-import":
+    "universal 0.30/0.05/0.55 vs python 0.40/0.06/0.75. Different " +
+    "populations rather than different opinions: the universal detector " +
+    "fires only on third-party reach-in past a published surface, while " +
+    "the python one also counts relative-level reach-ins and __init__.py " +
+    "re-export layout.",
 };
 
 /**
@@ -69,17 +87,14 @@ const KNOWN_SAME_DIR_DISAGREEMENTS: Record<string, string> = {
  * value from `INTRINSIC_DEFAULTS` while the other ramps. A different
  * defect from a constant mismatch: one side cannot escalate with its own
  * evidence however much of it there is.
+ *
+ * **Empty as of `0.25.2`.** Both entries — `circular-dependency` and
+ * `deep-import` — were closed by giving the universal side a ladder, and
+ * moved to `KNOWN_DISAGREEMENTS` where the remaining constant gaps are
+ * argued. The table stays because the gate below still runs against it,
+ * and because a new one-sided detector is a thing that can happen again.
  */
-const KNOWN_SHAPE_GAPS: Record<string, string> = {
-  "circular-dependency":
-    "universal expresses nothing (flat 0.45 from INTRINSIC_DEFAULTS); " +
-    "python ramps 0.68→0.92. An 8-module python cycle reaches 0.92, the " +
-    "identical TypeScript cycle is pinned at 0.45.",
-  "deep-import":
-    "universal expresses nothing (flat 0.30 — NEUTRAL_INTRINSIC itself, the " +
-    "value 0.23.0 was written to stop findings falling back to); python " +
-    "ramps 0.40→0.75.",
-};
+const KNOWN_SHAPE_GAPS: Record<string, string> = {};
 
 function readLadder(path: string): Ladder | null {
   let src: string;

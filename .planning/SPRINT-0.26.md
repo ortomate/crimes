@@ -321,3 +321,46 @@ so and stop paying for it every time.
    two samples onto one scorer needed `evals:replay --version/--out`,
    and comparing across version directories needed `evals:variance
    --dirs`. Neither existed. Still zero agent calls.
+
+### S2 (`0.25.2`)
+
+1. **§2 calls TypeScript's `deep_import` 0.30 "`NEUTRAL_INTRINSIC` — the
+   exact value `0.23.0` shipped to stop findings falling back to". It is
+   not a fallback.** `INTRINSIC_DEFAULTS` declares `deep_import: 0.3`
+   with a stated anchor ("Reaching past a package boundary.
+   Mechanical."). The coincidence of value is just a coincidence; the
+   detector was never reaching `NEUTRAL_INTRINSIC`. The shape defect is
+   real either way — a flat value cannot escalate — but the rhetorical
+   framing was wrong.
+
+2. **§2's example is right about the intrinsics and wrong about the
+   scores.** "An 8-module Python import cycle reaches `0.92`; the
+   identical TypeScript cycle is fixed at `0.45`" describes the
+   *intrinsic*. Both charges are in `STRUCTURAL_TYPES`, so both are
+   scaled by `STRUCTURAL_CEILING` (0.3) afterwards. The visible
+   `agent_risk` gap between those two cycles is about 0.06, not 0.47.
+
+3. **The plan's warning that "a ramp is pointless if every cycle is 2
+   modules" nearly came true, and would have if the corpus had been
+   sampled.** hono and cal.com together hold 7 `circular_dependency`
+   findings, of which one is not a 2-file ring. Across all ten repos
+   it is **48 findings, 27 of them above the floor** — including rings
+   of 20, 99 and 1,131 files. **Do not conclude a distribution from two
+   repos.**
+
+4. **The constants were not anchored to the Python pack's, deliberately,
+   so both entries moved to `KNOWN_DISAGREEMENTS` rather than being
+   deleted.** `circular_dependency` 0.45/0.06/0.70 vs python
+   0.68/0.07/0.92, because the python base is argued on `ImportError` at
+   import time and TypeScript has no such failure. `deep_import`
+   0.30/0.05/0.55 vs 0.40/0.06/0.75, because the two detectors fire on
+   different populations. `KNOWN_SHAPE_GAPS` is now empty, which is what
+   §4 S2 actually asked for.
+
+5. **The eval fixtures barely exercise either detector, and this is the
+   measurement, not a footnote.** Across all 14: two `deep_import`
+   findings and one `circular_dependency`, all at or near the ladder
+   floor. Exactly one finding moves (0.10 → 0.11) and `evals:ranking`
+   is byte-identical. A change that moves 204 corpus findings is
+   invisible to the fixture set — which is an argument for S5 that S5
+   does not currently make.

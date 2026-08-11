@@ -1,6 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import type { ImportEdge, ImportGraph } from "../imports/types.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 /**
  * Fires once per strongly-connected component (SCC) of size ≥ 2 in the
@@ -149,6 +150,38 @@ function buildFinding(cycle: string[]): Finding {
     scores: {
       severity: severityScore(severity),
       confidence,
+      // A ring of eight is not the same finding as a ring of two, and
+      // until 0.25.2 this detector scored them identically: it expressed
+      // no intrinsic, so every cycle took the flat 0.45 from
+      // INTRINSIC_DEFAULTS while the Python twin ramped 0.68 → 0.92 on
+      // the same evidence. On hono, a 4-file cycle and a 2-file cycle
+      // both landed on agent_risk 0.09.
+      //
+      // The ladder counts `cycle.length - 1`, not `cycle.length`,
+      // because an SCC cannot have fewer than two members: one unit of
+      // evidence is the smallest ring there is. That makes `base` the
+      // value of a 2-file cycle, which is exactly the 0.45 this detector
+      // already scored — so no existing finding moves down, and only
+      // rings of three or more move at all.
+      //
+      // The constants are NOT the Python pack's, deliberately. That
+      // detector argues its higher 0.68 base on `ImportError` at import
+      // time, which is a Python-specific failure a TypeScript cycle
+      // does not have. The gap is recorded in KNOWN_DISAGREEMENTS with
+      // that argument rather than closed by copying a number across a
+      // language boundary it was reasoned about within.
+      //
+      // 0.70 as the ceiling puts a large ring above `large_function`
+      // (0.55) and below `missing_agent_context` (0.80), which is the
+      // right neighbourhood for "you cannot reason about this a piece
+      // at a time". Reached at seven files. Note the whole class is then
+      // scaled by STRUCTURAL_CEILING, so the visible span is 0.14–0.21
+      // of the pre-scale value.
+      agent_risk: intrinsicFrom(cycle.length - 1, {
+        base: 0.45,
+        step: 0.06,
+        cap: 0.7,
+      }),
     },
     suggested_actions: [
       {

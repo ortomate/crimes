@@ -1,6 +1,7 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import type { ImportEdge } from "../imports/types.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 /**
  * Fires when a file imports from another package's deep internal path
@@ -73,6 +74,31 @@ export const deepImportDetector: LanguageJsDetector = {
       scores: {
         severity: severityScore(severity),
         confidence,
+        // Until 0.25.2 this expressed no intrinsic, so every finding took
+        // the flat 0.30 from INTRINSIC_DEFAULTS while the Python twin
+        // ramped 0.40 → 0.75 on the identical evidence. Measured on
+        // cal.com, that flattened a real distribution: 478 findings, of
+        // which 346 reach into one deep path and 132 into two or more —
+        // one file into 28. All 478 scored the same.
+        //
+        // `base` is the 0.30 already in force, so the 72% of findings
+        // with a single offender do not move; only files reaching into
+        // several packages' internals do.
+        //
+        // The cap of 0.55 is anchored on `dependency_provenance_gap`
+        // (0.55), the nearest neighbour in kind: an import the manifest
+        // does not declare. A file reaching past six packages' published
+        // surfaces is about as much of a trap for the next agent, and
+        // reaching the ceiling at six matches where the observed
+        // distribution thins out. Below the Python pack's 0.75 cap,
+        // which is argued on a different population — that detector
+        // also counts relative-level reach-ins and `__init__.py`
+        // re-export layout, neither of which this one fires on.
+        agent_risk: intrinsicFrom(offenders.length, {
+          base: 0.3,
+          step: 0.05,
+          cap: 0.55,
+        }),
       },
       suggested_actions: [
         {
