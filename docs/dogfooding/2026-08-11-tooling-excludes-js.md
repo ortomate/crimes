@@ -125,9 +125,34 @@ because the pattern wants `generated` as a *directory* segment or a
 labelled machine-written is a real result for a reader of about twenty
 lines.
 
-**Not done here**, because it is a different mechanism from the one S6
-was scoped around, and because it deserves its own before/after on the
-corpus rather than being carried in on the back of a negative result.
+**Done in `0.25.10`**, as its own change with its own before/after
+rather than carried in on the back of this negative result. The reader
+lives in `manifest/gitattributes.ts` and feeds `isNeverReportable` — one
+policy, no new schema surface, and no `coverage.warnings[]` entry,
+matching the existing generated-code behaviour. The distinction that
+settles the warning question: a tooling-excluded path is never analysed,
+so silence about it is a gap the user cannot see past; a generated file
+*is* analysed and its findings simply are not the team's to fix.
+
+Measured on a clean paired scan, both runs clock-pinned:
+
+```
+posthog   14,250 → 14,181   −69 findings, 0 added, 0 surviving score moved
+cal.com    4,633 →  4,633   unchanged (its one entry, /.pnp.*, is not scanned)
+
+removed by detector: large_function 43, exact_duplicate_block 8,
+                     negative_flag_maze 5, option_bag_junk_drawer 5,
+                     large_file 4, boolean_naming_drift 2
+```
+
+Exactly the four files predicted, and the detector breakdown is the
+point: a machine-written validator accused of having a God Function and
+badly-named booleans. No eval fixture declares anything generated
+(`04-monorepo` has a `.gitattributes`, but only `* text=auto`), so
+`evals:ranking` is unchanged.
+
+`linguist-vendored` is still **not** read — one occurrence across the
+four repos, and a display hint rather than a claim about authorship.
 
 ## Implementation note, if anyone does return to `tsconfig`
 

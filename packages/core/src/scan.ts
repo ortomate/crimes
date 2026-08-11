@@ -19,6 +19,7 @@ import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import { buildCoverage } from "./discovery/coverage.js";
 import { CoverageWarningLog } from "./discovery/coverage-warnings.js";
 import { isNeverReportable } from "./util/scope-class.js";
+import { generatedMatcherFor } from "./manifest/gitattributes.js";
 import { collectDiscoveryWarnings } from "./discovery/undiscovered.js";
 import { discoverAssetFiles, runAssetDetectorsForRoot } from "./scan-assets.js";
 import type { Finding, ScanReport, ScanSummary, WorkingSet } from "./finding.js";
@@ -187,7 +188,22 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   // this is deliberate policy, not an accidental gap. Conflating the two
   // would make the field that exists to expose silent skips report an
   // intended one.
-  const reportable = findings.filter((f) => !isNeverReportable(f.file));
+  // `.gitattributes linguist-generated` joins the same policy rather
+  // than getting its own: it is the repository asserting provenance
+  // about its own file, which is the claim `looksGeneratedSource` already
+  // trusts from an `@generated` banner. Path heuristics miss the cases
+  // that do not look generated — posthog declares
+  // `frontend/src/queries/validators.js` and `frontend/src/products.tsx`,
+  // neither of which any pattern would catch, and which carried 66 of
+  // the 69 findings this drops there.
+  //
+  // Read once per scan, not per finding: the file is small but the
+  // matcher build is not free and `findings` runs to five figures on a
+  // large repo.
+  const declaredGenerated = generatedMatcherFor(root);
+  const reportable = findings.filter(
+    (f) => !isNeverReportable(f.file) && !declaredGenerated(f.file),
+  );
   findings.length = 0;
   findings.push(...reportable);
 

@@ -1016,7 +1016,12 @@ to the safe-but-quiet answer with an explicit way out (added 0.25.0):
   `docs/dogfooding/2026-08-11-tooling-excludes-js.md`, which also sizes
   the one JS signal that *is* worth reading — `.gitattributes`
   `linguist-generated`, which is a provenance claim and so belongs to the
-  `generated` scope class, not to this mechanism.
+  `generated` scope class, not to this mechanism. **Read since `0.25.10`**,
+  from a single source and with no corroboration rule: a tool's
+  preferences need corroborating, a repository's claim about who wrote
+  its own file does not. It drops findings under the same policy as an
+  `@generated` banner and emits no `coverage.warnings[]` entry, because
+  the file was analysed — it is not a gap in coverage.
 
 crimes.config.json example:
 
