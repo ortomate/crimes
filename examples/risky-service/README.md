@@ -26,6 +26,7 @@ npx crimes scan examples/risky-service --format json --all
 | `pass_through_abstraction`  | `routes/users.ts` → `services/users.ts` → `repo/users.ts` → `repo/user-store.ts` |
 | `dependency_provenance_gap` | `package.json` (unpinned specifiers, undeclared import)      |
 | `agent_permission_sprawl`   | `.claude/settings.json`, `AGENTS.md`                         |
+| `finder_duplicate_filename` | `repo/user-schema 2.ts` — a stale Finder conflict copy        |
 
 ## Interactions worth noticing
 
@@ -39,3 +40,8 @@ npx crimes scan examples/risky-service --format json --all
 - `services/payments.test.ts` mocks away exactly the boundary
   (`unsafe_retry`) that carries the most risk, which is why a green suite
   says nothing about it.
+- `repo/user-schema 2.ts` is a conflict copy of `repo/user-schema.ts`
+  that has drifted: no `plan` field, and `role` predates `owner`. Both
+  parse a user record without complaining and nothing declares which is
+  canonical, so `finder_duplicate_filename` and `contract_drift` are
+  again describing one confusion from two directions.

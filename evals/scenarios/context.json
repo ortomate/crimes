@@ -159,5 +159,20 @@
       "Did the agent name `vitest` specifically as the undeclared package rather than describing it as 'a test dependency'?",
       "Did the agent explain that the import resolves locally through an ambient or hoisted install and fails on a clean one, rather than treating it as a lint nit?"
     ]
+  },
+  {
+    "id": "context-15-mock-saturation",
+    "fixture": "15",
+    "kind": "context",
+    "prompt": "You are about to change how payments are submitted and want to know what the existing tests would actually catch. Use `crimes scan --format json` and `crimes context src/services/payments.ts --format json`. Say what the payment test asserts, what fraction of its collaborators are real, and give one concrete change to the payment code that would break production while leaving this test green.",
+    "expected_artifacts": {
+      "referenced_findings": ["mock_saturation"],
+      "referenced_files": ["src/services/payments.test.ts"],
+      "expected_priority": "mock_saturation"
+    },
+    "judge_questions": [
+      "Did the agent name a concrete production-breaking change that the test would not catch, rather than asserting in general terms that the test is weak?",
+      "Did the agent notice that every collaborator is doubled with no implementation, so the assertions restate the implementation rather than checking behaviour?"
+    ]
   }
 ]

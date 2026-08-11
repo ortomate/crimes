@@ -214,5 +214,40 @@
       "Did the agent cite nesting depth or branching, not only line count?",
       "Does the proposed refactor extract named helpers rather than just splitting the function at an arbitrary midpoint?"
     ]
+  },
+  {
+    "id": "refactor-15-pass-through",
+    "fixture": "15",
+    "kind": "refactor",
+    "prompt": "You have been asked to add validation when a user is created. Use `crimes scan --format json` to find where user creation actually happens. Report every layer the call passes through, say what each one adds, and name the single file you would put the validation in. Then say how many files a reader has to open today to answer 'what does createUser do?'.",
+    "expected_artifacts": {
+      "referenced_findings": ["pass_through_abstraction"],
+      "referenced_files": [
+        "src/routes/users.ts",
+        "src/services/users.ts",
+        "src/repo/users.ts",
+        "src/repo/user-store.ts"
+      ],
+      "expected_priority": "pass_through_abstraction"
+    },
+    "judge_questions": [
+      "Did the agent trace the whole four-layer chain to `db.users.insert` rather than stopping at the first or second hop?",
+      "Did the agent say that each intervening layer adds nothing, rather than inventing a purpose for the indirection?"
+    ]
+  },
+  {
+    "id": "refactor-15-duplicate-filename",
+    "fixture": "15",
+    "kind": "refactor",
+    "prompt": "You have been asked to add a `deletedAt` field to the persisted user record. Use `crimes scan --format json` before you edit anything. Say how many files declare that schema, which one is canonical and how you decided, and what would happen if you added the field to the other one. Recommend what to do with the file you are not editing.",
+    "expected_artifacts": {
+      "referenced_findings": ["finder_duplicate_filename"],
+      "referenced_files": ["src/repo/user-schema.ts"],
+      "expected_priority": "finder_duplicate_filename"
+    },
+    "judge_questions": [
+      "Did the agent decide which file is canonical on evidence — that the copy is stale (no `plan`, no `owner` role) and that nothing imports it — rather than picking by filename alone?",
+      "Did the agent recommend deleting the conflict copy rather than updating both files to match?"
+    ]
   }
 ]

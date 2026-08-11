@@ -373,6 +373,42 @@ Demonstrated on identical code and fixture, varying only the calendar:
 `2026-09-10`. Nothing moved on the run itself, because the pinned date
 is today; from here it stays put.
 
+### C (`0.25.8`) — D2 closed, and six of the seven already had content
+
+§4 S5 says the remaining seven detectors "need fixture content". **Six
+of them already had it**, in `examples/risky-service` — the 0.16.0
+correctness fixture, which `CLAUDE.md` documents and which was never
+registered as an eval fixture. Scanning it fires
+`agent_permission_sprawl` (3), `config_drift`, `duplicated_policy`,
+`mock_saturation`, `pass_through_abstraction` and `unsafe_retry` (2)
+with no authoring at all.
+
+Same shape of error as the one §4 S5 itself corrects in the `0.25.0`
+notes: a claim about what fixtures contain, made without scanning them.
+That is twice in one plan, on the same question.
+
+Registered as fixture `15` by symlink — the mechanism fixture `01` uses,
+now that the symlink churn bug (A) is fixed. Only
+`finder_duplicate_filename` needed new content: `repo/user-schema 2.ts`,
+a Finder conflict copy of the real schema that has *drifted* (no `plan`
+field, `role` predating `owner`), so the scenario can ask which is
+canonical and the answer is in the files rather than in the filename.
+
+Seven scenarios across five kinds. **All nine of D2's detectors now have
+one**, and `evals:verify-scenarios` reconciles 60 against 15 fixtures.
+
+Two properties worth having deliberately:
+
+- **Fixture 15 is shallow (22 findings), so `mean_ndcg_deep` is
+  untouched** — 0.3468 before and after, no scenario moved. Seven
+  scenarios were added without making the headline incomparable, which
+  is the constraint §4 S5 flagged.
+- **It narrows the depth floor's slack from 14 to 5.** `floor_placement`
+  still reports `well_placed: true`, but fixture 15 is now the nearest
+  fixture below the floor: six more findings in `risky-service` and it
+  enters the deep set and moves the headline. The diagnostic exists to
+  make that visible in advance; it now has something to say.
+
 ## 9. Outcome
 
 `0.25.0` → `0.25.5`, five patch bumps, **zero agent calls**.

@@ -240,5 +240,35 @@
       "Did the agent rank contract_drift above the structural findings and justify it on agent_risk rather than on severity or file size?",
       "Did the agent name the fields present on one declaration and absent from the other, rather than saying the two declarations 'differ'?"
     ]
+  },
+  {
+    "id": "review-15-duplicated-policy",
+    "fixture": "15",
+    "kind": "review",
+    "prompt": "A PR widens billing export to team owners. Use `crimes scan --format json` to find every place that decision is currently made. Name each site with its file and function, quote the rule as written, and say what happens if the PR changes only the one it was pointed at. Then say whether you would block the PR, and what single change would stop the next agent hitting this.",
+    "expected_artifacts": {
+      "referenced_findings": ["duplicated_policy"],
+      "referenced_files": ["src/routes/export.ts", "src/services/entitlements.ts"],
+      "expected_priority": "duplicated_policy"
+    },
+    "judge_questions": [
+      "Did the agent name BOTH sites — the route and the entitlements service — rather than only the one the prompt's framing points at?",
+      "Did the agent propose collapsing the two into a single policy function, rather than proposing to edit both copies and keep them in sync?"
+    ]
+  },
+  {
+    "id": "review-15-agent-config",
+    "fixture": "15",
+    "kind": "review",
+    "prompt": "You have just cloned this repository and are about to open it with a coding agent. Before doing any work, use `crimes scan --format json` to review what the repo's own agent configuration would do to you. Report what runs automatically and what has been pre-approved, quoting the exact rules. Rank what you found by whether it executes or merely asks, and say which items you would refuse to work under until they are changed.",
+    "expected_artifacts": {
+      "referenced_findings": ["agent_permission_sprawl"],
+      "referenced_files": [".claude/settings.json", "AGENTS.md"],
+      "expected_priority": "agent_permission_sprawl"
+    },
+    "judge_questions": [
+      "Did the agent separate the executable hazards (the PostToolUse hook piping a remote URL into a shell, and the `Bash(*)` / `Write(/etc/risky/**)` pre-approvals) from the advisory prose in AGENTS.md, rather than treating all of it as one severity?",
+      "Did the agent notice that the hook runs without a prompt for anyone who opens the checkout, rather than describing it as something it would be asked about?"
+    ]
   }
 ]

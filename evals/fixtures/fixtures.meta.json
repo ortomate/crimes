@@ -98,6 +98,13 @@
       "name": "tooling-excludes",
       "kind": "hand-crafted",
       "purpose": "A repo whose own ruff/coverage/codespell agree that legacy_v1/ is unmaintained, plus a [tool.hatch] exclude = [\"*\"] that must NOT be honoured. Exercises files_excluded_by_tooling and whether an agent reads coverage.warnings at all."
+    },
+    {
+      "id": "15",
+      "path": "evals/fixtures/15-risky-service",
+      "name": "risky-service",
+      "kind": "symlink",
+      "purpose": "Existing bundled example (symlinked from examples/risky-service). The 0.16.0 correctness + authority fixture, registered as an eval fixture in 0.25.8 because it already fires six of the nine differentiated detectors no scenario referenced: agent_permission_sprawl, config_drift, duplicated_policy, mock_saturation, pass_through_abstraction, unsafe_retry."
     }
   ]
 }

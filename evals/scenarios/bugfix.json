@@ -126,5 +126,39 @@
       "Did the agent identify the `Promise.all` over `Object.keys(files).map(…)` as the fan-out, rather than blaming the filesystem or the CI runner?",
       "Did the agent propose an actual bound — a concurrency limit or batching — rather than only adding a retry or an error message?"
     ]
+  },
+  {
+    "id": "bugfix-15-unsafe-retry",
+    "fixture": "15",
+    "kind": "bugfix",
+    "prompt": "Support reports that a handful of customers were charged twice during a provider outage last week. Use `crimes scan --format json` to find the code that could do that. Name the retried operation and the file, quote the evidence for why a replay is possible, and write the specific change that makes the retry safe. Say why adding backoff or lowering the attempt count would not fix it.",
+    "expected_artifacts": {
+      "referenced_findings": ["unsafe_retry"],
+      "referenced_files": ["src/services/payments.ts"],
+      "expected_priority": "unsafe_retry"
+    },
+    "judge_questions": [
+      "Did the agent identify the missing idempotency key as the defect, rather than the absence of backoff, jitter, or a lower attempt cap?",
+      "Did the agent's fix pass a stable key derived from the operation (not a fresh uuid per attempt), so the receiver can recognise the replay?"
+    ]
+  },
+  {
+    "id": "bugfix-15-config-drift",
+    "fixture": "15",
+    "kind": "bugfix",
+    "prompt": "`REQUEST_TIMEOUT_MS` is set to 30000 in production and the notify job behaves as though it were never set at all. Use `crimes scan --format json` to explain why. List every read of the variable with its file, the type it is parsed as, and the default it falls back to. Say which read is wrong and what the value 30000 means at each site.",
+    "expected_artifacts": {
+      "referenced_findings": ["config_drift"],
+      "referenced_files": [
+        "src/config/index.ts",
+        "src/jobs/notify.ts",
+        "src/services/payments.ts"
+      ],
+      "expected_priority": "config_drift"
+    },
+    "judge_questions": [
+      "Did the agent name all three reads and the type each parses to, rather than describing the variable as merely 'used inconsistently'?",
+      "Did the agent point out that the payments read treats a _MS-suffixed variable as a small integer while config treats it as milliseconds, so one of the two is off by a factor of a thousand?"
+    ]
   }
 ]
