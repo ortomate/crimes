@@ -409,6 +409,64 @@ Two properties worth having deliberately:
   enters the deep set and moves the headline. The diagnostic exists to
   make that visible in advance; it now has something to say.
 
+### B (`0.25.9`) — one ladder for `commented_out_code`, and a published anchor that was unreachable
+
+`0.25.5` left this in `KNOWN_SAME_DIR_DISAGREEMENTS` saying the blocker
+was two evidence units and a hand-rolled formula. Both true, and both
+smaller than what was actually wrong.
+
+**The language-js twin's published base could not be emitted.** Its
+ladder was `0.48 + statementCount * 0.04` capped at 0.72, where
+`statementCount` is not a statement count but
+`syntaxCount + callLines + tokens.length + codeLikeLines.length` — a
+composite the detector *also gates on* at `>= 5`. So the floor was
+`0.48 + 5 × 0.04 = 0.68`, and 6 saturated the cap. Measured: **all 463
+corpus findings carried exactly 0.68 or 0.72.** A two-value ladder
+pretending to be a ramp, running at twice the universal twin's flat 0.35
+for the same charge in the same report.
+
+That leaks past the twins. `detector-defaults.ts` publishes `0.48
+commented_out_code (js)` in the list of expressed bases **every**
+`INTRINSIC_DEFAULTS` entry was anchored against. The peers were
+calibrated against a number no report ever contained.
+
+Reconciled onto one exported ladder over one unit — **code-like lines**,
+which both twins already counted. Base 0.45 is what the table already
+implied (`exact_duplicate_block` is 0.45, annotated "near
+commented_out_code"); cap 0.60 is `docs_code_drift`, since a twenty-line
+dead block is a documentation-shaped lie. The js gate clears at two
+code-like lines, which scores exactly **0.48** — making the published
+anchor true for the first time.
+
+Measured with the B change alone isolated (stash, rebuild, rescan, both
+runs clock-pinned): **only `commented_out_code` moves.** 83 js findings
+down a mean 0.079, 63 universal findings up a mean 0.091 — two
+populations converging, nothing else touched, finding sets identical.
+The intrinsic distribution on mlflow goes from `{0.35, 0.68, 0.72}` to
+`{0.48, 0.51, 0.57, 0.60}`: one population, and it finally ramps.
+
+`mean_ndcg_deep` 0.3468 → **0.3475**, deep set unchanged. 13 scenarios
+outside fixture 15 moved, 12 up.
+
+**The gate had a hole this would have fallen into.** `readLadder` parsed
+inline `{base, step, cap}` literals by regex, so a twin referencing a
+shared constant reads as "no ladder here" and the pair is silently
+skipped. Taught it to recognise a shared-constant reference as agreement
+— two detectors naming one constant agree by construction, which is
+stronger than two literals that happen to match — with a test that
+asserts the `commented_out_code` pair is seen as `shared` rather than
+absent. `KNOWN_SAME_DIR_DISAGREEMENTS` is now empty.
+
+**One measurement footnote, and it is E biting again.** Three fixture-15
+rows also moved, including `review-15-duplicated-policy` −0.069. That is
+not this change: fixture 15 scans byte-identically across it. It is
+`user-schema 2.ts` entering git history between the two runs, taking
+`recency` 1 and rising past `duplicated_policy`. Pinning `CRIMES_NOW`
+makes the metric reproducible for a fixed git state; it cannot stop a
+newly *committed* fixture file from becoming recent. That is exactly the
+second working rule `evals/README.md` now states — re-baseline after
+adding a fixture — encountered live, one commit after writing it down.
+
 ## 9. Outcome
 
 `0.25.0` → `0.25.5`, five patch bumps, **zero agent calls**.

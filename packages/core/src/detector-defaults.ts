@@ -318,13 +318,13 @@ export const DETECTOR_DEFAULTS: Record<string, DetectorDefaults> = {
  * 0.65 mixed_utc_local_methods        0.50 hardcoded_local_path
  * 0.65 route_metadata_drift           0.50 hardcoded_localhost
  * 0.65 cross_language_type_drift      0.50 negative_flag_maze
- * 0.60 name_behavior_mismatch         0.48 commented_out_code (js)
+ * 0.60 name_behavior_mismatch         0.45 commented_out_code
  * 0.60 docs_code_drift                0.45 direct_date
  * 0.60 cross_language_route_drift     0.40 date_string_concat
  * 0.58 weak_test_signal               0.40 locale_drift
  * 0.56 return_shape_roulette          0.40 singular_plural_type_mismatch
  * 0.55 sync_io_in_hotpath              0.35 boolean_naming_drift
- * 0.55 timezone_unsafe_parse           0.35 commented_out_code (universal)
+ * 0.55 timezone_unsafe_parse
  * 0.55 logic_in_comments
  * ```
  *
@@ -339,6 +339,18 @@ export const DETECTOR_DEFAULTS: Record<string, DetectorDefaults> = {
  * way round. Not a preference for the universal pack: a preference for
  * the number that has dependents. The `(js)` qualifier on
  * `sync_io_in_hotpath` is gone because there is now one value.
+ *
+ * **`commented_out_code`'s two rows were also one value pretending to be
+ * two, and both were wrong.** The list published 0.48 for the js twin
+ * and 0.35 for the universal one. The js twin gated on a composite
+ * `statementCount >= 5` and then scored `0.48 + statementCount * 0.04`,
+ * so 0.48 was **unreachable**: all 463 of its corpus findings carried
+ * exactly 0.68 or 0.72. Every peer anchored against "0.48
+ * commented_out_code (js)" was anchored against a number no report ever
+ * contained. `0.25.9` put both twins on one ladder over one unit — see
+ * `COMMENTED_OUT_CODE_LADDER` — with 0.45 as the base the table already
+ * implied, since `exact_duplicate_block` is 0.45 "near
+ * commented_out_code".
  *
  * 0.30 sits **below every one of them**. A detector that declined to
  * score itself was therefore ranked below the most lenient deliberate

@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import type { PreFinding as Finding } from "../finding.js";
+import { COMMENTED_OUT_CODE_LADDER } from "./commented-out-code.js";
+import { intrinsicFrom } from "../scoring/intrinsic.js";
 import type { UniversalDetector } from "../detector.js";
 import { JS_EXTENSIONS } from "../discovery/language-pack-router.js";
 import { resolveDiscriminators } from "./disambiguate.js";
@@ -116,6 +118,7 @@ export const commentedOutCodeUniversalDetector: UniversalDetector = {
             runStart + 1,
             endLine,
             lines.slice(runStart, endLine).join("\n"),
+            runCodeHits,
           ),
         );
       }
@@ -189,6 +192,8 @@ function buildFinding(
   startLine: number,
   endLine: number,
   text: string,
+  /** Comment lines in the run that look like code — the ladder's unit. */
+  codeLikeLineCount: number,
 ): Finding {
   return {
     id: "",
@@ -212,7 +217,10 @@ function buildFinding(
     scores: {
       severity: 0.35,
       confidence: 0.65,
-      agent_risk: 0.35,
+      // Was a flat 0.35 — half what the language-js twin emitted for the
+      // same charge in the same report. Reconciled in 0.25.9 onto one
+      // ladder and one unit; see COMMENTED_OUT_CODE_LADDER.
+      agent_risk: intrinsicFrom(codeLikeLineCount, COMMENTED_OUT_CODE_LADDER),
     },
     suggested_actions: [
       {

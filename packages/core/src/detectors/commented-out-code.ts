@@ -2,6 +2,7 @@ import { hashSlice } from "../ast-hash/hash.js";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { extractComments, type SourceComment } from "../petty/comments.js";
+import { type IntrinsicLadder, intrinsicFrom } from "../scoring/intrinsic.js";
 
 const CODE_TOKENS = [
   "const",
@@ -23,6 +24,66 @@ const CODE_TOKENS = [
   "await",
   "return",
 ];
+
+/**
+ * The one ladder both `commented_out_code` detectors express, and the
+ * unit they express it on.
+ *
+ * ## Why this needed deciding rather than copying
+ *
+ * These are same-directory twins: one `type`, two detectors, both
+ * emitting into a single report depending on the file's language. Unlike
+ * the cross-pack pairs there is no language argument available for two
+ * answers to one charge. But until `0.25.9` they disagreed by 2×, and
+ * neither number was what the calibration table said.
+ *
+ * The language-js twin's ladder read `0.48 + statementCount * 0.04`
+ * capped at 0.72. `statementCount` is not a count of statements — it is
+ * `syntaxCount + callLines + tokens.length + codeLikeLines.length`, a
+ * composite the detector also gates on at `>= 5`. So the base was
+ * **unreachable**: the smallest block it can emit already scores
+ * `0.48 + 5 × 0.04 = 0.68`, and anything with a composite of 6 or more
+ * saturates at 0.72. Measured across the corpus, all 463 of its findings
+ * carry an intrinsic of exactly 0.68 or 0.72 — a two-value ladder
+ * pretending to be a ramp. The universal twin, meanwhile, was a flat
+ * 0.35 across 152 findings.
+ *
+ * That matters beyond the twins. `detector-defaults.ts` publishes
+ * `0.48 commented_out_code (js)` in the list of expressed bases that
+ * every entry in `INTRINSIC_DEFAULTS` was anchored against — and 0.48 is
+ * a value the detector could not produce. The peers were calibrated
+ * against a number that never appeared in a report.
+ *
+ * ## The unit: code-like lines
+ *
+ * Both twins already count them — `codeLikeLines.length` here,
+ * `runCodeHits` in the universal one — and it is the measure that
+ * matches the charge. The hazard is how much dormant implementation a
+ * reader has to disambiguate, and a block of twenty disabled lines is a
+ * bigger second reality than a block of three. `statementCount` was a
+ * detection heuristic doing double duty as a severity signal.
+ *
+ * ## The constants
+ *
+ * `0.45` base is the value `INTRINSIC_DEFAULTS` already implies: its
+ * entry for `exact_duplicate_block` is 0.45 with the note "Literal
+ * duplication. Common and often benign; **near commented_out_code**".
+ * The table's own intent was ~0.45 and the js twin was emitting 0.68.
+ *
+ * A small block clears the js gate at two code-like lines and so scores
+ * exactly **0.48** — which makes the published anchor true for the first
+ * time rather than aspirational.
+ *
+ * `0.60` cap is `docs_code_drift`, and a twenty-line commented-out
+ * module is a documentation-shaped lie about what the code does. Below
+ * `duplicated_policy` 0.65, because a dormant block cannot be enforced
+ * against anybody.
+ */
+export const COMMENTED_OUT_CODE_LADDER: IntrinsicLadder = {
+  base: 0.45,
+  step: 0.03,
+  cap: 0.6,
+};
 
 export const commentedOutCodeDetector: LanguageJsDetector = {
   id: "commented_out_code",
@@ -71,7 +132,9 @@ export const commentedOutCodeDetector: LanguageJsDetector = {
         scores: {
           severity: severityScore(severity),
           confidence: score.confidence,
-          agent_risk: round(Math.min(0.48 + score.statementCount * 0.04, 0.72)),
+          // Reconciled with the universal twin in 0.25.9 — see
+          // COMMENTED_OUT_CODE_LADDER for the unit and the constants.
+          agent_risk: intrinsicFrom(score.codeLikeLineCount, COMMENTED_OUT_CODE_LADDER),
         },
         suggested_actions: [
           {
@@ -90,6 +153,8 @@ export const commentedOutCodeDetector: LanguageJsDetector = {
 interface CommentScore {
   tokens: string[];
   statementCount: number;
+  /** Lines in the block the parser judged to be code — the ladder's unit. */
+  codeLikeLineCount: number;
   firstLine: string;
   confidence: number;
 }
@@ -129,6 +194,7 @@ function scoreComment(comment: SourceComment): CommentScore | undefined {
   return {
     tokens: tokens.slice(0, 5),
     statementCount,
+    codeLikeLineCount: codeLikeLines.length,
     firstLine: truncate(firstLine, 80),
     confidence: round(Math.min(0.7 + statementCount * 0.02, 0.9)),
   };

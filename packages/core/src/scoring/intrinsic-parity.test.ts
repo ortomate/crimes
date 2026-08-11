@@ -31,6 +31,20 @@ interface Ladder {
 }
 
 /**
+ * Either an inline `{base, step, cap}` or a reference to a shared ladder
+ * constant.
+ *
+ * The shared form exists because `0.25.9` reconciled the
+ * `commented_out_code` twins onto one exported constant, and a gate that
+ * only understood inline literals would have read that as "no ladder
+ * here" and skipped the comparison — turning the strongest possible
+ * agreement into a silent hole. Two detectors naming the same constant
+ * agree by construction, which is a better guarantee than two literals
+ * that happen to match today.
+ */
+type LadderRef = { kind: "inline"; ladder: Ladder } | { kind: "shared"; name: string };
+
+/**
  * Charges whose two implementations knowingly disagree, each with the
  * reason it has not been reconciled. Ordered as the audit recommends
  * fixing them. Deleting an entry is how a reconciliation lands.
@@ -87,22 +101,13 @@ const KNOWN_DISAGREEMENTS: Record<string, string> = {
 /**
  * Same-directory twins that knowingly disagree — two detectors sharing
  * one `type`, neither of them a `py/` sibling.
+ *
+ * **Empty as of `0.25.9`.** `commented_out_code`, the pair this table was
+ * written for, now expresses one ladder from one module. The table stays
+ * because a new twin is a thing that can happen again, and the gate below
+ * still runs against it.
  */
-const KNOWN_SAME_DIR_DISAGREEMENTS: Record<string, string> = {
-  commented_out_code:
-    "language-js ramps 0.48 + 0.04/statement to 0.72; the universal twin " +
-    "is a flat 0.35. The discriminator half of this pair was unified in " +
-    "0.25.0 (both always identify a block). Deliberately NOT taken with " +
-    "the four constant gaps in 0.25.5, because it is harder than they " +
-    "are and the difference is not just a constant: the two twins count " +
-    "different units (statements vs consecutive comment lines) and the " +
-    "js one does not route through `intrinsicFrom` at all — it is a " +
-    "hand-rolled `base + n*step` rather than `base + (n-1)*step`, so " +
-    "even adopting its constants verbatim moves scores. Reconciling means " +
-    "first deciding what one unit of evidence is for this charge. Unlike " +
-    "the cross-pack pairs there is no language argument available: both " +
-    "emit the same `type` into one report.",
-};
+const KNOWN_SAME_DIR_DISAGREEMENTS: Record<string, string> = {};
 
 /**
  * Charges where one side expresses no ladder at all and takes a flat
@@ -118,24 +123,51 @@ const KNOWN_SAME_DIR_DISAGREEMENTS: Record<string, string> = {
  */
 const KNOWN_SHAPE_GAPS: Record<string, string> = {};
 
-function readLadder(path: string): Ladder | null {
+function readLadderRef(path: string): LadderRef | null {
   let src: string;
   try {
     src = readFileSync(path, "utf8");
   } catch {
     return null;
   }
-  // Both packs now route through one formula, so one pattern finds both:
+  // Both packs route through one formula, so one pattern finds both:
   // intrinsicFrom(count, { base, step, cap }) and the py wrapper's
   // intrinsicFor({ count, base, step, cap }).
   const block =
     /intrinsicF(?:rom|or)\(\s*\{?[^}]*?base:\s*([^,]+),\s*step:\s*([\d.]+),\s*cap:\s*([\d.]+)/s.exec(
       src,
     );
-  if (!block) return null;
-  const rawBase = block[1]?.trim() ?? "";
-  const base = /^[\d.]+$/.test(rawBase) ? Number(rawBase) : "conditional";
-  return { base, step: Number(block[2]), cap: Number(block[3]) };
+  if (block) {
+    const rawBase = block[1]?.trim() ?? "";
+    const base = /^[\d.]+$/.test(rawBase) ? Number(rawBase) : "conditional";
+    return {
+      kind: "inline",
+      ladder: { base, step: Number(block[2]), cap: Number(block[3]) },
+    };
+  }
+  // `intrinsicFrom(count, SOME_SHARED_LADDER)` — a SCREAMING_CASE
+  // identifier rather than an object literal.
+  const shared = /intrinsicFrom\([^,]+,\s*([A-Z][A-Z0-9_]*)\s*\)/.exec(src);
+  if (shared) return { kind: "shared", name: shared[1]! };
+  return null;
+}
+
+/** Inline ladder only, for the callers that need the constants. */
+function readLadder(path: string): Ladder | null {
+  const ref = readLadderRef(path);
+  return ref?.kind === "inline" ? ref.ladder : null;
+}
+
+/** Do two detectors express the same ladder, by either route? */
+function laddersAgree(a: LadderRef, b: LadderRef): boolean {
+  if (a.kind === "shared" || b.kind === "shared") {
+    return a.kind === "shared" && b.kind === "shared" && a.name === b.name;
+  }
+  return (
+    a.ladder.base === b.ladder.base &&
+    a.ladder.step === b.ladder.step &&
+    a.ladder.cap === b.ladder.cap
+  );
 }
 
 function charges(): string[] {
@@ -233,14 +265,28 @@ describe("cross-pack intrinsic parity", () => {
     const unexplained: string[] = [];
     for (const [id, a, b] of sameDirTwins()) {
       if (KNOWN_SAME_DIR_DISAGREEMENTS[id]) continue;
-      const la = readLadder(resolve(DETECTORS, a));
-      const lb = readLadder(resolve(DETECTORS, b));
+      const la = readLadderRef(resolve(DETECTORS, a));
+      const lb = readLadderRef(resolve(DETECTORS, b));
       if (!la || !lb) continue;
-      if (la.base !== lb.base || la.step !== lb.step || la.cap !== lb.cap) {
-        unexplained.push(`${id}: ${a} vs ${b}`);
-      }
+      if (!laddersAgree(la, lb)) unexplained.push(`${id}: ${a} vs ${b}`);
     }
     expect(unexplained, unexplained.join("\n")).toEqual([]);
+  });
+
+  it("sees a shared ladder constant as agreement, not as absence", () => {
+    // The regression this guards: 0.25.9 reconciled the
+    // commented_out_code twins onto one exported constant. A gate that
+    // only parsed inline literals would read that as "no ladder here",
+    // skip the pair, and report a clean bill for a file it never
+    // compared.
+    const twin = sameDirTwins().find(([id]) => id === "commented_out_code");
+    expect(twin, "commented_out_code is no longer a same-directory twin").toBeDefined();
+    const [, a, b] = twin!;
+    const la = readLadderRef(resolve(DETECTORS, a));
+    const lb = readLadderRef(resolve(DETECTORS, b));
+    expect(la?.kind).toBe("shared");
+    expect(lb?.kind).toBe("shared");
+    expect(laddersAgree(la!, lb!)).toBe(true);
   });
 
   it("keeps the same-directory exceptions real too", () => {
