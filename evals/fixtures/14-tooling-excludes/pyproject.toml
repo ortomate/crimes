@@ -1,0 +1,23 @@
+[project]
+name = "billing-service"
+version = "2.0.0"
+
+[tool.hatch.build.targets.sdist]
+# Ships nothing by default — a packaging decision, not a maintenance one.
+# crimes must not read this as "the whole repo is unmaintained".
+exclude = ["*"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ['legacy_v1']
+
+[tool.coverage.run]
+branch = true
+omit = ['legacy_v1/*']
+
+[tool.codespell]
+skip = '.git,legacy_v1/*'
+
+[tool.uv]
+# An exclude-prefixed key whose value is a duration, not a path.
+exclude-newer = "4 days"

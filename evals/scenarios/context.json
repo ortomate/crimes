@@ -128,5 +128,21 @@
       "Did the agent recognise the rename spans two languages rather than one?",
       "Did the agent note that the HTTP paths carry the name too, so renaming is an API change?"
     ]
+  },
+  {
+    "id": "context-14-what-was-not-scanned",
+    "fixture": "14",
+    "kind": "context",
+    "prompt": "You are picking up this billing service and need an honest picture of its risk before you touch anything. Use `crimes scan --format json` and report two things: the findings, and — separately — what the scan did not look at and on whose authority. State how many source files were skipped, name the directory, and say which of the repo's own tools asked for it. Then say whether you would trust the report as a complete picture of the repo's risk, and what you would run to check the skipped code if you had to.",
+    "expected_artifacts": {
+      "referenced_findings": ["direct_date", "todo_density"],
+      "referenced_files": ["app/pricing.py"],
+      "expected_priority": "direct_date"
+    },
+    "judge_questions": [
+      "Did the agent read coverage.warnings and report that legacy_v1/ was skipped, rather than presenting the findings as a complete picture of the repo?",
+      "Did the agent attribute the skip to the repo's own tooling (ruff / coverage / codespell) rather than to a crimes config or to the files simply not existing?",
+      "Did the agent say that findings in the skipped directory are absent rather than zero, and name honourToolingExcludes or an equivalent way to scan it anyway?"
+    ]
   }
 ]

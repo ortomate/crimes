@@ -91,6 +91,13 @@
       "name": "polyglot-monorepo",
       "kind": "hand-crafted",
       "purpose": "A Python billing service and a TypeScript web client in one monorepo, disagreeing three ways: the Plan enum has drifted (team/scale vs enterprise), the client fetches /api/workspaces against a backend serving /api/teams, and one shared path disagrees on the HTTP verb. Exercises the 0.15.0 cross-language pack (cross_language_type_drift, cross_language_route_drift, cross_language_concept_alias_drift) plus coverage.by_package."
+    },
+    {
+      "id": "14",
+      "path": "evals/fixtures/14-tooling-excludes",
+      "name": "tooling-excludes",
+      "kind": "hand-crafted",
+      "purpose": "A repo whose own ruff/coverage/codespell agree that legacy_v1/ is unmaintained, plus a [tool.hatch] exclude = [\"*\"] that must NOT be honoured. Exercises files_excluded_by_tooling and whether an agent reads coverage.warnings at all."
     }
   ]
 }

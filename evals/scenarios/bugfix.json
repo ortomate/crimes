@@ -111,5 +111,20 @@
       "Did the agent name the specific values that exist on one side only?",
       "Did the agent propose generating one side from the other (or a shared schema) rather than just adding the missing member by hand?"
     ]
+  },
+  {
+    "id": "bugfix-04-unbounded-fanout",
+    "fixture": "04",
+    "kind": "bugfix",
+    "prompt": "The test helper intermittently fails on CI with EMFILE (too many open files) when a fixture declares a lot of files, but never reproduces locally. Use `crimes scan test --format json` to find the concurrency finding responsible, explain why the failure is load-dependent and therefore machine-dependent, and write the bounded version. Quote the finding's evidence for the fan-out site and the collection it iterates.",
+    "expected_artifacts": {
+      "referenced_findings": ["unbounded_async_fanout"],
+      "referenced_files": ["test/utils.ts"],
+      "expected_priority": "unbounded_async_fanout"
+    },
+    "judge_questions": [
+      "Did the agent identify the `Promise.all` over `Object.keys(files).map(…)` as the fan-out, rather than blaming the filesystem or the CI runner?",
+      "Did the agent propose an actual bound — a concurrency limit or batching — rather than only adding a retry or an error message?"
+    ]
   }
 ]

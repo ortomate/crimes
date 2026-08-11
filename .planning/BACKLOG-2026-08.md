@@ -336,9 +336,33 @@ again.
   (`evals/README.md` § "When *not* to bump at all", the rule that
   reverted `0.22.1`).
 
-  Re-centring bought headroom but not diversity: fixture `01` still
-  carries 75% of the aggregate. The remaining half is the original
-  entry — more deep scenarios, off fixture `01`.
+  **Second half now started.** Three deep scenarios added, all off
+  fixture `01`: `review-04-swallowed-errors` and
+  `bugfix-04-unbounded-fanout` cover two differentiated detectors that
+  no scenario referenced at all, and `context-14-what-was-not-scanned`
+  runs on a **new fixture 14** built so the tooling-exclude feature is
+  measurable — no other fixture has a `pyproject.toml`, so `evals:ranking`
+  could not see A.
+
+  | | before | after |
+  |---|---|---|
+  | deep scenarios labelling a differentiated detector | 3 / 28 | **5 / 30** |
+  | of the 28 referenced by any scenario | 17 | **19** |
+  | fixture `01` share of the deep aggregate | 75% | **70%** |
+
+  Nine remain unreferenced: `agent_permission_sprawl`, `config_drift`,
+  `contract_drift`, `dependency_provenance_gap`, `duplicated_policy`,
+  `finder_duplicate_filename`, `mock_saturation`,
+  `pass_through_abstraction`, `unsafe_retry`. None fires on an existing
+  deep fixture, so covering them needs fixture content, not just
+  scenarios.
+
+  **The guard earned itself on its first real use.** Adding the
+  scenarios moved the headline `0.3530 → 0.3498`, which reads as a
+  regression and is not one: `delta_on_stable_set` is **+0.0000** and
+  the two entering scenarios are named. Before `0.25.0` this would have
+  been reported as a scoring regression caused by an instrument-only
+  change.
 - **3.3 `evals/README.md` § "Fix this regardless" is stale** — the
   version-comparator bug it describes was fixed in `versions.ts`, which
   handles the `-rN` suffix properly. Delete or mark the section.

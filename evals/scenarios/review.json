@@ -210,5 +210,20 @@
       "Did the agent distinguish the 404 failure mode from the 405 one?",
       "Did the agent avoid claiming a disagreement that crimes did not report?"
     ]
+  },
+  {
+    "id": "review-04-swallowed-errors",
+    "fixture": "04",
+    "kind": "review",
+    "prompt": "This build tool reports success on some failed builds and CI has been green through a broken release. Use `crimes scan src --format json` to find the swallowed_error findings, then say for each one whether the caught error is genuinely recoverable or whether discarding it is what hides the failure. Name the single site you would fix first and write the replacement catch block. Quote each finding's evidence rather than paraphrasing it.",
+    "expected_artifacts": {
+      "referenced_findings": ["swallowed_error"],
+      "referenced_files": ["src/api-extractor.ts", "src/tsc.ts", "src/rollup.ts"],
+      "expected_priority": "swallowed_error"
+    },
+    "judge_questions": [
+      "Did the agent distinguish the three build-runner sites (runRollup / runTypeScriptCompiler / runDtsRollup), which log without the error object, from src/utils.ts jsoncParse, which returns {} and tells the caller nothing failed at all?",
+      "Did the agent's replacement catch block preserve the original error — rethrow, `cause`, or a non-zero exit — rather than only improving the log message?"
+    ]
   }
 ]
