@@ -987,6 +987,22 @@ The README should include:
 
 18. Configuration
 
+Two keys govern how much the scan is allowed to skip, and both default
+to the safe-but-quiet answer with an explicit way out (added 0.25.0):
+
+- `excludeDefaults` (default `true`) — a user `exclude` is **additive**
+  to the built-in list. Set `false` for wholesale replacement, which is
+  the only way to *un*-exclude something the defaults drop. Governs
+  `assets.exclude` too. Before 0.25.0 replacement was the only
+  behaviour, so setting one pattern silently un-excluded `node_modules`
+  and every lockfile.
+- `honourToolingExcludes` (default `true`) — skip paths the repository's
+  own tooling excludes, but only when **two or more independent tools**
+  name the same path (ruff, coverage, pyright, codespell; build-backend
+  tables are never read). Every skipped file is reported under
+  `coverage.warnings[]` with the config keys that authorised it, so the
+  suppression is never silent.
+
 crimes.config.json example:
 
 {
@@ -994,6 +1010,8 @@ crimes.config.json example:
   "language": ["typescript", "javascript"],
   "include": ["src/**/*.{ts,tsx,js,jsx}"],
   "exclude": ["node_modules", "dist", "coverage", "*.generated.ts"],
+  "excludeDefaults": true,
+  "honourToolingExcludes": true,
   "architecture": {
     "layers": [
       { "name": "ui", "pattern": "src/components/**" },
