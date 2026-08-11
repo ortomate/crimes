@@ -135,40 +135,62 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.24.0`
+## Status — `crimes@0.25.0`
 
-`crimes@0.24.0` is the latest version, and the other half of `0.23.0`.
-That release proved `STRUCTURAL_CEILING`'s stated rationale false and
-deliberately left the mechanism alone so the input fix stayed
-attributable. **The mechanism is now fixed too:** the ceiling applied to
-length findings becomes a scale rather than a clamp.
+`crimes@0.25.0` is the latest version: **the honest denominator.** A
+scanner's report is a fraction, and until now `crimes` never showed you
+the bottom half. Six streams, all the same sentence — what the tool
+looked at, what it skipped, and whether it said so.
 
-- **A clamp does not rank — it hands ranking to something else.** It
-  collapsed **760 of zulip/zerver's 1505 findings onto exactly 0.30**,
-  from 31 distinct levels; across the corpus the plateau covered
-  22.8%–61.4% of a report. Since
-  `rank_score = agent_risk * (1 + recency * 0.5)`, the order of that
-  half was then decided by **file age**.
-- **The plateau is gone and resolution rises.** Findings sitting at
-  exactly 0.30: mlflow 2778 → **46**, zulip/zerver 777 → **4**,
-  pydantic 296 → **4**, drf 57 → **0** — with *more* distinct
-  `agent_risk` values on every repo, not fewer.
-- **Length findings stop leading**, which the clamp never managed:
-  pydantic's top-20 structural 6 → **0** (top-50 23 → **0**), drf's
-  15 → 10.
-- **It is a trade, not a free win.** At 2-decimal precision the band has
-  31 slots and the input has 101 levels, so preserving order also pushes
-  the whole structural class down. Measured and accepted.
+- **It scanned things it shouldn't.** A user `exclude` replaced the
+  defaults wholesale, so setting one pattern silently un-excluded
+  `node_modules` and every lockfile — and `crimes init`, the documented
+  first-run command, hand-copied **9 of the 20** default patterns under
+  a comment promising parity. `exclude` is now additive, with
+  `excludeDefaults: false` to opt out.
+- **It charged things it never established.** `sync_io_in_hotpath` was
+  reporting one-shot developer scripts: airflow **811 → 680** (−16% of
+  the detector), mlflow 402 → 347, pydantic 17 → 11. Three earlier
+  candidate signals were all defeated by the same production file, and
+  so is the one previously recorded as *"the signal that would work"* —
+  what separates it is that the repo **mentions** the module 42 times,
+  including inside a `mock.patch` string no import graph can see.
+- **It now skips what a repo has already disowned, and files a
+  receipt.** pydantic's `pydantic/v1` is excluded by its own ruff,
+  coverage, pyright and codespell: **487 → 402 findings, −17.5%**, with
+  one `coverage.warnings[]` entry naming the directory, its files, and
+  the opt-out. A path is skipped only when **two independent tools**
+  agree — across the whole corpus that is exactly one directory, and
+  airflow's `[tool.hatch] exclude = ["*"]` is never honoured.
+- **It disagreed with itself.** `commented_out_code`'s two variants
+  identified findings differently, and the conditional one was
+  *unstable*: an unrelated second block in a file re-fingerprinted the
+  first. Unified. The audit behind it found that **of the 8 charges
+  implemented in both language packs, only one agrees** — reported, not
+  fixed, because seven simultaneous scoring changes would be
+  unattributable.
+- **The instrument had a 15× phantom in it.** `mean_ndcg_deep` averaged
+  whichever scenarios cleared a floor of 40, and one fixture sat at 42
+  while carrying 75% of them. Losing three findings would have moved the
+  headline **+0.1333 with no scoring change**. Re-centring the floor
+  into the 28-finding empty gap fixed it for free: same population, same
+  number, headroom 2 → 14.
 
-`schema_version` stays at `0.7.0`. Scores and ordering move; no finding
-is added or removed on the corpus.
+`schema_version` stays at `0.7.0` — every change is additive. Fingerprints
+move for one population: `commented_out_code` in single-block non-JS
+files.
 
-Eval baseline: claude 0.81 → **0.82** (+1pp), codex 0.63 → **0.61**
-(−2pp) — both inside their noise bands (±6pp / ±3pp), which is the
-expected result. `structural_pass_rate` matches literal detector ids in
-the response text and so cannot see a re-ranking at all; that blindness
-is why `evals:ranking` exists. Read the deterministic split above.
+Release notes: [`docs/releases/v0.25.0.md`](./docs/releases/v0.25.0.md).
 
+### Earlier `0.24.0` work (_the ceiling becomes a scale_)
+
+`0.24.0` was the other half of `0.23.0`: the ceiling applied to length
+findings became a scale rather than a clamp. **A clamp does not rank —
+it hands ranking to something else.** It collapsed 760 of zulip/zerver's
+1505 findings onto exactly 0.30 from 31 distinct levels, and since
+`rank_score = agent_risk * (1 + recency * 0.5)`, the order of that half
+was then decided by file age. Findings at exactly 0.30: mlflow
+2778 → 46, zulip/zerver 777 → 4, pydantic 296 → 4, drf 57 → 0.
 Release notes: [`docs/releases/v0.24.0.md`](./docs/releases/v0.24.0.md).
 
 ### Earlier `0.23.0` work (_the score's missing inputs_)

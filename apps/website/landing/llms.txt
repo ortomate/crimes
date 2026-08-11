@@ -34,7 +34,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest v0.24.0)
+## Commands (latest v0.25.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -342,7 +342,34 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.24.0 — the ceiling becomes a scale (current release)
+## 0.25.0 — the honest denominator (current release)
+
+A scanner's report is a fraction, and crimes never showed the bottom
+half. Six streams on the boundary between what the tool looked at and
+what it skipped.
+
+- A user `exclude` replaced the defaults wholesale, so setting one
+  pattern silently un-excluded node_modules and every lockfile. `crimes
+  init` also hand-copied 9 of the 20 default patterns. `exclude` is now
+  additive; `excludeDefaults: false` opts out.
+- crimes now honours a repository's own tooling exclusions when two
+  independent tools agree — pydantic 487 -> 402 findings (-17.5%) — and
+  reports every skipped path under coverage.warnings[] with the config
+  keys that authorised it. `honourToolingExcludes: false` opts out.
+  Build-backend tables such as [tool.hatch.build] are never honoured.
+- sync_io_in_hotpath stops charging one-shot scripts: airflow 811 -> 680
+  (-16% of the detector), mlflow 402 -> 347, pydantic 17 -> 11.
+- commented_out_code's two variants now identify a block the same way.
+  Fingerprints move for single-block non-JS files.
+- One shared intrinsic ladder across both language packs, plus a
+  standing gate on cross-pack disagreement.
+
+schema_version stays 0.7.0 — every change is additive.
+
+Release notes:
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.25.0.md
+
+## 0.24.0 — the ceiling becomes a scale
 
 The other half of 0.23.0. That release proved STRUCTURAL_CEILING's
 stated rationale false and deliberately left the mechanism alone so the
