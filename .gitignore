@@ -45,11 +45,19 @@ coverage/
 # materialises the body fresh at the pinned SHA.
 evals/fixtures/0[2-4]-*/**
 !evals/fixtures/0[2-4]-*/.crimes-eval-meta.json
-# 16-recency's git history is built by `pnpm run evals:setup` from
-# RANKING_REFERENCE_DATE, never committed. Committing it would freeze the
-# tranche ages at authoring time, and they would decay past 14 days
-# within a fortnight — taking the fixture's whole purpose with them.
-evals/fixtures/16-recency/.git/
+# 16-recency is materialised by `pnpm run evals:setup` from
+# 16-recency-template/, which IS committed — the same split as the OSS
+# fixtures above, and for a sharper reason. The fixture needs its own
+# `.git` so crimes' upward walk stops there rather than finding this
+# repository, and a directory holding a `.git` cannot be tracked by the
+# outer repo: git records it as a gitlink and silently commits none of
+# the files. So the tree lives in the template and the working copy is
+# generated.
+#
+# The history is rebuilt from RANKING_REFERENCE_DATE every run. Freezing
+# it at authoring time would let the tranche ages decay past 14 days
+# within a fortnight, taking the fixture's whole purpose with them.
+evals/fixtures/16-recency/
 
 # Eval replay output (per PR run, not pinned). The pinned per-version
 # results under evals/results/<version>/ are committed. `--out` targets

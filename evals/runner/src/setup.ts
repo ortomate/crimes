@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 import { execFile } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { mkdtemp, rename, rm } from "node:fs/promises";
+import { cp, mkdtemp, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -188,8 +188,17 @@ const RECENCY_TRANCHES: ReadonlyArray<{
  * is a function of the tree and the constant alone.
  */
 async function materialiseSyntheticHistory(): Promise<void> {
+  const template = resolve(FIXTURES_DIR, "16-recency-template");
   const dir = resolve(FIXTURES_DIR, "16-recency");
-  if (!existsSync(dir)) return;
+  if (!existsSync(template)) return;
+
+  // Copy the committed template into the working fixture, then build
+  // history on top. The two are separate directories because a directory
+  // containing a `.git` cannot be tracked by the outer repository — git
+  // records it as a gitlink and commits none of its files, which is
+  // exactly what happened the first time this landed.
+  await rm(dir, { recursive: true, force: true });
+  await cp(template, dir, { recursive: true });
 
   const refMs = Date.parse(RANKING_REFERENCE_DATE);
   if (!Number.isFinite(refMs)) {
@@ -200,7 +209,6 @@ async function materialiseSyntheticHistory(): Promise<void> {
     return;
   }
 
-  await rm(resolve(dir, ".git"), { recursive: true, force: true });
   const git = async (...args: string[]): Promise<void> => {
     await execFileAsync("git", args, { cwd: dir });
   };

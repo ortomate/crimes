@@ -110,8 +110,8 @@
       "id": "16",
       "path": "evals/fixtures/16-recency",
       "name": "recency",
-      "kind": "hand-crafted",
-      "purpose": "The only fixture with git history, built by evals:setup with commits dated relative to RANKING_REFERENCE_DATE. Deep (34 findings) so it clears the depth floor, and split into age tranches so `recency` — the one scoring input no other fixture could exercise — is live. Its scenarios test the term's premise from both sides: plan-16-checkout-rollout's answer is in the newest tranche, review-16-whole-repo-audit's is in the oldest."
+      "kind": "generated",
+      "purpose": "Materialised by evals:setup from 16-recency-template/ (which is committed), with git history built in four age tranches dated relative to RANKING_REFERENCE_DATE. The only fixture where `recency` and `churn` are live signals, and deep enough (34 findings) to count toward mean_ndcg_deep. Its two scenarios test the recency multiplier's premise from both sides: plan-16-checkout-rollout's answer is in the newest tranche, review-16-whole-repo-audit's in the oldest."
     }
   ]
 }
