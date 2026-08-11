@@ -330,7 +330,40 @@ checkout, a workspace link or a mounted path lost the whole signal, with
    deep set `rank_score` **is** `agent_risk`, and `agent_risk` was
    running on three of its four terms. Two of PRD §10's six scores are
    inert in the metric this project trusts. That is worth its own
-   investigation and did not get one here.
+   investigation, and it got one — see E.
+
+### E — `recency` is not a bug, and that is worse
+
+Chased the second zero from A. **`recency` on the deep fixtures is
+correct**: it is 1 for a file committed within 7 days, decays linearly to
+0 at 14, and the deep four were last touched months ago. No defect.
+
+The problem is what that implies for the metric.
+
+**`evals:ranking` is a function of wall-clock time, and the README says
+it is not.** `rank_score = agent_risk * (1 + recency * 0.5)`, so the same
+build scanning the same fixture ranks it differently seventeen days
+later — by up to 50% of `rank_score` on recently-edited files. The
+documented claim is "there is no noise band, so any delta is real". That
+is false across a 7-or-14-day boundary for any fixture touched in
+between.
+
+Measured today: `14-tooling-excludes` recency **1.0** (committed today),
+`11-py-service` and `12-py-tested` 0.43, and **0 for the entire deep
+set**. So the live exposure is 7 of 53 scenarios and none of the
+headline — which is exactly why it has never bitten. The four deep
+fixtures are old.
+
+**It is dormant, not small.** Editing a deep fixture wakes it, and
+fixture 01 is 70% of the deep aggregate. It bears directly on the
+standing S5 work: authoring seven fixtures puts every new finding at
+recency 1 for a week and decaying for another, so a baseline taken the
+day they land does not reproduce a fortnight later.
+
+Documented in `evals/README.md` with the two working rules it implies.
+The fix — thread a pinned `nowMs` through `buildScoringContext`, which
+currently calls `Date.now()` at the point of use, and let the eval runner
+set it — is sized there and **not done**.
 
 ## 9. Outcome
 

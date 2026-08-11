@@ -176,6 +176,49 @@ real** — and directly comparable between two builds, which is the whole
 point. `--cli` scans this tree's fixtures with another build's binary,
 so the fixture is held constant and the delta belongs to the scanner.
 
+#### One exception to "any delta is real": a recently-edited fixture
+
+`rank_score = agent_risk * (1 + recency * 0.5)`, and `recency` is a
+function of **wall-clock time**: 1 for a file committed within 7 days,
+decaying linearly to 0 at 14 days. So a fixture edited today ranks
+differently from the same fixture, same build, seventeen days later —
+by up to 50% of `rank_score` on the edited files. **Running
+`evals:ranking` twice a fortnight apart on identical code can move the
+report**, which is precisely the claim above denied.
+
+Measured at `0.25.6`:
+
+| fixture | last commit | `recency` today | scenarios |
+|---|---|---|---|
+| `14-tooling-excludes` | today | **1.0** | 1 |
+| `11-py-service` | 11 days | 0.43 | 4 |
+| `12-py-tested` | 4 days | 0.43 | 2 |
+| `01`–`04` (the whole deep set) | months | 0 | 32 |
+
+Today the exposure is 7 of 53 scenarios and **none of the deep set**,
+which is why this has never bitten: the four deep fixtures are old, so
+`recency` is 0 for all of them and `rank_score` reduces to `agent_risk`.
+
+The exposure is not small in general, though — it is dormant. **Edit a
+deep fixture and it wakes up**, and fixture `01` alone is 70% of the
+deep aggregate. Adding fixture content (the standing S5 work) puts every
+new finding at `recency` 1 for a week and decaying for another, so a
+baseline taken the day a fixture lands does not reproduce a fortnight
+later.
+
+Two consequences, until this is fixed:
+
+1. **Do not compare a ranking report against one taken more than a week
+   earlier if any fixture was touched in between** — re-run the
+   baseline with the current build via `--cli` instead.
+2. **After adding or editing a fixture, wait or re-baseline.** A delta
+   measured inside the 14-day window is part fixture-age.
+
+The fix is to thread a pinned `nowMs` through `buildScoringContext`
+(it currently calls `Date.now()` directly at the point of use) and give
+the eval runner a way to set it, so the metric is a function of the code
+alone. Not done — sized here rather than assumed away.
+
 Read it with three caveats, all of them load-bearing:
 
 1. **The absolute number means very little.** Many scenarios ask a
