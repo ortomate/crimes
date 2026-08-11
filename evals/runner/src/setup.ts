@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { RANKING_REFERENCE_DATE } from "./scan-helpers.js";
 import type { OssFixtureMeta } from "./types.js";
 
 const execFileAsync = promisify(execFile);
@@ -53,6 +54,8 @@ async function main(): Promise<void> {
       process.stderr.write(`evals:setup: failed to parse ${metaPath} — ${message}\n`);
     }
   }
+
+  await materialiseSyntheticHistory();
 
   if (ossEntries.length === 0) {
     process.stdout.write(
@@ -127,3 +130,105 @@ main().catch((err: unknown) => {
   process.stderr.write(`evals:setup: ${message}\n`);
   process.exit(1);
 });
+
+/**
+ * Age tranches for `16-recency`, in days before
+ * {@link RANKING_REFERENCE_DATE}.
+ *
+ * The paths are committed in this order, oldest first, so a file's
+ * `recency` is a property of the tranche it sits in rather than of when
+ * anybody ran setup:
+ *
+ * ```
+ * 90d  src/legacy/    recency 0
+ * 20d  src/core/      recency 0     (churn still live)
+ *  9d  test/          recency ~0.71 (mid-decay)
+ *  3d  src/checkout/  recency 1.0   (full boost)
+ * ```
+ */
+const RECENCY_TRANCHES: ReadonlyArray<{
+  days: number;
+  paths: string[];
+  message: string;
+}> = [
+  {
+    days: 90,
+    paths: ["README.md", "package.json", "src/legacy"],
+    message: "legacy: settlement and payouts",
+  },
+  { days: 20, paths: ["src/core"], message: "core: pricing, config, shared types" },
+  { days: 9, paths: ["test"], message: "test: basket coverage" },
+  { days: 3, paths: ["src/checkout"], message: "checkout: new basket + session flow" },
+];
+
+/**
+ * Build `16-recency`'s git history from scratch, dated relative to the
+ * pinned reference date.
+ *
+ * ## Why this fixture needs its own repository
+ *
+ * `recency` is the one scoring input no eval fixture could exercise.
+ * `rank_score = agent_risk * (1 + recency * 0.5)` applies a multiplier
+ * larger than any single `agent_risk` term — measured at `0.25.10` it
+ * reorders 99.9% of a real report — and the four deep fixtures are all
+ * months old, so it is 0 on every one of their findings and
+ * `rank_score` collapses to `agent_risk`. A term the metric cannot see
+ * cannot be validated, tuned or removed.
+ *
+ * ## Why the dates are relative and the history is rebuilt
+ *
+ * Committing a `.git` directory would freeze the ages at authoring time
+ * and they would decay past 14 days within a fortnight, taking the
+ * fixture's whole purpose with them. Deriving them from
+ * `RANKING_REFERENCE_DATE` instead means the tranches hold their
+ * `recency` for as long as the constant does, and both move together
+ * when somebody bumps it deliberately.
+ *
+ * Rebuilt from scratch on every run rather than updated, so the result
+ * is a function of the tree and the constant alone.
+ */
+async function materialiseSyntheticHistory(): Promise<void> {
+  const dir = resolve(FIXTURES_DIR, "16-recency");
+  if (!existsSync(dir)) return;
+
+  const refMs = Date.parse(RANKING_REFERENCE_DATE);
+  if (!Number.isFinite(refMs)) {
+    process.stderr.write(
+      `evals:setup: RANKING_REFERENCE_DATE is unparsable (${RANKING_REFERENCE_DATE}) — skipping 16-recency history.\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  await rm(resolve(dir, ".git"), { recursive: true, force: true });
+  const git = async (...args: string[]): Promise<void> => {
+    await execFileAsync("git", args, { cwd: dir });
+  };
+  await git("init", "--initial-branch=main", "--quiet");
+  await git("config", "user.name", "crimes-fixtures");
+  await git("config", "user.email", "fixtures@crimes.invalid");
+  await git("config", "commit.gpgsign", "false");
+
+  for (const tranche of RECENCY_TRANCHES) {
+    const present = tranche.paths.filter((p) => existsSync(resolve(dir, p)));
+    if (present.length === 0) continue;
+    await git("add", "--", ...present);
+    const when = new Date(refMs - tranche.days * 86_400_000).toISOString();
+    await execFileAsync(
+      "git",
+      ["commit", "-m", tranche.message, "--quiet", "--date", when],
+      {
+        cwd: dir,
+        env: {
+          ...process.env,
+          GIT_AUTHOR_DATE: when,
+          GIT_COMMITTER_DATE: when,
+        },
+      },
+    );
+  }
+  process.stdout.write(
+    `evals:setup: 16-recency history rebuilt at ${RANKING_REFERENCE_DATE} ` +
+      `(${RECENCY_TRANCHES.length} tranches).\n`,
+  );
+}

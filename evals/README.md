@@ -240,7 +240,7 @@ not have. That is a real re-ranking of the product's own sort order, not
 noise, which is why the constant is committed rather than computed from
 today.
 
-#### The recency term itself is unvalidated, and the one measurement says it hurts
+#### The recency term, measured from both sides
 
 Pinning the clock made a question askable that never had been: **does
 the recency multiplier improve the ranking it is part of?**
@@ -333,8 +333,34 @@ do so has no stated purpose, no measurement, and one labelled result
 pointing against it.
 
 **The question to settle is a product one** — is the top of the report
-"riskiest" or "riskiest among what you are currently touching?" — and
-the instrument to settle it now exists either way.
+"riskiest" or "riskiest among what you are currently touching?"
+
+#### Settled, at `0.25.11`: it depends on the question, and by a lot
+
+`16-recency` is a deep fixture (34 findings) whose git history
+`evals:setup` builds from `RANKING_REFERENCE_DATE`, so its age tranches
+hold their `recency` instead of decaying with the wall clock. It carries
+two scenarios chosen to test the term's premise from **both** sides
+rather than to confirm it:
+
+| scenario | the answer lives in | recency on | off | |
+|---|---|---|---|---|
+| `plan-16-checkout-rollout` — what must ship with the feature we are building? | `src/checkout/` (3 days old) | **0.844** (rank 1) | 0.425 (rank 15) | **+0.418** |
+| `review-16-whole-repo-audit` — what is the most dangerous thing here, regardless of activity? | `src/legacy/` (90 days old) | 0.327 (rank 12) | **0.456** (rank 5) | **−0.129** |
+
+**This corrects the reading above.** The earlier evidence — fixture 15's
+−0.069 and posthog's −0.028 mean `agent_risk` in the top-20 — is not
+wrong, it is *one-sided*: the only recency-sensitive scenario fixture 15
+had was a whole-repo question, and `agent_risk` has no notion of what the
+user is asking. Given a question about active work, the term is worth
+**+0.418 nDCG** and moves the finding you need from 15th to 1st.
+
+So the multiplier is not a mistake. It is a **strong, unlabelled bet
+that the reader cares about what the team is currently touching**, and
+the bet pays about three times more when it is right than it costs when
+it is wrong. What remains genuinely open is whether the default should
+make that bet silently, and whether `crimes scan --no-recency` deserves
+to be more discoverable than a flag nobody knew to reach for.
 
 Read it with three caveats, all of them load-bearing:
 

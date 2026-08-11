@@ -535,8 +535,11 @@ without it. The first screen of a real report is chosen by commit date.
 no rationale. So the term has no stated purpose, no measurement, and one
 labelled result against it.
 
-**Not acted on.** One shallow fixture and one moved scenario cannot
-carry a decision about a multiplier this large, and reweighting on it
+**Superseded by G.** The reading below was one-sided, and building the
+fixture that could test the premise both ways reversed the headline.
+
+**Not acted on at the time.** One shallow fixture and one moved scenario
+cannot carry a decision about a multiplier this large, and reweighting on it
 would be the same unvalidated-constant mistake this project keeps
 recording. What can be said: `rank_score = agent_risk * (1 + recency *
 0.5)` applies a multiplier bigger than any single `agent_risk` input,
@@ -545,6 +548,46 @@ against it, and **the eval set cannot settle it** — the deep fixtures are
 old by construction and the recent ones are shallow. Settling it needs a
 fixture with synthetic git history dated relative to
 `RANKING_REFERENCE_DATE`. Sized in `evals/README.md`.
+
+### G (`0.25.11`) — the recency bet, measured from both sides
+
+F said the term was unvalidated and the one measurement pointed against
+it. Building the instrument to settle it **reversed the headline**, which
+is the best argument in this whole run for not acting on one-sided
+evidence.
+
+`16-recency` is the only fixture with git history. `evals:setup` builds
+it from `RANKING_REFERENCE_DATE` in four tranches (90/20/9/3 days), so
+its ages hold instead of decaying with the wall clock, and at 34 findings
+it clears the depth floor. Two scenarios, chosen to test the premise
+from **both** sides rather than to confirm it:
+
+| scenario | answer lives in | on | off | |
+|---|---|---|---|---|
+| `plan-16-checkout-rollout` | `src/checkout/`, 3 days | **0.844** (rank 1) | 0.425 (rank 15) | **+0.418** |
+| `review-16-whole-repo-audit` | `src/legacy/`, 90 days | 0.327 (rank 12) | **0.456** (rank 5) | **−0.129** |
+
+The earlier evidence was not wrong, it was **one-sided**: fixture 15's
+only recency-sensitive scenario happened to be a whole-repo question,
+and posthog's `agent_risk` comparison has no notion of what the user is
+asking. Given a question about active work the term moves the finding
+you need from 15th to 1st.
+
+So it is a **strong, unlabelled bet that the reader cares about what the
+team is currently touching**, paying about three times more when right
+than it costs when wrong — not the defect F was heading toward calling
+it. What is still open is whether the default should make that bet
+silently.
+
+**And it exposed a second half of the same hole.** `recency` was pinned
+at `0.25.7`; `churn`'s window was not. `git log --since="90 days ago"`
+resolves against the system clock, so this fixture's churn would have
+decayed as real days passed while its recency held. Both are now
+anchored to the same reference — `normaliseSince` returns an absolute
+instant, with calendar-correct months and years rather than 30- and
+365-day approximations — and `referenceNowMs` moved to
+`util/reference-clock.ts` so that `git/churn.ts` reading it does not
+make a cycle with `scoring/build.ts`.
 
 ## 9. Outcome
 

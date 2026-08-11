@@ -45,6 +45,12 @@ coverage/
 # materialises the body fresh at the pinned SHA.
 evals/fixtures/0[2-4]-*/**
 !evals/fixtures/0[2-4]-*/.crimes-eval-meta.json
+# 16-recency's git history is built by `pnpm run evals:setup` from
+# RANKING_REFERENCE_DATE, never committed. Committing it would freeze the
+# tranche ages at authoring time, and they would decay past 14 days
+# within a fortnight — taking the fixture's whole purpose with them.
+evals/fixtures/16-recency/.git/
+
 # Eval replay output (per PR run, not pinned). The pinned per-version
 # results under evals/results/<version>/ are committed. `--out` targets
 # for re-scoring an older sample under the current scorer (see

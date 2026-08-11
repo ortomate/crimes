@@ -26,26 +26,55 @@ async function git(cwd: string, ...args: string[]): Promise<void> {
   });
 }
 
+/**
+ * `normaliseSince` used to return a git phrase ("90 days ago"), which
+ * git resolved against the **system clock** — so a churn window slid
+ * under a scan that had pinned everything else. It now returns an
+ * absolute instant computed from the reference clock. The tests below
+ * pin the property that matters (the same tree and reference produce the
+ * same window) rather than the string shape.
+ */
 describe("normaliseSince", () => {
+  const ref = Date.parse("2026-08-11T00:00:00Z");
+
   it.each([
-    ["90d", "90 days ago"],
-    ["1d", "1 days ago"],
-    ["2w", "2 weeks ago"],
-    ["6m", "6 months ago"],
-    ["1y", "1 years ago"],
-    [" 30D ", "30 days ago"],
-  ])("expands %s to %s", (input, expected) => {
-    expect(normaliseSince(input)).toBe(expected);
+    ["90d", "2026-05-13T00:00:00.000Z"],
+    ["1d", "2026-08-10T00:00:00.000Z"],
+    ["2w", "2026-07-28T00:00:00.000Z"],
+    [" 30D ", "2026-07-12T00:00:00.000Z"],
+  ])("resolves %s against the reference instant", (input, expected) => {
+    expect(normaliseSince(input, ref)).toBe(expected);
   });
 
-  it("passes phrases through unchanged so git can parse them", () => {
-    expect(normaliseSince("2 weeks ago")).toBe("2 weeks ago");
-    expect(normaliseSince("2026-01-01")).toBe("2026-01-01");
+  /**
+   * Calendar arithmetic, not 30- and 365-day approximations: `6m` back
+   * from 11 August is 11 February, and `1y` is the same date last year.
+   * git's own phrases are calendar-aware and matching that is the point
+   * of computing the date here instead of handing git a relative phrase.
+   */
+  it("uses calendar months and years, not fixed day counts", () => {
+    expect(normaliseSince("6m", ref)).toBe("2026-02-11T00:00:00.000Z");
+    expect(normaliseSince("1y", ref)).toBe("2025-08-11T00:00:00.000Z");
+  });
+
+  it("is a pure function of the window and the reference", () => {
+    // The whole point: two calls a fortnight apart agree, and only a
+    // deliberate change of reference moves the window.
+    expect(normaliseSince("90d", ref)).toBe(normaliseSince("90d", ref));
+    expect(normaliseSince("90d", ref + 14 * 86_400_000)).not.toBe(
+      normaliseSince("90d", ref),
+    );
+  });
+
+  it("passes explicit dates and phrases through unchanged", () => {
+    // The caller named an absolute point; moving it is not our business.
+    expect(normaliseSince("2 weeks ago", ref)).toBe("2 weeks ago");
+    expect(normaliseSince("2026-01-01", ref)).toBe("2026-01-01");
   });
 
   it("passes through anything that doesn't match the compact pattern", () => {
-    expect(normaliseSince("90days")).toBe("90days");
-    expect(normaliseSince("nonsense")).toBe("nonsense");
+    expect(normaliseSince("90days", ref)).toBe("90days");
+    expect(normaliseSince("nonsense", ref)).toBe("nonsense");
   });
 });
 

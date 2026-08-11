@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
+import { referenceNowMs, windowStartMs } from "../util/reference-clock.js";
 import { dirname, relative, resolve, sep } from "node:path";
 
 /**
@@ -57,28 +58,27 @@ export interface CollectChurnResult {
 }
 
 /**
- * Convert compact since-strings ("90d", "2w", "6m", "1y") to a phrase Git
- * understands. Anything that doesn't match the compact pattern is returned
- * as-is so Git's own parser handles dates / phrases.
+ * Convert a compact since-string ("90d", "2w", "6m", "1y") to an
+ * **absolute** instant git will not re-interpret. Anything that is not a
+ * compact window is returned as-is so git's own parser handles explicit
+ * dates and phrases.
+ *
+ * Absolute rather than relative because `git log --since="90 days ago"`
+ * resolves against the **system clock**, which left a churn window
+ * sliding under scans that had pinned everything else. `0.25.7` pinned
+ * `recency` via `CRIMES_NOW` and missed this: the `16-recency` fixture's
+ * commits sit at fixed offsets from `RANKING_REFERENCE_DATE`, but the
+ * window measuring them kept moving, so its churn decayed as real days
+ * passed while its recency held still. Anchoring both to one reference
+ * makes a scan a function of the tree and the constant alone.
+ *
+ * An explicit date or a git phrase passes through untouched — the caller
+ * named an absolute point and it is not this function's business to move
+ * it.
  */
-export function normaliseSince(since: string): string {
-  const compact = /^\s*(\d+)\s*([dwmy])\s*$/i.exec(since);
-  if (!compact) return since;
-
-  const value = Number(compact[1]);
-  const unit = compact[2]!.toLowerCase();
-  switch (unit) {
-    case "d":
-      return `${value} days ago`;
-    case "w":
-      return `${value} weeks ago`;
-    case "m":
-      return `${value} months ago`;
-    case "y":
-      return `${value} years ago`;
-    default:
-      return since;
-  }
+export function normaliseSince(since: string, nowMs: number = referenceNowMs()): string {
+  const startMs = windowStartMs(since, nowMs);
+  return startMs === undefined ? since : new Date(startMs).toISOString();
 }
 
 /**

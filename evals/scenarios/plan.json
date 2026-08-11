@@ -112,5 +112,20 @@
       "Did the agent treat the route mismatches as blocking, since they become a network boundary?",
       "Did the agent use coverage.by_package or the package layout to scope what moves?"
     ]
+  },
+  {
+    "id": "plan-16-checkout-rollout",
+    "fixture": "16",
+    "kind": "plan",
+    "prompt": "The checkout flow is the feature this team is shipping this week. Use `crimes scan --format json` and plan what must be dealt with before it goes out. Lead with the finding that would make the two halves of the codebase disagree about what a basket is, then cover the blocking call on the request path and the discarded error. Give an order of work and say what you would leave until after the rollout.",
+    "expected_artifacts": {
+      "referenced_findings": ["contract_drift", "sync_io_in_hotpath", "swallowed_error"],
+      "referenced_files": ["src/checkout/basket.ts", "src/checkout/session.ts"],
+      "expected_priority": "contract_drift"
+    },
+    "judge_questions": [
+      "Did the agent identify that the checkout Basket has drifted ahead of the shared one — carrying `currency` and `discountCents` the core declaration has never heard of — rather than describing them as merely 'two similar types'?",
+      "Did the agent order the work by what blocks the rollout rather than by where the findings happened to sit in the report?"
+    ]
   }
 ]

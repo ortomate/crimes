@@ -105,6 +105,13 @@
       "name": "risky-service",
       "kind": "symlink",
       "purpose": "Existing bundled example (symlinked from examples/risky-service). The 0.16.0 correctness + authority fixture, registered as an eval fixture in 0.25.8 because it already fires six of the nine differentiated detectors no scenario referenced: agent_permission_sprawl, config_drift, duplicated_policy, mock_saturation, pass_through_abstraction, unsafe_retry."
+    },
+    {
+      "id": "16",
+      "path": "evals/fixtures/16-recency",
+      "name": "recency",
+      "kind": "hand-crafted",
+      "purpose": "The only fixture with git history, built by evals:setup with commits dated relative to RANKING_REFERENCE_DATE. Deep (34 findings) so it clears the depth floor, and split into age tranches so `recency` — the one scoring input no other fixture could exercise — is live. Its scenarios test the term's premise from both sides: plan-16-checkout-rollout's answer is in the newest tranche, review-16-whole-repo-audit's is in the oldest."
     }
   ]
 }

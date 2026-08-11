@@ -30,6 +30,7 @@ import { getDefaultsFor } from "../detector-defaults.js";
 import { resolveLanguagePackRouter } from "../discovery/language-pack-router.js";
 import type { Finding, FindingScores, Severity } from "../finding.js";
 import { collectChurn } from "../git/churn.js";
+import { referenceNowMs } from "../util/reference-clock.js";
 import type { CollectChurnResult } from "../git/churn.js";
 import type { ImportGraph } from "../imports/types.js";
 import { TEST_DIR_RE, isTestFile, testBaseCovers } from "../util/test-files.js";
@@ -101,6 +102,8 @@ export interface BlastRadiusIndex {
   directCountForFile(repoPath: string): number;
 }
 
+export { referenceNowMs };
+
 const RECENCY_FULL_DAYS = 7;
 const RECENCY_DECAY_DAYS = 14;
 const MS_PER_DAY = 86_400_000;
@@ -128,32 +131,11 @@ const MS_PER_DAY = 86_400_000;
  * The remaining exposure is a scan pair that straddles UTC midnight.
  * That is a real limit, not a solved case — it is bounded and
  * predictable rather than continuous.
- */
-/**
- * Reference "now" for {@link recencyForDate}, overridable via
- * `CRIMES_NOW` (ISO-8601, or epoch milliseconds).
  *
- * Same class of escape hatch as `CRIMES_HOME` in `feedback/paths.ts`,
- * and it exists for one reason: **`recency` makes the scan a function of
- * wall-clock time, which makes `evals:ranking` non-reproducible.**
- * `rank_score = agent_risk * (1 + recency * 0.5)`, and `recency` is 1
- * within 7 days of a file's last commit and 0 beyond 14, so the same
- * build scanning the same fixture ranks it differently a fortnight
- * later. The eval harness pins this so its "deterministic, no noise
- * band" claim is true; product runs leave it unset and read the clock.
- *
- * A malformed value is **ignored** rather than treated as epoch 0. A
- * typo that silently pinned every scan to 1970 — making every file
- * maximally stale — is a worse failure than not honouring the override.
+ * The reference instant itself honours `CRIMES_NOW`; see
+ * {@link referenceNowMs}, re-exported from this module because this was
+ * its original home and callers still import it from here.
  */
-export function referenceNowMs(env: NodeJS.ProcessEnv = process.env): number {
-  const raw = env.CRIMES_NOW;
-  if (raw === undefined || raw.trim() === "") return Date.now();
-  const asNumber = Number(raw);
-  const parsed = Number.isFinite(asNumber) ? asNumber : Date.parse(raw);
-  return Number.isFinite(parsed) ? parsed : Date.now();
-}
-
 export function recencyForDate(
   iso: string | undefined,
   nowMs: number = referenceNowMs(),

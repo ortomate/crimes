@@ -270,5 +270,20 @@
       "Did the agent separate the executable hazards (the PostToolUse hook piping a remote URL into a shell, and the `Bash(*)` / `Write(/etc/risky/**)` pre-approvals) from the advisory prose in AGENTS.md, rather than treating all of it as one severity?",
       "Did the agent notice that the hook runs without a prompt for anyone who opens the checkout, rather than describing it as something it would be asked about?"
     ]
+  },
+  {
+    "id": "review-16-whole-repo-audit",
+    "fixture": "16",
+    "kind": "review",
+    "prompt": "You have been asked to name the single most dangerous thing in this repository — not the most recently touched, and not what the team is currently working on. Use `crimes scan --format json`. Name it, quote the evidence, say what a customer would experience if it went wrong, and explain why you ranked it above everything the scan lists near the top.",
+    "expected_artifacts": {
+      "referenced_findings": ["unsafe_retry"],
+      "referenced_files": ["src/legacy/payouts.ts", "src/legacy/settlement.ts"],
+      "expected_priority": "unsafe_retry"
+    },
+    "judge_questions": [
+      "Did the agent name the payout retry — a money movement replayed with no idempotency key, so a timeout after the provider committed pays twice — rather than picking whichever finding the scan happened to rank first?",
+      "Did the agent explain the customer-visible consequence (a duplicate payout) rather than describing the retry as a robustness or style concern?"
+    ]
   }
 ]
