@@ -399,3 +399,35 @@ and neither is the "unported improvement" the parity table claimed.
    `sync_io_in_hotpath` differs in base (0.55 vs 0.50) and step (0.08 vs
    0.06). Neither was visible while the entry said "unported
    improvement", so S4's list of three is really a list of five.
+
+### S7 (`0.25.3`)
+
+1. **§4 S7 says "both readings are defensible, which is exactly the
+   shape of the `task_runner.py` decision". It is not that shape, and
+   the data is not evenly balanced.** Inspected rather than reasoned
+   about, the test-only bucket across all four Python corpus repos is
+   **63 findings in 36 modules, every one of them developer or CI
+   tooling** — `scripts/ci/prek/` pre-commit hooks, `scripts/ci/`
+   analysis scripts, `dev/` release tooling, one `examples/`. Each is
+   referenced exactly once, by its own unit test in a mirrored test
+   tree. Nothing in the bucket is a plausible hot path. `task_runner.py`
+   was the opposite case: 42 references, from non-test code.
+
+2. **The load-bearing part of the exemption is the `__main__` guard, not
+   the reference count**, and the plan's framing obscures that. The
+   modules the zero bar protects against — reached by `python -m`,
+   `entry_points`, Django settings, DAG discovery by path — have *zero*
+   textual references, so they were already exempt. Widening to
+   test-only adds only modules that have a test, and a guarded module
+   whose sole mention in the repository is its own unit test is a script
+   with a test.
+
+3. **§1 D4 says 60 findings; it is 63, and only 50 of them are
+   airflow's.** mlflow contributes 13. zulip and pydantic contribute
+   none. Measured effect: airflow 9,793 → 9,743, mlflow 6,413 → 6,400,
+   nothing added anywhere, every removed file under `scripts/`, `dev/`
+   or `examples/`.
+
+4. **No Python fixture has a `__main__` guard**, so none of the 14 is
+   eligible for this exemption and all scan identically. Same coverage
+   hole S2 hit from the other direction.

@@ -98,6 +98,39 @@ describe("isUnreferencedScript", () => {
     expect(isUnreferencedScript("sdk/runner.py", GUARD, scriptIndex)).toBe(false);
   });
 
+  /**
+   * The bucket 0.25.0 deferred and 0.25.3 took. Inspected across the
+   * Python corpus it is 63 findings in 36 modules, every one of them
+   * developer or CI tooling with a mirrored unit test —
+   * `scripts/ci/prek/check_deprecations.py` referenced once, by
+   * `scripts/tests/ci/prek/test_check_deprecations.py`.
+   */
+  it("is true for a guarded module only tests reference", () => {
+    const index = buildPyModuleReferenceIndex([
+      { file: "scripts/ci/check.py", source: GUARD },
+      {
+        file: "scripts/tests/ci/test_check.py",
+        source: "from scripts.ci.check import main\n",
+      },
+    ]);
+    expect(index.referencesTo("scripts/ci/check.py")).toEqual({ total: 1, test: 1 });
+    expect(isUnreferencedScript("scripts/ci/check.py", GUARD, index)).toBe(true);
+  });
+
+  it("is false as soon as one non-test reference exists", () => {
+    // The guard is what makes the test-only bar safe, but a single
+    // production mention still has to defeat it — that is task_runner.py.
+    const index = buildPyModuleReferenceIndex([
+      { file: "scripts/ci/check.py", source: GUARD },
+      {
+        file: "scripts/tests/ci/test_check.py",
+        source: "from scripts.ci.check import main\n",
+      },
+      { file: "app/wire.py", source: 'mock.patch("scripts.ci.check.main")\n' },
+    ]);
+    expect(isUnreferencedScript("scripts/ci/check.py", GUARD, index)).toBe(false);
+  });
+
   it("is false without a guard, however unreferenced", () => {
     const index = buildPyModuleReferenceIndex([
       { file: "app/orphan.py", source: "def f():\n    pass\n" },

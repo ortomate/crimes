@@ -29,15 +29,17 @@ import { isTestFile } from "../../util/test-files.js";
  * not "who imports this?" but "does anyone mention it?", and the answer
  * is deliberately allowed to come from a string.
  *
- * ## The bar is zero
+ * ## The bar is zero *non-test* references
  *
- * Only a module **nothing at all** references is treated as a script.
- * Measured across airflow's 137 guarded files: 94 modules with no
- * reference (151 findings), 35 referenced only by tests (60), 8
- * referenced by non-test code (16, including `task_runner.py`). The
- * conservative cut takes the first bucket only — the test-only bucket is
- * a judgement call that can be made later with its own argument, and a
- * module a test exercises is not obviously unmaintained.
+ * A module is treated as a script when nothing outside the test suite
+ * mentions it. Measured across airflow's 137 guarded files: 94 modules
+ * with no reference (151 findings), 35 referenced only by tests (60), 8
+ * referenced by non-test code (16, including `task_runner.py`).
+ *
+ * `0.25.0` took the first bucket only and left the second as an open
+ * judgement. `0.25.3` takes both — see {@link isUnreferencedScript} for
+ * what the second bucket turned out to contain when it was inspected
+ * rather than reasoned about. The third bucket stays reported.
  */
 
 export interface PyModuleReferences {
@@ -154,12 +156,48 @@ export function hasMainGuard(source: string): boolean {
 
 /**
  * Whether a module is a one-shot script: it has an entry-point guard and
- * **nothing in the repository references it**.
+ * **no non-test code references it**.
  *
  * Returns `false` whenever the index is absent, so a detector without
  * repo-wide context keeps its existing behaviour rather than silently
  * suppressing. Missing the exemption costs a false positive; applying it
  * wrongly costs a silence, and that is the more expensive mistake.
+ *
+ * ## Why the bar moved from zero to zero-non-test (0.25.3)
+ *
+ * The comment above used to say the bar was zero references of any kind,
+ * with the test-only bucket left as "a judgement call that can be made
+ * later with its own argument". This is that argument.
+ *
+ * The bucket was inspected rather than reasoned about. Across the four
+ * Python corpus repos it is **63 findings in 36 modules, and every one is
+ * developer or CI tooling**:
+ *
+ * ```
+ * airflow   50 findings, 29 modules — all scripts/ci/, scripts/ci/prek/,
+ *                                     scripts/in_container/, dev/registry/
+ * mlflow    13 findings,  7 modules — all dev/, plus one examples/
+ * zulip      0
+ * pydantic   0
+ * ```
+ *
+ * Every one is referenced exactly once, by its own unit test, in a
+ * mirrored test tree (`scripts/ci/prek/check_deprecations.py` ←
+ * `scripts/tests/ci/prek/test_check_deprecations.py`). A blocking read in
+ * a pre-commit hook costs nothing. Not one is a plausible hot path.
+ *
+ * **The guard is what makes this safe, not the reference count.** The
+ * worry the zero bar was protecting against is a production module whose
+ * callers are invisible to a textual index — reached by `python -m`, an
+ * `entry_points` string, Django settings, DAG discovery by path. Those
+ * modules have *zero* references and were already exempt; widening to
+ * test-only does not add them. What it adds is modules that have a test,
+ * and a module carrying `if __name__ == "__main__":` whose only mention
+ * in the entire repository is its own unit test is a script with a test.
+ *
+ * `task_runner.py`, the file that defeated three earlier signals, is not
+ * affected: the repository talks about it 42 times, including from
+ * non-test code, so it stays reported under either bar.
  */
 export function isUnreferencedScript(
   file: string,
@@ -169,5 +207,7 @@ export function isUnreferencedScript(
   if (index === undefined) return false;
   if (!hasMainGuard(source)) return false;
   const refs = index.referencesTo(file);
-  return refs !== undefined && refs.total === 0;
+  // `total === test` subsumes the old `total === 0`: no references at all
+  // is trivially "no non-test references".
+  return refs !== undefined && refs.total === refs.test;
 }
