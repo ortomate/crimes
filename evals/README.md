@@ -214,10 +214,31 @@ Two consequences, until this is fixed:
 2. **After adding or editing a fixture, wait or re-baseline.** A delta
    measured inside the 14-day window is part fixture-age.
 
-The fix is to thread a pinned `nowMs` through `buildScoringContext`
-(it currently calls `Date.now()` directly at the point of use) and give
-the eval runner a way to set it, so the metric is a function of the code
-alone. Not done — sized here rather than assumed away.
+**Fixed in `0.25.7`.** `buildScoringContext` takes its reference "now"
+from `CRIMES_NOW` when set — the same escape hatch as `CRIMES_HOME` in
+`feedback/paths.ts` — and the eval runner pins every fixture scan to
+`RANKING_REFERENCE_DATE`, a committed constant. Product runs leave it
+unset, which is correct: a user's repo really is a function of today.
+The report records `reference_date` and `--compare` warns when two
+reports disagree about it.
+
+Verified across a real day boundary rather than argued. Scanning fixture
+`15` at three pinned dates, same build, same files:
+
+```
+CRIMES_NOW=2026-08-11   recency [0.57, 1]
+CRIMES_NOW=2026-08-12   recency [0.43, 1]     ← one day later, already different
+CRIMES_NOW=2026-08-26   recency [0]           ← and the finding order changes
+```
+
+Without the pin the report would have moved overnight, and reordered
+within a fortnight, on a build nobody touched.
+
+**Bumping `RANKING_REFERENCE_DATE` is expected to move the ranking** —
+every fixture edited within 14 days of the new date gains a boost it did
+not have. That is a real re-ranking of the product's own sort order, not
+noise, which is why the constant is committed rather than computed from
+today.
 
 Read it with three caveats, all of them load-bearing:
 
