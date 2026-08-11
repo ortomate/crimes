@@ -524,6 +524,17 @@ The term assumes recently-touched means more relevant; here it measured
 when the author typed, and in a real repo a file committed yesterday is
 often one somebody just fixed.
 
+**And on a real repository it is much bigger than the fixture showed.**
+Toggling it on posthog moves **99.9% of 14,181 findings** (median
+displacement 534 places), makes the top-20 **100% recency-boosted**, and
+costs 0.028 of mean `agent_risk` in that top-20 against the same slice
+without it. The first screen of a real report is chosen by commit date.
+
+`PRD.md` says ranking "should sort by an aggregate risk score" and
+**never mentions recency**; the field's doc comment gives mechanics and
+no rationale. So the term has no stated purpose, no measurement, and one
+labelled result against it.
+
 **Not acted on.** One shallow fixture and one moved scenario cannot
 carry a decision about a multiplier this large, and reweighting on it
 would be the same unvalidated-constant mistake this project keeps

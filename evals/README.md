@@ -295,10 +295,46 @@ recording. It is enough to say:
 3. The eval set cannot currently settle it, because the deep fixtures
    are old by construction and the recent ones are shallow.
 
-Settling it needs a fixture with **synthetic git history** — commits
-dated relative to `RANKING_REFERENCE_DATE` at `evals:setup` time — so a
-deep fixture can carry live recency deterministically. That is the
-sized next step, and it is not taken here.
+Settling it *against the labels* needs a fixture with **synthetic git
+history** — commits dated relative to `RANKING_REFERENCE_DATE` at
+`evals:setup` time — so a deep fixture can carry live recency
+deterministically. That is the sized next step, and it is not taken
+here.
+
+But the label-free half can be measured today, on a real repository, and
+it is larger than the fixture suggested. Scanning posthog with and
+without the multiplier — same 14,181 findings, same scores, only the
+sort differs:
+
+| | recency on | recency off | delta |
+|---|---|---|---|
+| top-20 mean `agent_risk` | 0.7170 | 0.7450 | **−0.0280** |
+| top-100 mean `agent_risk` | 0.6645 | 0.6874 | −0.0229 |
+| top-500 mean `agent_risk` | 0.5964 | 0.6120 | −0.0156 |
+
+```
+findings whose absolute position changes:  14,167 / 14,181  (99.9%)
+median displacement among movers:          534 places
+share of the top-20 that is recency-boosted:  100%
+```
+
+**The entire first screen of a real report is chosen by commit date**,
+and the findings it promotes carry systematically *lower* `agent_risk`
+than the ones they displace.
+
+That is not proof the ordering is worse — `agent_risk` is not ground
+truth, and "surface where work is happening" is a defensible product
+stance. The problem is that it does not appear to be a *chosen* stance.
+`PRD.md` says ranking "should sort by an aggregate risk score" and does
+not mention recency anywhere; the field's own doc comment describes the
+mechanics and gives no rationale. So a multiplier that reorders 99.9% of
+a report, fills its top screen, and costs 0.028 of mean `agent_risk` to
+do so has no stated purpose, no measurement, and one labelled result
+pointing against it.
+
+**The question to settle is a product one** — is the top of the report
+"riskiest" or "riskiest among what you are currently touching?" — and
+the instrument to settle it now exists either way.
 
 Read it with three caveats, all of them load-bearing:
 
