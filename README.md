@@ -137,60 +137,53 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ## Status — `crimes@0.25.0`
 
-`crimes@0.25.0` is the latest version: **the honest denominator.** A
-scanner's report is a fraction, and until now `crimes` never showed you
-the bottom half. Six streams, all the same sentence — what the tool
-looked at, what it skipped, and whether it said so.
+`crimes@0.25.0` is the latest version. Six changes to what the scanner
+reads, what it skips, and how it reports the difference.
 
-- **It scanned things it shouldn't.** A user `exclude` replaced the
-  defaults wholesale, so setting one pattern silently un-excluded
-  `node_modules` and every lockfile — and `crimes init`, the documented
-  first-run command, hand-copied **9 of the 20** default patterns under
-  a comment promising parity. `exclude` is now additive, with
-  `excludeDefaults: false` to opt out.
-- **It charged things it never established.** `sync_io_in_hotpath` was
-  reporting one-shot developer scripts: airflow **811 → 680** (−16% of
-  the detector), mlflow 402 → 347, pydantic 17 → 11. Three earlier
-  candidate signals were all defeated by the same production file, and
-  so is the one previously recorded as *"the signal that would work"* —
-  what separates it is that the repo **mentions** the module 42 times,
-  including inside a `mock.patch` string no import graph can see.
-- **It now skips what a repo has already disowned, and files a
-  receipt.** pydantic's `pydantic/v1` is excluded by its own ruff,
-  coverage, pyright and codespell: **487 → 402 findings, −17.5%**, with
-  one `coverage.warnings[]` entry naming the directory, its files, and
-  the opt-out. A path is skipped only when **two independent tools**
-  agree — across the whole corpus that is exactly one directory, and
-  airflow's `[tool.hatch] exclude = ["*"]` is never honoured.
-- **It disagreed with itself.** `commented_out_code`'s two variants
-  identified findings differently, and the conditional one was
-  *unstable*: an unrelated second block in a file re-fingerprinted the
-  first. Unified. The audit behind it found that **of the 8 charges
-  implemented in both language packs, only one agrees** — reported, not
-  fixed, because seven simultaneous scoring changes would be
-  unattributable.
-- **The instrument had a 15× phantom in it.** `mean_ndcg_deep` averaged
-  whichever scenarios cleared a floor of 40, and one fixture sat at 42
-  while carrying 75% of them. Losing three findings would have moved the
-  headline **+0.1333 with no scoring change**. Re-centring the floor
-  into the 28-finding empty gap fixed it for free: same population, same
-  number, headroom 2 → 14.
+- **A user `exclude` no longer replaces the defaults.** Setting one
+  pattern used to inherit nothing from `DEFAULT_CONFIG`, so it silently
+  un-excluded `node_modules` and every lockfile. `crimes init` had a
+  second instance of the same defect, hand-copying 9 of the 20 default
+  patterns. `exclude` is now additive; `excludeDefaults: false` restores
+  the old behaviour.
+- **`sync_io_in_hotpath` no longer charges one-shot scripts.** airflow
+  811 → 680 findings (−16% of the detector), mlflow 402 → 347, pydantic
+  17 → 11. A module counts as a script only if it has a `__main__` guard
+  and zero textual references anywhere in the repo — three earlier
+  candidate signals, including the one previously recorded as correct,
+  all exempted a known production file.
+- **crimes honours a repository's own tooling exclusions.** pydantic's
+  `pydantic/v1` is excluded by its ruff, coverage, pyright and codespell
+  config: 487 → 402 findings, −17.5%, with one `coverage.warnings[]`
+  entry naming the directory, its file count and the opt-out. A path is
+  skipped only when two or more independent tools name it; across the
+  corpus that is exactly one directory. Build-backend tables such as
+  `[tool.hatch.build]` are never read.
+- **`commented_out_code`'s two variants now identify a block the same
+  way.** The conditional form was unstable: an unrelated second block in
+  the same file changed the first one's fingerprint.
+- **One shared intrinsic ladder across both language packs**, plus a
+  test that fails on undocumented cross-pack disagreement. An audit
+  found 7 of 8 twice-implemented charges disagree; they are reported and
+  not yet changed.
+- **`DEPTH_FLOOR` re-centred 40 → 28.** Fixture `01` sat at 42 findings
+  while carrying 75% of the deep aggregate, so removing three findings
+  would have moved the headline +0.1333 with no scoring change. The
+  population, the mean and all nine stored baselines are unchanged by
+  the move.
 
-`schema_version` stays at `0.7.0` — every change is additive. Fingerprints
-move for one population: `commented_out_code` in single-block non-JS
-files.
+`schema_version` stays at `0.7.0`; all schema changes are additive.
+Fingerprints move for one population: `commented_out_code` in
+single-block non-JS files.
 
-Eval baseline: claude 0.82 → **0.84**, codex 0.61 → **0.58** over 102
-combinations. **Neither is a before/after** — the scenario set grew by
-three, so read the 48 scenarios present in both runs: claude
-**+0.0pp** (0.823 → 0.823), codex **−5.1pp**. And all 96 stable pairs
-received a **byte-identical scan context**, because no fixture's
-findings moved, so this run is a free repeat sample that measures agent
-variance rather than the product: 16 of 48 scenarios moved for *each*
-agent with identical input, netting +0.0pp for one and −5.1pp for the
-other. Codex's stated ±3pp band is too narrow. `structural_pass_rate`
-cannot see most of this release anyway — the pydantic and airflow
-numbers above are the evidence.
+Eval baseline: claude 0.82 → 0.84, codex 0.61 → 0.58 over 102
+combinations. The scenario set grew by three, so those are not a
+before/after; on the 48 scenarios present in both runs claude is +0.0pp
+and codex −5.1pp. All 96 stable pairs received a byte-identical scan
+context, so the run is a repeat sample measuring agent variance — 16 of
+48 scenarios moved for each agent on identical input. `structural_pass_rate`
+cannot observe the first three changes above, which move findings on
+real repositories but not on the fixtures.
 
 Release notes: [`docs/releases/v0.25.0.md`](./docs/releases/v0.25.0.md).
 

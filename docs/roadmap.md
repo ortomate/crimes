@@ -4,55 +4,53 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current version:** `crimes@0.25.0` ✅ shipped — **the honest
-  denominator.** A scanner's report is a fraction and `crimes` never
-  showed the bottom half. Six streams on one sentence: what the tool
-  looked at, what it skipped, whether it said so. **It scanned things it
-  shouldn't** — a user `exclude` replaced the defaults wholesale, and
-  `crimes init` hand-copied 9 of 20 patterns under a comment promising
-  parity, so the documented first-run command wrote a config that
-  scanned lockfiles; `exclude` is now additive with an
-  `excludeDefaults` opt-out, and `assets.exclude` is fixed identically.
-  **It charged what it never established** — `sync_io_in_hotpath` on
-  one-shot scripts, airflow **811 → 680** (−16% of the detector),
-  mlflow 402 → 347, pydantic 17 → 11. Three candidate signals had been
-  rejected for exempting `task_runner.py`, and **the one on record as
-  "the signal that would work" exempts it too**: traced,
-  `_send_error_email_notification ← finalize ← main ← guard` with no
-  other same-file caller and 0 direct importers. What separates it is
-  that the repo *mentions* the module 42 times, including inside a
-  `mock.patch` string no import graph can see — so the index is textual
-  and the bar is zero references; the counter-example stays reported and
-  all suppression lands in `scripts/`, `dev/`, `devel-common/`. **It now
-  skips what a repo disowned, with a receipt** — pydantic's
-  `pydantic/v1` is named by its own ruff, coverage, pyright and
-  codespell: **487 → 402, −17.5%**, one `coverage.warnings[]` entry
-  naming the directory and the opt-out. Corroboration (**≥2 independent
-  tools**) is the safety property: across the whole corpus that is
-  exactly one directory, and airflow's
-  `[tool.hatch.build.targets.sdist] exclude = ["*"]` is never honoured.
-  **It disagreed with itself** — `commented_out_code`'s conditional
-  discriminator was *unstable*, an unrelated second block
-  re-fingerprinting the first; unified, 42 fingerprints moved, finding
-  counts identical. The audit behind it found **7 of 8 twice-implemented
-  charges disagree**, including two where one side cannot escalate at
-  all (`deep_import` universal sits at 0.30, `NEUTRAL_INTRINSIC`
-  itself); reported, not fixed. One shared `intrinsicFrom` plus a
-  standing parity gate landed instead, proven findings-neutral on 5,164
-  findings. **The instrument had a 15× phantom** — `mean_ndcg_deep`
-  averaged whichever scenarios cleared a floor of 40, and fixture `01`
-  sat at 42 carrying 75% of them, so losing three findings would move
-  the headline **+0.1333 with no scoring change**, against a
-  largest-ever real movement of +0.0089. Re-centring the floor into the
-  28-finding empty gap cost nothing: same population, byte-identical
-  mean, headroom 2 → 14, all nine baselines still comparable. The guard
-  then earned itself immediately, catching a −0.0032 headline move as
-  pure membership. **Four backlog entries were wrong about themselves**,
-  including B's headline being 28% of a *detector* rather than a report,
-  and pydantic's third exclusion being `[tool.pyright]`, not mypy.
-  `schema_version` stays `0.7.0` — every change additive. Tests
-  2,221 → **2,313**. Release notes:
-  [`docs/releases/v0.25.0.md`](./releases/v0.25.0.md).
+- **Current version:** `crimes@0.25.0` ✅ shipped — six changes to what
+  the scanner reads, what it skips, and how it reports the difference.
+  **A user `exclude` no longer replaces the defaults** — setting one
+  pattern inherited nothing from `DEFAULT_CONFIG`, and `crimes init`
+  separately hand-copied 9 of the 20 default patterns under a comment
+  stating it must never narrow the scan; `exclude` is now additive with
+  an `excludeDefaults: false` escape, and `assets.exclude` is fixed the
+  same way. **`sync_io_in_hotpath` stops charging one-shot scripts** —
+  airflow 811 → 680 (−16% of the detector), mlflow 402 → 347, pydantic
+  17 → 11. Three earlier candidate signals were rejected for exempting
+  `task_runner.py`, and the one recorded as "the signal that would work"
+  exempts it too: `_send_error_email_notification ← finalize ← main ←
+  guard`, no other same-file caller, 0 direct importers. The signal used
+  counts textual module references instead, so
+  `mock.patch("…task_runner.startup")` registers; the bar is zero
+  references, the counter-example stays reported, and all suppression on
+  airflow falls in `scripts/`, `dev/` and `devel-common/`. **A
+  repository's own tooling exclusions are honoured** when two or more
+  independent tools name a path: pydantic 487 → 402 (−17.5%) for
+  `pydantic/v1`, one `coverage.warnings[]` entry naming the directory
+  and the opt-out, and nothing corroborated anywhere else in the corpus.
+  airflow's `[tool.hatch.build.targets.sdist] exclude = ["*"]` is never
+  read; `[tool.mypy]` is unsupported because its `exclude` takes regexes
+  where pyright's takes globs. **`commented_out_code`'s two variants
+  agree** — the conditional discriminator was unstable, an unrelated
+  second block changing the first one's fingerprint; 42 fingerprints
+  moved, finding counts identical. **One shared intrinsic ladder** plus a
+  gate on cross-pack disagreement, findings-neutral across 5,164
+  findings; the audit behind it found 7 of 8 twice-implemented charges
+  disagree, including two where one side takes a flat default and cannot
+  escalate (`deep_import` universal sits at 0.30, `NEUTRAL_INTRINSIC`),
+  reported and not changed. **`DEPTH_FLOOR` re-centred 40 → 28** —
+  fixture `01` sat at 42 findings carrying 75% of the deep aggregate, so
+  losing three would move the headline +0.1333 with no scoring change,
+  against a largest recorded movement of +0.0089; every floor in
+  `[14, 42]` selects the same fixtures, so the mean, the population and
+  all nine stored baselines are unchanged. Three deep scenarios and a
+  new fixture 14 added, since no fixture had a `pyproject.toml` and the
+  tooling-exclude feature was otherwise unmeasurable. Four backlog
+  entries were corrected, including B's percentages being shares of a
+  detector rather than a report, and pydantic's third exclusion being
+  `[tool.pyright]` rather than mypy. Eval: claude 0.82 → 0.84, codex
+  0.61 → 0.58 over 102 combinations, but all 96 stable pairs received a
+  byte-identical scan context, so the run is a repeat sample — 16 of 48
+  scenarios moved per agent on identical input, netting +0.0pp and
+  −5.1pp. `schema_version` stays `0.7.0`. Tests 2,221 → **2,313**.
+  Release notes: [`docs/releases/v0.25.0.md`](./releases/v0.25.0.md).
 - **Previous version:** `crimes@0.24.0` ✅ shipped — **the ceiling
   becomes a scale.** The other half of `0.23.0`, which refuted
   `STRUCTURAL_CEILING`'s stated rationale but deliberately left the
