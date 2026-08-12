@@ -135,9 +135,60 @@ start the interactive walk in CI or a non-TTY; use `--apply` there.
 
 ---
 
-## Status — `crimes@0.25.0`
+## Status — `crimes@0.26.0`
 
-`crimes@0.25.0` is the latest version. Six changes to what the scanner
+`crimes@0.26.0` is the latest version. A correctness release: the
+cross-language scoring gaps are closed, and two defects were found in
+the instruments that measure them.
+
+- **Churn was silently lost through a symlinked scan root.** `git log`
+  only matches paths git has committed, so a symlinked root produced a
+  pathspec that exists on disk and not in history — every file dropped,
+  and the caller told `git_available: true` with churn 0 everywhere.
+  Anyone scanning through a symlinked checkout, a workspace link or a
+  mounted path lost the signal with no warning.
+- **`circular_dependency` and `deep_import` can now escalate.** Both
+  expressed no intrinsic on the universal side, so a 4-file import cycle
+  and a 2-file one scored identically, and 478 cal.com `deep_import`
+  findings scored the same whether the file reached into one deep
+  package path or twenty-eight. 204 corpus findings move.
+- **Four cross-pack constant gaps reconciled**, toward the values
+  `detector-defaults.ts` publishes as anchors — the numbers every other
+  detector was calibrated against. 1,457 findings move, none added or
+  removed.
+- **`commented_out_code`'s two variants share one ladder.** Its
+  published base of 0.48 was *unreachable*: the detector gated at a
+  threshold that put its own floor at 0.68, so every peer calibrated
+  against 0.48 was calibrated against a number no report contained.
+- **`sync_io_in_hotpath` no longer charges dev and CI scripts.** The
+  test-only bucket, inspected rather than reasoned about, is 63 findings
+  in 36 modules across four repositories and every one is tooling.
+- **crimes honours `.gitattributes linguist-generated`** — a repository's
+  claim about who wrote its own file, trusted from a single source. 69
+  findings on four posthog files the path heuristics could not
+  recognise.
+- **The agent noise band was wrong, and backwards.** Re-derived from
+  per-scenario variance across two repeat pairs: ±5pp claude, ±7pp
+  codex, against a documented ±6pp/±3pp that had codex as the steadier
+  agent. A scorer defect was inside it — charge names were matched
+  case-sensitively, so an agent writing "Permission IA drift" scored
+  zero on a finding it had named.
+
+`schema_version` stays at `0.7.0`. No field is added, renamed or
+retyped.
+
+Ranking quality: `mean_ndcg_deep` 0.3449 → 0.3615. The deep set grew
+from 30 to 34 scenarios across the release, so that is not a
+before/after — the movement attributable to the scanner is +0.0019, from
+the churn fix, and every other change reports `delta_on_stable_set`
++0.0000. Two new fixtures, fourteen new scenarios, and **zero agent
+invocations across the entire release**.
+
+Release notes: [`docs/releases/v0.26.0.md`](./docs/releases/v0.26.0.md).
+
+### Earlier `0.25.0` work (_what the scanner reads and skips_)
+
+Six changes to what the scanner
 reads, what it skips, and how it reports the difference.
 
 - **A user `exclude` no longer replaces the defaults.** Setting one
@@ -184,8 +235,6 @@ context, so the run is a repeat sample measuring agent variance — 16 of
 48 scenarios moved for each agent on identical input. `structural_pass_rate`
 cannot observe the first three changes above, which move findings on
 real repositories but not on the fixtures.
-
-Release notes: [`docs/releases/v0.25.0.md`](./docs/releases/v0.25.0.md).
 
 ### Earlier `0.24.0` work (_the ceiling becomes a scale_)
 

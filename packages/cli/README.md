@@ -15,6 +15,23 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.26.0` headline:** a correctness release, and the two things that
+mattered most were defects in the instruments rather than in the
+scanner. **Churn was silently lost through a symlinked scan root** —
+`git log` only matches committed paths, so a symlinked root matched
+nothing and the caller was told `git_available: true` with churn 0 for
+every file. Anyone scanning through a symlinked checkout or a workspace
+link lost the signal with no warning. The cross-language scoring gaps
+are closed alongside it: `circular_dependency` and `deep_import` can now
+escalate with their own evidence instead of taking a flat value (a
+4-file import cycle used to score exactly what a 2-file one did), four
+constant gaps are reconciled toward the values the calibration table
+publishes, and `commented_out_code`'s two variants share one ladder —
+its published base of 0.48 turned out to be a value the detector could
+not emit. `crimes` also honours `.gitattributes linguist-generated`, and
+the agent noise band was re-derived: ±5pp claude, ±7pp codex, against a
+documented pair that had codex as the *steadier* agent.
+
 **`0.24.0` headline:** the other half of `0.23.0`. That release proved
 the `STRUCTURAL_CEILING` rationale false and left the mechanism alone so
 the input fix stayed attributable; the mechanism is now fixed too. The

@@ -4,7 +4,52 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current version:** `crimes@0.25.0` ✅ shipped — six changes to what
+- **Current version:** `crimes@0.26.0` ✅ shipped — a correctness
+  release that closed the cross-language scoring gaps, and found two
+  defects in the instruments that measure them. **Churn was silently
+  lost through a symlinked scan root** — `git log -- <pathspec>` only
+  matches paths git has committed, so a symlinked root matched nothing,
+  every entry was dropped, and the caller received `gitAvailable: true`
+  with an empty file list. Presented as a measurement rather than a
+  failure, which is why it survived; any user scanning through a
+  symlinked checkout, workspace link or mounted path lost the signal,
+  and `crimes hotspots` reported `change_count: 0` for every file. It
+  also meant 70% of the project's own deep eval aggregate was computed
+  with `churn` pinned to zero, because fixture `01` is a symlink.
+  **`evals:ranking` was a function of wall-clock time** while documented
+  as "deterministic — no noise band, any delta is real": `rank_score`
+  includes a `recency` term, so the same build ranked the same fixture
+  differently a fortnight later. Both are now anchored to `CRIMES_NOW`,
+  which the eval runner pins to a committed constant. **D1 closed** —
+  `circular_dependency` and `deep_import` gained universal ladders (204
+  corpus findings move; a 4-file cycle used to score exactly what a
+  2-file one did), four constant gaps were reconciled toward the values
+  `detector-defaults.ts` publishes as anchors (1,457 findings move, none
+  added or removed), and `commented_out_code`'s two variants share one
+  ladder — its published base of 0.48 was *unreachable*, so every peer
+  calibrated against it was calibrated against a number no report
+  contained. Two Python surcharges were investigated and **not** ported:
+  JavaScript has no naive datetime, and Node has no worker pool to
+  distinguish from the event loop. **`sync_io_in_hotpath` stops charging
+  developer and CI scripts** (63 findings, 36 modules, all tooling), and
+  **`.gitattributes linguist-generated` is honoured** from a single
+  source — provenance does not need corroborating — dropping 69 findings
+  on four posthog files the path heuristics could not recognise. **The
+  agent noise band was wrong and backwards**: re-derived from
+  per-scenario variance across two repeat pairs it is ±5pp claude and
+  ±7pp codex, against a documented ±6pp/±3pp that made codex the
+  steadier agent; a case-sensitive charge match was inside it, and
+  `0.25.0`'s headline codex −5.1pp is −3.2pp corrected. Two fixtures
+  added — `15-risky-service` closed D2 by registering an example that
+  already fired six of the nine uncovered detectors, and `16-recency` is
+  the only fixture with git history, built by `evals:setup` from the
+  reference date so `recency` is finally a live signal. `mean_ndcg_deep`
+  0.3449 → 0.3615 across the release, of which +0.0019 is attributable
+  to the scanner and the rest is deep-set membership growing 30 → 34.
+  `schema_version` stays `0.7.0`. **Zero agent invocations.** Tests
+  2,313 → **2,334**. Release notes:
+  [`docs/releases/v0.26.0.md`](./releases/v0.26.0.md).
+- **Previous version:** `crimes@0.25.0` ✅ shipped — six changes to what
   the scanner reads, what it skips, and how it reports the difference.
   **A user `exclude` no longer replaces the defaults** — setting one
   pattern inherited nothing from `DEFAULT_CONFIG`, and `crimes init`
@@ -51,7 +96,7 @@ mirror, not a planning doc.
   scenarios moved per agent on identical input, netting +0.0pp and
   −5.1pp. `schema_version` stays `0.7.0`. Tests 2,221 → **2,313**.
   Release notes: [`docs/releases/v0.25.0.md`](./releases/v0.25.0.md).
-- **Previous version:** `crimes@0.24.0` ✅ shipped — **the ceiling
+- **Earlier:** `crimes@0.24.0` ✅ shipped — **the ceiling
   becomes a scale.** The other half of `0.23.0`, which refuted
   `STRUCTURAL_CEILING`'s stated rationale but deliberately left the
   mechanism alone so the input fix stayed attributable. The cap applied
