@@ -1,6 +1,7 @@
 name: evals-pr-replay
 
-# Triggers on PRs that touch detector / scoring / language / CLI code.
+# Triggers on changes to detector / scoring / language / CLI code —
+# on the PR, on the push if it lands on main without one, and on demand.
 # Replays the structural rubric over already-committed agent outputs
 # in `evals/results/<latest-version>/` against the PR's crimes build,
 # then posts (or updates) a single PR comment with the diff summary.
@@ -16,6 +17,16 @@ name: evals-pr-replay
 # is interpolated into shell commands. The diff-summary.md body is
 # generated from our own scoring outputs, not from PR content.
 
+# `pull_request` alone meant this gate could go an arbitrarily long time
+# without ever running: it had not executed once between the 0.25.4
+# regression that broke it and the 0.26.0 fix, because nothing in that
+# window arrived as a qualifying PR. A gate that only runs on one event
+# shape is a gate that silently does not cover the others — so `push` to
+# main covers work that lands without a PR, and `workflow_dispatch`
+# makes it runnable on demand rather than only as a side effect.
+#
+# The workflow keeps its `evals-pr-replay` name so existing branch
+# protection and check references keep resolving.
 on:
   pull_request:
     branches: [main]
@@ -25,10 +36,25 @@ on:
       - "packages/language-js/src/**"
       - "packages/cli/src/**"
       - "evals/**"
+  # Duplicated rather than aliased: the Actions workflow parser does not
+  # support YAML anchors. Keep the two lists in step.
+  push:
+    branches: [main]
+    paths:
+      - "packages/core/src/detectors/**"
+      - "packages/core/src/scoring/**"
+      - "packages/language-js/src/**"
+      - "packages/cli/src/**"
+      - "evals/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   evals-replay:
@@ -90,7 +116,11 @@ jobs:
       - name: Diff replay vs pinned summary
         run: pnpm run evals:diff
 
+      # Only a pull_request event has an issue number to comment on.
+      # On push / workflow_dispatch the steps above are the whole gate,
+      # and the summary is in the job log.
       - name: Post / update PR comment with diff summary
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
