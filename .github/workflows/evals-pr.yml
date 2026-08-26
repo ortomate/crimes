@@ -51,6 +51,16 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      # Fixtures 02-04 are OSS bodies cloned at a pinned SHA and are
+      # gitignored (see .gitignore) — a fresh checkout has only each
+      # fixture's `.crimes-eval-meta.json`. Without this step every scan
+      # below runs against an empty directory, so every scenario reports
+      # its expected findings as "not in fixture scan" and the failure
+      # reads like a detector regression rather than a missing clone.
+      # `evals:setup` is idempotent: a body already present is skipped.
+      - name: Materialise the pinned OSS fixture bodies
+        run: pnpm run evals:setup
+
       - name: Verify every scenario's expected findings actually fire on its fixture
         # Fails the PR if a scenario references a detector type that
         # `crimes scan` doesn't produce on the scenario's fixture. Catches
