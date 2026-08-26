@@ -60,19 +60,21 @@ jobs:
         uses: pnpm/action-setup@v4
         # Version comes from `packageManager` in root package.json.
 
-      # Node 24 ships with npm 11.x natively, which is required for npm
-      # Trusted Publishing — the OIDC-for-auth exchange against the
-      # registry (distinct from sigstore provenance signing) was added in
-      # npm 11.5.1. Node 22 LTS ships npm 10.9.x, and
-      # `npm install -g npm@latest` to upgrade in-place hits a known
-      # MODULE_NOT_FOUND on Linux mid-self-replace. Using Node 24 here
-      # avoids the dance. The published package still targets node18 (see
-      # tsup target + packages/cli engines.node), so consumer compatibility
-      # is unchanged.
-      - name: Set up Node 24 (ships npm 11 for Trusted Publishing)
+      # `.nvmrc` (Node 26) ships npm 11.19.x, which clears the npm 11.5.1
+      # floor for npm Trusted Publishing — the OIDC-for-auth exchange
+      # against the registry, distinct from sigstore provenance signing.
+      # The constraint the old pin worked around still stands: Node 22 LTS
+      # ships npm 10.9.x and `npm install -g npm@latest` to upgrade
+      # in-place hits a known MODULE_NOT_FOUND on Linux mid-self-replace.
+      # Reading the version from `.nvmrc` keeps this job on the same
+      # runtime as CI instead of a second pin that has to be remembered.
+      # The published package still targets node18 (see tsup target +
+      # packages/cli engines.node), so consumer compatibility is unchanged
+      # by this file.
+      - name: Set up Node (ships npm 11 for Trusted Publishing)
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: .nvmrc
           cache: pnpm
           # Required so `npm publish` resolves to the public registry and
           # so npm's OIDC client knows where to mint the publish token for.

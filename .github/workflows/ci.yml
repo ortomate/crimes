@@ -14,10 +14,6 @@ jobs:
   build:
     name: install · build · typecheck · test
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ["20", "22"]
 
     steps:
       - uses: actions/checkout@v4
@@ -25,9 +21,17 @@ jobs:
       - uses: pnpm/action-setup@v4
         # Version comes from `packageManager` in root package.json.
 
+      # One Node, and it is the one this project is developed on — see
+      # `.nvmrc`. The matrix this replaces ran Node 20 and 22: 20 reached
+      # end-of-life in April 2026 and 22 is mid-LTS, so the pair tested a
+      # dead runtime and an ageing one while nothing exercised the
+      # version anybody actually runs. A matrix earns its cost when the
+      # legs can disagree; these two only ever agreed, and four steps
+      # below carried `if: matrix.node == '22'` purely to avoid doing the
+      # same work twice.
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version-file: .nvmrc
           cache: pnpm
 
       - name: Install dependencies
@@ -35,14 +39,10 @@ jobs:
 
       # Formatting and lint run before the build so a style-only failure
       # reports in seconds instead of after the full tsup + vitest pass.
-      # Biome is platform-independent, so running it on one matrix leg is
-      # enough — the other leg would produce identical output.
       - name: Format check
-        if: matrix.node == '22'
         run: pnpm run format:check
 
       - name: Lint
-        if: matrix.node == '22'
         run: pnpm run lint
 
       - name: Build
@@ -62,16 +62,12 @@ jobs:
           node packages/cli/dist/index.js scan examples/messy-ts-app --format json > /tmp/report.json
           node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/report.json','utf8')); if(!r.schema_version||!Array.isArray(r.findings))process.exit(1); console.log('schema',r.schema_version,'findings',r.findings.length)"
 
-      # The website pulls in Astro 6, which requires Node >=22.12. The
-      # rest of the matrix (Node 20) still validates the published
-      # crimes CLI against its engines.node ">=18" contract; only the
-      # website step needs the newer toolchain.
+      # The website pulls in Astro 6, which requires Node >=22.12 — a
+      # floor the single version above clears comfortably.
       - name: Build website (landing + /docs Starlight site)
-        if: matrix.node == '22'
         run: pnpm --filter @crimes/website build
 
       - name: Verify /docs/ tree contains every expected page
-        if: matrix.node == '22'
         run: node apps/website/scripts/verify-build.mjs
 
   publish-smoke:
@@ -86,9 +82,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # Hold to one Node version — this job validates the *published*
-          # artifact, not Node compatibility (that's `build`'s matrix).
-          node-version: "22"
+          # This job validates the *published* artifact, so it runs the
+          # same Node as everything else rather than a second opinion.
+          node-version-file: .nvmrc
           cache: pnpm
 
       - name: Install dependencies
