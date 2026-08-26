@@ -256,6 +256,15 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   });
   if (resurfaced.length > 0) {
     const merged = [...resurfaced, ...report.findings];
+    // Re-assign over the merged list. Resurfaced findings are collected
+    // after the first `assignIdsHelper` call above and are prepended, so
+    // without this they reach the report with no `fingerprint` and no
+    // `id` — the two fields every consumer addresses a finding by, and
+    // the ones `--show-triaged` exists to let a caller act on. Re-running
+    // here also keeps `id` positional, which is the only thing it claims
+    // to be; assigning ids to the resurfaced entries alone would leave
+    // index 0 holding a higher number than index 1.
+    assignIdsHelper(merged);
     const next: ScanReport = {
       ...report,
       findings: merged,
