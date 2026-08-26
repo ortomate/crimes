@@ -54,10 +54,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         # Version comes from `packageManager` in root package.json.
 
       # `.nvmrc` (Node 26) ships npm 11.19.x, which clears the npm 11.5.1
@@ -72,7 +72,7 @@ jobs:
       # packages/cli engines.node), so consumer compatibility is unchanged
       # by this file.
       - name: Set up Node (ships npm 11 for Trusted Publishing)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -124,7 +124,7 @@ jobs:
       # Publisher. Only the decoded payload is logged — never the signed
       # token itself. Safe to remove once the first 0.1.x publish succeeds.
       - name: Inspect OIDC claims (audience npm)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const token = await core.getIDToken('npm');
