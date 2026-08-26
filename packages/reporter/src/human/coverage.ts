@@ -1,5 +1,5 @@
 import type { Writable } from "node:stream";
-import type { ScanReport } from "@crimes/core";
+import { isSkippedWorkKind, type ScanReport } from "@crimes/core";
 
 const PACK_LABELS: Record<string, string> = {
   js: "language-js (.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts)",
@@ -91,8 +91,16 @@ export function buildCoverageBanner(
 export function buildCoverageWarningNotice(
   coverage: ScanReport["coverage"] | undefined,
 ): string | null {
-  const warnings = coverage?.warnings;
-  if (!warnings || warnings.length === 0) return null;
+  const all = coverage?.warnings;
+  if (!all || all.length === 0) return null;
+
+  // A lapsed triage or suppression pin is in this array too, and its
+  // files were scanned normally. Adding it to "N files were not
+  // analysed" would make the field that exists to expose silent skips
+  // state a confident false number. It gets its own notice instead --
+  // see `buildUnmatchedPinsNotice`.
+  const warnings = all.filter((w) => isSkippedWorkKind(w.kind));
+  if (warnings.length === 0) return null;
 
   const totalFiles = warnings.reduce((sum, w) => sum + w.files, 0);
   const lines = [
@@ -115,6 +123,57 @@ export function buildCoverageWarningNotice(
 const NOTICE_LIMIT = 2;
 
 /**
+ * Notice for recorded decisions that stopped applying.
+ *
+ * Separate from the skipped-work notice above, and not folded into it,
+ * for the reason `emitUnmatchedWorkingSetPaths` exists: that notice
+ * names its two largest buckets and defers the rest to `+N more
+ * reasons`, so on any real repo this would be the deferred line nobody
+ * reads. The whole failure being fixed here is that the news arrived
+ * nowhere -- burying it two lines further down would not fix it.
+ *
+ * `superseded` leads when present. It is the only half that is bad
+ * news: the finding is back and unsilenced. The other half most likely
+ * means somebody fixed something, and is phrased so it cannot be
+ * misread as a problem.
+ *
+ * Returns null when there is nothing to say. Content, not decoration --
+ * print it regardless of TTY / colour, exactly like the skipped notice.
+ */
+export function buildUnmatchedPinsNotice(
+  coverage: ScanReport["coverage"] | undefined,
+): string | null {
+  const pins = (coverage?.warnings ?? []).filter((w) => !isSkippedWorkKind(w.kind));
+  if (pins.length === 0) return null;
+
+  const total = pins.reduce((sum, w) => sum + (w.entries ?? 0), 0);
+  const lines = [
+    `stale pins: ${total} recorded ${total === 1 ? "entry" : "entries"} ` +
+      `match no finding in this scan.`,
+  ];
+  // Sorted so the alarm leads regardless of the array's file-count
+  // order, and so the same tree always prints the same lines.
+  const ordered = [...pins].sort(
+    (a, b) =>
+      Number(b.subject === "superseded") - Number(a.subject === "superseded") ||
+      a.kind.localeCompare(b.kind),
+  );
+  for (const pin of ordered) {
+    const n = pin.entries ?? 0;
+    const file = pin.kind === "triage_entries_unmatched" ? "triage" : "suppressions";
+    lines.push(
+      pin.subject === "superseded"
+        ? `            ${n} × ${file}: still reported under a new fingerprint — ` +
+            `NOT silenced any more`
+        : `            ${n} × ${file}: nothing of that kind is reported there now ` +
+            `(likely fixed)`,
+    );
+  }
+  lines.push("            Run with --explain-coverage for the detail.");
+  return lines.join("\n");
+}
+
+/**
  * Full warning list for `--explain-coverage`. Machine-readable JSON
  * carries the same array; this is the same data with the prose the
  * schema already supplies, so the two never drift.
@@ -124,10 +183,30 @@ function renderWarnings(
   out: Writable,
 ): void {
   if (!warnings || warnings.length === 0) return;
-  out.write(`\n  skipped work (${warnings.length}):\n`);
+  const skipped = warnings.filter((w) => isSkippedWorkKind(w.kind));
+  const pins = warnings.filter((w) => !isSkippedWorkKind(w.kind));
+  if (skipped.length > 0) out.write(`\n  skipped work (${skipped.length}):\n`);
+  renderWarningRows(skipped, out);
+  if (pins.length > 0) {
+    // Its own heading because these are not skipped work. Same rows,
+    // same prose from the schema -- only the claim above them changes.
+    out.write(`\n  recorded decisions that no longer apply (${pins.length}):\n`);
+    renderWarningRows(pins, out);
+  }
+}
+
+function renderWarningRows(
+  warnings: readonly NonNullable<
+    NonNullable<ScanReport["coverage"]>["warnings"]
+  >[number][],
+  out: Writable,
+): void {
   for (const warning of warnings) {
-    out.write(`    [${warning.kind}] ${warning.subject} — ${warning.files} file`);
-    out.write(warning.files === 1 ? "\n" : "s\n");
+    const size =
+      warning.entries !== undefined
+        ? `${warning.entries} entr${warning.entries === 1 ? "y" : "ies"}`
+        : `${warning.files} file${warning.files === 1 ? "" : "s"}`;
+    out.write(`    [${warning.kind}] ${warning.subject} — ${size}\n`);
     out.write(`      ${warning.detail}\n`);
     if (warning.remedy !== undefined) out.write(`      → ${warning.remedy}\n`);
     if (warning.examples && warning.examples.length > 0) {

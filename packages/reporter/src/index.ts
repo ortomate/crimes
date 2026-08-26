@@ -1,6 +1,7 @@
 export {
   buildCoverageBanner,
   buildCoverageWarningNotice,
+  buildUnmatchedPinsNotice,
   formatAuditSuppressionsReport,
   formatBaselineCheckReport,
   formatBaselineSaveReport,

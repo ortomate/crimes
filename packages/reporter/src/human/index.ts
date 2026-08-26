@@ -33,5 +33,6 @@ export type { AuditSuppressionsHumanReportOptions } from "./audit.js";
 export {
   buildCoverageBanner,
   buildCoverageWarningNotice,
+  buildUnmatchedPinsNotice,
   renderCoverageExplain,
 } from "./coverage.js";
