@@ -49,6 +49,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { hasAgentResults } from "./baseline.js";
 import { REPO_ROOT, RESULTS_DIR } from "./paths.js";
 import type { ScoreResult } from "./types.js";
 
@@ -92,10 +93,25 @@ async function main(): Promise<void> {
   const label = opts.dirs ? "the requested directories" : `crimes ${version}`;
 
   for (const dir of sampleDirs) {
-    if (existsSync(dir)) continue;
-    process.stderr.write(`variance: no such directory ${dir}\n`);
-    process.exit(2);
-    return;
+    if (!existsSync(dir)) {
+      process.stderr.write(`variance: no such directory ${dir}\n`);
+      process.exit(2);
+      return;
+    }
+    // A `ranking.json`-only bump directory matches the version glob and
+    // reads as a sample, but contributes no observations — so every pair
+    // is dropped as "absent from at least one sample", the table comes
+    // out empty and the run still exits 0. Same vacuous pass `replay`
+    // and `diff` had; see `baseline.ts`.
+    if (!hasAgentResults(dir)) {
+      process.stderr.write(
+        `variance: ${dir} holds no <agent>/<scenario>.json files — it is not a ` +
+          "sample. A ranking-only bump directory cannot be compared against " +
+          "anything.\n",
+      );
+      process.exit(2);
+      return;
+    }
   }
   if (sampleDirs.length === 0) {
     process.stderr.write(
@@ -169,6 +185,20 @@ async function main(): Promise<void> {
   rows.sort(
     (a, b) => a.scenario.localeCompare(b.scenario) || a.agent.localeCompare(b.agent),
   );
+
+  // Every pair was excluded, so there is no band to report — an empty
+  // table under a "2 samples of ..." headline reads as a result.
+  if (rows.length === 0) {
+    process.stderr.write(
+      `variance: no (scenario, agent) pair survived pairing across ${n} samples — ` +
+        "nothing was measured.\n" +
+        `variance: excluded ${droppedPartial} absent from a sample, ` +
+        `${droppedContext} scored against an empty scan_context, ` +
+        `${droppedRubric} whose assertion count moved.\n`,
+    );
+    process.exit(2);
+    return;
+  }
 
   process.stdout.write(`variance: ${n} samples of ${label}:\n`);
   sampleDirs.forEach((d, i) => {

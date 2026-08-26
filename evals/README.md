@@ -761,21 +761,31 @@ sample and the re-run that supersedes it.
 
 ## Exit codes, and why zero is not free
 
-The three commands `.github/workflows/evals-pr.yml` runs are gates, so
-each one distinguishes *"I measured, and here is the result"* from *"my
-input was missing"*. The second is never a success.
+Each of these reports on the harness, so each distinguishes *"I
+measured, and here is the result"* from *"my input was missing"*. The
+second is never a success.
 
 | command | `0` | `1` | `2` |
 |---|---|---|---|
 | `evals:replay` | ≥1 result file re-scored | unexpected error | nothing to replay |
 | `evals:diff` | ≥1 agent compared | unexpected error | replay output or baseline missing |
 | `evals:verify-scenarios` | every scenario checked | scenario drift | fixture/registry/scenario file missing |
+| `evals:variance` | ≥1 pair paired across every sample | unexpected error | a "sample" with no results, or nothing survived pairing |
+
+`evals:variance` is the one that is not in CI, and it had the same
+defect for the same reason: a `ranking.json`-only directory matches the
+`<version>-*` glob and reads as a sample, contributes no observations,
+and every pair is then dropped as "absent from at least one sample".
+The run printed `2 samples of ...`, an empty table and no bands — and
+exited 0.
 
 A **pass-rate regression is not a gate** — it is reported in the PR
 comment and exits 0. What fails the job is the harness having nothing to
 say. `runner/src/harness-guards.test.ts` spawns the real scripts against
 a synthetic tree and asserts these statuses, because a guard that is
-only asserted to be wired is not a guard that fires.
+only asserted to be wired is not a guard that fires. Those tests run in
+`ci.yml`, which is what covers `evals:variance` — the one command here
+the eval workflow never invokes.
 
 Every path the harness reads is overridable, which is how those tests
 reach a synthetic tree without touching the repo's own:

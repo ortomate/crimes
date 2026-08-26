@@ -1,8 +1,9 @@
 /**
- * Vacuous-pass guards for the three commands `evals-pr.yml` runs.
+ * Vacuous-pass guards for the commands that report on the eval harness:
+ * the three `evals-pr.yml` runs, plus `evals:variance`.
  *
  * These spawn the **real scripts** — `tsx src/replay.ts`, `src/diff.ts`,
- * `src/verify-scenarios.ts` — against a synthetic `evals/` tree built in
+ * `src/verify-scenarios.ts`, `src/variance.ts` — against a synthetic tree built in
  * a temp directory, and assert on the process exit status. That is the
  * point: the bug being guarded against was three commands that printed
  * an accurate description of doing nothing and exited 0, so a test that
@@ -43,7 +44,7 @@ interface RunResult {
 }
 
 function runScript(
-  script: "replay.ts" | "diff.ts" | "verify-scenarios.ts",
+  script: "replay.ts" | "diff.ts" | "verify-scenarios.ts" | "variance.ts",
   env: Record<string, string>,
   args: string[] = [],
 ): RunResult {
@@ -370,5 +371,86 @@ describe("evals:verify-scenarios refuses to pass vacuously", () => {
     });
     expect(run.status).toBe(2);
     expect(run.stderr).toContain("no scenarios found");
+  });
+});
+
+/**
+ * A result file `evals:variance` will accept as an observation: a
+ * populated `detector_id_by_finding_id` (else it is dropped as
+ * context-less) and a stable assertion count (else as rubric drift).
+ */
+function varianceResult(scenario: string, passed: number, failed: number): unknown {
+  return {
+    scenario,
+    agent: "claude",
+    crimes_version: "0.25.1",
+    timestamp: "2026-01-01T00:00:00.000Z",
+    run_id: `run-${scenario}-${passed}`,
+    response: "irrelevant to variance",
+    scan_context: {
+      detector_id_by_finding_id: { crime_00001: "god_function" },
+      detector_id_by_charge: {},
+      detector_id_by_evidence: {},
+    },
+    structural_score: { passed, failed, details: [] },
+  };
+}
+
+function writeVarianceSample(
+  dir: string,
+  results: Array<{ scenario: string; passed: number; failed: number }>,
+): string {
+  for (const r of results) {
+    writeJson(
+      resolve(dir, "claude", `${r.scenario}.json`),
+      varianceResult(r.scenario, r.passed, r.failed),
+    );
+  }
+  return dir;
+}
+
+describe("evals:variance refuses to pass vacuously", () => {
+  it("exits non-zero when a sample directory holds no agent results", () => {
+    // `--dirs <real>,<ranking-only>` used to print "2 samples of the
+    // requested directories", drop every pair as absent, render an empty
+    // table with no bands, and exit 0.
+    const dir = tree("variance-ranking-only");
+    const real = writeVarianceSample(resolve(dir, "0.25.1"), [
+      { scenario: "a", passed: 1, failed: 1 },
+    ]);
+    const rankingOnly = resolve(dir, "0.26.0");
+    writeJson(resolve(rankingOnly, "ranking.json"), { mean_ndcg_deep: 0.5 });
+    const run = runScript("variance.ts", {}, ["--dirs", `${real},${rankingOnly}`]);
+    expect(run.status).toBe(2);
+    expect(run.stderr).toContain("is not a sample");
+  });
+
+  it("exits non-zero when no pair survives pairing across the samples", () => {
+    // Both directories hold real results, but they share no
+    // (scenario, agent) pair — so every pair is excluded and the band is
+    // computed over nothing.
+    const dir = tree("variance-disjoint");
+    const a = writeVarianceSample(resolve(dir, "0.25.1"), [
+      { scenario: "only-in-a", passed: 1, failed: 1 },
+    ]);
+    const b = writeVarianceSample(resolve(dir, "0.25.1-r2"), [
+      { scenario: "only-in-b", passed: 2, failed: 0 },
+    ]);
+    const run = runScript("variance.ts", {}, ["--dirs", `${a},${b}`]);
+    expect(run.status).toBe(2);
+    expect(run.stderr).toContain("nothing was measured");
+  });
+
+  it("still reports a band when the samples really do line up", () => {
+    const dir = tree("variance-happy-path");
+    const a = writeVarianceSample(resolve(dir, "0.25.1"), [
+      { scenario: "shared", passed: 1, failed: 1 },
+    ]);
+    const b = writeVarianceSample(resolve(dir, "0.25.1-r2"), [
+      { scenario: "shared", passed: 2, failed: 0 },
+    ]);
+    const run = runScript("variance.ts", {}, ["--dirs", `${a},${b}`]);
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain("derived aggregate sd");
   });
 });
