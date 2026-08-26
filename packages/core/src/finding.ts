@@ -593,8 +593,9 @@ export interface CoverageWarning {
    * For the `*_entries_unmatched` kinds this is the number of files the
    * unmatched entries *point at* — those files were scanned normally,
    * so unlike every other kind it is not a count of work that was
-   * skipped. `entries` carries the number those warnings are actually
-   * about.
+   * skipped, and it is **0** when the entries name no file (a pin whose
+   * fingerprint carries no file segment). `entries` is the count those
+   * warnings are actually about, and is always ≥ 1.
    */
   files: number;
   /**

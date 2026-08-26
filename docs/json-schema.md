@@ -530,9 +530,10 @@ interface CoverageWarning {
   /** Aggregation key and the thing to act on. Never a file path. */
   subject: string;
   /**
-   * How many files this warning accounts for. Always ≥ 1. For the
-   * `*_entries_unmatched` kinds these are files the unmatched entries
-   * point at — scanned normally, not skipped.
+   * How many files this warning accounts for. Always ≥ 1, except on the
+   * `*_entries_unmatched` kinds — there it counts files the unmatched
+   * entries point at (scanned normally, not skipped) and is 0 when they
+   * name none. Read `entries` on those kinds; it is always ≥ 1.
    */
   files: number;
   /**
