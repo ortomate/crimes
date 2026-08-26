@@ -1,9 +1,9 @@
 {
-  "schema_version": "0.7.0",
+  "schema_version": "0.8.0",
   "report_type": "scan",
   "repo": {
     "name": "messy-ts-app",
-    "root": "/Users/andrew/dev/crimes/examples/messy-ts-app"
+    "root": "/Users/timcopeland/code/crimes/.claude/worktrees/release-0-27/examples/messy-ts-app"
   },
   "summary": {
     "total": 42,
@@ -15,6 +15,7 @@
     {
       "id": "crime_00001",
       "type": "direct_date",
+      "claim": "clock_read",
       "charge": "Temporal Recklessness",
       "severity": "high",
       "confidence": 0.9,
@@ -35,8 +36,8 @@
       "scores": {
         "severity": 0.8,
         "confidence": 0.9,
-        "agent_risk": 0.47,
-        "churn": 0.15,
+        "agent_risk": 0.44,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -53,7 +54,7 @@
       "pack": "language-js",
       "detector_id": "direct_date.js",
       "tier": "domain",
-      "fingerprint": "direct_date::src/date.ts::"
+      "fingerprint": "direct_date/clock_read::src/date.ts::"
     },
     {
       "id": "crime_00002",
@@ -78,8 +79,8 @@
       "scores": {
         "severity": 0.3,
         "confidence": 0.73,
-        "agent_risk": 0.44,
-        "churn": 0.05,
+        "agent_risk": 0.43,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -118,8 +119,8 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.9,
-        "agent_risk": 0.43,
-        "churn": 0.05,
+        "agent_risk": 0.42,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -161,8 +162,8 @@
       "scores": {
         "severity": 0.5,
         "confidence": 0.85,
-        "agent_risk": 0.43,
-        "churn": 0.05,
+        "agent_risk": 0.42,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -188,47 +189,6 @@
     },
     {
       "id": "crime_00005",
-      "type": "mixed_utc_local_methods",
-      "charge": "Half-UTC, Half-Local",
-      "severity": "high",
-      "confidence": 0.85,
-      "file": "src/date.ts",
-      "lines": [
-        9,
-        41
-      ],
-      "summary": "1 receiver using both UTC and local Date methods. The two families differ silently by the host's UTC offset.",
-      "evidence": [
-        "\"d\" uses getUTCFullYear() @L9 and getMonth() @L41",
-        "pick one family per variable; usually UTC for storage and local only at the display boundary"
-      ],
-      "effort": "medium",
-      "fix_shape": "pick one time domain; convert at the boundary",
-      "scores": {
-        "severity": 0.8,
-        "confidence": 0.85,
-        "agent_risk": 0.39,
-        "churn": 0.15,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "unify_date_family",
-          "description": "Convert all reads on this receiver to either the UTC family or the local family — don't mix.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "mixed_utc_local_methods.js",
-      "tier": "domain",
-      "fingerprint": "mixed_utc_local_methods::src/date.ts::"
-    },
-    {
-      "id": "crime_00006",
       "type": "duplicated_navigation_source",
       "charge": "Duplicated Navigation Source",
       "severity": "medium",
@@ -245,8 +205,8 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.7,
-        "agent_risk": 0.39,
-        "churn": 0.05,
+        "agent_risk": 0.38,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -269,7 +229,7 @@
       "fingerprint": "duplicated_navigation_source::src/nav/registry.ts::"
     },
     {
-      "id": "crime_00007",
+      "id": "crime_00006",
       "type": "route_metadata_drift",
       "charge": "Route Metadata Drift",
       "severity": "medium",
@@ -290,8 +250,8 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.65,
-        "agent_risk": 0.39,
-        "churn": 0.05,
+        "agent_risk": 0.38,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -315,7 +275,7 @@
       "fingerprint": "route_metadata_drift::src/routes/settings/billing.tsx::"
     },
     {
-      "id": "crime_00008",
+      "id": "crime_00007",
       "type": "sync_io_in_hotpath",
       "charge": "Sync I/O in Hot Path",
       "severity": "low",
@@ -338,8 +298,8 @@
       "scores": {
         "severity": 0.4,
         "confidence": 0.9,
-        "agent_risk": 0.39,
-        "churn": 0.05,
+        "agent_risk": 0.38,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -359,7 +319,7 @@
       "fingerprint": "sync_io_in_hotpath::src/api/files.ts::"
     },
     {
-      "id": "crime_00009",
+      "id": "crime_00008",
       "type": "option_bag_junk_drawer",
       "charge": "Option Bag Junk Drawer",
       "severity": "low",
@@ -380,8 +340,8 @@
       "scores": {
         "severity": 0.3,
         "confidence": 0.74,
-        "agent_risk": 0.39,
-        "churn": 0.05,
+        "agent_risk": 0.38,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -401,72 +361,28 @@
       "fingerprint": "option_bag_junk_drawer::src/petty.ts::describeCheckout"
     },
     {
-      "id": "crime_00010",
-      "type": "direct_date",
-      "charge": "Temporal Recklessness",
-      "severity": "medium",
-      "confidence": 0.9,
-      "file": "src/billing.ts",
-      "lines": [
-        57,
-        273
-      ],
-      "summary": "7 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
-      "evidence": [
-        "5× Date.now(), 2× new Date()",
-        "none decide a branch — all 7 record or render the reading",
-        "lines: 57, 63, 92, 198, 238, 250, 273",
-        "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock"
-      ],
-      "effort": "small",
-      "fix_shape": "inject a clock; pass through the domain boundary",
-      "scores": {
-        "severity": 0.6,
-        "confidence": 0.9,
-        "agent_risk": 0.38,
-        "churn": 0.2,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "inject_clock",
-          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "direct_date.js",
-      "tier": "domain",
-      "fingerprint": "direct_date::src/billing.ts::"
-    },
-    {
-      "id": "crime_00011",
-      "type": "timezone_unsafe_parse",
-      "charge": "Timezone Roulette",
-      "severity": "medium",
-      "confidence": 0.9,
+      "id": "crime_00009",
+      "type": "mixed_utc_local_methods",
+      "charge": "Half-UTC, Half-Local",
+      "severity": "high",
+      "confidence": 0.85,
       "file": "src/date.ts",
       "lines": [
-        29,
-        33
+        9,
+        41
       ],
-      "summary": "2 `new Date(\"…\")` calls parsing a string with no timezone marker. The runtime applies its own timezone, which is rarely the one the literal author had in mind.",
+      "summary": "1 receiver using both UTC and local Date methods. The two families differ silently by the host's UTC offset.",
       "evidence": [
-        "unsafe literals: \"2026-12-25T07:00:00\", \"2026-12-20\"",
-        "lines: 29, 33",
-        "add `Z` for UTC, `±HH:MM` for an offset, or parse through a timezone-aware library"
+        "\"d\" uses getUTCFullYear() @L9 and getMonth() @L41",
+        "pick one family per variable; usually UTC for storage and local only at the display boundary"
       ],
-      "effort": "small",
-      "fix_shape": "parse with explicit timezone; reject ambiguous inputs",
+      "effort": "medium",
+      "fix_shape": "pick one time domain; convert at the boundary",
       "scores": {
-        "severity": 0.6,
-        "confidence": 0.9,
-        "agent_risk": 0.38,
-        "churn": 0.15,
+        "severity": 0.8,
+        "confidence": 0.85,
+        "agent_risk": 0.36,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -475,18 +391,18 @@
       },
       "suggested_actions": [
         {
-          "kind": "fix_timezone_parse",
-          "description": "Append `Z` (UTC) or `±HH:MM` to the literal, or parse through a library that mandates an explicit zone.",
+          "kind": "unify_date_family",
+          "description": "Convert all reads on this receiver to either the UTC family or the local family — don't mix.",
           "risk": "low"
         }
       ],
       "pack": "language-js",
-      "detector_id": "timezone_unsafe_parse.js",
+      "detector_id": "mixed_utc_local_methods.js",
       "tier": "domain",
-      "fingerprint": "timezone_unsafe_parse::src/date.ts::"
+      "fingerprint": "mixed_utc_local_methods::src/date.ts::"
     },
     {
-      "id": "crime_00012",
+      "id": "crime_00010",
       "type": "contract_drift",
       "charge": "Contract Split-Brain",
       "severity": "high",
@@ -515,13 +431,13 @@
       "scores": {
         "severity": 0.9,
         "confidence": 0.82,
-        "churn": 0.05,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
         "blast_radius_direct_importers": 0,
         "recency": 0,
-        "agent_risk": 0.37
+        "agent_risk": 0.36
       },
       "suggested_actions": [
         {
@@ -544,7 +460,7 @@
       "fingerprint": "contract_drift::src/api/state.ts::User"
     },
     {
-      "id": "crime_00013",
+      "id": "crime_00011",
       "type": "contract_drift",
       "charge": "Contract Split-Brain",
       "severity": "high",
@@ -578,13 +494,13 @@
       "scores": {
         "severity": 0.96,
         "confidence": 0.82,
-        "churn": 0.05,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
         "blast_radius_direct_importers": 0,
         "recency": 0,
-        "agent_risk": 0.37
+        "agent_risk": 0.36
       },
       "suggested_actions": [
         {
@@ -607,7 +523,7 @@
       "fingerprint": "contract_drift::src/api/state.ts::Invoice"
     },
     {
-      "id": "crime_00014",
+      "id": "crime_00012",
       "type": "negative_flag_maze",
       "charge": "Negative Flag Maze",
       "severity": "low",
@@ -628,8 +544,8 @@
       "scores": {
         "severity": 0.25,
         "confidence": 0.72,
-        "agent_risk": 0.37,
-        "churn": 0.05,
+        "agent_risk": 0.36,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -647,6 +563,92 @@
       "detector_id": "negative_flag_maze.js",
       "tier": "domain",
       "fingerprint": "negative_flag_maze::src/petty.ts::::9361fc296993"
+    },
+    {
+      "id": "crime_00013",
+      "type": "timezone_unsafe_parse",
+      "charge": "Timezone Roulette",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/date.ts",
+      "lines": [
+        29,
+        33
+      ],
+      "summary": "2 `new Date(\"…\")` calls parsing a string with no timezone marker. The runtime applies its own timezone, which is rarely the one the literal author had in mind.",
+      "evidence": [
+        "unsafe literals: \"2026-12-25T07:00:00\", \"2026-12-20\"",
+        "lines: 29, 33",
+        "add `Z` for UTC, `±HH:MM` for an offset, or parse through a timezone-aware library"
+      ],
+      "effort": "small",
+      "fix_shape": "parse with explicit timezone; reject ambiguous inputs",
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.35,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "fix_timezone_parse",
+          "description": "Append `Z` (UTC) or `±HH:MM` to the literal, or parse through a library that mandates an explicit zone.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "timezone_unsafe_parse.js",
+      "tier": "domain",
+      "fingerprint": "timezone_unsafe_parse::src/date.ts::"
+    },
+    {
+      "id": "crime_00014",
+      "type": "direct_date",
+      "claim": "clock_read",
+      "charge": "Temporal Recklessness",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/billing.ts",
+      "lines": [
+        57,
+        273
+      ],
+      "summary": "7 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
+      "evidence": [
+        "5× Date.now(), 2× new Date()",
+        "none decide a branch — all 7 record or render the reading",
+        "lines: 57, 63, 92, 198, 238, 250, 273",
+        "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock"
+      ],
+      "effort": "small",
+      "fix_shape": "inject a clock; pass through the domain boundary",
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.34,
+        "churn": 0,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "inject_clock",
+          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "direct_date.js",
+      "tier": "domain",
+      "fingerprint": "direct_date/clock_read::src/billing.ts::"
     },
     {
       "id": "crime_00015",
@@ -671,8 +673,8 @@
       "scores": {
         "severity": 0.55,
         "confidence": 0.8,
-        "agent_risk": 0.35,
-        "churn": 0.2,
+        "agent_risk": 0.31,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -714,8 +716,8 @@
       "scores": {
         "severity": 0.5,
         "confidence": 0.74,
-        "agent_risk": 0.35,
-        "churn": 0.2,
+        "agent_risk": 0.31,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -736,91 +738,6 @@
     },
     {
       "id": "crime_00017",
-      "type": "commented_out_code",
-      "charge": "Commented-Out Corpse",
-      "severity": "medium",
-      "confidence": 0.9,
-      "file": "src/billing.ts",
-      "lines": [
-        33,
-        37
-      ],
-      "discriminator": "42a4bbb39f1f",
-      "summary": "Comment block appears to contain disabled code. Dead implementation snippets can mislead humans and agents into copying or reviving stale behaviour.",
-      "evidence": [
-        "5 comment lines",
-        "code-like tokens: const, if, await",
-        "first code-like line: const legacyRefund = await loadRefund(user.id);"
-      ],
-      "effort": "quick",
-      "fix_shape": "delete; git history preserves it",
-      "scores": {
-        "severity": 0.45,
-        "confidence": 0.9,
-        "agent_risk": 0.33,
-        "churn": 0.2,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "delete_dead_comment_code",
-          "description": "Delete the disabled code, or replace it with a short rationale that explains the active implementation.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "commented_out_code.js",
-      "tier": "domain",
-      "fingerprint": "commented_out_code::src/billing.ts::::42a4bbb39f1f"
-    },
-    {
-      "id": "crime_00018",
-      "type": "dst_naive_arithmetic",
-      "charge": "DST-Naive Day Math",
-      "severity": "medium",
-      "confidence": 0.8,
-      "file": "src/date.ts",
-      "lines": [
-        52,
-        52
-      ],
-      "summary": "1 day-level millisecond constant in arithmetic. A day isn't 86,400,000 ms on DST-transition days; manual ms math drifts silently.",
-      "evidence": [
-        "+ 86400000 (day) @L52",
-        "lines: 52",
-        "use a calendar-aware library (Luxon, Temporal, date-fns-tz) for day math"
-      ],
-      "effort": "medium",
-      "fix_shape": "use a DST-aware library; never add seconds to a wall-clock date",
-      "scores": {
-        "severity": 0.6,
-        "confidence": 0.8,
-        "agent_risk": 0.33,
-        "churn": 0.15,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "use_calendar_aware_lib",
-          "description": "Replace ms-arithmetic with a timezone-aware addDays/subtract operation that knows about DST and leap years.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "dst_naive_arithmetic.js",
-      "tier": "domain",
-      "fingerprint": "dst_naive_arithmetic::src/date.ts::"
-    },
-    {
-      "id": "crime_00019",
       "type": "hardcoded_localhost",
       "charge": "Dev-Server URL",
       "severity": "medium",
@@ -841,8 +758,8 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.9,
-        "agent_risk": 0.31,
-        "churn": 0.05,
+        "agent_risk": 0.3,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -862,7 +779,7 @@
       "fingerprint": "hardcoded_localhost::src/api/files.ts::"
     },
     {
-      "id": "crime_00020",
+      "id": "crime_00018",
       "type": "hardcoded_local_path",
       "charge": "Localhost-on-Disk",
       "severity": "medium",
@@ -883,8 +800,8 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.9,
-        "agent_risk": 0.31,
-        "churn": 0.05,
+        "agent_risk": 0.3,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -904,7 +821,49 @@
       "fingerprint": "hardcoded_local_path::src/api/files.ts::"
     },
     {
-      "id": "crime_00021",
+      "id": "crime_00019",
+      "type": "dst_naive_arithmetic",
+      "charge": "DST-Naive Day Math",
+      "severity": "medium",
+      "confidence": 0.8,
+      "file": "src/date.ts",
+      "lines": [
+        52,
+        52
+      ],
+      "summary": "1 day-level millisecond constant in arithmetic. A day isn't 86,400,000 ms on DST-transition days; manual ms math drifts silently.",
+      "evidence": [
+        "+ 86400000 (day) @L52",
+        "lines: 52",
+        "use a calendar-aware library (Luxon, Temporal, date-fns-tz) for day math"
+      ],
+      "effort": "medium",
+      "fix_shape": "use a DST-aware library; never add seconds to a wall-clock date",
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.8,
+        "agent_risk": 0.3,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "use_calendar_aware_lib",
+          "description": "Replace ms-arithmetic with a timezone-aware addDays/subtract operation that knows about DST and leap years.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "dst_naive_arithmetic.js",
+      "tier": "domain",
+      "fingerprint": "dst_naive_arithmetic::src/date.ts::"
+    },
+    {
+      "id": "crime_00020",
       "type": "concept_alias_drift",
       "charge": "Concept Alias Drift",
       "severity": "medium",
@@ -924,8 +883,8 @@
       "scores": {
         "severity": 0.55,
         "confidence": 0.75,
-        "agent_risk": 0.31,
-        "churn": 0.05,
+        "agent_risk": 0.3,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -951,7 +910,7 @@
       "fingerprint": "concept_alias_drift::docs/billing.md::"
     },
     {
-      "id": "crime_00022",
+      "id": "crime_00021",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -974,8 +933,8 @@
       "scores": {
         "severity": 0.3,
         "confidence": 0.8,
-        "agent_risk": 0.3,
-        "churn": 0.05,
+        "agent_risk": 0.29,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -995,56 +954,9 @@
       "fingerprint": "boolean_naming_drift::src/api/state.ts::"
     },
     {
-      "id": "crime_00023",
-      "type": "swallowed_error",
-      "charge": "Catch and Release",
-      "severity": "low",
-      "confidence": 0.78,
-      "file": "src/billing.ts",
-      "lines": [
-        245,
-        247
-      ],
-      "symbol": "generateInvoice → catch_clause",
-      "summary": "A failure in `generateInvoice` is caught and discarded — the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed). The caller sees success and there is no record the operation failed.",
-      "evidence": [
-        "protected operation: if (body.length === 0) throw new Error(\"empty body\"); (+1 more statement(s))",
-        "handler kind: try/catch (line 245)",
-        "what happens to the failure: the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed)",
-        "missing signal: no rethrow or rejected promise; no logging, telemetry, or error-wrapping call; no typed error result the caller could branch on; the error is never inspected",
-        "the catch declares no binding, so the error object is not even available to the handler"
-      ],
-      "score_rationale": [
-        "confidence 0.78 = 0.72 base + 0.06 (handler contains only a comment)"
-      ],
-      "effort": "small",
-      "fix_shape": "propagate, or record the error with enough context to act on",
-      "scores": {
-        "severity": 0.35,
-        "confidence": 0.78,
-        "churn": 0.2,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.3
-      },
-      "suggested_actions": [
-        {
-          "kind": "propagate_or_record",
-          "description": "Rethrow, or record the failure with the error value attached so the stack survives.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "swallowed_error.js",
-      "tier": "domain",
-      "fingerprint": "swallowed_error::src/billing.ts::generateInvoice → catch_clause"
-    },
-    {
-      "id": "crime_00024",
+      "id": "crime_00022",
       "type": "direct_date",
+      "claim": "clock_read",
       "charge": "Temporal Recklessness",
       "severity": "low",
       "confidence": 0.9,
@@ -1065,8 +977,8 @@
       "scores": {
         "severity": 0.35,
         "confidence": 0.9,
-        "agent_risk": 0.29,
-        "churn": 0.05,
+        "agent_risk": 0.28,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1083,94 +995,10 @@
       "pack": "language-js",
       "detector_id": "direct_date.js",
       "tier": "domain",
-      "fingerprint": "direct_date::src/api/state.ts::"
+      "fingerprint": "direct_date/clock_read::src/api/state.ts::"
     },
     {
-      "id": "crime_00025",
-      "type": "date_string_concat",
-      "charge": "Date String Sewing",
-      "severity": "low",
-      "confidence": 0.85,
-      "file": "src/date.ts",
-      "lines": [
-        41,
-        41
-      ],
-      "summary": "1 hand-rolled string concatenation using Date methods. Manual formatting routinely drops zero-padding, timezone, or zero-indexed month handling.",
-      "evidence": [
-        "`\"…\" + .getUTCFullYear()` @L41",
-        "lines: 41",
-        "use `toISOString()` or `Intl.DateTimeFormat` instead of `+`-concatenation"
-      ],
-      "effort": "small",
-      "fix_shape": "format dates via a single helper; never concatenate fragments",
-      "scores": {
-        "severity": 0.3,
-        "confidence": 0.85,
-        "agent_risk": 0.29,
-        "churn": 0.15,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "use_iso_or_intl",
-          "description": "Replace the concatenation with `d.toISOString()`, `Intl.DateTimeFormat(locale, opts).format(d)`, or a timezone-aware library's formatter.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "date_string_concat.js",
-      "tier": "domain",
-      "fingerprint": "date_string_concat::src/date.ts::"
-    },
-    {
-      "id": "crime_00026",
-      "type": "locale_drift",
-      "charge": "Host-Locale Drift",
-      "severity": "low",
-      "confidence": 0.85,
-      "file": "src/date.ts",
-      "lines": [
-        46,
-        46
-      ],
-      "summary": "1 `toLocale*()` call with no locale argument. Output varies by the runtime's default locale, not by anything the code controls.",
-      "evidence": [
-        "due.toLocaleDateString() @L46",
-        "lines: 46",
-        "pass an explicit locale (e.g. `'en-US'`) or use Intl.DateTimeFormat"
-      ],
-      "effort": "small",
-      "fix_shape": "centralise locale; one provider for all formatters",
-      "scores": {
-        "severity": 0.3,
-        "confidence": 0.85,
-        "agent_risk": 0.29,
-        "churn": 0.15,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "fix_locale_arg",
-          "description": "Pass an explicit BCP-47 locale string, or move to `Intl.DateTimeFormat` with locale + options.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "locale_drift.js",
-      "tier": "domain",
-      "fingerprint": "locale_drift::src/date.ts::"
-    },
-    {
-      "id": "crime_00027",
+      "id": "crime_00023",
       "type": "singular_plural_type_mismatch",
       "charge": "Plural Mismatch",
       "severity": "low",
@@ -1191,8 +1019,8 @@
       "scores": {
         "severity": 0.3,
         "confidence": 0.7,
-        "agent_risk": 0.29,
-        "churn": 0.05,
+        "agent_risk": 0.28,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1212,7 +1040,7 @@
       "fingerprint": "singular_plural_type_mismatch::src/api/state.ts::"
     },
     {
-      "id": "crime_00028",
+      "id": "crime_00024",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1231,13 +1059,13 @@
       "scores": {
         "severity": 0.4,
         "confidence": 0.65,
-        "churn": 0.05,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
         "blast_radius_direct_importers": 0,
         "recency": 0,
-        "agent_risk": 0.29
+        "agent_risk": 0.28
       },
       "suggested_actions": [
         {
@@ -1252,7 +1080,7 @@
       "fingerprint": "orphaned_destination::src/routes/account/subscription.tsx::"
     },
     {
-      "id": "crime_00029",
+      "id": "crime_00025",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1271,13 +1099,13 @@
       "scores": {
         "severity": 0.4,
         "confidence": 0.65,
-        "churn": 0.05,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
         "blast_radius_direct_importers": 0,
         "recency": 0,
-        "agent_risk": 0.29
+        "agent_risk": 0.28
       },
       "suggested_actions": [
         {
@@ -1292,7 +1120,7 @@
       "fingerprint": "orphaned_destination::src/routes/team/index.tsx::"
     },
     {
-      "id": "crime_00030",
+      "id": "crime_00026",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1311,13 +1139,13 @@
       "scores": {
         "severity": 0.4,
         "confidence": 0.65,
-        "churn": 0.05,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
         "blast_radius_direct_importers": 0,
         "recency": 0,
-        "agent_risk": 0.29
+        "agent_risk": 0.28
       },
       "suggested_actions": [
         {
@@ -1332,7 +1160,7 @@
       "fingerprint": "orphaned_destination::src/routes/workspace/members.tsx::"
     },
     {
-      "id": "crime_00031",
+      "id": "crime_00027",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "medium",
@@ -1343,6 +1171,7 @@
         6
       ],
       "discriminator": "renders the enterprise plan",
+      "claim": "no_assertions",
       "summary": "Test \"renders the enterprise plan\" contains no expect/assert calls. A test that only runs setup gives agents false confidence.",
       "evidence": [
         "test: \"renders the enterprise plan\"",
@@ -1354,8 +1183,8 @@
       "scores": {
         "severity": 0.45,
         "confidence": 0.88,
-        "agent_risk": 0.28,
-        "churn": 0.05,
+        "agent_risk": 0.27,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1372,10 +1201,94 @@
       "pack": "language-js",
       "detector_id": "weak_test_signal.js",
       "tier": "nonDomain",
-      "fingerprint": "weak_test_signal::src/billing.test.ts::::renders the enterprise plan"
+      "fingerprint": "weak_test_signal/no_assertions::src/billing.test.ts::::renders the enterprise plan"
     },
     {
-      "id": "crime_00032",
+      "id": "crime_00028",
+      "type": "date_string_concat",
+      "charge": "Date String Sewing",
+      "severity": "low",
+      "confidence": 0.85,
+      "file": "src/date.ts",
+      "lines": [
+        41,
+        41
+      ],
+      "summary": "1 hand-rolled string concatenation using Date methods. Manual formatting routinely drops zero-padding, timezone, or zero-indexed month handling.",
+      "evidence": [
+        "`\"…\" + .getUTCFullYear()` @L41",
+        "lines: 41",
+        "use `toISOString()` or `Intl.DateTimeFormat` instead of `+`-concatenation"
+      ],
+      "effort": "small",
+      "fix_shape": "format dates via a single helper; never concatenate fragments",
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.85,
+        "agent_risk": 0.26,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "use_iso_or_intl",
+          "description": "Replace the concatenation with `d.toISOString()`, `Intl.DateTimeFormat(locale, opts).format(d)`, or a timezone-aware library's formatter.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "date_string_concat.js",
+      "tier": "domain",
+      "fingerprint": "date_string_concat::src/date.ts::"
+    },
+    {
+      "id": "crime_00029",
+      "type": "locale_drift",
+      "charge": "Host-Locale Drift",
+      "severity": "low",
+      "confidence": 0.85,
+      "file": "src/date.ts",
+      "lines": [
+        46,
+        46
+      ],
+      "summary": "1 `toLocale*()` call with no locale argument. Output varies by the runtime's default locale, not by anything the code controls.",
+      "evidence": [
+        "due.toLocaleDateString() @L46",
+        "lines: 46",
+        "pass an explicit locale (e.g. `'en-US'`) or use Intl.DateTimeFormat"
+      ],
+      "effort": "small",
+      "fix_shape": "centralise locale; one provider for all formatters",
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.85,
+        "agent_risk": 0.26,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "fix_locale_arg",
+          "description": "Pass an explicit BCP-47 locale string, or move to `Intl.DateTimeFormat` with locale + options.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "locale_drift.js",
+      "tier": "domain",
+      "fingerprint": "locale_drift::src/date.ts::"
+    },
+    {
+      "id": "crime_00030",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -1397,8 +1310,8 @@
       "scores": {
         "severity": 0.3,
         "confidence": 0.8,
-        "agent_risk": 0.27,
-        "churn": 0.05,
+        "agent_risk": 0.26,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1418,7 +1331,56 @@
       "fingerprint": "boolean_naming_drift::src/petty.ts::"
     },
     {
-      "id": "crime_00033",
+      "id": "crime_00031",
+      "type": "swallowed_error",
+      "charge": "Catch and Release",
+      "severity": "low",
+      "confidence": 0.78,
+      "file": "src/billing.ts",
+      "lines": [
+        245,
+        247
+      ],
+      "symbol": "generateInvoice → catch_clause",
+      "claim": "comment_only",
+      "summary": "A failure in `generateInvoice` is caught and discarded — the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed). The caller sees success and there is no record the operation failed.",
+      "evidence": [
+        "protected operation: if (body.length === 0) throw new Error(\"empty body\"); (+1 more statement(s))",
+        "handler kind: try/catch (line 245)",
+        "what happens to the failure: the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed)",
+        "missing signal: no rethrow or rejected promise; no logging, telemetry, or error-wrapping call; no typed error result the caller could branch on; the error is never inspected",
+        "the catch declares no binding, so the error object is not even available to the handler"
+      ],
+      "score_rationale": [
+        "confidence 0.78 = 0.72 base + 0.06 (handler contains only a comment)"
+      ],
+      "effort": "small",
+      "fix_shape": "propagate, or record the error with enough context to act on",
+      "scores": {
+        "severity": 0.35,
+        "confidence": 0.78,
+        "churn": 0,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0,
+        "agent_risk": 0.26
+      },
+      "suggested_actions": [
+        {
+          "kind": "propagate_or_record",
+          "description": "Rethrow, or record the failure with the error value attached so the stack survives.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "swallowed_error.js",
+      "tier": "domain",
+      "fingerprint": "swallowed_error/comment_only::src/billing.ts::generateInvoice → catch_clause"
+    },
+    {
+      "id": "crime_00032",
       "type": "docs_code_drift",
       "charge": "Docs-Code Drift",
       "severity": "low",
@@ -1433,8 +1395,8 @@
       "scores": {
         "severity": 0.35,
         "confidence": 0.9,
-        "agent_risk": 0.25,
-        "churn": 0.05,
+        "agent_risk": 0.24,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1454,6 +1416,49 @@
       "fingerprint": "docs_code_drift::docs/teams.md::"
     },
     {
+      "id": "crime_00033",
+      "type": "commented_out_code",
+      "charge": "Commented-Out Corpse",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/billing.ts",
+      "lines": [
+        33,
+        37
+      ],
+      "discriminator": "42a4bbb39f1f",
+      "summary": "Comment block appears to contain disabled code. Dead implementation snippets can mislead humans and agents into copying or reviving stale behaviour.",
+      "evidence": [
+        "5 comment lines",
+        "code-like tokens: const, if, await",
+        "first code-like line: const legacyRefund = await loadRefund(user.id);"
+      ],
+      "effort": "quick",
+      "fix_shape": "delete; git history preserves it",
+      "scores": {
+        "severity": 0.45,
+        "confidence": 0.9,
+        "agent_risk": 0.23,
+        "churn": 0,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "delete_dead_comment_code",
+          "description": "Delete the disabled code, or replace it with a short rationale that explains the active implementation.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "commented_out_code.js",
+      "tier": "domain",
+      "fingerprint": "commented_out_code::src/billing.ts::::42a4bbb39f1f"
+    },
+    {
       "id": "crime_00034",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
@@ -1465,6 +1470,7 @@
         10
       ],
       "discriminator": "creates an invoice",
+      "claim": "weak_assertion_matchers",
       "summary": "Test \"creates an invoice\" only uses weak assertion matchers. It may prove the code ran, not that behaviour is protected.",
       "evidence": [
         "test: \"creates an invoice\"",
@@ -1476,8 +1482,8 @@
       "scores": {
         "severity": 0.25,
         "confidence": 0.78,
-        "agent_risk": 0.24,
-        "churn": 0.05,
+        "agent_risk": 0.23,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1494,7 +1500,7 @@
       "pack": "language-js",
       "detector_id": "weak_test_signal.js",
       "tier": "nonDomain",
-      "fingerprint": "weak_test_signal::src/billing.test.ts::::creates an invoice"
+      "fingerprint": "weak_test_signal/weak_assertion_matchers::src/billing.test.ts::::creates an invoice"
     },
     {
       "id": "crime_00035",
@@ -1508,6 +1514,7 @@
         1
       ],
       "symbol": "undeclared imports",
+      "claim": "undeclared_import",
       "summary": "1 external package(s) are imported but declared in no applicable package.json. They resolve today through hoisting; a clean install can fail.",
       "evidence": [
         "1 external package(s) imported with no declaring manifest",
@@ -1525,13 +1532,13 @@
       "scores": {
         "severity": 0.25,
         "confidence": 0.56,
-        "churn": 0.1,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
         "blast_radius_direct_importers": 0,
         "recency": 0,
-        "agent_risk": 0.24
+        "agent_risk": 0.22
       },
       "suggested_actions": [
         {
@@ -1546,7 +1553,7 @@
       "pack": "universal",
       "detector_id": "dependency_provenance_gap",
       "tier": "domain",
-      "fingerprint": "dependency_provenance_gap::package.json::undeclared imports"
+      "fingerprint": "dependency_provenance_gap/undeclared_import::package.json::undeclared imports"
     },
     {
       "id": "crime_00036",
@@ -1560,6 +1567,7 @@
         50,
         253
       ],
+      "claim": "too_long",
       "summary": "generateInvoice is 204 lines long (domain function threshold 60). Bodies this size usually mix unrelated responsibilities, and an agent editing one section often misses interactions in another.",
       "evidence": [
         "lines 50–253 (204 lines)",
@@ -1571,8 +1579,8 @@
       "scores": {
         "severity": 0.9,
         "confidence": 0.95,
-        "agent_risk": 0.13,
-        "churn": 0.2,
+        "agent_risk": 0.11,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1589,7 +1597,7 @@
       "pack": "language-js",
       "detector_id": "large_function.js",
       "tier": "domain",
-      "fingerprint": "large_function::src/billing.ts::generateInvoice"
+      "fingerprint": "large_function/too_long::src/billing.ts::generateInvoice"
     },
     {
       "id": "crime_00037",
@@ -1613,7 +1621,7 @@
         "severity": 0.4,
         "confidence": 0.7,
         "agent_risk": 0.1,
-        "churn": 0.05,
+        "churn": 0,
         "test_gap": 0.5,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1651,8 +1659,8 @@
       "scores": {
         "severity": 0.75,
         "confidence": 0.95,
-        "agent_risk": 0.08,
-        "churn": 0.05,
+        "agent_risk": 0.07,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1692,8 +1700,8 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.71,
-        "agent_risk": 0.07,
-        "churn": 0.2,
+        "agent_risk": 0.05,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1714,45 +1722,6 @@
     },
     {
       "id": "crime_00040",
-      "type": "oversized_raster",
-      "charge": "Oversized Raster",
-      "severity": "low",
-      "confidence": 0.95,
-      "file": "src/assets/hero-banner.png",
-      "summary": "253.9 KB raster asset (threshold 200 / 500 / 1000 KB). Heavy images directly inflate page weight and Core Web Vitals; the fix is usually a resize plus a modern-format re-encode, not a build change.",
-      "evidence": [
-        "byte size: 260,000 bytes (253.9 KB)",
-        "severity ladder: low ≥ 200 KB · medium ≥ 500 KB · high ≥ 1000 KB",
-        "format: png",
-        "consider resizing to the rendered dimensions and re-encoding to webp or avif"
-      ],
-      "effort": "quick",
-      "fix_shape": "downscale or convert to WebP/AVIF; budget the size",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.95,
-        "agent_risk": 0.05,
-        "churn": 0.05,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "shrink_raster",
-          "description": "Resize the image to the dimensions it actually renders at and re-encode as WebP or AVIF. If the asset is decorative, consider whether an SVG icon or CSS gradient would replace it entirely.",
-          "risk": "low"
-        }
-      ],
-      "pack": "universal",
-      "detector_id": "oversized_raster",
-      "tier": "domain",
-      "fingerprint": "oversized_raster::src/assets/hero-banner.png::"
-    },
-    {
-      "id": "crime_00041",
       "type": "raster_should_be_vector",
       "charge": "Icon-Sized Raster",
       "severity": "low",
@@ -1770,7 +1739,7 @@
         "severity": 0.35,
         "confidence": 0.85,
         "agent_risk": 0.05,
-        "churn": 0.05,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1788,6 +1757,45 @@
       "detector_id": "raster_should_be_vector",
       "tier": "domain",
       "fingerprint": "raster_should_be_vector::src/assets/check-icon.png::"
+    },
+    {
+      "id": "crime_00041",
+      "type": "oversized_raster",
+      "charge": "Oversized Raster",
+      "severity": "low",
+      "confidence": 0.95,
+      "file": "src/assets/hero-banner.png",
+      "summary": "253.9 KB raster asset (threshold 200 / 500 / 1000 KB). Heavy images directly inflate page weight and Core Web Vitals; the fix is usually a resize plus a modern-format re-encode, not a build change.",
+      "evidence": [
+        "byte size: 260,000 bytes (253.9 KB)",
+        "severity ladder: low ≥ 200 KB · medium ≥ 500 KB · high ≥ 1000 KB",
+        "format: png",
+        "consider resizing to the rendered dimensions and re-encoding to webp or avif"
+      ],
+      "effort": "quick",
+      "fix_shape": "downscale or convert to WebP/AVIF; budget the size",
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.95,
+        "agent_risk": 0.04,
+        "churn": 0,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "shrink_raster",
+          "description": "Resize the image to the dimensions it actually renders at and re-encode as WebP or AVIF. If the asset is decorative, consider whether an SVG icon or CSS gradient would replace it entirely.",
+          "risk": "low"
+        }
+      ],
+      "pack": "universal",
+      "detector_id": "oversized_raster",
+      "tier": "domain",
+      "fingerprint": "oversized_raster::src/assets/hero-banner.png::"
     },
     {
       "id": "crime_00042",
@@ -1810,8 +1818,8 @@
       "scores": {
         "severity": 0.2,
         "confidence": 0.7,
-        "agent_risk": 0.04,
-        "churn": 0.2,
+        "agent_risk": 0.02,
+        "churn": 0,
         "test_gap": 0,
         "blast_radius": 0,
         "blast_radius_transitive_importers": 0,
@@ -1856,6 +1864,17 @@
           ".crimes/suppressions.json"
         ],
         "remedy": "Review \"exclude\" in crimes.config.json if any of these should be scanned."
+      },
+      {
+        "kind": "suppression_entries_unmatched",
+        "subject": "superseded",
+        "files": 1,
+        "detail": "1 suppression entry in 1 file no longer matches any finding, but the same claim about the same code is still reported under a different fingerprint. That finding is visible again with nothing silencing it — a lapsed decision, not a fixed one.",
+        "entries": 1,
+        "examples": [
+          "src/billing.ts"
+        ],
+        "remedy": "Re-record it against the current fingerprints. Pins written before schema_version 0.8.0 against a multi-claim detector stopped matching when the claim joined the fingerprint."
       }
     ]
   }
