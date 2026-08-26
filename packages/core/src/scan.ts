@@ -18,7 +18,10 @@ import {
 } from "./detector-registry.js";
 import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import { buildCoverage } from "./discovery/coverage.js";
-import { CoverageWarningLog } from "./discovery/coverage-warnings.js";
+import {
+  CoverageWarningLog,
+  mergeCoverageWarnings,
+} from "./discovery/coverage-warnings.js";
 import { isNeverReportable } from "./util/scope-class.js";
 import { generatedMatcherFor } from "./manifest/gitattributes.js";
 import { collectDiscoveryWarnings } from "./discovery/undiscovered.js";
@@ -38,6 +41,12 @@ import type { ApplySuppressionsOptions, SuppressionEntry } from "./suppressions.
 import { partitionFindings } from "./suppressions.js";
 import type { TriageEntry } from "./triage.js";
 import { applyTriageFilter, type ApplyTriageFilterOptions } from "./triage-filter.js";
+import {
+  classifyUnmatchedPins,
+  type PinLike,
+  type ScannedFiles,
+  type UnmatchedPin,
+} from "./pins-unmatched.js";
 import {
   assignIdsAndFingerprints as assignIdsHelper,
   tagTierAndSortByRankScore,
@@ -437,6 +446,98 @@ async function resolveScanInputs(args: {
     changedAll: restricted.allChangedRepoPaths,
     toolingSkips,
   };
+}
+
+/**
+ * Record which `.crimes/triage.json` and `.crimes/suppressions.json`
+ * entries matched **nothing** in this scan, as `coverage.warnings[]`.
+ *
+ * Run this **before** {@link applyTriageToScan} and
+ * {@link applySuppressionsToScan}, on the untouched findings list. Both
+ * of those remove findings, and a finding one of them removed looks
+ * exactly like an entry that stopped matching — classify after them and
+ * every silenced finding reports itself as a lapsed pin.
+ *
+ * Nothing here changes `findings`, `summary` or any score. The only
+ * output is a warning, because the bug is that a no-op was silent, not
+ * that the wrong findings were reported.
+ *
+ * A narrowed scan (`--changed`, `--files`, `--related-to`) judges only
+ * entries whose file it actually looked at — see {@link ScannedFiles}.
+ * Pure — does not mutate the input.
+ */
+export function recordUnmatchedPins(
+  report: ScanReport,
+  pins: { triage?: readonly PinLike[]; suppressions?: readonly PinLike[] },
+): ScanReport {
+  // No coverage block means zero discovered files; there is no scan for
+  // an entry to have matched, so there is nothing to report about one.
+  if (report.coverage === undefined) return report;
+
+  const triage = pins.triage ?? [];
+  const suppressions = pins.suppressions ?? [];
+  if (triage.length === 0 && suppressions.length === 0) return report;
+
+  const scanned = scannedFilesOf(report);
+  const log = new CoverageWarningLog();
+  recordPinGroup(
+    log,
+    "triage_entries_unmatched",
+    classifyUnmatchedPins(report.findings, triage, scanned),
+  );
+  recordPinGroup(
+    log,
+    "suppression_entries_unmatched",
+    classifyUnmatchedPins(report.findings, suppressions, scanned),
+  );
+  if (log.isEmpty()) return report;
+
+  return {
+    ...report,
+    coverage: {
+      ...report.coverage,
+      warnings: mergeCoverageWarnings(report.coverage.warnings, log.build()),
+    },
+  };
+}
+
+/**
+ * The files this scan looked at, or `undefined` when it looked at all of
+ * them. `changed_files` and `working_set` are the two ways a report says
+ * it is narrower than the repo.
+ */
+function scannedFilesOf(report: ScanReport): ScannedFiles {
+  if (report.working_set !== undefined) return new Set(report.working_set.files);
+  if (report.changed_files !== undefined) return new Set(report.changed_files);
+  return undefined;
+}
+
+/**
+ * One bucket per subject, counting entries and distinct files
+ * separately: several pins routinely name one file, and `files` is
+ * contracted to be a file count.
+ */
+function recordPinGroup(
+  log: CoverageWarningLog,
+  kind: "triage_entries_unmatched" | "suppression_entries_unmatched",
+  result: { superseded: UnmatchedPin[]; noLongerReported: UnmatchedPin[] },
+): void {
+  recordPinBucket(log, kind, "superseded", result.superseded);
+  recordPinBucket(log, kind, "no_longer_reported", result.noLongerReported);
+}
+
+function recordPinBucket(
+  log: CoverageWarningLog,
+  kind: "triage_entries_unmatched" | "suppression_entries_unmatched",
+  subject: string,
+  pins: readonly UnmatchedPin[],
+): void {
+  if (pins.length === 0) return;
+  log.record(kind, subject, { entries: pins.length });
+  // Sorted before recording so `examples` is the first five files in
+  // path order rather than the first five in entry order.
+  const files = [...new Set(pins.map((pin) => pin.file))].filter((f) => f !== "").sort();
+  for (const file of files) log.record(kind, subject, { file });
 }
 
 /**

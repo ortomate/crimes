@@ -497,7 +497,15 @@ interface ScanCoverage {
    * Every field above counts only files discovery actually returned, so
    * none of them can report a file discovery never saw. A repo of 1,226
    * `.vue` components produced a report where `.vue` appeared nowhere.
-   * This array is the answer to "what did this scan not look at?".
+   * This array is the answer to "what did this scan not look at, and
+   * what did it stop acting on?".
+   *
+   * Most kinds are the first question — work the scan skipped. The two
+   * `*_entries_unmatched` kinds are the second: a `.crimes/triage.json`
+   * or `.crimes/suppressions.json` entry that matched no finding, so a
+   * decision you recorded silently stopped applying. Those files were
+   * scanned normally, so do **not** add their `files` into a
+   * "not analysed" total — filter on kind first.
    *
    * Aggregated by `(kind, subject)` and sorted by `files` descending, so
    * the first entry is the largest gap.
@@ -516,11 +524,24 @@ interface CoverageWarning {
     | "files_unparsed"
     | "files_partial_parse"
     | "index_truncated"
-    | "index_unavailable";
+    | "index_unavailable"
+    | "triage_entries_unmatched"
+    | "suppression_entries_unmatched";
   /** Aggregation key and the thing to act on. Never a file path. */
   subject: string;
-  /** How many files this warning accounts for. Always ≥ 1. */
+  /**
+   * How many files this warning accounts for. Always ≥ 1. For the
+   * `*_entries_unmatched` kinds these are files the unmatched entries
+   * point at — scanned normally, not skipped.
+   */
   files: number;
+  /**
+   * How many recorded entries this warning accounts for. Present only
+   * on the `*_entries_unmatched` kinds, where one file can carry
+   * several pinned findings and the entry count is the number the
+   * reader has on disk. Added in 0.8.0.
+   */
+  entries?: number;
   /** Up to five repo-relative example paths, sorted. */
   examples?: string[];
   /** One sentence naming what was skipped. Prose — do not parse. */
@@ -541,9 +562,18 @@ interface CoverageWarning {
 | `files_partial_parse`  | pack id (`"language-py"` / `"language-js"`) | Parsed with syntax errors, so anything reported is about the part that parsed. |
 | `index_truncated`      | index id (`"imports"`)              | A cross-file index hit its file cap; `files` counts what fell outside it.     |
 | `index_unavailable`    | index id (`"imports"`, `"ia"`, …)   | The index failed to build, so its detectors silently produced nothing.        |
+| `triage_entries_unmatched` | `"superseded"` / `"no_longer_reported"` | `.crimes/triage.json` entries matching no finding. `superseded` means the same claim is still reported under a different fingerprint — the finding is unsilenced. `no_longer_reported` means nothing of that kind fires there any more (fixed, or the file went away). |
+| `suppression_entries_unmatched` | `"superseded"` / `"no_longer_reported"` | The same, for `.crimes/suppressions.json`. |
 
 Unrecognised `kind` values may appear in a future minor release — treat
 the field as an open enum and tolerate values you do not know.
+
+The `*_entries_unmatched` kinds are computed from the scan's own
+findings, so they need no Git and appear on any scan that loaded a
+triage or suppressions file. A narrowed scan (`--changed`, `--files`,
+`--related-to`) judges only entries whose file it actually read — an
+entry it never looked at produces no evidence either way and is not
+counted.
 
 The discovery-gap kinds (`files_not_discovered`, `files_excluded`,
 `files_not_followed`, `files_in_hidden_path`) are computed against

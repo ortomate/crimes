@@ -4,6 +4,7 @@ import type { ScanReport } from "@crimes/core";
 import {
   buildCoverageBanner,
   buildCoverageWarningNotice,
+  buildUnmatchedPinsNotice,
   renderCoverageExplain,
 } from "./coverage.js";
 
@@ -148,5 +149,90 @@ describe("coverage warnings", () => {
   it("says nothing about warnings when there are none", () => {
     const out = capture((s) => renderCoverageExplain(coverage(100, 10), s));
     expect(out).not.toContain("skipped work");
+  });
+});
+
+describe("unmatched pin warnings", () => {
+  const pinned: ScanReport["coverage"] = {
+    ...coverage(340, 12)!,
+    warnings: [
+      {
+        kind: "files_excluded",
+        subject: "config.exclude",
+        files: 30,
+        detail: '30 files matched an "exclude" pattern and were never read.',
+      },
+      {
+        kind: "triage_entries_unmatched",
+        subject: "superseded",
+        files: 30,
+        entries: 56,
+        detail: "56 triage entries across 30 files no longer match any finding.",
+        remedy: "Re-record them against the current fingerprints.",
+      },
+      {
+        kind: "triage_entries_unmatched",
+        subject: "no_longer_reported",
+        files: 5,
+        entries: 7,
+        detail: "7 triage entries across 5 files no longer match any finding.",
+        remedy: "Drop them from .crimes/triage.json.",
+      },
+    ],
+  };
+
+  it("names the total and both verdicts", () => {
+    const notice = buildUnmatchedPinsNotice(pinned);
+    expect(notice).not.toBeNull();
+    expect(notice).toContain("63 recorded entries");
+    expect(notice).toContain("56");
+    expect(notice).toContain("7");
+    expect(notice).toContain("--explain-coverage");
+  });
+
+  // `superseded` is the only half that is bad news, and the array is
+  // ordered by file count, so nothing but an explicit sort guarantees
+  // it leads.
+  it("leads with the superseded verdict", () => {
+    const reversed: ScanReport["coverage"] = {
+      ...pinned,
+      warnings: [...(pinned!.warnings ?? [])].reverse(),
+    };
+    const lines = buildUnmatchedPinsNotice(reversed)!.split("\n");
+    expect(lines[1]).toContain("NOT silenced any more");
+    expect(lines[2]).toContain("likely fixed");
+  });
+
+  it("returns null when no pin lapsed", () => {
+    expect(buildUnmatchedPinsNotice(coverage(100, 10))).toBeNull();
+    expect(buildUnmatchedPinsNotice(undefined)).toBeNull();
+  });
+
+  // The whole point of the split: those 30 files WERE analysed, so
+  // adding them to "N files were not analysed" states a false number
+  // in the field that exists to expose silent skips.
+  it("keeps lapsed pins out of the skipped-files total", () => {
+    const notice = buildCoverageWarningNotice(pinned);
+    expect(notice).toContain("30 files were not analysed");
+    expect(notice).toContain("(1 reason)");
+    expect(notice).not.toContain("triage_entries_unmatched");
+  });
+
+  it("returns null from the skipped notice when only pins lapsed", () => {
+    const onlyPins: ScanReport["coverage"] = {
+      ...pinned,
+      warnings: (pinned!.warnings ?? []).filter((w) => w.kind !== "files_excluded"),
+    };
+    expect(buildCoverageWarningNotice(onlyPins)).toBeNull();
+  });
+
+  it("gives lapsed pins their own --explain-coverage heading, sized in entries", () => {
+    const out = capture((s) => renderCoverageExplain(pinned, s));
+    expect(out).toContain("skipped work (1)");
+    expect(out).toContain("recorded decisions that no longer apply (2)");
+    expect(out).toContain("56 entries");
+    expect(out).toContain("Re-record them against the current fingerprints.");
+    // File-shaped kinds keep saying "files".
+    expect(out).toContain("30 files");
   });
 });

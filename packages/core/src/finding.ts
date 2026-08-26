@@ -566,7 +566,9 @@ export type CoverageWarningKind =
   | "files_partial_parse"
   | "index_truncated"
   | "index_unavailable"
-  | "working_set_path_unmatched";
+  | "working_set_path_unmatched"
+  | "triage_entries_unmatched"
+  | "suppression_entries_unmatched";
 
 /**
  * One aggregated class of skipped work.
@@ -587,6 +589,12 @@ export interface CoverageWarning {
   /**
    * How many files this warning accounts for. Always ≥ 1 and always a
    * file count, so warnings are comparable to `files_total`.
+   *
+   * For the `*_entries_unmatched` kinds this is the number of files the
+   * unmatched entries *point at* — those files were scanned normally,
+   * so unlike every other kind it is not a count of work that was
+   * skipped. `entries` carries the number those warnings are actually
+   * about.
    */
   files: number;
   /**
@@ -595,6 +603,17 @@ export interface CoverageWarning {
    * whole-index failure knows a count but not a list.
    */
   examples?: string[];
+  /**
+   * How many recorded entries this warning accounts for, for kinds whose
+   * unit is not a file — `triage_entries_unmatched` and
+   * `suppression_entries_unmatched`, where one file can carry several
+   * pinned findings. Absent on every file-shaped kind, where `files` is
+   * already the count.
+   *
+   * Added in `schema_version` 0.8.0. Additive: a consumer that ignores
+   * it reads the same warnings it always did.
+   */
+  entries?: number;
   /** One sentence naming what was skipped. Prose; do not parse. */
   detail: string;
   /** One sentence naming the fix, when there is one. Prose. */

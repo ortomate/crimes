@@ -4,6 +4,7 @@ import {
   applyScanFailOn,
   applySuppressionsToScan,
   applyTriageToScan,
+  recordUnmatchedPins,
   builtInDetectors,
   countEntriesByDetector,
   countResurfacedByPinnedMinor,
@@ -22,6 +23,7 @@ import type { FailOn } from "@crimes/core";
 import {
   buildCoverageBanner,
   buildCoverageWarningNotice,
+  buildUnmatchedPinsNotice,
   formatHumanReport,
   formatJsonReport,
   formatScanFailOnLine,
@@ -307,6 +309,15 @@ export function registerScanCommand(program: Command): void {
         // Triage filter applies BEFORE suppressions so the renderer can
         // distinguish "user triaged this" from "suppression hit".
         const triage = await loadTriage(resolveTriagePath(root));
+        // Before either filter runs, while `findings` is still every
+        // finding the detectors produced. Both filters remove findings,
+        // and a removed finding is indistinguishable from an entry that
+        // stopped matching — classify afterwards and every pin that
+        // worked reports itself as a pin that lapsed.
+        report = recordUnmatchedPins(report, {
+          triage: triage.entries,
+          suppressions: suppressions.entries,
+        });
         report = applyTriageToScan(report, triage.entries, {
           showTriaged: options.showTriaged,
         });
@@ -365,6 +376,13 @@ export function registerScanCommand(program: Command): void {
         const skipped = buildCoverageWarningNotice(gatedReport.coverage);
         if (skipped) {
           process.stdout.write(skipped + "\n\n");
+        }
+        // Same policy as `skipped`, and for the same reason: a triage
+        // entry that silently stopped applying is the failure this
+        // notice exists for, so a pipe must not swallow it.
+        const stalePins = buildUnmatchedPinsNotice(gatedReport.coverage);
+        if (stalePins) {
+          process.stdout.write(stalePins + "\n\n");
         }
         process.stdout.write(
           formatHumanReport(gatedReport, {

@@ -404,11 +404,21 @@ export {
   applyScanFailOn,
   applySuppressionsToScan,
   applyTriageToScan,
+  recordUnmatchedPins,
   resolveAliasGroups,
   scan,
 } from "./scan.js";
 export type { ApplyScanFailOnOptions, ScanOptions } from "./scan.js";
 export { applyTriageFilter } from "./triage-filter.js";
+export { isSkippedWorkKind } from "./discovery/coverage-warnings.js";
+export {
+  classifyUnmatchedPins,
+  type PinLike,
+  type ScannedFiles,
+  type UnmatchedPin,
+  type UnmatchedPinKind,
+  type UnmatchedPinsResult,
+} from "./pins-unmatched.js";
 export type {
   ApplyTriageFilterOptions,
   TriageFilterResult,
