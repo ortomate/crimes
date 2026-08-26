@@ -120,18 +120,54 @@ touched files (`▼ was previously baselined`).
 
 | Flag                     | What it does                                                                |
 | ------------------------ | --------------------------------------------------------------------------- |
-| `--apply <file>`         | Non-interactive — read dispositions from a JSON file (same shape as on disk). |
+| `--apply <file>`         | Non-interactive — read dispositions from a JSON file. Shape below. |
 | `--list`                 | Show the current triage entries and exit; no scan, no prompts.              |
 | `--clear <fingerprint>`  | Remove a single entry by fingerprint.                                       |
 | `--retriage <target>`    | Re-open the disposition prompt for matching entries (fingerprint, file path, or glob). |
 | `--owner <handle>`       | Default owner for new dispositions written this run.                        |
 | `--all`                  | Include non-domain tier findings in the interactive walk.                   |
 
-Non-interactive flow with `--apply` is the scripted equivalent — pass a
-JSON document with the same shape as `.crimes/triage.json` and entries
-merge by fingerprint (applied entries overwrite existing fingerprints;
-unmentioned fingerprints stay untouched). `crimes triage` refuses to
-start the interactive walk in CI or a non-TTY; use `--apply` there.
+### `--apply`, and the shape it takes
+
+`crimes triage` refuses to start the interactive walk in CI or a
+non-TTY, so `--apply` is **the** route for an agent, a script, or a CI
+job. Entries merge by fingerprint: an applied entry overwrites an
+existing one with the same fingerprint, and fingerprints you do not
+mention are left untouched.
+
+**Three fields are required.** Everything else is optional and is filled
+in for you:
+
+```json
+[
+  {
+    "fingerprint": "large_function::src/billing/tax.ts::applyVat",
+    "disposition": "wont-fix",
+    "reason": "generated file — rewritten by the codegen step"
+  }
+]
+```
+
+- `fingerprint` — copy it verbatim from `crimes scan --format json`. Do
+  not build it by hand.
+- `disposition` — one of `fix-now`, `fix-this-PR`, `needs-design`,
+  `wont-fix`, `scaffolding`.
+- `reason` — required, and non-empty. It is the whole point: a silenced
+  finding without a reason is indistinguishable from one nobody looked at.
+- `owner` — optional, defaults to empty. `--owner <handle>` sets it for
+  the run.
+- `date` — optional `YYYY-MM-DD`, defaults to today.
+- `type`, `file`, `symbol` — optional. They are already inside the
+  fingerprint and are derived from it; supply them only to override.
+
+A bare array works, as above. So does `{"entries": [...]}`, and so does
+a whole `.crimes/triage.json` envelope and all — which means an existing
+triage file is a valid payload you can edit and re-apply. Every problem
+in the payload is reported at once, not one per run.
+
+`crimes triage --list --format json` emits `{"entries": [...]}` — the same
+shape `--apply` accepts, so the two round-trip: list, edit a disposition,
+apply it back.
 
 ---
 

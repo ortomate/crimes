@@ -646,6 +646,19 @@ describe("scan — resurfacing", () => {
     expect(report.findings[0]!.previously_triaged).toBe(true);
     expect(report.findings[0]!.previous_triage?.disposition).toBe("wont-fix");
     expect(report.findings[0]!.previous_triage?.reason).toBe("legacy billing");
+
+    // A resurfaced finding has to be addressable. It is collected after
+    // the main id/fingerprint pass and prepended, so without a second
+    // pass it reaches the report carrying neither — and `--show-triaged`
+    // exists precisely so a caller can act on what it surfaces.
+    expect(report.findings[0]!.fingerprint).toBe(print);
+    expect(report.findings[0]!.id).toBe("crime_00001");
+    expect(report.findings.every((f) => (f.fingerprint ?? "") !== "")).toBe(true);
+    // And `id` stays positional over the merged list, which is the only
+    // thing it claims to be.
+    expect(report.findings.map((f) => f.id)).toEqual(
+      report.findings.map((_, i) => `crime_${String(i + 1).padStart(5, "0")}`),
+    );
   });
 
   it("skips resurfacing silently when not in a git repo", {

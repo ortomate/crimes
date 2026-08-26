@@ -450,6 +450,7 @@ export {
   loadTriage,
   MalformedTriageError,
   parseTriage,
+  parseTriageInput,
   resolveTriagePath,
   saveTriage,
   upsertTriageEntry,

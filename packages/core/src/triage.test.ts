@@ -6,6 +6,7 @@ import {
   emptyTriage,
   loadTriage,
   parseTriage,
+  parseTriageInput,
   resolveTriagePath,
   saveTriage,
   upsertTriageEntry,
@@ -245,5 +246,135 @@ describe("triage", () => {
       entries: [{ fingerprint: "x::y::" }],
     });
     expect(() => parseTriage(raw)).toThrow(MalformedTriageError);
+  });
+});
+
+describe("parseTriageInput — the shape a caller writes", () => {
+  const FP = "weak_test_signal::test/server.test.ts::::rejects a rogue write";
+  const fixedClock = () => new Date("2026-08-26T04:00:00.000Z");
+  const minimal = {
+    fingerprint: FP,
+    disposition: "wont-fix",
+    reason: "detector is wrong",
+  };
+
+  it("accepts a bare array — no envelope at all", () => {
+    const out = parseTriageInput(JSON.stringify([minimal]), "<t>", { now: fixedClock });
+    expect(out).toHaveLength(1);
+    expect(out[0]!.fingerprint).toBe(FP);
+    expect(out[0]!.disposition).toBe("wont-fix");
+  });
+
+  it("accepts { entries } without schema_version, report_type or timestamps", () => {
+    const out = parseTriageInput(JSON.stringify({ entries: [minimal] }), "<t>", {
+      now: fixedClock,
+    });
+    expect(out).toHaveLength(1);
+  });
+
+  it("still accepts a full on-disk document, so an existing triage.json round-trips", () => {
+    const doc = {
+      schema_version: "0.7.0",
+      report_type: "triage",
+      created_at: "2026-08-26T04:00:00.000Z",
+      updated_at: "2026-08-26T04:00:00.000Z",
+      crimes_version: "0.26.0",
+      entries: [
+        {
+          ...minimal,
+          type: "weak_test_signal",
+          file: "test/server.test.ts",
+          owner: "@amayfield",
+          date: "2026-04-12",
+        },
+      ],
+    };
+    const out = parseTriageInput(JSON.stringify(doc), "<t>", { now: fixedClock });
+    expect(out[0]!.owner).toBe("@amayfield");
+    expect(out[0]!.date).toBe("2026-04-12");
+  });
+
+  it("derives type and file from the fingerprint rather than demanding them", () => {
+    const out = parseTriageInput(JSON.stringify([minimal]), "<t>", { now: fixedClock });
+    expect(out[0]!.type).toBe("weak_test_signal");
+    expect(out[0]!.file).toBe("test/server.test.ts");
+  });
+
+  it("derives a non-empty symbol, and leaves the empty slot absent", () => {
+    const withSymbol = parseTriageInput(
+      JSON.stringify([{ ...minimal, fingerprint: "large_function::src/a.ts::doStuff" }]),
+      "<t>",
+      { now: fixedClock },
+    );
+    expect(withSymbol[0]!.symbol).toBe("doStuff");
+    // FP above has an empty symbol slot; it must not become "".
+    const withoutSymbol = parseTriageInput(JSON.stringify([minimal]), "<t>", {
+      now: fixedClock,
+    });
+    expect(withoutSymbol[0]!.symbol).toBeUndefined();
+  });
+
+  it("takes the caller's type and file when they are supplied", () => {
+    const out = parseTriageInput(
+      JSON.stringify([{ ...minimal, type: "hand_typed", file: "other/path.ts" }]),
+      "<t>",
+      { now: fixedClock },
+    );
+    expect(out[0]!.type).toBe("hand_typed");
+    expect(out[0]!.file).toBe("other/path.ts");
+  });
+
+  it('accepts symbol: "" instead of rejecting it', () => {
+    const out = parseTriageInput(JSON.stringify([{ ...minimal, symbol: "" }]), "<t>", {
+      now: fixedClock,
+    });
+    expect(out[0]!.symbol).toBeUndefined();
+  });
+
+  it("defaults owner to empty and date to today", () => {
+    const out = parseTriageInput(JSON.stringify([minimal]), "<t>", { now: fixedClock });
+    expect(out[0]!.owner).toBe("");
+    expect(out[0]!.date).toBe("2026-08-26");
+  });
+
+  it("reports EVERY problem at once, not one per run", () => {
+    const raw = JSON.stringify({
+      entries: [
+        { fingerprint: "", disposition: "nope", reason: "" },
+        {
+          fingerprint: "a::b::",
+          disposition: "wont-fix",
+          reason: "ok",
+          date: "26-08-2026",
+        },
+      ],
+    });
+    let message = "";
+    try {
+      parseTriageInput(raw, "<t>", { now: fixedClock });
+    } catch (err) {
+      message = err instanceof Error ? err.message : String(err);
+    }
+    // The four bad values are: fingerprint, disposition, reason, date.
+    expect(message).toContain("entries.0.fingerprint");
+    expect(message).toContain("entries.0.disposition");
+    expect(message).toContain("entries.0.reason");
+    expect(message).toContain("entries.1.date");
+  });
+
+  it("still refuses input that is genuinely wrong", () => {
+    expect(() => parseTriageInput("{oops", "<t>")).toThrow(MalformedTriageError);
+    // no fingerprint at all
+    expect(() =>
+      parseTriageInput(JSON.stringify([{ disposition: "wont-fix", reason: "x" }]), "<t>"),
+    ).toThrow(MalformedTriageError);
+    // a disposition that is not one of the five
+    expect(() =>
+      parseTriageInput(JSON.stringify([{ ...minimal, disposition: "ignore" }]), "<t>"),
+    ).toThrow(MalformedTriageError);
+    // reason is the receipt; an empty one defeats the point of triage
+    expect(() =>
+      parseTriageInput(JSON.stringify([{ ...minimal, reason: "" }]), "<t>"),
+    ).toThrow(MalformedTriageError);
   });
 });

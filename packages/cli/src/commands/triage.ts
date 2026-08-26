@@ -8,7 +8,7 @@ import {
   fingerprintFinding,
   loadConfig,
   loadTriage,
-  parseTriage,
+  parseTriageInput,
   resolveFeedbackPath,
   resolveTriagePath,
   saveTriage,
@@ -193,9 +193,12 @@ async function runApply(
   }
 
   const raw = readFileSync(absoluteApply, "utf8");
-  let appliedDoc: Triage;
+  let appliedEntries: TriageEntry[];
   try {
-    appliedDoc = parseTriage(raw, applyPath);
+    // The INPUT schema, not the on-disk one: a caller writing
+    // dispositions should not have to supply `created_at` or restate a
+    // `type` the fingerprint already carries. See `parseTriageInput`.
+    appliedEntries = parseTriageInput(raw, applyPath);
   } catch (err) {
     process.stderr.write(
       `crimes: --apply file is malformed: ${err instanceof Error ? err.message : String(err)}\n`,
@@ -208,7 +211,7 @@ async function runApply(
   const existing = await loadTriage(triagePath);
   let doc: Triage =
     existing.document ?? emptyTriage({ crimesVersion: __CRIMES_VERSION__ });
-  for (const entry of appliedDoc.entries) {
+  for (const entry of appliedEntries) {
     doc = upsertTriageEntry(doc, entry);
     // Nothing to ask in the non-interactive path, so `wont-fix` takes
     // the conservative fallback: it records that a human looked and
@@ -222,10 +225,10 @@ async function runApply(
   await saveTriage(triagePath, doc, { crimesVersion: __CRIMES_VERSION__ });
 
   if (options.format === "json") {
-    process.stdout.write(JSON.stringify({ applied: appliedDoc.entries.length }) + "\n");
+    process.stdout.write(JSON.stringify({ applied: appliedEntries.length }) + "\n");
   } else {
     process.stdout.write(
-      `Applied ${appliedDoc.entries.length} entries to .crimes/triage.json.\n`,
+      `Applied ${appliedEntries.length} entries to .crimes/triage.json.\n`,
     );
   }
 }
