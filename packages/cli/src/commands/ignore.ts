@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 import {
   appendSuppression,
   FINGERPRINT_PATTERN,
+  splitFingerprintType,
   fingerprintFinding,
   loadConfig,
   resolveOverridePath,
@@ -100,6 +101,7 @@ export function registerIgnoreCommand(program: Command): void {
 
       let fingerprint: string;
       let type: string;
+      let claim: string | undefined;
       let file: string | undefined;
       let symbol: string | undefined;
 
@@ -131,12 +133,15 @@ export function registerIgnoreCommand(program: Command): void {
         // "Suppressed …" and exited 0 while suppressing nothing.
         fingerprint = fingerprintFinding(match);
         type = match.type;
+        claim = match.claim;
         file = match.file;
         symbol = match.symbol;
       } else {
         fingerprint = idOrFingerprint;
-        const [typePart, filePart, symbolPart] = fingerprint.split("::");
-        type = typePart!;
+        const [, filePart, symbolPart] = fingerprint.split("::");
+        // Leading segment is `<type>` or `<type>/<claim>` — splitting on
+        // "::" alone would file the claim away under `type`.
+        ({ type, claim } = splitFingerprintType(fingerprint));
         if (filePart) file = filePart;
         if (symbolPart) symbol = symbolPart;
 
@@ -172,6 +177,7 @@ export function registerIgnoreCommand(program: Command): void {
       const entry = {
         fingerprint,
         type,
+        ...(claim !== undefined ? { claim } : {}),
         ...(file !== undefined ? { file } : {}),
         ...(symbol !== undefined ? { symbol } : {}),
         reason: options.reason.trim(),

@@ -11,6 +11,7 @@ import {
   builtInAssetDetectors,
   builtInDetectors,
   buildDetectorRegistry,
+  applyClaimDisable,
   collectKnownIds,
   filterAssetDetectors,
   filterDetectors,
@@ -205,7 +206,11 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     (f) => !isNeverReportable(f.file) && !declaredGenerated(f.file),
   );
   findings.length = 0;
-  findings.push(...reportable);
+  // `detectors.disable` entries of the form `<id>/<claim>` cannot be
+  // applied by dropping the detector — it still has to run to produce
+  // the claims that were *not* disabled — so they filter findings here,
+  // alongside the other whole-report policies.
+  findings.push(...applyClaimDisable(reportable, config));
 
   const coverage = buildCoverage({
     files: inputs.allFiles,

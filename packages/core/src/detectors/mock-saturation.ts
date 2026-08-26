@@ -88,6 +88,11 @@ const INFRASTRUCTURE_MOCKS =
 
 export const mockSaturationDetector: LanguageJsDetector = {
   id: "mock_saturation",
+  // "The subject never ran" and "the collaborators never ran" are
+  // different failures with different fixes — unmock the subject, versus
+  // assert an outcome instead of a call. Nothing but the summary prose
+  // told them apart before.
+  claims: ["subject_mocked", "collaborators_mocked"],
   name: "Mock Alibi",
   description:
     "Flags tests that replace most meaningful collaborators with " +
@@ -304,6 +309,7 @@ function buildFinding(args: {
     file: args.file,
     lines: [testCase.line, testCase.endLine],
     symbol: title,
+    claim: args.subjectMocked ? "subject_mocked" : "collaborators_mocked",
     summary: args.subjectMocked
       ? `Test "${title}" appears to mock the subject under test itself, so it ` +
         "cannot observe the behaviour it is named for."

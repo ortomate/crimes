@@ -1,3 +1,4 @@
+import { composeClaim } from "../../claims.js";
 import type { LanguagePyDetector } from "../../detector.js";
 import type { PreFinding as Finding, Severity } from "../../finding.js";
 import { isTestFile } from "../../util/test-files.js";
@@ -17,6 +18,12 @@ import { intrinsicFor, lineList, severityScore } from "./shared.js";
  */
 export const directDatePyDetector: LanguagePyDetector = {
   id: "direct_date.py",
+  // Two failures that travel together but are not the same: reading the
+  // clock makes the code untestable at a fixed moment, and producing a
+  // naive datetime makes it raise `TypeError` the first time it meets an
+  // aware one. A file can have the first without the second, so the
+  // claim composes.
+  claims: ["clock_read", "naive_datetime"],
   name: "Direct clock read (Python)",
   description:
     "Flags datetime.now() / date.today() / time.time() in domain code, and calls out " +
@@ -84,6 +91,10 @@ export const directDatePyDetector: LanguagePyDetector = {
       confidence: 0.9,
       file: ctx.file,
       lines: [hits[0]!.line, hits[hits.length - 1]!.line],
+      claim: composeClaim([
+        "clock_read",
+        ...(naive.length > 0 ? ["naive_datetime"] : []),
+      ]),
       summary:
         `${hits.length} direct clock read${hits.length === 1 ? "" : "s"}` +
         (naive.length > 0

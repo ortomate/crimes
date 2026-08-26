@@ -106,6 +106,12 @@ export function policyFor(shape: FunctionShape, config: CrimesConfig): ShapePoli
 
 export const largeFunctionDetector: LanguageJsDetector = {
   id: "large_function",
+  // This pack only ever says "too long". It still declares the claim
+  // because the *type* is what a consumer groups and silences by, and
+  // `large_function.py` also emits `deeply_nested` under it. An
+  // unlabelled finding beside a labelled one is the ambiguity this whole
+  // field exists to remove.
+  claims: ["too_long"],
   name: "Large Function",
   description:
     "Flags functions whose body exceeds a per-shape line threshold " +
@@ -141,6 +147,7 @@ export const largeFunctionDetector: LanguageJsDetector = {
         file: ctx.file,
         symbol,
         lines: [fn.startLine, fn.endLine],
+        claim: "too_long",
         summary: buildSummary({ symbol, length, policy }),
         evidence: buildEvidence({ fn, length, policy, ratio }),
         effort: "small",

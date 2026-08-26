@@ -1,5 +1,6 @@
 import type { PyFunctionShape } from "@crimes/language-py";
 import { z } from "zod";
+import { composeClaim } from "../../claims.js";
 import type { LanguagePyDetector } from "../../detector.js";
 import type { PreFinding as Finding, Severity } from "../../finding.js";
 import { resolveDiscriminators } from "../disambiguate.js";
@@ -53,6 +54,11 @@ const optionsSchema = z
 
 export const largeFunctionPyDetector: LanguagePyDetector = {
   id: "large_function.py",
+  // The detector fires on `tooLong || tooDeep`, and a nesting-only
+  // finding says the function is *within* its line budget — the opposite
+  // of what the same `type` says when it is too long. Both can hold at
+  // once, so this composes rather than choosing.
+  claims: ["too_long", "deeply_nested"],
   name: "God Function (Python)",
   description:
     "Flags Python functions that run past a shape-appropriate line budget, or nest " +
@@ -125,6 +131,10 @@ export const largeFunctionPyDetector: LanguagePyDetector = {
         // always had, and only the colliding ones move.
         ...(fn.className !== undefined ? { discriminator: fn.className } : {}),
         lines: [fn.startLine, fn.endLine],
+        claim: composeClaim([
+          ...(tooLong ? ["too_long"] : []),
+          ...(tooDeep ? ["deeply_nested"] : []),
+        ]),
         summary: buildSummary({
           name: fn.name,
           lines,

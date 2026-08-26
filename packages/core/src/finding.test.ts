@@ -9,7 +9,7 @@ describe("SCHEMA_VERSION", () => {
   // wrong expectation to whoever hit it. The value is the contract; the
   // title is not the place to restate it.
   it("matches the version documented in docs/json-schema.md", () => {
-    expect(SCHEMA_VERSION).toBe("0.7.0");
+    expect(SCHEMA_VERSION).toBe("0.8.0");
   });
 });
 

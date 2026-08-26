@@ -267,15 +267,35 @@ async function runInteractive(root: string, options: TriageOptions): Promise<voi
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   let defaultOwner = options.owner ?? gitConfigEmail() ?? "";
 
+  // Walk claim-group by claim-group rather than in rank order. A
+  // reviewer builds a judgement from the first few findings they see and
+  // applies it to the rest; if the queue interleaves "this test asserts
+  // nothing" with "this test asserts weakly", that judgement is being
+  // formed across two different questions. Grouping makes the run of
+  // findings a reviewer generalises over a homogeneous one, and the
+  // banner names what they are generalising about.
+  const groups = groupByClaim(queue);
   process.stdout.write(
     `Triaging ${queue.length} findings against ${triagePath}.\n` +
+      `${groups.length} claim group${groups.length === 1 ? "" : "s"} — each is one ` +
+      "statement, judged on its own.\n" +
       "Keys: f fix-now · p fix-this-PR · d needs-design · w wont-fix · s scaffolding · k skip · q quit\n\n",
   );
 
+  const ordered = groups.flatMap((g) => g.findings);
+  const groupOf = new Map<Finding, ClaimGroup>();
+  for (const g of groups) for (const f of g.findings) groupOf.set(f, g);
+  let announced: ClaimGroup | undefined;
+
   try {
-    for (let i = 0; i < queue.length; i++) {
-      const finding = queue[i]!;
-      renderFindingHeader(finding, i + 1, queue.length);
+    for (let i = 0; i < ordered.length; i++) {
+      const finding = ordered[i]!;
+      const group = groupOf.get(finding)!;
+      if (group !== announced) {
+        announced = group;
+        renderClaimBanner(group, groups.indexOf(group) + 1, groups.length);
+      }
+      renderFindingHeader(finding, i + 1, ordered.length);
 
       const key = (await rl.question("  Disposition? ")).trim().toLowerCase();
       if (key === "q") break;
@@ -301,16 +321,7 @@ async function runInteractive(root: string, options: TriageOptions): Promise<voi
       const owner = ownerInput === "" ? defaultOwner : ownerInput;
       if (ownerInput !== "") defaultOwner = ownerInput;
 
-      const entry: TriageEntry = {
-        fingerprint: fingerprintFinding(finding),
-        type: finding.type,
-        file: finding.file,
-        ...(finding.symbol ? { symbol: finding.symbol } : {}),
-        disposition,
-        reason,
-        owner,
-        date: todayYmd(),
-      };
+      const entry = triageEntryFor({ finding, disposition, reason, owner });
       doc = upsertTriageEntry(doc, entry);
       await saveTriage(triagePath, doc, { crimesVersion: __CRIMES_VERSION__ });
 
@@ -368,6 +379,79 @@ export function todayYmd(now: Date = new Date()): string {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${now.getFullYear()}-${m}-${day}`;
+}
+
+/**
+ * Build the triage entry for one judged finding.
+ *
+ * Extracted from the interactive walk so it can be tested: the walk
+ * itself requires a TTY, so everything it derived was unreachable from
+ * the suite and `claim` could have been dropped here without a single
+ * test noticing.
+ */
+export function triageEntryFor(args: {
+  finding: Finding;
+  disposition: TriageDisposition;
+  reason: string;
+  owner: string;
+  date?: string;
+}): TriageEntry {
+  const { finding, disposition, reason, owner } = args;
+  return {
+    fingerprint: fingerprintFinding(finding),
+    type: finding.type,
+    // Denormalised alongside `type` so a reviewer reading the triage
+    // file can tell which of a detector's statements was judged.
+    ...(finding.claim ? { claim: finding.claim } : {}),
+    file: finding.file,
+    ...(finding.symbol ? { symbol: finding.symbol } : {}),
+    disposition,
+    reason,
+    owner,
+    date: args.date ?? todayYmd(),
+  };
+}
+
+interface ClaimGroup {
+  type: string;
+  claim?: string;
+  findings: Finding[];
+}
+
+/**
+ * Partition the queue into one group per `(type, claim)`, preserving the
+ * rank order the scan produced both between groups and inside them.
+ *
+ * Grouping by `type` alone is what this exists to stop: `weak_test_signal`
+ * makes two statements and a reviewer who samples the first and carries
+ * the verdict to the rest is answering the wrong question 67 times.
+ */
+export function groupByClaim(findings: Finding[]): ClaimGroup[] {
+  const groups = new Map<string, ClaimGroup>();
+  for (const f of findings) {
+    const key = `${f.type}/${f.claim ?? ""}`;
+    let group = groups.get(key);
+    if (!group) {
+      group = { type: f.type, ...(f.claim ? { claim: f.claim } : {}), findings: [] };
+      groups.set(key, group);
+    }
+    group.findings.push(f);
+  }
+  return [...groups.values()];
+}
+
+function renderClaimBanner(group: ClaimGroup, index: number, total: number): void {
+  const label = group.claim ? `${group.type}/${group.claim}` : group.type;
+  const n = group.findings.length;
+  process.stdout.write(
+    `── claim group ${index}/${total} · ${label} · ${n} finding${n === 1 ? "" : "s"}\n` +
+      `   ${group.findings[0]!.summary}\n` +
+      (group.claim
+        ? "   Every finding below makes this same statement. Other statements " +
+          `from ${group.type} are judged in their own group.\n`
+        : "") +
+      "\n",
+  );
 }
 
 function renderFindingHeader(f: Finding, index: number, total: number): void {

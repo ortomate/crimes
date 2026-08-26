@@ -56,7 +56,9 @@ function oversizedPng(): Buffer {
 describe("explain", () => {
   it("resolves a finding by stable fingerprint via fresh scan", async () => {
     const root = await makeRepo();
-    const report = await explain("large_function::billing.ts::generateInvoice", { root });
+    const report = await explain("large_function/too_long::billing.ts::generateInvoice", {
+      root,
+    });
     expect(report.report_type).toBe("explain");
     expect(report.detector.type).toBe("large_function");
     expect(report.detector.charge).toBe("God Function");
@@ -64,7 +66,7 @@ describe("explain", () => {
     expect(report.likely_remedies.length).toBeGreaterThan(0);
     expect(report.likely_remedies.join(" ")).toContain("configure the detector");
     expect(report.suggested_suppression_command).toContain(
-      "crimes ignore 'large_function::billing.ts::generateInvoice'",
+      "crimes ignore 'large_function/too_long::billing.ts::generateInvoice'",
     );
     expect(report.suggested_suppression_command).toContain("--reason");
   });
@@ -87,13 +89,15 @@ describe("explain", () => {
   it("throws UnknownFindingError for a fingerprint that does not exist", async () => {
     const root = await makeRepo();
     await expect(
-      explain("large_function::missing.ts::nope", { root }),
+      explain("large_function/too_long::missing.ts::nope", { root }),
     ).rejects.toBeInstanceOf(UnknownFindingError);
   });
 
   it("ExplainReport carries detector description and why_it_matters", async () => {
     const root = await makeRepo();
-    const report = await explain("large_function::billing.ts::generateInvoice", { root });
+    const report = await explain("large_function/too_long::billing.ts::generateInvoice", {
+      root,
+    });
     expect(report.detector.description).toContain("per-shape line threshold");
     expect(report.why_it_matters).toContain("Functions this large");
   });
@@ -125,11 +129,14 @@ describe("explain", () => {
       `export function generateInvoice() {\n${body}\n  return 0;\n}\n`,
       "utf8",
     );
-    const report = await explain("large_function::my src/big file.ts::generateInvoice", {
-      root,
-    });
+    const report = await explain(
+      "large_function/too_long::my src/big file.ts::generateInvoice",
+      {
+        root,
+      },
+    );
     expect(report.suggested_suppression_command).toContain(
-      "'large_function::my src/big file.ts::generateInvoice'",
+      "'large_function/too_long::my src/big file.ts::generateInvoice'",
     );
   });
 

@@ -93,6 +93,11 @@ interface FrontendCall {
 
 export const crossLanguageRouteDriftDetector: CrossLanguageDetector = {
   id: "cross_language_route_drift",
+  // A 404 and a 405 are different bugs. The orphan arm says the path
+  // does not exist; the method arm says it does exist and the verb is
+  // wrong. Neither finding carries a symbol, so before this the two
+  // shared the fingerprint `cross_language_route_drift::<file>::`.
+  claims: ["path_not_declared", "method_mismatch"],
   name: "Cross-language route drift",
   description:
     "Flags frontend fetch calls whose path no backend route declares, and paths where " +
@@ -233,6 +238,7 @@ function buildOrphanFinding(orphans: FrontendCall[], backend: BackendRoute[]): F
     charge: "Cross-Language Route Drift",
     severity,
     confidence: 0.7,
+    claim: "path_not_declared",
     file: anchor.file,
     lines: [anchor.line, orphans[orphans.length - 1]!.line],
     summary:
@@ -275,6 +281,7 @@ function buildMethodFinding(call: FrontendCall, routes: BackendRoute[]): Finding
     charge: "Cross-Language Route Drift",
     severity: "medium",
     confidence: 0.75,
+    claim: "method_mismatch",
     file: call.file,
     lines: [call.line, call.line],
     summary:

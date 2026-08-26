@@ -3,7 +3,7 @@
  *
  * Bumping `schema_version` is a breaking change.
  */
-export const SCHEMA_VERSION = "0.7.0" as const;
+export const SCHEMA_VERSION = "0.8.0" as const;
 
 import type { Pack } from "./pack.js";
 import type { Tier } from "./scoring/tier.js";
@@ -122,6 +122,43 @@ export interface Finding {
   fingerprint: string;
   /** Machine-readable type, e.g. `large_function`. */
   type: string;
+  /**
+   * Which **claim** this finding makes, when its `type` can make more
+   * than one. A claim is an assertion with its own truth value and its
+   * own fix — `no_assertions` and `weak_assertion_matchers` are two
+   * claims; "1 declaration" and "3 declarations" are one.
+   *
+   * `type` alone was never a safe unit to judge by. `weak_test_signal`
+   * says both "this test contains no expect/assert calls" and "this test
+   * only uses weak assertion matchers" — different questions, different
+   * answers, different fixes. A consumer who verified the first and
+   * silenced the type also silenced the second. On one 761-file repo
+   * that buried 67 correct findings behind 38 false ones, and it is the
+   * main path rather than an edge case: crimes is built for agents, and
+   * an agent triages by `type`.
+   *
+   * So the rule this field exists to enforce: **the unit a reader can
+   * silence must be the unit that carries one truth value.** Everything
+   * downstream keys off it —
+   *
+   * - {@link fingerprintFinding} folds it into the first segment as
+   *   `<type>/<claim>`, so a suppression, baseline pin, or triage
+   *   disposition recorded against one claim cannot silence another.
+   * - `detectors.disable` accepts `<type>/<claim>`, so the coarse kill
+   *   switch — the one actually used to bury those 67 findings — can be
+   *   aimed at the claim that was wrong instead of the whole detector.
+   * - `crimes triage` walks findings grouped by `(type, claim)` and says
+   *   so, so a reviewer who generalises from one sample generalises
+   *   across a homogeneous group.
+   *
+   * Set only by detectors that declare {@link Detector.claims}; omitted
+   * by the majority that say exactly one thing, whose fingerprints keep
+   * the shape they have always had. A detector that gains a second claim
+   * must give the pre-existing claim an id too — that changes its
+   * fingerprints, which is the point, because the old pins were recorded
+   * when the type meant something narrower.
+   */
+  claim?: string;
   /**
    * Detector pack that produced this finding. Populated by the scan /
    * context finalisation pass (`assignPackAndDetectorId`) on every

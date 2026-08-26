@@ -18,6 +18,13 @@ export const weakTestSignalDetector: LanguageJsDetector = {
     "regressions ship without warning.",
 
   pack: "language-js",
+  // Two questions, not one: "does this test assert at all?" and "does it
+  // assert anything that could fail?" A reader who checks the first and
+  // generalises to the type gets the second wrong every time — which is
+  // exactly what happened on a 761-file repo, where 38 false
+  // `no_assertions` findings were sampled, believed, and used to silence
+  // 67 correct `weak_assertion_matchers` ones.
+  claims: ["no_assertions", "weak_assertion_matchers"],
   run(ctx) {
     if (!isTestFile(ctx.file) || looksTypeOnlyTest(ctx.file, ctx.source)) return [];
 
@@ -53,6 +60,11 @@ export const weakTestSignalDetector: LanguageJsDetector = {
         // title alone cannot separate — `resolveDiscriminators` settles
         // that pair by start line below.
         discriminator: block.title,
+        // The discriminator says *which* test; the claim says *what is
+        // being alleged about it*. Both are needed: the title alone
+        // cannot separate "asserts nothing" from "asserts weakly", and
+        // the claim alone cannot separate two tests in one file.
+        claim: assertions.length === 0 ? "no_assertions" : "weak_assertion_matchers",
         summary:
           assertions.length === 0
             ? `Test "${block.title}" contains no expect/assert calls. A test that only runs setup gives agents false confidence.`

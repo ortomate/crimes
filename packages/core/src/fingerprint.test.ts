@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fingerprintFinding } from "./fingerprint.js";
+import { FINGERPRINT_PATTERN, fingerprintFinding } from "./fingerprint.js";
 import type { Finding } from "./finding.js";
 
 function makeFinding(overrides: Partial<Finding>): Finding {
@@ -169,5 +169,52 @@ describe("fingerprintFinding — discriminator (schema_version 0.4.0)", () => {
     const a = makeFinding({ file: "src/x.ts", symbol: "f", discriminator: "h" });
     const b = makeFinding({ file: "src/x.ts", symbol: "f", discriminator: "h" });
     expect(fingerprintFinding(a)).toBe(fingerprintFinding(b));
+  });
+});
+
+describe("FINGERPRINT_PATTERN", () => {
+  // The pattern had no direct coverage before 0.8.0 — it was exercised
+  // only through `crimes ignore`'s argument validation. It has now been
+  // wrong twice in the same way (rejecting the discriminator tail in
+  // 0.4.0, and it would have rejected the claim suffix here), so the
+  // shapes the scanner actually emits are pinned directly.
+  it("accepts the three-part form single-claim detectors emit", () => {
+    expect(FINGERPRINT_PATTERN.test("large_file::src/a.ts::")).toBe(true);
+  });
+
+  it("accepts a discriminator tail, including one containing colons", () => {
+    expect(FINGERPRINT_PATTERN.test("swallowed_error::src/a.ts::load::db::query")).toBe(
+      true,
+    );
+  });
+
+  it("accepts a claim suffix on the type segment", () => {
+    // Without this the pattern rejects every fingerprint a multi-claim
+    // detector emits, so `crimes ignore` refuses the exact findings the
+    // claim work exists to make individually silenceable.
+    expect(
+      FINGERPRINT_PATTERN.test("weak_test_signal/no_assertions::test/a.test.ts::"),
+    ).toBe(true);
+  });
+
+  it("accepts a composite claim suffix", () => {
+    expect(
+      FINGERPRINT_PATTERN.test(
+        "config_drift/type_disagreement+undocumented::src/env.ts::TIMEOUT",
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts a claim and a discriminator together", () => {
+    expect(
+      FINGERPRINT_PATTERN.test(
+        "weak_test_signal/no_assertions::test/a.test.ts::::renders the plan",
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a string that is not a fingerprint at all", () => {
+    expect(FINGERPRINT_PATTERN.test("crime_00001")).toBe(false);
+    expect(FINGERPRINT_PATTERN.test("large_file")).toBe(false);
   });
 });

@@ -111,6 +111,17 @@ const BEST_EFFORT_FUNCTION_RE =
 
 export const swallowedErrorDetector: LanguageJsDetector = {
   id: "swallowed_error",
+  // `SwallowKind` has always computed exactly which of five things the
+  // handler does; it just never reached the finding, so five claims
+  // shared one silencing unit. They are alternatives — a handler is
+  // empty, or comment-only, or returns a fallback, never two at once.
+  claims: [
+    "empty",
+    "comment_only",
+    "discarded_rejection",
+    "bland_fallback",
+    "log_without_error",
+  ],
   name: "Catch and Release",
   description:
     "Flags failures that are caught and then discarded, or converted into " +
@@ -325,6 +336,7 @@ function buildFinding(
     // of the same code. `resolveDiscriminators` drops it again wherever
     // the symbol is already unique.
     discriminator: condenseOperation(handler.protectedOperation),
+    claim: verdict.kind,
     summary: buildSummary(handler, verdict, boundary),
     evidence: built.evidence,
     score_rationale: built.rationale,
@@ -345,10 +357,16 @@ function buildSummary(
 ): string {
   const what = boundary !== undefined ? `A ${boundary.label} failure` : "A failure";
   const where = handler.enclosing !== undefined ? ` in \`${handler.enclosing}\`` : "";
-  return (
-    `${what}${where} is caught and discarded — ${verdict.disposition}. ` +
-    "The caller sees success and there is no record the operation failed."
-  );
+  // The old tail — "there is no record the operation failed" — was
+  // asserted for every kind, including `log_without_error`, whose own
+  // disposition says two clauses earlier that the handler *does* log.
+  // One type asserting and denying the same fact is the same defect as
+  // one type carrying two claims, so the tail is now per-claim.
+  const consequence =
+    verdict.kind === "log_without_error"
+      ? "The caller sees success, and the record that survives cannot say what went wrong."
+      : "The caller sees success and there is no record the operation failed.";
+  return `${what}${where} is caught and discarded — ${verdict.disposition}. ${consequence}`;
 }
 
 function buildEvidence(

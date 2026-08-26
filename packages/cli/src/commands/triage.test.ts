@@ -6,7 +6,13 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { Finding, TriageEntry } from "@crimes/core";
-import { buildRetriageMatcher, isCiEnv, todayYmd } from "./triage.js";
+import {
+  buildRetriageMatcher,
+  groupByClaim,
+  isCiEnv,
+  todayYmd,
+  triageEntryFor,
+} from "./triage.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CLI = resolve(here, "..", "..", "dist", "index.js");
@@ -319,5 +325,116 @@ describe("crimes triage (interactive guard)", () => {
     const result = await runCli(["triage"], tmp, { CI: "1" });
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("non-TTY");
+  });
+});
+
+describe("groupByClaim", () => {
+  const f = (type: string, claim: string | undefined, file: string): Finding =>
+    ({ type, ...(claim ? { claim } : {}), file }) as Finding;
+
+  it("separates two claims that share a type", () => {
+    // The walk's whole reason for grouping: a reviewer forms a verdict
+    // from the first few findings and applies it to the run. Interleaved,
+    // that run spans two different questions.
+    const groups = groupByClaim([
+      f("weak_test_signal", "no_assertions", "a.test.ts"),
+      f("weak_test_signal", "weak_assertion_matchers", "b.test.ts"),
+      f("weak_test_signal", "no_assertions", "c.test.ts"),
+    ]);
+    expect(groups.map((g) => [g.claim, g.findings.length])).toEqual([
+      ["no_assertions", 2],
+      ["weak_assertion_matchers", 1],
+    ]);
+  });
+
+  it("keeps two types with the same claim id apart", () => {
+    // Claim ids are unique within a detector, not globally — `too_long`
+    // could plausibly be reused. Grouping on the claim alone would merge
+    // unrelated detectors into one verdict.
+    const groups = groupByClaim([
+      f("large_function", "too_long", "a.ts"),
+      f("large_file", "too_long", "b.ts"),
+    ]);
+    expect(groups).toHaveLength(2);
+  });
+
+  it("gives unlabelled findings a group of their own per type", () => {
+    const groups = groupByClaim([
+      f("todo_density", undefined, "a.ts"),
+      f("todo_density", undefined, "b.ts"),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.claim).toBeUndefined();
+    expect(groups[0]!.findings).toHaveLength(2);
+  });
+
+  it("preserves rank order both between groups and inside them", () => {
+    // Grouping must not become a re-sort: the scan already ranked these,
+    // and a reviewer working top-down should still meet the highest-risk
+    // group first.
+    const groups = groupByClaim([
+      f("large_file", undefined, "first.ts"),
+      f("weak_test_signal", "no_assertions", "second.test.ts"),
+      f("large_file", undefined, "third.ts"),
+    ]);
+    expect(groups.map((g) => g.type)).toEqual(["large_file", "weak_test_signal"]);
+    expect(groups[0]!.findings.map((x) => x.file)).toEqual(["first.ts", "third.ts"]);
+  });
+
+  it("loses no findings", () => {
+    const input = [
+      f("weak_test_signal", "no_assertions", "a.test.ts"),
+      f("weak_test_signal", "weak_assertion_matchers", "b.test.ts"),
+      f("large_file", undefined, "c.ts"),
+    ];
+    expect(groupByClaim(input).flatMap((g) => g.findings)).toHaveLength(input.length);
+  });
+});
+
+describe("triageEntryFor", () => {
+  const finding = (over: Partial<Finding>): Finding =>
+    ({
+      type: "weak_test_signal",
+      file: "test/a.test.ts",
+      fingerprint: "",
+      ...over,
+    }) as Finding;
+
+  it("records which claim was judged", () => {
+    // Without this the triage file says only `type: "weak_test_signal"`
+    // — the reading that treats one verified sample as a verdict on the
+    // whole detector.
+    const entry = triageEntryFor({
+      finding: finding({ claim: "no_assertions" }),
+      disposition: "wont-fix",
+      reason: "asserts through a helper",
+      owner: "@me",
+      date: "2026-08-26",
+    });
+    expect(entry.claim).toBe("no_assertions");
+  });
+
+  it("omits claim entirely for a single-claim detector", () => {
+    const entry = triageEntryFor({
+      finding: finding({ type: "large_file", claim: undefined }),
+      disposition: "wont-fix",
+      reason: "generated",
+      owner: "@me",
+      date: "2026-08-26",
+    });
+    expect("claim" in entry).toBe(false);
+  });
+
+  it("writes the fingerprint the scanner emits, claim segment included", () => {
+    const entry = triageEntryFor({
+      finding: finding({ claim: "no_assertions", discriminator: "renders" }),
+      disposition: "fix-now",
+      reason: "real",
+      owner: "@me",
+      date: "2026-08-26",
+    });
+    expect(entry.fingerprint).toBe(
+      "weak_test_signal/no_assertions::test/a.test.ts::::renders",
+    );
   });
 });

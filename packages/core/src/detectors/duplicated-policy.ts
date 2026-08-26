@@ -115,6 +115,11 @@ const MAX_FINDINGS = 12;
 
 export const duplicatedPolicyDetector: LanguageJsDetector = {
   id: "duplicated_policy",
+  // Two arms with opposite truth values: the copies agree (extract one
+  // of them) or the copies disagree (decide which is right, *then*
+  // extract). A reader who confirms the first and silences the type
+  // silences the second, which is the more urgent of the two.
+  claims: ["identical_copies", "disagreeing_variants"],
   name: "Policy Doppelgänger",
   description:
     "Flags business, authorization, eligibility, validation, pricing, or " +
@@ -240,6 +245,7 @@ function buildCloneFinding(group: PolicyCloneGroup): Finding | undefined {
     // normalised form is what makes them different and is already in the
     // evidence.
     discriminator: hashSlice(group.normalized).exact.slice(0, 12),
+    claim: "identical_copies",
     summary:
       `The same ${describeKind(anchor.kind)} appears in ${group.files.length} ` +
       `production files with no shared definition. Each copy is maintained ` +
@@ -391,6 +397,7 @@ function buildNearCloneFinding(family: PolicyNearCloneFamily): Finding | undefin
     // Same collapse as the exact-clone arm; here the shared shape is
     // what identifies the family.
     discriminator: hashSlice(family.shape).exact.slice(0, 12),
+    claim: "disagreeing_variants",
     summary:
       `${family.variants.length} variants of the same ${describeKind(anchor.kind)} ` +
       `exist across ${files.length} files and disagree on a value ` +

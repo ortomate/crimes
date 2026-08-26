@@ -22,6 +22,18 @@ import { z } from "zod";
 export interface SuppressionEntry {
   fingerprint: string;
   type: string;
+  /**
+   * Which claim of `type` was silenced, when the type makes more than
+   * one. Denormalised from the fingerprint alongside `type` / `file` /
+   * `symbol`, and strictly redundant for matching.
+   *
+   * It earns its place in review: `type: "weak_test_signal"` alone reads
+   * as a judgement on the detector, and the entry that buried 67 correct
+   * findings would have looked exactly like one that buried nothing.
+   * With the claim written down, the diff says which of the detector's
+   * statements somebody actually checked.
+   */
+  claim?: string;
   file?: string;
   symbol?: string;
   reason: string;
@@ -59,6 +71,7 @@ const ACCEPTED_SUPPRESSIONS_SCHEMA_VERSIONS = [
   "0.5.0",
   "0.6.0",
   "0.7.0",
+  "0.8.0",
 ] as const;
 
 /**
@@ -90,6 +103,7 @@ export const SuppressionEntrySchema = z
   .object({
     fingerprint: z.string().min(1),
     type: z.string().min(1),
+    claim: z.string().min(1).optional(),
     file: z.string().min(1).optional(),
     symbol: z.string().min(1).optional(),
     reason: z.string().min(1),

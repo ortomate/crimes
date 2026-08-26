@@ -74,6 +74,7 @@ async function scanJson(root: string): Promise<{
     file: string;
     symbol?: string;
     discriminator?: string;
+    fingerprint: string;
   }[];
 }> {
   const result = await runCli(["scan", "--all", "--format", "json"], root);
@@ -84,7 +85,7 @@ describe("crimes ignore", () => {
   it("missing --reason exits 2", async () => {
     const root = await makeRepo();
     const result = await runCli(
-      ["ignore", "large_function::billing.ts::generateInvoice"],
+      ["ignore", "large_function/too_long::billing.ts::generateInvoice"],
       root,
     );
     expect(result.exitCode).toBe(2);
@@ -94,7 +95,7 @@ describe("crimes ignore", () => {
   it("empty --reason exits 2", async () => {
     const root = await makeRepo();
     const result = await runCli(
-      ["ignore", "large_function::billing.ts::generateInvoice", "--reason", ""],
+      ["ignore", "large_function/too_long::billing.ts::generateInvoice", "--reason", ""],
       root,
     );
     expect(result.exitCode).toBe(2);
@@ -113,7 +114,7 @@ describe("crimes ignore", () => {
     const result = await runCli(
       [
         "ignore",
-        "large_function::billing.ts::generateInvoice",
+        "large_function/too_long::billing.ts::generateInvoice",
         "--reason",
         "tracked in #1234",
       ],
@@ -139,7 +140,7 @@ describe("crimes ignore", () => {
       readFileSync(join(root, ".crimes", "suppressions.json"), "utf8"),
     );
     expect(raw.suppressions[0].fingerprint).toBe(
-      "large_function::billing.ts::generateInvoice",
+      "large_function/too_long::billing.ts::generateInvoice",
     );
   });
 
@@ -155,9 +156,10 @@ describe("crimes ignore", () => {
     const raw = JSON.parse(
       readFileSync(join(root, ".crimes", "suppressions.json"), "utf8"),
     );
-    expect(raw.suppressions[0].fingerprint).toBe(
-      `${target!.type}::${target!.file}::${target!.symbol ?? ""}::${target!.discriminator}`,
-    );
+    // Compared against the fingerprint the scan emitted, not one rebuilt
+    // from the parts — the comment below is about exactly this hazard,
+    // and the reconstruction it warned about was in this assertion.
+    expect(raw.suppressions[0].fingerprint).toBe(target!.fingerprint);
 
     // The point of the fingerprint is that it matches. A reconstructed
     // one that drops the discriminator writes a well-formed entry that
@@ -174,7 +176,7 @@ describe("crimes ignore", () => {
     const result = await runCli(
       [
         "ignore",
-        "large_function::billing.test.ts::describe callback::L1",
+        "large_function/too_long::billing.test.ts::describe callback::L1",
         "--reason",
         "legacy",
       ],
@@ -185,18 +187,28 @@ describe("crimes ignore", () => {
       readFileSync(join(root, ".crimes", "suppressions.json"), "utf8"),
     );
     expect(raw.suppressions[0].fingerprint).toBe(
-      "large_function::billing.test.ts::describe callback::L1",
+      "large_function/too_long::billing.test.ts::describe callback::L1",
     );
   });
 
   it("re-ignoring the same fingerprint updates the entry, doesn't append", async () => {
     const root = await makeRepo();
     await runCli(
-      ["ignore", "large_function::billing.ts::generateInvoice", "--reason", "original"],
+      [
+        "ignore",
+        "large_function/too_long::billing.ts::generateInvoice",
+        "--reason",
+        "original",
+      ],
       root,
     );
     const second = await runCli(
-      ["ignore", "large_function::billing.ts::generateInvoice", "--reason", "revised"],
+      [
+        "ignore",
+        "large_function/too_long::billing.ts::generateInvoice",
+        "--reason",
+        "revised",
+      ],
       root,
     );
     expect(second.exitCode).toBe(0);
@@ -215,7 +227,7 @@ describe("crimes ignore", () => {
     const result = await runCli(
       [
         "ignore",
-        "large_function::billing.ts::generateInvoice",
+        "large_function/too_long::billing.ts::generateInvoice",
         "--reason",
         "ok",
         "--file",
@@ -232,7 +244,7 @@ describe("crimes ignore", () => {
     const result = await runCli(
       [
         "ignore",
-        "large_function::billing.ts::generateInvoice",
+        "large_function/too_long::billing.ts::generateInvoice",
         "--reason",
         "ok",
         "--dry-run",
@@ -247,7 +259,7 @@ describe("crimes ignore", () => {
   it("unknown fingerprint rejects with exit 2 (without --no-verify)", async () => {
     const root = await makeRepo();
     const result = await runCli(
-      ["ignore", "large_function::doesnotexist.ts::nope", "--reason", "ok"],
+      ["ignore", "large_function/too_long::doesnotexist.ts::nope", "--reason", "ok"],
       root,
     );
     expect(result.exitCode).toBe(2);

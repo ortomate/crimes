@@ -84,6 +84,7 @@ export async function appendSuppression(
       reason: entry.reason,
     };
     if (entry.type) next.type = entry.type;
+    if (entry.claim !== undefined) next.claim = entry.claim;
     if (entry.file !== undefined) next.file = entry.file;
     if (entry.symbol !== undefined) next.symbol = entry.symbol;
     if (entry.created_by !== undefined) next.created_by = entry.created_by;
@@ -99,6 +100,7 @@ export async function appendSuppression(
       reason: entry.reason,
       created_at: iso,
     };
+    if (entry.claim !== undefined) next.claim = entry.claim;
     if (entry.file !== undefined) next.file = entry.file;
     if (entry.symbol !== undefined) next.symbol = entry.symbol;
     if (entry.created_by !== undefined) next.created_by = entry.created_by;

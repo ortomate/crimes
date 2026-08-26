@@ -55,7 +55,7 @@ describe("crimes explain", () => {
   it("default mode runs a fresh scan and resolves the fingerprint", async () => {
     const root = await makeRepo();
     const result = await runCli(
-      ["explain", "large_function::billing.ts::generateInvoice", "--no-color"],
+      ["explain", "large_function/too_long::billing.ts::generateInvoice", "--no-color"],
       root,
     );
     expect(result.exitCode).toBe(0);
@@ -63,7 +63,7 @@ describe("crimes explain", () => {
     expect(result.stdout).toContain("God Function");
     expect(result.stdout).toContain("Likely remedies");
     expect(result.stdout).toContain(
-      "crimes ignore 'large_function::billing.ts::generateInvoice'",
+      "crimes ignore 'large_function/too_long::billing.ts::generateInvoice'",
     );
     expect(result.stdout).toContain("--reason");
   });
@@ -73,7 +73,7 @@ describe("crimes explain", () => {
     const result = await runCli(
       [
         "explain",
-        "large_function::billing.ts::generateInvoice",
+        "large_function/too_long::billing.ts::generateInvoice",
         "--format",
         "json",
         "--no-color",
@@ -102,7 +102,7 @@ describe("crimes explain", () => {
     const result = await runCli(
       [
         "explain",
-        "large_function::billing.ts::generateInvoice",
+        "large_function/too_long::billing.ts::generateInvoice",
         "--from",
         "scan.json",
         "--format",
@@ -143,11 +143,11 @@ describe("crimes explain", () => {
   it("human output contains the suggested crimes ignore command line", async () => {
     const root = await makeRepo();
     const result = await runCli(
-      ["explain", "large_function::billing.ts::generateInvoice", "--no-color"],
+      ["explain", "large_function/too_long::billing.ts::generateInvoice", "--no-color"],
       root,
     );
     expect(result.stdout).toMatch(
-      /crimes ignore 'large_function::billing\.ts::generateInvoice' --reason "<one-sentence justification>"/,
+      /crimes ignore 'large_function\/too_long::billing\.ts::generateInvoice' --reason "<one-sentence justification>"/,
     );
   });
 });

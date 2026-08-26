@@ -37,6 +37,35 @@ interface BaseDetector {
    */
   whyItMatters: string;
   /**
+   * Every distinct **claim** this detector can make, as stable machine
+   * ids. A claim is an assertion with its own truth value and its own
+   * fix — not a wording variant of one assertion.
+   *
+   * Declare it when the detector emits more than one claim, and leave it
+   * unset when it emits exactly one. That split is the same shape as
+   * {@link Finding.discriminator}: the overwhelming majority of
+   * detectors say one thing and carry no claim, and only the ones that
+   * were conflating several change shape.
+   *
+   * The list is not documentation — three things read it:
+   *
+   * - `crimes.config.json`'s `detectors.disable` accepts `<id>/<claim>`
+   *   and validates the claim half against this list, so a typo raises
+   *   {@link UnknownDetectorError} instead of silently disabling
+   *   nothing.
+   * - {@link fingerprintFinding} folds `claim` into the fingerprint, so
+   *   a suppression recorded against one claim cannot silence another.
+   * - `detector-claims.test.ts` asserts every emitted `finding.claim`
+   *   appears here, and that a detector declaring claims sets one on
+   *   every finding. That test is the gate that keeps this list honest.
+   *
+   * Claim ids are `[a-z0-9_]+`, unique within the detector, and stable
+   * across releases — they appear in users' committed config and
+   * suppression files. Rename one only with the same care as renaming
+   * the detector itself.
+   */
+  claims?: readonly string[];
+  /**
    * Optional zod schema for per-detector exemption config under
    * `detectors.options.<id>` in `crimes.config.json`. When set, the
    * config loader validates the user's options against this schema at
@@ -142,6 +171,12 @@ export interface AssetDetector {
    * detector registry can route uniformly.
    */
   pack: "universal";
+  /**
+   * Every distinct claim this detector can make. Same contract as
+   * {@link Detector.claims} — asset and source detectors share one id
+   * namespace, so they share one claim namespace too.
+   */
+  claims?: readonly string[];
   /**
    * Lowercase file extensions (including the leading dot) this detector
    * applies to. The orchestrator skips the detector entirely for files
