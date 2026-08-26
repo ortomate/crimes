@@ -89,10 +89,42 @@ for the field-by-field reference.
 
 `created_by` is filled in from `git config user.email` when available;
 omit it if your repo doesn't carry one. The denormalised `type` /
-`file` / `symbol` fields are redundant for matching (only
+`claim` / `file` / `symbol` fields are redundant for matching (only
 `fingerprint` drives it) but are load-bearing for human review — a
 reviewer scanning `git diff .crimes/suppressions.json` can read the
 entry without parsing the fingerprint.
+
+### Suppressing one claim of a multi-claim detector (0.8.0)
+
+Eleven detectors make more than one **claim**, and an entry for one of
+them carries a `claim` field naming which statement was silenced:
+
+```json
+{
+  "fingerprint": "weak_test_signal/no_assertions::test/checkout.test.ts::::renders the plan",
+  "type": "weak_test_signal",
+  "claim": "no_assertions",
+  "file": "test/checkout.test.ts",
+  "reason": "asserts through a same-file helper the detector cannot follow",
+  "created_at": "2026-08-26T09:00:00.000Z"
+}
+```
+
+This is the field that makes the entry reviewable. `type:
+"weak_test_signal"` on its own reads as a judgement on the detector,
+and an entry that silenced something its author never looked at would
+have been indistinguishable from one that did not.
+
+The claim is part of the fingerprint, so a suppression cannot leak
+across claims: if the test later grows a `toBeTruthy()` and the finding
+becomes `weak_assertion_matchers`, this entry stops matching and the new
+statement surfaces for a fresh judgement. That is deliberate — the
+reason recorded here is an answer to a question that is no longer being
+asked.
+
+Pins written before 0.8.0 against one of those eleven types no longer
+match and need re-recording. See
+[the migration note](./json-schema.md#migrating-from-070-to-080-one-type-one-claim).
 
 ### Feedback-sourced suppressions (0.7.0)
 

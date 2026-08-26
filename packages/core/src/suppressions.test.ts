@@ -126,6 +126,52 @@ describe("appendSuppression", () => {
     expect(reread.entries[0]!.fingerprint).toBe("large_function::src/a.ts::foo");
   });
 
+  it("carries the claim onto a newly written entry", async () => {
+    // `appendSuppression` rebuilds the entry field by field rather than
+    // spreading it, so a denormalised field that is not copied is
+    // silently dropped — `claim` was, and the on-disk entry said only
+    // `type: "config_drift"`, which is precisely the reading that buried
+    // 67 findings.
+    const path = await tempPath();
+    await appendSuppression(path, {
+      fingerprint: "config_drift/type_disagreement+undocumented::src/env.ts::TIMEOUT",
+      type: "config_drift",
+      claim: "type_disagreement+undocumented",
+      file: "src/env.ts",
+      symbol: "TIMEOUT",
+      reason: "deliberate",
+    });
+    expect(loadSuppressions(path).entries[0]!.claim).toBe(
+      "type_disagreement+undocumented",
+    );
+  });
+
+  it("backfills the claim onto an entry written without one", async () => {
+    // The denormalised fields are redundant for matching, so a
+    // hand-written or pre-0.8.0 entry can carry the right fingerprint and
+    // no `claim`. Re-running `crimes ignore` on it should fill the field
+    // in rather than leave the file half-migrated — and this is the only
+    // path that exercises the update branch's copy, since two entries
+    // sharing a fingerprint otherwise share a claim by construction.
+    const path = await tempPath();
+    const fingerprint = "weak_test_signal/no_assertions::test/a.test.ts::";
+    await appendSuppression(path, {
+      fingerprint,
+      type: "weak_test_signal",
+      reason: "first",
+    });
+    expect(loadSuppressions(path).entries[0]!.claim).toBeUndefined();
+
+    const again = await appendSuppression(path, {
+      fingerprint,
+      type: "weak_test_signal",
+      claim: "no_assertions",
+      reason: "revised",
+    });
+    expect(again.updated).toBe(true);
+    expect(loadSuppressions(path).entries[0]!.claim).toBe("no_assertions");
+  });
+
   it("appends a new entry to an existing file", async () => {
     const path = await tempPath();
     await appendSuppression(
@@ -217,8 +263,9 @@ describe("end-to-end scan suppression", () => {
       report,
       [
         {
-          fingerprint: "large_function::billing.ts::generateInvoice",
+          fingerprint: "large_function/too_long::billing.ts::generateInvoice",
           type: "large_function",
+          claim: "too_long",
           reason: "ok",
           created_at: "x",
         },

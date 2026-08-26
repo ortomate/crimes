@@ -9,11 +9,115 @@ This page is the **stable product API**. Treat it as a public contract:
 any breaking change to a field name, type, or required-ness will bump
 `schema_version`.
 
-Documented as of `schema_version: "0.7.0"`. The source of truth in code
+Documented as of `schema_version: "0.8.0"`. The source of truth in code
 is [`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
 
 For how an agent should _use_ this output, see
 [`agent-usage.md`](./agent-usage.md).
+
+## Migrating from `0.7.0` to `0.8.0`: one type, one claim
+
+- **New optional field on `Finding`:** `claim?: string`.
+- **New optional field on suppression and triage entries:** `claim?: string`,
+  denormalised from the fingerprint the same way `type` / `file` /
+  `symbol` already are.
+- **`fingerprint` changes shape when `claim` is set.** The leading
+  segment becomes `<type>/<claim>`. Findings from single-claim
+  detectors — the large majority — keep the shape they have always had.
+
+### What was wrong
+
+`type` was doing two jobs: naming the detector, and standing in for what
+the detector alleged. Those coincide only while a detector says exactly
+one thing, and eleven types said more than one. `weak_test_signal`
+emitted both:
+
+```
+Test "…" contains no expect/assert calls.
+Test "…" only uses weak assertion matchers.
+```
+
+Two questions, two answers, two fixes — under one `type`, which is what
+triage, suppressions, baseline, and `detectors.disable` all key on. On a
+761-file repo a consumer verified three findings of the first shape,
+found all three false, and disabled the type. That was correct about the
+38 findings it had looked at and wrong about the 67 it had not.
+
+`crimes` is built for agents and an agent triages by `type`, so this is
+the main path rather than an edge case.
+
+### What `claim` is
+
+A claim is an assertion with its own truth value and its own fix. Count
+and wording variation is not a claim: "1 declaration" and "3
+declarations" are the same statement.
+
+Most multi-claim detectors pick exactly one claim per finding — a test
+either asserts nothing or asserts weakly. A few assert a **conjunction**
+about one subject: `config_drift` reports one finding per environment
+variable listing everything wrong with it, because a reviewer wants
+`DATABASE_URL`'s problems in one place. Those carry a **composite**
+claim — the atoms sorted and joined with `+`:
+
+```
+config_drift/type_disagreement+undocumented::src/env.ts::DATABASE_URL
+```
+
+Sorting is what makes a composite an identity rather than an accident of
+evaluation order.
+
+### The eleven types that changed
+
+| type | claims |
+| --- | --- |
+| `weak_test_signal` | `no_assertions`, `weak_assertion_matchers`, `file_asserts_nothing` (Python) |
+| `config_drift` | `type_disagreement`, `default_disagreement`, `requiredness_disagreement`, `unit_disagreement`, `client_exposed_secret`, `client_reachable_secret`, `boundary_bypass`, `undocumented`, `documented_but_unused` |
+| `swallowed_error` | `empty`, `comment_only`, `discarded_rejection`, `bland_fallback`, `log_without_error` |
+| `agent_permission_sprawl` | `permissive_allow_rules`, `hazardous_hook`, `unpinned_mcp_server`, `risky_instructions` |
+| `dependency_provenance_gap` | `undeclared_import`, `lockfile_gap`, `unpinned_specifier` |
+| `duplicated_policy` | `identical_copies`, `disagreeing_variants` |
+| `mock_saturation` | `subject_mocked`, `collaborators_mocked` |
+| `pass_through_abstraction` | `forwarding_chain`, `forwarding_cluster` |
+| `cross_language_route_drift` | `path_not_declared`, `method_mismatch` |
+| `large_function` | `too_long`, `deeply_nested` (Python) |
+| `direct_date` | `clock_read`, `naive_datetime` (Python) |
+
+`large_function` and `direct_date` are emitted by two packs each, and
+only the Python side makes the second claim. Both packs label anyway:
+consumers group by `type`, and a labelled finding sitting beside an
+unlabelled one under the same type is the ambiguity this field exists to
+remove.
+
+### Silencing one claim
+
+`detectors.disable` accepts `<type>/<claim>`. The bare id still disables
+the whole detector, so existing config keeps working:
+
+```jsonc
+{
+  "detectors": {
+    // Silences the 38 that were wrong. Leaves the 67 that were right.
+    "disable": ["weak_test_signal/no_assertions"]
+  }
+}
+```
+
+A composite is matched by atom, so `config_drift/client_exposed_secret`
+also drops a finding claiming
+`client_exposed_secret+undocumented` — asking not to hear about
+client-exposed secrets means it whether or not the variable has other
+problems too. A misspelled claim is rejected at config load and the
+error names the claims that detector declares.
+
+### What to do
+
+Re-record any pinned entry for one of the eleven types above. A
+pre-`0.8.0` pin on a multi-claim type stops matching, which is the
+intent: it was recorded when the type meant something broader, and it
+was silencing statements its author never read. `crimes scan` will
+surface anything that pin was covering.
+
+Entries for every other detector are unaffected.
 
 ## `0.22.0`: fingerprints move for findings that were colliding
 
@@ -574,6 +678,13 @@ interface Finding {
   /** Machine-readable detector type, e.g. "large_function". */
   type: string;
   /**
+   * Which claim this finding makes, when `type` can make more than one,
+   * e.g. "no_assertions". Absent for single-claim detectors. Group by
+   * `(type, claim)` — see `claim` below. Added in
+   * `schema_version: "0.8.0"`.
+   */
+  claim?: string;
+  /**
    * Qualified detector id including language suffix, e.g. "large_function.js".
    * Use `type` for grouping across packs; use `detector_id` to disambiguate
    * "JS large_function" from "Python large_function" (0.13.0+).
@@ -756,12 +867,20 @@ The finding's identity **across** scans, and the one to persist. Format:
 ```
 <type>::<file>::<symbol>
 <type>::<file>::<symbol>::<discriminator>
+<type>/<claim>::<file>::<symbol>
+<type>/<claim>::<file>::<symbol>::<discriminator>
 ```
 
 `symbol` is the empty string for file-level findings, so a `todo_density`
 fingerprint ends in `::`. The fourth segment is present only for detectors
 that legitimately emit more than one finding for the same
 `(type, file, symbol)` triple — see [`discriminator`](#discriminator).
+
+The `/<claim>` suffix is present only for detectors that make more than
+one claim — see [`claim`](#claim). It rides on the type segment rather
+than becoming a fifth field because the fourth is opaque
+detector-chosen text that may itself contain `::`, so nothing appended
+after it could be read back out.
 
 This is the identifier `crimes ignore`, `crimes unignore`,
 `crimes feedback` and `crimes triage` accept; none of them take an `id`.
@@ -950,6 +1069,35 @@ detector reports on the whole file, `lines` is `[1, lineCount]`. For
 The function, method, or accessor name when the detector pinpoints a specific
 declaration. May be `"<anonymous>"` when the detector found a function but
 couldn't infer its name.
+
+### `claim`
+
+Which statement this finding makes, when its `type` can make more than
+one:
+
+```json
+"type": "weak_test_signal",
+"claim": "no_assertions",
+"fingerprint": "weak_test_signal/no_assertions::test/checkout.test.ts::::renders the plan"
+```
+
+Absent for the majority of detectors, which say exactly one thing.
+Present on all eleven multi-claim types listed in
+[the 0.8.0 migration note](#migrating-from-070-to-080-one-type-one-claim).
+
+**Group by `(type, claim)`, not by `type`.** Two findings sharing a type
+but not a claim are answers to different questions — verifying one tells
+you nothing about the other. This is the single most important thing on
+this page for an automated consumer: `type` alone was never a safe unit
+to judge by, and treating it as one is how 67 correct findings got
+buried behind 38 false ones.
+
+A composite claim joins its atoms with `+`
+(`type_disagreement+undocumented`), sorted so the id is a function of
+the set rather than of evaluation order. Split on `+` before testing
+membership.
+
+New in `schema_version` 0.8.0.
 
 ### `discriminator`
 
@@ -1458,10 +1606,13 @@ Findings are classified as `new` / `fixed` / `unchanged` by a stable
 fingerprint, **not** by the per-scan `id`. The fingerprint is:
 
 ```
-<type>::<file>::<symbol-or-empty>[::<discriminator>]
+<type>[/<claim>]::<file>::<symbol-or-empty>[::<discriminator>]
 ```
 
-- `type` — detector identity (`large_function`, `large_file`, …)
+- `type` — detector identity (`large_function`, `large_file`, …),
+  suffixed `/<claim>` for detectors that make more than one claim
+  (added in `schema_version: "0.8.0"`). Omitted for the majority that
+  make one.
 - `file` — repo-relative POSIX path
 - `symbol` — function/method name when the detector pinpoints a
   declaration (e.g. `large_function`); empty for file-level detectors

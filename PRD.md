@@ -431,6 +431,7 @@ Example:
     {
       "id": "crime_01982",
       "type": "god_function",
+      "claim": "too_long",
       "charge": "God Function",
       "severity": "high",
       "confidence": 0.88,
@@ -468,6 +469,43 @@ Example:
     }
   ]
 }
+
+One type, one claim
+
+`type` names the detector. `claim` names what the detector alleged.
+Those coincide only while a detector says exactly one thing, and some
+detectors say several — `weak_test_signal` alleges both "this test
+contains no expect/assert calls" and "this test only uses weak assertion
+matchers", which are different questions with different answers and
+different fixes.
+
+Because triage, suppressions, the baseline and `detectors.disable` all
+key on `type`, a consumer who samples one claim and judges the type
+silences the rest. That is not an edge case: crimes is built for agents,
+and an agent triages by `type`.
+
+The rule the schema enforces:
+
+  **The unit a reader can silence must be the unit that carries one
+  truth value.**
+
+Concretely:
+
+- A detector that can make more than one claim declares them, and every
+  finding it emits carries the claim it makes.
+- `claim` is folded into the fingerprint as `<type>/<claim>`, so a pin
+  recorded against one claim cannot silence another — including after
+  the same code changes claim underneath it.
+- `detectors.disable` accepts `<type>/<claim>`.
+- A finding may assert a conjunction about one subject (`config_drift`
+  reports everything wrong with one environment variable in one place);
+  its claim is the sorted atom set joined with `+`. A detector whose
+  claims are *alternatives* must not bundle them.
+- A detector that says exactly one thing carries no claim, and its
+  fingerprints keep the three-part form.
+
+Count and wording variation is not a claim. "1 declaration" and "3
+declarations" are the same statement about different numbers.
 
 ⸻
 

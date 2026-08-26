@@ -3,6 +3,7 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import { z } from "zod";
 import { type Clock, systemClock } from "./clock.js";
 import { SCHEMA_VERSION } from "./finding.js";
+import { splitFingerprintType } from "./fingerprint.js";
 
 export const TRIAGE_RELATIVE_PATH = ".crimes/triage.json";
 
@@ -16,6 +17,17 @@ export type TriageDisposition =
 export interface TriageEntry {
   fingerprint: string;
   type: string;
+  /**
+   * Which claim of `type` was triaged, when the type makes more than
+   * one. Denormalised from the fingerprint for the same reason `type`
+   * and `file` are: so a reviewer reading `git diff .crimes/triage.json`
+   * can see that somebody marked `no_assertions` wont-fix without
+   * knowing how fingerprints are built — and so the next reader does not
+   * read that entry as a judgement on the whole detector.
+   *
+   * Strictly redundant for matching, which is on `fingerprint` alone.
+   */
+  claim?: string;
   file: string;
   symbol?: string;
   disposition: TriageDisposition;
@@ -40,6 +52,7 @@ const ACCEPTED_TRIAGE_SCHEMA_VERSIONS = [
   "0.5.0",
   "0.6.0",
   "0.7.0",
+  "0.8.0",
 ] as const;
 
 export interface Triage {
@@ -60,6 +73,7 @@ export const TriageEntrySchema = z
   .object({
     fingerprint: z.string().min(1),
     type: z.string().min(1),
+    claim: z.string().min(1).optional(),
     file: z.string().min(1),
     symbol: z.string().min(1).optional(),
     disposition: z.enum([
@@ -199,14 +213,20 @@ const TriageInputEntrySchema = z
  */
 function headOfFingerprint(fingerprint: string): {
   type?: string;
+  claim?: string;
   file?: string;
   symbol?: string;
 } {
   const parts = fingerprint.split("::");
   if (parts.length < 3) return {};
-  const [type, file, symbol] = parts;
+  const [, file, symbol] = parts;
+  // The leading segment is `<type>` or `<type>/<claim>`. Taking it whole
+  // would record "weak_test_signal/no_assertions" in a field documented
+  // as holding a detector id.
+  const { type, claim } = splitFingerprintType(fingerprint);
   return {
     type: type === "" ? undefined : type,
+    claim,
     file: file === "" ? undefined : file,
     symbol: symbol === "" ? undefined : symbol,
   };

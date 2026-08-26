@@ -955,6 +955,45 @@ for an agent: it stays high even when the local severity is low, when the
 area is structurally confusing (multiple sources of truth, weak tests, hidden
 side effects, etc.).
 
+### Judge by `(type, claim)`, never by `type` alone
+
+**This is the most consequential rule on this page for an automated
+consumer.** Eleven detector types make more than one **claim** —
+statements with their own truth values and their own fixes. Verifying
+one claim tells you nothing about the others.
+
+`weak_test_signal` is the worked example. It says both:
+
+```
+Test "…" contains no expect/assert calls.
+Test "…" only uses weak assertion matchers.
+```
+
+On a real 761-file repo an agent read the first message, checked three
+findings of that shape, found all three false — they asserted through a
+same-file helper the detector cannot follow — and disabled the type. It
+was right about those 38 findings and wrong about 67 others that were
+correct, and which named a genuine weakness: `toBeTruthy()` on a query
+that already throws when it finds nothing.
+
+So:
+
+- **Group by `(type, claim)`.** A group keyed on `type` alone can mix
+  two questions. `claim` is absent when the type makes exactly one
+  claim, and `(type, undefined)` is a perfectly good group key.
+- **Split a composite claim on `+` before testing membership.** Some
+  detectors assert a conjunction about one subject and carry
+  `type_disagreement+undocumented`.
+- **Verify each claim group separately** — the question you ask to check
+  one is the wrong question for the other.
+- **Silence at claim granularity.** `detectors.disable` accepts
+  `weak_test_signal/no_assertions`; the finding's `fingerprint` already
+  carries the claim, so `crimes ignore <fingerprint>` cannot leak across
+  claims either.
+
+If you take one shortcut from this document, do not let it be treating
+`type` as a unit of truth.
+
 **`scores.test_gap` — note for agents comparing exact values.** From
 `0.10.0`, `test_gap` is a repo-relative quartile value (`0 / 0.25 / 0.5 /
 0.75 / 1.0`) rather than the fixed mapping (`{0, 0.5, 1.0}`) used before.

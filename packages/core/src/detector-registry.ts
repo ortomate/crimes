@@ -1,3 +1,4 @@
+import { claimAtoms } from "./claims.js";
 import type { CrimesConfig, DetectorRegistry } from "./config.js";
 import type {
   AssetDetector,
@@ -272,14 +273,18 @@ function applyEnableDisable<T extends { id: string; defaultOff?: true }>(
   const enable = config.detectors?.enable ?? [];
   const disable = config.detectors?.disable ?? [];
 
+  // A `<id>/<claim>` entry names one claim, not the detector. The
+  // detector still has to run — the claim is filtered off the findings
+  // afterwards by `applyClaimDisable` — so those entries are validated
+  // here and then dropped from the pool filter below.
   for (const id of enable) {
-    if (!knownIds.has(id)) throw new UnknownDetectorError(id);
+    if (!isKnownDetectorSelector(id, knownIds)) throw new UnknownDetectorError(id);
   }
   for (const id of disable) {
-    if (!knownIds.has(id)) throw new UnknownDetectorError(id);
+    if (!isKnownDetectorSelector(id, knownIds)) throw new UnknownDetectorError(id);
   }
 
-  const enableSet = new Set(enable);
+  const enableSet = new Set(enable.filter((id) => !id.includes("/")));
 
   // Naming a gated detector in `enable` is *additive* — it switches
   // that detector on without narrowing the pool. Only ids that name a
@@ -305,7 +310,7 @@ function applyEnableDisable<T extends { id: string; defaultOff?: true }>(
   // *nothing but* a gated detector, which is exactly what the hint
   // tells users to write.
   const gated = gatedIdsFor(available);
-  const allowlist = new Set(enable.filter((id) => !gated.has(id)));
+  const allowlist = new Set(enable.filter((id) => !id.includes("/") && !gated.has(id)));
 
   let pool = available;
   if (allowlist.size > 0) {
@@ -317,10 +322,113 @@ function applyEnableDisable<T extends { id: string; defaultOff?: true }>(
   // allowlist so `disable` still wins — the filter below runs last.
   pool = pool.filter((d) => d.defaultOff !== true || enableSet.has(d.id));
   if (disable.length > 0) {
-    const disableSet = new Set(disable);
+    const disableSet = new Set(disable.filter((id) => !id.includes("/")));
     pool = pool.filter((d) => !disableSet.has(d.id));
   }
   return pool;
+}
+
+/**
+ * Split a `detectors.enable` / `detectors.disable` entry into the
+ * detector id and the optional claim it narrows to.
+ *
+ * `"weak_test_signal"` selects the detector; `"weak_test_signal/no_assertions"`
+ * selects one claim it makes.
+ */
+export function parseDetectorSelector(selector: string): {
+  id: string;
+  claim?: string;
+} {
+  const slash = selector.indexOf("/");
+  if (slash === -1) return { id: selector };
+  return { id: selector.slice(0, slash), claim: selector.slice(slash + 1) };
+}
+
+/**
+ * Is this config entry a detector this build knows about?
+ *
+ * A bare id is checked against `knownIds` as it always was. A
+ * `<id>/<claim>` entry additionally requires that the detector actually
+ * declares that claim, so `weak_test_signal/no_assertion` — singular,
+ * one character off — fails at config load rather than silently
+ * disabling nothing and leaving the user believing they had.
+ */
+function isKnownDetectorSelector(selector: string, knownIds: Set<string>): boolean {
+  const { id, claim } = parseDetectorSelector(selector);
+  if (!knownIds.has(id)) return false;
+  if (claim === undefined) return true;
+  return declaredClaimsFor(id).includes(claim);
+}
+
+/**
+ * Every claim atom the detector with this id declares, across both
+ * registries. Empty when the id is unknown or the detector says only one
+ * thing — in which case no `<id>/<claim>` selector can be valid for it,
+ * which is the answer the validator wants.
+ */
+export function declaredClaimsFor(id: string): readonly string[] {
+  const exact = findDeclared(id);
+  if (exact !== undefined) return exact;
+  // A finding's `detector_id` is the registry id plus a pack suffix
+  // (`assignPackAndDetectorId`), and the two only coincide for the
+  // Python pack, whose detectors already declare `<name>.py`. So
+  // `swallowed_error.js` has to resolve back to `swallowed_error` —
+  // without this, looking a finding's own detector up in the registry
+  // that produced it returns nothing.
+  const unsuffixed = id.replace(/\.(js|py|x)$/, "");
+  return findDeclared(unsuffixed) ?? [];
+}
+
+function findDeclared(id: string): readonly string[] | undefined {
+  for (const d of builtInDetectors) if (d.id === id) return d.claims ?? [];
+  for (const d of builtInAssetDetectors) if (d.id === id) return d.claims ?? [];
+  return undefined;
+}
+
+/** Does a built-in detector carry this id, in either registry? */
+function isBuiltInDetectorId(id: string): boolean {
+  return (
+    builtInDetectors.some((d) => d.id === id) ||
+    builtInAssetDetectors.some((d) => d.id === id)
+  );
+}
+
+/**
+ * Drop findings whose claim was disabled by a `<id>/<claim>` entry in
+ * `detectors.disable`.
+ *
+ * This is a post-pass rather than part of {@link filterDetectors}
+ * because a claim is a property of a *finding*, not of a detector: the
+ * detector still has to run to produce the claims that were not
+ * disabled. `weak_test_signal/no_assertions` silences the 38 findings a
+ * reader judged false and leaves the 67 they never looked at.
+ *
+ * Matching is by claim atom, so disabling `config_drift/client_exposed_secret`
+ * also drops a finding whose claim is the composite
+ * `client_exposed_secret+undocumented` — a user asking not to hear about
+ * client-exposed secrets means it whether or not the variable has other
+ * problems too.
+ *
+ * Selectors name detector **ids** (`large_function.py`), while findings
+ * carry the abstract `type` (`large_function`). Both are matched, so
+ * `disable: ["large_function/deeply_nested"]` reads naturally and works
+ * whichever spelling the user reaches for.
+ */
+export function applyClaimDisable<
+  T extends { type: string; detector_id?: string; claim?: string },
+>(findings: T[], config: CrimesConfig): T[] {
+  const selectors = (config.detectors?.disable ?? [])
+    .map(parseDetectorSelector)
+    .filter((s): s is { id: string; claim: string } => s.claim !== undefined);
+  if (selectors.length === 0) return findings;
+
+  return findings.filter((f) => {
+    const atoms = claimAtoms(f.claim);
+    if (atoms.length === 0) return true;
+    return !selectors.some(
+      (s) => (s.id === f.type || s.id === f.detector_id) && atoms.includes(s.claim),
+    );
+  });
 }
 
 /**
@@ -344,13 +452,35 @@ export function defaultOffDetectorIds(
 export class UnknownDetectorError extends Error {
   id: string;
   constructor(id: string) {
-    super(
-      `unknown detector id "${id}" in crimes.config.json. ` +
-        `Check the spelling against the built-in detector list in ` +
-        `docs/finding-types/.`,
-    );
+    super(UnknownDetectorError.messageFor(id));
     this.name = "UnknownDetectorError";
     this.id = id;
+  }
+
+  /**
+   * Two different mistakes deserve two different messages.
+   *
+   * `weak_test_signal/no_assertion` is not an unknown detector — the
+   * detector is right there and the claim is one character off. Pointing
+   * that user at the detector list sends them to check something that
+   * was never wrong, so when the id half resolves we name the claims
+   * that detector actually declares instead.
+   */
+  private static messageFor(id: string): string {
+    const { id: detectorId, claim } = parseDetectorSelector(id);
+    if (claim !== undefined && isBuiltInDetectorId(detectorId)) {
+      const declared = declaredClaimsFor(detectorId);
+      return declared.length > 0
+        ? `unknown claim "${claim}" for detector "${detectorId}" in ` +
+            `crimes.config.json. ${detectorId} declares: ${declared.join(", ")}.`
+        : `detector "${detectorId}" makes a single claim, so "${id}" cannot ` +
+            `select part of it in crimes.config.json. Use "${detectorId}".`;
+    }
+    return (
+      `unknown detector id "${id}" in crimes.config.json. ` +
+      `Check the spelling against the built-in detector list in ` +
+      `docs/finding-types/.`
+    );
   }
 }
 

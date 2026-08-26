@@ -940,6 +940,13 @@ remains shipped:
 - `crimes audit-suppressions` — list every suppression with age and
   flags for stale, short, or vague reasons. Reviewable in JSON or
   human-readable form.
+- One type carries one **claim**. Eleven detectors allege more than one
+  thing — `weak_test_signal` says both "contains no expect/assert calls"
+  and "only uses weak assertion matchers" — so every finding names which
+  statement it makes, the claim is part of the fingerprint, and
+  `detectors.disable` accepts `weak_test_signal/no_assertions`. Group
+  findings by `(type, claim)`, never by `type` alone. See
+  [`docs/claims.md`](./docs/claims.md).
 - `crimes explain <id-or-fingerprint> [--from <scan.json>]` —
   deterministic long-form rationale for one finding plus the verbatim
   `crimes ignore` command line. See

@@ -133,6 +133,12 @@ const RESOLVABLE_RECEIVER = /^(self|cls)$/;
 
 export const weakTestSignalPyDetector: LanguagePyDetector = {
   id: "weak_test_signal.py",
+  // A third claim under the `weak_test_signal` type, and structurally
+  // unlike the other two: this one is a file-level aggregate ("N of M
+  // test functions assert nothing") where the JS pack reports one
+  // finding per test. Labelling it keeps every finding under the type
+  // answerable to a single question.
+  claims: ["file_asserts_nothing"],
   name: "Weak test signal (Python)",
   description:
     "Flags pytest / unittest files whose test functions assert nothing, or assert far " +
@@ -266,6 +272,7 @@ export const weakTestSignalPyDetector: LanguagePyDetector = {
     const finding: Finding = {
       id: "",
       type: "weak_test_signal",
+      claim: "file_asserts_nothing",
       charge: "Weak Test Signal",
       severity,
       confidence: 0.85,

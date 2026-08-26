@@ -279,11 +279,46 @@ named in both does not run.
   — typos should not silently no-op. See the table in
   [`json-schema.md`](./json-schema.md#type) for the full list of ids.
 
-**Anti-pattern:** disabling a detector is a blunt tool. Prefer
-suppressing specific findings with `crimes ignore` plus a reason.
-Reserve `disable` for detectors that fundamentally don't fit your
-repo (`todo_density` on a research codebase where TODO is a tracking
-convention, not debt).
+#### Disabling one claim
+
+Eleven detectors make more than one **claim** — statements with their
+own truth values and their own fixes. `weak_test_signal` says both
+"this test contains no expect/assert calls" and "this test only uses
+weak assertion matchers". Both entries accept `<id>/<claim>` so you can
+silence the one that is wrong for your repo without silencing the one
+that is right:
+
+```jsonc
+{
+  "detectors": {
+    // Our tests assert through same-file helpers, which this claim
+    // cannot follow. The weak-matcher claim is still worth hearing.
+    "disable": ["weak_test_signal/no_assertions"]
+  }
+}
+```
+
+The detector still runs — only the named claim is dropped from the
+findings. The bare id keeps its old meaning and disables the whole
+detector.
+
+A few detectors state a **conjunction** about one subject and carry a
+composite claim like `type_disagreement+undocumented`. Selectors match
+by atom, so `config_drift/client_exposed_secret` drops that finding too:
+asking not to hear about client-exposed secrets means it whether or not
+the variable has other problems as well.
+
+A misspelled claim is rejected at config load, and the error names the
+claims that detector declares. The full list is in
+[`json-schema.md`](./json-schema.md#claim).
+
+**Anti-pattern:** disabling a whole detector is a blunt tool, and
+disabling a whole *multi-claim* detector is bluntest of all — it is how
+one repo silenced 67 correct findings after checking three that were
+not. Prefer a claim selector over an id, and a `crimes ignore` with a
+reason over either. Reserve a bare `disable` for detectors that
+fundamentally don't fit your repo (`todo_density` on a research
+codebase where TODO is a tracking convention, not debt).
 
 ### `detectors.options`
 

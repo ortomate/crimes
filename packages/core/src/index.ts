@@ -255,7 +255,12 @@ export type {
   DiffReport,
   DiffSummary,
 } from "./diff.js";
-export { fingerprintFinding, FINGERPRINT_PATTERN } from "./fingerprint.js";
+export {
+  fingerprintFinding,
+  FINGERPRINT_PATTERN,
+  splitFingerprintType,
+} from "./fingerprint.js";
+export { claimAtoms, claimAsserts, composeClaim, CLAIM_ATOM_PATTERN } from "./claims.js";
 export { shellQuote } from "./util/shell-quote.js";
 export { isRepoLevelFinding } from "./scoring/repo-level.js";
 export type {
@@ -385,9 +390,12 @@ export type {
 } from "./hotspots.js";
 export {
   buildDetectorRegistry,
+  applyClaimDisable,
   builtInAssetDetectors,
   builtInDetectors,
+  declaredClaimsFor,
   defaultOffDetectorIds,
+  parseDetectorSelector,
   filterAssetDetectors,
   filterDetectors,
   UnknownDetectorError,

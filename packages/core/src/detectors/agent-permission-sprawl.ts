@@ -73,6 +73,17 @@ const MAX_FINDINGS = 10;
 
 export const agentPermissionSprawlDetector: UniversalDetector = {
   id: "agent_permission_sprawl",
+  // Four different files, four truth conditions, four fixes. They were
+  // already separated in the fingerprint — but through `symbol`, which
+  // held "permissions.allow" / "hooks" / "mcpServers" / "agent
+  // instructions". Those are not symbols; they are claims wearing the
+  // only slot that was available. `claim` is that slot.
+  claims: [
+    "permissive_allow_rules",
+    "hazardous_hook",
+    "unpinned_mcp_server",
+    "risky_instructions",
+  ],
   name: "Loaded Agent",
   description:
     "Inspects repository-local agent settings, hooks, MCP servers, and " +
@@ -224,6 +235,7 @@ function reportPermissions(index: AgentConfigIndex, allowed: Set<string>): Findi
       file,
       lines: [group[0]!.rule.line, group[group.length - 1]!.rule.line],
       symbol: "permissions.allow",
+      claim: "permissive_allow_rules",
       summary:
         `${group.length} committed permission rule(s) pre-approve unrestricted ` +
         "execution or out-of-repository writes for any agent that opens this " +
@@ -371,6 +383,7 @@ function reportHooks(index: AgentConfigIndex): Finding[] {
       file,
       lines: [group[0]!.hook.line, group[group.length - 1]!.hook.line],
       symbol: "hooks",
+      claim: "hazardous_hook",
       summary:
         `${group.length} committed hook command(s) execute automatically and ` +
         `${group[0]!.reason}.`,
@@ -460,6 +473,7 @@ function reportMcpServers(index: AgentConfigIndex): Finding[] {
       file,
       lines: [risky[0]!.server.line, risky[risky.length - 1]!.server.line],
       symbol: "mcpServers",
+      claim: "unpinned_mcp_server",
       summary:
         `${risky.length} MCP server(s) configured in this repo launch code that ` +
         "is fetched at start-up rather than pinned in the repository.",
@@ -546,6 +560,7 @@ function reportInstructions(index: AgentConfigIndex): Finding | undefined {
     file,
     lines: [group[0]!.line, group[group.length - 1]!.line],
     symbol: "agent instructions",
+    claim: "risky_instructions",
     summary:
       `${group.length} committed instruction(s) direct agents to skip ` +
       "verification, ignore higher-level instructions, or handle secrets " +

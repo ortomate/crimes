@@ -11,6 +11,8 @@ import { DEFAULT_CONFIG, loadConfig } from "./config.js";
 import { applyScanFailOn, applyTriageToScan, scan } from "./scan.js";
 import { tagTierAndSortByRankScore } from "./context-helpers.js";
 import { fingerprintFinding } from "./fingerprint.js";
+import { claimAtoms } from "./claims.js";
+import { declaredClaimsFor } from "./detector-registry.js";
 import type { TriageEntry } from "./triage.js";
 
 const execFileAsync = promisify(execFile);
@@ -606,7 +608,12 @@ describe("scan — resurfacing", () => {
       (f) => f.file === "src/big.ts" && f.symbol === "doStuff",
     );
     expect(target).toBeDefined();
-    const print = `${target!.type}::${target!.file}::${target!.symbol ?? ""}`;
+    // Read the fingerprint off the finding rather than rebuilding it from
+    // the parts. Hand-assembling `type::file::symbol` is the construction
+    // `Finding.fingerprint` exists to stop consumers from getting wrong,
+    // and it went wrong here the moment `large_function` gained a claim
+    // segment — this test pinned a fingerprint the scanner never emits.
+    const print = target!.fingerprint;
 
     // Write .crimes/triage.json with that fingerprint marked wont-fix.
     const triagePath = join(root, ".crimes", "triage.json");
@@ -1260,6 +1267,91 @@ export function limitFor(plan) {
       );
       expect(sameTitle.length).toBeGreaterThanOrEqual(4);
       expect(new Set(sameTitle.map((f) => f.discriminator)).size).toBe(sameTitle.length);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("claims on a real scan", () => {
+  // The repo that reproduces the field report: one test asserting
+  // through a same-file helper (which the detector reads as asserting
+  // nothing) and two asserting only through weak matchers. One `type`,
+  // two statements, opposite truth values.
+  const twoClaimRepo = {
+    "test/checkout.test.ts": [
+      "const expectStatus = (v: number) => { expect(v).toBe(200); };",
+      'it("asserts through a helper", () => { expectStatus(200); });',
+      'it("asserts weakly", () => { expect(load()).toBeTruthy(); });',
+      'it("also weak", () => { expect(other()).toBeDefined(); });',
+    ].join("\n"),
+  };
+
+  it("labels each finding with the claim it makes", async () => {
+    const root = await makeRepo(twoClaimRepo);
+    try {
+      const report = await scan({ root });
+      const claims = report.findings
+        .filter((f) => f.type === "weak_test_signal")
+        .map((f) => f.claim)
+        .sort();
+      expect(claims).toEqual([
+        "no_assertions",
+        "weak_assertion_matchers",
+        "weak_assertion_matchers",
+      ]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("gives the two claims different fingerprints", async () => {
+    // Before 0.8.0 these differed only by the test title. Two findings
+    // making different statements about the same file were separable
+    // only by a string the detector chose for a different purpose.
+    const root = await makeRepo(twoClaimRepo);
+    try {
+      const report = await scan({ root });
+      const weak = report.findings.filter((f) => f.type === "weak_test_signal");
+      for (const f of weak) {
+        expect(f.fingerprint.startsWith(`weak_test_signal/${f.claim}::`)).toBe(true);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("emits only claims the detector declared", async () => {
+    // The runtime half of the `detector-claims.test.ts` gate: the
+    // declared registry is worth nothing if a detector can emit a claim
+    // that is not in it, because `detectors.disable` validates against
+    // the declaration and would reject a selector for a claim that
+    // really ships.
+    const root = await makeRepo({
+      ...twoClaimRepo,
+      "src/env.ts": [
+        "export const timeout = Number(process.env.REQUEST_TIMEOUT_MS ?? 100);",
+        "export const other = parseInt(process.env.REQUEST_TIMEOUT_MS ?? '200', 10);",
+      ].join("\n"),
+      "src/jobs.ts": [
+        "export async function run() {",
+        "  try { await work(); } catch (e) {}",
+        "}",
+      ].join("\n"),
+    });
+    try {
+      const report = await scan({ root });
+      const labelled = report.findings.filter((f) => f.claim !== undefined);
+      expect(labelled.length).toBeGreaterThan(0);
+      for (const f of labelled) {
+        const declared = declaredClaimsFor(f.detector_id);
+        for (const atom of claimAtoms(f.claim)) {
+          expect(
+            declared.includes(atom),
+            `${f.detector_id} emitted claim atom "${atom}", which it does not declare`,
+          ).toBe(true);
+        }
+      }
     } finally {
       await rm(root, { recursive: true, force: true });
     }

@@ -91,7 +91,7 @@ describe("crimes scan respects suppressions", () => {
     await writeFile(join(root, "billing.ts"), largeFunctionSource(), "utf8");
     await writeSuppression(
       root,
-      "large_function::billing.ts::generateInvoice",
+      "large_function/too_long::billing.ts::generateInvoice",
       "tracked in #1234",
     );
 
@@ -107,7 +107,11 @@ describe("crimes scan respects suppressions", () => {
   it("--show-suppressed re-surfaces the finding annotated", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-scan-show-supp-"));
     await writeFile(join(root, "billing.ts"), largeFunctionSource(), "utf8");
-    await writeSuppression(root, "large_function::billing.ts::generateInvoice", "legacy");
+    await writeSuppression(
+      root,
+      "large_function/too_long::billing.ts::generateInvoice",
+      "legacy",
+    );
 
     const result = await runCli(
       ["scan", "--show-suppressed", "--format", "json", "--no-color"],
@@ -126,7 +130,11 @@ describe("crimes scan respects suppressions", () => {
   it("--fail-on high with the only high finding suppressed exits 0", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-scan-supp-fail-on-"));
     await writeFile(join(root, "billing.ts"), largeFunctionSource(), "utf8");
-    await writeSuppression(root, "large_function::billing.ts::generateInvoice", "ok");
+    await writeSuppression(
+      root,
+      "large_function/too_long::billing.ts::generateInvoice",
+      "ok",
+    );
     await git(root, "init", "--initial-branch=main", "--quiet");
     await git(root, "add", "-A");
     await git(root, "commit", "-m", "init", "--quiet");

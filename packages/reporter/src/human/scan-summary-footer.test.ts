@@ -48,7 +48,7 @@ function finding(overrides: Partial<Finding> = {}): Finding {
 
 function report(findings: Finding[]): ScanReport {
   return {
-    schema_version: "0.7.0",
+    schema_version: "0.8.0",
     report_type: "scan",
     repo: { name: "demo", root: "/demo" },
     summary: {

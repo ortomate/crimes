@@ -83,6 +83,11 @@ const BOUNDARY_PATH_RE =
 
 export const passThroughAbstractionDetector: LanguageJsDetector = {
   id: "pass_through_abstraction",
+  // Vertical versus horizontal: a chain forwards through N layers across
+  // files, a cluster is N sibling functions in one file forwarding to
+  // one receiver. Different thresholds decide each, and they are already
+  // built by two separate functions.
+  claims: ["forwarding_chain", "forwarding_cluster"],
   name: "Abstraction Laundering",
   description:
     "Flags chains and clusters of wrapper functions that forward their " +
@@ -198,6 +203,7 @@ function buildChainFinding(chain: PassThroughChain): Finding {
     file: chain.anchorFile,
     lines: [head.line, head.endLine],
     symbol: head.name,
+    claim: "forwarding_chain",
     summary:
       `\`${head.name}\` forwards through ${chain.edges.length} layers across ` +
       `${chain.files.length} files to reach \`${chain.terminal}\`, and no layer ` +
@@ -295,6 +301,7 @@ function buildClusterFinding(
     file: cluster.file,
     lines: [first.line, empty[empty.length - 1]!.endLine],
     symbol: cluster.receiver,
+    claim: "forwarding_cluster",
     summary:
       `${empty.length} functions in this file exist only to forward to ` +
       `\`${cluster.receiver}\`. The layer restates an interface without ` +

@@ -282,13 +282,22 @@ describe("crimes scan --show-triaged", () => {
     // Locate the finding fingerprint via a quick scan-as-tool.
     const probe = await runCli(["scan", ".", "--format", "json", "--no-color"], root);
     const probeReport = JSON.parse(probe.stdout) as {
-      findings: Array<{ type: string; file: string; symbol?: string }>;
+      findings: Array<{
+        type: string;
+        file: string;
+        symbol?: string;
+        fingerprint: string;
+      }>;
     };
     const target = probeReport.findings.find(
       (f) => f.type === "large_function" && f.file === "src.ts",
     );
     if (!target) throw new Error("expected large_function on src.ts in fixture");
-    const print = `${target.type}::${target.file}::${target.symbol ?? ""}`;
+    // The scan report carries the fingerprint; rebuilding it from the
+    // parts duplicates a construction that has grown two extra segments
+    // since (discriminator in 0.4.0, claim in 0.8.0) and was silently
+    // wrong after each.
+    const print = target.fingerprint;
 
     await mkdir(join(root, ".crimes"), { recursive: true });
     await writeFile(
@@ -367,13 +376,18 @@ describe("crimes scan — resurfacing end-to-end", () => {
 
     const probe = await runCli(["scan", ".", "--format", "json", "--no-color"], root);
     const probeReport = JSON.parse(probe.stdout) as {
-      findings: Array<{ type: string; file: string; symbol?: string }>;
+      findings: Array<{
+        type: string;
+        file: string;
+        symbol?: string;
+        fingerprint: string;
+      }>;
     };
     const target = probeReport.findings.find(
       (f) => f.type === "large_function" && f.file === "src.ts",
     );
     if (!target) throw new Error("expected large_function on src.ts in fixture");
-    const fingerprint = `${target.type}::${target.file}::${target.symbol ?? ""}`;
+    const fingerprint = target.fingerprint;
 
     await mkdir(join(root, ".crimes"), { recursive: true });
     await writeFile(
@@ -433,7 +447,7 @@ describe("crimes scan — resurfacing end-to-end", () => {
     // resurfaced annotation as the sole representative in findings[].
     expect(parsed.triage_hidden_count).toBe(1);
     // Sanity: fingerprint matches the triage entry we wrote.
-    expect(fingerprint).toContain("large_function::src.ts");
+    expect(fingerprint).toContain("large_function/too_long::src.ts");
   });
 
   it("renders the 'previously triaged' resurface block in human output", {

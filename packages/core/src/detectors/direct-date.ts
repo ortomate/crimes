@@ -6,6 +6,10 @@ import { intrinsicFrom } from "../scoring/intrinsic.js";
 
 export const directDateDetector: LanguageJsDetector = {
   id: "direct_date",
+  // Only ever "the clock is read here". Declared anyway because
+  // `direct_date.py` also emits `naive_datetime` under this `type`, and
+  // consumers group by type.
+  claims: ["clock_read"],
   name: "Direct Date.now() / new Date()",
   description:
     "Flags direct uses of Date.now() and new Date() — these make code hard to test and " +
@@ -66,6 +70,7 @@ export const directDateDetector: LanguageJsDetector = {
     const finding: Finding = {
       id: "",
       type: "direct_date",
+      claim: "clock_read",
       charge: "Temporal Recklessness",
       severity,
       confidence: 0.9,

@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "./config.js";
 import type { Detector } from "./detector.js";
 import {
+  applyClaimDisable,
   builtInAssetDetectors,
   builtInDetectors,
   collectKnownIds,
   filterAssetDetectors,
   filterDetectors,
   groupDetectorsByPack,
+  UnknownDetectorError,
 } from "./detector-registry.js";
 
 describe("default-off detectors", () => {
@@ -215,5 +217,123 @@ describe("groupDetectorsByPack", () => {
     const grouped = groupDetectorsByPack(detectors);
     expect(grouped.universal?.map((d) => d.id)).toEqual(["ux"]);
     expect(grouped["language-js"]?.map((d) => d.id)).toEqual(["js"]);
+  });
+});
+
+describe("claim-scoped enable/disable", () => {
+  function configWithDetectors(
+    detectors: Partial<NonNullable<typeof DEFAULT_CONFIG.detectors>>,
+  ): typeof DEFAULT_CONFIG {
+    return {
+      ...DEFAULT_CONFIG,
+      detectors: { ...DEFAULT_CONFIG.detectors, ...detectors },
+    };
+  }
+
+  const finding = (type: string, claim?: string) => ({
+    type,
+    detector_id: type,
+    ...(claim !== undefined ? { claim } : {}),
+  });
+
+  it("keeps the detector running when only one of its claims is disabled", () => {
+    // The detector still has to run: `weak_test_signal/no_assertions`
+    // silences one statement, and the other 67 findings only exist if
+    // the detector produced them.
+    const config = configWithDetectors({
+      disable: ["weak_test_signal/no_assertions"],
+    });
+    const ids = filterDetectors(builtInDetectors, config).map((d) => d.id);
+    expect(ids).toContain("weak_test_signal");
+  });
+
+  it("drops only the disabled claim from the findings", () => {
+    const config = configWithDetectors({
+      disable: ["weak_test_signal/no_assertions"],
+    });
+    const kept = applyClaimDisable(
+      [
+        finding("weak_test_signal", "no_assertions"),
+        finding("weak_test_signal", "weak_assertion_matchers"),
+        finding("large_file"),
+      ],
+      config,
+    );
+    expect(kept.map((f) => f.claim)).toEqual(["weak_assertion_matchers", undefined]);
+  });
+
+  it("matches a composite claim by atom, not by whole string", () => {
+    // "Stop telling me about client-exposed secrets" means it whether or
+    // not the variable also has three other problems.
+    const config = configWithDetectors({
+      disable: ["config_drift/client_exposed_secret"],
+    });
+    const kept = applyClaimDisable(
+      [
+        finding("config_drift", "client_exposed_secret+undocumented"),
+        finding("config_drift", "type_disagreement+undocumented"),
+      ],
+      config,
+    );
+    expect(kept.map((f) => f.claim)).toEqual(["type_disagreement+undocumented"]);
+  });
+
+  it("accepts the qualified detector id as well as the abstract type", () => {
+    // Findings carry `type: "large_function"`; the registry knows it as
+    // `large_function.py`. A user should not have to know which spelling
+    // the config wants.
+    const config = configWithDetectors({
+      disable: ["large_function.py/deeply_nested"],
+    });
+    const kept = applyClaimDisable(
+      [
+        {
+          type: "large_function",
+          detector_id: "large_function.py",
+          claim: "deeply_nested",
+        },
+        { type: "large_function", detector_id: "large_function.js", claim: "too_long" },
+      ],
+      config,
+    );
+    expect(kept.map((f) => f.claim)).toEqual(["too_long"]);
+  });
+
+  it("still disables the whole detector when the bare id is named", () => {
+    const config = configWithDetectors({ disable: ["weak_test_signal"] });
+    const ids = filterDetectors(builtInDetectors, config).map((d) => d.id);
+    expect(ids).not.toContain("weak_test_signal");
+  });
+
+  it("rejects a misspelled claim instead of silently disabling nothing", () => {
+    const config = configWithDetectors({
+      disable: ["weak_test_signal/no_assertion"],
+    });
+    expect(() => filterDetectors(builtInDetectors, config)).toThrow(UnknownDetectorError);
+  });
+
+  it("names the claims a detector declares when one is misspelled", () => {
+    // Sending this user to check the detector list points them at the
+    // half of their config that was already right.
+    const config = configWithDetectors({
+      disable: ["weak_test_signal/no_assertion"],
+    });
+    expect(() => filterDetectors(builtInDetectors, config)).toThrow(
+      /declares: no_assertions, weak_assertion_matchers/,
+    );
+  });
+
+  it("says so when a single-claim detector is given a claim selector", () => {
+    const config = configWithDetectors({ disable: ["large_file/too_big"] });
+    expect(() => filterDetectors(builtInDetectors, config)).toThrow(
+      /makes a single claim/,
+    );
+  });
+
+  it("still rejects an unknown detector id outright", () => {
+    const config = configWithDetectors({ disable: ["not_a_detector/whatever"] });
+    expect(() => filterDetectors(builtInDetectors, config)).toThrow(
+      /unknown detector id/,
+    );
   });
 });

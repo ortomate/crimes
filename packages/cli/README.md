@@ -411,6 +411,7 @@ override:
 - [README](https://github.com/ortomate/crimes/blob/main/README.md) — full tour
 - [Agent guide](https://github.com/ortomate/crimes/blob/main/docs/agent-usage.md) — pre/post-edit workflow
 - [JSON schema](https://github.com/ortomate/crimes/blob/main/docs/json-schema.md) — wire format
+- [Claims](https://github.com/ortomate/crimes/blob/main/docs/claims.md) — why to group findings by `(type, claim)` and never by `type` alone
 - [Roadmap](https://github.com/ortomate/crimes/blob/main/docs/roadmap.md) — what's next
 
 ---

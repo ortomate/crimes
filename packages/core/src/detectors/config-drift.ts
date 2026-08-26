@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { composeClaim } from "../claims.js";
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import {
@@ -99,6 +100,24 @@ export const configDriftDetector: LanguageJsDetector = {
     "nothing in the file says a canonical treatment already exists.",
 
   pack: "language-js",
+  // Eight independent checks over one variable, plus a ninth over the
+  // inventory. They are not alternatives: `DATABASE_URL` can be parsed
+  // two ways *and* undocumented, so one finding carries the conjunction
+  // and `claim` is the sorted atom set. Silencing "this variable is a
+  // mess in these two ways" cannot silence "this other variable is a
+  // client-exposed secret", which is what sharing one `config_drift`
+  // fingerprint space used to do.
+  claims: [
+    "type_disagreement",
+    "default_disagreement",
+    "requiredness_disagreement",
+    "unit_disagreement",
+    "client_exposed_secret",
+    "client_reachable_secret",
+    "boundary_bypass",
+    "undocumented",
+    "documented_but_unused",
+  ],
   optionsSchema,
 
   run(ctx) {
@@ -369,6 +388,12 @@ function buildFinding(variable: EnvVariableRecord, issues: Issue[]): Finding {
     file: variable.anchorFile,
     lines: [anchor.line, anchor.line],
     symbol: variable.name,
+    // The conjunction this finding asserts, as a sorted atom set. The
+    // summary already joins the same issues as prose; this is the
+    // machine-readable half, and it is what stops a suppression written
+    // against "undocumented" from surviving into a scan where the same
+    // variable has become a client-exposed secret.
+    claim: composeClaim(issues.map((i) => i.id)),
     summary:
       `\`${variable.name}\` is ${issues.map((i) => i.label).join("; ")} ` +
       `across ${variable.files.length} file(s). The behaviour depends on which ` +
@@ -479,6 +504,7 @@ function assessUnused(env: EnvIndex, ignore: Set<string>): Finding | undefined {
     file: anchor,
     lines: [1, 1],
     symbol: "(documented but unused)",
+    claim: "documented_but_unused",
     summary:
       `${unused.length} variable(s) documented in ${anchor} are never read in ` +
       "code. Operators are being asked to set values that do nothing.",

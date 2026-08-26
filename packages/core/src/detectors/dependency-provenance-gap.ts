@@ -92,6 +92,12 @@ const PATH_ALIAS_RE = /^(@\/|~\/|~[a-z]|\$[a-z]|src\/|app\/)/i;
 
 export const dependencyProvenanceGapDetector: UniversalDetector = {
   id: "dependency_provenance_gap",
+  // Same shape as `agent_permission_sprawl`: three claims that were
+  // riding in `symbol` because nothing else could hold them. "Imported
+  // but undeclared" resolves today and breaks on a clean install;
+  // "declared but unlocked" and "declared but unpinned" are different
+  // failures needing different commands.
+  claims: ["undeclared_import", "lockfile_gap", "unpinned_specifier"],
   name: "Phantom Accomplice",
   description:
     "Flags external imports with no declaring package.json, declared " +
@@ -295,6 +301,7 @@ function reportUndeclared(
     file: anchor.file,
     lines: [1, 1],
     symbol: "undeclared imports",
+    claim: "undeclared_import",
     summary:
       `${entries.length} external package(s) are imported but declared in no ` +
       "applicable package.json. They resolve today through hoisting; a clean " +
@@ -427,6 +434,7 @@ function reportLockGaps(
     file: anchor.file,
     lines: [1, 1],
     symbol: "manifest/lockfile disagreement",
+    claim: "lockfile_gap",
     summary:
       `${missing.length} dependenc(ies) declared in a manifest have no entry ` +
       "in the committed lockfile. The two records disagree about what this " +
@@ -550,6 +558,7 @@ function reportUnpinned(manifest: ManifestIndex, anchor: PackageManifest): Findi
         mutable[0]!.dep.manifest === anchor.file ? mutable[0]!.dep.line : 1,
       ],
       symbol: "unpinned specifiers",
+      claim: "unpinned_specifier",
       summary:
         `${mutable.length} dependency specifier(s) are not pinned to immutable ` +
         "content. Two installs of this commit can produce different code.",
