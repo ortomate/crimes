@@ -16,9 +16,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         # Version comes from `packageManager` in root package.json.
 
       # One Node, and it is the one this project is developed on — see
@@ -29,7 +29,7 @@ jobs:
       # legs can disagree; these two only ever agreed, and four steps
       # below carried `if: matrix.node == '22'` purely to avoid doing the
       # same work twice.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -75,12 +75,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         # Version comes from `packageManager` in root package.json.
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # This job validates the *published* artifact, so it runs the
           # same Node as everything else rather than a second opinion.
