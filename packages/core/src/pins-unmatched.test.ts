@@ -374,6 +374,24 @@ describe("recordUnmatchedPins", () => {
     expect(out.coverage?.warnings?.[0]).toEqual(existing);
   });
 
+  // `files` is 0 here, which is why the contract carves these kinds out
+  // of "always >= 1": a fingerprint with an empty file segment names no
+  // file, and `entries` is the count that still means something.
+  it("still reports an entry that names no file, sized in entries", () => {
+    const out = recordUnmatchedPins(report([]), {
+      suppressions: [{ fingerprint: "some_type::::sym" }],
+    });
+
+    const [warning] = pinWarnings(out);
+    expect(warning?.entries).toBe(1);
+    expect(warning?.files).toBe(0);
+    expect(warning?.examples).toBeUndefined();
+    // No "across N files" clause, and the singular noun comes from the
+    // entry count rather than the absent file count.
+    expect(warning?.detail).not.toContain("across");
+    expect(warning?.detail).toContain("the file removed");
+  });
+
   // A report with no coverage block scanned nothing, so there is no
   // scan for an entry to have failed to match.
   it("is a no-op when the report has no coverage block", () => {
