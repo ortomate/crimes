@@ -48,13 +48,9 @@
  * under-reported every band by √(n/(n−1)) — 29% at n=2.
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import { REPO_ROOT, RESULTS_DIR } from "./paths.js";
 import type { ScoreResult } from "./types.js";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(HERE, "..", "..", "..");
-const RESULTS_DIR = resolve(REPO_ROOT, "evals", "results");
 
 /** One (scenario, agent) observation in one sample. */
 interface Observation {

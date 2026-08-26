@@ -144,18 +144,36 @@ The PR workflow at `.github/workflows/evals-pr.yml` triggers on PRs
 touching detector / scoring / language / CLI / evals code:
 
 1. Builds the PR's crimes binary.
-2. Runs `pnpm run evals:replay` — re-scores every committed result
-   in `evals/results/<latest-version>/` against the PR's structural
-   rubric. No agent calls.
-3. Runs `pnpm run evals:diff` — compares per-agent pass rates from
+2. Runs `pnpm run evals:setup` — materialises the gitignored OSS
+   fixture bodies. Without it every scan below runs against an empty
+   directory.
+3. Runs `pnpm --filter evals-runner evals:verify-scenarios` — checks
+   that every scenario's expected findings actually fire on its
+   fixture.
+4. Runs `pnpm run evals:replay` — re-scores every committed result in
+   the pinned baseline against the PR's structural rubric. No agent
+   calls.
+5. Runs `pnpm run evals:diff` — compares per-agent pass rates from
    the replay to the pinned summary. Writes
    `evals/diff-summary.md`.
-4. Posts (or updates a single) PR comment with the markdown diff.
+6. Posts (or updates a single) PR comment with the markdown diff.
 
-The diff is *signal*, not a gate. Pass-rate moves within ±10% are
-marked stable; moves outside that band are flagged ("improved" /
-"regression"). Investigate flagged regressions before merging
+The **pinned baseline** is the newest `evals/results/<version>/` that
+holds both agent result files and a `summary.json` — not simply the
+newest directory, since `evals:ranking` writes a `ranking.json`-only
+directory on every patch bump. `evals:replay` and `evals:diff` share
+that selection so they can never compare two different samples.
+
+A **pass-rate move is signal, not a gate**: within ±10% it is marked
+stable, outside it is flagged ("improved" / "regression"), and either
+way the job stays green. Investigate flagged regressions before merging
 detector changes.
+
+**Having nothing to measure is a gate.** Each of these commands exits
+`2` rather than `0` when its input is missing — no results to replay,
+no replay output to diff, a fixture still absent from disk. All three
+used to report that state and exit 0, so the job went green having
+measured nothing. See `evals/README.md` § Exit codes.
 
 ## Adding a fixture
 

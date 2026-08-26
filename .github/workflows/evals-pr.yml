@@ -66,8 +66,24 @@ jobs:
         # `crimes scan` doesn't produce on the scenario's fixture. Catches
         # scenario/fixture drift before it shows up as a silent pass-rate
         # regression in the replay step below.
+        #
+        # Exits 1 on scenario drift and 2 when the environment is wrong —
+        # including a fixture that is still missing after the step above,
+        # which used to be skipped silently and counted as a pass.
         run: pnpm --filter evals-runner evals:verify-scenarios
 
+      # The two steps below are this workflow's whole purpose, and both
+      # used to exit 0 while doing nothing: `evals:replay` re-scored zero
+      # files because it pinned whichever results directory sorted newest
+      # (ranking-only since 0.25.4), and `evals:diff` then reported its own
+      # input missing — also with exit 0. The job went green having measured
+      # nothing, and the PR comment step ran on top of that.
+      #
+      # Both now exit 2 rather than 0 when there is nothing to measure, so
+      # this job fails instead of certifying a replay that did not happen.
+      # `evals/runner/src/harness-guards.test.ts` spawns the real scripts
+      # and asserts those exit codes. Neither command fails on a pass-rate
+      # regression — that stays signal, reported in the comment below.
       - name: Replay pinned results (no agent invocations)
         run: pnpm run evals:replay
 

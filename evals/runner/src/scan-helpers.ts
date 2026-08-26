@@ -1,14 +1,9 @@
 import { execFile } from "node:child_process";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { CLI_DIST } from "./paths.js";
 import type { ScanContext } from "./types.js";
 
 const execFileAsync = promisify(execFile);
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(HERE, "..", "..", "..");
-const CLI_DIST = resolve(REPO_ROOT, "packages", "cli", "dist", "index.js");
 
 /**
  * Reference date every eval scan is run at, passed to the CLI as

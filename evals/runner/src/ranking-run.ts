@@ -16,7 +16,6 @@
  */
 import { existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   type DepthMargin,
   type FloorPlacement,
@@ -27,15 +26,10 @@ import {
   renderDepthComposition,
   renderPopulationVerdict,
 } from "./ranking-population.js";
+import { FIXTURES_REGISTRY, REPO_ROOT, RESULTS_DIR, SCENARIOS_DIR } from "./paths.js";
 import { type RankedFinding, type RankingScore, scoreRanking } from "./ranking.js";
 import { RANKING_REFERENCE_DATE, runScan } from "./scan-helpers.js";
 import type { FixturesRegistry, Scenario } from "./types.js";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(HERE, "..", "..", "..");
-const FIXTURES_REGISTRY = resolve(REPO_ROOT, "evals", "fixtures", "fixtures.meta.json");
-const SCENARIOS_DIR = resolve(REPO_ROOT, "evals", "scenarios");
-const RESULTS_DIR = resolve(REPO_ROOT, "evals", "results");
 
 /**
  * Below this many findings a fixture cannot demonstrate a ranking

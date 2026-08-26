@@ -11,24 +11,30 @@
  * fixture drift fails the build instead of silently undercounting
  * pass rates.
  *
+ * ## Every loaded scenario must be checked
+ *
+ * The headline used to count scenarios *loaded*, while the loop
+ * skipped any scenario whose fixture was absent from disk — so a
+ * checkout without `pnpm run evals:setup` reported
+ * "62 scenario(s) reconciled against 15 fixture scan(s)" and exited 0
+ * with fixture 16 never scanned. Reporting a number larger than the
+ * number actually verified is the same vacuous pass `evals:replay`
+ * had. Unchecked scenarios are now fatal, and the summary line counts
+ * what was verified.
+ *
  * Exit codes:
  *   0 — every scenario's referenced_findings + expected_priority
  *       appear in its fixture's scan output.
- *   1 — at least one mismatch (per-scenario detail printed to stderr).
- *   2 — environment problem (fixture missing on disk, registry
- *       unparseable, CLI bundle missing).
+ *   1 — scenario drift: at least one mismatch, or a scenario naming a
+ *       fixture the registry does not define.
+ *   2 — environment problem (fixture missing on disk, registry or
+ *       scenario file unparseable, CLI bundle missing).
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import { CLI_DIST, FIXTURES_REGISTRY, REPO_ROOT, SCENARIOS_DIR } from "./paths.js";
 import { buildScanContext, runScan } from "./scan-helpers.js";
 import type { FixturesRegistry, ScanContext, Scenario } from "./types.js";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(HERE, "..", "..", "..");
-const FIXTURES_REGISTRY = resolve(REPO_ROOT, "evals", "fixtures", "fixtures.meta.json");
-const SCENARIOS_DIR = resolve(REPO_ROOT, "evals", "scenarios");
-const CLI_DIST = resolve(REPO_ROOT, "packages", "cli", "dist", "index.js");
 
 interface Mismatch {
   scenario: string;
@@ -60,19 +66,31 @@ async function main(): Promise<void> {
     registry.fixtures.map((f) => [f.id, resolve(REPO_ROOT, f.path)]),
   );
 
-  const scenarios = loadScenarios();
+  const { scenarios, unreadable } = loadScenarios();
+  if (unreadable.length > 0) {
+    process.stderr.write(
+      `verify-scenarios: ${unreadable.length} scenario file(s) could not be read — ` +
+        "the check would silently cover fewer scenarios than the suite defines.\n" +
+        unreadable.map((u) => `    ${u}\n`).join(""),
+    );
+    process.exit(2);
+    return;
+  }
   if (scenarios.length === 0) {
-    process.stdout.write("verify-scenarios: no scenarios found — nothing to check.\n");
+    process.stderr.write(
+      `verify-scenarios: no scenarios found under ${SCENARIOS_DIR} — ` +
+        "there is nothing to verify, which is a missing input, not a pass.\n",
+    );
+    process.exit(2);
     return;
   }
 
   // Scan each fixture once and build a `type-fires-here` set.
   const typesByFixture = new Map<string, Set<string>>();
+  const missingFixtures: string[] = [];
   for (const [id, dir] of fixtureDirById) {
     if (!existsSync(dir)) {
-      process.stderr.write(
-        `verify-scenarios: fixture ${id} (${dir}) missing on disk — skip.\n`,
-      );
+      missingFixtures.push(`${id} (${dir})`);
       continue;
     }
     const ctx = await scanContextFor(dir);
@@ -80,9 +98,21 @@ async function main(): Promise<void> {
   }
 
   const mismatches: Mismatch[] = [];
+  const unchecked: string[] = [];
+  let checked = 0;
   for (const s of scenarios) {
     const fires = typesByFixture.get(s.fixture);
-    if (!fires) continue; // already reported as missing
+    if (!fires) {
+      // Either its fixture is missing on disk (already collected) or
+      // the scenario names a fixture id the registry never defines.
+      // Both mean this scenario was not verified.
+      unchecked.push(
+        `${s.id} → fixture ${s.fixture}` +
+          (fixtureDirById.has(s.fixture) ? " (missing on disk)" : " (not in registry)"),
+      );
+      continue;
+    }
+    checked += 1;
     const refs = s.expected_artifacts.referenced_findings ?? [];
     for (const t of refs) {
       if (!fires.has(t)) {
@@ -107,16 +137,44 @@ async function main(): Promise<void> {
     }
   }
 
-  if (mismatches.length === 0) {
-    process.stdout.write(
-      `verify-scenarios: ${scenarios.length} scenario(s) reconciled against ` +
-        `${typesByFixture.size} fixture scan(s). All expected detectors fire.\n`,
+  reportMismatches(mismatches, checked);
+
+  if (unchecked.length > 0) {
+    process.stderr.write(
+      `verify-scenarios: ${unchecked.length} of ${scenarios.length} scenario(s) were ` +
+        "never checked — this run verified less than it covers.\n",
     );
+    for (const u of unchecked) process.stderr.write(`    ${u}\n`);
+    if (missingFixtures.length > 0) {
+      process.stderr.write(
+        `\nverify-scenarios: ${missingFixtures.length} fixture(s) missing on disk — ` +
+          "run `pnpm run evals:setup` to materialise them:\n",
+      );
+      for (const f of missingFixtures) process.stderr.write(`    ${f}\n`);
+      process.exit(2);
+      return;
+    }
+    // Every fixture is present, so the gap is a scenario naming a
+    // fixture the registry does not define — authoring drift.
+    process.exit(1);
     return;
   }
 
+  if (mismatches.length > 0) {
+    process.exit(1);
+    return;
+  }
+
+  process.stdout.write(
+    `verify-scenarios: ${checked} scenario(s) reconciled against ` +
+      `${typesByFixture.size} fixture scan(s). All expected detectors fire.\n`,
+  );
+}
+
+function reportMismatches(mismatches: Mismatch[], checked: number): void {
+  if (mismatches.length === 0) return;
   process.stderr.write(
-    `verify-scenarios: ${mismatches.length} mismatch(es) across ${scenarios.length} scenarios.\n\n`,
+    `verify-scenarios: ${mismatches.length} mismatch(es) across ${checked} checked scenarios.\n\n`,
   );
   // Group by scenario for readability.
   const byScenario = new Map<string, Mismatch[]>();
@@ -132,7 +190,6 @@ async function main(): Promise<void> {
     }
     process.stderr.write(`    fixture fires: ${items[0]!.fires.join(", ")}\n\n`);
   }
-  process.exit(1);
 }
 
 async function scanContextFor(fixtureDir: string): Promise<ScanContext> {
@@ -140,19 +197,29 @@ async function scanContextFor(fixtureDir: string): Promise<ScanContext> {
   return buildScanContext(json);
 }
 
-function loadScenarios(): Scenario[] {
-  if (!existsSync(SCENARIOS_DIR)) return [];
-  const out: Scenario[] = [];
+interface LoadedScenarios {
+  scenarios: Scenario[];
+  /** `<file> — <reason>` for every scenario file that would not parse. */
+  unreadable: string[];
+}
+
+function loadScenarios(): LoadedScenarios {
+  const out: LoadedScenarios = { scenarios: [], unreadable: [] };
+  if (!existsSync(SCENARIOS_DIR)) return out;
   for (const file of readdirSync(SCENARIOS_DIR)) {
     if (!file.endsWith(".json")) continue;
     try {
       const data = JSON.parse(
         readFileSync(resolve(SCENARIOS_DIR, file), "utf8"),
       ) as Scenario[];
-      if (Array.isArray(data)) out.push(...data);
+      if (!Array.isArray(data)) {
+        out.unreadable.push(`${file} — not a JSON array of scenarios`);
+        continue;
+      }
+      out.scenarios.push(...data);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`verify-scenarios: failed to parse ${file} — ${message}\n`);
+      out.unreadable.push(`${file} — ${message}`);
     }
   }
   return out;

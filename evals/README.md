@@ -575,9 +575,11 @@ mkdir -p evals/results/<new>/ && cp -R evals/replay/* evals/results/<new>/
 pnpm run evals -- --resume
 ```
 
-Step 4 is safe by construction: `--resume` skips every combination
-whose result file exists, so a complete directory invokes nothing and
-only rebuilds `summary.json`. Confirm it printed
+Step 4 is not optional bookkeeping: until `summary.json` exists the new
+directory is not a baseline, and both `evals:replay` and `evals:diff`
+will keep pinning the previous one. It is safe by construction —
+`--resume` skips every combination whose result file exists, so a
+complete directory invokes nothing and only rebuilds `summary.json`. Confirm it printed
 `96 result(s) already on disk, running 0`. If it reports a number other
 than 0, the copy was incomplete — **stop**, because a partially
 re-scored directory mixes two scorers the way `0.18.0` mixed two
@@ -628,6 +630,9 @@ evals/
     src/agents/{claude,codex}.ts
     src/score.ts
     src/judge.ts
+    src/paths.ts             # every path the harness reads, EVALS_*-overridable
+    src/versions.ts          # ordering of results/<version> names
+    src/baseline.ts          # which of them is *the* pinned baseline
 ```
 
 ## If a run dies part-way
@@ -660,11 +665,13 @@ complete baseline; finish it with
   pnpm run evals -- --resume
 ```
 
-Take that seriously. `evals:replay` and `evals:diff` both select the
-highest-versioned directory, so an incomplete one silently becomes the
-pinned baseline and every later comparison is made against a truncated
-sample. **Never commit a version directory that reports missing
-combinations.**
+Take that seriously. A directory missing its `summary.json` is no
+longer eligible as a baseline at all (see § Which directory is the
+baseline), so a killed run is skipped rather than pinned — but a
+directory that *has* a summary over a truncated set of results still
+pins fine, and every later comparison is then made against that
+truncated sample. **Never commit a version directory that reports
+missing combinations.**
 
 > This section used to describe a manual recovery procedure, because
 > none of the above existed. The 0.16.0 baseline was produced by a run
@@ -713,29 +720,69 @@ the results directory, rather than rewriting history.
 
 ### What is load-bearing, if you ever do prune
 
-Exactly **one** directory. Both consumers pick the newest and read
-nothing else:
+Exactly **one** directory — the pinned baseline. `evals:replay` and
+`evals:diff` read it and nothing else; the other 30-odd directories are
+historical evidence, not inputs. The `summary.json` files (128 KB for
+all 32 combined) carry every number this README's narrative sections
+cite, so those are the part that must never be lost.
 
-- `evals:replay` — `pickLatestVersion()` in `runner/src/replay.ts`
-  sorts version directories descending and takes `[0]`.
-- `evals:diff` — `readPinnedSummary()` in `runner/src/diff.ts` sorts
-  descending and returns the first directory that has a `summary.json`.
+## Which directory is the baseline
 
-No command reads the other 31; they are historical evidence, not inputs.
-The `summary.json` files (128 KB for all 32 combined) carry every number
-this README's narrative sections cite, so those are the part that must
-never be lost.
+Defined once, in `runner/src/baseline.ts`, and it is the newest
+directory that satisfies **both** of:
 
-### Fix this regardless
+- at least one `<agent>/<scenario>.json` — what `evals:replay` re-scores;
+- a `summary.json` beside them — what `evals:diff` compares against.
 
-The version comparator in both `diff.ts` and `replay.ts` parses with
-`Number.parseInt`, so a `-rN` suffix is discarded:
-`"0.15.0-r2".split(".")` yields `["0", "15", "0-r2"]` and
-`parseInt("0-r2")` is `0`. **`0.15.0` and `0.15.0-r2` therefore compare
-equal**, and which one counts as "latest" falls to directory iteration
-order. Since re-run samples (`-r2`, `-r3`, `-judge`) are exactly the
-directories that supersede their base, this can silently replay the
-*first* sample rather than the corrected one.
+There is deliberately **no fallback to "the newest directory"**. That
+fallback is the bug the module exists for. `evals:diff` had always
+walked down to the first directory with a `summary.json`; `evals:replay`
+took `[0]` unconditionally. Harmless while the newest directory always
+held a full sample — and false from `0.25.4` onward, when
+`evals:ranking` began writing `<version>/ranking.json` on every patch
+bump. From then until `0.26.0`, replay pinned a ranking-only directory,
+re-scored **zero** files and exited 0; diff found no replay output and
+also exited 0. Both CI steps were green for eight bumps while measuring
+nothing.
+
+Two consequences fall out of the joint rule:
+
+- replay and diff cannot pick different directories, so a comparison is
+  never made between two samples;
+- a run killed before it wrote `summary.json` is skipped rather than
+  silently pinned.
+
+The ordering itself lives in `runner/src/versions.ts`, which also fixes
+an older defect worth remembering: both comparators used to parse with
+`Number.parseInt`, so `"0.15.0-r2".split(".")` yielded
+`["0", "15", "0-r2"]`, `parseInt("0-r2")` was `0`, and `0.15.0` compared
+**equal** to `0.15.0-r2` — leaving `readdir` order to pick between a
+sample and the re-run that supersedes it.
+
+## Exit codes, and why zero is not free
+
+The three commands `.github/workflows/evals-pr.yml` runs are gates, so
+each one distinguishes *"I measured, and here is the result"* from *"my
+input was missing"*. The second is never a success.
+
+| command | `0` | `1` | `2` |
+|---|---|---|---|
+| `evals:replay` | ≥1 result file re-scored | unexpected error | nothing to replay |
+| `evals:diff` | ≥1 agent compared | unexpected error | replay output or baseline missing |
+| `evals:verify-scenarios` | every scenario checked | scenario drift | fixture/registry/scenario file missing |
+
+A **pass-rate regression is not a gate** — it is reported in the PR
+comment and exits 0. What fails the job is the harness having nothing to
+say. `runner/src/harness-guards.test.ts` spawns the real scripts against
+a synthetic tree and asserts these statuses, because a guard that is
+only asserted to be wired is not a guard that fires.
+
+Every path the harness reads is overridable, which is how those tests
+reach a synthetic tree without touching the repo's own:
+`EVALS_RESULTS_DIR`, `EVALS_REPLAY_DIR`, `EVALS_SCENARIOS_DIR`,
+`EVALS_FIXTURES_REGISTRY`, `EVALS_DIFF_SUMMARY`. A relative value
+resolves from the repo root. They are also the mechanism § Retention
+names for archiving `evals/results/` elsewhere.
 
 ## Running
 

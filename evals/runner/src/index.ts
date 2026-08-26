@@ -5,12 +5,12 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { writeFile, rename, mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { invokeClaude } from "./agents/claude.js";
 import { invokeCodex } from "./agents/codex.js";
 import type { AgentRunResult } from "./agents/claude.js";
 import { runJudge } from "./judge.js";
+import { FIXTURES_REGISTRY, REPO_ROOT, RESULTS_DIR, SCENARIOS_DIR } from "./paths.js";
 import { buildScanContext, runScan } from "./scan-helpers.js";
 import { scoreStructural } from "./score.js";
 import type {
@@ -22,12 +22,6 @@ import type {
 } from "./types.js";
 
 const execFileAsync = promisify(execFile);
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(HERE, "..", "..", "..");
-const FIXTURES_REGISTRY = resolve(REPO_ROOT, "evals", "fixtures", "fixtures.meta.json");
-const SCENARIOS_DIR = resolve(REPO_ROOT, "evals", "scenarios");
-const RESULTS_DIR = resolve(REPO_ROOT, "evals", "results");
 
 const AGENTS = ["claude", "codex"] as const;
 type Agent = (typeof AGENTS)[number];

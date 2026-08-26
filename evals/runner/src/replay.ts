@@ -1,30 +1,49 @@
 #!/usr/bin/env tsx
-import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { basename, dirname, resolve } from "node:path";
 import { extractCodexResponse } from "./agents/codex-transcript.js";
+import {
+  type PinnedBaseline,
+  describeRejectedVersions,
+  hasAgentResults,
+  selectPinnedBaseline,
+} from "./baseline.js";
+import {
+  FIXTURES_REGISTRY,
+  REPLAY_DIR,
+  REPO_ROOT,
+  RESULTS_DIR,
+  SCENARIOS_DIR,
+} from "./paths.js";
 import { buildScanContext, runScan } from "./scan-helpers.js";
-import { sortResultsVersionsDesc } from "./versions.js";
 import { scoreStructural } from "./score.js";
 import type { FixturesRegistry, ScanContext, Scenario, ScoreResult } from "./types.js";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(HERE, "..", "..", "..");
-const RESULTS_DIR = resolve(REPO_ROOT, "evals", "results");
-const SCENARIOS_DIR = resolve(REPO_ROOT, "evals", "scenarios");
-const FIXTURES_REGISTRY = resolve(REPO_ROOT, "evals", "fixtures", "fixtures.meta.json");
-const REPLAY_DIR = resolve(REPO_ROOT, "evals", "replay");
-
 /**
  * `pnpm run evals:replay` entry. Re-scores every committed result file
- * under the latest `evals/results/<version>/` against the current
+ * under the pinned baseline in `evals/results/` against the current
  * crimes build (specifically, the current set of detector ids and the
  * file/finding regex shapes in score.ts). No agent invocations.
  *
  * Output lands in `evals/replay/<agent>/<scenario-id>.json` with the
  * same {@link ScoreResult} shape as a fresh run but a new run_id and
  * an updated `crimes_version` reflecting the build under test.
+ *
+ * ## Exit codes
+ *
+ * | code | meaning |
+ * |------|---------|
+ * | `0`  | at least one result file was re-scored |
+ * | `1`  | unexpected error |
+ * | `2`  | no replayable input — nothing was re-scored |
+ *
+ * **There is no successful zero.** Re-scoring nothing is never "nothing
+ * to do"; it means the input is missing, and this command exists to be
+ * a CI gate. It used to print `0 result files re-scored` and exit 0 —
+ * see `baseline.ts` for how that stayed invisible for eight bumps.
+ *
+ * ## Flags
  *
  * Two flags exist for the case the default does not cover — re-scoring
  * an *older* sample so that two samples can be compared under one
@@ -36,50 +55,41 @@ const REPLAY_DIR = resolve(REPO_ROOT, "evals", "replay");
  * pnpm run evals:replay -- --version 0.24.0 --out evals/replay-0.24.0
  * ```
  *
- * - `--version <v>` replays `evals/results/<v>/` instead of the latest.
+ * - `--version <v>` replays `evals/results/<v>/` instead of the pinned
+ *   baseline. Only needs agent result files — a `summary.json` is
+ *   `evals:diff`'s concern, and the variance flow deliberately reaches
+ *   for samples that predate one.
  * - `--out <dir>` writes somewhere other than `evals/replay/`, so two
  *   replays can sit side by side. Relative paths resolve from the repo
  *   root.
  */
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
-  const sourceVersion = opts.version ?? pickLatestVersion()?.version;
-  if (!sourceVersion) {
-    process.stdout.write(
-      "evals:replay: no pinned results under evals/results/ yet — nothing to replay.\n",
-    );
-    return;
-  }
-  if (!existsSync(resolve(RESULTS_DIR, sourceVersion))) {
-    process.stderr.write(
-      `evals:replay: no results directory evals/results/${sourceVersion}/.\n`,
-    );
-    process.exit(2);
-    return;
-  }
+  const source = resolveSource(opts.version);
   const outRoot = opts.out ? resolve(REPO_ROOT, opts.out) : REPLAY_DIR;
+  clearDisposableOutRoot(outRoot);
   process.stdout.write(
-    `evals:replay: replaying results pinned at ${sourceVersion} against the current build.\n`,
+    `evals:replay: replaying results pinned at ${source.version} against the current build.\n`,
   );
 
   const scenarios = loadScenarios();
   const scenarioById = new Map(scenarios.map((s) => [s.id, s]));
   const fixtureDirById = loadFixtureDirMap();
 
-  const versionDir = resolve(RESULTS_DIR, sourceVersion);
   const replayCrimesVersion = await readCrimesVersion();
   // Memoize re-derived scan contexts per fixture — only used as a
   // fallback when a stored result predates `scan_context`.
   const scanContextCache = new Map<string, Promise<ScanContext | null>>();
 
   let count = 0;
-  for (const agentEntry of readdirSync(versionDir, { withFileTypes: true })) {
+  let skipped = 0;
+  for (const agentEntry of readdirSync(source.dir, { withFileTypes: true })) {
     // summary.json (and any future top-level files) live next to the
     // agent directories — skip non-directories so we don't try to walk
     // them as if they held per-scenario results.
     if (!agentEntry.isDirectory()) continue;
     const agentName = agentEntry.name;
-    const agentDir = resolve(versionDir, agentName);
+    const agentDir = resolve(source.dir, agentName);
     const stat = readdirSync(agentDir, { withFileTypes: true });
     for (const entry of stat) {
       if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
@@ -90,6 +100,7 @@ async function main(): Promise<void> {
         process.stderr.write(
           `evals:replay: ${entry.name} references unknown scenario ${stored.scenario} — skipping.\n`,
         );
+        skipped += 1;
         continue;
       }
       // Re-derive when the stored context predates a lookup map the
@@ -136,9 +147,79 @@ async function main(): Promise<void> {
     }
   }
 
+  if (count === 0) {
+    process.stderr.write(
+      `evals:replay: re-scored 0 result files from ${source.dir} — nothing was measured.\n` +
+        (skipped > 0
+          ? `evals:replay: ${skipped} file(s) referenced scenarios that no longer exist; ` +
+            "the baseline and evals/scenarios/ have drifted apart.\n"
+          : "evals:replay: the directory holds no readable agent results.\n"),
+    );
+    process.exit(2);
+    return;
+  }
+
   process.stdout.write(
-    `evals:replay: ${count} result file${count === 1 ? "" : "s"} re-scored → ${outRoot}\n`,
+    `evals:replay: ${count} result file${count === 1 ? "" : "s"} re-scored → ${outRoot}\n` +
+      (skipped > 0
+        ? `evals:replay: WARNING — ${skipped} file(s) skipped (unknown scenario). ` +
+          "The replay covers less than the pinned baseline, so its pass rate is " +
+          "not directly comparable.\n"
+        : ""),
   );
+}
+
+/**
+ * Picks the directory to replay, or exits `2`. Never returns a
+ * directory it has not confirmed holds agent result files — "found a
+ * directory" and "found something to replay" are different claims, and
+ * conflating them is what made this command pass vacuously.
+ */
+function resolveSource(explicit: string | undefined): PinnedBaseline {
+  if (explicit !== undefined) {
+    const dir = resolve(RESULTS_DIR, explicit);
+    if (!existsSync(dir)) {
+      return failNoInput(`no results directory ${dir}.`);
+    }
+    if (!hasAgentResults(dir)) {
+      return failNoInput(
+        `${dir} holds no <agent>/<scenario>.json files — nothing to replay.`,
+      );
+    }
+    return { version: explicit, dir };
+  }
+  const picked = selectPinnedBaseline(RESULTS_DIR);
+  if (picked) return picked;
+  const inspected = describeRejectedVersions(RESULTS_DIR);
+  return failNoInput(
+    `no pinned baseline under ${RESULTS_DIR}.\n` +
+      "A baseline needs agent result files and a summary.json beside them.\n" +
+      (inspected.length > 0
+        ? `Newest directories inspected:\n${inspected.join("\n")}\n`
+        : "The results directory is empty.\n") +
+      "Produce one with `pnpm run evals`, or name an older sample with " +
+      "`--version <v>`.",
+  );
+}
+
+function failNoInput(message: string): never {
+  process.stderr.write(`evals:replay: ${message}\n`);
+  process.exit(2);
+}
+
+/**
+ * A second replay into a directory that still holds the first one's
+ * output leaves `evals:diff` reading a mixture of both. Only clear the
+ * two shapes `.gitignore` already declares disposable — `evals/replay`
+ * and its `evals/replay-<version>` siblings — so an arbitrary `--out`
+ * is never deleted.
+ */
+function clearDisposableOutRoot(outRoot: string): void {
+  if (!existsSync(outRoot)) return;
+  const isDisposable =
+    dirname(outRoot) === resolve(REPO_ROOT, "evals") &&
+    basename(outRoot).startsWith("replay");
+  if (isDisposable) rmSync(outRoot, { recursive: true, force: true });
 }
 
 interface ReplayOptions {
@@ -156,17 +237,6 @@ function parseArgs(argv: string[]): ReplayOptions {
     else if (arg?.startsWith("--out=")) opts.out = arg.slice("--out=".length);
   }
   return opts;
-}
-
-function pickLatestVersion(): { version: string } | undefined {
-  if (!existsSync(RESULTS_DIR)) return undefined;
-  const versions = sortResultsVersionsDesc(
-    readdirSync(RESULTS_DIR, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name),
-  );
-  const top = versions[0];
-  return top ? { version: top } : undefined;
 }
 
 function loadFixtureDirMap(): Map<string, string> {
@@ -241,7 +311,3 @@ main().catch((err: unknown) => {
   process.stderr.write(`evals:replay: ${message}\n`);
   process.exit(1);
 });
-
-// Required so the helper compiles standalone when `join` isn't used in
-// the main path (tsc strict unused-import is paranoid about this).
-void join;
