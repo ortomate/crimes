@@ -15,6 +15,17 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
+**`0.27.0` headline:** three things were saying less than they knew. A
+finding now names the **claim** it makes, not just its detector — `type`
+was standing in for what a detector alleged, and eleven detectors allege
+more than one thing. Silencing a type therefore silenced claims nobody
+checked: on a 761-file repository that buried **67 correct findings**
+alongside 38 false ones. `schema_version` moves to `0.8.0` and
+fingerprints change for those eleven types, so existing pins will not
+match — and the same release makes a stale pin say so instead of going
+quiet, reported through `coverage.warnings[]`. Scores do not move. See
+the [upgrade note](https://github.com/ortomate/crimes/blob/main/docs/releases/v0.27.0.md#upgrading).
+
 **`0.26.0` headline:** a correctness release, and the two things that
 mattered most were defects in the instruments rather than in the
 scanner. **Churn was silently lost through a symlinked scan root** —

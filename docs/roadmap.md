@@ -4,7 +4,24 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current version:** `crimes@0.26.0` ✅ shipped — a correctness
+- **Current version:** `crimes@0.27.0` ✅ shipped — three things that
+  were saying less than they knew. A finding now names the **claim** it
+  makes: `type` was naming the detector and standing in for what it
+  alleged, and eleven detectors allege more than one thing, so silencing
+  a type silenced claims nobody checked. On a 761-file repository that
+  buried 67 correct findings alongside 38 false ones. `schema_version`
+  moves to **0.8.0** and fingerprints change for those eleven types.
+  Shipped in the same release: **a pin that matches nothing now says
+  so** — an entry nobody looks up is never visited, so a stale
+  suppression or triage entry was a silent no-op, and this repository is
+  its own reproduction at 63 of 115 entries matching nothing. Also
+  `triage --apply` taking the shape a caller writes rather than the
+  on-disk schema, an eval gate that had been scanning empty directories
+  since it was written, and one Node version read from `.nvmrc`. Scores
+  do not move: 0 score changes and 0 severity changes across 388 fixture
+  findings. Tests 2,334 → **2,384+**. Release notes:
+  [`docs/releases/v0.27.0.md`](./releases/v0.27.0.md).
+- **Previous version:** `crimes@0.26.0` ✅ shipped — a correctness
   release that closed the cross-language scoring gaps, and found two
   defects in the instruments that measure them. **Churn was silently
   lost through a symlinked scan root** — `git log -- <pathspec>` only
@@ -49,7 +66,7 @@ mirror, not a planning doc.
   `schema_version` stays `0.7.0`. **Zero agent invocations.** Tests
   2,313 → **2,334**. Release notes:
   [`docs/releases/v0.26.0.md`](./releases/v0.26.0.md).
-- **Previous version:** `crimes@0.25.0` ✅ shipped — six changes to what
+- **Earlier:** `crimes@0.25.0` ✅ shipped — six changes to what
   the scanner reads, what it skips, and how it reports the difference.
   **A user `exclude` no longer replaces the defaults** — setting one
   pattern inherited nothing from `DEFAULT_CONFIG`, and `crimes init`

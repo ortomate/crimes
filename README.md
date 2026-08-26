@@ -171,11 +171,52 @@ apply it back.
 
 ---
 
-## Status — `crimes@0.26.0`
+## Status — `crimes@0.27.0`
 
-`crimes@0.26.0` is the latest version. A correctness release: the
-cross-language scoring gaps are closed, and two defects were found in
-the instruments that measure them.
+`crimes@0.27.0` is the latest version. Three things in this release were
+saying less than they knew: a finding knew which of several statements
+it was making and reported only the detector's name, a triage entry knew
+it had stopped matching and reported nothing, and a CI gate knew it had
+scanned an empty directory and reported success.
+
+**`schema_version` moves to `0.8.0` and fingerprints change for eleven
+detector types.** Existing suppressions, baseline pins and triage
+dispositions against those types will not match — read the
+[upgrade note](./docs/releases/v0.27.0.md#upgrading) first. This is the
+release that tells you when a pin has gone stale, which is why the two
+changes ship together.
+
+- **One type, one claim.** `type` was naming the detector *and* standing
+  in for what it alleged, and those coincide only while a detector says
+  one thing. Eleven say more. On a 761-file repository three findings of
+  one `weak_test_signal` shape were checked, all three were false, the
+  type was silenced, and **67 correct findings went with the 38 false
+  ones** — they named 449 `expect(screen.getBy*(…)).toBeTruthy()` calls
+  where the query already throws. crimes is built for agents and an
+  agent triages by `type`; this is the main path. Scores do not move: 0
+  score changes and 0 severity changes across 388 fixture findings.
+- **A pin that matches nothing says so.** An entry nobody looks up is
+  never visited, so a stale pin was a silent no-op. This repository is
+  its own reproduction — of 115 triage entries, **63 match nothing**, 56
+  of them `large_function::…` against a live `large_function/too_long::…`
+  that was never fixed. Reported through `coverage.warnings[]`, with
+  stale and fixed told apart.
+- **`triage --apply` takes the shape a caller writes.** It validated
+  input against the on-disk schema, so authoring a first payload took
+  seven attempts. Three fields now, and every problem reported at once.
+- **A gate that scanned nothing reported success.** `evals-pr.yml` never
+  cloned its gitignored OSS fixtures, so every scan ran against an empty
+  directory — and the failure read like a detector regression. It had
+  never run: the first pull request ever opened here is what executed it.
+- **One Node, from `.nvmrc`.** Four places named a version and three
+  disagreed. Node 20 went end-of-life in April 2026.
+
+Release notes: [`docs/releases/v0.27.0.md`](./docs/releases/v0.27.0.md).
+
+### Earlier `0.26.0` work (_one charge, one answer_)
+
+A correctness release: the cross-language scoring gaps are closed, and
+two defects were found in the instruments that measure them.
 
 - **Churn was silently lost through a symlinked scan root.** `git log`
   only matches paths git has committed, so a symlinked root produced a

@@ -342,7 +342,39 @@ which gating command is used.
 Release notes:
 https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.26.0 (current release)
+## 0.27.0 (current release)
+
+Three things in this release were saying less than they knew. A finding
+knew which of several statements it was making and reported only the
+detector's name. A triage entry knew it had stopped matching and
+reported nothing. A CI gate knew it had scanned an empty directory and
+reported success.
+
+One type, one claim. `type` was naming the detector and standing in for
+what it alleged, and those coincide only while a detector says one
+thing. Eleven detectors say more. Triage, suppressions, baseline and
+detectors.disable all key on type, so a consumer who verifies one claim
+and judges the type silences the rest — on a 761-file TypeScript
+repository that buried 67 correct findings alongside 38 false ones. A
+finding now carries a `claim` field and fingerprints read
+`<type>/<claim>::<file>::<symbol>`. schema_version moves to 0.8.0.
+Scores do not move: 0 score changes and 0 severity changes across 388
+fixture findings.
+
+A pin that matches nothing says so. An entry nobody looks up is never
+visited, so a stale suppression or triage entry was a silent no-op:
+`triage --apply` reported "Applied N entries", the next scan showed the
+findings again, and nothing connected the two facts. Reported through
+coverage.warnings[], with stale and fixed told apart.
+
+`crimes triage --apply` takes the shape a caller writes rather than the
+on-disk schema — three required fields, a bare array or an
+`{entries: []}` object, every problem reported at once.
+
+Release notes:
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.27.0.md
+
+## 0.26.0
 
 A correctness release. The cross-language scoring gaps are closed, and
 the two changes that mattered most were defects in the instruments that

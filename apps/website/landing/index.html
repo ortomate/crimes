@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript, JavaScript and Python repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, frontend and backend disagreeing about their own API, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.26.0",
+            "softwareVersion": "0.27.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/ortomate/crimes",
             "programmingLanguage": "TypeScript",
@@ -168,7 +168,7 @@
                 "name": "Why is the JSON output called the contract?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "The JSON shape is the product, not an afterthought. Every finding is a typed record with id, type, charge, severity, confidence, evidence, scores, and suggested_actions. The top-level schema_version field is bumped on any breaking change, so an AI agent or CI system can refuse to consume an unfamiliar shape rather than guess. The human terminal output is a renderer over the same schema."
+                  "text": "The JSON shape is the product, not an afterthought. Every finding is a typed record with id, type, claim, charge, severity, confidence, evidence, scores, and suggested_actions. Since 0.27.0 a finding also names the claim it makes, so a detector that can say more than one thing says which one — and a suppression aimed at one claim cannot silence another. The top-level schema_version field is bumped on any breaking change, so an AI agent or CI system can refuse to consume an unfamiliar shape rather than guess. The human terminal output is a renderer over the same schema."
                 }
               },
               {
@@ -210,7 +210,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.26.0 · Cross-language scoring · <a href="/docs/releases/v0.26.0/">release notes</a></span>
+          <span class="pill">v0.27.0 · One type, one claim · <a href="/docs/releases/v0.27.0/">release notes</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
