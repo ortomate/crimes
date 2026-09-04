@@ -2004,16 +2004,19 @@ clean temp directory with `npm install`, and runs `--version`, `--help`,
 
 ## Releasing
 
-Releases are automated. Cut a release by tagging:
+Releases are automated. Publishing a GitHub Release is the trigger; a bare
+git tag is not.
 
-1. Bump `packages/cli/package.json` version on `main`.
-2. Push, then create a GitHub Release with tag `vX.Y.Z`.
+1. Land a `Prep crimes@X.Y.Z` commit on `main` (version bump plus every
+   mirrored surface).
+2. Create a GitHub Release with tag `vX.Y.Z` and publish it.
 3. [`.github/workflows/release.yml`](./.github/workflows/release.yml)
-   publishes to npm via [Trusted Publishing](https://docs.npmjs.com/trusted-publishers)
-   — no `NPM_TOKEN` required.
+   publishes to npm via [Trusted Publishing](https://docs.npmjs.com/trusted-publishers).
+   No `NPM_TOKEN` required.
 4. Vercel auto-deploys [crimes.sh](https://crimes.sh) from `main`.
 
-Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md).
+The full procedure, the prep-commit checklist, what an agent may and may
+not do, and rollback: [`docs/releasing.md`](./docs/releasing.md).
 
 ---
 
