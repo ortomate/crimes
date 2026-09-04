@@ -291,9 +291,13 @@ Full guide: [`docs/feedback.md`](./docs/feedback.md).
 These are non-negotiable inside this repo:
 
 1. **Never publish.** Do not run `npm publish`, `pnpm publish`, `pnpm
-   changeset publish`, `git tag`, or `git push --tags` without explicit user
-   instruction. The package name `crimes` on npm is unclaimed; publishing
-   prematurely is unrecoverable.
+   changeset publish`, `git tag`, or `git push --tags`, and never publish
+   a GitHub Release: publishing one fires `release.yml`, which publishes
+   `crimes` to npm, and a published version cannot be reused. Preparing a
+   release and drafting the GitHub Release are yours to do; the Publish
+   click is a human's. The exact split is in
+   [`docs/releasing.md`](./docs/releasing.md), section "If you are an
+   agent".
 2. **Never force-push, reset, or rewrite shared branches** (`main`, any
    branch present on `origin/`). Local feature branches are fine.
 3. **Don't auto-fix detector findings** without (a) a clear user request,
@@ -344,6 +348,9 @@ These are non-negotiable inside this repo:
 - [`docs/ci.md`](./docs/ci.md) — three recommended CI modes
   (changed-files / baseline / branch verdict), exit-code contract, and
   the GitHub Actions recipe.
+- [`docs/releasing.md`](./docs/releasing.md): how a release is prepared,
+  cut and verified; the prep-commit checklist; and which steps need a
+  human. Read it before touching `packages/cli/package.json`'s version.
 - [`docs/skills.md`](./docs/skills.md) — what's bundled for Claude Code and
   Codex.
 - [`docs/calibration-followups.md`](./docs/calibration-followups.md) —
