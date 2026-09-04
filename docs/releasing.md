@@ -416,9 +416,11 @@ Files for 0.19.0, 0.20.0, 0.21.0 and 0.25.0 were still present on
 Recorded here so the next person does not have to rediscover it. Nothing in
 this section was acted on; it is the list of what is left.
 
-**Where it stands.** `main` is at `928034c` (`Prep crimes@0.27.0`, Tim
-Copeland, 26 August 2026). `packages/cli/package.json` says `0.27.0`. The
-`CI` workflow on that commit succeeded (run `33014542613`). No `v0.27.0`
+**Where it stands.** `0.27.0` was prepared at `928034c` (`Prep
+crimes@0.27.0`, Tim Copeland, 26 August 2026). Later approved roadmap and
+strategy documents are also on `main`, but no runtime or package change has
+superseded that prep. `packages/cli/package.json` says `0.27.0`. The `CI`
+workflow on the prep commit succeeded (run `33014542613`). No `v0.27.0`
 tag, no GitHub Release (not even a draft), and npm serves `0.26.0` with
 `latest` pointing at it. crimes.sh has advertised `v0.27.0` since the prep
 commit landed, so the website has been nine days ahead of the registry.
