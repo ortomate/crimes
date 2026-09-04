@@ -336,6 +336,14 @@ would allow it:
 - **Publish the GitHub Release** (section 7b), by clicking Publish or with
   `gh release edit --draft=false`. This is the single irreversible action
   in the process and it is what runs `npm publish`.
+  **One exception.** Andrew granted the Hobbes executor release authority
+  on crimes on 4 September 2026; the grant is recorded per product in
+  `ortomate/hobbes` at `docs/portfolio.toml` (`release = "hobbes"`) and
+  shown by `hobbes portfolio` as `release: hobbes`. When you are that
+  executor working a crimes card, you may publish the release, and you must
+  then verify with `npm view crimes version` before the card is done. Every
+  other agent, and the executor on every other product, still stops at the
+  draft. The npm-as-a-user items below stay human for everyone.
 - Anything against the npm registry as a user: `npm publish`,
   `npm deprecate`, `npm unpublish`, `npm dist-tag`, `npm login`. These
   require the maintainer account and its 2FA, which you do not have and
