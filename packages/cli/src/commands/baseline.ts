@@ -196,7 +196,7 @@ export function registerBaselineCommand(program: Command): void {
       }
 
       if (report.failed) {
-        process.exit(1);
+        process.exitCode = 1;
       }
     });
 }

@@ -119,7 +119,11 @@ export function formatContextHumanReport(
   // information rendered.
   lines.push("");
   if (report.findings.length === 0) {
-    lines.push(colour.green("No findings on this file. Suspiciously clean."));
+    lines.push(
+      report.analysis_status && report.analysis_status !== "complete"
+        ? "No findings available. Review the analysis limits above."
+        : "No findings on this file under the configured analysis.",
+    );
   } else {
     lines.push(colour.bold("Findings"));
     report.findings.forEach((finding, idx) => {

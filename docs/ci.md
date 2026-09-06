@@ -1,321 +1,141 @@
-# Using `crimes` in CI
+# Using crimes in CI
 
-`crimes` is built for CI. Every gating command exits non-zero on the
-threshold you opt into, prints JSON when asked, and is deterministic — no
-LLM, no network, no state outside `.crimes/`. This page documents the four
-recommended CI integration modes (one of which lands in `0.5.0`) and the
-ready-to-copy GitHub Actions example that ships with the repo.
-
-> **`0.5.0` additions:** the **`diff --fail-on new-high | new-medium`**
-> mode joins the three existing gate flavours, and
-> **`.crimes/suppressions.json`** is now applied *before* every gate
-> evaluation — a suppressed finding never trips a `--fail-on` check. See
-> [Suppressions vs baselines](#suppressions-vs-baselines) below.
-
-For the wire format, see [`docs/json-schema.md`](./json-schema.md). For the
-agent-loop equivalent of the same commands (pre-edit / post-edit), see
-[`docs/agent-usage.md`](./agent-usage.md).
-
----
-
-## Advisory vs gating
-
-Every shipped command runs in one of two modes. Pick whichever fits the
-contract you want with your team.
-
-- **Advisory** — always exits `0`. Use when the team should see the
-  report but not be blocked on it. Examples: `crimes scan`, `crimes diff`,
-  `crimes verdict` (the **default** of all three).
-- **Gating** — exits `1` when a configured threshold is met, `2` on
-  usage / environment errors, `0` otherwise. Examples: `crimes baseline
-  check --fail-on …`, `crimes verdict --fail-on …`, and
-  `crimes scan --changed --fail-on …`.
-
-Mixing advisory and gating commands in the same job is fine — e.g. run
-`crimes verdict --format json` for the PR comment and `crimes baseline
-check --fail-on medium` to block the merge.
-
----
+Choose a gate for the question you need answered. Reports are advisory until
+you select a threshold; analysis errors remain errors in either mode.
+Pin the CLI version so a package upgrade does not unexpectedly change a
+team's gate. The scanner runs locally without an LLM or network access.
 
 ## Three recommended modes
 
-Pick **one** of the three. They are not mutually exclusive but they answer
-different questions, and running all three in the same job is rarely worth
-the latency.
+| Question | Command | Existing findings |
+| --- | --- | --- |
+| Does this working set contain a high finding? | `crimes scan --changed --fail-on high` | Existing findings in selected files can fail. |
+| Did this repo gain findings beyond accepted debt? | `crimes baseline check --fail-on medium` | Findings already in the saved baseline do not fail. |
+| Did this committed branch introduce high findings? | `crimes verdict --base origin/main --fail-on new-high` | Findings shared with the base do not fail. |
+
+These commands answer different questions. Usually one gate is enough.
 
 ### Mode A — Changed-files gate
 
-Use after agents or humans edit code in the working tree, and you want a
-narrow gate that only inspects what the change actually touched. This is
-the cheapest scope — it skips legacy files entirely.
-
 ```bash
-crimes scan --changed --fail-on high
+# Working tree versus HEAD:
+crimes scan --changed --fail-on high --format json
+# Include commits since the selected base:
+crimes scan --changed --base origin/main --fail-on high --format json
 ```
 
-Behaviour:
+The threshold accepts `low`, `medium`, or `high`. Explicit `--files` and
+`--related-to` selections can also use `--fail-on`.
 
-- Scans only files changed in the working tree, plus (with `--base`)
-  commits unique to the current branch. See `crimes scan --changed --help`.
-- Exits `1` when any finding in the changed set has severity ≥ the
-  threshold. The threshold accepts `low | medium | high`.
-- Exits `0` otherwise.
-- Exits `2` on usage errors — including `--fail-on` passed without
-  `--changed`, an unknown threshold, or running outside a git repo.
-- JSON output gains two extra top-level fields when `--fail-on` is set:
-  `fail_on` (the threshold) and `failed` (the boolean gate result). The
-  rest of the `ScanReport` shape is unchanged.
-
-When to reach for it:
-
-- A pre-commit hook on a developer machine, or a CI job that runs on
-  every push and only cares about the new diff.
-- An agent loop where you want the agent to fail fast on its own diff
-  before handing off to the user.
-
-Known limits:
-
-- It scans only files in the changed set, so it can miss pre-existing
-  high findings in untouched files. That's the point — use Mode B if you
-  want a baseline-aware view that pins legacy debt instead.
-- File renames register as a fix + new pair, same as `git diff` without
-  `--find-renames`.
+Working sets narrow the reported findings after repository analysis. They
+retain cross-file evidence and do not promise a cheaper scan. The gate checks
+all visible eligible findings in that set, including old debt. Use a baseline
+or committed-ref comparison when you mean *new findings only*.
 
 ### Mode B — Baseline gate
 
-Use for legacy repos with existing debt. Snapshot the current findings
-once, commit `.crimes/baseline.json`, then gate CI on findings absent from
-that snapshot — pre-existing debt stays out of the way.
-
-```bash
-# One-time adoption, on a clean branch:
-crimes baseline save
-git add .crimes/baseline.json
-git commit -m "Add crimes baseline"
-
-# On every PR:
-crimes baseline check --fail-on medium
-```
-
-**Re-snapshot after a `crimes` upgrade.** `0.6.0` ships 18 new
-detector types. Those findings are — by definition — not in a
-baseline saved with `crimes@0.5.0` or earlier, so a CI run with
-`--fail-on medium` will start flagging them. The recommended path is
-to re-pin the baseline once per upgrade:
+Review the findings you intend to accept, then save and commit a baseline:
 
 ```bash
 crimes baseline save
 git add .crimes/baseline.json
-git commit -m "Re-pin crimes baseline after 0.6.0 upgrade"
+git commit -m "Record accepted crimes baseline"
 ```
 
-Or temporarily raise the gate to `high` until you've audited the new
-findings — only `circular_dependency` at ≥ 3 files defaults to
-`high`, so the gate stays meaningful even at the stricter
-threshold.
+On subsequent runs:
 
-Behaviour:
+```bash
+crimes baseline check --fail-on medium --format json
+```
 
-- Loads `<repo>/.crimes/baseline.json`, runs a full repo scan, and
-  partitions the result into `new` / `fixed` / `unchanged` by stable
-  fingerprint (`<type>::<file>::<symbol-or-empty>[::<discriminator>]`). Small line shifts
-  from unrelated edits don't register as fix + new.
-- `--fail-on` accepts `low | medium | high`. Default is `medium`.
-- Exits `1` when at least one **new** finding has severity ≥ the
-  threshold. Pre-existing findings — even high — do not affect the gate.
-- Exits `2` on missing or malformed baseline, or a bad flag.
-- Exits `0` otherwise.
+The default threshold is medium. New findings are matched by the emitted
+opaque fingerprint; old baseline entries do not fail the gate. A missing or
+malformed baseline is an error.
 
-When to reach for it:
-
-- Adopting `crimes` on an existing codebase that already has findings
-  you don't want to chase before turning the gate on.
-- A team that wants "never get worse than the last green build" rather
-  than "never have any findings at all".
-
-Known limits:
-
-- The baseline is repo-wide. If you want per-directory thresholds today,
-  run `crimes baseline check` from a subdirectory or split the repo.
-- Renames register as a fix + new pair, same as `crimes diff`.
-- Two findings with identical `(type, file, symbol)` collide on one
-  fingerprint — rare in practice (nested helpers with the same name).
+**Review upgrades before replacing a baseline.** Changed defaults, identities,
+configuration or incomplete analysis can change what is reported. Preview
+[pin migration](./pin-migration.md) when identities changed. Re-saving the
+baseline accepts everything currently reported; do that only after reviewing
+those decisions. It is not routine upgrade housekeeping.
 
 ### Mode C — Branch verdict
 
-Use for a one-line "did this branch make the repo cleaner, worse,
-unchanged, or mixed?" summary suitable for a PR comment or a status check
-display name. Advisory by default — opt into a gate with `--fail-on`.
-
 ```bash
-# Advisory PR comment (always exits 0):
 crimes verdict --base origin/main --format json
-
-# Gating: fail the build on any new high-severity finding.
-crimes verdict --base origin/main --fail-on new-high
+crimes verdict --base origin/main --fail-on new-high --format json
 ```
 
-Behaviour:
+The first is advisory; the second gates on any new high finding. Both compare
+the named base with committed `HEAD` by exporting refs into temporary trees.
+Uncommitted edits are excluded. A ref compared with itself is unchanged;
+a `main` push job comparing `HEAD` with `origin/main` is not a useful new-risk
+gate. Use a PR base, or explicitly select the prior commit for a push check.
 
-- Built on top of `crimes diff` — same archive-into-temp scanning, same
-  fingerprint-based matching. Working-tree-safe.
-- Default base picks `origin/main` first, then `main`. Pass `--base
-  <ref>` to override.
-- `--fail-on` values: `worse` (verdict is `worse`), `new-high` (any new
-  finding has severity `high`), `new-medium` (any new finding has
-  severity `medium` or `high`).
-- Exits `1` when the threshold is met.
-- Exits `2` on usage / environment errors (not a git repo, no resolvable
-  default base, bad flag).
-- Exits `0` otherwise — including when no `--fail-on` is passed.
+Prefer an explicit base. Auto-selection tries `origin/HEAD`, then
+`origin/main`, `main`, `origin/master`, `master`. Thresholds are `new-high`,
+`new-medium` (medium or high), and `worse` (the aggregate verdict).
+The verdict uses ordinal severity weights, not measured defect probabilities.
 
-When to reach for it:
+For two explicit refs, use:
 
-- A PR summary check that says "this branch removed 2 high findings and
-  introduced 1 medium" without blocking the merge.
-- A nightly run that posts a cleanliness trend to Slack — feed
-  `summary.new_weighted` / `summary.fixed_weighted` into a chart.
+```bash
+crimes diff main...HEAD --fail-on new-high --format json
+```
 
-Known limits:
+This compares the two refs directly; it does not automatically select a
+merge base because the syntax contains three dots.
 
-- Severity weights are `high = 3`, `medium = 2`, `low = 1`. They are
-  ordinal — treat the exact numbers as advisory; they may shift between
-  minor releases.
-- Like `crimes diff`, file renames register as a fix + new pair.
+## Exit codes
 
----
+| Exit | Meaning |
+| --- | --- |
+| 0 | Analysis succeeded without a selected threshold failing. |
+| 1 | A configured gate failed; unexpected internal errors can also return 1 without a report. |
+| 2 | Handled usage/environment error, such as an invalid path, flag, base or baseline. |
 
-## Exit codes (all gating commands)
+A successful or gate-failing JSON report is one document on stdout.
+Diagnostics use stderr. Validate the document as well as the exit code.
+Check coverage warnings and context analysis status before treating an empty
+list as evidence. None of these gates replaces the project's behavior tests.
 
-| Exit | Meaning                                                                      |
-| ---- | ---------------------------------------------------------------------------- |
-| `0`  | Command succeeded; no blocking findings under the configured `--fail-on`.    |
-| `1`  | The configured `--fail-on` threshold was met. Treat as a CI gate failure.    |
-| `2`  | Usage / environment error — bad flag, missing baseline, not a git repo, etc. |
-
-`0` and `1` always emit JSON to stdout when `--format json` is set. `2`
-writes a short human-readable error line to stderr and emits no JSON, so
-callers can distinguish "gate failed" from "command broke" without
-parsing the body.
-
----
+With `CI` set, setup prompts and automatic integration maintenance are
+skipped. JSON invocations never prompt or refresh skills. Outside CI,
+`--no-skill-update` suppresses integration notices and refreshes.
 
 ## GitHub Actions
 
-A copy-paste example lives at
-[`examples/github-actions/crimes.yml`](../examples/github-actions/crimes.yml).
-Drop it under `.github/workflows/crimes.yml` in your repo to wire up the
-default Mode C (`crimes verdict --base origin/main --fail-on new-high`)
-gate. Commented alternatives in the same file show the Mode A and Mode B
-swaps.
+Copy [the example workflow](../examples/github-actions/crimes.yml) into
+`.github/workflows/crimes.yml`. It runs on pull requests, compares with the
+actual PR target branch, installs an exact crimes version and fetches full
+history. Update the pinned version deliberately after reviewing an upgrade.
+If the project already declares crimes as a dependency, use its lockfile and
+package-manager script instead of a separate global installation.
 
-Three things are easy to get wrong, and the example handles them:
-
-1. **Fetch enough history.** `actions/checkout` defaults to a shallow
-   clone (`fetch-depth: 1`), which means `origin/main` won't resolve from
-   a PR build. The example sets `fetch-depth: 0`. If you'd rather keep
-   the clone shallow, fetch the base ref explicitly:
-
-   ```yaml
-   - run: git fetch --depth=1 origin ${{ github.base_ref || 'main' }}
-   ```
-
-2. **Install Node ≥ 18.** `crimes` requires it. The example pins Node 20.
-
-3. **Use the published binary, not the source.** `npm install -g crimes`
-   is the production path. The example does that; don't replace it with
-   a checkout-and-build unless you're testing an unreleased branch.
-
----
-
-## Picking a mode
-
-Quick decision tree:
-
-- **Brand-new repo, or repo that already has zero findings** → Mode A.
-  Smallest blast radius and the easiest to explain to contributors.
-- **Existing repo with pre-existing findings you don't want to chase
-  yet** → Mode B. Snapshot, commit, gate forward.
-- **You want a PR-comment trend signal, not a hard merge gate** → Mode C
-  without `--fail-on`. Add `--fail-on new-high` later if you want it to
-  start blocking.
-
-You can run Mode C **and** Mode A or B in the same workflow — Mode C as
-advisory copy in the PR description, Mode A or B as the actual gate. The
-JSON outputs share `schema_version` and are stable across minor releases.
-
----
+Shallow clones must contain both compared refs. Fetch the actual base before
+analysis; a missing ref fails with exit 2. Python analysis also requires the
+WASM files shipped in the npm package; do not copy only `dist/index.js`.
 
 ## Suppressions vs baselines
 
-`crimes@0.5.0` introduces `.crimes/suppressions.json`. The file lives
-next to `.crimes/baseline.json` (and is intended to be committed
-alongside it) but the two solve different problems:
+A baseline records accepted existing observations. A suppression records an
+exception with a reason. Commit these decisions with the project.
+Suppressions apply before gates; `--show-suppressed` changes display without
+turning suppressed findings into gate failures.
 
-| `.crimes/baseline.json` | `.crimes/suppressions.json` |
-| ----------------------- | --------------------------- |
-| Repo-wide snapshot of pre-existing findings. | Per-finding deliberate exception with a reason. |
-| Forward-only — new findings are blocked. | Permanent — entries persist until you delete them. |
-| Written by `crimes baseline save`. | Written by `crimes ignore`. |
-| Read by `crimes baseline check`. | Read by every report-producing command. |
-| Use when adopting `crimes` for the first time. | Use when one specific finding is acceptable. |
+Manual suppressions remain until removed. Feedback false-positive decisions
+are pinned to a crimes minor: on a later minor they can resurface with
+`previously_suppressed: true` and participate in gates. Review them with
+`crimes feedback recheck`; do not renew them automatically.
 
-Most teams want both: `baseline` to ignore legacy debt, `suppressions`
-to document the specific findings the team has triaged.
+Scan triage/baseline resurfacing is a separate mechanism.
+`previously_triaged` and `previously_baselined` findings are advisory by default;
+`--gate-resurfaced` opts them into the scan gate. `--show-triaged` also does
+not make hidden dispositions fail; `--gate-needs-design` selectively opts in
+that disposition. See [triage](./triage.md) and [feedback](./feedback.md).
 
-### Suppressions and `--fail-on`
+Renames, changed identities and configuration can create apparent new/absent
+pairs. Preserve fingerprints as opaque strings, retain the root and version
+with stored reports, and investigate before re-pinning decisions.
 
-Suppressions are applied **before** every `--fail-on` evaluation. A
-suppressed finding never trips a gate, regardless of severity or which
-of the four gating commands you run:
-
-- `crimes scan --changed --fail-on <severity>`
-- `crimes baseline check --fail-on <severity>`
-- `crimes diff --fail-on new-high | new-medium` (new in `0.5.0`)
-- `crimes verdict --fail-on worse | new-high | new-medium`
-
-Each command exposes a `suppressed_count` field in its JSON output
-when ≥1 entry matched; `--show-suppressed` re-surfaces them annotated
-without changing the gate verdict. See
-[`docs/suppressions.md`](./suppressions.md) for the full workflow.
-
-### Feedback-sourced suppressions across CI minor bumps (0.7.0+)
-
-Suppressions written by `crimes feedback ... --verdict fp` carry
-`source: "feedback"` and `crimes_version_pinned: "<minor>"`. They
-behave identically to `source: "manual"` suppressions for every
-gate **while the CI runner's crimes minor matches the pinned
-value**. On the first CI run after a crimes minor bump:
-
-- The matching findings *resurface* — they're kept in
-  `findings[]` (tagged `previously_suppressed: true`) instead of
-  being silenced.
-- `suppressed_count` does NOT include them, so existing JSON
-  consumers see the resurfaced finding as a normal finding.
-- Gates **will trip on resurfaced findings** at their original
-  severity. This is intentional: a freshly resurfaced
-  high-severity finding should pause the merge until the user has
-  re-confirmed `fp` or marked `tp`.
-
-The stderr breadcrumb the CLI prints on the first scan after a
-minor bump ("5 feedback-sourced suppressions resurface because
-they were pinned to 0.6 — run `crimes feedback recheck`") shows
-up in CI logs same as locally. Pin the crimes version your CI
-uses (`npm install -g crimes@<exact-version>`) if you want gate
-behaviour to be lock-step with the local developer experience.
-
-See [`docs/feedback.md`](./feedback.md#the-auto-resurface-loop) for
-the lifecycle.
-
-## See also
-
-- [`examples/github-actions/crimes.yml`](../examples/github-actions/crimes.yml) —
-  copy-paste GitHub Actions workflow.
-- [`docs/json-schema.md`](./json-schema.md) — wire format for every
-  command's JSON output.
-- [`docs/agent-usage.md`](./agent-usage.md) — the same gating commands
-  used inside an agent loop instead of CI.
-- [`docs/suppressions.md`](./suppressions.md) — `.crimes/suppressions.json`
-  shape, workflow, and anti-patterns.
-- [`docs/configuration.md`](./configuration.md) — full
-  `crimes.config.json` reference.
+[JSON contract](./json-schema.md) · [Agent workflow](./agent-usage.md) ·
+[Suppressions](./suppressions.md) · [Configuration](./configuration.md)

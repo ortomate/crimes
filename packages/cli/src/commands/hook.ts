@@ -7,103 +7,104 @@ import {
   loadConfig,
   loadSuppressionsForRoot,
   type ContextReport,
-  type Finding,
 } from "@crimes/core";
-import { formatContextJsonReport } from "@crimes/reporter";
+import { formatContextCompactReport, formatContextJsonReport } from "@crimes/reporter";
 import type { Command } from "commander";
 
 declare const __CRIMES_VERSION__: string;
 
-/**
- * Read Claude Code / Codex PreToolUse hook JSON from stdin, extract the
- * file path the agent is about to edit, and run `crimes context` on it
- * so the agent sees a pre-edit briefing.
- *
- * The hook is registered by `crimes init --agents` (see
- * `hook-templates.ts`). Generated hook commands append `|| true`, so
- * failures must never block editing. We still write a short warning to
- * stderr on unexpected failures so hook problems are discoverable.
- *
- * Claude Code hook input format
- * (https://code.claude.com/docs/en/hooks):
- *
- *   {
- *     "session_id": "...",
- *     "hook_event_name": "PreToolUse",
- *     "tool_name": "Edit",
- *     "tool_input": {
- *       "file_path": "/abs/or/rel/path.ts",
- *       ...
- *     },
- *     ...
- *   }
- *
- * For Codex the shape is similar; we read `tool_input.file_path` for
- * both. The flag `--from-env <NAME>` is supported for forward-compat
- * with hosts that still set a single env var.
- */
+/** Claude PreToolUse adapter; no permission decision is ever returned. */
 export function registerHookCommand(program: Command): void {
   program
     .command("hook")
     .description(
-      "Pre-edit hook: read Claude Code / Codex PreToolUse JSON from stdin and run `crimes context` on the file_path. Registered by `crimes init --agents`.",
+      "Claude pre-edit hook: read tool input on stdin and return advisory context.",
     )
     .option(
       "--from-env <name>",
       "fall back to the named env var if stdin yields no file path",
     )
-    .option("--format <format>", "output format: compact | json", "compact")
-    .action(async (options: { fromEnv?: string; format: "compact" | "json" }) => {
-      try {
-        const format = options.format;
-        if (format !== "compact" && format !== "json") {
-          process.stderr.write(
-            `crimes hook: unknown --format "${String(format)}". Expected "compact" or "json".\n`,
+    .option("--format <format>", "output format: compact | json | claude", "compact")
+    .action(
+      async (options: { fromEnv?: string; format: "compact" | "json" | "claude" }) => {
+        try {
+          const format = options.format;
+          if (format !== "compact" && format !== "json" && format !== "claude") {
+            process.stderr.write(
+              `crimes hook: unknown --format "${String(format)}". Expected "compact", "json" or "claude".\n`,
+            );
+            process.exit(0);
+            return;
+          }
+          const input = await resolveHookInput(options.fromEnv);
+          const filePath = input.filePath;
+          if (!filePath) {
+            // Nothing to brief on — exit quietly. This is the common case
+            // for tools without a file_path (Bash, WebFetch, etc.) when
+            // the matcher pattern is too broad, or when the hook payload
+            // doesn't yet include tool_input.
+            process.exit(0);
+            return;
+          }
+          const absolute = isAbsolute(filePath)
+            ? filePath
+            : resolve(input.cwd ?? process.cwd(), filePath);
+          if (!existsSync(absolute)) {
+            // The agent might be creating a new file. Nothing to brief on.
+            process.exit(0);
+            return;
+          }
+          const report = await buildHookContext(
+            absolute,
+            process.env.CLAUDE_PROJECT_DIR || input.cwd,
           );
+          if (format === "json") {
+            process.stdout.write(formatContextJsonReport(report) + "\n");
+          } else {
+            const output = formatContextCompactReport(report);
+            // Existing generated hooks used --format compact. Recognize the host
+            // envelope so upgrading the CLI repairs delivery without rewriting settings.
+            const body =
+              format === "claude" || input.preToolUse
+                ? JSON.stringify({
+                    hookSpecificOutput: {
+                      hookEventName: "PreToolUse",
+                      additionalContext: output,
+                    },
+                  })
+                : output;
+            process.stdout.write(body + "\n");
+          }
+        } catch (error) {
+          process.stderr.write(`crimes hook: skipped (${errorMessage(error)})\n`);
           process.exit(0);
-          return;
         }
-        const filePath = await resolveFilePath(options.fromEnv);
-        if (!filePath) {
-          // Nothing to brief on — exit quietly. This is the common case
-          // for tools without a file_path (Bash, WebFetch, etc.) when
-          // the matcher pattern is too broad, or when the hook payload
-          // doesn't yet include tool_input.
-          process.exit(0);
-          return;
-        }
-        const absolute = isAbsolute(filePath)
-          ? filePath
-          : resolve(process.cwd(), filePath);
-        if (!existsSync(absolute)) {
-          // The agent might be creating a new file. Nothing to brief on.
-          process.exit(0);
-          return;
-        }
-        const report = await buildHookContext(absolute);
-        if (format === "json") {
-          process.stdout.write(formatContextJsonReport(report) + "\n");
-        } else {
-          const output = formatCompactHookReport(report);
-          if (output !== "") process.stdout.write(output + "\n");
-        }
-      } catch (error) {
-        process.stderr.write(`crimes hook: skipped (${errorMessage(error)})\n`);
-        process.exit(0);
-      }
-    });
+      },
+    );
 }
 
-async function resolveFilePath(envName: string | undefined): Promise<string | undefined> {
+interface HookInput {
+  filePath?: string;
+  cwd?: string;
+  preToolUse?: boolean;
+}
+
+async function resolveHookInput(envName: string | undefined): Promise<HookInput> {
   const stdin = await readStdinIfAvailable();
   if (stdin) {
     try {
       const parsed = JSON.parse(stdin) as {
         tool_input?: { file_path?: unknown };
+        cwd?: unknown;
+        hook_event_name?: unknown;
       };
       const fromBody = parsed.tool_input?.file_path;
       if (typeof fromBody === "string" && fromBody.trim() !== "") {
-        return fromBody;
+        return {
+          filePath: fromBody,
+          cwd: typeof parsed.cwd === "string" ? parsed.cwd : undefined,
+          preToolUse: parsed.hook_event_name === "PreToolUse",
+        };
       }
     } catch {
       // fall through to env fallback
@@ -111,9 +112,9 @@ async function resolveFilePath(envName: string | undefined): Promise<string | un
   }
   if (envName) {
     const value = process.env[envName];
-    if (typeof value === "string" && value.trim() !== "") return value;
+    if (typeof value === "string" && value.trim() !== "") return { filePath: value };
   }
-  return undefined;
+  return {};
 }
 
 /**
@@ -150,54 +151,24 @@ async function readStdinIfAvailable(): Promise<string | undefined> {
   });
 }
 
-async function buildHookContext(absolute: string): Promise<ContextReport> {
-  const scanRoot = (await findNearestPackageRoot(dirname(absolute))) ?? process.cwd();
+async function buildHookContext(
+  absolute: string,
+  projectRoot?: string,
+): Promise<ContextReport> {
+  const scanRoot = projectRoot
+    ? resolve(projectRoot)
+    : ((await findNearestPackageRoot(dirname(absolute))) ?? process.cwd());
   const config = loadConfig(scanRoot);
   const suppressions = loadSuppressionsForRoot(scanRoot, config);
   const report = await context({
     file: absolute,
+    root: scanRoot,
     suppressionsEntries: suppressions.entries,
   });
   return applySuppressionsToContext(report, suppressions.entries, {
     showSuppressed: false,
     crimesVersion: __CRIMES_VERSION__,
   });
-}
-
-function formatCompactHookReport(report: ContextReport): string {
-  const lines: string[] = [];
-  const counts = `${report.risk.high} high, ${report.risk.medium} medium, ${report.risk.low} low`;
-  lines.push(`crimes context ${report.file}: ${report.risk.level} risk (${counts})`);
-
-  if (report.findings.length > 0) {
-    lines.push("Top findings:");
-    for (const finding of report.findings.slice(0, 3)) {
-      lines.push(`- ${formatCompactFinding(finding)}`);
-    }
-    if (report.findings.length > 3) {
-      lines.push(`- plus ${report.findings.length - 3} more`);
-    }
-  } else {
-    lines.push("No findings for this file.");
-  }
-
-  const guidance = report.agent_guidance.slice(0, 2);
-  if (guidance.length > 0) {
-    lines.push(`Agent notes: ${guidance.join(" ")}`);
-  }
-
-  if (report.likely_tests.length > 0) {
-    lines.push(`Likely tests: ${report.likely_tests.slice(0, 3).join(", ")}`);
-  } else if (report.likely_tests_reason) {
-    lines.push(`Likely tests: ${report.likely_tests_reason}`);
-  }
-
-  return lines.join("\n");
-}
-
-function formatCompactFinding(finding: Finding): string {
-  const location = finding.lines ? `:${finding.lines[0]}-${finding.lines[1]}` : "";
-  return `${finding.severity.toUpperCase()} ${finding.charge} ${finding.file}${location} (${finding.id})`;
 }
 
 function errorMessage(error: unknown): string {

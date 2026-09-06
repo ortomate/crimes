@@ -125,7 +125,7 @@ export function registerScanCommand(program: Command): void {
     .option("--no-color", "disable ANSI colour output")
     .option(
       "--changed",
-      "only scan files changed in the working tree (and vs --base when set)",
+      "only report files changed in the working tree (and vs --base when set)",
       false,
     )
     .option(
@@ -149,7 +149,7 @@ export function registerScanCommand(program: Command): void {
     )
     .option(
       "--fail-on <severity>",
-      "with --changed, exit non-zero when a finding meets this severity: low | medium | high",
+      "with a working set, exit 1 when a finding meets this severity: low | medium | high",
     )
     .option(
       "--show-suppressed",
@@ -403,7 +403,7 @@ export function registerScanCommand(program: Command): void {
       // Default `crimes scan` keeps the always-exit-0 behaviour; the gate
       // only fires when the user opted in with --changed --fail-on.
       if (failOn !== undefined && gatedReport.failed === true) {
-        process.exit(1);
+        process.exitCode = 1;
       }
     });
 }

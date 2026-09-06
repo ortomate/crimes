@@ -19,23 +19,24 @@ reduces repeated-finding ranking bias and makes naming/accessibility/raw-style
 checks optional. `crimes migrate-pins --format json` previews migration of
 legacy decisions before an explicit `--apply`. Schema remains `0.8.0`.
 
-After installing or upgrading, manage project skills explicitly:
+Install agent integration once per repository:
 
 ```bash
 crimes init --agents
-crimes init --refresh-skills --check
-crimes init --refresh-skills
 ```
 
-0.28.1 refreshes unchanged generated skills while preserving project config,
-hooks and local customizations. Npm upgrades the template, not project files.
+Normal terminal use refreshes unchanged generated skills after CLI upgrades.
+Agent/JSON calls show the safe update action on stderr and never auto-write
+skills. Customized instructions and executable hook settings are preserved;
+CI skips maintenance. The optional Claude hook uses your installed CLI and
+supplies advisory context without downloading tools.
 [Skill setup and updates](https://crimes.sh/docs/skills/).
 
 - [Getting started](https://crimes.sh/docs/)
 - [Agent workflow](https://crimes.sh/docs/agent-usage/)
 - [Command and detector reference](https://crimes.sh/docs/reference/)
 - [Configuration](https://crimes.sh/docs/configuration/)
-- [0.28.1 release notes](https://crimes.sh/docs/releases/v0.28.1/)
+- [0.28.2 release notes](https://crimes.sh/docs/releases/v0.28.2/)
 - [Source and contributions](https://github.com/ortomate/crimes)
 
 MIT. Node.js >=18. No cloud or model required.

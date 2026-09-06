@@ -1,12 +1,13 @@
 # crimes
 
 Local, deterministic change-risk and agent-risk CLI. MIT. No LLM or cloud required.
-Prepared package version: 0.28.1. Use npm view crimes version to verify the published version.
+Prepared package version: 0.28.2. Use npm view crimes version to verify the published version.
 JSON schema: 0.8.0. TypeScript, JavaScript, Python, cross-language analysis and universal checks.
 
 ## Workflow
 
 - Install: npm install -g crimes (Node.js >=18); one-shot: npx crimes scan .
+- Agent setup: crimes init --agents; normal use refreshes generated skills or reports the safe update action.
 - Before editing: crimes context src/file.ts --root . --format json
 - Read analysis_status, coverage.warnings, evidence, related_files and likely_tests. No findings is not proof of safety.
 - Scope planning: crimes scan --files src/a.ts,src/b.ts --format json
@@ -22,6 +23,8 @@ JSON schema: 0.8.0. TypeScript, JavaScript, Python, cross-language analysis and 
 
 - https://crimes.sh/docs/agent-usage/
 - https://crimes.sh/docs/reference/
+- https://crimes.sh/docs/skills/
+- https://crimes.sh/docs/api-types/
 - https://crimes.sh/docs/json-schema/
 - https://crimes.sh/docs/scoring/
-- https://crimes.sh/docs/releases/v0.28.1/
+- https://crimes.sh/docs/releases/v0.28.2/

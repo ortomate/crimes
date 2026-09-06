@@ -3,6 +3,8 @@ import {
   latestPerFingerprint,
   readFeedback,
   resolveFeedbackPath,
+  SCHEMA_VERSION,
+  type FeedbackReport,
   resolveGlobalRollupPath,
 } from "@crimes/core";
 import type { FeedbackEntry } from "@crimes/core";
@@ -85,12 +87,12 @@ export function registerFeedbackListSubcommand(parent: Command): void {
         process.stdout.write(
           JSON.stringify(
             {
-              schema_version: "0.1.0",
+              schema_version: SCHEMA_VERSION,
               report_type: "feedback",
               scope: options.global ? "global" : "repo",
               source_file: path,
               entries: filtered,
-            },
+            } satisfies FeedbackReport,
             null,
             2,
           ) + "\n",

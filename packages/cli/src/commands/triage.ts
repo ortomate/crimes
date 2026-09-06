@@ -13,6 +13,7 @@ import {
   resolveTriagePath,
   saveTriage,
   scan,
+  SCHEMA_VERSION,
   upsertTriageEntry,
   verdictForDisposition,
   WONT_FIX_FALLBACK_VERDICT,
@@ -22,6 +23,9 @@ import {
   type Triage,
   type TriageDisposition,
   type TriageEntry,
+  type TriageListReport,
+  type TriageApplyReport,
+  type TriageClearReport,
 } from "@crimes/core";
 import type { Command } from "commander";
 // picomatch is a CommonJS module; the bundled CLI dist resolves it via
@@ -74,7 +78,11 @@ export function registerTriageCommand(program: Command): void {
       "--retriage <target>",
       "re-prompt entries matching a fingerprint, file, or glob",
     )
-    .option("--format <format>", "summary output format: human | json", "human")
+    .option(
+      "--format <format>",
+      "output format: human | json (JSON requires --list, --apply or --clear)",
+      "human",
+    )
     .option("--owner <handle>", "default owner for new dispositions this run")
     .option("--no-color", "disable ANSI colour output")
     .option("--all", "include non-domain tier findings in the walk", false)
@@ -89,16 +97,40 @@ export function registerTriageCommand(program: Command): void {
         return;
       }
 
+      if (
+        [
+          options.list,
+          options.clear !== undefined,
+          options.apply !== undefined,
+          options.retriage !== undefined,
+        ].filter(Boolean).length > 1
+      ) {
+        process.stderr.write(
+          "crimes: choose one of --list, --clear, --apply or --retriage.\n",
+        );
+        process.exitCode = 2;
+        return;
+      }
+
       if (options.list) {
         await runList(root, options);
         return;
       }
       if (options.clear !== undefined) {
-        await runClear(root, options.clear);
+        await runClear(root, options.clear, options);
         return;
       }
+
       if (options.apply !== undefined) {
         await runApply(root, options.apply, options);
+        return;
+      }
+
+      if (options.format === "json") {
+        process.stderr.write(
+          "crimes: JSON triage requires --list, --apply or --clear; interactive prompts use human output.\n",
+        );
+        process.exitCode = 2;
         return;
       }
 
@@ -139,7 +171,12 @@ async function runList(root: string, options: TriageOptions): Promise<void> {
   const path = resolveTriagePath(root);
   const triage = await loadTriage(path);
   if (options.format === "json") {
-    process.stdout.write(JSON.stringify({ entries: triage.entries }, null, 2) + "\n");
+    const report: TriageListReport = {
+      schema_version: SCHEMA_VERSION,
+      report_type: "triage_list",
+      entries: triage.entries,
+    };
+    process.stdout.write(JSON.stringify(report, null, 2) + "\n");
     return;
   }
   if (triage.entries.length === 0) {
@@ -155,7 +192,11 @@ async function runList(root: string, options: TriageOptions): Promise<void> {
   }
 }
 
-async function runClear(root: string, fingerprint: string): Promise<void> {
+async function runClear(
+  root: string,
+  fingerprint: string,
+  options: TriageOptions,
+): Promise<void> {
   const path = resolveTriagePath(root);
   const triage = await loadTriage(path);
   const before = triage.entries.length;
@@ -175,7 +216,15 @@ async function runClear(root: string, fingerprint: string): Promise<void> {
     return;
   }
   await saveTriage(path, next, { crimesVersion: __CRIMES_VERSION__ });
-  process.stdout.write(`Cleared ${fingerprint}.\n`);
+  if (options.format === "json") {
+    const report: TriageClearReport = {
+      schema_version: SCHEMA_VERSION,
+      report_type: "triage_clear",
+      fingerprint,
+      removed: before - next.entries.length,
+    };
+    process.stdout.write(JSON.stringify(report) + "\n");
+  } else process.stdout.write(`Cleared ${fingerprint}.\n`);
 }
 
 async function runApply(
@@ -225,7 +274,12 @@ async function runApply(
   await saveTriage(triagePath, doc, { crimesVersion: __CRIMES_VERSION__ });
 
   if (options.format === "json") {
-    process.stdout.write(JSON.stringify({ applied: appliedEntries.length }) + "\n");
+    const report: TriageApplyReport = {
+      schema_version: SCHEMA_VERSION,
+      report_type: "triage_apply",
+      applied: appliedEntries.length,
+    };
+    process.stdout.write(JSON.stringify(report) + "\n");
   } else {
     process.stdout.write(
       `Applied ${appliedEntries.length} entries to .crimes/triage.json.\n`,

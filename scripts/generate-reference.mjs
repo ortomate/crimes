@@ -57,6 +57,7 @@ JSON schema: ${SCHEMA_VERSION}. TypeScript, JavaScript, Python, cross-language a
 ## Workflow
 
 - Install: npm install -g crimes (Node.js >=18); one-shot: npx crimes scan .
+- Agent setup: crimes init --agents; normal use refreshes generated skills or reports the safe update action.
 - Before editing: crimes context src/file.ts --root . --format json
 - Read analysis_status, coverage.warnings, evidence, related_files and likely_tests. No findings is not proof of safety.
 - Scope planning: crimes scan --files src/a.ts,src/b.ts --format json
@@ -72,6 +73,8 @@ JSON schema: ${SCHEMA_VERSION}. TypeScript, JavaScript, Python, cross-language a
 
 - https://crimes.sh/docs/agent-usage/
 - https://crimes.sh/docs/reference/
+- https://crimes.sh/docs/skills/
+- https://crimes.sh/docs/api-types/
 - https://crimes.sh/docs/json-schema/
 - https://crimes.sh/docs/scoring/
 - https://crimes.sh/docs/releases/v${version}/

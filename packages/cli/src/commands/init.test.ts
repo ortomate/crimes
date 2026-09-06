@@ -192,7 +192,7 @@ describe("crimes init", () => {
     expect(existsSync(settingsPath)).toBe(true);
     const parsed = JSON.parse(readFileSync(settingsPath, "utf8"));
     expect(parsed.hooks.PreToolUse).toHaveLength(1);
-    expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write|NotebookEdit");
+    expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write");
     expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain("crimes hook");
   });
 
@@ -247,7 +247,7 @@ describe("crimes init", () => {
     expect(parsed.permissions).toEqual({ allow: ["bash"] });
     expect(parsed.hooks.PreToolUse).toHaveLength(2);
     expect(parsed.hooks.PreToolUse[0].matcher).toBe("Bash");
-    expect(parsed.hooks.PreToolUse[1].matcher).toBe("Edit|Write|NotebookEdit");
+    expect(parsed.hooks.PreToolUse[1].matcher).toBe("Edit|Write");
   });
 
   it("--agents is idempotent — second run does not duplicate the crimes hook", async () => {

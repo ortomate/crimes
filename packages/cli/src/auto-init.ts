@@ -76,7 +76,7 @@ export async function maybeRunAutoInit(
 
   const should = shouldPromptAutoInit({
     env: process.env,
-    isTTY: process.stdout.isTTY === true,
+    isTTY: process.stdout.isTTY === true && process.stdin.isTTY === true,
     configExists: existsSync(configPath),
     markerExists: existsSync(markerPath),
     flags: options.flags,

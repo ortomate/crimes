@@ -58,6 +58,7 @@ export type {
   AppendToGlobalRollupResult,
   FeedbackEntry,
   FeedbackReport,
+  FeedbackRecheckReport,
   FeedbackSummary,
   FeedbackVerdict,
   ReadFeedbackOptions,
@@ -477,6 +478,9 @@ export {
 export type {
   Triage,
   TriageEntry,
+  TriageListReport,
+  TriageApplyReport,
+  TriageClearReport,
   TriageDisposition,
   LoadTriageResult,
 } from "./triage.js";

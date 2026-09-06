@@ -90,21 +90,21 @@ what is available and what runs by default.
 
 ```bash
 crimes init --agents                  # install project skills and Claude hook
-crimes init --refresh-skills --check  # read-only check after a CLI upgrade
-crimes init --refresh-skills          # refresh unchanged generated skills
 ```
 
-Npm upgrades the CLI and embedded template; it does not rewrite project skills.
-Refresh preserves config, hooks and customized skills. Review proposed diffs
-before replacing custom instructions. [Setup and upgrade guide](./docs/skills.md).
+After CLI upgrades, normal terminal use refreshes unchanged generated skills
+and reports what changed. Agent/JSON calls receive a safe update command on
+stderr. CI stays read-only. Custom instructions and hook settings are preserved;
+`--no-skill-update` skips maintenance. [Setup and upgrade guide](./docs/skills.md).
 
-## Status — crimes@0.28.1
+## Status — crimes@0.28.2
 
 0.28 improves pre-edit briefing completeness, test/dependency guidance,
 default signal, fingerprint migration and documentation consistency.
 The JSON schema remains **0.8.0**; new reporting fields are optional.
-0.28.1 adds safe, versioned skill refresh and installation lifecycle checks.
-Read [release notes](./docs/releases/v0.28.1.md) before upgrading.
+0.28.2 makes skill updates discoverable, repairs Claude hook delivery and
+aligns feedback/triage JSON with a generated API reference.
+Read [release notes](./docs/releases/v0.28.2.md) before upgrading.
 The npm badge reports the published version; the package file reports the
 version being prepared. [Earlier releases](./docs/releases/).
 

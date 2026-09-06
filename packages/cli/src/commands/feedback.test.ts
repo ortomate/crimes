@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { SCHEMA_VERSION } from "@crimes/core";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CLI = resolve(here, "..", "..", "dist", "index.js");
@@ -56,6 +57,35 @@ async function makeRepo(): Promise<string> {
 }
 
 const FP = "large_function::billing.ts::generateInvoice";
+
+describe("feedback JSON contract", () => {
+  it.each(["list", "summary", "export", "recheck"])(
+    "%s uses the current shared schema",
+    async (command) => {
+      const root = await makeRepo();
+      const result = await runCli(["feedback", command, "--format", "json"], root);
+      expect(result.exitCode).toBe(0);
+      const report = JSON.parse(result.stdout);
+      expect(report.schema_version).toBe(SCHEMA_VERSION);
+      expect(report.report_type).toBe(
+        command === "recheck" ? "feedback_recheck" : "feedback",
+      );
+    },
+  );
+  it("append-global with JSON returns the global report and remains deduplicated", async () => {
+    const root = await makeRepo();
+    const global = await makeRepo();
+    const env = { CRIMES_HOME: global };
+    await runCli(["feedback", FP, "--verdict", "known"], root, env);
+    const args = ["feedback", "export", "--append-global", "--format", "json"];
+    const first = JSON.parse((await runCli(args, root, env)).stdout);
+    const repeated = JSON.parse((await runCli(args, root, env)).stdout);
+    expect(first.schema_version).toBe(SCHEMA_VERSION);
+    expect(first.scope).toBe("global");
+    expect(first.entries).toHaveLength(1);
+    expect(repeated.entries).toEqual(first.entries);
+  });
+});
 
 describe("crimes feedback (write)", () => {
   it("missing <fingerprint> exits 2", async () => {

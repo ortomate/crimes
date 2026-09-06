@@ -226,6 +226,6 @@ inspectable.
 
 - [`docs/suppressions.md`](./suppressions.md) for the underlying
   suppression mechanism the `fp` verdict feeds.
-- [`docs/json-schema.md`](./json-schema.md#feedbackreport) for the
+- [`docs/json-schema.md`](./api-types.md#feedbackreport) for the
   `FeedbackReport` JSON shape emitted by `crimes feedback {list,
   summary, export, recheck} --format json`.

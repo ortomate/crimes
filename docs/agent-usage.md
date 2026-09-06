@@ -83,10 +83,12 @@ explain its evidence and the options rather than silently suppressing it.
 
 `crimes init --agents` writes skills for Claude Code and Codex and installs
 an optional Claude pre-edit hook; `--no-hooks` skips hooks. After a CLI
-upgrade, `crimes init --refresh-skills --check` previews skill updates and
-`crimes init --refresh-skills` updates unchanged generated copies while
-preserving config, hooks and customizations. Npm alone does not update
-project skill files. Consult
+upgrade, normal CLI use notices stale skills. Agent/JSON calls receive the
+update action on stderr and never auto-write skills. Run the suggested
+`crimes init --refresh-skills` from the named root to update unchanged copies;
+`--check` is an optional preview. Interactive human reports refresh generated
+copies automatically. Config, hooks and customizations are preserved.
+CI skips maintenance; `--no-skill-update` suppresses it elsewhere. Consult
 [the integration reference](./skills.md) for exact files. Do not assume a
 settings file is an active integration merely because it exists.
 

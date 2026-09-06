@@ -1,8 +1,8 @@
 # Implementation status
 
-Prepared version: **crimes 0.28.1**, JSON schema **0.8.0**.
+Prepared version: **crimes 0.28.2**, JSON schema **0.8.0**.
 Preparation is separate from publication; `npm view crimes version` gives
-the published version. [0.28.1 release notes](./releases/v0.28.1.md) record the
+the published version. [0.28.2 release notes](./releases/v0.28.2.md) record the
 change and verification. Prior versions are documented in
 [release history](https://github.com/ortomate/crimes/tree/main/docs/releases).
 
@@ -24,7 +24,7 @@ records next outcomes; [strategy](../STRATEGY.md) records the objective;
 | Suppression, feedback and triage | Shipped with reasoned decisions, expiry/resurfacing and claim-aware identity. |
 | Pin migration | 0.28 preview and reviewed apply; preserves metadata and leaves ambiguous/absent subjects unselected. |
 | Explainability | Evidence, finding scores, `explain`, coverage diagnostics and [scoring](./scoring.md). |
-| Agent setup | `init` skill generation; Claude local hook. Codex skill, with no speculative hook settings. |
+| Agent setup | Versioned skills, normal-use refresh/notices, protected customizations and verified Claude hook context delivery. |
 | Evaluation | Detector tests, ranking, historical response replay, and opt-in paired edits with acceptance tests. |
 | npm distribution and docs site | Shipped release pipeline; source docs mirrored to Astro/Starlight. |
 

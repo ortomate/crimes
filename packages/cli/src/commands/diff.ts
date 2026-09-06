@@ -154,7 +154,7 @@ export function registerDiffCommand(program: Command): void {
       }
 
       if (failOn !== undefined && gatedReport.failed === true) {
-        process.exit(1);
+        process.exitCode = 1;
       }
     });
 }

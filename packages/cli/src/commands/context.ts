@@ -39,7 +39,7 @@ export function registerContextCommand(program: Command): void {
     .argument("<file>", "file to inspect (repo-relative or absolute)")
     .option(
       "--root <path>",
-      "repo root used for discovery (defaults to current directory)",
+      "repo root used for discovery (defaults to nearest package/project root)",
     )
     .option("--format <format>", "output format: human | json", "human")
     .option("--no-color", "disable ANSI colour output")

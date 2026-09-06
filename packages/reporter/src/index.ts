@@ -38,3 +38,4 @@ export {
   formatVerdictJsonReport,
 } from "./json.js";
 export type { JsonReportOptions } from "./json.js";
+export { formatContextCompactReport } from "./context-compact.js";

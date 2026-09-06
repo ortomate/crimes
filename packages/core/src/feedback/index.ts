@@ -1,6 +1,7 @@
 export type {
   FeedbackEntry,
   FeedbackReport,
+  FeedbackRecheckReport,
   FeedbackSummary,
   FeedbackVerdict,
 } from "./types.js";
