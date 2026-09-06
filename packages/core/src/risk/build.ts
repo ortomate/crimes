@@ -1,3 +1,4 @@
+import type { AnalysisInputs } from "../analysis-inputs.js";
 import { readFile } from "node:fs/promises";
 import { relative, sep } from "node:path";
 import { looksLikeConfigModule, parseFile } from "@crimes/language-js";
@@ -77,6 +78,7 @@ const MIN_CONTRACT_OVERLAP = 0.6;
 const MAX_CHAIN_DEPTH = 8;
 
 export interface BuildRiskIndexOptions {
+  inputs?: AnalysisInputs;
   root: string;
   files: string[];
   /** Absolute paths of `.env.example`-style inventories, when known. */
@@ -111,7 +113,9 @@ export async function buildRiskIndex(options: BuildRiskIndexOptions): Promise<Ri
 
     let source: string;
     try {
-      source = await readFile(absolutePath, "utf8");
+      source = options.inputs
+        ? await options.inputs.read(absolutePath)
+        : await readFile(absolutePath, "utf8");
     } catch {
       continue;
     }
@@ -119,7 +123,9 @@ export async function buildRiskIndex(options: BuildRiskIndexOptions): Promise<Ri
 
     let parsed: ParsedFile;
     try {
-      parsed = parseFile({ absolutePath, source });
+      parsed = options.inputs
+        ? options.inputs.js(absolutePath, source)
+        : parseFile({ absolutePath, source });
     } catch {
       // A file the parser chokes on is skipped, never fatal. Matches
       // every other index builder in this package.

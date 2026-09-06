@@ -21,7 +21,7 @@ const read = (root, path) => readFileSync(join(root, path), "utf8");
 
 export function smokeSkills({ installedBin, tarballPath, repoRoot, temporary }) {
   process.stdout.write(
-    "\n▸ Agent skills: fresh setup and published 0.28.0 / 0.28.1 → tarball upgrades\n",
+    "\n▸ Agent skills: fresh setup and published 0.28.0 / 0.28.1 / 0.28.2 → tarball upgrades\n",
   );
   const fresh = join(temporary, "fresh-skills");
   mkdirSync(fresh);
@@ -57,7 +57,7 @@ export function smokeSkills({ installedBin, tarballPath, repoRoot, temporary }) 
   );
   assert.equal(existsSync(join(unconfigured, "crimes.config.json")), false);
 
-  for (const previous of ["0.28.0", "0.28.1"]) {
+  for (const previous of ["0.28.0", "0.28.1", "0.28.2"]) {
     const upgrade = join(temporary, `upgrade-skills-${previous}`);
     mkdirSync(upgrade);
     writeFileSync(

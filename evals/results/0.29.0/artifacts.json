@@ -1,0 +1,42 @@
+{
+  "primary_trial_package": {
+    "source_commit": "f0f1218d5fc638f3dde60afb2c44d286874c2f9f",
+    "sha256": "84983f2aa415f0ec9179df108d7d3da2d7997f4b65719a7926d6d8e5b4b2ea20"
+  },
+  "changed_package_files": [
+    "package/README.md",
+    "package/dist/index.js"
+  ],
+  "changes_after_primary_freeze": [
+    "Restore recorded pin permissions after creation (umask handling).",
+    "Scope literal-scatter context guidance, fix description and suggested action to the requested edit.",
+    "Update packaged README.",
+    "Skill template 0.29.0 uses the selected executable path in examples to avoid switching to an older global CLI.",
+    "Connectivity advice distinguishes dependency direction and preserves useful regression tests; skill rejects moving checks into a temporary command just to clear a report."
+  ],
+  "study_split": "216 primary runs use the frozen original package. Separate checks: 18 plan-limit runs with scoped literal advice; 12 response-consumer/bounded-batch runs with explicit executable paths; 18 plan-limit runs with final connectivity and test-preservation advice. Packages and harness revisions are never pooled.",
+  "template_version": "0.29.0",
+  "skill_body_changed": true,
+  "guidance_trial_package": {
+    "source_commit": "e9d48de3a4468e5e9946cb1a40885f6fe1275a1e",
+    "sha256": "fa51cd0021e1228c385505681f5b58030253fa7f7cab8111ee313071d50f3d4a"
+  },
+  "executable_trial_package": {
+    "source_commit": "f5114ea9cb4bd49f6fbe5271c5490f6a0e8f6fd2",
+    "sha256": "33f7d3aaba6bb530df518fc79ac3868b2fdc6a75c6ade6cfd035072d9570c644"
+  },
+  "final_candidate_package": {
+    "source_commit": "116888f53b3a5ea45fcb63e6dddab1384111e4c0",
+    "sha256": "fc5e1c25d1470a3a205ae72802529603ee12c9a4400316177155be8e3187e7ac"
+  },
+  "final_package_member_sha256": {
+    "package/LICENSE": "5e4df6e5b0662e7ee2e3e79ebc0f1aad5debeab396c2339bad10e66d2c9af837",
+    "package/dist/chunk-K6PPDRIO.js": "0406675e55f633e46af04a7b42c53ec6edae06da658eda790ed9e6a91bf11b41",
+    "package/dist/index.js": "26f4b8ed8043b9a68f856ff9320849016c503e0c142aa420c89e7bfb0437f03b",
+    "package/dist/web-tree-sitter-FPD7B67R.js": "fd75003ed8b7e533dcc86790a7d3eb4071d2c176a44a6297a1a53c3fa6cdc291",
+    "package/package.json": "499d45cde98f509d014f813a01ace4236810b5a91a65368151568cfd81b86f12",
+    "package/README.md": "013f16c122b43531ad7b80ba5761ccd2d82410a229302e4ffb17ef04d9772c5e",
+    "package/dist/tree-sitter-python.wasm": "16108b50df4ee9a30168794252ab55e7c93bfc5765d7fa0aa3e335752c515f47",
+    "package/dist/web-tree-sitter.wasm": "715cae35f31b7b03a13592bc5ac9039d5c6d2c2bda9f9e0c2b8abab77b3f64cc"
+  }
+}

@@ -1,5 +1,10 @@
 # 0.28 release readiness review
 
+This is the historical 0.28 assessment. The prepared
+[0.29 follow-up](./releases/v0.29.0.md) adds controlled latency measurements,
+twelve repeated edit tasks and recoverable pin replacement. Its evidence
+updates the performance, outcome and migration limits recorded below.
+
 The September product review asked for trustworthy pre-edit context, quieter
 prioritization, recoverable decisions, useful agent integration and maintainable
 human/agent documentation. The 0.28.2 follow-up rechecked those outcomes against

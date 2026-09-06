@@ -1,0 +1,1 @@
+export async function sendBatch(items,send) { const results=new Array(items.length);let next=0;await Promise.all(Array.from({length:Math.min(3,items.length)},async()=>{while(next<items.length){const i=next++;results[i]=await send(items[i]);}}));return results; }

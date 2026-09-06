@@ -1,0 +1,149 @@
+[
+  {
+    "id": "claude-plan-limit-without-1",
+    "patch_sha256": "504617868d417cacd4bdec3d54607b3db70a2890bda2a57d064982c7fda166d0",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected added pro/free/enterprise boundary checks and, where present, worker/preview/legacy integration checks. Production edits only update the two active pro limits; no policy extraction or unrelated behavior change.",
+    "added_file_sha256": {}
+  },
+  {
+    "id": "claude-plan-limit-without-2",
+    "patch_sha256": "4d4fd07d6374ff306a1d241f911e0ba720768aa29dc019323bcf62ffd18c024c",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected added pro/free/enterprise boundary checks and, where present, worker/preview/legacy integration checks. Production edits only update the two active pro limits; no policy extraction or unrelated behavior change.",
+    "added_file_sha256": {}
+  },
+  {
+    "id": "codex-plan-limit-briefing-1",
+    "patch_sha256": "038fa0b561aa60825a68f2d3357ff9676d8794d5e44dd29a8acde453f87b8fb6",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected added pro/free/enterprise boundary checks and, where present, worker/preview/legacy integration checks. Production edits only update the two active pro limits; no policy extraction or unrelated behavior change.",
+    "added_file_sha256": {}
+  },
+  {
+    "id": "codex-plan-limit-briefing-2",
+    "patch_sha256": "40d7880ff604d9133fb950956c8f5f11a03e9b6f427b9f1a48ac025054c90147",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected added pro/free/enterprise boundary checks and, where present, worker/preview/legacy integration checks. Production edits only update the two active pro limits; no policy extraction or unrelated behavior change.",
+    "added_file_sha256": {}
+  },
+  {
+    "id": "codex-plan-limit-installed-1",
+    "patch_sha256": "4c74569b8eaf6f9f9ec0bf28e5c6d88f983f47ca78864acecc7a8148894a7896",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected added pro/free/enterprise boundary checks and, where present, worker/preview/legacy integration checks. Production edits only update the two active pro limits; no policy extraction or unrelated behavior change.",
+    "added_file_sha256": {}
+  },
+  {
+    "id": "codex-plan-limit-without-1",
+    "patch_sha256": "6900dc466d91421c4b3d23168bd46f91b1e8df73874e4030c5ef3a8c90bfb39c",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected added pro/free/enterprise boundary checks and, where present, worker/preview/legacy integration checks. Production edits only update the two active pro limits; no policy extraction or unrelated behavior change.",
+    "added_file_sha256": {}
+  },
+  {
+    "id": "claude-plan-limit-installed-2",
+    "patch_sha256": "504617868d417cacd4bdec3d54607b3db70a2890bda2a57d064982c7fda166d0",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected boundary and forwarding checks, including the added worker test where present. Production changes only update the two active pro limits, preserving legacy behavior and queue options.",
+    "added_file_sha256": {}
+  },
+  {
+    "id": "codex-plan-limit-installed-2",
+    "patch_sha256": "37f4e0b510d6d98ef87a25aeb24d290bf7895b4258d9a6bd03a45adac8bc1010",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "test_expansion_with_removed_integration_checks",
+    "reason": "After adding useful UI, worker, legacy and retry assertions to the existing test, the agent removed those persisted checks in response to a low-severity fan-out finding and ran them only as a temporary command. Acceptance still passed. The final scoped scan also preceded that last test edit, so the final tree lacks a matching pre/post scoped pair.",
+    "added_file_sha256": {},
+    "transcript_evidence": "The broader changed-files scan surfaced one low-severity test-coupling warning because the single API test imported five modules. I\u2019m tightening that test back to its own API boundary and will verify worker, v1, UI, signatures, and retry behavior with a separate runtime check, keeping the repository edit smaller and package ownership cleaner."
+  },
+  {
+    "id": "codex-plan-limit-without-2",
+    "patch_sha256": "8ac119f53e7238d9661fe21e531e4dc5328c98d63f08ede4f7a2785e8a1b5cc3",
+    "flagged_files": [
+      "packages/api/export.test.js",
+      "packages/worker/job.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected boundary and forwarding checks, including the added worker test where present. Production changes only update the two active pro limits, preserving legacy behavior and queue options.",
+    "added_file_sha256": {
+      "packages/worker/job.test.js": "aad3a2ee3c5a35ded884aaa1389a18c701b435d6ef7c1e19b5a14864f3f42aa0"
+    }
+  },
+  {
+    "id": "codex-plan-limit-without-3",
+    "patch_sha256": "0756b765a2b080cf3a4693bf1c6f5b9800192b2ffd981df3628c5af8393ecea4",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected boundary and forwarding checks, including the added worker test where present. Production changes only update the two active pro limits, preserving legacy behavior and queue options.",
+    "added_file_sha256": {}
+  },
+  {
+    "id": "claude-plan-limit-installed-3",
+    "patch_sha256": "4d4fd07d6374ff306a1d241f911e0ba720768aa29dc019323bcf62ffd18c024c",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected active-plan boundary tests and added worker eligibility test where present. Production edits update only the two active pro limits; no shared policy extraction.",
+    "added_file_sha256": {}
+  },
+  {
+    "id": "claude-plan-limit-without-3",
+    "patch_sha256": "4d4fd07d6374ff306a1d241f911e0ba720768aa29dc019323bcf62ffd18c024c",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected active-plan boundary tests and added worker eligibility test where present. Production edits update only the two active pro limits; no shared policy extraction.",
+    "added_file_sha256": {}
+  },
+  {
+    "id": "codex-plan-limit-briefing-3",
+    "patch_sha256": "038fa0b561aa60825a68f2d3357ff9676d8794d5e44dd29a8acde453f87b8fb6",
+    "flagged_files": [
+      "packages/api/export.test.js",
+      "packages/worker/eligibility.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected active-plan boundary tests and added worker eligibility test where present. Production edits update only the two active pro limits; no shared policy extraction.",
+    "added_file_sha256": {
+      "packages/worker/eligibility.test.js": "108027b67bed32b552269d118f431989740f41fdee7a355aad7b8368735ef311"
+    }
+  },
+  {
+    "id": "codex-plan-limit-installed-3",
+    "patch_sha256": "038fa0b561aa60825a68f2d3357ff9676d8794d5e44dd29a8acde453f87b8fb6",
+    "flagged_files": [
+      "packages/api/export.test.js"
+    ],
+    "classification": "relevant_test_expansion",
+    "reason": "Inspected active-plan boundary tests and added worker eligibility test where present. Production edits update only the two active pro limits; no shared policy extraction.",
+    "added_file_sha256": {}
+  }
+]

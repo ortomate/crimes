@@ -1,0 +1,4178 @@
+{
+  "measurement_version": 1,
+  "before_version": "0.28.2",
+  "candidate_version": "0.29.0",
+  "node": "v26.7.0",
+  "platform": "macOS-26.6.1-arm64-arm-64bit-Mach-O",
+  "logical_cpus": 10,
+  "reference_clock": "2026-09-07T00:00:00Z",
+  "repeated_samples_per_binary_command_case": 10,
+  "first_samples_retained_separately": true,
+  "initial_processes": 528,
+  "paired_confirmation_processes": 528,
+  "cli_sha256": {
+    "before": "de55bec741c481a9832ed89a0eb68edc6e04ee33c74e4cf2bc8cc72d6f492f8d",
+    "after": "bd688254663c049877688d4355d92f078b194b016d377ce0da04b588f929f251"
+  },
+  "corpus": [
+    {
+      "case": "js-small",
+      "target": "src/date.ts",
+      "kind": "repository_fixture"
+    },
+    {
+      "case": "js-medium",
+      "target": "lib/command.js",
+      "kind": "pinned_oss_fixture",
+      "upstream": {
+        "upstream": "https://github.com/tj/commander.js",
+        "sha": "c03f066e4ade4bab1036e62d1c330f68a37bef1c",
+        "license": "MIT",
+        "purpose": "Reference Commander.js implementation pinned at the v9.5.0 release tag \u2014 exercises cli_command_registrar shape recognition + IA detectors. Meta but useful: testing the shape against the canonical library it was modelled on."
+      }
+    },
+    {
+      "case": "tsx-medium",
+      "target": "basics/typescript-final/components/date.tsx",
+      "kind": "pinned_oss_fixture",
+      "upstream": {
+        "upstream": "https://github.com/vercel/next-learn",
+        "sha": "914a33426aac20f825ca52fae80b889302b92240",
+        "license": "MIT",
+        "purpose": "Mid-size Next.js learn app \u2014 exercises frontend track (page_export, react_component, design tokens, JSX shape duplication). Pinned to vercel/next-learn `main` HEAD at vendoring time; this instructional repo doesn't tag releases. Re-pin to a fresher SHA when upstream rebases enough to matter."
+      }
+    },
+    {
+      "case": "python-small",
+      "target": "domain/invoicing.py",
+      "kind": "repository_fixture"
+    },
+    {
+      "case": "mixed-small",
+      "target": "packages/api/billing/plans.py",
+      "kind": "repository_fixture"
+    },
+    {
+      "case": "crimes-source",
+      "target": "packages/core/src/scan.ts",
+      "kind": "baseline_source_worktree",
+      "source_commit": "e65445c3cfb089935c3161878619ec334063c9ea"
+    },
+    {
+      "case": "python-generated",
+      "target": "service/charge_000.py",
+      "kind": "synthetic_scaling"
+    },
+    {
+      "case": "mixed-generated",
+      "target": "service/charge_000.py",
+      "kind": "synthetic_scaling"
+    }
+  ],
+  "rows": [
+    {
+      "case": "js-small",
+      "command": "scan",
+      "source": {
+        "sha256": "f9ed69b5643a78fb076e779d9d9545e0c3847ca9680b2e1ad76604cf8e6f074e",
+        "files": 25
+      },
+      "files_analyzed": 21,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 565.104,
+          "median_ms": 468.0745,
+          "p95_ms": 488.186,
+          "peak_rss_bytes": 187940864
+        },
+        "after": {
+          "first_ms": 539.377,
+          "median_ms": 448.8965,
+          "p95_ms": 457.129,
+          "peak_rss_bytes": 184172544
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 559.725,
+          "median_ms": 474.831,
+          "p95_ms": 546.562,
+          "peak_rss_bytes": 187711488,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 8.244,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 40.085,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.42,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 11.929,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 19.83,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.851,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 9.812,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 39.071,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 4.411,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 2.508,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.889,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 4.891,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 13.346,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.57,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 7.154,
+              "median_calls": 16.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 419.557,
+          "median_ms": 437.41949999999997,
+          "p95_ms": 459.278,
+          "peak_rss_bytes": 181616640,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 8.215,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 28.05,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.302,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 12.505,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 19.935,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.815,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 3.549,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 39.988,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 3.835,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.637,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 3.153,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 2.639,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 3.498,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.707,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 26.657,
+              "median_calls": 16.0
+            },
+            "input.read": {
+              "median_ms": 1.722,
+              "median_calls": 21.0
+            }
+          }
+        },
+        "median_reduction_percent": 7.88
+      }
+    },
+    {
+      "case": "js-small",
+      "command": "context",
+      "source": {
+        "sha256": "f9ed69b5643a78fb076e779d9d9545e0c3847ca9680b2e1ad76604cf8e6f074e",
+        "files": 25
+      },
+      "files_analyzed": 21,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 420.69,
+          "median_ms": 402.66200000000003,
+          "p95_ms": 457.895,
+          "peak_rss_bytes": 188137472
+        },
+        "after": {
+          "first_ms": 374.148,
+          "median_ms": 380.679,
+          "p95_ms": 395.067,
+          "peak_rss_bytes": 183582720
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 410.181,
+          "median_ms": 402.3465,
+          "p95_ms": 470.895,
+          "peak_rss_bytes": 186728448,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 8.021,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 40.058,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.115,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 11.933,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 19.129,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.848,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 10.389,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 40.177,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 4.861,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 2.576,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.886,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 5.286,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 13.537,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.266,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 7.279,
+              "median_calls": 16.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 372.673,
+          "median_ms": 407.694,
+          "p95_ms": 465.594,
+          "peak_rss_bytes": 183795712,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 8.847,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 30.73,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.363,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 12.128,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 20.341,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.853,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 3.781,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 41.381,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 3.954,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.651,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 3.177,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 2.932,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 3.518,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 15.003,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 27.667,
+              "median_calls": 16.0
+            },
+            "input.read": {
+              "median_ms": 1.915,
+              "median_calls": 21.0
+            }
+          }
+        },
+        "median_reduction_percent": -1.33
+      }
+    },
+    {
+      "case": "js-small",
+      "command": "hook",
+      "source": {
+        "sha256": "f9ed69b5643a78fb076e779d9d9545e0c3847ca9680b2e1ad76604cf8e6f074e",
+        "files": 25
+      },
+      "files_analyzed": null,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 399.066,
+          "median_ms": 403.95349999999996,
+          "p95_ms": 473.041,
+          "peak_rss_bytes": 187514880
+        },
+        "after": {
+          "first_ms": 385.896,
+          "median_ms": 383.605,
+          "p95_ms": 459.584,
+          "peak_rss_bytes": 184516608
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 386.985,
+          "median_ms": 413.66949999999997,
+          "p95_ms": 495.739,
+          "peak_rss_bytes": 187154432,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 7.833,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 39.091,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 2.951,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 11.818,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 18.48,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.856,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 9.943,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 37.562,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 4.569,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 2.524,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.849,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 4.887,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 13.15,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.333,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 7.184,
+              "median_calls": 16.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 359.36,
+          "median_ms": 361.8025,
+          "p95_ms": 417.66,
+          "peak_rss_bytes": 183205888,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 7.837,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 27.676,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.051,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 11.608,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 19.042,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.852,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 3.84,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 39.227,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 4.061,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.66,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 3.086,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 2.744,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 3.335,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.627,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 26.268,
+              "median_calls": 16.0
+            },
+            "input.read": {
+              "median_ms": 1.593,
+              "median_calls": 21.0
+            }
+          }
+        },
+        "median_reduction_percent": 12.54
+      }
+    },
+    {
+      "case": "js-medium",
+      "command": "scan",
+      "source": {
+        "sha256": "a49cdddeb8cc1aa8a81c2dd82accc8d6408d1c471db7fbe89db49c21cb69b043",
+        "files": 192
+      },
+      "files_analyzed": 172,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 1198.827,
+          "median_ms": 1206.4075,
+          "p95_ms": 1263.55,
+          "peak_rss_bytes": 216989696
+        },
+        "after": {
+          "first_ms": 816.509,
+          "median_ms": 814.0275,
+          "p95_ms": 875.901,
+          "peak_rss_bytes": 211173376
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 1313.606,
+          "median_ms": 1263.4920000000002,
+          "p95_ms": 1660.002,
+          "peak_rss_bytes": 218710016,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 3.052,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 308.248,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.646,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 18.769,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 18.163,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.97,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 165.751,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 210.148,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 38.652,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.172,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 5.967,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 13.248,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 148.903,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 16.173,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 132.378,
+              "median_calls": 153.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 977.772,
+          "median_ms": 837.792,
+          "p95_ms": 1449.524,
+          "peak_rss_bytes": 210501632,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 3.983,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 144.502,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.282,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 21.887,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 18.182,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.137,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 34.202,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 217.381,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 35.215,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.179,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 6.726,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 7.661,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 5.197,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 17.955,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 186.934,
+              "median_calls": 153.0
+            },
+            "input.read": {
+              "median_ms": 12.171,
+              "median_calls": 172.0
+            }
+          }
+        },
+        "median_reduction_percent": 33.69
+      }
+    },
+    {
+      "case": "js-medium",
+      "command": "context",
+      "source": {
+        "sha256": "a49cdddeb8cc1aa8a81c2dd82accc8d6408d1c471db7fbe89db49c21cb69b043",
+        "files": 192
+      },
+      "files_analyzed": 172,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 1182.319,
+          "median_ms": 1155.5365,
+          "p95_ms": 1209.956,
+          "peak_rss_bytes": 217661440
+        },
+        "after": {
+          "first_ms": 741.74,
+          "median_ms": 771.9159999999999,
+          "p95_ms": 824.499,
+          "peak_rss_bytes": 212631552
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 1173.366,
+          "median_ms": 1311.0765000000001,
+          "p95_ms": 1644.261,
+          "peak_rss_bytes": 215203840,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 3.031,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 310.497,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.947,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 19.451,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 19.143,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.218,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 183.246,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 230.532,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 39.742,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.181,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 5.937,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 13.926,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 162.541,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 17.069,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 135.926,
+              "median_calls": 153.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 723.452,
+          "median_ms": 754.2850000000001,
+          "p95_ms": 938.099,
+          "peak_rss_bytes": 211648512,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 3.224,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 123.233,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.791,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 19.577,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 17.804,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.978,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 33.836,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 214.482,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 34.118,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.181,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 5.407,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 7.402,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 4.935,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 17.296,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 183.723,
+              "median_calls": 153.0
+            },
+            "input.read": {
+              "median_ms": 11.777,
+              "median_calls": 172.0
+            }
+          }
+        },
+        "median_reduction_percent": 42.47
+      }
+    },
+    {
+      "case": "js-medium",
+      "command": "hook",
+      "source": {
+        "sha256": "a49cdddeb8cc1aa8a81c2dd82accc8d6408d1c471db7fbe89db49c21cb69b043",
+        "files": 192
+      },
+      "files_analyzed": null,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 1186.968,
+          "median_ms": 1207.0520000000001,
+          "p95_ms": 1297.75,
+          "peak_rss_bytes": 216678400
+        },
+        "after": {
+          "first_ms": 732.438,
+          "median_ms": 734.245,
+          "p95_ms": 766.79,
+          "peak_rss_bytes": 210567168
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 1211.531,
+          "median_ms": 1228.0414999999998,
+          "p95_ms": 1766.562,
+          "peak_rss_bytes": 217808896,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 3.158,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 311.522,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.604,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 19.109,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 18.515,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.001,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 168.335,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 211.435,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 39.018,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.167,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 5.95,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 13.119,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 155.255,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 16.775,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 133.643,
+              "median_calls": 153.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 749.701,
+          "median_ms": 737.062,
+          "p95_ms": 1102.197,
+          "peak_rss_bytes": 213172224,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 3.19,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 124.338,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.264,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 19.0,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 18.454,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.945,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 34.059,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 212.082,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 34.84,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.179,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 5.764,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 8.056,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 4.851,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 16.141,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 181.948,
+              "median_calls": 153.0
+            },
+            "input.read": {
+              "median_ms": 11.43,
+              "median_calls": 172.0
+            }
+          }
+        },
+        "median_reduction_percent": 39.98
+      }
+    },
+    {
+      "case": "tsx-medium",
+      "command": "scan",
+      "source": {
+        "sha256": "ed4866a2950ecceeb7f693dcfbf27b0cb2e8af4856ae8b1ef755e01cb2f101b1",
+        "files": 298
+      },
+      "files_analyzed": 183,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 881.946,
+          "median_ms": 896.889,
+          "p95_ms": 943.319,
+          "peak_rss_bytes": 216350720
+        },
+        "after": {
+          "first_ms": 708.654,
+          "median_ms": 746.629,
+          "p95_ms": 1240.737,
+          "peak_rss_bytes": 215040000
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 956.251,
+          "median_ms": 913.3875,
+          "p95_ms": 963.256,
+          "peak_rss_bytes": 217661440,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 18.451,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 162.677,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 10.588,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 35.435,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 17.686,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.898,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 66.026,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 107.903,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 24.343,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 40.495,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 11.454,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 20.798,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 71.863,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 14.823,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 48.992,
+              "median_calls": 131.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 667.739,
+          "median_ms": 682.611,
+          "p95_ms": 705.945,
+          "peak_rss_bytes": 217645056,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 24.289,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 90.142,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 10.583,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 35.513,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 17.031,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.978,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 13.076,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 108.722,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 20.868,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 15.171,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 12.087,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 7.666,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 5.489,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 14.886,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 85.46,
+              "median_calls": 131.0
+            },
+            "input.read": {
+              "median_ms": 14.157,
+              "median_calls": 183.0
+            }
+          }
+        },
+        "median_reduction_percent": 25.27
+      }
+    },
+    {
+      "case": "tsx-medium",
+      "command": "context",
+      "source": {
+        "sha256": "ed4866a2950ecceeb7f693dcfbf27b0cb2e8af4856ae8b1ef755e01cb2f101b1",
+        "files": 298
+      },
+      "files_analyzed": 183,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 809.566,
+          "median_ms": 825.4145000000001,
+          "p95_ms": 893.27,
+          "peak_rss_bytes": 218234880
+        },
+        "after": {
+          "first_ms": 1458.072,
+          "median_ms": 1247.6770000000001,
+          "p95_ms": 3724.435,
+          "peak_rss_bytes": 221773824
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 889.247,
+          "median_ms": 820.193,
+          "p95_ms": 875.178,
+          "peak_rss_bytes": 218333184,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 19.088,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 157.233,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 10.139,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 34.495,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 17.563,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.893,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 63.122,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 102.295,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 22.111,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 38.876,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 10.96,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 17.74,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 64.483,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 14.203,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 46.486,
+              "median_calls": 131.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 596.26,
+          "median_ms": 606.185,
+          "p95_ms": 647.296,
+          "peak_rss_bytes": 214827008,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 23.398,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 87.644,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 9.844,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 34.189,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 17.147,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.948,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 12.377,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 108.371,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 20.781,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 14.934,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 10.901,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 7.784,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 5.365,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 14.212,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 85.698,
+              "median_calls": 131.0
+            },
+            "input.read": {
+              "median_ms": 12.994,
+              "median_calls": 183.0
+            }
+          }
+        },
+        "median_reduction_percent": 26.09
+      }
+    },
+    {
+      "case": "tsx-medium",
+      "command": "hook",
+      "source": {
+        "sha256": "ed4866a2950ecceeb7f693dcfbf27b0cb2e8af4856ae8b1ef755e01cb2f101b1",
+        "files": 298
+      },
+      "files_analyzed": null,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 859.988,
+          "median_ms": 815.849,
+          "p95_ms": 861.664,
+          "peak_rss_bytes": 218152960
+        },
+        "after": {
+          "first_ms": 927.12,
+          "median_ms": 717.3805,
+          "p95_ms": 940.739,
+          "peak_rss_bytes": 219725824
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 859.341,
+          "median_ms": 821.117,
+          "p95_ms": 911.314,
+          "peak_rss_bytes": 216498176,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 18.901,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 156.863,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 10.205,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 33.702,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 16.927,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.929,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 63.676,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 105.346,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 22.739,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 38.984,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 11.748,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 18.556,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 66.502,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 14.902,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 47.514,
+              "median_calls": 131.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 592.897,
+          "median_ms": 592.2055,
+          "p95_ms": 662.599,
+          "peak_rss_bytes": 215826432,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 23.388,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 83.365,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 10.437,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 34.454,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 17.773,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.877,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 12.368,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 106.775,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 20.664,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 14.794,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 11.251,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 7.492,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 5.463,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 14.361,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 85.063,
+              "median_calls": 131.0
+            },
+            "input.read": {
+              "median_ms": 12.53,
+              "median_calls": 183.0
+            }
+          }
+        },
+        "median_reduction_percent": 27.88
+      }
+    },
+    {
+      "case": "python-small",
+      "command": "scan",
+      "source": {
+        "sha256": "a5f100c1b78392f5d83663f2d0474439cc4f9d6b00f34b25d70281d405c2588c",
+        "files": 13
+      },
+      "files_analyzed": 11,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 394.202,
+          "median_ms": 391.42499999999995,
+          "p95_ms": 399.757,
+          "peak_rss_bytes": 178749440
+        },
+        "after": {
+          "first_ms": 485.81,
+          "median_ms": 428.35699999999997,
+          "p95_ms": 475.435,
+          "peak_rss_bytes": 175456256
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 397.885,
+          "median_ms": 392.64250000000004,
+          "p95_ms": 432.419,
+          "peak_rss_bytes": 178782208,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.217,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 13.76,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.547,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 9.468,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 26.755,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.011,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.066,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 1.561,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 22.499,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.147,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.653,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 0.18,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.543,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.871,
+              "median_calls": 1.0
+            },
+            "parse.detector-py": {
+              "median_ms": 2.836,
+              "median_calls": 11.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 373.794,
+          "median_ms": 382.1465,
+          "p95_ms": 415.21,
+          "peak_rss_bytes": 174555136,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.239,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 7.607,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.671,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 9.447,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 27.12,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.938,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.068,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 1.379,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 21.891,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.127,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.465,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 0.178,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.532,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.97,
+              "median_calls": 1.0
+            },
+            "input.parse-py": {
+              "median_ms": 185.546,
+              "median_calls": 11.0
+            },
+            "input.read": {
+              "median_ms": 36.325,
+              "median_calls": 11.0
+            }
+          }
+        },
+        "median_reduction_percent": 2.67
+      }
+    },
+    {
+      "case": "python-small",
+      "command": "context",
+      "source": {
+        "sha256": "a5f100c1b78392f5d83663f2d0474439cc4f9d6b00f34b25d70281d405c2588c",
+        "files": 13
+      },
+      "files_analyzed": 11,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 317.903,
+          "median_ms": 318.1965,
+          "p95_ms": 329.208,
+          "peak_rss_bytes": 176816128
+        },
+        "after": {
+          "first_ms": 336.897,
+          "median_ms": 340.7605,
+          "p95_ms": 382.276,
+          "peak_rss_bytes": 174080000
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 356.481,
+          "median_ms": 322.04449999999997,
+          "p95_ms": 358.31,
+          "peak_rss_bytes": 179306496,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 1.998,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 12.24,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.442,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 9.175,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 26.325,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.915,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.07,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 1.336,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 23.048,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.156,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.53,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 0.173,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.502,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.516,
+              "median_calls": 1.0
+            },
+            "parse.detector-py": {
+              "median_ms": 2.642,
+              "median_calls": 11.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 316.396,
+          "median_ms": 314.8855,
+          "p95_ms": 338.335,
+          "peak_rss_bytes": 175456256,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.163,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 7.856,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.728,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 9.099,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 26.916,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.959,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.065,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 1.5,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 22.731,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.117,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.678,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 0.179,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.532,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.694,
+              "median_calls": 1.0
+            },
+            "input.parse-py": {
+              "median_ms": 194.84,
+              "median_calls": 11.0
+            },
+            "input.read": {
+              "median_ms": 36.61,
+              "median_calls": 11.0
+            }
+          }
+        },
+        "median_reduction_percent": 2.22
+      }
+    },
+    {
+      "case": "python-small",
+      "command": "hook",
+      "source": {
+        "sha256": "a5f100c1b78392f5d83663f2d0474439cc4f9d6b00f34b25d70281d405c2588c",
+        "files": 13
+      },
+      "files_analyzed": null,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 317.796,
+          "median_ms": 321.4425,
+          "p95_ms": 356.88,
+          "peak_rss_bytes": 177471488
+        },
+        "after": {
+          "first_ms": 341.702,
+          "median_ms": 337.152,
+          "p95_ms": 358.121,
+          "peak_rss_bytes": 175063040
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 323.107,
+          "median_ms": 347.4955,
+          "p95_ms": 411.165,
+          "peak_rss_bytes": 178356224,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.402,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 14.412,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.921,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 9.589,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 28.542,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.085,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.067,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 1.621,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 25.32,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.149,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.89,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 0.179,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.558,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 15.622,
+              "median_calls": 1.0
+            },
+            "parse.detector-py": {
+              "median_ms": 2.929,
+              "median_calls": 11.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 383.022,
+          "median_ms": 335.858,
+          "p95_ms": 401.784,
+          "peak_rss_bytes": 174669824,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.86,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 8.581,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 5.082,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 8.872,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 27.35,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.11,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.066,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 1.546,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 23.967,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.115,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.898,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 0.18,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.548,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 14.89,
+              "median_calls": 1.0
+            },
+            "input.parse-py": {
+              "median_ms": 203.47,
+              "median_calls": 11.0
+            },
+            "input.read": {
+              "median_ms": 38.619,
+              "median_calls": 11.0
+            }
+          }
+        },
+        "median_reduction_percent": 3.35
+      }
+    },
+    {
+      "case": "mixed-small",
+      "command": "scan",
+      "source": {
+        "sha256": "a938a6a22adb3681bde6acdb7aa00837cf7abd7f4c43eed8992b8e8b85ab9fe0",
+        "files": 7
+      },
+      "files_analyzed": 3,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 398.491,
+          "median_ms": 407.8155,
+          "p95_ms": 426.061,
+          "peak_rss_bytes": 179617792
+        },
+        "after": {
+          "first_ms": 428.571,
+          "median_ms": 411.353,
+          "p95_ms": 420.867,
+          "peak_rss_bytes": 174407680
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 425.666,
+          "median_ms": 394.77549999999997,
+          "p95_ms": 421.756,
+          "peak_rss_bytes": 179978240,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 1.732,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 13.107,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.657,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 9.206,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 19.497,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.901,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 2.481,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 10.665,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 28.448,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.157,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.638,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 1.403,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 3.104,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.436,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 1.226,
+              "median_calls": 1.0
+            },
+            "parse.detector-py": {
+              "median_ms": 1.426,
+              "median_calls": 2.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 393.92,
+          "median_ms": 391.199,
+          "p95_ms": 394.668,
+          "peak_rss_bytes": 174211072,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 1.779,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 9.115,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.864,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 9.046,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 19.582,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.927,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.637,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 10.151,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 28.85,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.127,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.655,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 0.936,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 1.66,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.295,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 8.279,
+              "median_calls": 1.0
+            },
+            "input.parse-py": {
+              "median_ms": 32.698,
+              "median_calls": 2.0
+            },
+            "input.read": {
+              "median_ms": 3.868,
+              "median_calls": 3.0
+            }
+          }
+        },
+        "median_reduction_percent": 0.91
+      }
+    },
+    {
+      "case": "mixed-small",
+      "command": "context",
+      "source": {
+        "sha256": "a938a6a22adb3681bde6acdb7aa00837cf7abd7f4c43eed8992b8e8b85ab9fe0",
+        "files": 7
+      },
+      "files_analyzed": 3,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 349.951,
+          "median_ms": 357.807,
+          "p95_ms": 437.569,
+          "peak_rss_bytes": 179470336
+        },
+        "after": {
+          "first_ms": 332.544,
+          "median_ms": 334.658,
+          "p95_ms": 343.002,
+          "peak_rss_bytes": 174178304
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 325.816,
+          "median_ms": 347.5695,
+          "p95_ms": 413.72,
+          "peak_rss_bytes": 179994624,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 1.844,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 13.749,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.058,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 9.339,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 20.983,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.895,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 2.39,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 10.827,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 29.705,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.149,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.69,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 1.279,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 3.081,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 13.897,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 1.224,
+              "median_calls": 1.0
+            },
+            "parse.detector-py": {
+              "median_ms": 1.421,
+              "median_calls": 2.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 318.74,
+          "median_ms": 331.8365,
+          "p95_ms": 345.339,
+          "peak_rss_bytes": 173260800,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 1.939,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 9.458,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.348,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 8.922,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 19.393,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.898,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.65,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 10.564,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 29.607,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.127,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.738,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 0.929,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 1.662,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 14.889,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 8.625,
+              "median_calls": 1.0
+            },
+            "input.parse-py": {
+              "median_ms": 34.329,
+              "median_calls": 2.0
+            },
+            "input.read": {
+              "median_ms": 3.83,
+              "median_calls": 3.0
+            }
+          }
+        },
+        "median_reduction_percent": 4.53
+      }
+    },
+    {
+      "case": "mixed-small",
+      "command": "hook",
+      "source": {
+        "sha256": "a938a6a22adb3681bde6acdb7aa00837cf7abd7f4c43eed8992b8e8b85ab9fe0",
+        "files": 7
+      },
+      "files_analyzed": null,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 332.154,
+          "median_ms": 342.66200000000003,
+          "p95_ms": 362.751,
+          "peak_rss_bytes": 179486720
+        },
+        "after": {
+          "first_ms": 358.806,
+          "median_ms": 338.5095,
+          "p95_ms": 351.83,
+          "peak_rss_bytes": 173719552
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 340.341,
+          "median_ms": 345.619,
+          "p95_ms": 361.908,
+          "peak_rss_bytes": 178339840,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 1.897,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 13.92,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.974,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 8.905,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 19.599,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.985,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 2.607,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 11.031,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 29.228,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.152,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.964,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 1.37,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 3.156,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 14.142,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 1.278,
+              "median_calls": 1.0
+            },
+            "parse.detector-py": {
+              "median_ms": 1.45,
+              "median_calls": 2.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 339.769,
+          "median_ms": 340.4765,
+          "p95_ms": 353.289,
+          "peak_rss_bytes": 173801472,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 1.848,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 9.888,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 4.325,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 9.132,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 20.549,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.937,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.598,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 11.434,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 30.275,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.127,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.869,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 0.995,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 1.755,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 14.137,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 9.081,
+              "median_calls": 1.0
+            },
+            "input.parse-py": {
+              "median_ms": 34.614,
+              "median_calls": 2.0
+            },
+            "input.read": {
+              "median_ms": 4.262,
+              "median_calls": 3.0
+            }
+          }
+        },
+        "median_reduction_percent": 1.49
+      }
+    },
+    {
+      "case": "crimes-source",
+      "command": "scan",
+      "source": {
+        "sha256": "669af6e27e13c7791d07007e48b52be65076303b3231905e3d9040efa1bc5906",
+        "files": 4199
+      },
+      "files_analyzed": 639,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 5632.092,
+          "median_ms": 6040.9265,
+          "p95_ms": 7050.447,
+          "peak_rss_bytes": 300810240
+        },
+        "after": {
+          "first_ms": 2971.404,
+          "median_ms": 2928.527,
+          "p95_ms": 2974.814,
+          "peak_rss_bytes": 308543488
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 5515.275,
+          "median_ms": 5965.874,
+          "p95_ms": 7122.014,
+          "peak_rss_bytes": 296861696,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 14.504,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 1832.888,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 11.433,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 35.721,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 794.597,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 4.234,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 858.576,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 840.318,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 225.15,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.202,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 20.289,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 71.2,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 797.894,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 52.963,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 706.802,
+              "median_calls": 495.0
+            },
+            "parse.detector-py": {
+              "median_ms": 7.275,
+              "median_calls": 3.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 2826.195,
+          "median_ms": 2971.2315,
+          "p95_ms": 3554.587,
+          "peak_rss_bytes": 311476224,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 13.605,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 908.323,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 11.688,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 35.714,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 257.571,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 4.053,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 161.811,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 864.111,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 236.954,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.172,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 23.491,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 34.983,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 12.953,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 52.008,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 775.698,
+              "median_calls": 495.0
+            },
+            "input.parse-py": {
+              "median_ms": 94.906,
+              "median_calls": 3.0
+            },
+            "input.read": {
+              "median_ms": 62.041,
+              "median_calls": 639.0
+            }
+          }
+        },
+        "median_reduction_percent": 50.2
+      }
+    },
+    {
+      "case": "crimes-source",
+      "command": "context",
+      "source": {
+        "sha256": "669af6e27e13c7791d07007e48b52be65076303b3231905e3d9040efa1bc5906",
+        "files": 4199
+      },
+      "files_analyzed": 639,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 5820.867,
+          "median_ms": 5942.5244999999995,
+          "p95_ms": 6454.825,
+          "peak_rss_bytes": 288669696
+        },
+        "after": {
+          "first_ms": 2838.773,
+          "median_ms": 2846.9385,
+          "p95_ms": 3026.595,
+          "peak_rss_bytes": 310984704
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 6381.313,
+          "median_ms": 6270.447,
+          "p95_ms": 6518.596,
+          "peak_rss_bytes": 296599552,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 14.061,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 1952.611,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 13.402,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 38.583,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 880.754,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 4.369,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 904.444,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 875.849,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 229.907,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.196,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 22.64,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 67.519,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 798.878,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 55.726,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 749.0,
+              "median_calls": 495.0
+            },
+            "parse.detector-py": {
+              "median_ms": 7.212,
+              "median_calls": 3.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 3076.79,
+          "median_ms": 2969.3695,
+          "p95_ms": 3319.254,
+          "peak_rss_bytes": 312901632,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 12.463,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 933.127,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 12.318,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 37.594,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 263.175,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 4.063,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 168.021,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 871.496,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 228.829,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.177,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 24.163,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 35.206,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 13.232,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 55.097,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 780.908,
+              "median_calls": 495.0
+            },
+            "input.parse-py": {
+              "median_ms": 98.763,
+              "median_calls": 3.0
+            },
+            "input.read": {
+              "median_ms": 68.409,
+              "median_calls": 639.0
+            }
+          }
+        },
+        "median_reduction_percent": 52.65
+      }
+    },
+    {
+      "case": "crimes-source",
+      "command": "hook",
+      "source": {
+        "sha256": "669af6e27e13c7791d07007e48b52be65076303b3231905e3d9040efa1bc5906",
+        "files": 4199
+      },
+      "files_analyzed": null,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 5866.615,
+          "median_ms": 6006.7275,
+          "p95_ms": 6488.887,
+          "peak_rss_bytes": 299679744
+        },
+        "after": {
+          "first_ms": 2787.214,
+          "median_ms": 2827.33,
+          "p95_ms": 2902.799,
+          "peak_rss_bytes": 312868864
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 5905.662,
+          "median_ms": 5901.5869999999995,
+          "p95_ms": 6517.403,
+          "peak_rss_bytes": 306135040,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 12.209,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 1842.387,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 12.027,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 35.781,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 815.161,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 4.348,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 857.849,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 848.541,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 231.326,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.194,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 20.244,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 69.015,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 780.823,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 55.842,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 704.544,
+              "median_calls": 495.0
+            },
+            "parse.detector-py": {
+              "median_ms": 7.01,
+              "median_calls": 3.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 3164.87,
+          "median_ms": 2947.8385,
+          "p95_ms": 3262.866,
+          "peak_rss_bytes": 311689216,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 12.27,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 918.287,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 11.825,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 35.307,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 259.248,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 4.273,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 162.639,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 877.745,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 227.458,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.175,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 24.039,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 35.199,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 13.197,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 53.515,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 784.694,
+              "median_calls": 495.0
+            },
+            "input.parse-py": {
+              "median_ms": 96.71,
+              "median_calls": 3.0
+            },
+            "input.read": {
+              "median_ms": 63.454,
+              "median_calls": 639.0
+            }
+          }
+        },
+        "median_reduction_percent": 50.05
+      }
+    },
+    {
+      "case": "python-generated",
+      "command": "scan",
+      "source": {
+        "sha256": "f8972a4113af7f5dc5c1e8bba5ac3bda5822c800a13d2405592ef4d17b109395",
+        "files": 322
+      },
+      "files_analyzed": 322,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 605.852,
+          "median_ms": 533.7674999999999,
+          "p95_ms": 619.055,
+          "peak_rss_bytes": 210960384
+        },
+        "after": {
+          "first_ms": 418.414,
+          "median_ms": 415.783,
+          "p95_ms": 418.283,
+          "peak_rss_bytes": 206307328
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 538.712,
+          "median_ms": 557.7574999999999,
+          "p95_ms": 634.628,
+          "peak_rss_bytes": 209305600,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.62,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 166.744,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.449,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 15.08,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 8.892,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.036,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.076,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 2.607,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 81.439,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.188,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 3.279,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 1.002,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.542,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 2.301,
+              "median_calls": 1.0
+            },
+            "parse.detector-py": {
+              "median_ms": 32.669,
+              "median_calls": 321.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 411.201,
+          "median_ms": 433.2575,
+          "p95_ms": 443.525,
+          "peak_rss_bytes": 206831616,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.518,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 63.841,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 2.965,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 14.293,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 8.985,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.038,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.078,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 2.538,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 80.922,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.2,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.771,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 1.049,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.532,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 2.236,
+              "median_calls": 1.0
+            },
+            "input.parse-py": {
+              "median_ms": 15262.025,
+              "median_calls": 321.0
+            },
+            "input.read": {
+              "median_ms": 4511.886,
+              "median_calls": 322.0
+            }
+          }
+        },
+        "median_reduction_percent": 22.32
+      }
+    },
+    {
+      "case": "python-generated",
+      "command": "context",
+      "source": {
+        "sha256": "f8972a4113af7f5dc5c1e8bba5ac3bda5822c800a13d2405592ef4d17b109395",
+        "files": 322
+      },
+      "files_analyzed": 322,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 520.21,
+          "median_ms": 526.697,
+          "p95_ms": 638.453,
+          "peak_rss_bytes": 210288640
+        },
+        "after": {
+          "first_ms": 428.421,
+          "median_ms": 427.8375,
+          "p95_ms": 450.396,
+          "peak_rss_bytes": 208814080
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 565.775,
+          "median_ms": 541.656,
+          "p95_ms": 611.041,
+          "peak_rss_bytes": 213565440,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.419,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 147.273,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 2.724,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 13.859,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 8.813,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.985,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.072,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 2.63,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 78.363,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.168,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.808,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 1.045,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.543,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 2.148,
+              "median_calls": 1.0
+            },
+            "parse.detector-py": {
+              "median_ms": 29.174,
+              "median_calls": 321.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 416.913,
+          "median_ms": 431.3885,
+          "p95_ms": 455.416,
+          "peak_rss_bytes": 207224832,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.3,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 62.026,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 2.766,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 14.271,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 8.579,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.08,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.076,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 2.537,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 80.507,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.195,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.846,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 1.012,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.53,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 2.176,
+              "median_calls": 1.0
+            },
+            "input.parse-py": {
+              "median_ms": 15205.642,
+              "median_calls": 321.0
+            },
+            "input.read": {
+              "median_ms": 4250.859,
+              "median_calls": 322.0
+            }
+          }
+        },
+        "median_reduction_percent": 20.36
+      }
+    },
+    {
+      "case": "python-generated",
+      "command": "hook",
+      "source": {
+        "sha256": "f8972a4113af7f5dc5c1e8bba5ac3bda5822c800a13d2405592ef4d17b109395",
+        "files": 322
+      },
+      "files_analyzed": null,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 574.678,
+          "median_ms": 537.7105,
+          "p95_ms": 644.242,
+          "peak_rss_bytes": 213237760
+        },
+        "after": {
+          "first_ms": 432.621,
+          "median_ms": 416.86249999999995,
+          "p95_ms": 440.629,
+          "peak_rss_bytes": 207486976
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 518.913,
+          "median_ms": 605.6424999999999,
+          "p95_ms": 774.649,
+          "peak_rss_bytes": 210944000,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.529,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 166.185,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 2.877,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 13.678,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 9.124,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.098,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.07,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 2.615,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 80.452,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.177,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.939,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 1.078,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.539,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 2.161,
+              "median_calls": 1.0
+            },
+            "parse.detector-py": {
+              "median_ms": 31.427,
+              "median_calls": 321.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 420.581,
+          "median_ms": 448.416,
+          "p95_ms": 542.804,
+          "peak_rss_bytes": 206946304,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.405,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 65.037,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.556,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 14.468,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 9.527,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.064,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 0.076,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 2.624,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 88.663,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.199,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 3.189,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 1.083,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 0.557,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 2.298,
+              "median_calls": 1.0
+            },
+            "input.parse-py": {
+              "median_ms": 17164.995,
+              "median_calls": 321.0
+            },
+            "input.read": {
+              "median_ms": 4581.055,
+              "median_calls": 322.0
+            }
+          }
+        },
+        "median_reduction_percent": 25.96
+      }
+    },
+    {
+      "case": "mixed-generated",
+      "command": "scan",
+      "source": {
+        "sha256": "ecb2fd9b4044e3afb02a4673c5ba778fd8f14dd947d817760cfca2d805177476",
+        "files": 482
+      },
+      "files_analyzed": 482,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 773.142,
+          "median_ms": 788.082,
+          "p95_ms": 865.688,
+          "peak_rss_bytes": 219938816
+        },
+        "after": {
+          "first_ms": 505.069,
+          "median_ms": 521.672,
+          "p95_ms": 532.418,
+          "peak_rss_bytes": 216858624
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 770.891,
+          "median_ms": 780.8489999999999,
+          "p95_ms": 870.589,
+          "peak_rss_bytes": 223150080,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.876,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 255.793,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.319,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 15.128,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 9.341,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.064,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 25.415,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 42.243,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 88.551,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.201,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.969,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 18.125,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 35.694,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 7.219,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 16.936,
+              "median_calls": 160.0
+            },
+            "parse.detector-py": {
+              "median_ms": 30.57,
+              "median_calls": 321.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 545.784,
+          "median_ms": 537.6295,
+          "p95_ms": 561.147,
+          "peak_rss_bytes": 217399296,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 3.035,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 112.787,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.166,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 15.031,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 8.891,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.101,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 4.751,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 41.903,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 86.526,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.218,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.734,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 2.826,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 2.829,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 7.88,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 29.967,
+              "median_calls": 160.0
+            },
+            "input.parse-py": {
+              "median_ms": 15420.909,
+              "median_calls": 321.0
+            },
+            "input.read": {
+              "median_ms": 4142.293,
+              "median_calls": 482.0
+            }
+          }
+        },
+        "median_reduction_percent": 31.15
+      }
+    },
+    {
+      "case": "mixed-generated",
+      "command": "context",
+      "source": {
+        "sha256": "ecb2fd9b4044e3afb02a4673c5ba778fd8f14dd947d817760cfca2d805177476",
+        "files": 482
+      },
+      "files_analyzed": 482,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 771.989,
+          "median_ms": 733.6465000000001,
+          "p95_ms": 840.617,
+          "peak_rss_bytes": 220823552
+        },
+        "after": {
+          "first_ms": 524.906,
+          "median_ms": 536.8265,
+          "p95_ms": 568.646,
+          "peak_rss_bytes": 219283456
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 754.641,
+          "median_ms": 764.279,
+          "p95_ms": 802.73,
+          "peak_rss_bytes": 222855168,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.66,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 248.066,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.115,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 14.628,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 8.404,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 0.951,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 24.706,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 39.408,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 86.738,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.194,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.783,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 15.454,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 33.796,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 6.677,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 16.183,
+              "median_calls": 160.0
+            },
+            "parse.detector-py": {
+              "median_ms": 30.145,
+              "median_calls": 321.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 544.61,
+          "median_ms": 533.8425,
+          "p95_ms": 566.541,
+          "peak_rss_bytes": 216858624,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.885,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 111.992,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.084,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 14.731,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 8.802,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.074,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 4.714,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 40.762,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 84.744,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.208,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.692,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 2.647,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 2.765,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 7.312,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 29.131,
+              "median_calls": 160.0
+            },
+            "input.parse-py": {
+              "median_ms": 15477.355,
+              "median_calls": 321.0
+            },
+            "input.read": {
+              "median_ms": 3984.344,
+              "median_calls": 482.0
+            }
+          }
+        },
+        "median_reduction_percent": 30.15
+      }
+    },
+    {
+      "case": "mixed-generated",
+      "command": "hook",
+      "source": {
+        "sha256": "ecb2fd9b4044e3afb02a4673c5ba778fd8f14dd947d817760cfca2d805177476",
+        "files": 482
+      },
+      "files_analyzed": null,
+      "stable_equal_reports": true,
+      "initial": {
+        "before": {
+          "first_ms": 803.349,
+          "median_ms": 743.8335,
+          "p95_ms": 955.962,
+          "peak_rss_bytes": 222707712
+        },
+        "after": {
+          "first_ms": 588.617,
+          "median_ms": 541.0245,
+          "p95_ms": 563.441,
+          "peak_rss_bytes": 219021312
+        }
+      },
+      "paired": {
+        "before": {
+          "first_ms": 786.723,
+          "median_ms": 818.895,
+          "p95_ms": 1021.63,
+          "peak_rss_bytes": 221872128,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.833,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 285.065,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.403,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 14.993,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 8.724,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.076,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 26.389,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 42.235,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 90.153,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.195,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.629,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 18.503,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 40.617,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 7.883,
+              "median_calls": 1.0
+            },
+            "parse.detector-js": {
+              "median_ms": 19.574,
+              "median_calls": 160.0
+            },
+            "parse.detector-py": {
+              "median_ms": 31.562,
+              "median_calls": 321.0
+            }
+          }
+        },
+        "after": {
+          "first_ms": 547.912,
+          "median_ms": 569.376,
+          "p95_ms": 771.24,
+          "peak_rss_bytes": 219283456,
+          "phases": {
+            "detectors.assets": {
+              "median_ms": 2.923,
+              "median_calls": 1.0
+            },
+            "detectors.files": {
+              "median_ms": 118.474,
+              "median_calls": 1.0
+            },
+            "discovery.assets": {
+              "median_ms": 3.213,
+              "median_calls": 1.0
+            },
+            "discovery.source": {
+              "median_ms": 14.788,
+              "median_calls": 1.0
+            },
+            "discovery.warnings": {
+              "median_ms": 8.948,
+              "median_calls": 1.0
+            },
+            "index.agent-config": {
+              "median_ms": 1.118,
+              "median_calls": 1.0
+            },
+            "index.function-hash": {
+              "median_ms": 4.943,
+              "median_calls": 1.0
+            },
+            "index.ia": {
+              "median_ms": 41.292,
+              "median_calls": 1.0
+            },
+            "index.imports": {
+              "median_ms": 91.896,
+              "median_calls": 1.0
+            },
+            "index.jsx": {
+              "median_ms": 0.214,
+              "median_calls": 1.0
+            },
+            "index.manifest": {
+              "median_ms": 2.938,
+              "median_calls": 1.0
+            },
+            "index.petty": {
+              "median_ms": 2.965,
+              "median_calls": 1.0
+            },
+            "index.risk": {
+              "median_ms": 2.912,
+              "median_calls": 1.0
+            },
+            "index.scoring": {
+              "median_ms": 7.839,
+              "median_calls": 1.0
+            },
+            "input.parse-js": {
+              "median_ms": 29.515,
+              "median_calls": 160.0
+            },
+            "input.parse-py": {
+              "median_ms": 16967.136,
+              "median_calls": 321.0
+            },
+            "input.read": {
+              "median_ms": 3964.262,
+              "median_calls": 482.0
+            }
+          }
+        },
+        "median_reduction_percent": 30.47
+      }
+    }
+  ],
+  "raw_archives": {
+    "performance-baseline-final": {
+      "file": "performance-baseline-final.json.gz",
+      "uncompressed_sha256": "5891f1a986c77d17c7aadd9aef7e7b1a90ca34590e5b8e190cc5140d9406cf80"
+    },
+    "performance-candidate-final": {
+      "file": "performance-candidate-final.json.gz",
+      "uncompressed_sha256": "7b56082d430ee69529d85fc7f4d48622e6120f35cdc303745b6eafe32faf65d7"
+    },
+    "performance-paired-final": {
+      "file": "performance-paired-final.json.gz",
+      "uncompressed_sha256": "94ba24281a0661fb961d56c68a23d5d04fc214bf7ec2dc3a790c20fd31a793cc"
+    }
+  },
+  "limitations": [
+    "Eight fixed cases on one machine; synthetic scaling cases are not real-world precision evidence.",
+    "First measured is not flushed OS disk cache; each sample uses a new Node process.",
+    "Ten repeats give a coarse p95. OS activity remains uncontrolled.",
+    "The first sequential batch had a TSX slowdown that did not reproduce under alternating adjacent processes; both sets retained.",
+    "Phase timings overlap and are not additive CPU time.",
+    "Peak RSS includes native/object overhead beyond the 32 MiB retained-data accounting budget.",
+    "Context and hook still analyze the full repository. No persistent cache or universal speedup claim."
+  ],
+  "candidate_scope": "Analysis optimization snapshot, before scoped literal-scatter advice changes; executable hashes identify the exact builds."
+}

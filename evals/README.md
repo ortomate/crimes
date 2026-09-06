@@ -1,9 +1,11 @@
 # crimes evals
 
 Current methods and limitations: [docs/evals.md](../docs/evals.md).
-`pnpm evals:outcomes -- --run` adds paired executable edits; the initial
-0.28 trial ties at 3/3 per arm. It is distinct from the older response
-rubric below. 0.28's ranking baseline uses revised default scenarios and
+`pnpm evals:outcomes` validates the twelve task oracles without agent calls.
+Live edits use `python3 scripts/eval-outcomes.py --run` with an explicit
+package, models and output directory; see the methods link for full commands.
+This completed-edit benchmark is distinct from the older response rubric
+below. 0.28's ranking baseline uses revised default scenarios and
 six claim/subject-specific label sets; do not compare its aggregate to an
 older scenario population without replaying both builds on these labels.
 

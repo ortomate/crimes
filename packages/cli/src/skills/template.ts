@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 // Bump when the workflow changes, independently of scanner-only releases.
-export const SKILL_VERSION = "0.28.2";
+export const SKILL_VERSION = "0.29.0";
 export const SKILL_PATHS = {
   claude: ".claude/skills/crimes/SKILL.md",
   codex: ".agents/skills/crimes/SKILL.md",
@@ -15,15 +15,18 @@ description: Inspect change risk with crimes when planning, editing or reviewing
 # crimes workflow
 
 Work from the intended repository root and follow its AGENTS.md and test
-policy. Prefer \`./node_modules/.bin/crimes\` when present, or the project's
-package-manager script. Only fall back to \`crimes\` on PATH when the project
-has no local installation; a global CLI may be a different version.
+policy. Select the executable once: use \`./node_modules/.bin/crimes\` when it
+exists, or the project's script that resolves that local installation.
 In the crimes source checkout, use \`node packages/cli/dist/index.js\` after
-building. Check \`--version\`; keep the same executable before and after edits.
+building. For a global-only installation, resolve \`command -v crimes\` and
+retain its absolute path. Check \`--version\` through the selected executable.
+Keep that exact path before and after edits; shell PATH can change between
+commands and a global CLI can be older than the project's package.
 If none is installed, report that limitation; do not silently download or
-upgrade tools. The commands below use \`crimes\` as shorthand for that executable.
+upgrade tools. Examples below use the local path. Substitute the selected
+source-checkout or absolute global command only when no local install exists.
 
-Before editing, run \`crimes context <file> --root . --format json\`.
+Before editing, run \`./node_modules/.bin/crimes context <file> --root . --format json\`.
 Without \`--root\`, context uses the nearest package/project root and may
 omit monorepo consumers. Read \`analysis_status\`, \`coverage.warnings\`,
 \`agent_guidance\`, evidence, related files and likely tests. Investigate
@@ -31,7 +34,7 @@ omit monorepo consumers. Read \`analysis_status\`, \`coverage.warnings\`,
 does not establish safety; \`test_gap\` describes discovery, not test coverage.
 
 Retain a pre-edit JSON scan for the intended files, for example
-\`crimes scan --files src/a.ts,src/b.ts --format json\`. Store snapshots outside
+\`./node_modules/.bin/crimes scan --files src/a.ts,src/b.ts --format json\`. Store snapshots outside
 the scanned sources (a temporary directory is suitable). For import neighbors,
 use \`scan --related-to src/api.ts --format json\`. Context and scoped scans
 still analyze the repository; smaller output does not promise a cheaper scan.
@@ -49,20 +52,22 @@ new-findings-only gate. For committed branch changes use \`verdict --base
 Run the repository's behavior tests independently. Handle new high findings
 according to its policy, explaining evidence and uncertainty. Do not turn
 unrelated findings into extra work or silently change thresholds/suppressions.
+Preserve useful regression coverage. Do not delete test checks or move them
+to a one-off command solely to make the risk report clean.
 Exit 2 means a usage/environment error; exit 1 can mean a configured gate
 failed. A successful exit does not establish complete analysis or safety.
 
-Within the user's scope, record a false positive with \`crimes feedback
+Within the user's scope, record a false positive with \`./node_modules/.bin/crimes feedback
 <fingerprint> --verdict fp --note "<reason>"\`. This writes feedback and a
 suppression. Reconfirm resurfaced feedback with the user. For stale identities,
-preview \`crimes migrate-pins --format json\`, review candidates, then apply
+preview \`./node_modules/.bin/crimes migrate-pins --format json\`, review candidates, then apply
 the reviewed file. An absent observation is not proof of a resolved problem;
 never silently renew an expiry or prior decision.
 
 Summarize the evidence and tests that affect the task. Human output is useful
 for terminal reports; do not rerun analysis solely to repeat its formatting.
 Normal CLI use reports outdated skills on stderr. If that notice appears,
-run \`crimes init --refresh-skills\` from the named project root to update
+run \`./node_modules/.bin/crimes init --refresh-skills\` from the named project root to update
 unchanged generated copies; \`--check\` previews without writing. Review
 customized-file diffs before replacing. CI skips maintenance; use
 \`--no-skill-update\` when a task requires no maintenance notices or updates.

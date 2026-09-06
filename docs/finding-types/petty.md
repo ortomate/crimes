@@ -142,11 +142,14 @@ representative files: src/api/plan.ts:2, src/billing.ts:7, src/jobs/plan-sync.ts
 ```
 
 **Why it matters.** Repeated plan, role, status, feature, or billing strings
-often become duplicated policy. Agents tend to add one more copy instead of
-finding or creating the source of truth.
+can indicate duplicated policy, but the same literal may also belong to
+intentionally separate legacy or versioned behavior. Inspect the consumers
+before deciding whether one definition should own every occurrence.
 
-**Suggested fix.** Move the literal to a named constant, enum, schema,
-registry, or policy module before adding another occurrence.
+**Suggested fix.** Reuse an existing definition when the occurrences share
+one policy. Keep consolidation separate unless the requested change needs
+it, and preserve public and fallback behavior. A repetition finding is not
+a requirement to introduce an abstraction during a small behavior edit.
 
 **False-positive notes.**
 

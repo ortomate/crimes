@@ -1,0 +1,2 @@
+import assert from "node:assert/strict";import {options as api} from "./src/api/request.js";import {options as worker} from "./src/worker/request.js";import {databaseTimeout} from "./src/api/config.js";
+for(const f of [api,worker]){assert.deepEqual(f({}),{timeout:5000});assert.deepEqual(f({HTTP_TIMEOUT_MS:"0"}),{timeout:0});assert.deepEqual(f({HTTP_TIMEOUT_MS:"125"}),{timeout:125});}assert.equal(databaseTimeout({}),3000);assert.equal(databaseTimeout({DB_TIMEOUT_MS:"0"}),0);

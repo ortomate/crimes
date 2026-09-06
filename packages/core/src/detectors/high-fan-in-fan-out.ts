@@ -9,8 +9,8 @@ import type { ImportGraph } from "../imports/types.js";
  *
  * The detector is intentionally non-judgemental: high fan-in is often a
  * deliberate shared utility, not a bug. The wedge is agent-edit-risk —
- * surfacing these files as "rippling" so an agent making a small change
- * understands how many other files will need a re-read.
+ * surfacing dependency relationships so an agent can inspect consumers
+ * and dependencies without treating connectivity as a refactoring order.
  */
 export const highFanInFanOutDetector: LanguageJsDetector = {
   id: "high_fan_in_fan_out",
@@ -19,10 +19,10 @@ export const highFanInFanOutDetector: LanguageJsDetector = {
     "Flags files with unusually many importers (fan-in) or imports " +
     "(fan-out) relative to the repo's distribution.",
   whyItMatters:
-    "Files this connected ripple widely on every edit: small refactors " +
-    "touch many call sites, and small bugs reach many consumers. An " +
-    "agent should treat them as load-bearing — read the importers before " +
-    "renaming or restructuring.",
+    "Many importers can spread a change; many imports expose a file to " +
+    "changes in its dependencies. Review the relevant edges before editing. " +
+    "Shared hubs and integration tests can be connected by design; " +
+    "connectivity alone does not justify restructuring or removing tests.",
 
   pack: "language-js",
   run(ctx) {
@@ -105,11 +105,11 @@ export const highFanInFanOutDetector: LanguageJsDetector = {
       file: ctx.file,
       summary:
         `${ctx.file} appears to be in the repo's top connectivity tier (` +
-        `fan-in ${fanIn}, fan-out ${fanOut}). Edits here ripple widely; ` +
-        "treat as load-bearing before refactoring.",
+        `fan-in ${fanIn}, fan-out ${fanOut}). Review the dependency relationships; ` +
+        "connectivity alone is not a defect.",
       evidence,
       effort: "medium",
-      fix_shape: "split or invert: too many consumers means too much coupling",
+      fix_shape: "review dependency edges; restructure only for an evidenced problem",
       scores: {
         severity: severityScore(severity),
         confidence,
@@ -118,8 +118,9 @@ export const highFanInFanOutDetector: LanguageJsDetector = {
         {
           kind: "treat_as_load_bearing",
           description:
-            "Before changing this file, read the importers / imports list " +
-            "and prefer additive changes over restructuring.",
+            "Read the relevant importers and dependencies before editing. " +
+            "Preserve useful regression tests; do not remove checks or imports " +
+            "solely to clear a connectivity finding.",
           risk: "low",
         },
       ],

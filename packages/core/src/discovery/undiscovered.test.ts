@@ -70,6 +70,25 @@ async function warningsFor(root: string, exclude = EXCLUDE) {
 }
 
 describe("collectDiscoveryWarnings", () => {
+  it("preserves exclusions and literal glob characters across large inventories", async () => {
+    const files: Record<string, string> = { "src/main.ts": "export const value = 1;" };
+    for (let i = 0; i < 160; i++) {
+      files[`screens/page[${i}].vue`] = "<template>screen</template>";
+      files[`skipped/page(${i}).vue`] = "<template>generated</template>";
+    }
+    const root = await makeRepo(files);
+    const warnings = await warningsFor(root, ["**/skipped/**"]);
+    expect(warnings.find((warning) => warning.kind === "files_excluded")?.files).toBe(
+      160,
+    );
+    expect(
+      warnings.find((warning) => warning.kind === "files_not_discovered")?.files,
+    ).toBe(160);
+    expect(
+      warnings.find((warning) => warning.kind === "files_not_discovered")?.subject,
+    ).toBe(".vue");
+  });
+
   it("reports files whose extension no include glob matches", async () => {
     // The n8n case: 1,226 .vue files that appear in no coverage field at
     // all today, because discovery never returns them and every existing

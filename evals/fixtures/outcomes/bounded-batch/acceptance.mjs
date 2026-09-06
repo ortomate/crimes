@@ -1,0 +1,2 @@
+import assert from "node:assert/strict";import {dispatch} from "./src/handler.js";
+let active=0,peak=0;const result=await dispatch([0,1,2,3,4,5,6,7],async i=>{active++;peak=Math.max(peak,active);await new Promise(r=>setTimeout(r,(8-i)*2));active--;return i*2;});assert.deepEqual(result,[0,2,4,6,8,10,12,14]);assert.ok(peak<=3);assert.ok(peak>=2,"preserve useful concurrency");assert.deepEqual(await dispatch([],()=>{throw new Error("empty")}),[]);const error=new Error("send");await assert.rejects(dispatch([1],async()=>{throw error}),e=>e===error);

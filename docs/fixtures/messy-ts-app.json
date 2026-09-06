@@ -161,7 +161,7 @@
         "representative files: src/api/plan.ts:2, src/billing.ts:7, src/jobs/plan-sync.ts:2, src/ui/pricing.ts:2"
       ],
       "effort": "small",
-      "fix_shape": "promote the literal to a named constant in one module",
+      "fix_shape": "reuse an existing definition when the occurrences share one policy",
       "scores": {
         "severity": 0.5,
         "confidence": 0.85,
@@ -176,7 +176,7 @@
       "suggested_actions": [
         {
           "kind": "centralise_domain_literal",
-          "description": "Move the literal to a named constant, enum, schema, registry, or policy module before adding another copy.",
+          "description": "Confirm shared policy and intentional variants first. Reuse an existing definition where available; centralise only within the requested change, preserving public and fallback behavior.",
           "risk": "medium"
         }
       ],

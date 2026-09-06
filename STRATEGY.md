@@ -2,7 +2,7 @@
 stage: pre-PMF
 posture: active
 visibility: shared
-last reviewed: 2026-09-06
+last reviewed: 2026-09-07
 promoted: 2026-09-04, from docs/strategy-drafts, on Andrew's word
 ---
 
@@ -26,8 +26,9 @@ verification of that work.
 - The default report prioritizes consequential risks without rewarding
   repeated instances of one mild claim.
 - Acceptance-tested paired edits measure whether crimes helps agents
-  complete changes. The first three tasks tie at 3/3 per arm; they establish
-  a harness, not a measured benefit. Broader, repeated tasks are needed.
+  complete changes. The twelve-task suite adds repetitions and installed
+  host workflows, but remains synthetic. Treat its acceptance results and
+  integration cost separately; general benefit needs representative work.
 - Users can preserve reasons and ownership through identity migrations,
   and distinguish an empty finding list from incomplete analysis.
 

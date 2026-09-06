@@ -23,6 +23,7 @@ import { extname } from "node:path";
 import { promisify } from "node:util";
 import fg from "fast-glob";
 import type { CoverageWarningLog } from "./coverage-warnings.js";
+import { mapWithConcurrency } from "../util/concurrency.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -147,22 +148,31 @@ async function partitionByExclude(args: {
   }
   let survivors: Set<string>;
   try {
-    const kept = await fg(
-      args.candidates.map((rel) => fg.escapePath(rel)),
-      {
-        cwd: args.root,
-        ignore: [...args.exclude],
-        absolute: false,
-        // `false` on purpose: a symlinked file fails an `onlyFiles`
-        // check with `followSymbolicLinks: false`, and dropping it here
-        // would misattribute it to the exclude list.
-        onlyFiles: false,
-        dot: true,
-        followSymbolicLinks: false,
-        suppressErrors: true,
-      },
+    // fast-glob compiles the supplied static patterns into each task's
+    // matcher. Thousands of literal paths made this coverage-only step
+    // quadratic. Bounded batches preserve its exact matcher/stat semantics.
+    const batches: string[][] = [];
+    for (let i = 0; i < args.candidates.length; i += 128) {
+      batches.push(args.candidates.slice(i, i + 128).map((rel) => fg.escapePath(rel)));
+    }
+    const kept = await mapWithConcurrency(
+      batches,
+      (patterns) =>
+        fg(patterns, {
+          cwd: args.root,
+          ignore: [...args.exclude],
+          absolute: false,
+          // `false` on purpose: a symlinked file fails an `onlyFiles`
+          // check with `followSymbolicLinks: false`, and dropping it here
+          // would misattribute it to the exclude list.
+          onlyFiles: false,
+          dot: true,
+          followSymbolicLinks: false,
+          suppressErrors: true,
+        }),
+      4,
     );
-    survivors = new Set(kept);
+    survivors = new Set(kept.flat());
   } catch {
     // Attribution failed; report every missed file as undiscovered
     // rather than losing the whole warning set to a matcher problem.

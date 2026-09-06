@@ -1,3 +1,4 @@
+import type { AnalysisInputs } from "../analysis-inputs.js";
 /**
  * Repo-wide JSX shape index for the duplicate-component-shape detector.
  *
@@ -28,6 +29,7 @@ export interface JsxShapeIndex {
 }
 
 export interface BuildJsxShapeIndexOptions {
+  inputs?: AnalysisInputs;
   /** Absolute repo root. */
   root: string;
   /** Absolute paths discovered by the scan. */
@@ -67,14 +69,18 @@ export async function buildJsxShapeIndex(
     const repoPath = toRepoPath(options.root, abs);
     let source: string;
     try {
-      source = await readFile(abs, "utf8");
+      source = options.inputs
+        ? await options.inputs.read(abs)
+        : await readFile(abs, "utf8");
     } catch (err) {
       options.warnings?.record("files_unreadable", errnoOf(err), { file: repoPath });
       return hits;
     }
     let parsed: ReturnType<typeof parseFile>;
     try {
-      parsed = parseFile({ absolutePath: abs, source });
+      parsed = options.inputs
+        ? options.inputs.js(abs, source)
+        : parseFile({ absolutePath: abs, source });
     } catch {
       options.warnings?.record("files_unparsed", "language-js", { file: repoPath });
       return hits;

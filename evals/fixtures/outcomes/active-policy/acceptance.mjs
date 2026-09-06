@@ -1,0 +1,2 @@
+import assert from "node:assert/strict";import {total} from "./src/current/checkout.js";import {total as legacy} from "./src/legacy/checkout.js";
+for(const cents of [0,1,99,101,10000]) {assert.equal(total("team",cents),cents-Math.floor(cents*.15));assert.equal(legacy("team",cents),cents-Math.floor(cents*.1));assert.equal(total("free",cents),cents);assert.equal(total("enterprise",cents),cents-Math.floor(cents*.2));}

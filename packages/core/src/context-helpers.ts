@@ -40,7 +40,7 @@ const GUIDANCE: Record<string, string> = {
   name_behavior_mismatch:
     "Safe-sounding names may hide side effects — inspect callers before moving, caching, or duplicating them.",
   magic_domain_literal_scatter:
-    "Repeated domain literals can be duplicated policy — find or create the source of truth before adding another copy.",
+    "Inspect related consumers and preserve intentional policy variants. Reuse existing authority when available; keep consolidation separate unless the requested change needs it.",
   weak_test_signal:
     "Nearby tests may not protect behaviour; inspect assertions before treating them as safety coverage.",
   option_bag_junk_drawer:

@@ -1,3 +1,5 @@
+import { profileAsync } from "./profile.js";
+import type { AnalysisInputs } from "./analysis-inputs.js";
 import { basename, isAbsolute, relative, resolve } from "node:path";
 import { discoverFiles } from "./discovery/index.js";
 import type { ToolingSkip } from "./manifest/tooling-excludes.js";
@@ -135,6 +137,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
 /** Internal shared entry point. Context selects its target from the complete corpus. */
 export async function analyseRepository(
   options: ScanOptions = {},
+  inputsForAnalysis?: AnalysisInputs,
 ): Promise<RepositoryAnalysis> {
   const root = resolve(options.root ?? process.cwd());
   const config =
@@ -146,11 +149,18 @@ export async function analyseRepository(
   const assetDetectors =
     options.assetDetectors ??
     filterAssetDetectors(builtInAssetDetectors, config, knownIds);
-  const inputs = await resolveScanInputs({ root, config, options });
+  const inputs = await profileAsync("discovery.source", () =>
+    resolveScanInputs({ root, config, options }),
+  );
   const assetFiles =
-    assetDetectors.length > 0 ? await discoverAssetFiles(root, config) : [];
-  const warnings = await discoveryWarnings(root, config, inputs, assetFiles);
+    assetDetectors.length > 0
+      ? await profileAsync("discovery.assets", () => discoverAssetFiles(root, config))
+      : [];
+  const warnings = await profileAsync("discovery.warnings", () =>
+    discoveryWarnings(root, config, inputs, assetFiles),
+  );
   const indexes = await buildScanIndexes({
+    inputs: inputsForAnalysis,
     root,
     config,
     allFiles: inputs.allFiles,
@@ -164,16 +174,20 @@ export async function analyseRepository(
     warnings,
   });
   const langPack = resolveLanguagePackRouter();
-  const findings = await runDetectorsForFiles({
-    root,
-    files: inputs.allFiles,
-    detectors,
-    config,
-    indexes,
-    langPack,
-  });
+  const findings = await profileAsync("detectors.files", () =>
+    runDetectorsForFiles({
+      root,
+      files: inputs.allFiles,
+      detectors,
+      config,
+      indexes,
+      langPack,
+    }),
+  );
   findings.push(
-    ...(await runAssetDetectorsForRoot({ root, config, detectors: assetDetectors })),
+    ...(await profileAsync("detectors.assets", () =>
+      runAssetDetectorsForRoot({ root, config, detectors: assetDetectors }),
+    )),
   );
   // Run against the complete corpus even for a working set: cross-language
   // and anchored repo findings must see both sides before selecting results.

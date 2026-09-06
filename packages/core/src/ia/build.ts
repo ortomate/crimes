@@ -1,3 +1,4 @@
+import type { AnalysisInputs } from "../analysis-inputs.js";
 /**
  * Build the IA signal index for a repo.
  *
@@ -42,6 +43,7 @@ const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
 const _MD_EXT = /\.(md|mdx)$/i;
 
 export interface BuildIaIndexOptions {
+  inputs?: AnalysisInputs;
   /** Absolute repo root. */
   root: string;
   /**
@@ -62,7 +64,12 @@ export interface BuildIaIndexOptions {
 export async function buildIaIndex(options: BuildIaIndexOptions): Promise<IaIndex> {
   const root = resolve(options.root);
   const aliasGroups = options.aliasGroups ?? DEFAULT_ALIAS_GROUPS;
-  const sourceSignals = collectSourceSignals(root, options.files, options.warnings);
+  const sourceSignals = collectSourceSignals(
+    root,
+    options.files,
+    options.warnings,
+    options.inputs,
+  );
   const docs = await collectDocs(root);
   const agentContext = await collectAgentInventory(root, docs);
 
@@ -81,13 +88,14 @@ function collectSourceSignals(
   root: string,
   absoluteFiles: string[],
   warnings: CoverageWarningLog | undefined,
+  inputs?: AnalysisInputs,
 ): Pick<IaIndex, "files" | "routes" | "navSources"> {
   const files: Record<RepoPath, IaFileSignals> = {};
   const routes: IaRouteSignal[] = [];
   const navSources: IaIndex["navSources"] = [];
 
   for (const abs of absoluteFiles) {
-    const sourceSignal = readSourceSignal(root, abs, warnings);
+    const sourceSignal = readSourceSignal(root, abs, warnings, inputs);
     if (!sourceSignal) continue;
     files[sourceSignal.signal.file] = sourceSignal.signal;
     if (sourceSignal.route) routes.push(sourceSignal.route);
@@ -106,20 +114,21 @@ function readSourceSignal(
   root: string,
   abs: string,
   warnings: CoverageWarningLog | undefined,
+  inputs?: AnalysisInputs,
 ): { signal: IaFileSignals; route?: IaRouteSignal } | undefined {
   const rel = toRepoRel(root, abs);
   if (!SOURCE_EXT.test(rel)) return undefined;
 
   let source: string;
   try {
-    source = readFileSync(abs, "utf8");
+    source = inputs ? inputs.readSync(abs) : readFileSync(abs, "utf8");
   } catch (err) {
     warnings?.record("files_unreadable", errnoOf(err), { file: rel });
     return undefined;
   }
   let parsed: ParsedFile;
   try {
-    parsed = parseFile({ absolutePath: abs, source });
+    parsed = inputs ? inputs.js(abs, source) : parseFile({ absolutePath: abs, source });
   } catch {
     warnings?.record("files_unparsed", "language-js", { file: rel });
     return undefined;

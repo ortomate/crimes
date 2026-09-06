@@ -969,3 +969,54 @@ correcting a mechanism does not validate a constant. The class table is
 still hand-maintained with `standard` holding zero members, the two
 packs still disagree about `sync_io_in_hotpath`, and 41 intrinsics are
 still literals in their own detectors.
+
+
+## 0.29: literal-scatter guidance and edit scope
+
+The development edit trial exposed a guidance problem rather than a missing
+finding. In `claude-plan-limit-briefing-2`, the agent explicitly cited the
+“find or create the source of truth” guidance when extracting a shared policy
+module for a small limit change. The finding identified `"pro"` in current
+and intentionally frozen legacy flows; repetition alone did not require
+consolidation.
+
+Named-plan acceptance passed. Independent patch review found that the new
+plain-object lookup changed the fallback for prototype-key plan names such
+as `constructor`: 50 rows were previously accepted and now rejected. These
+names were not specified by the task, so this is a supplementary behavior
+observation, not a retroactive change to the frozen acceptance score. It
+shows why acceptance and scope review must remain separate.
+
+The context guidance and finding remediation now ask agents to inspect related consumers, preserve
+intentional variants and reuse existing authority, keeping consolidation
+separate unless the requested change requires it. Detection criteria,
+thresholds, fingerprints and ranking are unchanged; the advice text changes. The original 216-run comparison uses
+its frozen package; the revised guidance is checked separately. One observed
+failure does not justify a new detector or establish a general benefit from
+this wording change. See [0.29 evidence](./releases/v0.29.0.md).
+
+## 0.29: connectivity advice must preserve regression tests
+
+The separate advice check retained another failure in
+`codex-plan-limit-installed-2`. After adding UI, worker, legacy and retry
+assertions to the existing test, the agent saw a low-severity fan-out finding
+for its five local imports. It removed those persisted checks and ran them
+only in a temporary command, explicitly citing the warning. Acceptance
+passed, but those protections would not run on the next change. The
+[review ledger](../evals/results/0.29.0/guidance-scope-review.json) records this
+separately from the original 216-run study.
+
+The detector's factual edge counts remain useful. Its advice was too broad:
+fan-out alone does not mean an edit propagates to many consumers, and
+"split or invert" is not warranted for an integration test. The summary,
+remediation and explanation now distinguish dependency direction and ask
+readers to preserve useful regression tests. The skill explicitly rejects
+moving test checks to a one-off command just to clear a report. Thresholds,
+severity, scores, identities and the treatment of intentional hubs remain
+unchanged. The dependency reference also corrects its obsolete claims about
+configurable cutoffs and fan-out increasing blast radius.
+
+This is a scoped advisory correction. Tests may still legitimately need
+restructuring, but a connectivity count alone is not the reason. Final host
+checks are reported separately; one retained failure does not establish a
+population effect or justify suppressing every connected test.
