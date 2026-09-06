@@ -5,6 +5,8 @@ import {
   minorKey,
   resurfacedSuppressions,
   shellQuote,
+  SCHEMA_VERSION,
+  type FeedbackRecheckReport,
 } from "@crimes/core";
 import type { ResurfacedSuppression } from "@crimes/core";
 import type { Command } from "commander";
@@ -66,7 +68,7 @@ export function registerFeedbackRecheckSubcommand(parent: Command): void {
         process.stdout.write(
           JSON.stringify(
             {
-              schema_version: "0.1.0",
+              schema_version: SCHEMA_VERSION,
               report_type: "feedback_recheck",
               current_version: __CRIMES_VERSION__,
               current_minor: currentMinor,
@@ -77,7 +79,7 @@ export function registerFeedbackRecheckSubcommand(parent: Command): void {
                   mark_resolved: `crimes feedback ${shellQuote(r.fingerprint)} --verdict tp`,
                 },
               })),
-            },
+            } satisfies FeedbackRecheckReport,
             null,
             2,
           ) + "\n",

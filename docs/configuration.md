@@ -280,7 +280,7 @@ named in both does not run.
 > from 13 findings to 1.
 - An unknown detector id in either list raises a CLI error (exit `2`)
   — typos should not silently no-op. See the table in
-  [`json-schema.md`](./json-schema.md#type) for the full list of ids.
+  [generated reference](./reference.md#detectors) for the full list of ids.
 
 #### Disabling one claim
 

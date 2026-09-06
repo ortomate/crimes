@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 // Bump when the workflow changes, independently of scanner-only releases.
-export const SKILL_VERSION = "0.28.1";
+export const SKILL_VERSION = "0.28.2";
 export const SKILL_PATHS = {
   claude: ".claude/skills/crimes/SKILL.md",
   codex: ".agents/skills/crimes/SKILL.md",
@@ -61,9 +61,11 @@ never silently renew an expiry or prior decision.
 
 Summarize the evidence and tests that affect the task. Human output is useful
 for terminal reports; do not rerun analysis solely to repeat its formatting.
-After a CLI upgrade, \`crimes init --refresh-skills --check\` checks installed
-workflows without writing; \`crimes init --refresh-skills\` safely refreshes
-unchanged generated copies. Review customized-file diffs before replacing.
+Normal CLI use reports outdated skills on stderr. If that notice appears,
+run \`crimes init --refresh-skills\` from the named project root to update
+unchanged generated copies; \`--check\` previews without writing. Review
+customized-file diffs before replacing. CI skips maintenance; use
+\`--no-skill-update\` when a task requires no maintenance notices or updates.
 More detail: https://crimes.sh/docs/agent-usage/
 `;
 

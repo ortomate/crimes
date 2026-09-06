@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SCHEMA_VERSION } from "../finding.js";
+import type { ResurfacedSuppression } from "./recheck.js";
 
 /**
  * One verdict on one finding, captured by `crimes feedback` and stored
@@ -80,4 +81,16 @@ export interface FeedbackReport {
   source_file: string;
   entries: FeedbackEntry[];
   summary?: FeedbackSummary;
+}
+
+export interface FeedbackRecheckReport {
+  schema_version: typeof SCHEMA_VERSION;
+  report_type: "feedback_recheck";
+  current_version: string;
+  current_minor: string;
+  resurfaced: Array<
+    ResurfacedSuppression & {
+      commands: { reconfirm_fp: string; mark_resolved: string };
+    }
+  >;
 }

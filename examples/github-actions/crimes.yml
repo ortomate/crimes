@@ -1,74 +1,36 @@
-# Example GitHub Actions workflow that gates pull requests on the
-# `crimes` branch verdict. Copy this file to
-# `.github/workflows/crimes.yml` in your repository.
-#
-# By default this runs `crimes verdict --base origin/main --fail-on
-# new-high`, which exits non-zero only when the PR introduces a new
-# `severity: "high"` finding. Pre-existing high findings on `main` are
-# left alone — the gate is forward-only.
-#
-# Two commented alternatives at the bottom show the swaps for:
-#   - Mode A: `crimes scan --changed --fail-on high` — a narrow,
-#     changed-files-only gate. Good for repos that already have zero
-#     findings, or where you want to gate the diff itself rather than
-#     the whole branch.
-#   - Mode B: `crimes baseline check --fail-on medium` — a baseline
-#     gate. Good for legacy repos where you've committed
-#     `.crimes/baseline.json` and only want to fail on new debt.
-#
-# See `docs/ci.md` in the `crimes` repo for the full mode comparison.
-
+# Copy to .github/workflows/crimes.yml. Review the pinned CLI version on upgrades.
+# This gate compares committed PR changes; it excludes uncommitted working-tree edits.
 name: crimes
 
 on:
   pull_request:
-  push:
-    branches: [main]
 
 jobs:
   crimes:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (with full history)
+      - name: Checkout both compared refs
         uses: actions/checkout@v4
         with:
-          # `crimes verdict` and `crimes diff` need to resolve
-          # `origin/main` against the head of the branch. Shallow clones
-          # (`fetch-depth: 1`, the default) make that resolution fail
-          # with exit code 2 ("no default base"). Either fetch everything
-          # (simplest), or fetch the base ref explicitly:
-          #   - run: git fetch --depth=1 origin ${{ github.base_ref || 'main' }}
           fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          # `crimes` requires Node >= 18.
-          node-version: "20"
+          node-version: "22"
 
       - name: Install crimes
-        run: npm install -g crimes
+        run: npm install -g crimes@0.28.2
 
-      - name: Run crimes verdict (gate on any new high)
-        # Default recommended gate: advisory verdict with a strict
-        # new-high cap. The branch is "worse" if it introduced any new
-        # high-severity finding; pre-existing highs are ignored.
-        run: crimes verdict --base origin/main --fail-on new-high
+      - name: Gate on new high findings
+        env:
+          CRIMES_BASE: origin/${{ github.base_ref }}
+        run: crimes verdict --base "$CRIMES_BASE" --fail-on new-high --format json
 
-      # --- Alternative gates ------------------------------------------------
+      # Alternative: all eligible findings in changed files, including old debt.
+      # - run: crimes scan --changed --base "$CRIMES_BASE" --fail-on high --format json
+      #   env:
+      #     CRIMES_BASE: origin/${{ github.base_ref }}
       #
-      # Mode A — Changed-files gate. Scans only the files this PR
-      # touched, fails on any high-severity finding in that set. Cheaper
-      # than `verdict`, narrower coverage. Skips pre-existing untouched
-      # debt by design.
-      #
-      # - name: Run crimes scan --changed (changed-files gate)
-      #   run: crimes scan --changed --base origin/main --fail-on high
-      #
-      # Mode B — Baseline gate. Requires `.crimes/baseline.json` to be
-      # committed to the repo (run `crimes baseline save` once on a clean
-      # branch, then commit the file). Fails only on findings that
-      # weren't in the baseline.
-      #
-      # - name: Run crimes baseline check (baseline gate)
-      #   run: crimes baseline check --fail-on medium
+      # Alternative: findings absent from the committed, reviewed baseline.
+      # - run: crimes baseline check --fail-on medium --format json

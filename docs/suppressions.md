@@ -20,35 +20,23 @@ in PRs — every entry requires a `reason`.
 ## Suppress one finding
 
 ```bash
-crimes explain large_function::src/billing.ts::generateInvoice
+crimes explain 'large_function/too_long::src/billing.ts::generateInvoice'
 # → reads the rationale, decides this is acceptable
 
-crimes ignore large_function::src/billing.ts::generateInvoice \
+crimes ignore 'large_function/too_long::src/billing.ts::generateInvoice' \
   --reason "Legacy billing module — rewrite tracked in #1234."
 ```
 
-Or starting from a per-scan id:
+Copy the emitted fingerprint from `crimes scan --format json`. It is opaque;
+claims and discriminators can distinguish several findings on the same file.
+Do not construct a fingerprint from a detector name or save a positional ID.
+The CLI accepts IDs by performing a fresh scan, so an ID from a retained report
+can select a different observation if the scan changed. Prefer fingerprints.
 
-```bash
-crimes scan -f json > scan.json
-# → spot crime_00005 in the output
-crimes ignore crime_00005 --reason "…"
-```
-
-`crimes ignore` always persists by **fingerprint**, never by id. Ids
-are reassigned every scan; the fingerprint
-(`<type>::<file>::<symbol>[::<discriminator>]`) is stable across scans.
-
-The trailing `discriminator` segment appears only on findings from
-detectors that can report several results for one file — today
-`magic_domain_literal_scatter`, `exact_duplicate_block`, and
-`near_duplicate_block`. It was added in `schema_version: "0.4.0"`
-because without it those findings shared a fingerprint, so suppressing
-one of them silently suppressed the others as well. **Entries for those
-three types written before `0.4.0` stop matching and need re-recording**
-with a fresh `crimes ignore` — which is the point: the new entry names
-the single finding you actually looked at. Every other type is
-unaffected and its fingerprints are byte-identical to before.
+When old pins stop matching, [preview a migration](./pin-migration.md) and
+review the candidates before applying it. A renamed, excluded or unparsed
+subject does not establish that the problem is fixed. Migration preserves
+the recorded reason and expiry; re-recording is a new decision.
 
 `--reason` is required and non-empty. The CLI refuses to write
 without one.
@@ -65,15 +53,16 @@ without one.
 
 ```json
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.8.0",
   "report_type": "suppressions",
   "created_at": "2026-05-17T11:30:00.000Z",
   "updated_at": "2026-05-17T11:30:00.000Z",
-  "crimes_version": "0.5.0",
+  "crimes_version": "0.28.2",
   "suppressions": [
     {
-      "fingerprint": "large_function::src/billing.ts::generateInvoice",
+      "fingerprint": "large_function/too_long::src/billing.ts::generateInvoice",
       "type": "large_function",
+      "claim": "too_long",
       "file": "src/billing.ts",
       "symbol": "generateInvoice",
       "reason": "Legacy billing module — rewrite tracked in #1234.",
@@ -123,7 +112,7 @@ reason recorded here is an answer to a question that is no longer being
 asked.
 
 Pins written before 0.8.0 against one of those eleven types no longer
-match and need re-recording. See
+match; preview a reviewed migration before reconsidering the decision. See
 [the migration note](./json-schema.md#migrating-from-070-to-080-one-type-one-claim).
 
 ### Feedback-sourced suppressions (0.7.0)
@@ -144,7 +133,7 @@ but with two extra fields:
 ```
 
 - `source: "manual"` (the default when absent) — the long-standing
-  `crimes ignore` path. These suppressions stay silent forever.
+  `crimes ignore` path. These stay silent while the fingerprint still matches, until removed.
 - `source: "feedback"` — managed by `crimes feedback`. These
   **auto-resurface** when the crimes minor moves past
   `crimes_version_pinned`. The next scan on a newer minor keeps the
@@ -160,7 +149,7 @@ for the full lifecycle.
 ## Removing a suppression
 
 ```bash
-crimes unignore large_function::src/billing.ts::generateInvoice
+crimes unignore 'large_function/too_long::src/billing.ts::generateInvoice'
 # → "Removed … from .crimes/suppressions.json. Commit the change …"
 ```
 
@@ -238,7 +227,7 @@ threshold check.
 | `.crimes/baseline.json` | `.crimes/suppressions.json` |
 | ----------------------- | --------------------------- |
 | Repo-wide snapshot of pre-existing findings. | Per-finding deliberate exception with a reason. |
-| Forward-only — new findings are blocked. | Permanent — entries persist until you delete them. |
+| Forward-only — new findings are blocked. | Manual exceptions persist; feedback exceptions resurface on later minors. |
 | Written by `crimes baseline save`. | Written by `crimes ignore`; removed by `crimes unignore`; reviewed by `crimes audit-suppressions`. |
 | Read by `crimes baseline check`. | Read by every report-producing command. |
 | Use when adopting `crimes` for the first time. | Use when one specific finding is acceptable. |
@@ -254,6 +243,5 @@ to document the specific findings the team has triaged.
 - **Whole-codebase suppressions.** There is no glob support on purpose
   — the on-disk-as-review-artefact discipline only works when every
   entry maps to one specific finding.
-- **Stale suppressions.** Renaming a file changes the fingerprint and
-  silently breaks the suppression. That is a feature, not a bug — the
-  renamed file deserves a fresh review.
+- **Stale suppressions.** Renaming a file can change its fingerprint. Review unmatched-pin
+  warnings and migration candidates before deleting or replacing a decision.

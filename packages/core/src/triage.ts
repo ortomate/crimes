@@ -69,6 +69,25 @@ export interface Triage {
   entries: TriageEntry[];
 }
 
+export interface TriageListReport {
+  schema_version: typeof SCHEMA_VERSION;
+  report_type: "triage_list";
+  entries: TriageEntry[];
+}
+
+export interface TriageApplyReport {
+  schema_version: typeof SCHEMA_VERSION;
+  report_type: "triage_apply";
+  applied: number;
+}
+
+export interface TriageClearReport {
+  schema_version: typeof SCHEMA_VERSION;
+  report_type: "triage_clear";
+  fingerprint: string;
+  removed: number;
+}
+
 export const TriageEntrySchema = z
   .object({
     fingerprint: z.string().min(1),

@@ -1,4 +1,5 @@
 import { registerMigratePinsCommand } from "./commands/migrate-pins.js";
+import { existsSync, statSync } from "node:fs";
 import { Command } from "commander";
 import { autoInitFlags, maybeRunAutoInit } from "./auto-init.js";
 import { welcomeBanner as _welcomeBanner } from "./banner.js";
@@ -16,6 +17,7 @@ import { registerScanCommand } from "./commands/scan.js";
 import { registerTriageCommand } from "./commands/triage.js";
 import { registerUnignoreCommand } from "./commands/unignore.js";
 import { registerVerdictCommand } from "./commands/verdict.js";
+import { commandProjectRoot, maintainProjectSkills } from "./skills/lifecycle.js";
 
 // Injected at build time by tsup from this package's package.json.
 declare const __CRIMES_VERSION__: string;
@@ -28,14 +30,34 @@ program
     "A crime scene investigator for your codebase. Built for agents, readable by humans.",
   )
   .version(__CRIMES_VERSION__)
+  .exitOverride((error) => process.exit(error.exitCode === 0 ? 0 : 2))
   .option("--no-init", "suppress the first-run auto-init prompt")
   .option("--init", "force the first-run auto-init prompt even if config exists")
+  .option("--no-skill-update", "skip automatic skill refresh and update notices")
   .hook("preAction", async (_thisCommand, actionCommand) => {
     const name = actionCommand.name();
-    await maybeRunAutoInit(name, {
-      cwd: process.cwd(),
-      flags: autoInitFlags(program),
-    });
+    const root = await commandProjectRoot(actionCommand, process.cwd());
+    if (!root || !existsSync(root) || !statSync(root).isDirectory()) return;
+    const flags = autoInitFlags(program);
+    const format = actionCommand.opts().format;
+    const human = format === undefined || format === "human";
+    if (human) await maybeRunAutoInit(name, { cwd: root, flags });
+  })
+  .hook("postAction", async (_thisCommand, actionCommand) => {
+    const flags = autoInitFlags(program);
+    if (!process.env.CI && !flags.noInit && program.opts().skillUpdate !== false) {
+      const root = await commandProjectRoot(actionCommand, process.cwd());
+      if (!root || (process.exitCode !== undefined && Number(process.exitCode) > 1))
+        return;
+      maintainProjectSkills({
+        root,
+        interactive:
+          actionCommand.opts().format !== "json" &&
+          process.stdin.isTTY === true &&
+          process.stdout.isTTY === true,
+        write: (message) => process.stderr.write(message),
+      });
+    }
   })
   .addHelpText(
     "after",
@@ -51,7 +73,7 @@ program
       "    crimes scan --changed --base main reviewing edits you already made\n" +
       "  bare `crimes scan` audits the whole repo — useful, but rarely what you want mid-task.\n" +
       "  run `crimes context <file>` before editing — findings + likely tests + agent notes for one file.\n" +
-      "  run `crimes init --agents` to install agent skills; after upgrades, `crimes init --refresh-skills`.",
+      "  run `crimes init --agents` once; normal use refreshes generated skills or shows an update notice.",
   )
   .action(() => {
     // Bare `crimes` (no subcommand) prints a welcome banner pointing at

@@ -3,6 +3,8 @@ import {
   buildFeedbackSummary,
   readFeedback,
   resolveFeedbackPath,
+  SCHEMA_VERSION,
+  type FeedbackReport,
   resolveGlobalRollupPath,
 } from "@crimes/core";
 import type { FeedbackSummary } from "@crimes/core";
@@ -45,13 +47,13 @@ export function registerFeedbackSummarySubcommand(parent: Command): void {
         process.stdout.write(
           JSON.stringify(
             {
-              schema_version: "0.1.0",
+              schema_version: SCHEMA_VERSION,
               report_type: "feedback",
               scope: options.global ? "global" : "repo",
               source_file: path,
               entries: read.entries,
               summary,
-            },
+            } satisfies FeedbackReport,
             null,
             2,
           ) + "\n",

@@ -7,11 +7,11 @@ import {
 
 describe("hook-templates", () => {
   it("CLAUDE_HOOK_ENTRY is a single PreToolUse hook entry invoking crimes hook", () => {
-    expect(CLAUDE_HOOK_ENTRY.matcher).toBe("Edit|Write|NotebookEdit");
+    expect(CLAUDE_HOOK_ENTRY.matcher).toBe("Edit|Write");
     expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).toContain("crimes hook");
-    expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).toContain("--format compact");
+    expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).toContain("--format claude");
     expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).not.toContain("2>/dev/null");
-    expect(CLAUDE_HOOK_ENTRY.hooks[0]!.timeout).toBe(8000);
+    expect(CLAUDE_HOOK_ENTRY.hooks[0]!.timeout).toBe(30);
   });
 
   it("the hook command does not reference any $CLAUDE_TOOL_INPUT_* env var", () => {
@@ -28,7 +28,7 @@ describe("hook-templates", () => {
     expect(result.document.hooks?.PreToolUse).toHaveLength(1);
   });
 
-  it("mergeClaudeHook skips when an existing crimes hook is present", () => {
+  it("mergeClaudeHook migrates the shipped compact hook", () => {
     const existing = {
       hooks: {
         PreToolUse: [
@@ -45,7 +45,7 @@ describe("hook-templates", () => {
       },
     };
     const result = mergeClaudeHook(existing);
-    expect(result.action).toBe("skipped");
+    expect(result.action).toBe("merged");
   });
 
   it("migrates the exact shipped legacy hook without adding another entry", () => {
@@ -94,7 +94,7 @@ describe("hook-templates", () => {
   });
 
   it("mergeClaudeHook merges into a same-matcher entry instead of creating a duplicate", () => {
-    // A user who already manages an `Edit|Write|NotebookEdit` hook for
+    // A user who already manages an `Edit|Write` hook for
     // something else should see crimes' command added to that same entry,
     // not see a second entry with the identical matcher (both would fire
     // on every Edit — duplicate output, messy settings.json).
@@ -102,7 +102,7 @@ describe("hook-templates", () => {
       hooks: {
         PreToolUse: [
           {
-            matcher: "Edit|Write|NotebookEdit",
+            matcher: "Edit|Write",
             hooks: [{ type: "command" as const, command: "echo user-hook" }],
           },
         ],
@@ -112,7 +112,7 @@ describe("hook-templates", () => {
     expect(result.action).toBe("merged");
     expect(result.document.hooks?.PreToolUse).toHaveLength(1);
     const entry = result.document.hooks!.PreToolUse![0]!;
-    expect(entry.matcher).toBe("Edit|Write|NotebookEdit");
+    expect(entry.matcher).toBe("Edit|Write");
     expect(entry.hooks).toHaveLength(2);
     expect(entry.hooks[0]!.command).toBe("echo user-hook");
     expect(entry.hooks[1]!.command).toContain("crimes hook");
@@ -135,9 +135,7 @@ describe("hook-templates", () => {
     // user matcher is preserved verbatim.
     expect(result.document.hooks?.PreToolUse).toHaveLength(2);
     expect(result.document.hooks!.PreToolUse![0]!.matcher).toBe("Edit");
-    expect(result.document.hooks!.PreToolUse![1]!.matcher).toBe(
-      "Edit|Write|NotebookEdit",
-    );
+    expect(result.document.hooks!.PreToolUse![1]!.matcher).toBe("Edit|Write");
   });
 
   it("mergeClaudeHook preserves unrelated top-level keys", () => {

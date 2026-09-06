@@ -108,7 +108,7 @@ export function registerVerdictCommand(program: Command): void {
       if (options.failOn !== undefined) {
         const failOn = options.failOn as VerdictFailOn;
         if (shouldFailVerdict(report, failOn)) {
-          process.exit(1);
+          process.exitCode = 1;
         }
       }
     });

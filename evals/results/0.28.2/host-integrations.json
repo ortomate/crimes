@@ -1,0 +1,62 @@
+{
+  "package_version": "0.28.2",
+  "package_source_commit": "ff71688",
+  "tarball_sha256": "25e38ca56d7753d04065a7250bd034025f39b6eaedf42e0ffdffc23a27fd37a0",
+  "skills": [
+    {
+      "host": "codex",
+      "host_version": "codex-cli 0.153.4",
+      "crimes_version": "0.28.2",
+      "model_selection": "host default",
+      "skill_loaded": true,
+      "local_cli_used": true,
+      "pre_edit_context": true,
+      "comparable_pre_post_scans": true,
+      "acceptance_passed": true,
+      "unrelated_edits": [],
+      "cli_calls": 4,
+      "elapsed_seconds": 53.29
+    },
+    {
+      "host": "claude",
+      "host_version": "2.1.263 (Claude Code)",
+      "crimes_version": "0.28.2",
+      "model_selection": "host default",
+      "skill_loaded": true,
+      "local_cli_used": true,
+      "pre_edit_context": true,
+      "comparable_pre_post_scans": true,
+      "acceptance_passed": true,
+      "unrelated_edits": [],
+      "cli_calls": 5,
+      "elapsed_seconds": 57.46
+    }
+  ],
+  "hook": {
+    "host": "claude",
+    "host_version": "2.1.263 (Claude Code)",
+    "crimes_version": "0.28.2",
+    "model_selection": "host default",
+    "skill_installed": false,
+    "generated_hook_executed": true,
+    "pre_edit_risk_delivered": true,
+    "private_token_acknowledged": true,
+    "permission_decision_returned": false,
+    "acceptance_passed": true,
+    "unrelated_edits": [],
+    "hook_calls": 2,
+    "elapsed_seconds": 32.04,
+    "limitations": "One synthetic Edit task; private token appended by the observer to verify host delivery. Not a productivity or calibration measurement."
+  },
+  "methods": {
+    "skills": "scripts/eval-skills.py",
+    "hook": "scripts/eval-hook.py",
+    "raw_traces": "Retained locally outside scanned sources; not committed.",
+    "scope": "One small edit per skill host and one Claude hook delivery task with pre-existing high risk. Host-default models; no general productivity claim."
+  },
+  "reviewed_observations": {
+    "both_skill_hosts_compared_fingerprints": true,
+    "skill_trial_pre_post_findings": 0,
+    "hook_host_recognized_high_finding_as_unrelated_existing_debt": true
+  }
+}

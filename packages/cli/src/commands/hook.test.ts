@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,7 +23,7 @@ function runHookCli(
   return new Promise((resolvePromise) => {
     const child = spawn(process.execPath, [CLI, "hook", ...args], {
       cwd,
-      env: process.env,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: "" },
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
@@ -72,7 +72,10 @@ describe("crimes hook", () => {
 
     const result = await runHookCli(payload, root);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("crimes context src.ts:");
+    const context = JSON.parse(result.stdout).hookSpecificOutput;
+    expect(context.hookEventName).toBe("PreToolUse");
+    expect(context.permissionDecision).toBeUndefined();
+    expect(context.additionalContext).toContain("crimes context src.ts:");
     expect(result.stdout).toContain("Top findings:");
     expect(result.stdout).toContain("God Function");
   });
@@ -131,5 +134,36 @@ describe("crimes hook", () => {
     const result = await runHookCli(payload, root);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe("");
+  });
+});
+
+describe("hook analysis boundaries", () => {
+  it("uses the host project root for a nested package and reports excluded targets honestly", {
+    timeout: 30_000,
+  }, async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-hook-root-"));
+    await mkdir(join(root, "packages/app"), { recursive: true });
+    await writeFile(join(root, "package.json"), "{}");
+    await writeFile(join(root, "packages/app/package.json"), "{}");
+    await writeFile(join(root, "packages/app/src.ts"), largeFunctionSource());
+    await writeFile(
+      join(root, "crimes.config.json"),
+      JSON.stringify({ exclude: ["packages/**"] }),
+    );
+    const payload = JSON.stringify({
+      cwd: root,
+      hook_event_name: "PreToolUse",
+      tool_input: { file_path: "packages/app/src.ts" },
+    });
+    const result = await runHookCli(payload, root);
+    expect(result.exitCode).toBe(0);
+    const briefing = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+    expect(briefing).toContain("Analysis: not_analyzed");
+    expect(briefing).toContain("working_set_path_unmatched");
+    expect(briefing).not.toContain("No findings for this file");
+    const json = await runHookCli(payload, root, ["--format", "json"]);
+    const report = JSON.parse(json.stdout);
+    expect(report.file).toBe("packages/app/src.ts");
+    expect(report.analysis_status).toBe("not_analyzed");
   });
 });

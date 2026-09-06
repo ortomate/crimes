@@ -18,12 +18,13 @@ export interface ClaudeSettings {
 // "". `crimes hook` reads stdin JSON itself, so the hook command stays
 // stable across hook-host shape changes.
 export const CLAUDE_HOOK_ENTRY: ClaudeHookEntry = {
-  matcher: "Edit|Write|NotebookEdit",
+  matcher: "Edit|Write",
   hooks: [
     {
       type: "command",
-      command: "npx -y crimes hook --format compact || true",
-      timeout: 8000,
+      command:
+        'cd "${CLAUDE_PROJECT_DIR:-.}" && { if [ -x ./node_modules/.bin/crimes ]; then ./node_modules/.bin/crimes hook --format claude; else crimes hook --format claude; fi; } || true',
+      timeout: 30,
     },
   ],
 };
@@ -43,6 +44,11 @@ export interface MergeResult {
 const CRIMES_HOOK_MARKERS = ["crimes hook", "crimes context"] as const;
 const LEGACY_COMMAND =
   'npx -y crimes context "$CLAUDE_TOOL_INPUT_file_path" --format json 2>/dev/null || true';
+const OLD_COMPACT_COMMAND = "npx -y crimes hook --format compact || true";
+
+export function isLegacyCrimesHook(hook: { command?: unknown }): boolean {
+  return hook.command === LEGACY_COMMAND || hook.command === OLD_COMPACT_COMMAND;
+}
 
 function isCrimesEntry(entry: ClaudeHookEntry): boolean {
   return entry.hooks.some(
@@ -98,13 +104,19 @@ export function mergeClaudeHook(existing: ClaudeSettings | undefined): MergeResu
   }
   validateEntries(pre);
   const entries = pre;
-  if (
-    entries.some((entry) => entry.hooks.some((hook) => hook.command === LEGACY_COMMAND))
-  ) {
+  if (entries.some((entry) => entry.hooks.some(isLegacyCrimesHook))) {
     const migrated = entries.map((entry) => ({
       ...entry,
       hooks: entry.hooks.map((hook) =>
-        hook.command === LEGACY_COMMAND ? { ...CLAUDE_HOOK_ENTRY.hooks[0]! } : hook,
+        isLegacyCrimesHook(hook)
+          ? {
+              ...hook,
+              command: CLAUDE_HOOK_ENTRY.hooks[0]!.command,
+              // The old 8000 value confused milliseconds with host seconds.
+              timeout:
+                hook.timeout === undefined || hook.timeout === 8000 ? 30 : hook.timeout,
+            }
+          : hook,
       ),
     }));
     return {

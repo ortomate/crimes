@@ -52,9 +52,11 @@ never silently renew an expiry or prior decision.
 
 Summarize the evidence and tests that affect the task. Human output is useful
 for terminal reports; do not rerun analysis solely to repeat its formatting.
-After a CLI upgrade, `crimes init --refresh-skills --check` checks installed
-workflows without writing; `crimes init --refresh-skills` safely refreshes
-unchanged generated copies. Review customized-file diffs before replacing.
+Normal CLI use reports outdated skills on stderr. If that notice appears,
+run `crimes init --refresh-skills` from the named project root to update
+unchanged generated copies; `--check` previews without writing. Review
+customized-file diffs before replacing. CI skips maintenance; use
+`--no-skill-update` when a task requires no maintenance notices or updates.
 More detail: https://crimes.sh/docs/agent-usage/
 
-<!-- crimes-skill {"format":1,"version":"0.28.1","sha256":"a294cfa3fa6c2b388f25209d75b163929c5a6d7d63d5cfc629f23aaca4cb8695"} -->
+<!-- crimes-skill {"format":1,"version":"0.28.2","sha256":"ffb6ffaba7d9a16704acef9c8f23518728249ddbc4c16cc9f56ac38a042b99fe"} -->

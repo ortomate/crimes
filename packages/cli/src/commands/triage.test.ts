@@ -438,3 +438,40 @@ describe("triageEntryFor", () => {
     );
   });
 });
+
+describe("triage JSON contract", () => {
+  it("lists, applies and clears with one versioned document per operation", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "crimes-triage-contract-"));
+    const input = join(tmp, "decisions.json");
+    const fingerprint = "large_function::src/foo.ts::doStuff";
+    writeFileSync(
+      input,
+      JSON.stringify([
+        { fingerprint, disposition: "wont-fix", reason: "Accepted existing boundary" },
+      ]),
+    );
+    for (const [args, type] of [
+      [["--apply", input], "triage_apply"],
+      [["--list"], "triage_list"],
+      [["--clear", fingerprint], "triage_clear"],
+    ] as const) {
+      const result = await runCli(["triage", ...args, "--format", "json"], tmp);
+      expect(result.exitCode).toBe(0);
+      const report = JSON.parse(result.stdout);
+      expect(report.schema_version).toBe("0.8.0");
+      expect(report.report_type).toBe(type);
+    }
+  });
+  it("rejects conflicting operations and interactive JSON before writing", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "crimes-triage-conflict-"));
+    for (const args of [
+      ["--list", "--clear", "some-fingerprint"],
+      ["--format", "json"],
+    ]) {
+      const result = await runCli(["triage", ...args], tmp);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(existsSync(join(tmp, ".crimes/triage.json"))).toBe(false);
+    }
+  });
+});

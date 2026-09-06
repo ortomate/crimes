@@ -5,6 +5,8 @@ import {
   latestPerFingerprint,
   readFeedback,
   resolveFeedbackPath,
+  SCHEMA_VERSION,
+  type FeedbackReport,
   resolveGlobalRollupPath,
 } from "@crimes/core";
 import type { FeedbackEntry } from "@crimes/core";
@@ -53,6 +55,19 @@ export function registerFeedbackExportSubcommand(parent: Command): void {
           globalPath,
           repo: root,
         });
+        if (options.format === "json") {
+          const global = await readFeedback(globalPath);
+          const report: FeedbackReport = {
+            schema_version: SCHEMA_VERSION,
+            report_type: "feedback",
+            scope: "global",
+            source_file: globalPath,
+            entries: global.entries,
+            summary: buildFeedbackSummary(global.entries),
+          };
+          process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+          return;
+        }
         process.stdout.write(
           `Appended ${result.appended} new ${result.appended === 1 ? "entry" : "entries"} from ${localPath}\n` +
             `  → ${globalPath}\n` +
@@ -72,13 +87,13 @@ export function registerFeedbackExportSubcommand(parent: Command): void {
         process.stdout.write(
           JSON.stringify(
             {
-              schema_version: "0.1.0",
+              schema_version: SCHEMA_VERSION,
               report_type: "feedback",
               scope: "repo",
               source_file: localPath,
               entries: read.entries,
               summary: buildFeedbackSummary(read.entries),
-            },
+            } satisfies FeedbackReport,
             null,
             2,
           ) + "\n",

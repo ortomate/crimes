@@ -129,7 +129,7 @@ pnpm run evals -- --judge
 
 Per fixture × scenario × agent invocation, the runner:
 
-1. `cd evals/fixtures/<NN>-<name>` and runs `crimes scan -f json`.
+1. `cd evals/fixtures/<NN>-<name>` and runs `crimes scan --format json`.
    That output is the scenario context.
 2. Composes the scenario `prompt` + scan JSON and shells out to the
    agent (`claude -p ... --output-format json` or `codex exec

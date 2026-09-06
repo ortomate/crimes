@@ -31,10 +31,12 @@ export function inspectSkill(text: string | undefined): SkillState {
     typeof meta !== "object" ||
     meta.format !== 1 ||
     typeof meta.version !== "string" ||
-    !/^\d+\.\d+\.\d+$/.test(meta.version) ||
-    meta.sha256 !== skillHash(text.slice(0, marker.index))
+    !/^\d+\.\d+\.\d+$/.test(meta.version)
   ) {
     return { status: "customized" };
+  }
+  if (meta.sha256 !== skillHash(text.slice(0, marker.index))) {
+    return { status: "customized", version: meta.version };
   }
   const installed = meta.version.split(".").map(Number);
   const current = SKILL_VERSION.split(".").map(Number);

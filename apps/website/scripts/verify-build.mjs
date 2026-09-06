@@ -25,6 +25,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import "./verify-links.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(here, "..", "dist");
@@ -46,6 +47,8 @@ const required = [
   "docs/suppressions/index.html",
   "docs/explain/index.html",
   "docs/json-schema/index.html",
+  "docs/api-types/index.html",
+  "docs/triage/index.html",
   "docs/skills/index.html",
   "docs/releasing/index.html",
   "docs/feedback/index.html",
