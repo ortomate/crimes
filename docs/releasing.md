@@ -210,28 +210,32 @@ gh run watch --repo ortomate/crimes --exit-status $(gh run list --repo ortomate/
 
 Two steps, deliberately split so the irreversible one is a separate act.
 
-**7a. Draft it.** This creates the release's lightweight tag at the exact
-commit recorded in `TARGET`, but it does not fire the release workflow. Both
-the draft and its tag remain removable until publication.
+**7a. Draft it.** This records the exact commit in `target_commitish`, but
+does not create the tag or fire the release workflow. GitHub creates the
+tag when the draft is published. Verify the draft's target now and the
+actual tag after publication. This sequence was verified during 0.29.0.
 
 ```bash
 git fetch origin main --tags
 VERSION=$(node -p "require('./packages/cli/package.json').version")
 TARGET=$(git rev-parse origin/main)
+test -z "$(git ls-remote origin "refs/tags/v${VERSION}")" || exit 1
 gh release create "v${VERSION}" \
   --repo ortomate/crimes \
   --draft \
   --target "${TARGET}" \
   --title "crimes v${VERSION}" \
   --notes-file "docs/releases/v${VERSION}.md"
-git fetch origin --tags
-test "$(git rev-parse "v${VERSION}^{commit}")" = "${TARGET}"
+test "$(gh release view "v${VERSION}" --repo ortomate/crimes \
+  --json targetCommitish --jq .targetCommitish)" = "${TARGET}"
 ```
 
 Review the draft at `https://github.com/ortomate/crimes/releases`. Check
 the tag reads `vX.Y.Z` with a lower-case `v` and matches
 `packages/cli/package.json` exactly. The command is not repeatable while the
-draft exists. To abandon it safely, remove both records with
+draft exists. An existing tag must be investigated before creating the
+draft: GitHub uses that tag's commit even when a different target is given.
+To abandon an unpublished draft safely, remove it and any leftover tag with
 `gh release delete "v${VERSION}" --repo ortomate/crimes --cleanup-tag`, then
 start section 7 again.
 
@@ -240,9 +244,12 @@ the draft, or:
 
 ```bash
 gh release edit "v${VERSION}" --repo ortomate/crimes --draft=false
+git fetch origin --tags
+test "$(git rev-parse "v${VERSION}^{commit}")" = "${TARGET}"
 ```
 
-Publishing keeps the draft's existing tag and fires `release.yml`. From here
+Publishing creates the tag at the draft's recorded target and fires
+`release.yml`. Confirm the tag points to `TARGET` immediately. From here
 there is no undo short of section 10.
 
 Titles on past releases follow `crimes vX.Y.Z` optionally followed by a
@@ -321,9 +328,9 @@ You may do, without asking:
 - Every item in section 5 (the prep commit) and section 6 (pre-flight), on
   a branch or on `main` when the user has asked for the prep.
 - Draft the release notes in `docs/releases/vX.Y.Z.md`.
-- Create the GitHub Release **as a draft** (section 7a). The command creates
-  its tag at the recorded target commit but triggers no workflow; verify the
-  tag target immediately. The draft and tag are removable before publication.
+- Create the GitHub Release **as a draft** (section 7a). Verify its recorded
+  target commit immediately. Saving a draft creates no tag and triggers no
+  workflow; the draft remains removable before publication.
 - Watch workflow runs and report their result.
 - Run every read-only verification in section 9.
 - Open a pull request.
@@ -348,7 +355,7 @@ would allow it:
   should not be given.
 - Change the Trusted Publisher configuration on npmjs.com, or add any
   secret to the GitHub repository. `release.yml` needs none.
-- `git tag` or `git push --tags`. The draft-release command creates the tag.
+- `git tag` or `git push --tags`. Publishing the GitHub Release creates the tag.
 - Force-push, reset, or rewrite `main`.
 
 When you have done everything you may do, stop and say exactly what remains:
