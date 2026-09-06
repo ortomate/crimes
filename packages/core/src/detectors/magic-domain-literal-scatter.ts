@@ -62,7 +62,7 @@ export const magicDomainLiteralScatterDetector: LanguageJsDetector = {
           `representative files: ${representatives.map((hit) => `${hit.file}:${hit.line}`).join(", ")}`,
         ],
         effort: "small",
-        fix_shape: "promote the literal to a named constant in one module",
+        fix_shape: "reuse an existing definition when the occurrences share one policy",
         scores: {
           severity: severityScore(severity),
           confidence,
@@ -74,7 +74,7 @@ export const magicDomainLiteralScatterDetector: LanguageJsDetector = {
           {
             kind: "centralise_domain_literal",
             description:
-              "Move the literal to a named constant, enum, schema, registry, or policy module before adding another copy.",
+              "Confirm shared policy and intentional variants first. Reuse an existing definition where available; centralise only within the requested change, preserving public and fallback behavior.",
             risk: "medium",
           },
         ],

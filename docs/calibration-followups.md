@@ -987,10 +987,10 @@ names were not specified by the task, so this is a supplementary behavior
 observation, not a retroactive change to the frozen acceptance score. It
 shows why acceptance and scope review must remain separate.
 
-The context guidance now asks agents to inspect related consumers, preserve
+The context guidance and finding remediation now ask agents to inspect related consumers, preserve
 intentional variants and reuse existing authority, keeping consolidation
-separate unless the requested change requires it. The detector, thresholds,
-fingerprints and ranking are unchanged. The original 216-run comparison uses
+separate unless the requested change requires it. Detection criteria,
+thresholds, fingerprints and ranking are unchanged; the advice text changes. The original 216-run comparison uses
 its frozen package; the revised guidance is checked separately. One observed
 failure does not justify a new detector or establish a general benefit from
 this wording change. See [0.29 evidence](./releases/v0.29.0.md).

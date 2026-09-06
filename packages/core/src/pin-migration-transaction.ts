@@ -117,7 +117,7 @@ export async function recoverPinUpdates(root: string): Promise<number> {
     raw = await readFile(join(directory, "journal.json"), "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    // No complete journal means this protocol has not replaced any pins.
+    // A missing journal can mean initial staging or cleanup after replacements.
     // Keep incomplete artifacts for inspection instead of guessing ownership.
     throw new Error(
       "No complete migration journal. Inspect .crimes/.pin-migration; no pin replacement starts before journal.json is complete.",
