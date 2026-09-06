@@ -165,6 +165,8 @@ async function durableWrite(path: string, contents: string, mode: number): Promi
   const handle = await open(path, "wx", mode);
   try {
     await handle.writeFile(contents, "utf8");
+    // Creation applies the process umask; restore the recorded permissions.
+    await handle.chmod(mode);
     await handle.sync();
   } finally {
     await handle.close();

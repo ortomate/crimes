@@ -86,15 +86,18 @@ describe("pin migration interruption and recovery", () => {
       join(directory, "journal.json"),
       JSON.stringify({
         format: 1,
-        files: updates.map((file) => ({ ...file, mode: 0o600 })),
+        files: updates.map((file) => ({ ...file, mode: 0o760 })),
       }),
     );
     await fs.writeFile(join(root, ".crimes/triage.json"), updates[0]!.after);
     await expect(previewPinMigration(root, [])).rejects.toThrow("--recover");
     await expect(applyPinMigration(root, {}, [])).rejects.toThrow();
+    const { open } =
+      await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+    vi.mocked(fs.open).mockImplementation((path, flags) => open(path, flags, 0o600));
     expect(await recoverPinUpdates(root)).toBe(2);
     await assertOriginal(root);
-    expect((await fs.stat(join(root, ".crimes/triage.json"))).mode & 0o777).toBe(0o600);
+    expect((await fs.stat(join(root, ".crimes/triage.json"))).mode & 0o777).toBe(0o760);
   });
 
   it("refuses recovery before touching any file if a later edit disagrees with both versions", async () => {

@@ -11,29 +11,61 @@ function run(root: string, args: string[]) {
   return spawnSync(process.execPath, [cli, ...args], { cwd: root, encoding: "utf8" });
 }
 
-it("recovers interrupted pins without requiring a successful repository scan", async () => {
+it("resumes recovery after SIGKILL without requiring a successful repository scan", async () => {
   const root = await mkdtemp(join(tmpdir(), "crimes-pin-recovery-cli-"));
   try {
     await mkdir(join(root, ".crimes/.pin-migration"), { recursive: true });
-    const before = '{"entries":[]}\n';
-    const after = '{"entries":[{"fingerprint":"migrated"}]}\n';
-    await writeFile(join(root, ".crimes/triage.json"), after);
+    const files = ["triage.json", "suppressions.json", "baseline.json"].map((name) => ({
+      name,
+      before: `${name}: original\n`,
+      after: `${name}: migrated\n`,
+      mode: 0o640,
+    }));
+    for (const file of files) {
+      await writeFile(join(root, ".crimes", file.name), file.after);
+    }
     await writeFile(
       join(root, ".crimes/.pin-migration/journal.json"),
       JSON.stringify({
         format: 1,
-        files: [{ name: "triage.json", before, after, mode: 0o644 }],
+        files,
       }),
     );
     await writeFile(join(root, "crimes.config.json"), "not valid JSON");
+    const preload = join(root, "interrupt.mjs");
+    await writeFile(
+      preload,
+      `import fs from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
+const rename = fs.rename;
+fs.rename = async (from, to) => {
+  await rename(from, to);
+  if (String(to).endsWith("/triage.json")) process.kill(process.pid, "SIGKILL");
+};
+syncBuiltinESMExports();`,
+    );
+    const interrupted = spawnSync(
+      process.execPath,
+      ["--import", preload, cli, "migrate-pins", "--recover", "--format", "json"],
+      { cwd: root, encoding: "utf8" },
+    );
+    expect(interrupted.signal).toBe("SIGKILL");
+    expect(await readFile(join(root, ".crimes/triage.json"), "utf8")).toBe(
+      files[0]!.before,
+    );
+    expect(await readFile(join(root, ".crimes/suppressions.json"), "utf8")).toBe(
+      files[1]!.after,
+    );
     const result = run(root, ["migrate-pins", "--recover", "--format", "json"]);
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       schema_version: "0.8.0",
       report_type: "pin_migration_recovery",
-      restored_files: 1,
+      restored_files: 3,
     });
-    expect(await readFile(join(root, ".crimes/triage.json"), "utf8")).toBe(before);
+    for (const file of files) {
+      expect(await readFile(join(root, ".crimes", file.name), "utf8")).toBe(file.before);
+    }
     const conflicting = run(root, ["migrate-pins", "--recover", "--apply", "plan.json"]);
     expect(conflicting.status).toBe(2);
     expect(conflicting.stderr).toContain("either --apply or --recover");
