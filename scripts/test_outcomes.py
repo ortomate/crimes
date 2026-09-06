@@ -102,6 +102,9 @@ class OutcomeMethods(unittest.TestCase):
         changed=copy.deepcopy(document);changed['metadata']['package_sha256']='different'
         with self.assertRaisesRegex(RuntimeError,'changed inputs'):
             reporting.validate([document,changed],12)
+        changed=copy.deepcopy(document);changed['metadata']['cli_metrics_sha256']='new parser'
+        with self.assertRaisesRegex(RuntimeError,'cli_metrics_sha256'):
+            reporting.validate([document,changed],12)
 
     def test_paired_summary_counts_mixed_outcomes_without_erasing_failures(self):
         rows=[]
@@ -144,6 +147,7 @@ class OutcomeMethods(unittest.TestCase):
                      row(['--no-skill-update','scan','--format','json'],'final',{'type':'scan'})]
             path.write_text('\n'.join(json.dumps(r) for r in records))
             audited=outcome_audit.cli_metrics(path,'original','final')
+            self.assertEqual(helpers.cli_metrics(path,'original','final'),audited)
             self.assertTrue(audited['comparable_pre_post_scans'])
             self.assertEqual(audited['context_calls'],1)
             records[-1]['source']='intermediate'
