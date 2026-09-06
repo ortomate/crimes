@@ -1,0 +1,3 @@
+import assert from "node:assert/strict";import {handle} from "./src/handler.js";import {payout} from "./src/payout.js";
+let writes=0,events=0;const error=new Error("storage");await assert.rejects(handle({db:{insertRefund:async()=>{writes++;throw error}},analytics:{emit:async()=>events++}},"r1"),e=>e===error);assert.equal(writes,1);assert.equal(events,0);
+assert.deepEqual(await handle({db:{insertRefund:async()=>writes++},analytics:{emit:async()=>{throw new Error("analytics")}}},"r2"),{ok:true,id:"r2"});assert.equal(writes,2);assert.deepEqual(await payout({insertPayout:async()=>{throw error}},"p"),{ok:true,id:"p"});

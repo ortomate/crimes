@@ -13,35 +13,74 @@ There are three different measurements. None substitutes for the others.
 | Ranking and structural replay | Known relevant findings surface, and recorded responses mention expected artifacts | Correctness of a completed change |
 | Paired edit outcomes (`evals:outcomes`) | Actual changes pass independent acceptance checks, with/without a briefing | General agent benefit from a small sample |
 
-## Paired edit outcomes (0.28)
+## Completed edit outcomes (0.29)
+
+`pnpm evals:outcomes` verifies twelve purpose-built behavioral tasks without
+invoking a model: original source must fail independent acceptance and the
+reference solution must pass. The old three-task runner has been replaced;
+its 0.28 result remains a historical 3/3 versus 3/3 tie.
+
+The live runner compares three assigned conditions for each task and host:
+
+- **Without:** inspect and edit normally, without invoking crimes.
+- **Briefing:** receive pre-edit context, without invoking crimes separately.
+- **Installed:** discover the generated project skill normally; Claude also
+  gets its supported generated Edit/Write hook. No briefing is forced into
+  the prompt and failure to activate is part of the outcome.
+
+All conditions receive identical source, available package and scanner
+configuration. Each edit uses a fresh Git repository. Acceptance files and
+reference solutions are outside the agent's workspace; acceptance is copied
+in only after the host exits. Extra files are flagged for human scope review,
+not automatically scored as bad edits: a new regression test or shared policy
+module can be a legitimate solution. Baseline and candidate source hashes
+establish whether observed scans actually bracketed the edit.
 
 ```bash
 pnpm build
-pnpm evals:outcomes                    # verifies unedited tasks fail acceptance
-pnpm evals:outcomes -- --run           # runs six isolated Codex edits
-pnpm evals:outcomes -- --run --repeats 3
+pnpm evals:outcomes
+python3 scripts/eval-outcomes.py --run --package /tmp/crimes-candidate.tgz \
+  --output-dir /tmp/crimes-outcomes --host both \
+  --codex-model <explicit-model-id> --claude-model <explicit-model-id> \
+  --repeats 3 --jobs 4
 ```
 
-The three initial tasks update shared plan limits, update a response and
-its consumer, and preserve refund error propagation. Each arm starts from
-identical source in a fresh directory. The with-crimes arm receives a
-context briefing; the other reads source normally. Acceptance tests are
-installed only after the edit, and each task is checked to fail before
-editing. Arm order alternates; unrelated edits, exits, elapsed time and
-transcripts are recorded. Agent invocations consume the available CLI
-subscription or quota and are opt-in; CI does not invoke them.
+Live runs consume the installed hosts' subscription/quota. CLI adapters use
+explicit model ids and high reasoning effort, disable user configuration
+where supported, and record host versions, requested/observed model ids,
+Node/Python versions, fixture/harness/package hashes and provider-reported
+usage. An explicit model id does not guarantee that a provider freezes its
+underlying weights. Raw transcripts and patches stay in the requested output
+directory outside the repository; commit reviewed summaries only.
 
-Initial 0.28 result: **3/3 passed in each arm; zero runs with unrelated
-edits in either arm.** This is a tie on simple tasks, with one run per pair
-and the CLI's default model. It establishes a working measurement process,
-not a causal improvement. Before making a benefit claim, use harder
-representative tasks, more repeats and a pinned model/configuration; count
-failures and unrelated edits alongside success.
+Twelve tasks × three conditions × three repetitions × two hosts is **216
+runs**. Case order is seeded; each condition occupies every position for each
+case/host across three repeats. Concurrency is recorded. Use `--cases` and
+`--repeats 1` for a pilot. `--partition development` / `holdout` selects the
+six tasks available for tuning or the six reserved tasks. `--resume` refuses
+changed inputs and reuses completed trial files instead of silently rerunning
+only failures. CI runs oracle and harness-method tests, never fresh host calls.
 
-Results and archived retired default scenarios are in
-[`evals/results/0.28.0`](https://github.com/ortomate/crimes/tree/main/evals/results/0.28.0).
-No-tools and with-tools timing includes briefing and acceptance overhead;
-compare it only as end-to-end task time, not model latency.
+Keep the primary comparison by **assigned condition**, including missed
+activation and failed runs. Report acceptance, host completion, reviewed
+unrelated edits, end-to-end task time and usage separately. Task time includes
+supplied briefing and agent tool calls, but excludes package installation
+and the independent acceptance runner. Repeated runs of the same task are
+not independent examples; report paired wins/losses/ties and uncertainty at
+the task level. A tie or wide interval does not demonstrate improved edits.
+
+The pilot exposed an ambiguous refund task: its wording preserved analytics
+behavior while acceptance expected no event after a failed write. The task
+now states that requirement explicitly; the original refund pilot results
+are excluded from product conclusions. This is a measurement correction,
+not a scanner improvement. A separate review made the concurrency requirement
+explicit in the batch task before its first host trial.
+
+These cases cover more failure modes but remain small synthetic repositories.
+Use the [external trial](./external-trial.md) to collect independently reported
+editing outcomes; do not present these runs as adoption or general productivity
+proof. [Performance measurements](./performance.md) isolate scanner latency
+from host/model and task time.
 
 ## Ranking labels
 

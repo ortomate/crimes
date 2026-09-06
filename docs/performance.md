@@ -22,7 +22,16 @@ worktree at the baseline commit; benchmark source edits must not change the
 corpus being measured. Materialize the pinned OSS fixtures with `pnpm
 evals:setup` before including them.
 
-A cases file contains an array such as:
+The bundled corpus preparer creates paths for the existing fixtures and
+labelled synthetic Python/mixed scaling inputs in a new temporary directory:
+
+```bash
+python3 scripts/benchmark-corpus.py --source-root /tmp/crimes-baseline-worktree \
+  --output-dir /tmp/crimes-performance-corpus
+```
+
+Use `/tmp/crimes-performance-corpus/cases.json` below. For your own repository,
+a cases file contains an array such as:
 
 ```json
 [{"id":"service","root":"/absolute/project","target":"src/api.ts"}]

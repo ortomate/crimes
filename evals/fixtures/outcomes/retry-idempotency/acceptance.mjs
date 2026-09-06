@@ -1,0 +1,3 @@
+import assert from "node:assert/strict";import {pay} from "./src/payment.js";
+let keys=0,calls=[];const uuid=()=>`key-${++keys}`;const gateway={charge:async request=>{calls.push(request);if(calls.length<3)throw new Error("retry");return {id:"paid"};}};
+assert.deepEqual(await pay(gateway,uuid,25),{id:"paid"});assert.equal(keys,1);assert.equal(calls.length,3);assert.deepEqual(calls,[{amount:25,idempotencyKey:"key-1"},{amount:25,idempotencyKey:"key-1"},{amount:25,idempotencyKey:"key-1"}]);await pay(gateway,uuid,30);assert.equal(keys,2);const last=new Error("last");let attempts=0;await assert.rejects(pay({charge:async()=>{attempts++;throw last}},uuid,1),e=>e===last);assert.equal(attempts,3);

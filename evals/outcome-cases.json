@@ -1,0 +1,114 @@
+[
+  {
+    "id": "plan-limit",
+    "target": "packages/api/export.js",
+    "task": "Raise the pro export limit to 5000 rows throughout the current export flow. Preserve free and enterprise limits, the legacy v1 API, public signatures and job retry behavior.",
+    "language": "js",
+    "holdout": false,
+    "allowed": ["packages/api/export.js", "packages/worker/eligibility.js"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "response-consumer",
+    "target": "packages/api/user.js",
+    "task": "Rename the public user response field name to displayName throughout the current API and its consumers. Preserve stored user.name, the greeting text, active/id fields and the audit event schema.",
+    "language": "js",
+    "holdout": false,
+    "allowed": [
+      "packages/api/user.js",
+      "packages/web/greeting.js",
+      "packages/mobile/card.js"
+    ],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "refund-failure",
+    "target": "src/refund.js",
+    "task": "A failed refund write is reported as successful. Make rejection observable to the caller with the original error. Do not emit a refund analytics event when the write fails. After a successful write, analytics remains best-effort. Preserve successful responses, one write and the unrelated payout behavior.",
+    "language": "js",
+    "holdout": false,
+    "allowed": ["src/refund.js"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "python-alias",
+    "target": "billing/policy.py",
+    "task": "Allow account owners as well as admins to refund within the billing service. Apply the change through the API and job entry points. A suspended account must remain blocked, members must remain blocked, and exporting data remains admin-only.",
+    "language": "py",
+    "holdout": false,
+    "allowed": ["billing/policy.py"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "misleading-tests",
+    "target": "src/access.js",
+    "task": "A guest can currently delete a document. Restrict deletion to the document owner or a workspace admin. A locked document must remain undeletable for everyone. Verify the behavior; existing tests may not exercise the real policy.",
+    "language": "js",
+    "holdout": false,
+    "allowed": ["src/access.js", "src/access.test.js"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "active-policy",
+    "target": "src/current/discount.js",
+    "task": "Current checkout should give team plans a 15% discount instead of 10%. Preserve enterprise/free behavior, the integer-cent rounding rule, and all legacy checkout behavior.",
+    "language": "js",
+    "holdout": false,
+    "allowed": ["src/current/discount.js"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "retry-idempotency",
+    "target": "src/payment.js",
+    "task": "Payment retries must reuse one idempotency key for a checkout attempt. Generate a fresh key for each new pay() call, preserve the three-attempt limit, return the first success, and reject with the last error when all attempts fail.",
+    "language": "js",
+    "holdout": true,
+    "allowed": ["src/payment.js"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "bounded-batch",
+    "target": "src/batch.js",
+    "task": "Limit batch sends to at most three concurrent operations while preserving result order. Empty input should return an empty array. A send failure must reject with the original error. Keep the API asynchronous and avoid adding dependencies. Keep parallelism for independent items; do not serialize the whole batch.",
+    "language": "js",
+    "holdout": true,
+    "allowed": ["src/batch.js"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "python-rounding",
+    "target": "invoices/money.py",
+    "task": "Invoice line amounts must round decimal ties away from zero to two places, including credit notes. Totals must sum rounded lines. Preserve string inputs/outputs and leave analytics rounding unchanged.",
+    "language": "py",
+    "holdout": true,
+    "allowed": ["invoices/money.py"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "cross-language-plan",
+    "target": "api/plans.py",
+    "task": "Replace the current paid plan name team with business in the Python API and web client. Preserve free and enterprise behavior. Unknown plan names, including team, must be rejected by the current API. Keep historical audit labels unchanged.",
+    "language": "js",
+    "holdout": true,
+    "allowed": ["api/plans.py", "web/plans.js"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "configuration-default",
+    "target": "src/api/config.js",
+    "task": "Change the default HTTP request timeout to 5000 milliseconds across the API and worker. Explicit HTTP_TIMEOUT_MS values, including 0, must continue to win. Preserve the separate database timeout default and do not add environment files.",
+    "language": "js",
+    "holdout": true,
+    "allowed": ["src/api/config.js", "src/worker/config.js"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  },
+  {
+    "id": "clean-control",
+    "target": "src/clamp.js",
+    "task": "Allow clamp() to accept the optional upper limit argument, defaulting to 100. Preserve the lower bound of zero and the existing behavior when no upper limit is provided. Update the relevant tests.",
+    "language": "js",
+    "holdout": true,
+    "allowed": ["src/clamp.js", "src/clamp.test.js"],
+    "provenance": "purpose-built behavioral fixture; not an observed outside editing outcome"
+  }
+]

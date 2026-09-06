@@ -56,6 +56,7 @@ export default defineConfig({
           items: [
             { label: "Agent usage", slug: "agent-usage" },
             { label: "Agent setup and updates", slug: "skills" },
+            { label: "Try one real change", slug: "external-trial" },
             { label: "CLI and detector reference", slug: "reference" },
             { label: "Configuration", slug: "configuration" },
             { label: "Scoring", slug: "scoring" },
@@ -69,6 +70,7 @@ export default defineConfig({
           label: "Operating",
           items: [
             { label: "CI integration", slug: "ci" },
+            { label: "Analysis performance", slug: "performance" },
             { label: "Suppressions", slug: "suppressions" },
             { label: "Triage", slug: "triage" },
             { label: "Pin migration", slug: "pin-migration" },
