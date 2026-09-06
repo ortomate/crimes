@@ -50,7 +50,7 @@ def acceptance(case, root, fixtures):
         path.unlink(missing_ok=True)
 
 
-def install_wrapper(root, installed, log, paths):
+def install_wrapper(root, installed, log):
     modules = root / "node_modules"
     modules.mkdir()
     for package in installed.iterdir():
@@ -59,18 +59,26 @@ def install_wrapper(root, installed, log, paths):
     binary = modules / ".bin/crimes"
     binary.parent.mkdir()
     binary.write_text('''#!/usr/bin/env node
-const {appendFileSync,readFileSync} = require("node:fs");
+const {appendFileSync,readFileSync,readdirSync,readlinkSync,statSync} = require("node:fs");
 const {createHash} = require("node:crypto");
 const {spawnSync} = require("node:child_process");
-const PATHS=__PATHS__, ROOT=__ROOT__, CLI=__CLI__, LOG=__LOG__;
-const hash=createHash("sha256");for(const path of PATHS){hash.update(path);try{hash.update(readFileSync(ROOT+"/"+path));}catch{hash.update("<absent>");}}
+const ROOT=__ROOT__, CLI=__CLI__, LOG=__LOG__, EXCLUDED=new Set(__EXCLUDED__);
+const inventory=[];
+function walk(base="") { for(const entry of readdirSync(ROOT+"/"+base,{withFileTypes:true})) {
+  const relative=base+entry.name, path=ROOT+"/"+relative;
+  if(entry.isDirectory()) { if(!EXCLUDED.has(entry.name)) walk(relative+"/"); }
+  else if(entry.isSymbolicLink()) { let directory=false;try{directory=statSync(path).isDirectory();}catch{} if(!directory) inventory.push([relative,"symlink:"+readlinkSync(path)]); }
+  else inventory.push([relative,createHash("sha256").update(readFileSync(path)).digest("hex")]);
+}}
+walk();inventory.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
+const hash=createHash("sha256");for(const [path,value] of inventory){hash.update(path+"\\0"+value+"\\0");}
 const args=process.argv.slice(2), source=hash.digest("hex"), started=Date.now();
 const input=args[0]==="hook"?readFileSync(0,"utf8"):undefined;
 const result=spawnSync(process.execPath,[CLI,...args],{input,encoding:"utf8",maxBuffer:32*1024*1024});
 let report;try { const value=JSON.parse(result.stdout);report={type:value.report_type,root:value.repo?.root,file:value.file,status:value.analysis_status,fingerprints:value.findings?.map(f=>f.fingerprint),hook_context:!!value.hookSpecificOutput?.additionalContext};} catch {}
 appendFileSync(LOG,JSON.stringify({args,cwd:process.cwd(),source,elapsed_ms:Date.now()-started,exit_code:result.status,report})+"\\n");
 process.stdout.write(result.stdout??"");process.stderr.write(result.stderr??"");process.exitCode=result.status??2;
-'''.replace("__PATHS__", json.dumps(sorted(paths))).replace("__ROOT__", json.dumps(str(root)))
+'''.replace("__EXCLUDED__", json.dumps(sorted(EXCLUDED))).replace("__ROOT__", json.dumps(str(root)))
                       .replace("__CLI__", json.dumps(str(installed / "crimes/dist/index.js")))
                       .replace("__LOG__", json.dumps(str(log))))
     binary.chmod(0o755)
@@ -146,14 +154,10 @@ def transcript_metrics(path, host):
             "observed_models": sorted(models), "successful_completion_event": final_seen}
 
 
-def source_digest(root, paths):
+def source_digest(root):
     hashed = hashlib.sha256()
-    for path in sorted(paths):
-        hashed.update(path.encode())
-        try:
-            hashed.update((root / path).read_bytes())
-        except OSError:
-            hashed.update(b"<absent>")
+    for path, value in sorted(inventory(root).items()):
+        hashed.update((path + "\0" + value + "\0").encode())
     return hashed.hexdigest()
 
 

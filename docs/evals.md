@@ -34,7 +34,9 @@ reference solutions are outside the agent's workspace; acceptance is copied
 in only after the host exits. Extra files are flagged for human scope review,
 not automatically scored as bad edits: a new regression test or shared policy
 module can be a legitimate solution. Baseline and candidate source hashes
-establish whether observed scans actually bracketed the edit.
+establish whether observed scans actually bracketed the edit, including newly
+added source files. A successful pre/post scan of only intermediate states
+does not count.
 
 ```bash
 pnpm build
@@ -74,7 +76,22 @@ behavior while acceptance expected no event after a failed write. The task
 now states that requirement explicitly; the original refund pilot results
 are excluded from product conclusions. This is a measurement correction,
 not a scanner improvement. A separate review made the concurrency requirement
-explicit in the batch task before its first host trial.
+explicit in the batch task before its first host trial. The pilot also led
+to balanced condition positions across repeats and file-set-aware scan
+hashes; neither correction changes the product or counts as a benefit.
+
+Pool completed development and holdout partitions with:
+
+```bash
+python3 scripts/summarize-outcomes.py /tmp/development/results.json \
+  /tmp/holdout/results.json --output /tmp/outcomes-reviewed.json
+```
+
+The summarizer rejects missing/duplicate cells and changed package, fixture,
+harness or host settings. It preserves failures, separates provider usage
+fields and reports paired acceptance differences. Its task-resampled interval
+is descriptive of this fixed suite; constant differences produce `null`
+rather than a misleading zero-width uncertainty estimate.
 
 These cases cover more failure modes but remain small synthetic repositories.
 Use the [external trial](./external-trial.md) to collect independently reported

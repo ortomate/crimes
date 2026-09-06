@@ -53,6 +53,8 @@ const required = [
   "docs/releasing/index.html",
   "docs/feedback/index.html",
   "docs/evals/index.html",
+  "docs/performance/index.html",
+  "docs/external-trial/index.html",
   "docs/finding-types/ia/index.html",
   "docs/finding-types/petty/index.html",
   "docs/releases/v0.4.0/index.html",

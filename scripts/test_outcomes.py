@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import copy
 from pathlib import Path
 import tempfile
 import unittest
@@ -8,6 +9,10 @@ import outcome_support as helpers
 spec = importlib.util.spec_from_file_location('outcomes', Path(__file__).with_name('eval-outcomes.py'))
 runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
+
+spec_summary = importlib.util.spec_from_file_location('outcome_summary', Path(__file__).with_name('summarize-outcomes.py'))
+reporting = importlib.util.module_from_spec(spec_summary)
+spec_summary.loader.exec_module(reporting)
 
 
 class OutcomeMethods(unittest.TestCase):
@@ -59,6 +64,58 @@ class OutcomeMethods(unittest.TestCase):
             after=helpers.inventory(root)
             self.assertEqual(set(before),{'source.js'})
             self.assertEqual(set(after),{'new.js'})
+
+    def test_wrapper_hash_tracks_added_sources_and_matches_inventory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base=Path(temp);root=base/'project';root.mkdir()
+            installed=base/'installed';(installed/'crimes/dist').mkdir(parents=True)
+            (installed/'crimes/dist/index.js').write_text('console.log(JSON.stringify({report_type:"scan"}))')
+            (root/'original.js').write_text('first')
+            log=base/'cli.jsonl'
+            binary=helpers.install_wrapper(root,installed,log)
+            snapshots=[]
+            for step in range(3):
+                if step==1:
+                    (root/'new.py').write_text('new source')
+                if step==2:
+                    (root/'original.js').unlink()
+                snapshots.append(helpers.source_digest(root))
+                helpers.run([binary,'scan','--format','json'],root)
+            self.assertEqual(len(set(snapshots)),3)
+            self.assertEqual([json.loads(line)['source'] for line in log.read_text().splitlines()],snapshots)
+
+    def test_pooling_rejects_duplicates_missing_host_and_changed_inputs(self):
+        metadata={key:'fixed' for key in ['package_sha256','fixtures','harness_sha256','helpers_sha256','seed','jobs','timeout','node','python']}
+        metadata.update(hosts={'codex':{},'claude':{}},repeats=1)
+        rows=[{'host':host,'case':'one','arm':arm,'repeat':1} for host in metadata['hosts'] for arm in runner.ARMS]
+        document={'metadata':metadata,'rows':rows}
+        self.assertEqual(reporting.validate([document],6),rows)
+        with self.assertRaisesRegex(RuntimeError,'Incomplete or duplicate'):
+            reporting.validate([document,document],12)
+        with self.assertRaisesRegex(RuntimeError,'paired cell'):
+            reporting.validate([{**document,'rows':rows[:3]}],3)
+        changed=copy.deepcopy(document);changed['metadata']['package_sha256']='different'
+        with self.assertRaisesRegex(RuntimeError,'changed inputs'):
+            reporting.validate([document,changed],12)
+
+    def test_paired_summary_counts_mixed_outcomes_without_erasing_failures(self):
+        rows=[]
+        for case,control,treated in [('one',False,True),('two',True,False),('three',True,True)]:
+            for arm in runner.ARMS:
+                rows.append({'host':'codex','case':case,'arm':arm,'repeat':1,
+                             'acceptance_passed':control if arm=='without' else treated,
+                             'usage_reported':{'input_tokens':10},'run_success':arm!='installed',
+                             'outside_expected_scope':[],'task_elapsed_ms':100,
+                             'skill_action_observed':False,'hook_contexts':0,'comparable_pre_post_scans':False})
+        result=reporting.summarize(rows)
+        self.assertEqual(result['groups'][2]['host_completions'],0)
+        self.assertEqual(result['groups'][2]['acceptance_passes'],2)
+        for paired in result['paired_against_without']:
+            self.assertEqual((paired['wins'],paired['losses'],paired['ties']),(1,1,1))
+            self.assertEqual(paired['mean_acceptance_difference'],0)
+            self.assertLess(paired['task_resampled_95_percent_interval'][0],0)
+            self.assertGreater(paired['task_resampled_95_percent_interval'][1],0)
+        self.assertIsNone(reporting.interval([0,0,0]))
 
 
 if __name__=='__main__':

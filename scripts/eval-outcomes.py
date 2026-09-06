@@ -60,8 +60,7 @@ def trial(case, host, arm, repeat, args, installed, tools):
             "include": ["**/*.js", "**/*.ts", "**/*.py"],
             "exclude": ["**/node_modules/**", "**/.git/**", ".outcome-*"]}) + "\n")
         cli_log = output / "cli.jsonl"
-        source_paths = list(helpers.inventory(root))
-        binary = helpers.install_wrapper(root, installed, cli_log, source_paths)
+        binary = helpers.install_wrapper(root, installed, cli_log)
         setup_started = time.monotonic()
         env = {**os.environ, "CI": "true", "CRIMES_NOW": "2026-09-07T00:00:00Z"}
         if arm == "installed":
@@ -74,7 +73,7 @@ def trial(case, host, arm, repeat, args, installed, tools):
                      "commit", "-qm", "fixture"], root)
         setup_ms = round((time.monotonic() - setup_started) * 1000)
         before = helpers.inventory(root)
-        original_source = helpers.source_digest(root, source_paths)
+        original_source = helpers.source_digest(root)
         started = time.monotonic()
         briefing = ""
         if arm == "briefing":
@@ -94,7 +93,7 @@ def trial(case, host, arm, repeat, args, installed, tools):
         execution = helpers.invoke(command, root, tools, output, args.timeout)
         task_elapsed_ms = round((time.monotonic() - started) * 1000)
         after = helpers.inventory(root)
-        final_source = helpers.source_digest(root, source_paths)
+        final_source = helpers.source_digest(root)
         changed = sorted(path for path in before.keys() | after.keys() if before.get(path) != after.get(path))
         outside = [path for path in changed if path not in case["allowed"]]
         # Additional tests can be sensible scope changes. Flag them for review,
