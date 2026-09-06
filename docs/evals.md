@@ -52,7 +52,10 @@ explicit model ids and high reasoning effort, disable user configuration
 where supported, and record host versions, requested/observed model ids,
 Node/Python versions, fixture/harness/package hashes and provider-reported
 usage. An explicit model id does not guarantee that a provider freezes its
-underlying weights. Raw transcripts and patches stay in the requested output
+underlying weights. Runtime versions describe the controller environment;
+agent-selected login shells may select other installed runtimes or test
+tools. This is source isolation, not a hermetic operating-system image.
+Raw transcripts and patches stay in the requested output
 directory outside the repository; commit reviewed summaries only.
 
 Twelve tasks × three conditions × three repetitions × two hosts is **216

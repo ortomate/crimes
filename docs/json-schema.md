@@ -54,6 +54,7 @@ priority; preserve it when presenting findings and suggested neighbors.
 | `feedback recheck` | `feedback_recheck` | [FeedbackRecheckReport](./api-types.md#feedbackrecheckreport) |
 | `migrate-pins` | `pin_migration` | [PinMigrationPlan](./api-types.md#pinmigrationplan) |
 | `migrate-pins --apply` | `pin_migration_apply` | [Pin migration](./pin-migration.md) |
+| `migrate-pins --recover` | `pin_migration_recovery` | [PinMigrationRecoveryReport](./api-types.md#pinmigrationrecoveryreport) |
 
 ## `ScanReport` (output of `crimes scan`)
 

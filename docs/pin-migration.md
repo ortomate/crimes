@@ -57,7 +57,7 @@ the command explains that no pin replacement starts before `journal.json`
 exists; inspect the incomplete directory before removing it. This is process
 interruption recovery, not a guarantee against filesystem or power failure.
 
-The report has `report_type: "pin_migration"`, `source_hashes`, and `entries`
+Preview JSON has `report_type: "pin_migration"`, `source_hashes`, and `entries`
 with `source`, `from`, `status`, `candidates`, and optional `to`. Treat
 fingerprints as opaque outside this migration tool. Do not edit them by
 splitting strings in integration code.
