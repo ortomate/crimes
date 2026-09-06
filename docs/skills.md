@@ -161,4 +161,6 @@ setup and real npm 0.28.0/0.28.1-to-tarball upgrades, including actual TTY
 refresh, piped JSON, CI and customized files.
 The optional `scripts/eval-skills.py` runs fresh Codex/Claude sessions against
 an installed package; see [0.28.1 release evidence](./releases/v0.28.1.md)
-for the measured results and limits.
+for discovery measurements; [0.28.2 evidence](./releases/v0.28.2.md) adds
+normal-use upgrades and actual hook delivery. See `scripts/eval-hook.py` for
+the opt-in hook trial.
