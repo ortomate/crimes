@@ -27,6 +27,10 @@ findings](https://github.com/ortomate/crimes/issues/new?template=missed-finding.
 
 ## Quick setup
 
+Use the Node version in `.nvmrc`, pnpm 10.14.0 and Python 3.10+. Python runs
+the behavioral evaluation oracles and harness-method tests during workspace
+verification; the published CLI itself needs only Node >=18.
+
 ```bash
 git clone https://github.com/ortomate/crimes.git
 cd crimes
@@ -174,17 +178,18 @@ pnpm check       # format + lint + assists in one pass
 pnpm check:fix   # ...and apply what it can
 
 pnpm typecheck   # tsc --noEmit everywhere
-pnpm test        # vitest run everywhere
+pnpm test        # Vitest + Python outcome oracle and method checks
 pnpm build       # tsup everywhere
 
-pnpm verify      # all of the above, sequentially — the gate CI enforces
+pnpm verify      # read-only format/lint, build, docs drift, types and tests
 ```
 
 Note it is `pnpm verify`, not `pnpm ci`: pnpm reserves `ci` as a
 built-in, so that form fails before reaching the workspace script.
 
-CI runs the same on Node 20 and Node 22. Formatting and lint run once,
-on the Node 22 leg only — Biome's output does not vary by Node version.
+CI uses the Node version in `.nvmrc`, matching release development. It also
+builds/verifies the documentation site and tests a freshly packed npm
+artifact. Live agent trials are explicit opt-in and never run in CI.
 
 ## Formatting and linting
 

@@ -14,7 +14,8 @@ implementation from plans. `crimes ask` is not implemented.
 
 ## Develop and verify
 
-Use the Node version in `.nvmrc` for release work and pnpm 10.14.0.
+Use the Node version in `.nvmrc` for release work, pnpm 10.14.0 and Python
+3.10+ for the evaluation oracle/method tests included in `pnpm verify`.
 The published CLI supports Node >=18.
 
 ```bash

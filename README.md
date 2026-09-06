@@ -97,21 +97,21 @@ and reports what changed. Agent/JSON calls receive a safe update command on
 stderr. CI stays read-only. Custom instructions and hook settings are preserved;
 `--no-skill-update` skips maintenance. [Setup and upgrade guide](./docs/skills.md).
 
-## Status — crimes@0.28.2
+## Status — crimes@0.29.0
 
-0.28 improves pre-edit briefing completeness, test/dependency guidance,
-default signal, fingerprint migration and documentation consistency.
-The JSON schema remains **0.8.0**; new reporting fields are optional.
-0.28.2 makes skill updates discoverable, repairs Claude hook delivery and
-aligns feedback/triage JSON with a generated API reference.
-Read [release notes](./docs/releases/v0.28.2.md) before upgrading.
+0.29 reuses analysis inputs, adds interruption recovery for pin migration,
+and expands the completed-edit benchmark. JSON schema remains **0.8.0**.
+[Performance methods](./docs/performance.md) and
+[release evidence](./docs/releases/v0.29.0.md) distinguish measured latency,
+completed edits and the limits of synthetic trials. Hooks remain optional.
+Read [migration guidance](./docs/pin-migration.md) before changing existing pins.
 The npm badge reports the published version; the package file reports the
 version being prepared. [Earlier releases](./docs/releases/).
 
 ## Develop and contribute
 
 ```bash
-# Use the Node version in .nvmrc and pnpm 10.
+# Use the Node version in .nvmrc, pnpm 10 and Python 3.10+.
 pnpm install --frozen-lockfile
 pnpm verify
 pnpm --filter crimes smoke

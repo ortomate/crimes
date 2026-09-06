@@ -14,10 +14,11 @@ with evidence, scores, stable fingerprints and suggested next steps.
 Review coverage warnings and context analysis status; a clean report does
 not prove safety. Run behavior tests separately.
 
-0.28 shares scan/context analysis, uses resolved imports for context,
-reduces repeated-finding ranking bias and makes naming/accessibility/raw-style
-checks optional. `crimes migrate-pins --format json` previews migration of
-legacy decisions before an explicit `--apply`. Schema remains `0.8.0`.
+Analysis reuses source and parsed data within each command; no persistent
+cache is required. Context and scoped scans still analyze the repository.
+`crimes migrate-pins --format json` previews legacy decisions before reviewed
+`--apply`; `--recover` restores originals after an interrupted replacement.
+Schema remains `0.8.0`. [Migration guide](https://crimes.sh/docs/pin-migration/).
 
 Install agent integration once per repository:
 
@@ -36,7 +37,8 @@ supplies advisory context without downloading tools.
 - [Agent workflow](https://crimes.sh/docs/agent-usage/)
 - [Command and detector reference](https://crimes.sh/docs/reference/)
 - [Configuration](https://crimes.sh/docs/configuration/)
-- [0.28.2 release notes](https://crimes.sh/docs/releases/v0.28.2/)
+- [0.29.0 release evidence](https://crimes.sh/docs/releases/v0.29.0/)
+- [Performance methods](https://crimes.sh/docs/performance/)
 - [Source and contributions](https://github.com/ortomate/crimes)
 
 MIT. Node.js >=18. No cloud or model required.
