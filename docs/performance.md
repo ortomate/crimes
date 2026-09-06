@@ -89,3 +89,41 @@ equality and equality after those declared replacements separately. This
 option does not drop findings, scores or coverage fields; keep the explicit
 map with the evidence and never describe an approved wording change as an
 identical report.
+
+
+## 0.29 measurements
+
+On 7 September 2026, the alternating-process confirmation compared the
+0.28.2 bundle with the 0.29 analysis changes using Node 26.7.0 on one Mac.
+Each cell has a separate first observation and ten repeated fresh processes.
+The table shows repeated **context** latency; scan/hook results, stage times,
+source/executable hashes and complete sample archives are in the
+[measurement record](../evals/results/0.29.0/performance.json).
+
+| Corpus | Analyzed files | Median ms, before → after | p95 ms, before → after | Peak MiB, before → after |
+| --- | ---: | ---: | ---: | ---: |
+| Bundled JS/TS fixture | 21 | 402 → 408 | 471 → 466 | 178 → 175 |
+| Commander OSS fixture | 172 | 1311 → 754 | 1644 → 938 | 205 → 202 |
+| Next.js learning fixture | 183 | 820 → 606 | 875 → 647 | 208 → 205 |
+| Python service fixture | 11 | 322 → 315 | 358 → 338 | 171 → 167 |
+| Mixed-language fixture | 3 | 348 → 332 | 414 → 345 | 172 → 165 |
+| crimes source at 0.28.2 | 639 | 6270 → 2969 | 6519 → 3319 | 283 → 298 |
+| Generated Python scaling case | 322 | 542 → 431 | 611 → 455 | 204 → 198 |
+| Generated mixed scaling case | 482 | 764 → 534 | 803 → 567 | 213 → 207 |
+
+The largest case roughly halves latency at a cost of 15 MiB additional peak
+memory in context. The medium OSS cases improve less than 2×, and small-case
+differences are modest; the small JS/TS context median is slightly slower.
+A universal 2× speedup is not demonstrated.
+
+The initial sequential batch recorded a TSX context regression from 825ms to
+1248ms, with a 3724ms candidate p95. It did not reproduce in the alternating
+run. Both batches remain in the record; the cause of that earlier slowdown
+was not established. All 24 scan/context/hook pairs retain identical complete
+reports across the performance comparison. A later literal-scatter advice
+correction is verified separately with an explicit prose-replacement map;
+findings, scores, identities and coverage must still agree in full.
+
+These gains justify the bounded reuse and batching changes. They do not make
+per-edit hooks free, establish a general agent benefit, or prove performance
+on repositories larger than this corpus. Persistent caching remains unbuilt.
