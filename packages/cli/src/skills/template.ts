@@ -15,8 +15,9 @@ description: Inspect change risk with crimes when planning, editing or reviewing
 # crimes workflow
 
 Work from the intended repository root and follow its AGENTS.md and test
-policy. Use the project's installed CLI: \`crimes\` if available, otherwise
-\`./node_modules/.bin/crimes\` (or the project's package-manager script).
+policy. Prefer \`./node_modules/.bin/crimes\` when present, or the project's
+package-manager script. Only fall back to \`crimes\` on PATH when the project
+has no local installation; a global CLI may be a different version.
 In the crimes source checkout, use \`node packages/cli/dist/index.js\` after
 building. Check \`--version\`; keep the same executable before and after edits.
 If none is installed, report that limitation; do not silently download or

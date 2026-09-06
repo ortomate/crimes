@@ -5,8 +5,9 @@ for a decision, not an automatic work queue.
 
 ## Before editing
 
-Use the project’s installed executable consistently. If `crimes` is not on
-PATH, use `./node_modules/.bin/crimes` or the project’s package-manager script.
+Use the project’s installed executable consistently. Prefer
+`./node_modules/.bin/crimes` or the project’s package-manager script over a
+global CLI; only fall back to `crimes` on PATH when no local installation exists.
 Check `--version`; do not silently fetch a different version for the second
 scan. In a source checkout use the built CLI. Retain the pre-edit scoped scan
 JSON outside scanned sources, then repeat that scope after editing. Files

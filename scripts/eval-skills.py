@@ -141,6 +141,7 @@ def evaluate(host, package, output, parent):
     run(["npm", "test"], root)
     for path, before in immutable.items():
         assert digest(root / path) == before, f"Unrelated edit: {path}"
+    assert log.exists(), "The host bypassed the instrumented project CLI; inspect version selection in its trace"
     calls = [json.loads(line) for line in log.read_text().splitlines()]
     before = [c for c in calls if c["source"] == original]
     after = [c for c in calls if c["source"] == current]

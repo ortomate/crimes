@@ -6,8 +6,9 @@ description: Inspect change risk with crimes when planning, editing or reviewing
 # crimes workflow
 
 Work from the intended repository root and follow its AGENTS.md and test
-policy. Use the project's installed CLI: `crimes` if available, otherwise
-`./node_modules/.bin/crimes` (or the project's package-manager script).
+policy. Prefer `./node_modules/.bin/crimes` when present, or the project's
+package-manager script. Only fall back to `crimes` on PATH when the project
+has no local installation; a global CLI may be a different version.
 In the crimes source checkout, use `node packages/cli/dist/index.js` after
 building. Check `--version`; keep the same executable before and after edits.
 If none is installed, report that limitation; do not silently download or
@@ -56,4 +57,4 @@ workflows without writing; `crimes init --refresh-skills` safely refreshes
 unchanged generated copies. Review customized-file diffs before replacing.
 More detail: https://crimes.sh/docs/agent-usage/
 
-<!-- crimes-skill {"format":1,"version":"0.28.1","sha256":"23c3d806c0be45ca72dfbf66814f94c0058e5e5456d79a02091e79e0ca1a4112"} -->
+<!-- crimes-skill {"format":1,"version":"0.28.1","sha256":"a294cfa3fa6c2b388f25209d75b163929c5a6d7d63d5cfc629f23aaca4cb8695"} -->
