@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 import outcome_support as helpers
+import outcome_audit
 
 spec = importlib.util.spec_from_file_location('outcomes', Path(__file__).with_name('eval-outcomes.py'))
 runner = importlib.util.module_from_spec(spec)
@@ -131,6 +132,23 @@ class OutcomeMethods(unittest.TestCase):
         self.assertNotEqual(changed,{**changed,'findings':[]})
         self.assertNotEqual(changed,{**changed,'coverage':{'files_total':4}})
         self.assertEqual(before['agent_guidance'],['Read old advice'])
+
+    def test_usage_audit_recognizes_global_options_and_excludes_help(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/'cli.jsonl'
+            def row(args,source,report):
+                return {'args':args,'source':source,'cwd':'/root','exit_code':0,'elapsed_ms':1,'report':report}
+            records=[row(['scan','--help'],'original',None),
+                     row(['--no-skill-update','context','a.js'],'original',{'type':'context'}),
+                     row(['--no-skill-update','scan','--format','json'],'original',{'type':'scan'}),
+                     row(['--no-skill-update','scan','--format','json'],'final',{'type':'scan'})]
+            path.write_text('\n'.join(json.dumps(r) for r in records))
+            audited=outcome_audit.cli_metrics(path,'original','final')
+            self.assertTrue(audited['comparable_pre_post_scans'])
+            self.assertEqual(audited['context_calls'],1)
+            records[-1]['source']='intermediate'
+            path.write_text('\n'.join(json.dumps(r) for r in records))
+            self.assertFalse(outcome_audit.cli_metrics(path,'original','final')['comparable_pre_post_scans'])
 
 
 if __name__=='__main__':

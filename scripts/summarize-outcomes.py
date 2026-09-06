@@ -87,6 +87,7 @@ def main():
     documents=[json.loads(path.read_text()) for path in a.inputs]
     rows=validate(documents,a.expected_runs)
     output={'metadata':documents[0]['metadata'],
+            'post_processing':[d.get('post_processing') for d in documents],
             'partitions':[{'cases_sha256':d['metadata']['cases_sha256'],
                            'cases':sorted({r['case'] for r in d['rows']}),
                            'holdout':sorted({r['holdout'] for r in d['rows']})} for d in documents],

@@ -157,7 +157,7 @@ opaque fingerprints, coverage limits, project policy and independent tests.
 The maintained template is `packages/cli/src/skills/template.ts`, embedded
 in the CLI bundle. `pnpm docs:generate` regenerates both checked-in host
 copies; `pnpm verify` rejects drift. `pnpm --filter crimes smoke` tests fresh
-setup and real npm 0.28.0/0.28.1-to-tarball upgrades, including actual TTY
+setup and real npm 0.28.0/0.28.1/0.28.2-to-tarball upgrades, including actual TTY
 refresh, piped JSON, CI and customized files.
 The optional `scripts/eval-skills.py` runs fresh Codex/Claude sessions against
 an installed package; see [0.28.1 release evidence](./releases/v0.28.1.md)
@@ -168,3 +168,11 @@ the opt-in hook trial.
 The [0.29 edit benchmark](./releases/v0.29.0.md) expands repeated installed-host
 trials and reports workflow cost alongside acceptance. A discovered skill or
 delivered hook does not, by itself, establish better edits.
+
+
+Template 0.29.0 uses explicit local executable paths in its examples. A
+0.29 development run loaded the skill but later selected an older global
+CLI through a login shell. Resolve the executable once and retain it across
+the edit; successful skill discovery alone does not prove the correct CLI
+was used. Standard maintenance updates intact 0.28.2 templates and continues
+to preserve customized copies.

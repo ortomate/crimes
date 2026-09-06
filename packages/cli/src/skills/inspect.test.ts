@@ -4,14 +4,17 @@ import { inspectSkill, skillDiff } from "./inspect.js";
 import { AGENT_SKILL_TEXT, managedSkill } from "./template.js";
 
 describe("managed skill identity", () => {
-  it.each(["0.27.0", "0.28.0"])("recognizes the published %s template", (version) => {
-    const text = readFileSync(
-      new URL(`./fixtures/v${version}.md`, import.meta.url),
-      "utf8",
-    );
-    expect(inspectSkill(text)).toEqual({ status: "outdated", version });
-    expect(inspectSkill(text + "\nProject customization\n").status).toBe("customized");
-  });
+  it.each(["0.27.0", "0.28.0", "0.28.2"])(
+    "recognizes the published %s template",
+    (version) => {
+      const text = readFileSync(
+        new URL(`./fixtures/v${version}.md`, import.meta.url),
+        "utf8",
+      );
+      expect(inspectSkill(text)).toEqual({ status: "outdated", version });
+      expect(inspectSkill(text + "\nProject customization\n").status).toBe("customized");
+    },
+  );
 
   it("recognizes current skills and a checkout with CRLF line endings", () => {
     expect(inspectSkill(AGENT_SKILL_TEXT).status).toBe("current");
@@ -33,9 +36,9 @@ describe("managed skill identity", () => {
   });
 
   it("protects a newer installed template from accidental downgrade", () => {
-    expect(inspectSkill(managedSkill("Future workflow\n", "0.29.0"))).toEqual({
+    expect(inspectSkill(managedSkill("Future workflow\n", "0.30.0"))).toEqual({
       status: "newer",
-      version: "0.29.0",
+      version: "0.30.0",
     });
   });
 
