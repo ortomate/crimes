@@ -197,6 +197,7 @@ def main():
             "cases_sha256": hashlib.sha256(json.dumps(cases, sort_keys=True).encode()).hexdigest(),
             "fixtures": helpers.inventory(FIXTURES),
             "harness_sha256": helpers.digest(__file__), "helpers_sha256": helpers.digest(helpers.__file__),
+            "cli_metrics_sha256": helpers.digest(helpers.outcome_audit.__file__),
             "hosts": {h: {"version": helpers.run([h, "--version"], REPO).stdout.strip(),
                           "model": getattr(args, h + "_model"), "effort": "high"} for h in hosts},
             "node": helpers.run(["node", "--version"], REPO).stdout.strip(),

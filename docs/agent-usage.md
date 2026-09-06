@@ -114,3 +114,9 @@ Prefer a scoped behavior change using existing authority; propose a new
 abstraction separately unless the task requires it. When refactoring a
 fallback into a lookup table, test the fallback behavior as well as named
 cases. The [0.29 trial review](./releases/v0.29.0.md) explains this distinction.
+
+Preserve useful regression coverage when reviewing new findings. A connectivity
+finding on an integration test does not justify deleting assertions or moving
+them into a one-off command to get a clean report. If another edit follows the
+post-edit scan, repeat the original scan scope on the final tree before claiming
+a comparable result.

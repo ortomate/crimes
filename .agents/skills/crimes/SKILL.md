@@ -43,6 +43,8 @@ new-findings-only gate. For committed branch changes use `verdict --base
 Run the repository's behavior tests independently. Handle new high findings
 according to its policy, explaining evidence and uncertainty. Do not turn
 unrelated findings into extra work or silently change thresholds/suppressions.
+Preserve useful regression coverage. Do not delete test checks or move them
+to a one-off command solely to make the risk report clean.
 Exit 2 means a usage/environment error; exit 1 can mean a configured gate
 failed. A successful exit does not establish complete analysis or safety.
 
@@ -62,4 +64,4 @@ customized-file diffs before replacing. CI skips maintenance; use
 `--no-skill-update` when a task requires no maintenance notices or updates.
 More detail: https://crimes.sh/docs/agent-usage/
 
-<!-- crimes-skill {"format":1,"version":"0.29.0","sha256":"6b7f166ad2378766aa1e148df479ba4d5b77bfb51dea96fad0181990fc3eb172"} -->
+<!-- crimes-skill {"format":1,"version":"0.29.0","sha256":"37c69f9f31c46c0cb1c163a63f7065894ba9928ccd27ace0eaadcbc11a7438cc"} -->

@@ -994,3 +994,29 @@ thresholds, fingerprints and ranking are unchanged; the advice text changes. The
 its frozen package; the revised guidance is checked separately. One observed
 failure does not justify a new detector or establish a general benefit from
 this wording change. See [0.29 evidence](./releases/v0.29.0.md).
+
+## 0.29: connectivity advice must preserve regression tests
+
+The separate advice check retained another failure in
+`codex-plan-limit-installed-2`. After adding UI, worker, legacy and retry
+assertions to the existing test, the agent saw a low-severity fan-out finding
+for its five local imports. It removed those persisted checks and ran them
+only in a temporary command, explicitly citing the warning. Acceptance
+passed, but those protections would not run on the next change. The
+[review ledger](../evals/results/0.29.0/guidance-scope-review.json) records this
+separately from the original 216-run study.
+
+The detector's factual edge counts remain useful. Its advice was too broad:
+fan-out alone does not mean an edit propagates to many consumers, and
+"split or invert" is not warranted for an integration test. The summary,
+remediation and explanation now distinguish dependency direction and ask
+readers to preserve useful regression tests. The skill explicitly rejects
+moving test checks to a one-off command just to clear a report. Thresholds,
+severity, scores, identities and the treatment of intentional hubs remain
+unchanged. The dependency reference also corrects its obsolete claims about
+configurable cutoffs and fan-out increasing blast radius.
+
+This is a scoped advisory correction. Tests may still legitimately need
+restructuring, but a connectivity count alone is not the reason. Final host
+checks are reported separately; one retained failure does not establish a
+population effect or justify suppressing every connected test.

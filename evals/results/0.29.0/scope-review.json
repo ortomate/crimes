@@ -6,7 +6,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Adds owner, suspension, member and/or entry-point checks for the requested policy change; preserves the admin-only export contract. Patch inspected."
+    "reason": "Adds owner, suspension, member and/or entry-point checks for the requested policy change; preserves the admin-only export contract. Patch inspected.",
+    "added_file_sha256": {}
   },
   {
     "id": "claude-python-alias-installed-1",
@@ -15,7 +16,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Adds owner, suspension, member and/or entry-point checks for the requested policy change; preserves the admin-only export contract. Patch inspected."
+    "reason": "Adds owner, suspension, member and/or entry-point checks for the requested policy change; preserves the admin-only export contract. Patch inspected.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-python-alias-briefing-1",
@@ -24,7 +26,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Adds owner, suspension, member and/or entry-point checks for the requested policy change; preserves the admin-only export contract. Patch inspected."
+    "reason": "Adds owner, suspension, member and/or entry-point checks for the requested policy change; preserves the admin-only export contract. Patch inspected.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-python-alias-installed-1",
@@ -33,7 +36,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Adds owner, suspension, member and/or entry-point checks for the requested policy change; preserves the admin-only export contract. Patch inspected."
+    "reason": "Adds owner, suspension, member and/or entry-point checks for the requested policy change; preserves the admin-only export contract. Patch inspected.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-python-alias-without-1",
@@ -42,7 +46,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Adds owner, suspension, member and/or entry-point checks for the requested policy change; preserves the admin-only export contract. Patch inspected."
+    "reason": "Adds owner, suspension, member and/or entry-point checks for the requested policy change; preserves the admin-only export contract. Patch inspected.",
+    "added_file_sha256": {}
   },
   {
     "id": "claude-plan-limit-briefing-1",
@@ -52,7 +57,10 @@
       "packages/policy/plan-limits.js"
     ],
     "classification": "task_related_policy_refactor",
-    "reason": "Inspected boundary tests and preserved legacy/UI behavior. Extracts the two active limits into a shared policy module; valid but broader than required, with no demonstrated acceptance benefit."
+    "reason": "Inspected boundary tests and preserved legacy/UI behavior. Extracts the two active limits into a shared policy module; valid but broader than required, with no demonstrated acceptance benefit.",
+    "added_file_sha256": {
+      "packages/policy/plan-limits.js": "65fa88c60ca6d744f1a1a949915b5e9e7bbb1e1cd4b89673892ed3ba99188233"
+    }
   },
   {
     "id": "claude-plan-limit-installed-1",
@@ -61,7 +69,8 @@
       "packages/api/export.test.js"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected boundary tests and preserved legacy/UI behavior. Adds requested pro-limit boundary checks without unrelated behavior changes."
+    "reason": "Inspected boundary tests and preserved legacy/UI behavior. Adds requested pro-limit boundary checks without unrelated behavior changes.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-plan-limit-briefing-1",
@@ -71,7 +80,10 @@
       "packages/export-policy.js"
     ],
     "classification": "task_related_policy_refactor",
-    "reason": "Inspected boundary tests and preserved legacy/UI behavior. Extracts the two active limits into a shared policy module; valid but broader than required, with no demonstrated acceptance benefit."
+    "reason": "Inspected boundary tests and preserved legacy/UI behavior. Extracts the two active limits into a shared policy module; valid but broader than required, with no demonstrated acceptance benefit.",
+    "added_file_sha256": {
+      "packages/export-policy.js": "043bb9830464be427837ca652c79ab7044ab35a625aae6467b874368a1df6cac"
+    }
   },
   {
     "id": "codex-plan-limit-installed-1",
@@ -80,7 +92,8 @@
       "packages/api/export.test.js"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected boundary tests and preserved legacy/UI behavior. Adds requested pro-limit boundary checks without unrelated behavior changes."
+    "reason": "Inspected boundary tests and preserved legacy/UI behavior. Adds requested pro-limit boundary checks without unrelated behavior changes.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-plan-limit-without-1",
@@ -89,7 +102,8 @@
       "packages/api/export.test.js"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected boundary tests and preserved legacy/UI behavior. Adds requested pro-limit boundary checks without unrelated behavior changes."
+    "reason": "Inspected boundary tests and preserved legacy/UI behavior. Adds requested pro-limit boundary checks without unrelated behavior changes.",
+    "added_file_sha256": {}
   },
   {
     "id": "claude-plan-limit-briefing-2",
@@ -98,7 +112,10 @@
       "packages/shared/plan-limits.js"
     ],
     "classification": "task_related_refactor_with_fallback_change",
-    "reason": "Shared lookup table changes fallback for prototype-key plan names: constructor/toString at 50 rows were accepted before and rejected afterward. Reproduced against original and retained new module. Named-plan acceptance passes; relevance of unsupported plan names is not specified in task. This is a supplementary review observation, not a changed primary endpoint."
+    "reason": "Shared lookup table changes fallback for prototype-key plan names: constructor/toString at 50 rows were accepted before and rejected afterward. Reproduced against original and retained new module. Named-plan acceptance passes; relevance of unsupported plan names is not specified in task. This is a supplementary review observation, not a changed primary endpoint.",
+    "added_file_sha256": {
+      "packages/shared/plan-limits.js": "91c2c7cbbf7a682ef6867c237b26420bbc67c1e8f3ca9fa42804bdfa4a02bfe3"
+    }
   },
   {
     "id": "claude-plan-limit-installed-2",
@@ -107,7 +124,8 @@
       "packages/api/export.test.js"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior."
+    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior.",
+    "added_file_sha256": {}
   },
   {
     "id": "claude-plan-limit-without-2",
@@ -116,7 +134,8 @@
       "packages/api/export.test.js"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior."
+    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior.",
+    "added_file_sha256": {}
   },
   {
     "id": "claude-python-alias-installed-2",
@@ -125,7 +144,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior."
+    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior.",
+    "added_file_sha256": {}
   },
   {
     "id": "claude-python-alias-without-2",
@@ -134,7 +154,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior."
+    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-plan-limit-briefing-2",
@@ -143,7 +164,8 @@
       "packages/api/export.test.js"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior."
+    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-plan-limit-without-2",
@@ -152,7 +174,8 @@
       "packages/api/export.test.js"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior."
+    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-python-alias-briefing-2",
@@ -161,7 +184,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior."
+    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-python-alias-installed-2",
@@ -170,7 +194,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior."
+    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-python-alias-without-2",
@@ -179,7 +204,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior."
+    "reason": "Inspected added task boundary/entry-point tests; they preserve unrelated legacy or export behavior.",
+    "added_file_sha256": {}
   },
   {
     "id": "claude-plan-limit-briefing-3",
@@ -188,7 +214,10 @@
       "packages/shared/plan-limits.js"
     ],
     "classification": "task_related_policy_refactor",
-    "reason": "Inspected shared policy extraction; preserves named and unknown-plan fallback behavior using explicit branches or Object.hasOwn. Broader than the requested limit edit; no demonstrated acceptance benefit."
+    "reason": "Inspected shared policy extraction; preserves named and unknown-plan fallback behavior using explicit branches or Object.hasOwn. Broader than the requested limit edit; no demonstrated acceptance benefit.",
+    "added_file_sha256": {
+      "packages/shared/plan-limits.js": "ab7b6581e2b2eb1c6e38d8c64c8ac694b546363e1328a718824feb034fdeff32"
+    }
   },
   {
     "id": "claude-plan-limit-installed-3",
@@ -198,7 +227,10 @@
       "packages/worker/job.test.js"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes."
+    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes.",
+    "added_file_sha256": {
+      "packages/worker/job.test.js": "72426bafe16ef69bac0619b67a52e2f14b2f92e736317b6b8db69f767e9431e1"
+    }
   },
   {
     "id": "claude-python-alias-briefing-3",
@@ -207,7 +239,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes."
+    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes.",
+    "added_file_sha256": {}
   },
   {
     "id": "claude-python-alias-installed-3",
@@ -216,7 +249,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes."
+    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes.",
+    "added_file_sha256": {}
   },
   {
     "id": "claude-python-alias-without-3",
@@ -225,7 +259,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes."
+    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-plan-limit-briefing-3",
@@ -235,7 +270,10 @@
       "packages/export-policy.js"
     ],
     "classification": "task_related_policy_refactor",
-    "reason": "Inspected shared policy extraction; preserves named and unknown-plan fallback behavior using explicit branches or Object.hasOwn. Broader than the requested limit edit; no demonstrated acceptance benefit."
+    "reason": "Inspected shared policy extraction; preserves named and unknown-plan fallback behavior using explicit branches or Object.hasOwn. Broader than the requested limit edit; no demonstrated acceptance benefit.",
+    "added_file_sha256": {
+      "packages/export-policy.js": "c7bbe8701399eb12b9ae84374c88cdb0eeb9a5678fe8c2dacdd49da84f0e1ede"
+    }
   },
   {
     "id": "codex-plan-limit-installed-3",
@@ -244,7 +282,8 @@
       "packages/api/export.test.js"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes."
+    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-plan-limit-without-3",
@@ -253,7 +292,8 @@
       "packages/api/export.test.js"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes."
+    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-python-alias-briefing-3",
@@ -262,7 +302,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes."
+    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-python-alias-installed-3",
@@ -271,7 +312,8 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes."
+    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes.",
+    "added_file_sha256": {}
   },
   {
     "id": "codex-python-alias-without-3",
@@ -280,6 +322,7 @@
       "billing/test_policy.py"
     ],
     "classification": "relevant_test_expansion",
-    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes."
+    "reason": "Inspected task boundary, entry-point and/or queue-retry tests; no unrelated production changes.",
+    "added_file_sha256": {}
   }
 ]

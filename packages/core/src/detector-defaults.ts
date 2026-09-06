@@ -80,7 +80,7 @@ export const DETECTOR_DEFAULTS: Record<string, DetectorDefaults> = {
   },
   high_fan_in_fan_out: {
     effort: "medium",
-    fix_shape: "split or invert: too many consumers means too much coupling",
+    fix_shape: "review dependency edges; restructure only for an evidenced problem",
   },
 
   // Duplication

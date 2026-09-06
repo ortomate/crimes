@@ -52,6 +52,8 @@ new-findings-only gate. For committed branch changes use \`verdict --base
 Run the repository's behavior tests independently. Handle new high findings
 according to its policy, explaining evidence and uncertainty. Do not turn
 unrelated findings into extra work or silently change thresholds/suppressions.
+Preserve useful regression coverage. Do not delete test checks or move them
+to a one-off command solely to make the risk report clean.
 Exit 2 means a usage/environment error; exit 1 can mean a configured gate
 failed. A successful exit does not establish complete analysis or safety.
 

@@ -113,28 +113,28 @@ surface to depend on.
 ## Crowded Module (`high_fan_in_fan_out`)
 
 **What it detects.** Files with unusually high `fan-in` (number of
-files importing this one) and/or `fan-out` (number of files this one
-imports). Threshold is calibrated to mid-size repos; very large
-monorepos can lift it via `crimes.config.json`.
+files importing this one) and/or local `fan-out` (number of resolved local
+imports). With at least five graph files, the detector uses the repository's
+95th percentile, with a floor of five edges. The 99th percentile has a floor
+of eight and can promote the finding to medium. Mostly type-only fan-in stays
+low unless fan-out independently warrants promotion. These cutoffs are
+currently implementation constants, not configuration options.
 
 **Example evidence.**
 
 ```text
-fan-in: 47 files import this module
-fan-out: 14 files imported here
-top-3 importers: src/billing.ts, src/account.ts, src/team.ts
-top-3 imports: src/util/format.ts, src/clock.ts, src/log.ts
+fan-out: 5 imports (p95 cutoff: 5, p99: 8)
 ```
 
-**Why it matters.** High fan-in modules are the *blast-radius
-hotspots* — any edit ripples across many consumers, so getting them
-right is disproportionately important. High fan-out modules are
-glue: when they break, downstream work stops. Either signal lifts
-the file's `scores.blast_radius` in the unified `agent_risk`
-formula.
+**Why it matters.** Many importers can spread a change; many imports expose
+the file to changes in its dependencies. These directions have different
+implications. `scores.blast_radius` measures incoming direct/transitive
+importers, not the number of dependencies the file imports. A test that
+imports five modules and has no importers can have zero blast radius.
 
-**Suggested fix.** For high fan-out, consider splitting the module
-along its natural seams — the imports usually cluster by concern.
-For high fan-in, there's often no action: it's the legitimate seam
-your codebase reached for. The finding is informational; tune the
-threshold in `crimes.config.json` if your repo's normal sits higher.
+**Suggested action.** Read the relevant consumers and dependencies before
+editing. Shared hubs and integration tests can be connected by design;
+restructuring needs an evidenced problem beyond the edge count. Preserve
+useful regression checks. Removing assertions or moving them into a temporary
+command solely to clear this finding loses durable coverage. Review and
+record intentional connectivity through triage when appropriate.

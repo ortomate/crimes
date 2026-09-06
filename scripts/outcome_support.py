@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import outcome_audit
 from pathlib import Path
 import re
 import shutil
@@ -162,13 +163,4 @@ def source_digest(root):
 
 
 def cli_metrics(path, original_source, final_source):
-    calls = [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
-    scans = [c for c in calls if c["args"] and c["args"][0] == "scan" and c["exit_code"] == 0]
-    comparable = any(a["args"] == b["args"] and a["cwd"] == b["cwd"] and
-                     a["source"] == original_source and b["source"] == final_source and original_source != final_source and
-                     (a.get("report") or {}).get("type") == "scan" and (b.get("report") or {}).get("type") == "scan"
-                     for i, a in enumerate(scans) for b in scans[i+1:])
-    return {"cli_calls": len(calls), "cli_elapsed_ms": sum(c["elapsed_ms"] for c in calls),
-            "context_calls": sum(c["args"][0] == "context" for c in calls),
-            "hook_contexts": sum(bool((c.get("report") or {}).get("hook_context")) for c in calls),
-            "comparable_pre_post_scans": comparable}
+    return outcome_audit.cli_metrics(path, original_source, final_source)

@@ -64,6 +64,8 @@ def validate(documents, expected_runs):
         for key in comparable:
             if document['metadata'][key]!=documents[0]['metadata'][key]:
                 raise RuntimeError(f'Cannot pool changed inputs: {key}')
+        if document['metadata'].get('cli_metrics_sha256')!=documents[0]['metadata'].get('cli_metrics_sha256'):
+            raise RuntimeError('Cannot pool changed inputs: cli_metrics_sha256')
     rows=[row for document in documents for row in document['rows']]
     keys={(r['host'],r['case'],r['arm'],r['repeat']) for r in rows}
     if len(rows)!=expected_runs or len(keys)!=len(rows):
