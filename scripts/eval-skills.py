@@ -21,7 +21,7 @@ import time
 def run(args, cwd, **kwargs):
     result = subprocess.run(
         [str(arg) for arg in args], cwd=cwd, text=True, capture_output=True,
-        timeout=kwargs.pop("timeout", 180), **kwargs
+        timeout=kwargs.pop("timeout", 180), stdin=subprocess.DEVNULL, **kwargs
     )
     if result.returncode:
         raise RuntimeError(f"{args[0]} exited {result.returncode}\n{result.stdout}\n{result.stderr}")
@@ -127,7 +127,8 @@ def evaluate(host, package, output, parent):
     started = time.monotonic()
     with (output / f"{host}-host.jsonl").open("w") as stdout, (output / f"{host}-stderr.log").open("w") as stderr:
         result = subprocess.run([str(arg) for arg in args], cwd=root, env=env,
-                                text=True, stdout=stdout, stderr=stderr, timeout=600)
+                                text=True, stdin=subprocess.DEVNULL,
+                                stdout=stdout, stderr=stderr, timeout=600)
     transcript = (output / f"{host}-host.jsonl").read_text()
     assert result.returncode == 0, f"{host} failed; inspect host logs"
     current = digest(root / "src/shipping.js")
@@ -156,7 +157,8 @@ def evaluate(host, package, output, parent):
                re.search(r'"(?:skill|command)"\s*:\s*"crimes[^"]*"', transcript)))
     assert loaded, "Skill read/invocation was not observed in the host trace"
     changed = run(["git", "diff", "--name-only"], root).stdout.splitlines()
-    assert set(changed) <= {"src/shipping.js", "src/shipping.test.js"}, changed
+    untracked = run(["git", "ls-files", "--others", "--exclude-standard"], root).stdout.splitlines()
+    assert set(changed + untracked) <= {"src/shipping.js", "src/shipping.test.js"}, changed + untracked
     return {"host": host, "host_version": host_version, "crimes_version": version,
             "model_selection": "host default", "skill_loaded": True,
             "local_cli_used": True, "pre_edit_context": True,
