@@ -83,11 +83,24 @@ explicit in the batch task before its first host trial. The pilot also led
 to balanced condition positions across repeats and file-set-aware scan
 hashes; neither correction changes the product or counts as a benefit.
 
+For runs recorded before the 0.29 command-recognition correction, audit every
+row from its raw CLI log before pooling. This recognizes successful report
+envelopes when a global option precedes the subcommand, and excludes help or
+error output from context counts. It retains the originally recorded metrics
+and hashes; it cannot infer calls that bypassed the instrumented binary.
+
+```bash
+python3 scripts/audit-outcome-usage.py --input-dir /tmp/development \
+  --output /tmp/development-audited.json
+python3 scripts/audit-outcome-usage.py --input-dir /tmp/holdout \
+  --output /tmp/holdout-audited.json
+```
+
 Pool completed development and holdout partitions with:
 
 ```bash
-python3 scripts/summarize-outcomes.py /tmp/development/results.json \
-  /tmp/holdout/results.json --output /tmp/outcomes-reviewed.json
+python3 scripts/summarize-outcomes.py /tmp/development-audited.json \
+  /tmp/holdout-audited.json --output /tmp/outcomes-reviewed.json
 ```
 
 The summarizer rejects missing/duplicate cells and changed package, fixture,
@@ -101,6 +114,48 @@ Use the [external trial](./external-trial.md) to collect independently reported
 editing outcomes; do not present these runs as adoption or general productivity
 proof. [Performance measurements](./performance.md) isolate scanner latency
 from host/model and task time.
+
+### Recorded 0.29 results
+
+The [complete 216-run record](../evals/results/0.29.0/outcomes.json) uses Codex
+CLI 0.153.4 with `gpt-5.6-sol` and Claude Code 2.1.263 with `claude-opus-5`,
+both at high effort. All 216 host runs completed and passed the predefined
+acceptance checks. Both the development and reserved partitions tied across
+conditions: **no measured acceptance improvement**. The suite has a ceiling
+effect; these small tasks do not distinguish the conditions on correctness.
+
+| Host | Condition | Acceptance | Median task seconds | Comparable candidate scans |
+| --- | --- | ---: | ---: | ---: |
+| Claude | Without | 36/36 | 53.6 | — |
+| Claude | Briefing | 36/36 | 45.4 | — |
+| Claude | Installed | 36/36 | 89.3 | 36/36 |
+| Codex | Without | 36/36 | 52.2 | — |
+| Codex | Briefing | 36/36 | 51.3 | — |
+| Codex | Installed | 36/36 | 116.3 | 34/36 |
+
+All 72 installed runs took an observable skill action. Claude received 63 hook
+contexts across its 36 runs. Two Codex runs selected a different executable
+for some or all analysis, despite discovering the local package. They remain
+in the assigned installed condition. The [workflow review](../evals/results/0.29.0/workflow-review.json)
+records both deviations. Reprocessing all raw logs corrected metrics in 13
+rows, including six missed comparable scan pairs; no acceptance result changed.
+The control/briefing transcripts contain no executed crimes command.
+
+Every one of the 31 file-scope flags was [reviewed](../evals/results/0.29.0/scope-review.json).
+Twenty-six were relevant test additions. Five were policy extractions in the
+briefing condition on `plan-limit`, compared with none of that task's twelve
+control/installed runs. One extraction changed fallback for prototype-key
+plan names outside the named-plan acceptance contract. The retained
+[reproduction](../evals/results/0.29.0/review/probe.mjs) establishes that edge
+change; it is a supplementary observation, not a retroactive primary failure.
+The transcript explicitly connected consolidation to the briefing's advice.
+This supports narrowing the advice, not changing detector thresholds.
+
+The installed workflow took longer on this suite. Provider usage is retained
+per host in the record; token definitions differ and are not pooled. The
+briefing timing differences and complete acceptance tie do not establish
+general productivity gains. Later advice and executable-selection checks use
+separate packages and are reported separately in the [release notes](./releases/v0.29.0.md).
 
 ## Ranking labels
 
