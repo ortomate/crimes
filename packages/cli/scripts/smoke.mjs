@@ -15,6 +15,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "n
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { smokeSkills } from "./smoke-skills.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cliDir = resolve(here, "..");
@@ -125,6 +126,8 @@ try {
   process.stdout.write(
     `  → scripts: ${JSON.stringify(installedManifest.scripts ?? {})}\n`,
   );
+
+  smokeSkills({ installedBin, tarballPath, repoRoot, temporary: tmp });
 
   step("crimes --version");
   const versionOut = run(installedBin, ["--version"]).stdout.trim();

@@ -51,14 +51,14 @@ describe("crimes init", () => {
     expect(existsSync(join(root, "crimes.config.json"))).toBe(true);
   });
 
-  it("refuses to overwrite without --force (exit 2)", async () => {
+  it("keeps existing config on repeat setup without --force", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
     writeFileSync(join(root, "crimes.config.json"), `{ "include": ["custom"] }`);
 
     const result = await runCli(["init"], root);
 
-    expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("already exists");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Kept existing crimes.config.json");
     // File contents unchanged.
     const raw = readFileSync(join(root, "crimes.config.json"), "utf8");
     expect(raw).toBe(`{ "include": ["custom"] }`);
@@ -143,7 +143,7 @@ describe("crimes init", () => {
 
     const result = await runCli(["init", "--agent-skill"], root);
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("already exists");
+    expect(result.stderr).toContain("customized");
     expect(readFileSync(skillPath, "utf8")).toBe("custom skill");
   });
 
@@ -155,7 +155,7 @@ describe("crimes init", () => {
 
     const result = await runCli(["init", "--codex-skill"], root);
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("already exists");
+    expect(result.stderr).toContain("customized");
     expect(readFileSync(skillPath, "utf8")).toBe("custom skill");
   });
 
@@ -255,7 +255,7 @@ describe("crimes init", () => {
     const first = await runCli(["init", "--agents"], root);
     expect(first.exitCode).toBe(0);
 
-    const second = await runCli(["init", "--agents", "--force"], root);
+    const second = await runCli(["init", "--agents"], root);
     expect(second.exitCode).toBe(0);
 
     const settingsPath = join(root, ".claude", "settings.local.json");
@@ -281,18 +281,21 @@ describe("crimes init", () => {
     expect(result.stderr).toContain("malformed");
     // File untouched.
     expect(readFileSync(settingsPath, "utf8")).toBe("{ not valid json");
+    expect(existsSync(join(root, "crimes.config.json"))).toBe(false);
+    expect(existsSync(join(root, ".claude/skills/crimes/SKILL.md"))).toBe(false);
+    expect(existsSync(join(root, ".agents/skills/crimes/SKILL.md"))).toBe(false);
   });
 
-  it("--agents --force overwrites a malformed .claude/settings.local.json", async () => {
+  it("--force still preserves malformed hook settings and writes nothing", async () => {
     const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
     const settingsPath = join(root, ".claude", "settings.local.json");
     mkdirSync(dirname(settingsPath), { recursive: true });
     writeFileSync(settingsPath, "{ not valid json", "utf8");
 
     const result = await runCli(["init", "--agents", "--force"], root);
-    expect(result.exitCode).toBe(0);
-    const parsed = JSON.parse(readFileSync(settingsPath, "utf8"));
-    expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write|NotebookEdit");
+    expect(result.exitCode).toBe(2);
+    expect(readFileSync(settingsPath, "utf8")).toBe("{ not valid json");
+    expect(existsSync(join(root, "crimes.config.json"))).toBe(false);
   });
 
   it("--codex-skill writes no speculative hook settings", async () => {
@@ -318,5 +321,86 @@ describe("crimes init", () => {
     expect(installed).toBe(
       readFileSync(resolve(here, "../../../../.agents/skills/crimes/SKILL.md"), "utf8"),
     );
+    expect(installed).toBe(
+      readFileSync(resolve(here, "../../../../.claude/skills/crimes/SKILL.md"), "utf8"),
+    );
+  });
+
+  it.each(["0.27.0", "0.28.0"])(
+    "refreshes published %s skills without config or hook changes",
+    async (version) => {
+      const root = await mkdtemp(join(tmpdir(), "crimes-refresh-"));
+      const old = readFileSync(
+        resolve(here, `../skills/fixtures/v${version}.md`),
+        "utf8",
+      );
+      const skill = join(root, ".agents/skills/crimes/SKILL.md");
+      mkdirSync(dirname(skill), { recursive: true });
+      writeFileSync(skill, old);
+      const config = '{"include":["local-only/**"]}\n';
+      writeFileSync(join(root, "crimes.config.json"), config);
+      mkdirSync(join(root, ".claude"));
+      writeFileSync(join(root, ".claude/settings.local.json"), "{invalid settings}");
+      const check = await runCli(["init", "--refresh-skills", "--check"], root);
+      expect(check.exitCode).toBe(1);
+      expect(readFileSync(skill, "utf8")).toBe(old);
+      const refresh = await runCli(["init", "--refresh-skills"], root);
+      expect(refresh.exitCode).toBe(0);
+      expect(readFileSync(skill, "utf8")).not.toBe(old);
+      expect(readFileSync(join(root, "crimes.config.json"), "utf8")).toBe(config);
+      expect(readFileSync(join(root, ".claude/settings.local.json"), "utf8")).toBe(
+        "{invalid settings}",
+      );
+      expect(existsSync(join(root, ".claude/skills/crimes/SKILL.md"))).toBe(false);
+      expect((await runCli(["init", "--refresh-skills", "--check"], root)).exitCode).toBe(
+        0,
+      );
+    },
+  );
+
+  it("preserves all files when one skill has customizations and shows the diff", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-custom-skills-"));
+    expect((await runCli(["init", "--refresh-skills", "--agents"], root)).exitCode).toBe(
+      0,
+    );
+    const codex = join(root, ".agents/skills/crimes/SKILL.md");
+    const claude = join(root, ".claude/skills/crimes/SKILL.md");
+    const original = readFileSync(claude, "utf8");
+    writeFileSync(codex, original.replace("# crimes workflow", "# Team workflow"));
+    const custom = readFileSync(codex, "utf8");
+    const result = await runCli(["init", "--agents"], root);
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toContain("-# Team workflow");
+    expect(result.stdout).toContain("+# crimes workflow");
+    expect(readFileSync(codex, "utf8")).toBe(custom);
+    expect(readFileSync(claude, "utf8")).toBe(original);
+    expect(existsSync(join(root, "crimes.config.json"))).toBe(false);
+    expect(existsSync(join(root, ".claude/settings.local.json"))).toBe(false);
+  });
+
+  it("forced agent refresh preserves customized config", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-force-skills-"));
+    const config = '{"include":["local-only/**"]}\n';
+    writeFileSync(join(root, "crimes.config.json"), config);
+    expect(
+      (await runCli(["init", "--agents", "--force", "--no-hooks"], root)).exitCode,
+    ).toBe(0);
+    expect(readFileSync(join(root, "crimes.config.json"), "utf8")).toBe(config);
+  });
+
+  it("adds the second host without forcing replacement of the first", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-add-host-"));
+    expect((await runCli(["init", "--codex-skill"], root)).exitCode).toBe(0);
+    expect((await runCli(["init", "--agents"], root)).exitCode).toBe(0);
+    expect(existsSync(join(root, ".claude/skills/crimes/SKILL.md"))).toBe(true);
+  });
+
+  it.each([
+    { flags: ["--check"] },
+    { flags: ["--refresh-skills", "--check", "--force"] },
+  ])("rejects invalid check flags %j without writing", async ({ flags }) => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-check-flags-"));
+    expect((await runCli(["init", ...flags], root)).exitCode).toBe(2);
+    expect(existsSync(join(root, "crimes.config.json"))).toBe(false);
   });
 });

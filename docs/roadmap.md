@@ -1,8 +1,8 @@
 # Implementation status
 
-Prepared version: **crimes 0.28.0**, JSON schema **0.8.0**.
+Prepared version: **crimes 0.28.1**, JSON schema **0.8.0**.
 Preparation is separate from publication; `npm view crimes version` gives
-the published version. [0.28 release notes](./releases/v0.28.0.md) record the
+the published version. [0.28.1 release notes](./releases/v0.28.1.md) record the
 change and verification. Prior versions are documented in
 [release history](https://github.com/ortomate/crimes/tree/main/docs/releases).
 

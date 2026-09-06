@@ -1,6 +1,6 @@
 import { registerMigratePinsCommand } from "./commands/migrate-pins.js";
 import { Command } from "commander";
-import { maybeRunAutoInit } from "./auto-init.js";
+import { autoInitFlags, maybeRunAutoInit } from "./auto-init.js";
 import { welcomeBanner as _welcomeBanner } from "./banner.js";
 import { registerAuditSuppressionsCommand } from "./commands/audit-suppressions.js";
 import { registerBaselineCommand } from "./commands/baseline.js";
@@ -32,10 +32,9 @@ program
   .option("--init", "force the first-run auto-init prompt even if config exists")
   .hook("preAction", async (_thisCommand, actionCommand) => {
     const name = actionCommand.name();
-    const opts = program.opts<{ init?: boolean; noInit?: boolean }>();
     await maybeRunAutoInit(name, {
       cwd: process.cwd(),
-      flags: { init: opts.init === true, noInit: opts.noInit === true },
+      flags: autoInitFlags(program),
     });
   })
   .addHelpText(
@@ -52,7 +51,7 @@ program
       "    crimes scan --changed --base main reviewing edits you already made\n" +
       "  bare `crimes scan` audits the whole repo — useful, but rarely what you want mid-task.\n" +
       "  run `crimes context <file>` before editing — findings + likely tests + agent notes for one file.\n" +
-      "  run `crimes init --agents` once so coding agents auto-discover crimes.",
+      "  run `crimes init --agents` to install agent skills; after upgrades, `crimes init --refresh-skills`.",
   )
   .action(() => {
     // Bare `crimes` (no subcommand) prints a welcome banner pointing at

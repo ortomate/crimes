@@ -1,0 +1,64 @@
+{
+  "date": "2026-09-06T10:09:25.251196+00:00",
+  "package_source_commit": "92893df2e71ae8c14f1f5b7bd3cbd4372aa76c08",
+  "package_version": "0.28.1",
+  "harness_sha256": "6ac9451f204432a1abea517ea36b74a6d4a028ece7d9d2835c9c04b7c422134d",
+  "method": "Fresh authenticated host sessions, project skill discovered without naming it in the task, npm-installed candidate tarball, observed local CLI calls, independent acceptance assertions and repository diff checks. Stdin isolated from launcher.",
+  "task": "Change express shipping fee from 9 to 12, preserve standard fee 5 and unknown-method rejection; review change risk and run tests.",
+  "preliminary_runs": [
+    {
+      "host": "codex",
+      "outcome": "Failed local CLI selection: used global crimes 0.28.0. Revised skill to prefer project dependency."
+    },
+    {
+      "hosts": [
+        "codex",
+        "claude"
+      ],
+      "outcome": "Both completed, but launcher stdin contaminated prompts. Excluded; isolated stdin and reran."
+    }
+  ],
+  "results": [
+    {
+      "host": "codex",
+      "host_version": "codex-cli 0.153.4",
+      "crimes_version": "0.28.1",
+      "model_selection": "host default",
+      "skill_loaded": true,
+      "local_cli_used": true,
+      "pre_edit_context": true,
+      "comparable_pre_post_scans": true,
+      "acceptance_passed": true,
+      "unrelated_edits": [],
+      "cli_calls": 4,
+      "elapsed_seconds": 57.55,
+      "host_trace_sha256": "7bf03dd09b0e39e2a2f92267d00de80c4aedb2b90d2624b1edd0328f7c7a8bec",
+      "cli_trace_sha256": "ed4ca53c6c0694aac8e28bc18447a54b4c8b881b1cf1bf4acd86aae021ab9e31",
+      "fingerprint_comparison": "Observed in host trace",
+      "untracked_files": "No unrelated files"
+    },
+    {
+      "host": "claude",
+      "host_version": "2.1.261 (Claude Code)",
+      "crimes_version": "0.28.1",
+      "model_selection": "host default",
+      "skill_loaded": true,
+      "local_cli_used": true,
+      "pre_edit_context": true,
+      "comparable_pre_post_scans": true,
+      "acceptance_passed": true,
+      "unrelated_edits": [],
+      "cli_calls": 4,
+      "elapsed_seconds": 59.27,
+      "host_trace_sha256": "b7af53d229a7921a90ccf4fdbf5713e2d93850487edb316c3ecda0b595da3f0a",
+      "cli_trace_sha256": "936ed45e8ed777071a87bbc0eb1801383f32cdd27bcb8a471ddacde8dcf8290e",
+      "fingerprint_comparison": "Observed in host trace",
+      "untracked_files": "No unrelated files"
+    }
+  ],
+  "limits": [
+    "One small synthetic task per host; host-default models, no controlled performance comparison.",
+    "Both scans reported zero findings; this checks discovery, version selection, sequencing and comparison, not calibration or responses to high findings.",
+    "No guarantee of invocation on every task, or compatibility with all host versions or managed policies."
+  ]
+}
