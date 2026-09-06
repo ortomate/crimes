@@ -86,12 +86,25 @@ optional checks in `crimes.config.json` when they fit your project.
 The [generated command and detector reference](./docs/reference.md) names
 what is available and what runs by default.
 
-## Status — crimes@0.28.0
+## Agent setup and updates
+
+```bash
+crimes init --agents                  # install project skills and Claude hook
+crimes init --refresh-skills --check  # read-only check after a CLI upgrade
+crimes init --refresh-skills          # refresh unchanged generated skills
+```
+
+Npm upgrades the CLI and embedded template; it does not rewrite project skills.
+Refresh preserves config, hooks and customized skills. Review proposed diffs
+before replacing custom instructions. [Setup and upgrade guide](./docs/skills.md).
+
+## Status — crimes@0.28.1
 
 0.28 improves pre-edit briefing completeness, test/dependency guidance,
 default signal, fingerprint migration and documentation consistency.
 The JSON schema remains **0.8.0**; new reporting fields are optional.
-Read [release notes and measurements](./docs/releases/v0.28.0.md) before upgrading.
+0.28.1 adds safe, versioned skill refresh and installation lifecycle checks.
+Read [release notes](./docs/releases/v0.28.1.md) before upgrading.
 The npm badge reports the published version; the package file reports the
 version being prepared. [Earlier releases](./docs/releases/).
 

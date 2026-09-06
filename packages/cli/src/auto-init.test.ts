@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { detectAgent, shouldPromptAutoInit } from "./auto-init.js";
+import { Command } from "commander";
+import { autoInitFlags, detectAgent, shouldPromptAutoInit } from "./auto-init.js";
+
+describe("first-run CLI flags", () => {
+  it.each([
+    { args: [], expected: { init: false, noInit: false } },
+    { args: ["--init"], expected: { init: true, noInit: false } },
+    { args: ["--no-init"], expected: { init: false, noInit: true } },
+  ])("distinguishes explicit flags from defaults: $args", ({ args, expected }) => {
+    const program = new Command().option("--no-init").option("--init");
+    program.parse(args, { from: "user" });
+    expect(autoInitFlags(program)).toEqual(expected);
+  });
+});
 
 describe("detectAgent", () => {
   it("prefers CLAUDECODE env var over directories", () => {

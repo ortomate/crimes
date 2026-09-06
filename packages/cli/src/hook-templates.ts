@@ -38,9 +38,11 @@ export interface MergeResult {
 // Recognise both the current ("crimes hook") and the legacy 0.11.0-draft
 // ("crimes context $CLAUDE_TOOL_INPUT_file_path") shapes so we don't
 // double-write into a settings.json that already has the broken legacy
-// entry on disk. The first migration pass through `init --agents --force`
-// rewrites the legacy entry to the current one.
+// entry on disk. Only the exact shipped legacy command is safe to migrate;
+// customized commands are preserved.
 const CRIMES_HOOK_MARKERS = ["crimes hook", "crimes context"] as const;
+const LEGACY_COMMAND =
+  'npx -y crimes context "$CLAUDE_TOOL_INPUT_file_path" --format json 2>/dev/null || true';
 
 function isCrimesEntry(entry: ClaudeHookEntry): boolean {
   return entry.hooks.some(
@@ -50,6 +52,29 @@ function isCrimesEntry(entry: ClaudeHookEntry): boolean {
   );
 }
 
+function validateEntries(entries: unknown[]): asserts entries is ClaudeHookEntry[] {
+  for (const entry of entries) {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      !("hooks" in entry) ||
+      !Array.isArray(entry.hooks)
+    ) {
+      throw new Error("PreToolUse entries must contain a hooks array");
+    }
+    for (const hook of entry.hooks) {
+      if (
+        typeof hook !== "object" ||
+        hook === null ||
+        typeof hook.type !== "string" ||
+        (hook.type === "command" && typeof hook.command !== "string")
+      ) {
+        throw new Error("Invalid PreToolUse hook");
+      }
+    }
+  }
+}
+
 export function mergeClaudeHook(existing: ClaudeSettings | undefined): MergeResult {
   if (existing === undefined) {
     return {
@@ -57,18 +82,36 @@ export function mergeClaudeHook(existing: ClaudeSettings | undefined): MergeResu
       document: { hooks: { PreToolUse: [CLAUDE_HOOK_ENTRY] } },
     };
   }
-  if (typeof existing !== "object" || existing === null) {
+  if (typeof existing !== "object" || existing === null || Array.isArray(existing)) {
     throw new Error("settings document is not an object");
   }
-  const hooks = (existing.hooks ?? {}) as Record<string, unknown>;
+  const hooks = (existing.hooks === undefined ? {} : existing.hooks) as Record<
+    string,
+    unknown
+  >;
   if (typeof hooks !== "object" || hooks === null || Array.isArray(hooks)) {
     throw new Error("settings.hooks is not an object");
   }
-  const pre = (hooks.PreToolUse ?? []) as unknown;
+  const pre = (hooks.PreToolUse === undefined ? [] : hooks.PreToolUse) as unknown;
   if (!Array.isArray(pre)) {
     throw new Error("settings.hooks.PreToolUse is not an array");
   }
-  const entries = pre as ClaudeHookEntry[];
+  validateEntries(pre);
+  const entries = pre;
+  if (
+    entries.some((entry) => entry.hooks.some((hook) => hook.command === LEGACY_COMMAND))
+  ) {
+    const migrated = entries.map((entry) => ({
+      ...entry,
+      hooks: entry.hooks.map((hook) =>
+        hook.command === LEGACY_COMMAND ? { ...CLAUDE_HOOK_ENTRY.hooks[0]! } : hook,
+      ),
+    }));
+    return {
+      action: "merged",
+      document: { ...existing, hooks: { ...existing.hooks, PreToolUse: migrated } },
+    };
+  }
   if (entries.some(isCrimesEntry)) {
     return { action: "skipped", document: existing };
   }

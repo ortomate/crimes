@@ -1,34 +1,59 @@
 ---
 name: crimes-codebase-risk
-description: Use crimes to inspect change risk before and after edits in a repository that uses the CLI. Covers TypeScript, JavaScript and Python; interpret its evidence and analysis limits before acting.
+description: Inspect change risk with crimes when planning, editing or reviewing code in a repository that uses the CLI. Covers TypeScript, JavaScript and Python; interpret evidence and analysis limits before acting.
 ---
 
 # crimes workflow
 
-Use JSON for decisions. Before editing, run `crimes context <file> --root .
---format json` from the intended repository root. Without `--root`, context
-uses the nearest package/project root, which may omit monorepo consumers.
-For several files use `scan --files a.ts,b.ts --format json`; for import
-neighbors use `scan --related-to src/api.ts --format json`.
+Work from the intended repository root and follow its AGENTS.md and test
+policy. Use the project's installed CLI: `crimes` if available, otherwise
+`./node_modules/.bin/crimes` (or the project's package-manager script).
+In the crimes source checkout, use `node packages/cli/dist/index.js` after
+building. Check `--version`; keep the same executable before and after edits.
+If none is installed, report that limitation; do not silently download or
+upgrade tools. The commands below use `crimes` as shorthand for that executable.
 
-Read `analysis_status`, `coverage.warnings`, evidence, related files and
-likely tests. `partial` or `not_analyzed` requires inspecting what was
-missed. No findings does not establish safety, and `test_gap` describes
-test discovery, not behavioral coverage. Context shares scan's analysis;
-scoping narrows output, not the repository analysis cost.
+Before editing, run `crimes context <file> --root . --format json`.
+Without `--root`, context uses the nearest package/project root and may
+omit monorepo consumers. Read `analysis_status`, `coverage.warnings`,
+`agent_guidance`, evidence, related files and likely tests. Investigate
+`partial` or `not_analyzed` before interpreting an empty list. No findings
+does not establish safety; `test_gap` describes discovery, not test coverage.
 
-After editing, compare `scan --changed --format json` with the pre-edit
-findings. This selects changed files, including their old findings.
-Use `verdict --base main --format json` for committed branch differences.
-Run behavior tests independently. Treat a new high-severity finding as a
-blocker unless the user accepts it. Do not fix unrelated findings.
+Retain a pre-edit JSON scan for the intended files, for example
+`crimes scan --files src/a.ts,src/b.ts --format json`. Store snapshots outside
+the scanned sources (a temporary directory is suitable). For import neighbors,
+use `scan --related-to src/api.ts --format json`. Context and scoped scans
+still analyze the repository; smaller output does not promise a cheaper scan.
 
-A false positive can be recorded with `crimes feedback <fingerprint>
---verdict fp --note "<reason>"` within the user's scope. Reconfirm resurfaced
-feedback with the user. For stale identities, preview `crimes migrate-pins
---format json`, review candidates, then apply the reviewed file. Never infer
-that an absent finding is resolved or silently renew its expiry.
+After editing, repeat the same scan with the same root, file scope and
+configuration. Compare opaque `fingerprint` values from JSON to identify
+new, retained and absent observations; do not construct fingerprints or
+compare positional finding IDs. If the scope expanded, distinguish files
+without a pre-edit snapshot from demonstrated new findings.
+`scan --changed --format json` is useful to discover the working set,
+but includes old findings in those files. Its failure threshold is not a
+new-findings-only gate. For committed branch changes use `verdict --base
+<project-base> --format json`; verify the actual base instead of assuming main.
 
-Summarize the evidence that affects the task. Use human output when a full
-terminal report helps; rerunning a scan solely to repeat its presentation
-is unnecessary. More detail: https://crimes.sh/docs/agent-usage/
+Run the repository's behavior tests independently. Handle new high findings
+according to its policy, explaining evidence and uncertainty. Do not turn
+unrelated findings into extra work or silently change thresholds/suppressions.
+Exit 2 means a usage/environment error; exit 1 can mean a configured gate
+failed. A successful exit does not establish complete analysis or safety.
+
+Within the user's scope, record a false positive with `crimes feedback
+<fingerprint> --verdict fp --note "<reason>"`. This writes feedback and a
+suppression. Reconfirm resurfaced feedback with the user. For stale identities,
+preview `crimes migrate-pins --format json`, review candidates, then apply
+the reviewed file. An absent observation is not proof of a resolved problem;
+never silently renew an expiry or prior decision.
+
+Summarize the evidence and tests that affect the task. Human output is useful
+for terminal reports; do not rerun analysis solely to repeat its formatting.
+After a CLI upgrade, `crimes init --refresh-skills --check` checks installed
+workflows without writing; `crimes init --refresh-skills` safely refreshes
+unchanged generated copies. Review customized-file diffs before replacing.
+More detail: https://crimes.sh/docs/agent-usage/
+
+<!-- crimes-skill {"format":1,"version":"0.28.1","sha256":"23c3d806c0be45ca72dfbf66814f94c0058e5e5456d79a02091e79e0ca1a4112"} -->

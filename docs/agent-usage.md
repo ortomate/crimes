@@ -5,6 +5,13 @@ for a decision, not an automatic work queue.
 
 ## Before editing
 
+Use the project’s installed executable consistently. If `crimes` is not on
+PATH, use `./node_modules/.bin/crimes` or the project’s package-manager script.
+Check `--version`; do not silently fetch a different version for the second
+scan. In a source checkout use the built CLI. Retain the pre-edit scoped scan
+JSON outside scanned sources, then repeat that scope after editing. Files
+added to the scope later do not have a pre-edit observation to compare.
+
 ```bash
 crimes context src/billing/tax.ts --root . --format json
 crimes scan --files src/billing/tax.ts,src/billing/invoice.ts --format json
@@ -74,7 +81,11 @@ explain its evidence and the options rather than silently suppressing it.
 ## Setup and output
 
 `crimes init --agents` writes skills for Claude Code and Codex and installs
-an optional Claude pre-edit hook; `--no-hooks` writes skills only. Consult
+an optional Claude pre-edit hook; `--no-hooks` skips hooks. After a CLI
+upgrade, `crimes init --refresh-skills --check` previews skill updates and
+`crimes init --refresh-skills` updates unchanged generated copies while
+preserving config, hooks and customizations. Npm alone does not update
+project skill files. Consult
 [the integration reference](./skills.md) for exact files. Do not assume a
 settings file is an active integration merely because it exists.
 

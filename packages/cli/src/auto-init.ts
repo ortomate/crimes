@@ -1,10 +1,20 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
+import type { Command } from "commander";
 import { AGENT_SKILL_TEXT } from "./commands/init.js";
 import { generateConfig } from "./init-detect.js";
+import { applySetupFiles, readSetupFile, type SetupFile } from "./setup-files.js";
 
 export type Agent = "claude" | "codex" | "none";
+
+export function autoInitFlags(program: Command): { init: boolean; noInit: boolean } {
+  const value = program.opts<{ init?: boolean }>().init;
+  return {
+    init: value === true && program.getOptionValueSource("init") === "cli",
+    noInit: value === false,
+  };
+}
 
 export interface DetectAgentInput {
   env: NodeJS.ProcessEnv;
@@ -86,8 +96,9 @@ export async function maybeRunAutoInit(
   try {
     let wroteAny = false;
     let declinedAny = false;
+    const planned: SetupFile[] = [];
 
-    if (!existsSync(configPath) || options.flags.init) {
+    if (!existsSync(configPath)) {
       const ans = (
         await rl.question(
           `No crimes.config.json found. Generate one for this repo? [Y/n] `,
@@ -97,8 +108,7 @@ export async function maybeRunAutoInit(
         .toLowerCase();
       if (ans === "" || ans === "y" || ans === "yes") {
         const body = await generateConfig({ root: cwd, detect: true });
-        writeFileSync(configPath, body, "utf8");
-        process.stdout.write(`  Wrote ${CONFIG_FILENAME}.\n`);
+        planned.push({ path: CONFIG_FILENAME, before: undefined, after: body });
         wroteAny = true;
       } else {
         declinedAny = true;
@@ -121,9 +131,11 @@ export async function maybeRunAutoInit(
           .trim()
           .toLowerCase();
         if (ans === "" || ans === "y" || ans === "yes") {
-          mkdirSync(dirname(skillPath), { recursive: true });
-          writeFileSync(skillPath, AGENT_SKILL_TEXT, "utf8");
-          process.stdout.write(`  Wrote ${rel}.\n`);
+          planned.push({
+            path: rel,
+            before: readSetupFile(cwd, rel),
+            after: AGENT_SKILL_TEXT,
+          });
           wroteAny = true;
         } else {
           declinedAny = true;
@@ -131,6 +143,8 @@ export async function maybeRunAutoInit(
       }
     }
 
+    applySetupFiles(cwd, planned);
+    for (const file of planned) process.stdout.write(`  Wrote ${file.path}.\n`);
     if (declinedAny && !wroteAny) {
       mkdirSync(dirname(markerPath), { recursive: true });
       writeFileSync(markerPath, "", "utf8");

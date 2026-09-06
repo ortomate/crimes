@@ -38,8 +38,8 @@
     "evals:verify-scenarios": "pnpm --filter evals-runner run evals:verify-scenarios",
     "clean": "pnpm -r exec rm -rf dist node_modules .turbo",
     "evals:outcomes": "pnpm --filter evals-runner run evals:outcomes",
-    "docs:generate": "node scripts/generate-reference.mjs",
-    "docs:check": "node scripts/generate-reference.mjs --check"
+    "docs:generate": "node scripts/generate-reference.mjs && node scripts/sync-skills.mjs",
+    "docs:check": "node scripts/generate-reference.mjs --check && node scripts/sync-skills.mjs --check"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",

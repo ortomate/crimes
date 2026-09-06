@@ -48,11 +48,10 @@ describe("hook-templates", () => {
     expect(result.action).toBe("skipped");
   });
 
-  it("mergeClaudeHook recognises the legacy `crimes context $CLAUDE_TOOL_INPUT_*` entry and skips it", () => {
+  it("migrates the exact shipped legacy hook without adding another entry", () => {
     // Users who ran `crimes init --agents` on the 0.11.0-draft build have
     // the broken legacy command on disk. We don't want to silently
-    // double-write a second crimes hook beside it; the next `--force` run
-    // can rewrite it.
+    // double-write a second crimes hook beside it.
     const existing = {
       hooks: {
         PreToolUse: [
@@ -70,7 +69,11 @@ describe("hook-templates", () => {
       },
     };
     const result = mergeClaudeHook(existing);
-    expect(result.action).toBe("skipped");
+    expect(result.action).toBe("merged");
+    expect(result.document.hooks?.PreToolUse).toHaveLength(1);
+    expect(result.document.hooks?.PreToolUse?.[0]?.hooks[0]?.command).toBe(
+      CLAUDE_HOOK_ENTRY.hooks[0]!.command,
+    );
   });
 
   it("mergeClaudeHook appends to existing non-crimes PreToolUse hooks", () => {
@@ -153,6 +156,10 @@ describe("hook-templates", () => {
       mergeClaudeHook({ hooks: { PreToolUse: "not-an-array" } } as never),
     ).toThrow();
     expect(() => mergeClaudeHook("scalar" as never)).toThrow();
+    expect(() => mergeClaudeHook([] as never)).toThrow();
+    expect(() => mergeClaudeHook({ hooks: null } as never)).toThrow();
+    expect(() => mergeClaudeHook({ hooks: { PreToolUse: null } } as never)).toThrow();
+    expect(() => mergeClaudeHook({ hooks: { PreToolUse: [null] } } as never)).toThrow();
   });
 
   it("serializeClaudeSettings pretty-prints with a trailing newline", () => {
