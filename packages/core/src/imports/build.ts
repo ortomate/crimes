@@ -1,3 +1,4 @@
+import type { AnalysisInputs } from "../analysis-inputs.js";
 /**
  * Build a repo-wide import graph from a set of discovered source files.
  *
@@ -32,6 +33,7 @@ const CANDIDATE_EXTENSIONS = [
 ] as const;
 
 export interface BuildImportGraphOptions {
+  inputs?: AnalysisInputs;
   /** Absolute repo root. */
   root: string;
   /**
@@ -100,6 +102,7 @@ export async function buildImportGraph(
   // Python module imported by 30 others earns the same blast radius a TS
   // module would. Added in 0.14.0; before that Python scored 0.
   const python = await buildPythonImportEdges({
+    inputs: options.inputs,
     root,
     files: options.files,
     maxFiles,
@@ -121,7 +124,9 @@ export async function buildImportGraph(
       files.add(fromRel);
       let source: string;
       try {
-        source = readFileSync(abs, "utf8");
+        source = options.inputs
+          ? options.inputs.readSync(abs)
+          : readFileSync(abs, "utf8");
       } catch (err) {
         options.warnings?.record("files_unreadable", errnoOf(err), { file: fromRel });
         return;

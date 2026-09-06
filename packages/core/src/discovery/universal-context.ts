@@ -1,3 +1,4 @@
+import type { AnalysisInputs } from "../analysis-inputs.js";
 import type { CrimesConfig } from "../config.js";
 import type { UniversalDetectorContext } from "../detector.js";
 import type { AgentConfigIndex } from "../agents/types.js";
@@ -15,6 +16,7 @@ export async function buildUniversalContext(args: {
   file: string;
   config: CrimesConfig;
   indexes: {
+    inputs?: AnalysisInputs;
     ia?: IaIndex;
     petty?: PettyIndex;
     scoring?: ScoringContext;
@@ -25,6 +27,7 @@ export async function buildUniversalContext(args: {
   };
 }): Promise<UniversalDetectorContext> {
   const uf = await buildUniversalFile({
+    inputs: args.indexes.inputs,
     root: args.root,
     absolutePath: args.absolutePath,
   });

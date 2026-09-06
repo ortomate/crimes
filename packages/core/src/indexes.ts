@@ -1,3 +1,5 @@
+import type { AnalysisInputs } from "./analysis-inputs.js";
+import { profileAsync } from "./profile.js";
 import { buildFunctionHashIndex } from "./ast-hash/function-index.js";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
 import type { CoverageWarningLog } from "./discovery/coverage-warnings.js";
@@ -49,16 +51,20 @@ function affectedCount(files: readonly string[] | undefined): number {
 export async function safelyBuildIaIndex(args: {
   root: string;
   allFiles: string[];
+  inputs?: AnalysisInputs;
   aliasGroups?: IaConceptAliasGroup[];
   warnings?: CoverageWarningLog;
 }): Promise<IaIndex | undefined> {
   try {
-    return await buildIaIndex({
-      root: args.root,
-      files: args.allFiles,
-      ...(args.aliasGroups !== undefined ? { aliasGroups: args.aliasGroups } : {}),
-      ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
-    });
+    return await profileAsync("index.ia", () =>
+      buildIaIndex({
+        inputs: args.inputs,
+        root: args.root,
+        files: args.allFiles,
+        ...(args.aliasGroups !== undefined ? { aliasGroups: args.aliasGroups } : {}),
+        ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
+      }),
+    );
   } catch {
     args.warnings?.record("index_unavailable", "ia", {
       files: affectedCount(args.allFiles),
@@ -70,14 +76,18 @@ export async function safelyBuildIaIndex(args: {
 export async function safelyBuildPettyIndex(args: {
   root: string;
   allFiles: string[];
+  inputs?: AnalysisInputs;
   warnings?: CoverageWarningLog;
 }): Promise<PettyIndex | undefined> {
   try {
-    return await buildPettyIndex({
-      root: args.root,
-      files: args.allFiles,
-      ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
-    });
+    return await profileAsync("index.petty", () =>
+      buildPettyIndex({
+        inputs: args.inputs,
+        root: args.root,
+        files: args.allFiles,
+        ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
+      }),
+    );
   } catch {
     args.warnings?.record("index_unavailable", "petty", {
       files: affectedCount(args.allFiles),
@@ -89,14 +99,18 @@ export async function safelyBuildPettyIndex(args: {
 export async function safelyBuildJsxShapeIndex(args: {
   root: string;
   allFiles: string[];
+  inputs?: AnalysisInputs;
   warnings?: CoverageWarningLog;
 }): Promise<JsxShapeIndex | undefined> {
   try {
-    return await buildJsxShapeIndex({
-      root: args.root,
-      files: args.allFiles,
-      ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
-    });
+    return await profileAsync("index.jsx", () =>
+      buildJsxShapeIndex({
+        inputs: args.inputs,
+        root: args.root,
+        files: args.allFiles,
+        ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
+      }),
+    );
   } catch {
     args.warnings?.record("index_unavailable", "jsx_shape", {
       files: affectedCount(args.allFiles),
@@ -108,14 +122,18 @@ export async function safelyBuildJsxShapeIndex(args: {
 export async function safelyBuildFunctionHashIndex(args: {
   root: string;
   allFiles: string[];
+  inputs?: AnalysisInputs;
   warnings?: CoverageWarningLog;
 }): Promise<FunctionHashIndex | undefined> {
   try {
-    return await buildFunctionHashIndex({
-      root: args.root,
-      files: args.allFiles,
-      ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
-    });
+    return await profileAsync("index.function-hash", () =>
+      buildFunctionHashIndex({
+        inputs: args.inputs,
+        root: args.root,
+        files: args.allFiles,
+        ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
+      }),
+    );
   } catch {
     args.warnings?.record("index_unavailable", "function_hash", {
       files: affectedCount(args.allFiles),
@@ -127,6 +145,7 @@ export async function safelyBuildFunctionHashIndex(args: {
 export async function safelyBuildImportGraph(args: {
   root: string;
   allFiles: string[];
+  inputs?: AnalysisInputs;
   warnings?: CoverageWarningLog;
   /**
    * Receives the repo-wide Python symbol index, which is built from the
@@ -139,14 +158,17 @@ export async function safelyBuildImportGraph(args: {
   onPySymbolIndex?: (index: PySymbolIndex) => void;
 }): Promise<ImportGraph | undefined> {
   try {
-    return await buildImportGraph({
-      root: args.root,
-      files: args.allFiles,
-      ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
-      ...(args.onPySymbolIndex !== undefined
-        ? { onPySymbolIndex: args.onPySymbolIndex }
-        : {}),
-    });
+    return await profileAsync("index.imports", () =>
+      buildImportGraph({
+        inputs: args.inputs,
+        root: args.root,
+        files: args.allFiles,
+        ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
+        ...(args.onPySymbolIndex !== undefined
+          ? { onPySymbolIndex: args.onPySymbolIndex }
+          : {}),
+      }),
+    );
   } catch {
     args.warnings?.record("index_unavailable", "imports", {
       files: affectedCount(args.allFiles),
@@ -158,15 +180,18 @@ export async function safelyBuildImportGraph(args: {
 export async function safelyBuildScoringContext(args: {
   root: string;
   allFiles: string[];
+  inputs?: AnalysisInputs;
   imports: ImportGraph | undefined;
   warnings?: CoverageWarningLog;
 }): Promise<ScoringContext | undefined> {
   try {
-    return await buildScoringContext({
-      root: args.root,
-      files: args.allFiles,
-      imports: args.imports,
-    });
+    return await profileAsync("index.scoring", () =>
+      buildScoringContext({
+        root: args.root,
+        files: args.allFiles,
+        imports: args.imports,
+      }),
+    );
   } catch {
     args.warnings?.record("index_unavailable", "scoring", {
       files: affectedCount(args.allFiles),
@@ -178,17 +203,21 @@ export async function safelyBuildScoringContext(args: {
 export async function safelyBuildRiskIndex(args: {
   root: string;
   allFiles: string[];
+  inputs?: AnalysisInputs;
   envInventoryFiles?: string[];
   warnings?: CoverageWarningLog;
 }): Promise<RiskIndex | undefined> {
   try {
-    return await buildRiskIndex({
-      root: args.root,
-      files: args.allFiles,
-      ...(args.envInventoryFiles !== undefined
-        ? { envInventoryFiles: args.envInventoryFiles }
-        : {}),
-    });
+    return await profileAsync("index.risk", () =>
+      buildRiskIndex({
+        inputs: args.inputs,
+        root: args.root,
+        files: args.allFiles,
+        ...(args.envInventoryFiles !== undefined
+          ? { envInventoryFiles: args.envInventoryFiles }
+          : {}),
+      }),
+    );
   } catch {
     args.warnings?.record("index_unavailable", "risk", {
       files: affectedCount(args.allFiles),
@@ -202,7 +231,9 @@ export async function safelyBuildManifestIndex(args: {
   warnings?: CoverageWarningLog;
 }): Promise<ManifestIndex | undefined> {
   try {
-    return await buildManifestIndex({ root: args.root });
+    return await profileAsync("index.manifest", () =>
+      buildManifestIndex({ root: args.root }),
+    );
   } catch {
     args.warnings?.record("index_unavailable", "manifest", { files: 1 });
     return undefined;
@@ -214,7 +245,9 @@ export async function safelyBuildAgentConfigIndex(args: {
   warnings?: CoverageWarningLog;
 }): Promise<AgentConfigIndex | undefined> {
   try {
-    return await buildAgentConfigIndex({ root: args.root });
+    return await profileAsync("index.agent-config", () =>
+      buildAgentConfigIndex({ root: args.root }),
+    );
   } catch {
     args.warnings?.record("index_unavailable", "agent_config", { files: 1 });
     return undefined;

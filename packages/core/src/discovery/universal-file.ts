@@ -1,3 +1,4 @@
+import type { AnalysisInputs } from "../analysis-inputs.js";
 import { readFile, stat } from "node:fs/promises";
 import { extname, relative, sep } from "node:path";
 
@@ -32,6 +33,7 @@ export interface UniversalFile {
 export async function buildUniversalFile(args: {
   root: string;
   absolutePath: string;
+  inputs?: AnalysisInputs;
 }): Promise<UniversalFile> {
   const stats = await stat(args.absolutePath);
   const file = relative(args.root, args.absolutePath).split(sep).join("/");
@@ -41,7 +43,9 @@ export async function buildUniversalFile(args: {
   let cachedLines: number | undefined;
   const readSource = async (): Promise<string> => {
     if (cached !== undefined) return cached;
-    cached = await readFile(args.absolutePath, "utf8");
+    cached = args.inputs
+      ? await args.inputs.read(args.absolutePath)
+      : await readFile(args.absolutePath, "utf8");
     return cached;
   };
 

@@ -1,3 +1,4 @@
+import type { AnalysisInputs } from "../analysis-inputs.js";
 /**
  * Python contribution to the repo-wide import graph.
  *
@@ -34,6 +35,7 @@ import type { ImportEdge } from "./types.js";
 const PY_FILE_RE = /\.pyi?$/;
 
 export interface BuildPythonImportEdgesOptions {
+  inputs?: AnalysisInputs;
   /** Absolute repo root. */
   root: string;
   /** Absolute paths the scan discovered. */
@@ -114,14 +116,18 @@ export async function buildPythonImportEdges(
       const from = repoPaths[i]!;
       let source: string;
       try {
-        source = await readFile(abs, "utf8");
+        source = options.inputs
+          ? await options.inputs.read(abs)
+          : await readFile(abs, "utf8");
       } catch (err) {
         options.warnings?.record("files_unreadable", errnoOf(err), { file: from });
         return;
       }
       let parsed: Awaited<ReturnType<typeof parsePyFile>>;
       try {
-        parsed = await parsePyFile({ absolutePath: abs, source });
+        parsed = options.inputs
+          ? await options.inputs.py(abs, source)
+          : await parsePyFile({ absolutePath: abs, source });
       } catch {
         options.warnings?.record("files_unparsed", "language-py", { file: from });
         return;

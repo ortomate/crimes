@@ -1,3 +1,5 @@
+import { AnalysisInputs } from "./analysis-inputs.js";
+import { profileAsync, profileSync } from "./profile.js";
 import { readFile } from "node:fs/promises";
 import { looksMinifiedSource } from "./util/scope-class.js";
 import { relative, sep } from "node:path";
@@ -54,6 +56,7 @@ import {
  */
 
 export interface ScanIndexes {
+  inputs?: AnalysisInputs;
   ia?: IaIndex;
   petty?: PettyIndex;
   imports?: ImportGraph;
@@ -92,8 +95,10 @@ export async function buildScanIndexes(args: {
   allFiles: string[];
   /** Reuse an existing log instead of starting a fresh one. */
   warnings?: CoverageWarningLog;
+  inputs?: AnalysisInputs;
 }): Promise<ScanIndexes> {
   const { root, config, allFiles } = args;
+  const inputs = args.inputs ?? new AnalysisInputs();
   // One log for the whole index build. Every builder below can drop a
   // file and keep going; without a shared collector each drop is
   // indistinguishable from "that file was clean".
@@ -103,30 +108,39 @@ export async function buildScanIndexes(args: {
   const ia = await safelyBuildIaIndex({
     root,
     allFiles,
+    inputs,
     aliasGroups: resolveAliasGroups(config),
     warnings,
   });
-  const petty = await safelyBuildPettyIndex({ root, allFiles, warnings });
+  const petty = await safelyBuildPettyIndex({ root, allFiles, warnings, inputs });
   // Captured out of the import-graph build because that is the one
   // place a scan parses every Python file. See `py/symbol-index.ts`.
   let pySymbols: PySymbolIndex | undefined;
   const imports = await safelyBuildImportGraph({
     root,
     allFiles,
+    inputs,
     warnings,
     onPySymbolIndex: (index) => {
       pySymbols = index;
     },
   });
-  const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles, warnings });
+  const jsxShapeIndex = await safelyBuildJsxShapeIndex({
+    root,
+    allFiles,
+    warnings,
+    inputs,
+  });
   const functionHashIndex = await safelyBuildFunctionHashIndex({
     root,
     allFiles,
+    inputs,
     warnings,
   });
   const scoring = await safelyBuildScoringContext({
     root,
     allFiles,
+    inputs,
     imports,
     warnings,
   });
@@ -134,18 +148,21 @@ export async function buildScanIndexes(args: {
   const risk = await safelyBuildRiskIndex({
     root,
     allFiles,
+    inputs,
     envInventoryFiles,
     warnings,
   });
   const pyModuleRefs = await safelyBuildPyModuleReferenceIndex({
     root,
     allFiles,
+    inputs,
     warnings,
   });
   const manifest = await safelyBuildManifestIndex({ root, warnings });
   const agentConfig = await safelyBuildAgentConfigIndex({ root, warnings });
 
   return {
+    inputs,
     ia,
     petty,
     imports,
@@ -173,6 +190,7 @@ async function safelyBuildPyModuleReferenceIndex(args: {
   root: string;
   allFiles: string[];
   warnings: CoverageWarningLog;
+  inputs: AnalysisInputs;
 }): Promise<PyModuleReferenceIndex | undefined> {
   const pyFiles = args.allFiles.filter((f) => f.endsWith(".py"));
   if (pyFiles.length === 0) return undefined;
@@ -183,7 +201,7 @@ async function safelyBuildPyModuleReferenceIndex(args: {
     try {
       sources.push({
         file: toRepoPath(relative(args.root, absolute)),
-        source: await readFile(absolute, "utf8"),
+        source: await args.inputs.read(absolute),
       });
     } catch {
       unreadable += 1;
@@ -325,12 +343,18 @@ export async function runDetectorsForFile(args: {
     (jsDetectors.length > 0 || args.collectInto !== undefined) &&
     args.langPack.claims("language-js", args.absolutePath)
   ) {
-    const source = await readFile(args.absolutePath, "utf8");
+    const source = args.indexes.inputs
+      ? await args.indexes.inputs.read(args.absolutePath)
+      : await readFile(args.absolutePath, "utf8");
     // A minified bundle is vendored code whatever its filename says, and
     // every finding in one is about code nobody wrote. See
     // {@link looksMinifiedSource}.
     if (looksMinifiedSource(source)) return findings;
-    const parsed = parseFile({ absolutePath: args.absolutePath, source });
+    const parsed = args.indexes.inputs
+      ? args.indexes.inputs.js(args.absolutePath, source)
+      : profileSync("parse.detector-js", () =>
+          parseFile({ absolutePath: args.absolutePath, source }),
+        );
     // Same statement as the Python branch below, for the same reason:
     // the parser recovered and handed back a partial tree, so anything
     // this file did or did not report is about the part that parsed.
@@ -368,11 +392,17 @@ export async function runDetectorsForFile(args: {
     (pyDetectors.length > 0 || args.collectInto !== undefined) &&
     args.langPack.claims("language-py", args.absolutePath)
   ) {
-    const source = await readFile(args.absolutePath, "utf8");
-    const parsed = await parsePyFile({
-      absolutePath: args.absolutePath,
-      source,
-    });
+    const source = args.indexes.inputs
+      ? await args.indexes.inputs.read(args.absolutePath)
+      : await readFile(args.absolutePath, "utf8");
+    const parsed = args.indexes.inputs
+      ? await args.indexes.inputs.py(args.absolutePath, source)
+      : await profileAsync("parse.detector-py", () =>
+          parsePyFile({
+            absolutePath: args.absolutePath,
+            source,
+          }),
+        );
     // tree-sitter recovers from a syntax error and hands back a partial
     // tree. Detectors that judge a whole file (`py/weak_test_signal`)
     // return [] on that partial tree — correctly, but invisibly. Record

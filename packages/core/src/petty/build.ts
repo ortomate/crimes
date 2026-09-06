@@ -1,3 +1,4 @@
+import type { AnalysisInputs } from "../analysis-inputs.js";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
@@ -35,6 +36,7 @@ const DOMAIN_WORDS = [
 ];
 
 export interface BuildPettyIndexOptions {
+  inputs?: AnalysisInputs;
   root: string;
   files: string[];
   /** Where read failures get recorded instead of vanishing. */
@@ -53,7 +55,9 @@ export async function buildPettyIndex(
 
     let source: string;
     try {
-      source = await readFile(abs, "utf8");
+      source = options.inputs
+        ? await options.inputs.read(abs)
+        : await readFile(abs, "utf8");
     } catch (err) {
       options.warnings?.record("files_unreadable", errnoOf(err), { file });
       continue;
