@@ -80,3 +80,12 @@ Generated scaling fixtures measure throughput, not real-world detector
 precision or agent usefulness. Keep those conclusions separate. Measured
 results and remaining limits belong in the release notes alongside the
 unchanged-report checks.
+
+
+The performance comparison isolates analysis changes. A later advisory-copy
+correction can be checked separately with `compare-analysis.py
+--expected-text-changes <old-to-new-prose.json>`. The report records exact
+equality and equality after those declared replacements separately. This
+option does not drop findings, scores or coverage fields; keep the explicit
+map with the evidence and never describe an approved wording change as an
+identical report.

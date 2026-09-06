@@ -164,3 +164,7 @@ an installed package; see [0.28.1 release evidence](./releases/v0.28.1.md)
 for discovery measurements; [0.28.2 evidence](./releases/v0.28.2.md) adds
 normal-use upgrades and actual hook delivery. See `scripts/eval-hook.py` for
 the opt-in hook trial.
+
+The [0.29 edit benchmark](./releases/v0.29.0.md) expands repeated installed-host
+trials and reports workflow cost alongside acceptance. A discovered skill or
+delivered hook does not, by itself, establish better edits.

@@ -28,7 +28,8 @@ source pin files since preview, and collisions with existing decisions.
 Reasons, owners, dispositions, creation dates and feedback `crimes_version_pinned`
 are preserved. Migration does not renew an expired decision. All replacements
 are staged before the first pin file changes. A recovery journal retains the
-original bytes; ordinary write failures restore them automatically. Each file
+original bytes; failed replacements automatically attempt rollback, retaining
+the journal if rollback fails. Each file
 replacement is atomic, but another process can observe the interval between
 replacements. Stop concurrent pin writers and retain a commit before applying.
 
@@ -52,10 +53,11 @@ the journal, so recovery can be retried after resolving the storage problem.
 Recovery does not need a working scan or valid crimes configuration. Success
 returns `report_type: "pin_migration_recovery"` and `restored_files`; then
 generate and review a fresh plan. `--apply` and `--recover` are mutually
-exclusive. If interruption happened before a complete journal was written,
-the command explains that no pin replacement starts before `journal.json`
-exists; inspect the incomplete directory before removing it. This is process
-interruption recovery, not a guarantee against filesystem or power failure.
+exclusive. A missing journal can mean interruption during initial staging
+or during cleanup after all replacements completed. Inspect the pin files
+and incomplete directory before removing it; absence of a journal does not
+prove the pins are unchanged. This is process interruption recovery, not a
+guarantee against filesystem or power failure.
 
 Preview JSON has `report_type: "pin_migration"`, `source_hashes`, and `entries`
 with `source`, `from`, `status`, `candidates`, and optional `to`. Treat

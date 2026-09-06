@@ -969,3 +969,28 @@ correcting a mechanism does not validate a constant. The class table is
 still hand-maintained with `standard` holding zero members, the two
 packs still disagree about `sync_io_in_hotpath`, and 41 intrinsics are
 still literals in their own detectors.
+
+
+## 0.29: literal-scatter guidance and edit scope
+
+The development edit trial exposed a guidance problem rather than a missing
+finding. In `claude-plan-limit-briefing-2`, the agent explicitly cited the
+“find or create the source of truth” guidance when extracting a shared policy
+module for a small limit change. The finding identified `"pro"` in current
+and intentionally frozen legacy flows; repetition alone did not require
+consolidation.
+
+Named-plan acceptance passed. Independent patch review found that the new
+plain-object lookup changed the fallback for prototype-key plan names such
+as `constructor`: 50 rows were previously accepted and now rejected. These
+names were not specified by the task, so this is a supplementary behavior
+observation, not a retroactive change to the frozen acceptance score. It
+shows why acceptance and scope review must remain separate.
+
+The context guidance now asks agents to inspect related consumers, preserve
+intentional variants and reuse existing authority, keeping consolidation
+separate unless the requested change requires it. The detector, thresholds,
+fingerprints and ranking are unchanged. The original 216-run comparison uses
+its frozen package; the revised guidance is checked separately. One observed
+failure does not justify a new detector or establish a general benefit from
+this wording change. See [0.29 evidence](./releases/v0.29.0.md).

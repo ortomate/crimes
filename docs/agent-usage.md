@@ -106,3 +106,11 @@ while exiting zero. Check the report's coverage as well as its exit code.
 
 [Generated command/detector reference](./reference.md) · [Scoring](./scoring.md) ·
 [Configuration](./configuration.md) · [CI recipes](./ci.md) · [Feedback](./feedback.md)
+
+
+Repeated literals are a cue to inspect related consumers, not proof that all
+occurrences share one policy. Preserve intentional legacy/version differences.
+Prefer a scoped behavior change using existing authority; propose a new
+abstraction separately unless the task requires it. When refactoring a
+fallback into a lookup table, test the fallback behavior as well as named
+cases. The [0.29 trial review](./releases/v0.29.0.md) explains this distinction.

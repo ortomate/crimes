@@ -14,6 +14,10 @@ spec_summary = importlib.util.spec_from_file_location('outcome_summary', Path(__
 reporting = importlib.util.module_from_spec(spec_summary)
 spec_summary.loader.exec_module(reporting)
 
+spec_comparison = importlib.util.spec_from_file_location('comparison', Path(__file__).with_name('compare-analysis.py'))
+comparison = importlib.util.module_from_spec(spec_comparison)
+spec_comparison.loader.exec_module(comparison)
+
 
 class OutcomeMethods(unittest.TestCase):
     def test_balanced_order_and_complete_unique_matrix(self):
@@ -116,6 +120,17 @@ class OutcomeMethods(unittest.TestCase):
             self.assertLess(paired['task_resampled_95_percent_interval'][0],0)
             self.assertGreater(paired['task_resampled_95_percent_interval'][1],0)
         self.assertIsNone(reporting.interval([0,0,0]))
+
+    def test_declared_prose_changes_cannot_hide_missing_findings_or_coverage_drift(self):
+        before={'agent_guidance':['Read old advice'], 'findings':[{'fingerprint':'one'}], 'coverage':{'files_total':5}, 'hook':{'additionalContext':'Advice: Read old advice'}}
+        changed=comparison.apply_expected_text_changes(before,{'Read old advice':'Read new advice'})
+        self.assertEqual(changed['agent_guidance'],['Read new advice'])
+        self.assertEqual(changed['hook']['additionalContext'],'Advice: Read new advice')
+        self.assertEqual(changed['findings'],before['findings'])
+        self.assertEqual(changed['coverage'],before['coverage'])
+        self.assertNotEqual(changed,{**changed,'findings':[]})
+        self.assertNotEqual(changed,{**changed,'coverage':{'files_total':4}})
+        self.assertEqual(before['agent_guidance'],['Read old advice'])
 
 
 if __name__=='__main__':
