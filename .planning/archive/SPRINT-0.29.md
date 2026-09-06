@@ -84,3 +84,11 @@ The initial TSX timing regression is retained even though it did not repeat.
 No universal speedup or representative agent-benefit claim is supported.
 Further generalization needs larger real tasks and independently reported
 outcomes, not more selective reruns of this ceiling-limited suite.
+
+## Release authorization
+
+Andrew explicitly requested the full release process and publication of
+0.29.0 on 7 September 2026 after reviewing PR #13. The completed plan is
+archived as part of release preparation. The earlier candidate-only scope
+above records the authorization in effect during implementation; this request
+authorizes merging and publishing through the GitHub release workflow.

@@ -106,7 +106,7 @@ and expands the completed-edit benchmark. JSON schema remains **0.8.0**.
 completed edits and the limits of synthetic trials. Hooks remain optional.
 Read [migration guidance](./docs/pin-migration.md) before changing existing pins.
 The npm badge reports the published version; the package file reports the
-version being prepared. [Earlier releases](./docs/releases/).
+version in this checkout. [Earlier releases](./docs/releases/).
 
 ## Develop and contribute
 

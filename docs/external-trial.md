@@ -8,13 +8,13 @@ upload is required by crimes; agent hosts retain their own data policies.
 ## Start from the published package
 
 ```bash
-npm install --save-dev --save-exact crimes@0.28.2
+npm install --save-dev --save-exact crimes@0.29.0
 ./node_modules/.bin/crimes --version
 ./node_modules/.bin/crimes init --codex-skill
 # Claude Code instead: ./node_modules/.bin/crimes init --agent-skill
 ```
 
-These instructions pin 0.28.2 for reproducibility. A maintainer testing a
+These instructions pin 0.29.0 for reproducibility. A maintainer testing a
 candidate can supply its tarball and record the version and artifact hash.
 Review the generated configuration and skill. The Claude setup also installs
 an optional per-edit hook; `--no-hooks` skips it. Restart/reload the host so
