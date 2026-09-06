@@ -506,4 +506,5 @@ export type {
 export { findingRankScore, fileRiskScore } from "./scoring/ranking.js";
 
 export { previewPinMigration, applyPinMigration } from "./pin-migration.js";
-export type { PinMigrationPlan } from "./pin-migration.js";
+export type { PinMigrationPlan, PinMigrationRecoveryReport } from "./pin-migration.js";
+export { recoverPinUpdates } from "./pin-migration-transaction.js";

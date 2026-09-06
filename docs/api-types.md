@@ -417,6 +417,18 @@ export interface ResurfacedSuppression {
 export type PinMigrationPlan = { schema_version: "0.8.0"; report_type: "pin_migration"; source_hashes: Record<string, string>; entries: { source: "triage.json" | "suppressions.json" | "baseline.json"; from: string; status: "unchanged" | "candidate" | "ambiguous" | "not_reported"; candidates: string[]; to?: string | undefined; }[]; };
 ```
 
+## PinMigrationRecoveryReport
+
+[Source](https://github.com/ortomate/crimes/blob/main/packages/core/src/pin-migration.ts).
+
+```ts
+export interface PinMigrationRecoveryReport {
+    schema_version: "0.8.0";
+    report_type: "pin_migration_recovery";
+    restored_files: number;
+}
+```
+
 ## AcceptedBaselineSchemaVersion
 
 [Source](https://github.com/ortomate/crimes/blob/main/packages/core/src/baseline.ts).

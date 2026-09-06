@@ -41,6 +41,7 @@ const reports = [
   "FeedbackRecheckReport",
   "ResurfacedSuppression",
   "PinMigrationPlan",
+  "PinMigrationRecoveryReport",
 ];
 const declarations = new Map();
 function collect(symbol) {

@@ -1,15 +1,21 @@
 import { createHash } from "node:crypto";
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import { SCHEMA_VERSION, type Finding } from "./finding.js";
 
-const FILES = ["triage.json", "suppressions.json", "baseline.json"] as const;
-type PinFile = (typeof FILES)[number];
+import {
+  PIN_FILES as FILES,
+  type PinFile,
+  type PinUpdate,
+  assertNoPendingMigration,
+  writePinUpdates,
+} from "./pin-migration-transaction.js";
 type Pin = Record<string, unknown> & { fingerprint: string };
 interface PinDocument {
   path: PinFile;
   hash: string;
+  raw: string;
   body: Record<string, unknown>;
   key: string;
   pins: Pin[];
@@ -33,6 +39,12 @@ const planSchema = z
   })
   .strict();
 export type PinMigrationPlan = z.infer<typeof planSchema>;
+
+export interface PinMigrationRecoveryReport {
+  schema_version: typeof SCHEMA_VERSION;
+  report_type: "pin_migration_recovery";
+  restored_files: number;
+}
 
 /** Preview only. No reasons, owners, dates, expiry pins or dispositions are inferred. */
 export async function previewPinMigration(
@@ -113,6 +125,7 @@ export async function applyPinMigration(
   }
   const updates = validateSelections(plan, documents, findings);
   let migrated = 0;
+  const replacements: PinUpdate[] = [];
   for (const doc of documents) {
     const selected = updates.get(doc.path);
     if (!selected?.size) continue;
@@ -132,15 +145,13 @@ export async function applyPinMigration(
       else delete next.symbol;
       return next;
     });
-    const path = join(root, ".crimes", doc.path);
-    const temporary = `${path}.migration-${process.pid}`;
-    await writeFile(
-      temporary,
-      JSON.stringify({ ...doc.body, [doc.key]: pins }, null, 2) + "\n",
-      { flag: "wx" },
-    );
-    await rename(temporary, path);
+    replacements.push({
+      name: doc.path,
+      before: doc.raw,
+      after: JSON.stringify({ ...doc.body, [doc.key]: pins }, null, 2) + "\n",
+    });
   }
+  await writePinUpdates(root, replacements);
   return migrated;
 }
 
@@ -181,6 +192,7 @@ function validateSelections(
 }
 
 async function readDocuments(root: string): Promise<PinDocument[]> {
+  await assertNoPendingMigration(root);
   const documents: PinDocument[] = [];
   for (const path of FILES) {
     let raw: string;
@@ -201,6 +213,7 @@ async function readDocuments(root: string): Promise<PinDocument[]> {
       .parse(body[key]);
     documents.push({
       path,
+      raw,
       hash: createHash("sha256").update(raw).digest("hex"),
       body,
       key,

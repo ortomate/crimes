@@ -26,9 +26,36 @@ has no selection; set `to` only after inspecting the candidates' evidence.
 Apply rescans and rejects destinations that no longer match, changes to the
 source pin files since preview, and collisions with existing decisions.
 Reasons, owners, dispositions, creation dates and feedback `crimes_version_pinned`
-are preserved. Migration does not renew an expired decision. Writes replace
-each selected JSON file atomically; the set of files is not a cross-file
-transaction. Commit or back up decisions before applying a reviewed plan.
+are preserved. Migration does not renew an expired decision. All replacements
+are staged before the first pin file changes. A recovery journal retains the
+original bytes; ordinary write failures restore them automatically. Each file
+replacement is atomic, but another process can observe the interval between
+replacements. Stop concurrent pin writers and retain a commit before applying.
+
+## Recover an interrupted migration
+
+If the process stops during replacement, the next preview/apply reports the
+pending journal and supplies the recovery command. Stop any other migration
+process before running it from the same repository root:
+
+```bash
+crimes migrate-pins --recover --format json
+```
+
+Recovery checks **every** affected pin file against the original or migrated
+bytes before restoring any of them. If a file has a later edit, recovery
+refuses and retains `.crimes/.pin-migration/journal.json` for manual
+reconciliation. Preserve that later edit; do not discard the journal or
+replace the baseline to hide the conflict. A failure during recovery retains
+the journal, so recovery can be retried after resolving the storage problem.
+
+Recovery does not need a working scan or valid crimes configuration. Success
+returns `report_type: "pin_migration_recovery"` and `restored_files`; then
+generate and review a fresh plan. `--apply` and `--recover` are mutually
+exclusive. If interruption happened before a complete journal was written,
+the command explains that no pin replacement starts before `journal.json`
+exists; inspect the incomplete directory before removing it. This is process
+interruption recovery, not a guarantee against filesystem or power failure.
 
 The report has `report_type: "pin_migration"`, `source_hashes`, and `entries`
 with `source`, `from`, `status`, `candidates`, and optional `to`. Treat
