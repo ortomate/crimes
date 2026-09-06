@@ -1,0 +1,27 @@
+{
+  "installed_runs": 72,
+  "skill_actions": 72,
+  "comparable_candidate_scans": 70,
+  "deviations": [
+    {
+      "id": "codex-response-consumer-installed-2",
+      "classification": "executable_selection_deviation",
+      "reason": "Read the generated skill and checked local 0.29.0, then selected absolute global crimes 0.28.1 after bare commands rejected --no-skill-update. Candidate pre/post scans were not recorded. Acceptance passed; retained as an assigned installed-condition deviation.",
+      "host_log_sha256": "480526ac836854e14a369a70e7d275c85f095a43288f273126c24c9db832bef4",
+      "cli_log_sha256": "f4287bbbc32ff7a6e70ab9cb060c78ae09c2ee3cc3da3de855cbeb1fea6c6aa7"
+    },
+    {
+      "id": "codex-bounded-batch-installed-2",
+      "classification": "executable_selection_deviation",
+      "reason": "Checked local 0.29.0 but used bare crimes for pre-edit analysis, where --no-skill-update was rejected. Post-edit bare commands were unavailable; switched to local 0.29.0 for post-edit analysis. Pre-edit binary version is not established by the retained calls. No comparable candidate pre/post pair; acceptance passed.",
+      "host_log_sha256": "2c69940fc10a254dc348b83c83daddd5a9823bef89cbea9db881e678df4d9359",
+      "cli_log_sha256": "35784c86424dbcc31eec86aaf734d16844fb638e55db7570a41f2fe4c5957eba"
+    }
+  ],
+  "metric_audit": {
+    "rows_reprocessed": 216,
+    "rows_with_corrected_metrics": 13,
+    "comparable_scan_pairs_added": 6,
+    "reason": "Parsed successful report envelopes instead of assuming argv[0] is the subcommand. This includes global flags before commands and excludes help/error calls from context counts. Original metrics and raw log hashes are retained on every summary row."
+  }
+}
