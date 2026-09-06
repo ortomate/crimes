@@ -1,0 +1,1472 @@
+{
+  "metadata": {
+    "format": 1,
+    "package_sha256": "fc5e1c25d1470a3a205ae72802529603ee12c9a4400316177155be8e3187e7ac",
+    "cases_sha256": "893125ce3aed91b3d5eb549fa2fed606d90b9d7e75354b0f96e3442fb73c71d5",
+    "fixtures": {
+      "active-policy/acceptance.mjs": "d06d1c2bc4e83ae23f9c98773686d38e18647be7345eefe3c8df30fdfdd56125",
+      "active-policy/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "active-policy/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "active-policy/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "active-policy/project/src/current/checkout.js": "62ab8dde39140e49f3241b3974a2bf633b85f2df700fcc49c119ff9d4e8e1b12",
+      "active-policy/project/src/current/discount.js": "a36ab6a09c9d6d9d7ba156b15e9cfdfc05434cac6099249cafb28c51a2d8ea9b",
+      "active-policy/project/src/legacy/checkout.js": "62ab8dde39140e49f3241b3974a2bf633b85f2df700fcc49c119ff9d4e8e1b12",
+      "active-policy/project/src/legacy/discount.js": "a36ab6a09c9d6d9d7ba156b15e9cfdfc05434cac6099249cafb28c51a2d8ea9b",
+      "active-policy/solution/src/current/discount.js": "aa9984f47b3d04d320a076c6208d243127da572c51e79691d80ecb3291d2d0b5",
+      "bounded-batch/acceptance.mjs": "e0f73e40f78ed58dcb4593c5a725e1192c8345a601add5c7b55831bf85c887a9",
+      "bounded-batch/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "bounded-batch/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "bounded-batch/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "bounded-batch/project/src/batch.js": "02b5dde9f829ab05a71ff14fb176c0fbe850476b7ed8d7364e0a4e06749cf484",
+      "bounded-batch/project/src/handler.js": "47896151dd8e09e9faa8d5f0e0e50c708808025657eb02981e1575ce2433f44c",
+      "bounded-batch/solution/src/batch.js": "ca104cad23c737e25cd8fd7e2e029b5cebee14da9b85860a8719d6b8cd904afa",
+      "clean-control/acceptance.mjs": "778de9765380811eb9643ae8b536fffabc8e346bb5f9391283b546132af02008",
+      "clean-control/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "clean-control/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "clean-control/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "clean-control/project/src/clamp.js": "fa376dc00858e91da15e3a54156afce1d531f4ee5e364dbc5f015934342792b4",
+      "clean-control/project/src/clamp.test.js": "31888d90fa7f94c06921bf23069b72fa4b3d54057c7a05902e182bbf7439e16c",
+      "clean-control/solution/src/clamp.js": "5954789c540ce87ea2c8fd988fed8b6d4c4ee8bafdb9296afe7f931fcb23f266",
+      "clean-control/solution/src/clamp.test.js": "65cbbd0f062bce768a1f7f7476f90e33c3516995ddb7b2c4d8691237a0df1706",
+      "configuration-default/acceptance.mjs": "0aba79ff93409ebf28b16899b1b7acb24d2fab9aed037a358d7a6fb08c509758",
+      "configuration-default/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "configuration-default/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "configuration-default/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "configuration-default/project/src/api/config.js": "ff0aad000f2b35343b9c07d472081e887ec2a19049543b492c0ea47e7a34fd83",
+      "configuration-default/project/src/api/request.js": "5988039cf9412abdcad46781854edd8f13d13483a7c760690a21c2760ed544ae",
+      "configuration-default/project/src/worker/config.js": "2127ab25a9883d6708af33cfb2845c77abbc4608ddd8bfafad631598fc1fa905",
+      "configuration-default/project/src/worker/request.js": "5988039cf9412abdcad46781854edd8f13d13483a7c760690a21c2760ed544ae",
+      "configuration-default/solution/src/api/config.js": "665df855578e3fa00b1589965a0811bf9e453c1e7ab39ff11960b6f2b0a47152",
+      "configuration-default/solution/src/worker/config.js": "e4df93859875058dc1015d2369312d786027190a83a3678909d6c83373a8aeab",
+      "cross-language-plan/acceptance.mjs": "7a4531dc862758c8b23ac56295d0e54bb8f5acae45467962e8ce199f87eaef84",
+      "cross-language-plan/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "cross-language-plan/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "cross-language-plan/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "cross-language-plan/project/api/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "cross-language-plan/project/api/plans.py": "081ec4f246ab9f4e01b0ae45a1f54703987f933d30deb3c80ac2523a39df69e9",
+      "cross-language-plan/project/audit/labels.js": "3c3ac6f0868fc4841458c3f902c60f16ff343182fc233fe39ac460a29f662997",
+      "cross-language-plan/project/web/plans.js": "6dc5560e34d0c475cb8d366d7be53d673d4ae57761530bd938cc00d8a4fc32b0",
+      "cross-language-plan/solution/api/plans.py": "5a8eb9ce43f8b68581935b6f422823628007b7e44de6c80f8b2f7c2cefe2847c",
+      "cross-language-plan/solution/web/plans.js": "8b0a35ab562fcde31ecfbb6c0efe1746d89e77b743087122968f31ce7c9fcd4a",
+      "misleading-tests/acceptance.mjs": "b2ec24affb9f92ad53e7ead90904d4f3dbe0c1a6793adcb3c30f60dfce293694",
+      "misleading-tests/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "misleading-tests/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "misleading-tests/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "misleading-tests/project/src/access.js": "c62e34dda05ef341cc434482898a04cb1889fcdc19c07f5cd560871670bda16a",
+      "misleading-tests/project/src/access.test.js": "88f5746182c64fd907eaf479e67d32d251a12233411abc5ab478d45e48cab218",
+      "misleading-tests/project/src/read.js": "5fcc5246c813f226c3bc97521cc55b99f67a73b385389945f90d45fbcb0d0ee4",
+      "misleading-tests/project/src/route.js": "deb6ea0c7615d3957d837c57345cb6c2f4dfee797358f8b13c28e8dede02ad4b",
+      "misleading-tests/solution/src/access.js": "5ac7ab8b332009c74bbdacff52bd1ae59bca325a052570d19aaa8c7bba8e03d9",
+      "misleading-tests/solution/src/access.test.js": "cd830222747fe5a8bc8762fec7ff59b251c5aaf846c62b921600be7ac7cbdeac",
+      "plan-limit/acceptance.mjs": "f92abf5aa3214bef6267da95c53640b2363a650b593e9cfc264eb0b64bed475b",
+      "plan-limit/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "plan-limit/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "plan-limit/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "plan-limit/project/legacy/v1.js": "12b54e0e22243f2f64b6c42fb9ffeef2acd0039a9c8ed21d642aa98b9aa53287",
+      "plan-limit/project/packages/api/export.js": "046e2e1f5cac8247294672ee157f3c7ef4912df90f59fe8637050cd2d16f3ebe",
+      "plan-limit/project/packages/api/export.test.js": "3deff2866fc1952e3dca8eeb943b7cc68f436373eb178c30abe1500427e147b6",
+      "plan-limit/project/packages/ui/preview.js": "f7880d5ae4713359676139ea1abda5678fe395f5c19f17881d3d609809b5d7ed",
+      "plan-limit/project/packages/worker/eligibility.js": "0b334832e13f17885d9811956df987da44cc86bcb01022904637c2cdb4186117",
+      "plan-limit/project/packages/worker/job.js": "84efd9d68f0c999541f029409edb738ee812214f2385462e91d849b5e978165b",
+      "plan-limit/solution/packages/api/export.js": "a9345555ea7badb2025031d391ce9459e98fd2e03703f2b2f1320b39993d26e9",
+      "plan-limit/solution/packages/worker/eligibility.js": "799281c0a5360c0d1c8748fd865f1c0fe7461e031cff90509560dbdd23b3e0d1",
+      "python-alias/acceptance.py": "d2a1ad73ccab78d058ccc94c0f08a260d9a6ce3b13b7c0f0683068e1d4547ed4",
+      "python-alias/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "python-alias/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "python-alias/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "python-alias/project/billing/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "python-alias/project/billing/api.py": "da21cb355c507b0d4576c353232a308f6c18cc1871fede088110abefeba01913",
+      "python-alias/project/billing/exports.py": "991ea36b0befcd3d52e9db8520370f5cce6eb44a08180cdce32ec8419ba8571c",
+      "python-alias/project/billing/jobs.py": "5de7f8009e0f41b71d5fae4bcb36174205bdccf436c1390adf2b6aab5357c305",
+      "python-alias/project/billing/policy.py": "0e4d7cf13558ddfcf1f855e9aa6e608bc36edb990a60d1f9bde937ee09772c4f",
+      "python-alias/project/billing/test_policy.py": "c398fbcd2216e1d203553f6492d6c279e4daa7a15e91bcc2bcdacaa24c065806",
+      "python-alias/solution/billing/policy.py": "0be55bf54cc0993fdb461f9da4e0ee5368d531fdd5566c620b2ab2b33cf3465b",
+      "python-rounding/acceptance.py": "abda426544e73bb75b15c62b7ee9205df54489ebc682ad0d5779e94ea3e903ba",
+      "python-rounding/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "python-rounding/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "python-rounding/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "python-rounding/project/invoices/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "python-rounding/project/invoices/analytics.py": "c2955a67987c6adf54f0c29da78e2a09c2e0f033b44b47d08348f8aabf10aeeb",
+      "python-rounding/project/invoices/money.py": "ebf62f27461dddd3df1e648ff82166efde0fe1b89ea5b16b584bc7c84d31731a",
+      "python-rounding/project/invoices/totals.py": "1e0fa9e1202d5ee80c466d4963830285abb39f4ecdeae67e8294a26d0288f474",
+      "python-rounding/solution/invoices/money.py": "91585486a991e8da0d805ab313b1ae723c33d298e0ec6e6beb45740de937363d",
+      "refund-failure/acceptance.mjs": "7768880089d3ba0eefe6a56dc8b47894d97f7f082fbcede0e6ae903630d20119",
+      "refund-failure/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "refund-failure/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "refund-failure/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "refund-failure/project/src/handler.js": "82c0aec6de36d378c4152aee9c4627528ed2693f18f0beb406e52dd888d1c8f9",
+      "refund-failure/project/src/payout.js": "efcdd8cabfb32458c1c7e607900773eebc20079f100ec1fcbed5c2d86bbce983",
+      "refund-failure/project/src/refund.js": "3b0b32b5b516c0bac91038f91d81cef7ddb6f7c50dfda3dd56d1be32701ce279",
+      "refund-failure/solution/src/refund.js": "a49538a6471a998333c73ebd013d2312278e20aafabbb073df8966e19a8dc158",
+      "response-consumer/acceptance.mjs": "6221f6557f086bc4fd961877a1691b35f576145a0e771b671720c93761aa796d",
+      "response-consumer/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "response-consumer/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "response-consumer/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "response-consumer/project/packages/api/user.js": "9f638a8f836865ef88434a5cf3598cf4222418a7ec2be8fa18266b9dd9a59796",
+      "response-consumer/project/packages/audit/event.js": "97d3f6d5651659dd098ddd85f1b74a72ab3b401381390d2d2114b8783f3dac07",
+      "response-consumer/project/packages/db/users.js": "0d7f55e68822e5c8f6a6c37a253acad0e19f8e27a7a2169f97846abbbfad38e3",
+      "response-consumer/project/packages/mobile/card.js": "97093fcf1c64a99644fc5e17b330c91f1118f77dd6b4b44fcf0d8e3d0bea1fee",
+      "response-consumer/project/packages/web/greeting.js": "968ac2ec6be62d401d7eacbeaea0957a52ab0c8f1fe5cfa23850c159e5124022",
+      "response-consumer/solution/packages/api/user.js": "2e12e4ee3a08b1cf81ab0587fba043ee63d9dca312a683bb2e3296051111db55",
+      "response-consumer/solution/packages/mobile/card.js": "709c8143e06353f55bf8013d62b81d9c814be14f386f47cacfa87a7a0467b8f0",
+      "response-consumer/solution/packages/web/greeting.js": "6fbbd268dd79cbb332bf76add510aad576678e6b3d5df5b0ffea866bf57e0520",
+      "retry-idempotency/acceptance.mjs": "1f562b85958a1d574da8d84cec0f9f53f13565f7fca465d30f3121c3f5b5d710",
+      "retry-idempotency/project/.gitignore": "2f21d2245886c2ee7c64b5b515976d29bad0baed47b5fb9e23ff8779179a4393",
+      "retry-idempotency/project/README.md": "53ffebe6d57d5490777d03d00f5d935a18d2adf9422b9b45793158e78a260531",
+      "retry-idempotency/project/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "retry-idempotency/project/src/health.js": "0efc0e8d983c93e4ee0c030074b01502366de46bba5ddab3b032f2a4d2ace7cb",
+      "retry-idempotency/project/src/payment.js": "5ada8d8e8c9f99c9d200477a23dc83e4ad462542b8c2a5f6c02bae5dd2f4de28",
+      "retry-idempotency/project/src/retry.js": "4e219736c913e97bb1ce85765730ac3d888a1ef7329d05684039ee189408e75f",
+      "retry-idempotency/solution/src/payment.js": "d6ecbe2664979df175ea53dd2132d15d29a4efdc9ed456c7e1c019df4b8d4b64"
+    },
+    "harness_sha256": "46f7b1a655ee37b72e895495db2212b1ae38fdbc16122d389ec9872c51d9b44d",
+    "helpers_sha256": "999f051cb31c9d11f310ac1a84ba7fd3845a411a75fd53e3133939b17577546f",
+    "cli_metrics_sha256": "32f81f4aab3a108c0ab17b3f0cae03ee46cf0623ebc96776354b06e0bfed62da",
+    "hosts": {
+      "codex": {
+        "version": "codex-cli 0.153.4",
+        "model": "gpt-5.6-sol",
+        "effort": "high"
+      },
+      "claude": {
+        "version": "2.1.263 (Claude Code)",
+        "model": "claude-opus-5",
+        "effort": "high"
+      }
+    },
+    "node": "v26.7.0",
+    "python": "Python 3.14.7",
+    "seed": 2900,
+    "repeats": 3,
+    "jobs": 4,
+    "timeout": 300,
+    "method": "isolated source; hidden behavioral acceptance; rotated arm order; shuffled tasks; host-model settings explicit; task time includes supplied briefing and agent calls, excludes install and acceptance; no population benefit claim"
+  },
+  "post_processing": [
+    {
+      "raw_results_sha256": "6fb8c3da56f1f0f70836387ae25766a18d9ae69813e7573205b6b5ec6d6c481b",
+      "audit_script_sha256": "0502f6cc394e57772b8a83759a14f0218dccf494aea4e2f70c755130a74224b7",
+      "audit_helper_sha256": "32f81f4aab3a108c0ab17b3f0cae03ee46cf0623ebc96776354b06e0bfed62da",
+      "changed_rows": [],
+      "method": "All rows recalculated from raw report envelopes, handling global flags before the command; recorded metrics retained. Calls bypassing the instrumented binary are not inferred."
+    }
+  ],
+  "partitions": [
+    {
+      "cases_sha256": "893125ce3aed91b3d5eb549fa2fed606d90b9d7e75354b0f96e3442fb73c71d5",
+      "cases": [
+        "plan-limit"
+      ],
+      "holdout": [
+        false
+      ]
+    }
+  ],
+  "runs": 18,
+  "groups": [
+    {
+      "host": "claude",
+      "arm": "without",
+      "runs": 3,
+      "acceptance_passes": 3,
+      "host_completions": 3,
+      "scope_review_flags": 3,
+      "median_task_ms": 59058,
+      "mean_task_ms": 58016,
+      "skill_actions": 0,
+      "hook_contexts": 0,
+      "comparable_scans": 0,
+      "usage_reported": {
+        "input_tokens": 58,
+        "cache_creation_input_tokens": 33832,
+        "cache_read_input_tokens": 362459,
+        "output_tokens": 12519
+      }
+    },
+    {
+      "host": "claude",
+      "arm": "briefing",
+      "runs": 3,
+      "acceptance_passes": 3,
+      "host_completions": 3,
+      "scope_review_flags": 2,
+      "median_task_ms": 64219,
+      "mean_task_ms": 65646,
+      "skill_actions": 0,
+      "hook_contexts": 0,
+      "comparable_scans": 0,
+      "usage_reported": {
+        "input_tokens": 52,
+        "cache_creation_input_tokens": 40693,
+        "cache_read_input_tokens": 368180,
+        "output_tokens": 13536
+      }
+    },
+    {
+      "host": "claude",
+      "arm": "installed",
+      "runs": 3,
+      "acceptance_passes": 3,
+      "host_completions": 3,
+      "scope_review_flags": 2,
+      "median_task_ms": 93147,
+      "mean_task_ms": 96746,
+      "skill_actions": 3,
+      "hook_contexts": 8,
+      "comparable_scans": 3,
+      "usage_reported": {
+        "input_tokens": 80,
+        "cache_creation_input_tokens": 53913,
+        "cache_read_input_tokens": 623847,
+        "output_tokens": 20652
+      }
+    },
+    {
+      "host": "codex",
+      "arm": "without",
+      "runs": 3,
+      "acceptance_passes": 3,
+      "host_completions": 3,
+      "scope_review_flags": 3,
+      "median_task_ms": 76175,
+      "mean_task_ms": 76231,
+      "skill_actions": 0,
+      "hook_contexts": 0,
+      "comparable_scans": 0,
+      "usage_reported": {
+        "input_tokens": 383029,
+        "cached_input_tokens": 328832,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 9491,
+        "reasoning_output_tokens": 2624
+      }
+    },
+    {
+      "host": "codex",
+      "arm": "briefing",
+      "runs": 3,
+      "acceptance_passes": 3,
+      "host_completions": 3,
+      "scope_review_flags": 3,
+      "median_task_ms": 80748,
+      "mean_task_ms": 74206,
+      "skill_actions": 0,
+      "hook_contexts": 0,
+      "comparable_scans": 0,
+      "usage_reported": {
+        "input_tokens": 371799,
+        "cached_input_tokens": 325888,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 9390,
+        "reasoning_output_tokens": 3183
+      }
+    },
+    {
+      "host": "codex",
+      "arm": "installed",
+      "runs": 3,
+      "acceptance_passes": 3,
+      "host_completions": 3,
+      "scope_review_flags": 3,
+      "median_task_ms": 153175,
+      "mean_task_ms": 157442,
+      "skill_actions": 3,
+      "hook_contexts": 0,
+      "comparable_scans": 2,
+      "usage_reported": {
+        "input_tokens": 980208,
+        "cached_input_tokens": 891776,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 20102,
+        "reasoning_output_tokens": 6877
+      }
+    }
+  ],
+  "paired_against_without": [
+    {
+      "host": "claude",
+      "arm": "briefing",
+      "wins": 0,
+      "losses": 0,
+      "ties": 3,
+      "tasks": 1,
+      "mean_acceptance_difference": 0,
+      "task_resampled_95_percent_interval": null,
+      "uncertainty_limit": "Fixed synthetic tasks are not a representative random sample; a null interval means the observed task differences supply no empirical variance estimate."
+    },
+    {
+      "host": "claude",
+      "arm": "installed",
+      "wins": 0,
+      "losses": 0,
+      "ties": 3,
+      "tasks": 1,
+      "mean_acceptance_difference": 0,
+      "task_resampled_95_percent_interval": null,
+      "uncertainty_limit": "Fixed synthetic tasks are not a representative random sample; a null interval means the observed task differences supply no empirical variance estimate."
+    },
+    {
+      "host": "codex",
+      "arm": "briefing",
+      "wins": 0,
+      "losses": 0,
+      "ties": 3,
+      "tasks": 1,
+      "mean_acceptance_difference": 0,
+      "task_resampled_95_percent_interval": null,
+      "uncertainty_limit": "Fixed synthetic tasks are not a representative random sample; a null interval means the observed task differences supply no empirical variance estimate."
+    },
+    {
+      "host": "codex",
+      "arm": "installed",
+      "wins": 0,
+      "losses": 0,
+      "ties": 3,
+      "tasks": 1,
+      "mean_acceptance_difference": 0,
+      "task_resampled_95_percent_interval": null,
+      "uncertainty_limit": "Fixed synthetic tasks are not a representative random sample; a null interval means the observed task differences supply no empirical variance estimate."
+    }
+  ],
+  "rows": [
+    {
+      "id": "claude-plan-limit-briefing-1",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "claude",
+      "arm": "briefing",
+      "repeat": 1,
+      "requested_model": "claude-opus-5",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 59993,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 13354,
+        "cache_read_input_tokens": 127107,
+        "output_tokens": 3895,
+        "output_tokens_details": {
+          "thinking_tokens": 553
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 13354,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 765,
+            "cache_read_input_tokens": 17595,
+            "cache_creation_input_tokens": 842,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 842
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "observed_models": [
+        "claude-opus-5"
+      ],
+      "successful_completion_event": true,
+      "setup_ms": 58,
+      "task_elapsed_ms": 61020,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "c9473b88e3d090444a1f80b9d837941b2df6df3357495da55da8dcf35eea7630",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "claude-plan-limit-briefing-2",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "claude",
+      "arm": "briefing",
+      "repeat": 2,
+      "requested_model": "claude-opus-5",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 70709,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 13919,
+        "cache_read_input_tokens": 143597,
+        "output_tokens": 4820,
+        "output_tokens_details": {
+          "thinking_tokens": 887
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 13919,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 755,
+            "cache_read_input_tokens": 18463,
+            "cache_creation_input_tokens": 539,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 539
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "observed_models": [
+        "claude-opus-5"
+      ],
+      "successful_completion_event": true,
+      "setup_ms": 60,
+      "task_elapsed_ms": 71699,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "de39f53262c4f9c5c43832a76c7fdcec6c260fbf398b3eb7ad0de37a604b5ad4",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "claude-plan-limit-briefing-3",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "claude",
+      "arm": "briefing",
+      "repeat": 3,
+      "requested_model": "claude-opus-5",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 63447,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 13420,
+        "cache_read_input_tokens": 97476,
+        "output_tokens": 4821,
+        "output_tokens_details": {
+          "thinking_tokens": 887
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 13420,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1087,
+            "cache_read_input_tokens": 17935,
+            "cache_creation_input_tokens": 568,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 568
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "observed_models": [
+        "claude-opus-5"
+      ],
+      "successful_completion_event": true,
+      "setup_ms": 56,
+      "task_elapsed_ms": 64219,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "61a08721b531840d7246cf087ea0b01222eaeab6df9cdc2dbab896bbd750e703",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "claude-plan-limit-installed-1",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "claude",
+      "arm": "installed",
+      "repeat": 1,
+      "requested_model": "claude-opus-5",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 85074,
+      "skill_action_observed": true,
+      "usage_reported": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 16706,
+        "cache_read_input_tokens": 249685,
+        "output_tokens": 5622,
+        "output_tokens_details": {
+          "thinking_tokens": 858
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 16706,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 879,
+            "cache_read_input_tokens": 21420,
+            "cache_creation_input_tokens": 369,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 369
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "observed_models": [
+        "claude-opus-5"
+      ],
+      "successful_completion_event": true,
+      "setup_ms": 902,
+      "task_elapsed_ms": 85074,
+      "original_source": "32b537401f40e6b2cbbcf381cc4d4101356dbe82aebb682a1ae03ea987f58f57",
+      "final_source": "cc1e111232b6ab1250decb9d1fcdcbf547e3bce7e78ce35c67dbf260386f120b",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 10,
+      "cli_elapsed_ms": 3640,
+      "context_calls": 3,
+      "hook_contexts": 3,
+      "comparable_pre_post_scans": true,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 10,
+        "cli_elapsed_ms": 3640,
+        "context_calls": 3,
+        "hook_contexts": 3,
+        "comparable_pre_post_scans": true
+      },
+      "cli_log_sha256": "eeca64337f3bcde42a4f400dc141da9048de8aa44a4cc0ab3798afe15eb9d08e"
+    },
+    {
+      "id": "claude-plan-limit-installed-2",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "claude",
+      "arm": "installed",
+      "repeat": 2,
+      "requested_model": "claude-opus-5",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 112017,
+      "skill_action_observed": true,
+      "usage_reported": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 19552,
+        "cache_read_input_tokens": 187214,
+        "output_tokens": 8461,
+        "output_tokens_details": {
+          "thinking_tokens": 1857
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 19552,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1022,
+            "cache_read_input_tokens": 24069,
+            "cache_creation_input_tokens": 566,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 566
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "observed_models": [
+        "claude-opus-5"
+      ],
+      "successful_completion_event": true,
+      "setup_ms": 891,
+      "task_elapsed_ms": 112017,
+      "original_source": "32b537401f40e6b2cbbcf381cc4d4101356dbe82aebb682a1ae03ea987f58f57",
+      "final_source": "8fbc18a811e9c2caf88d0e87c96b9a8c093136dce68a01d5ccbfeb29f0ec1585",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [],
+      "cli_calls": 7,
+      "cli_elapsed_ms": 3707,
+      "context_calls": 2,
+      "hook_contexts": 2,
+      "comparable_pre_post_scans": true,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 7,
+        "cli_elapsed_ms": 3707,
+        "context_calls": 2,
+        "hook_contexts": 2,
+        "comparable_pre_post_scans": true
+      },
+      "cli_log_sha256": "4a6531fe737f5b28bff96da0c1a0504d9ddadf3039aa9380608b80b5ba1041e4"
+    },
+    {
+      "id": "claude-plan-limit-installed-3",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "claude",
+      "arm": "installed",
+      "repeat": 3,
+      "requested_model": "claude-opus-5",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 93146,
+      "skill_action_observed": true,
+      "usage_reported": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 17655,
+        "cache_read_input_tokens": 186948,
+        "output_tokens": 6569,
+        "output_tokens_details": {
+          "thinking_tokens": 1416
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 17655,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 983,
+            "cache_read_input_tokens": 22322,
+            "cache_creation_input_tokens": 416,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 416
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "observed_models": [
+        "claude-opus-5"
+      ],
+      "successful_completion_event": true,
+      "setup_ms": 781,
+      "task_elapsed_ms": 93147,
+      "original_source": "32b537401f40e6b2cbbcf381cc4d4101356dbe82aebb682a1ae03ea987f58f57",
+      "final_source": "81214696505c5b72274f4830842b33f9f759dd2429ea5b94021198b87352e4ae",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js",
+        "packages/worker/eligibility.test.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.test.js"
+      ],
+      "cli_calls": 10,
+      "cli_elapsed_ms": 5130,
+      "context_calls": 2,
+      "hook_contexts": 3,
+      "comparable_pre_post_scans": true,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 10,
+        "cli_elapsed_ms": 5130,
+        "context_calls": 2,
+        "hook_contexts": 3,
+        "comparable_pre_post_scans": true
+      },
+      "cli_log_sha256": "6a874c5e29365ce8ec55dca653b6d1e307b4f91f083dc50b6069a67d34a55e25"
+    },
+    {
+      "id": "claude-plan-limit-without-1",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "claude",
+      "arm": "without",
+      "repeat": 1,
+      "requested_model": "claude-opus-5",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 49322,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 10124,
+        "cache_read_input_tokens": 109852,
+        "output_tokens": 3259,
+        "output_tokens_details": {
+          "thinking_tokens": 372
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 10124,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 609,
+            "cache_read_input_tokens": 14882,
+            "cache_creation_input_tokens": 325,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 325
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "observed_models": [
+        "claude-opus-5"
+      ],
+      "successful_completion_event": true,
+      "setup_ms": 60,
+      "task_elapsed_ms": 49322,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "bf5eab7f72edbe474b5651e161c934f74acb21a6763650695942f1f60fb97366",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "claude-plan-limit-without-2",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "claude",
+      "arm": "without",
+      "repeat": 2,
+      "requested_model": "claude-opus-5",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 59058,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 11619,
+        "cache_read_input_tokens": 111261,
+        "output_tokens": 4280,
+        "output_tokens_details": {
+          "thinking_tokens": 322
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 11619,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 702,
+            "cache_read_input_tokens": 15823,
+            "cache_creation_input_tokens": 879,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 879
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "observed_models": [
+        "claude-opus-5"
+      ],
+      "successful_completion_event": true,
+      "setup_ms": 65,
+      "task_elapsed_ms": 59058,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "ea35c7afe0119999355179774233fe83ba6f4c5728e859b69ece39eaad0d2b06",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "claude-plan-limit-without-3",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "claude",
+      "arm": "without",
+      "repeat": 3,
+      "requested_model": "claude-opus-5",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 65669,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 22,
+        "cache_creation_input_tokens": 12089,
+        "cache_read_input_tokens": 141346,
+        "output_tokens": 4980,
+        "output_tokens_details": {
+          "thinking_tokens": 564
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 12089,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1038,
+            "cache_read_input_tokens": 16868,
+            "cache_creation_input_tokens": 304,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 304
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "observed_models": [
+        "claude-opus-5"
+      ],
+      "successful_completion_event": true,
+      "setup_ms": 58,
+      "task_elapsed_ms": 65669,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "ea95d01200e4336828f03183fc5d55d06aad0f75c4fbb189a500c21992a11241",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "codex-plan-limit-briefing-1",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "codex",
+      "arm": "briefing",
+      "repeat": 1,
+      "requested_model": "gpt-5.6-sol",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 77963,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 116446,
+        "cached_input_tokens": 104064,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3554,
+        "reasoning_output_tokens": 1419
+      },
+      "observed_models": [],
+      "successful_completion_event": true,
+      "setup_ms": 97,
+      "task_elapsed_ms": 80748,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "54e434e6dd0136e8a6bc35b30942c10c6322b8e0de7c770dc40ddd3fd5527ffc",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "codex-plan-limit-briefing-2",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "codex",
+      "arm": "briefing",
+      "repeat": 2,
+      "requested_model": "gpt-5.6-sol",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 56927,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 97259,
+        "cached_input_tokens": 77312,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2433,
+        "reasoning_output_tokens": 700
+      },
+      "observed_models": [],
+      "successful_completion_event": true,
+      "setup_ms": 59,
+      "task_elapsed_ms": 57935,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "5966aac826b7426db4e7ecbcdbdca78604359b75814f602bc27ad6c5ffec8227",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "codex-plan-limit-briefing-3",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "codex",
+      "arm": "briefing",
+      "repeat": 3,
+      "requested_model": "gpt-5.6-sol",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 82996,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 158094,
+        "cached_input_tokens": 144512,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3403,
+        "reasoning_output_tokens": 1064
+      },
+      "observed_models": [],
+      "successful_completion_event": true,
+      "setup_ms": 63,
+      "task_elapsed_ms": 83936,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "42a73254a29d27603f3f50687704e9a838be1d3ac0b212cb4a55a5b93f0bbaf0",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "codex-plan-limit-installed-1",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "codex",
+      "arm": "installed",
+      "repeat": 1,
+      "requested_model": "gpt-5.6-sol",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 194610,
+      "skill_action_observed": true,
+      "usage_reported": {
+        "input_tokens": 480298,
+        "cached_input_tokens": 440960,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 8116,
+        "reasoning_output_tokens": 2523
+      },
+      "observed_models": [],
+      "successful_completion_event": true,
+      "setup_ms": 1884,
+      "task_elapsed_ms": 194611,
+      "original_source": "1c329289bfd38969f0e19e7c8d6ce9963d9dd1cdef53ed568698b0cc612282b8",
+      "final_source": "118e4975b250897a300d585687e44c4eab429e5ac15788f7e5a8f569a897f3ee",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 7,
+      "cli_elapsed_ms": 2559,
+      "context_calls": 2,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": true,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 7,
+        "cli_elapsed_ms": 2559,
+        "context_calls": 2,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": true
+      },
+      "cli_log_sha256": "46f7b3d99cb9ab0842113ad0c2626901cbd87e794ce2fb6be9ae750d15cd5700"
+    },
+    {
+      "id": "codex-plan-limit-installed-2",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "codex",
+      "arm": "installed",
+      "repeat": 2,
+      "requested_model": "gpt-5.6-sol",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 124540,
+      "skill_action_observed": true,
+      "usage_reported": {
+        "input_tokens": 202804,
+        "cached_input_tokens": 183040,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5583,
+        "reasoning_output_tokens": 2535
+      },
+      "observed_models": [],
+      "successful_completion_event": true,
+      "setup_ms": 839,
+      "task_elapsed_ms": 124541,
+      "original_source": "1c329289bfd38969f0e19e7c8d6ce9963d9dd1cdef53ed568698b0cc612282b8",
+      "final_source": "8956dc998beed29c683512596dfea60b9a29256c44627d025e9b886cd7a7d4a8",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 8,
+      "cli_elapsed_ms": 2685,
+      "context_calls": 2,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": true,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 8,
+        "cli_elapsed_ms": 2685,
+        "context_calls": 2,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": true
+      },
+      "cli_log_sha256": "f0fc6640fdcd389c264f5ac63d846de71d7aa4b67e3ad290870dae2c412e9cf4"
+    },
+    {
+      "id": "codex-plan-limit-installed-3",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "codex",
+      "arm": "installed",
+      "repeat": 3,
+      "requested_model": "gpt-5.6-sol",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 153175,
+      "skill_action_observed": true,
+      "usage_reported": {
+        "input_tokens": 297106,
+        "cached_input_tokens": 267776,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 6403,
+        "reasoning_output_tokens": 1819
+      },
+      "observed_models": [],
+      "successful_completion_event": true,
+      "setup_ms": 892,
+      "task_elapsed_ms": 153175,
+      "original_source": "1c329289bfd38969f0e19e7c8d6ce9963d9dd1cdef53ed568698b0cc612282b8",
+      "final_source": "83691c39dd216458576925a953823961625e15bf769a731dc4f24aae209dc130",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 6,
+      "cli_elapsed_ms": 4033,
+      "context_calls": 2,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 6,
+        "cli_elapsed_ms": 4033,
+        "context_calls": 2,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": "096965c8b99967059e59f3b8d4669dee7fe6523d1ddb244eb3f0f375bd06d0c3"
+    },
+    {
+      "id": "codex-plan-limit-without-1",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "codex",
+      "arm": "without",
+      "repeat": 1,
+      "requested_model": "gpt-5.6-sol",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 76174,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 126325,
+        "cached_input_tokens": 100992,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3169,
+        "reasoning_output_tokens": 762
+      },
+      "observed_models": [],
+      "successful_completion_event": true,
+      "setup_ms": 107,
+      "task_elapsed_ms": 76175,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "50413c68bc647a8295cbc207ebd95f6fce0e37706987ff491eba56f5ab6f6730",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "codex-plan-limit-without-2",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "codex",
+      "arm": "without",
+      "repeat": 2,
+      "requested_model": "gpt-5.6-sol",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 76458,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 129665,
+        "cached_input_tokens": 117888,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3313,
+        "reasoning_output_tokens": 1153
+      },
+      "observed_models": [],
+      "successful_completion_event": true,
+      "setup_ms": 58,
+      "task_elapsed_ms": 76458,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "f70e1064a60684ec0d09e43394b0e07e80bad31b0d6ee1ab84a51e43625282fd",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js",
+        "packages/worker/eligibility.test.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    },
+    {
+      "id": "codex-plan-limit-without-3",
+      "case": "plan-limit",
+      "holdout": false,
+      "host": "codex",
+      "arm": "without",
+      "repeat": 3,
+      "requested_model": "gpt-5.6-sol",
+      "exit_code": 0,
+      "timed_out": false,
+      "agent_elapsed_ms": 76060,
+      "skill_action_observed": false,
+      "usage_reported": {
+        "input_tokens": 127039,
+        "cached_input_tokens": 109952,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3009,
+        "reasoning_output_tokens": 709
+      },
+      "observed_models": [],
+      "successful_completion_event": true,
+      "setup_ms": 131,
+      "task_elapsed_ms": 76061,
+      "original_source": "16fe05a94e08390f696e4024eb410b95ba6a259d09a65b7222d3e0cd51062a18",
+      "final_source": "846e2fceeb75eea755ea9124be61ce6bb7488edf2327576887d15a40fdacfe33",
+      "acceptance_passed": true,
+      "changed_files": [
+        "packages/api/export.js",
+        "packages/api/export.test.js",
+        "packages/worker/eligibility.js"
+      ],
+      "outside_expected_scope": [
+        "packages/api/export.test.js"
+      ],
+      "cli_calls": 0,
+      "cli_elapsed_ms": 0,
+      "context_calls": 0,
+      "hook_contexts": 0,
+      "comparable_pre_post_scans": false,
+      "run_success": true,
+      "recorded_cli_metrics": {
+        "cli_calls": 0,
+        "cli_elapsed_ms": 0,
+        "context_calls": 0,
+        "hook_contexts": 0,
+        "comparable_pre_post_scans": false
+      },
+      "cli_log_sha256": null
+    }
+  ],
+  "limits": [
+    "Purpose-built small repositories; not independently reported edits.",
+    "Assigned-condition analysis includes missed activation and failed host runs.",
+    "Scope flags require reviewing patches; they are not confirmed regressions.",
+    "Provider usage field definitions differ across hosts; do not combine them.",
+    "Concurrent host trials make task time descriptive, not isolated model or scanner latency."
+  ]
+}

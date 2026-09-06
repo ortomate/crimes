@@ -176,3 +176,7 @@ CLI through a login shell. Resolve the executable once and retain it across
 the edit; successful skill discovery alone does not prove the correct CLI
 was used. Standard maintenance updates intact 0.28.2 templates and continues
 to preserve customized copies.
+
+The 0.29 workflow also preserves useful regression coverage: an advisory
+finding is not a reason to delete assertions or move them into a temporary
+command solely to clear the report. See the [trial review](./releases/v0.29.0.md).

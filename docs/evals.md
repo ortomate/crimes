@@ -154,8 +154,11 @@ This supports narrowing the advice, not changing detector thresholds.
 The installed workflow took longer on this suite. Provider usage is retained
 per host in the record; token definitions differ and are not pooled. The
 briefing timing differences and complete acceptance tie do not establish
-general productivity gains. Later advice and executable-selection checks use
-separate packages and are reported separately in the [release notes](./releases/v0.29.0.md).
+general productivity gains. The 48 later checks use separate packages: 18 for literal advice, 12 for
+executable selection and 18 for test preservation. All pass acceptance, but
+review records both the intermediate loss of persisted test checks and a
+remaining final-scan workflow miss. They are reported separately in the
+[release notes](./releases/v0.29.0.md).
 
 ## Ranking labels
 

@@ -82,8 +82,8 @@ results and remaining limits belong in the release notes alongside the
 unchanged-report checks.
 
 
-The performance comparison isolates analysis changes. A later advisory-copy
-correction can be checked separately with `compare-analysis.py
+The performance comparison isolates analysis changes. Later advisory-copy
+corrections can be checked separately with `compare-analysis.py
 --expected-text-changes <old-to-new-prose.json>`. The report records exact
 equality and equality after those declared replacements separately. This
 option does not drop findings, scores or coverage fields; keep the explicit
@@ -120,8 +120,8 @@ The initial sequential batch recorded a TSX context regression from 825ms to
 1248ms, with a 3724ms candidate p95. It did not reproduce in the alternating
 run. Both batches remain in the record; the cause of that earlier slowdown
 was not established. All 24 scan/context/hook pairs retain identical complete
-reports across the performance comparison. A later literal-scatter advice
-correction is verified separately with an explicit prose-replacement map;
+reports across the performance comparison. Later literal-scatter and connectivity advice
+corrections are verified separately with an explicit prose-replacement map;
 findings, scores, identities and coverage must still agree in full.
 
 These gains justify the bounded reuse and batching changes. They do not make

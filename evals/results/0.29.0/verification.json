@@ -1,0 +1,122 @@
+{
+  "date": "2026-09-07",
+  "status": "prepared candidate; publication separate",
+  "runtime": {
+    "release_checks": "Node v26.7.0",
+    "minimum_supported_tarball_check": "Node v18.20.8",
+    "additional_workspace_check": "Node v24.18.0",
+    "pnpm": "10.14.0",
+    "python": "3.14.7"
+  },
+  "package": {
+    "source_commit": "116888f53b3a5ea45fcb63e6dddab1384111e4c0",
+    "sha256": "fc5e1c25d1470a3a205ae72802529603ee12c9a4400316177155be8e3187e7ac",
+    "node26_repack_sha256": "1e920d70b3895aea615c8480d3ec95ddf9cf81ec0c6cf1d4b2d8e645d012afbf",
+    "node26_rebuild_members_identical": true
+  },
+  "checks": [
+    {
+      "command": "pnpm verify",
+      "exit_code": 0,
+      "log_sha256": "6cc1fde2766b2e5533f8b0f090709ac37b82eee68950d74dda901ab47f9f07a4"
+    },
+    {
+      "command": "pnpm --filter crimes smoke",
+      "exit_code": 0,
+      "log_sha256": "8e895d6d1b20740fe43a62cf53efb71f8e88d26e55012b8d202f7ec4d39f68a4"
+    },
+    {
+      "command": "pnpm --filter @crimes/website build && node apps/website/scripts/verify-build.mjs",
+      "exit_code": 0,
+      "log_sha256": "b11a5e0acb3affd5eb934cc41bd84d1afb88e5b1c43c50a2d88caf46ea78c65c"
+    }
+  ],
+  "tests": {
+    "vitest": 2510,
+    "behavioral_oracles": 12,
+    "python_method_tests": 9
+  },
+  "site": {
+    "pages_with_verified_internal_links": 86,
+    "required_pages": 25,
+    "detector_families": 10,
+    "language_packs": 2
+  },
+  "tarball_node18": {
+    "node": "v18.20.8",
+    "js_findings": 39,
+    "py_files": 11,
+    "skills_current": true,
+    "feedback_schema_current": true,
+    "triage_envelope": true,
+    "hook_context_delivered": true,
+    "sigkill_recovery_retry_restored_three_files": true
+  },
+  "report_parity": {
+    "comparisons": 24,
+    "exact": 19,
+    "equal_with_declared_advice_changes": 24,
+    "evidence": "report-parity-final.json"
+  },
+  "self_scan": {
+    "rows": [
+      {
+        "scope": "core",
+        "before_findings": 264,
+        "after_findings": 262,
+        "before_files": 326,
+        "after_files": 331,
+        "new_or_escalated_high": [],
+        "before_report_sha256": "91beea991dca8a6773c833212a54ffd00d690612706c4e1c83842a7341517c2f",
+        "after_report_sha256": "02596109d01a9db62b7f56b371da6ce3cae8694ed990358fba71a837e09031d4"
+      },
+      {
+        "scope": "repository",
+        "before_findings": 419,
+        "after_findings": 347,
+        "before_files": 639,
+        "after_files": 659,
+        "new_or_escalated_high": [],
+        "before_report_sha256": "73d99fd209a7e45485da97c499d085a6aefae1be713abea079acfdf551b1982a",
+        "after_report_sha256": "c8d12dfc86b1d12eb90d2cd7471c882b2d75b56837514720b605384b2615095b"
+      }
+    ],
+    "limit": "Source and Git state changed during implementation; count differences are not a scanner-benefit measure. Immutable-source full-report parity is checked separately."
+  },
+  "ranking": {
+    "baseline": "0.28.2",
+    "overall_ndcg": 0.477,
+    "deep_ndcg": 0.3895,
+    "same_corpus_and_clock_equal_except_version": true
+  },
+  "outcomes": {
+    "outcomes": {
+      "runs": 216,
+      "acceptance_passes": 216,
+      "host_completions": 216
+    },
+    "outcomes-guidance": {
+      "runs": 18,
+      "acceptance_passes": 18,
+      "host_completions": 18
+    },
+    "outcomes-executable": {
+      "runs": 12,
+      "acceptance_passes": 12,
+      "host_completions": 12
+    },
+    "outcomes-test-preservation": {
+      "runs": 18,
+      "acceptance_passes": 18,
+      "host_completions": 18
+    }
+  },
+  "limits": [
+    "The primary study is an acceptance tie on small synthetic tasks; it does not demonstrate a general agent benefit.",
+    "Separate follow-up batches retain advice and workflow failures; do not pool their packages/harness revisions.",
+    "Recovery does not provide multi-file atomic visibility or a power-failure guarantee.",
+    "Performance is measured on one machine and eight corpora; the initial unreproduced slowdown is retained.",
+    "The self-serve outside trial is prepared, with no independent outside outcome claimed."
+  ],
+  "ci": "Use the PR check results for the exact final commit. This record describes local checks and the byte-verified candidate."
+}
