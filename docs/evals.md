@@ -5,6 +5,64 @@ description: How the eval harness scores Claude and Codex against fixture × sce
 
 # crimes evals — the agentic harness
 
+There are three different measurements. None substitutes for the others.
+
+| Measurement | What it establishes | What it does not establish |
+| --- | --- | --- |
+| Detector tests and scenario verification | Known findings and evidence appear on fixture inputs | Real-world precision or safer edits |
+| Ranking and structural replay | Known relevant findings surface, and recorded responses mention expected artifacts | Correctness of a completed change |
+| Paired edit outcomes (`evals:outcomes`) | Actual changes pass independent acceptance checks, with/without a briefing | General agent benefit from a small sample |
+
+## Paired edit outcomes (0.28)
+
+```bash
+pnpm build
+pnpm evals:outcomes                    # verifies unedited tasks fail acceptance
+pnpm evals:outcomes -- --run           # runs six isolated Codex edits
+pnpm evals:outcomes -- --run --repeats 3
+```
+
+The three initial tasks update shared plan limits, update a response and
+its consumer, and preserve refund error propagation. Each arm starts from
+identical source in a fresh directory. The with-crimes arm receives a
+context briefing; the other reads source normally. Acceptance tests are
+installed only after the edit, and each task is checked to fail before
+editing. Arm order alternates; unrelated edits, exits, elapsed time and
+transcripts are recorded. Agent invocations consume the available CLI
+subscription or quota and are opt-in; CI does not invoke them.
+
+Initial 0.28 result: **3/3 passed in each arm; zero runs with unrelated
+edits in either arm.** This is a tie on simple tasks, with one run per pair
+and the CLI's default model. It establishes a working measurement process,
+not a causal improvement. Before making a benefit claim, use harder
+representative tasks, more repeats and a pinned model/configuration; count
+failures and unrelated edits alongside success.
+
+Results and archived retired default scenarios are in
+[`evals/results/0.28.0`](https://github.com/ortomate/crimes/tree/main/evals/results/0.28.0).
+No-tools and with-tools timing includes briefing and acceptance overhead;
+compare it only as end-to-end task time, not model latency.
+
+## Ranking labels
+
+`expected_artifacts.finding_labels` optionally specifies `type`, `file`,
+`claim`, `symbol`, `discriminator` and `priority`. When supplied, these
+replace detector-type-only ranking labels. A matching detector at the
+wrong claim or subject receives no relevance credit. Six initial scenarios
+use precise labels, including checkout errors versus unrelated legacy
+payout failures. Scenario verification checks every precise label fires.
+Legacy scenarios still use type labels; the ranking result remains limited
+by those labels. Missing expected findings are reported separately from
+ranking quality.
+
+Two old default scenarios were retired in 0.28: boolean naming, now
+optional, and a generic synchronous function with no evidenced hot path.
+The frontend scenario now targets responsive fragility. These are declared
+measurement changes, not passing results. Compare scanner versions using
+the same revised labels, fixtures and reference clock.
+
+## Historical response-replay harness
+
 The 0.7.0 release introduces the **eval harness** at `evals/`. It is
 the second half of the calibration story: where
 [`crimes feedback`](./feedback.md) captures Andrew's verdicts on
@@ -13,7 +71,7 @@ pinned matrix of fixtures and scenarios.
 
 It runs locally on a maintainer's machine via the `claude` and
 `codex` CLIs — both authenticate against existing subscriptions, so
-**no API keys, no per-call billing**. CI never invokes a fresh agent
+no separate API keys in the default CLI adapters. These runs use the available subscription or quota. CI never invokes a fresh agent
 run; it only replays the structural rubric over already-committed
 results.
 

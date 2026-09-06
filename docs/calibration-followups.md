@@ -1,5 +1,19 @@
 # Calibration follow-ups
 
+## 0.28 product-review decisions
+
+The September review retains `swallowed_error` observations, including
+intentional fallbacks, while weighting evidenced sensitive consequences
+above generic/documented tolerance. This does not reverse prior decisions
+to keep evidence visible. JS sync-I/O now requires request/render evidence;
+Python also accepts an async function. Generic domain shape is insufficient.
+Naming, raw-style and accessibility checks move to optional defaults.
+File priority uses the strongest score plus bounded distinct-claim support,
+not a count sum. See [scoring](./scoring.md), [evaluation](./evals.md), and
+[release evidence](./releases/v0.28.0.md). Existing rationale is preserved
+when [migrating pins](./pin-migration.md); absence does not establish a fix.
+
+
 Open calibration questions, the decision taken, and the evidence behind
 it. This file exists so a decision to *not* change a detector is as
 recorded as a decision to change one.

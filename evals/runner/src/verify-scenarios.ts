@@ -33,13 +33,14 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { CLI_DIST, FIXTURES_REGISTRY, REPO_ROOT, SCENARIOS_DIR } from "./paths.js";
+import { matchesLabel, type RankedFinding } from "./ranking.js";
 import { buildScanContext, runScan } from "./scan-helpers.js";
-import type { FixturesRegistry, ScanContext, Scenario } from "./types.js";
+import type { FixturesRegistry, Scenario } from "./types.js";
 
 interface Mismatch {
   scenario: string;
   fixture: string;
-  kind: "referenced_findings" | "expected_priority";
+  kind: "referenced_findings" | "expected_priority" | "finding_labels";
   missing: string;
   fires: string[];
 }
@@ -87,13 +88,16 @@ async function main(): Promise<void> {
 
   // Scan each fixture once and build a `type-fires-here` set.
   const typesByFixture = new Map<string, Set<string>>();
+  const findingsByFixture = new Map<string, RankedFinding[]>();
   const missingFixtures: string[] = [];
   for (const [id, dir] of fixtureDirById) {
     if (!existsSync(dir)) {
       missingFixtures.push(`${id} (${dir})`);
       continue;
     }
-    const ctx = await scanContextFor(dir);
+    const json = await runScan(dir);
+    const ctx = buildScanContext(json);
+    findingsByFixture.set(id, JSON.parse(json).findings);
     typesByFixture.set(id, new Set(Object.values(ctx.detector_id_by_finding_id)));
   }
 
@@ -113,6 +117,17 @@ async function main(): Promise<void> {
       continue;
     }
     checked += 1;
+    for (const label of s.expected_artifacts.finding_labels ?? []) {
+      if (!(findingsByFixture.get(s.fixture) ?? []).some((f) => matchesLabel(f, label))) {
+        mismatches.push({
+          scenario: s.id,
+          fixture: s.fixture,
+          kind: "finding_labels",
+          missing: JSON.stringify(label),
+          fires: [...fires].sort(),
+        });
+      }
+    }
     const refs = s.expected_artifacts.referenced_findings ?? [];
     for (const t of refs) {
       if (!fires.has(t)) {
@@ -190,11 +205,6 @@ function reportMismatches(mismatches: Mismatch[], checked: number): void {
     }
     process.stderr.write(`    fixture fires: ${items[0]!.fires.join(", ")}\n\n`);
   }
-}
-
-async function scanContextFor(fixtureDir: string): Promise<ScanContext> {
-  const json = await runScan(fixtureDir);
-  return buildScanContext(json);
 }
 
 interface LoadedScenarios {

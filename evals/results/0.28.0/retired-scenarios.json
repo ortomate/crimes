@@ -1,0 +1,42 @@
+{
+  "reason": "Boolean naming is now optional; this scenario is retired from default-workflow evaluation, not counted as a pass. Detector behavior remains unit tested. Generic synchronous functions no longer establish hotpath evidence; the old bugfix scenario is retired rather than passed.",
+  "scenarios": [
+    {
+      "id": "context-01-boolean-naming",
+      "fixture": "01",
+      "kind": "context",
+      "prompt": "You are about to add a new `archived` flag to the billing API. Use `crimes context src/api/state.ts --format json` to find existing boolean-typed declarations whose names don't follow the project's prefix convention. Name the two specific identifiers that violate the convention and quote one finding evidence line verbatim.",
+      "expected_artifacts": {
+        "referenced_findings": [
+          "boolean_naming_drift"
+        ],
+        "referenced_files": [
+          "src/api/state.ts"
+        ]
+      },
+      "judge_questions": [
+        "Did the agent identify at least two of the unprefixed booleans (e.g. `paid`, `expired`, `stale`) by name?",
+        "Did the agent quote a finding-evidence line verbatim and propose `is`/`has`/`should`-prefixed alternatives rather than restating the rule generically?"
+      ]
+    },
+    {
+      "id": "bugfix-01-sync-io-hotpath",
+      "fixture": "01",
+      "kind": "bugfix",
+      "prompt": "A production handler that used to respond in milliseconds is now stalling under concurrent load \u2014 p99 latency spiked and the event loop is reporting lag. Use `crimes scan src/api/files.ts --format json` to find the per-request blocking call(s) responsible. Quote the finding's evidence verbatim, name the specific sync method(s) involved, and propose the smallest async migration that preserves the function's public signature. Don't paper over the symptom with caching \u2014 fix the blocking call itself.",
+      "expected_artifacts": {
+        "referenced_findings": [
+          "sync_io_in_hotpath"
+        ],
+        "referenced_files": [
+          "src/api/files.ts"
+        ],
+        "expected_priority": "sync_io_in_hotpath"
+      },
+      "judge_questions": [
+        "Did the agent name at least one specific synchronous method (`existsSync`, `statSync`, or `readFileSync`) from the finding's evidence rather than 'sync I/O' generically?",
+        "Did the agent's fix swap each `*Sync` call for its async counterpart (`fs.promises.*` or `fs.readFile` with `await`) instead of recommending a cache, a worker thread, or a `setImmediate` wrapper?"
+      ]
+    }
+  ]
+}

@@ -1,25 +1,17 @@
+import {
+  CoverageWarningLog,
+  mergeCoverageWarnings,
+} from "./discovery/coverage-warnings.js";
 import { existsSync } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join, parse, resolve } from "node:path";
-import { discoverFiles } from "./discovery/index.js";
 import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import type { CrimesConfig } from "./config.js";
-import { loadConfig } from "./config.js";
 import {
   assignIdsAndFingerprints,
   buildGuidance,
   buildRisk,
-  tagTierAndSortByRankScore,
   toRepoRelative,
 } from "./context-helpers.js";
-import {
-  runDetectorsOnTarget,
-  safelyBuildFunctionHashIndex,
-  safelyBuildIaIndex,
-  safelyBuildImportGraph,
-  safelyBuildJsxShapeIndex,
-  safelyBuildPettyIndex,
-  safelyBuildScoringContext,
-} from "./context-indexes.js";
 import { applyEmptyReasons, buildClues } from "./context-clues.js";
 import { safeRealpath } from "./util/realpath.js";
 import { findLikelyTests } from "./context-likely-tests.js";
@@ -28,19 +20,13 @@ import { findRelatedFiles } from "./context-related-files.js";
 import type { Detector } from "./detector.js";
 import type { Finding } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
-import {
-  buildDetectorRegistry,
-  builtInDetectors,
-  filterDetectors,
-} from "./detector-registry.js";
-import { resolveAliasGroups } from "./scan.js";
+import { analyseRepository } from "./scan.js";
 import type {
   ApplySuppressionsOptions,
   SuppressionEntry,
   SuppressionForFile,
 } from "./suppressions.js";
 import { partitionFindings } from "./suppressions.js";
-import type { PySymbolIndex } from "./py/symbol-index.js";
 
 export interface ContextOptions {
   /** Repo-relative or absolute path to the file to inspect. */
@@ -115,11 +101,15 @@ export interface ContextReport {
   /** Repo-relative path to the inspected file, forward slashes. */
   file: string;
   risk: ContextRisk;
+  /** Whether analysis supports interpreting the findings; none never means safe. */
+  analysis_status?: "complete" | "partial" | "not_analyzed";
+  /** The same discovery and analysis diagnostics as scan. */
+  coverage?: NonNullable<import("./finding.js").ScanReport["coverage"]>;
   /** Deterministic, type-keyed safe-editing notes for an agent. */
   agent_guidance: string[];
   /**
    * Other files an agent should probably read before editing the target.
-   * Discovered deterministically — IA finding passthrough, shared path
+   * Discovered deterministically — resolved imports first, IA finding passthrough, shared path
    * tokens, domain-prefix filename matches, same-directory siblings.
    * Always present (empty array when nothing fired); see
    * `related_files_reason` for the empty case.
@@ -127,7 +117,7 @@ export interface ContextReport {
   related_files: ContextRelatedFile[];
   /** Repo-relative paths of test files likely covering `file`. */
   likely_tests: string[];
-  /** Same Finding shape as `crimes scan`, filtered to the target file. */
+  /** Same Finding shape as `crimes scan`, including findings whose related_files name the target. */
   findings: Finding[];
   /**
    * Only present when `agent_guidance` is empty. Short string explaining
@@ -257,60 +247,30 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     targetAbs,
     explicitRoot: options.root,
   });
-  const config =
-    options.config ?? loadConfig(root, buildDetectorRegistry(builtInDetectors));
-  const detectors = options.detectors ?? filterDetectors(builtInDetectors, config);
-
+  const {
+    report: scanReport,
+    allFiles,
+    assetFiles,
+    indexes,
+  } = await analyseRepository({
+    root,
+    ...(options.config ? { config: options.config } : {}),
+    ...(options.detectors ? { detectors: options.detectors } : {}),
+  });
+  const { ia, imports, scoring } = indexes;
   const fileRel = toRepoRelative(root, targetAbs);
-
-  const allFiles = await discoverFiles({
-    root,
-    include: config.include,
-    exclude: config.exclude,
-  });
-
-  // Cross-file indexes are built over the WHOLE repo so single-file context
-  // still gets repo-level IA and petty-crimes signal.
-  const ia = await safelyBuildIaIndex({
-    root,
-    allFiles,
-    aliasGroups: resolveAliasGroups(config),
-  });
-  const petty = await safelyBuildPettyIndex({ root, allFiles });
-  let pySymbols: PySymbolIndex | undefined;
-  const imports = await safelyBuildImportGraph({
-    root,
-    allFiles,
-    onPySymbolIndex: (index) => {
-      pySymbols = index;
-    },
-  });
-  const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
-  const functionHashIndex = await safelyBuildFunctionHashIndex({ root, allFiles });
-  const scoring = await safelyBuildScoringContext({
-    root,
-    allFiles,
-    imports,
-  });
-
-  const findings = await runDetectorsOnTarget({
-    allFiles,
-    targetAbs,
-    root,
-    config,
-    detectors,
-    ia,
-    petty,
-    imports,
-    jsxShapeIndex,
-    functionHashIndex,
-    scoring,
-    pySymbols,
-  });
-  tagTierAndSortByRankScore(findings, config);
+  const findings = scanReport.findings.filter(
+    (f) => f.file === fileRel || (f.related_files ?? []).includes(fileRel),
+  );
   assignIdsAndFingerprints(findings);
 
-  const likely_tests = await findLikelyTests({ root, fileRel, targetAbs, allFiles });
+  const likely_tests = await findLikelyTests({
+    root,
+    fileRel,
+    targetAbs,
+    allFiles,
+    imports,
+  });
 
   // Repo-relative POSIX paths for every discovered file — the
   // related-files helper works in that vocabulary so it can compare
@@ -322,6 +282,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     ia,
     findings,
     likelyTests: likely_tests,
+    imports,
   });
 
   const agent_guidance = buildGuidance(findings, related_files);
@@ -342,6 +303,15 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     related_files,
     likely_tests,
     findings,
+    coverage: scanReport.coverage,
+    analysis_status: analysisStatus(
+      scanReport,
+      fileRel,
+      allFiles.includes(targetAbs) ||
+        assetFiles.includes(targetAbs) ||
+        (indexes.agentConfig?.files.includes(fileRel) ?? false) ||
+        (indexes.manifest?.manifests.some((m) => m.file === fileRel) ?? false),
+    ),
   };
 
   const claimingPack = resolveLanguagePackRouter().claimingPack(targetAbs);
@@ -360,7 +330,40 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   });
   if (clues) report.clues = clues;
 
+  if (report.analysis_status === "not_analyzed" && report.coverage) {
+    const warnings = new CoverageWarningLog();
+    warnings.record("working_set_path_unmatched", fileRel, { file: fileRel });
+    report.coverage.warnings = mergeCoverageWarnings(
+      report.coverage.warnings,
+      warnings.build(),
+    );
+  }
+  if (report.analysis_status !== "complete") {
+    report.agent_guidance.unshift(
+      report.analysis_status === "not_analyzed"
+        ? "This target was not analysed. Review coverage before treating an empty finding list as evidence."
+        : "Analysis is incomplete. Review coverage warnings before relying on this briefing.",
+    );
+  }
   return report;
+}
+
+function analysisStatus(
+  report: import("./finding.js").ScanReport,
+  file: string,
+  discovered: boolean,
+): "complete" | "partial" | "not_analyzed" {
+  if (!discovered && !report.findings.some((f) => f.file === file)) return "not_analyzed";
+  const incomplete = new Set([
+    "index_unavailable",
+    "index_truncated",
+    "files_unreadable",
+    "files_unparsed",
+    "files_partial_parse",
+  ]);
+  return report.coverage?.warnings?.some((w) => incomplete.has(w.kind))
+    ? "partial"
+    : "complete";
 }
 
 /**
@@ -382,6 +385,10 @@ export function applySuppressionsToContext(
     ...report,
     findings: visible,
     risk: buildRisk(visible),
+    agent_guidance:
+      report.analysis_status && report.analysis_status !== "complete"
+        ? report.agent_guidance
+        : buildGuidance(visible, report.related_files),
   };
   if (suppressedCount > 0) next.suppressed_count = suppressedCount;
   return next;

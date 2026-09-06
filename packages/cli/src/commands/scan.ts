@@ -8,7 +8,6 @@ import {
   builtInDetectors,
   countEntriesByDetector,
   countResurfacedByPinnedMinor,
-  defaultOffDetectorIds,
   loadConfig,
   loadSuppressionsForRoot,
   loadTriage,
@@ -31,7 +30,6 @@ import {
 } from "@crimes/reporter";
 import type { Command } from "commander";
 import {
-  emitDefaultOffDetectorsBreadcrumb,
   emitDetectorsDisabledBreadcrumb,
   emitFuturePinnedSuppressionsWarnings,
   emitResurfacedSuppressionsBreadcrumb,
@@ -282,12 +280,7 @@ export function registerScanCommand(program: Command): void {
         config = loadConfig(root);
         const noColor = resolveNoColor(options);
         emitDetectorsDisabledBreadcrumb(config, { noColor });
-        emitDefaultOffDetectorsBreadcrumb(
-          defaultOffDetectorIds(builtInDetectors, config),
-          {
-            noColor,
-          },
-        );
+
         report = await scan({
           root,
           config,

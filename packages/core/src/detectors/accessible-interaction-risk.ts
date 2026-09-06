@@ -15,6 +15,7 @@ import type { JsxElementInfo } from "../jsx/walk.js";
  */
 export const accessibleInteractionRiskDetector: LanguageJsDetector = {
   id: "accessible_interaction_risk",
+  defaultOff: true,
   name: "Accessible Interaction Risk",
   description:
     "Flags clickable non-button JSX elements without `role`, " +

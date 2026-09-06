@@ -1518,3 +1518,15 @@ describe("Python fingerprint collisions — same name, one file", () => {
     expect(new Set(executes.map((f) => f.discriminator)).size).toBe(2);
   });
 });
+
+it("requires hotpath evidence for synchronous Python functions", async () => {
+  const source = "import time\ndef calculate_total():\n    time.sleep(1)\n    return 1\n";
+  expect(await run(syncIoInHotpathPyDetector, "src/billing.py", source)).toEqual([]);
+  expect(
+    await run(
+      syncIoInHotpathPyDetector,
+      "src/billing.py",
+      source.replace("def calculate", "async def calculate"),
+    ),
+  ).toHaveLength(1);
+});

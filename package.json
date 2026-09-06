@@ -24,7 +24,7 @@
     "lint:fix": "node scripts/biome.mjs lint --write .",
     "check": "node scripts/biome.mjs check .",
     "check:fix": "node scripts/biome.mjs check --write .",
-    "verify": "pnpm run format:check && pnpm run lint && pnpm run build && pnpm run typecheck && pnpm run test",
+    "verify": "pnpm run format:check && pnpm run lint && pnpm run build && pnpm run docs:check && pnpm run typecheck && pnpm run test",
     "ci": "pnpm run verify",
     "scan:example": "pnpm --filter crimes build && node packages/cli/dist/index.js scan examples/messy-ts-app",
     "scan:example:json": "pnpm --filter crimes build && node packages/cli/dist/index.js scan examples/messy-ts-app --format json",
@@ -36,7 +36,10 @@
     "evals:ranking": "pnpm --filter evals-runner run evals:ranking",
     "evals:variance": "pnpm --filter evals-runner run evals:variance",
     "evals:verify-scenarios": "pnpm --filter evals-runner run evals:verify-scenarios",
-    "clean": "pnpm -r exec rm -rf dist node_modules .turbo"
+    "clean": "pnpm -r exec rm -rf dist node_modules .turbo",
+    "evals:outcomes": "pnpm --filter evals-runner run evals:outcomes",
+    "docs:generate": "node scripts/generate-reference.mjs",
+    "docs:check": "node scripts/generate-reference.mjs --check"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",

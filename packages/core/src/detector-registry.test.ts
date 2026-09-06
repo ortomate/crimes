@@ -95,9 +95,15 @@ describe("default-off detectors", () => {
     const offByDefault = builtInDetectors
       .filter((d) => !defaultIds.has(d.id))
       .map((d) => d.id);
-    // Exactly one detector is gated. Adding another is a product
+    // Optional detectors are explicit. Adding another is a product
     // decision, not a refactor, so it has to change this list.
-    expect(offByDefault).toEqual(["parallel_destination"]);
+    expect(offByDefault.sort()).toEqual([
+      "accessible_interaction_risk",
+      "boolean_naming_drift",
+      "boolean_naming_drift.py",
+      "design_token_escape",
+      "parallel_destination",
+    ]);
   });
 
   it("does not resurrect a default-off detector via an unrelated enable list", () => {

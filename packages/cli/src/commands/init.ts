@@ -2,7 +2,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { Command } from "commander";
 import {
-  CODEX_HOOK_DOCUMENT,
   mergeClaudeHook,
   serializeClaudeSettings,
   type ClaudeSettings,
@@ -25,88 +24,38 @@ const CODEX_SKILL_PATH = ".agents/skills/crimes/SKILL.md";
 
 const AGENT_SKILL = `---
 name: crimes-codebase-risk
-description: Use when editing, reviewing, or investigating a TypeScript / JavaScript codebase that ships with the crimes CLI. Helps agents run pre-edit context checks, post-edit scans, and interpret findings before risky changes.
+description: Use crimes to inspect change risk before and after edits in a repository that uses the CLI. Covers TypeScript, JavaScript and Python; interpret its evidence and analysis limits before acting.
 ---
 
-# crimes — codebase risk workflow
+# crimes workflow
 
-\`crimes\` is a deterministic CLI (no LLM) that reports change risk and agent risk. JSON output is the stable contract for agent decisions; prefer it when planning. For user-facing readbacks, use the default human output instead of rebuilding the report in your own prose.
+Use JSON for decisions. Before editing, run \`crimes context <file> --root .
+--format json\` from the intended repository root. Without \`--root\`, context
+uses the nearest package/project root, which may omit monorepo consumers.
+For several files use \`scan --files a.ts,b.ts --format json\`; for import
+neighbors use \`scan --related-to src/api.ts --format json\`.
 
-## Pack coverage
+Read \`analysis_status\`, \`coverage.warnings\`, evidence, related files and
+likely tests. \`partial\` or \`not_analyzed\` requires inspecting what was
+missed. No findings does not establish safety, and \`test_gap\` describes
+test discovery, not behavioral coverage. Context shares scan's analysis;
+scoping narrows output, not the repository analysis cost.
 
-\`crimes\` ships findings under three packs:
+After editing, compare \`scan --changed --format json\` with the pre-edit
+findings. This selects changed files, including their old findings.
+Use \`verdict --base main --format json\` for committed branch differences.
+Run behavior tests independently. Treat a new high-severity finding as a
+blocker unless the user accepts it. Do not fix unrelated findings.
 
-- **Universal pack** runs on every file. Detectors: large files, raster
-  asset weight, duplicate filenames, hardcoded localhost / local paths,
-  docs link checking, missing agent context, TODO/FIXME density,
-  commented-out code (non-JS only).
-- **Language-js pack** runs on \`.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts\`
-  files only. Most detectors live here.
-- **Language-py pack** runs on \`.py/.pyi\` files only. Eight detectors:
-  \`large_function.py\`, \`direct_date.py\`,
-  \`mixed_utc_local_methods.py\`, \`sync_io_in_hotpath.py\`,
-  \`boolean_naming_drift.py\`, \`weak_test_signal.py\`,
-  \`circular_dependency.py\`, \`deep_import.py\`. Python-specific
-  hazards are called out as such: a naive \`datetime\` (no \`tz=\`) can
-  raise \`TypeError\` when compared against an aware one, an import
-  cycle can raise \`ImportError\` at startup depending on import order,
-  and blocking I/O inside \`async def\` stalls the whole event loop.
+A false positive can be recorded with \`crimes feedback <fingerprint>
+--verdict fp --note "<reason>"\` within the user's scope. Reconfirm resurfaced
+feedback with the user. For stale identities, preview \`crimes migrate-pins
+--format json\`, review candidates, then apply the reviewed file. Never infer
+that an absent finding is resolved or silently renew its expiry.
 
-Run \`crimes scan --explain-coverage\` to see which packs claimed which
-files in this repo.
-
-Findings on files no language pack claims have **full confidence** on
-the things universal detectors can see, and are **silent** on things
-they can't (function shape, imports, JSX, types). When a file's
-\`Finding.pack\` is \`"universal"\`, treat its absence of other findings
-as "we couldn't parse this; no opinion" rather than "this file is
-clean".
-
-## Scope it to what you are about to change
-
-**This is the most important thing on this page.** Bare \`crimes scan\`
-audits the whole repository. On a 200-file project that is ~500
-findings, which is not a work list — it is an invitation to either
-over-fix into unrelated files or dismiss the tool. Almost every agent
-task is about a handful of files, so name them:
-
-| you are… | run |
-|---|---|
-| planning a change to known files | \`crimes scan --files a.ts,b.ts --format json\` |
-| planning a change around one module | \`crimes scan --related-to src/lib/api.ts --format json\` |
-| reviewing edits you just made | \`crimes scan --changed --format json\` |
-| reviewing a branch | \`crimes scan --changed --base main --format json\` |
-| auditing the whole repo (rare) | \`crimes scan --format json\` |
-
-\`--related-to\` walks the import graph both ways — what the file imports
-and what imports it — because both can break. \`--related-depth 2\` goes
-further. The resolved set comes back as \`working_set.files\`, so check
-what was actually scanned rather than assuming.
-
-\`--changed\` is the **post-edit** selector. Before you have written
-anything it returns nothing, which is correct and is why \`--files\` and
-\`--related-to\` exist.
-
-## When to run it
-
-- Before editing an unfamiliar file: \`crimes context <file> --format json\`
-- Before a change touching several files: \`crimes scan --files a,b,c --format json\`
-- Before a change around one module: \`crimes scan --related-to <file> --format json\`
-- After edits: \`crimes scan --changed --format json\`
-- Before merging a branch: \`crimes verdict --format json\`
-
-## Decision rules
-
-- Treat any new \`severity: "high"\` finding introduced by your edit as a blocker unless the user explicitly accepts it.
-- Read \`evidence[]\` before acting; it contains deterministic facts, not LLM opinion.
-- Use \`scores.agent_risk\` to decide which findings need human attention first.
-- If a finding is a false positive, record feedback with \`crimes feedback <fingerprint> --verdict fp --note "<why>"\` rather than silently ignoring it.
-
-## Reporting findings back to humans
-
-Use \`--format json\` when you need to plan, gate, compare, or make decisions. When the user wants to see the results, or when you are summarising findings back in chat, prefer running the same command without \`--format json\` and quote or paste the relevant human-readable readout. The human report is intentionally designed for people: severity glyphs, grouped findings, evidence, feedback commands, suppressions, and gate status are already rendered there.
-
-Do not paraphrase the whole JSON payload in your own voice unless you need a short executive summary. Use the human readout as the canonical user-facing presentation, and add your own interpretation only around the parts that matter for the task.
+Summarize the evidence that affects the task. Use human output when a full
+terminal report helps; rerunning a scan solely to repeat its presentation
+is unnecessary. More detail: https://crimes.sh/docs/agent-usage/
 `;
 
 export function registerInitCommand(program: Command): void {
@@ -219,16 +168,6 @@ export function registerInitCommand(program: Command): void {
             mkdirSync(dirname(settingsPath), { recursive: true });
             writeFileSync(settingsPath, serializeClaudeSettings(merge.document), "utf8");
             written.push(".claude/settings.local.json");
-          }
-        }
-
-        // Codex placeholder
-        if (writeCodexSkill) {
-          const codexSettingsPath = resolve(process.cwd(), ".agents/settings.local.json");
-          if (!existsSync(codexSettingsPath) || options.force) {
-            mkdirSync(dirname(codexSettingsPath), { recursive: true });
-            writeFileSync(codexSettingsPath, CODEX_HOOK_DOCUMENT + "\n", "utf8");
-            written.push(".agents/settings.local.json");
           }
         }
       }

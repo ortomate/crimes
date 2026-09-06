@@ -106,25 +106,131 @@ export interface ScanOptions {
   recencyEnabled?: boolean;
 }
 
+/** Analysis is shared by scan and context; report filtering never rebuilds indexes. */
+export interface RepositoryAnalysis {
+  report: ScanReport;
+  allFiles: string[];
+  assetFiles: string[];
+  indexes: import("./scan-detect.js").ScanIndexes;
+  config: CrimesConfig;
+  detectors: Detector[];
+}
+
 export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
+  const analysis = await analyseRepository(options);
+  const { report, config, allFiles, indexes, detectors } = analysis;
+  const resurfaced = await collectResurfaceForScan({
+    root: report.repo.root,
+    config,
+    allFiles,
+    indexes,
+    detectors,
+  });
+  if (resurfaced.length === 0) return report;
+  const findings = [...resurfaced, ...report.findings];
+  assignIdsHelper(findings);
+  return { ...report, findings, summary: summarise(findings) };
+}
+
+/** Internal shared entry point. Context selects its target from the complete corpus. */
+export async function analyseRepository(
+  options: ScanOptions = {},
+): Promise<RepositoryAnalysis> {
   const root = resolve(options.root ?? process.cwd());
   const config =
     options.config ??
     loadConfig(root, buildDetectorRegistry(builtInDetectors, builtInAssetDetectors));
-  const allKnownIds = collectKnownIds(builtInDetectors, builtInAssetDetectors);
+  const knownIds = collectKnownIds(builtInDetectors, builtInAssetDetectors);
   const detectors =
-    options.detectors ?? filterDetectors(builtInDetectors, config, allKnownIds);
+    options.detectors ?? filterDetectors(builtInDetectors, config, knownIds);
   const assetDetectors =
     options.assetDetectors ??
-    filterAssetDetectors(builtInAssetDetectors, config, allKnownIds);
+    filterAssetDetectors(builtInAssetDetectors, config, knownIds);
   const inputs = await resolveScanInputs({ root, config, options });
-  // One log for the whole scan. Discovery, the index build and the
-  // per-file detector pass can each drop work and keep going; they all
-  // report here so `coverage.warnings` is the single answer to "what
-  // did this scan not look at?".
+  const assetFiles =
+    assetDetectors.length > 0 ? await discoverAssetFiles(root, config) : [];
+  const warnings = await discoveryWarnings(root, config, inputs, assetFiles);
+  const indexes = await buildScanIndexes({
+    root,
+    config,
+    allFiles: inputs.allFiles,
+    warnings,
+  });
+  const workingSet = await resolveWorkingSet({
+    root,
+    allFiles: inputs.allFiles,
+    options,
+    imports: indexes.imports,
+    warnings,
+  });
+  const langPack = resolveLanguagePackRouter();
+  const findings = await runDetectorsForFiles({
+    root,
+    files: inputs.allFiles,
+    detectors,
+    config,
+    indexes,
+    langPack,
+  });
+  findings.push(
+    ...(await runAssetDetectorsForRoot({ root, config, detectors: assetDetectors })),
+  );
+  // Run against the complete corpus even for a working set: cross-language
+  // and anchored repo findings must see both sides before selecting results.
+  const selected =
+    workingSet?.repoPaths ??
+    (inputs.changedAll === undefined ? undefined : new Set(inputs.changedAll));
+  const declaredGenerated = generatedMatcherFor(root);
+  const reportable = applyClaimDisable(
+    findings.filter(
+      (f) =>
+        (selected === undefined || selected.has(f.file)) &&
+        !isNeverReportable(f.file) &&
+        !declaredGenerated(f.file),
+    ),
+    config,
+  );
+  for (const finding of reportable) finaliseFindingScores(finding, indexes.scoring);
+  tagTierAndSortByRankScore(reportable, config, {
+    recencyEnabled: options.recencyEnabled ?? true,
+  });
+  assignIdsHelper(reportable);
+  const report: ScanReport = {
+    schema_version: SCHEMA_VERSION,
+    report_type: "scan",
+    ranking: { recency_enabled: options.recencyEnabled ?? true },
+    repo: { name: basename(root), root },
+    summary: summarise(reportable),
+    findings: reportable,
+    coverage: buildCoverage({
+      files: inputs.allFiles,
+      router: langPack,
+      root,
+      warnings: warnings.build(),
+    }),
+  };
+  if (report.coverage) {
+    const enabled = new Set([...detectors, ...assetDetectors].map((d) => d.id));
+    report.coverage.detectors_default_off = [
+      ...builtInDetectors,
+      ...builtInAssetDetectors,
+    ]
+      .filter((d) => d.defaultOff && !enabled.has(d.id))
+      .map((d) => d.id)
+      .sort();
+  }
+  if (inputs.changedAll !== undefined) report.changed_files = inputs.changedAll;
+  if (workingSet) report.working_set = workingSet.summary;
+  return { report, allFiles: inputs.allFiles, assetFiles, indexes, config, detectors };
+}
+
+async function discoveryWarnings(
+  root: string,
+  config: CrimesConfig,
+  inputs: ScanInputs,
+  assetFiles: string[],
+): Promise<CoverageWarningLog> {
   const warnings = new CoverageWarningLog();
-  // Aggregated by the pattern that authorised the skip, so pydantic's
-  // 85 files are one warning naming `pydantic/v1`, not 85 warnings.
   for (const skip of inputs.toolingSkips ?? []) {
     warnings.record("files_excluded_by_tooling", skip.pattern, { file: skip.file });
   }
@@ -133,160 +239,11 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     include: config.include,
     exclude: config.exclude,
     discovered: inputs.allFiles,
-    alsoAnalysed: assetDetectors.length > 0 ? await discoverAssetFiles(root, config) : [],
+    alsoAnalysed: assetFiles,
     alreadyExplained: (inputs.toolingSkips ?? []).map((s) => s.file),
     into: warnings,
   });
-  const indexes = await buildScanIndexes({
-    root,
-    config,
-    allFiles: inputs.allFiles,
-    warnings,
-  });
-  // `--related-to` is applied here rather than in `resolveScanInputs`
-  // because the walk needs the import graph, which is built above from
-  // the *whole* file set. Narrowing before the graph existed would make
-  // the working set define its own neighbourhood.
-  const workingSet = await resolveWorkingSet({
-    root,
-    allFiles: inputs.allFiles,
-    options,
-    imports: indexes.imports,
-    warnings,
-  });
-  const scanFiles = workingSet ? workingSet.absoluteFiles : inputs.files;
-
-  const langPack = resolveLanguagePackRouter();
-  const findings = await runDetectorsForFiles({
-    root,
-    files: scanFiles,
-    detectors,
-    config,
-    indexes,
-    langPack,
-  });
-  // Asset detectors run over the repo, not over a file list, so a
-  // working-set scan filters their output rather than skipping the pass.
-  // Skipping it would mean `--files public/logo.png` reported nothing.
-  const assetFindings = await runAssetDetectorsForRoot({
-    root,
-    config,
-    detectors: assetDetectors,
-  });
-  findings.push(
-    ...(workingSet
-      ? assetFindings.filter((f) => workingSet.repoPaths.has(f.file))
-      : assetFindings),
-  );
-
-  // One place enforces the never-reportable policy, because ~50
-  // detectors predate `scope-class` and none of them ask.
-  //
-  // `isNeverReportable` was written in 0.16.0 and consulted only by the
-  // detectors added alongside it. Everything older reported freely on
-  // generated and vendored code: on airflow that was 44 findings across
-  // 15 `.gen.ts` files, from `large_function`, `large_file`,
-  // `option_bag_junk_drawer`, `high_fan_in_fan_out`,
-  // `magic_domain_literal_scatter`, `name_behavior_mismatch`,
-  // `boolean_naming_drift` and `logic_in_comments` — a machine-written
-  // API client accused of having a God Function.
-  //
-  // Filtering here rather than teaching every detector to check means
-  // the policy cannot drift back out of sync, and a detector added
-  // tomorrow inherits it without knowing it exists.
-  // Not recorded in `coverage.warnings`: those files *were* analysed and
-  // this is deliberate policy, not an accidental gap. Conflating the two
-  // would make the field that exists to expose silent skips report an
-  // intended one.
-  // `.gitattributes linguist-generated` joins the same policy rather
-  // than getting its own: it is the repository asserting provenance
-  // about its own file, which is the claim `looksGeneratedSource` already
-  // trusts from an `@generated` banner. Path heuristics miss the cases
-  // that do not look generated — posthog declares
-  // `frontend/src/queries/validators.js` and `frontend/src/products.tsx`,
-  // neither of which any pattern would catch, and which carried 66 of
-  // the 69 findings this drops there.
-  //
-  // Read once per scan, not per finding: the file is small but the
-  // matcher build is not free and `findings` runs to five figures on a
-  // large repo.
-  const declaredGenerated = generatedMatcherFor(root);
-  const reportable = findings.filter(
-    (f) => !isNeverReportable(f.file) && !declaredGenerated(f.file),
-  );
-  findings.length = 0;
-  // `detectors.disable` entries of the form `<id>/<claim>` cannot be
-  // applied by dropping the detector — it still has to run to produce
-  // the claims that were *not* disabled — so they filter findings here,
-  // alongside the other whole-report policies.
-  findings.push(...applyClaimDisable(reportable, config));
-
-  const coverage = buildCoverage({
-    files: inputs.allFiles,
-    router: langPack,
-    root,
-    warnings: warnings.build(),
-  });
-
-  // Backfill the per-finding scoring fields (churn / test_gap /
-  // blast_radius) and recompute `agent_risk` from the unified 0.6.0
-  // formula. Done once after all detectors have emitted so the
-  // signal-source code lives in one place, not 17. Asset files aren't
-  // in the scoring context — those findings get 0 for every backfilled
-  // signal, which is intentional and documented.
-  for (const f of findings) {
-    finaliseFindingScores(f, indexes.scoring);
-  }
-
-  tagTierAndSortByRankScore(findings, config, {
-    recencyEnabled: options.recencyEnabled ?? true,
-  });
-  assignIdsHelper(findings);
-
-  const report: ScanReport = {
-    schema_version: SCHEMA_VERSION,
-    report_type: "scan",
-    repo: {
-      name: basename(root),
-      root,
-    },
-    summary: summarise(findings),
-    findings,
-  };
-  if (inputs.changedAll !== undefined) {
-    report.changed_files = inputs.changedAll;
-  }
-  if (workingSet) {
-    report.working_set = workingSet.summary;
-  }
-  report.coverage = coverage;
-
-  const resurfaced = await collectResurfaceForScan({
-    root,
-    config,
-    allFiles: inputs.allFiles,
-    indexes,
-    detectors,
-  });
-  if (resurfaced.length > 0) {
-    const merged = [...resurfaced, ...report.findings];
-    // Re-assign over the merged list. Resurfaced findings are collected
-    // after the first `assignIdsHelper` call above and are prepended, so
-    // without this they reach the report with no `fingerprint` and no
-    // `id` — the two fields every consumer addresses a finding by, and
-    // the ones `--show-triaged` exists to let a caller act on. Re-running
-    // here also keeps `id` positional, which is the only thing it claims
-    // to be; assigning ids to the resurfaced entries alone would leave
-    // index 0 holding a higher number than index 1.
-    assignIdsHelper(merged);
-    const next: ScanReport = {
-      ...report,
-      findings: merged,
-      summary: summarise(merged),
-    };
-    return next;
-  }
-  return report;
+  return warnings;
 }
 
 interface ScanInputs {
@@ -364,12 +321,9 @@ async function resolveWorkingSet(args: {
       ? expandThroughImports(seeds, imports, options.relatedDepth ?? 1)
       : new Set(seeds);
 
-  const absoluteFiles = allFiles.filter((abs) => {
-    for (const [rel, candidate] of byRepoPath) {
-      if (candidate === abs) return selected.has(rel);
-    }
-    return false;
-  });
+  const absoluteFiles = [...byRepoPath]
+    .filter(([rel]) => selected.has(rel))
+    .map(([, abs]) => abs);
 
   const summary: WorkingSet = {
     selector,

@@ -247,7 +247,12 @@ function buildFinding(
 function isHotPathCall(call: PyIoCall): boolean {
   if (call.enclosingFunctions.length === 0) return false;
   if (call.enclosingFunctions.some((f) => EXEMPT_SHAPES.has(f.shape))) return false;
-  return call.enclosingFunctions.some((f) => HOT_SHAPES.has(f.shape));
+  return call.enclosingFunctions.some(
+    (f) =>
+      (HOT_SHAPES.has(f.shape) && f.shape !== "domain") ||
+      f.kind === "async_function" ||
+      f.kind === "async_method",
+  );
 }
 
 function pickSeverity(count: number, inAsyncHandler: boolean): Severity {

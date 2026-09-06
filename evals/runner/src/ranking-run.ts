@@ -287,9 +287,15 @@ function parseFindings(scanJson: string): RankedFinding[] {
   const out: RankedFinding[] = [];
   for (const entry of parsed.findings) {
     if (!entry || typeof entry !== "object") continue;
-    const f = entry as { type?: unknown; file?: unknown };
+    const f = entry as Partial<RankedFinding>;
     if (typeof f.type !== "string") continue;
-    out.push({ type: f.type, file: typeof f.file === "string" ? f.file : "" });
+    out.push({
+      type: f.type,
+      file: typeof f.file === "string" ? f.file : "",
+      ...(typeof f.claim === "string" ? { claim: f.claim } : {}),
+      ...(typeof f.symbol === "string" ? { symbol: f.symbol } : {}),
+      ...(typeof f.discriminator === "string" ? { discriminator: f.discriminator } : {}),
+    });
   }
   return out;
 }

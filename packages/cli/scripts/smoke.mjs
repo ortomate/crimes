@@ -67,7 +67,9 @@ run("pnpm", ["run", "build"], { cwd: repoRoot });
 
 step("npm pack");
 const packResult = run("npm", ["pack", "--json"], { cwd: cliDir });
-const packed = JSON.parse(packResult.stdout)[0];
+const packJson = JSON.parse(packResult.stdout);
+const packed = Array.isArray(packJson) ? packJson[0] : packJson[expectedName];
+assert(packed?.filename, "npm pack did not report the expected package tarball");
 const tarballName = packed.filename.replace(/^@.*\//, "").replace(/\//g, "-");
 const tarballPath = resolve(cliDir, tarballName);
 process.stdout.write(`  tarball: ${tarballName}\n`);
@@ -242,6 +244,16 @@ try {
     hotHumanOut.includes("CRIMES HOTSPOTS"),
     "human hotspots output missing CRIMES HOTSPOTS header",
   );
+
+  step("crimes migrate-pins preview from installed tarball");
+  const migration = JSON.parse(
+    run(installedBin, ["migrate-pins", fixture, "--format", "json"]).stdout,
+  );
+  assert(
+    migration.report_type === "pin_migration",
+    "pin migration report discriminator missing",
+  );
+  assert(Array.isArray(migration.entries), "pin migration entries missing");
 
   step("crimes hotspots --format json");
   const hotJsonOut = run(installedBin, ["hotspots", fixture, "--format", "json"]).stdout;

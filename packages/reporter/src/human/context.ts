@@ -19,6 +19,23 @@ export function formatContextHumanReport(
 
   lines.push(colour.bold("CRIMES CONTEXT"));
   lines.push(colour.dim(`file: ${report.file}`));
+  if (report.analysis_status && report.analysis_status !== "complete") {
+    lines.push(
+      `analysis: ${report.analysis_status} — an empty finding list does not establish safety`,
+    );
+  }
+  for (const warning of report.coverage?.warnings ?? []) {
+    if (
+      [
+        "index_unavailable",
+        "index_truncated",
+        "files_unparsed",
+        "files_partial_parse",
+        "files_unreadable",
+      ].includes(warning.kind)
+    )
+      lines.push(`  ${warning.kind}: ${warning.detail}`);
+  }
   lines.push(
     `risk: ${riskLabel(report.risk, colour)}  ${riskCounts(report.risk, colour)}`,
   );

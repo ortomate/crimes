@@ -363,3 +363,28 @@ describe("swallowed_error — stability", () => {
     expect(findings[0]!.discriminator).toBeUndefined();
   });
 });
+
+describe("consequence and intent priority", () => {
+  it("retains documented fallbacks but prioritizes a failed write", () => {
+    const documented = run(
+      `export function loadOptions() { try { return JSON.parse(input); } catch (e) { /* optional best-effort */ return {}; } }`,
+      "src/options.ts",
+    );
+    const unexplained = run(
+      `export function loadOptions() { try { return JSON.parse(input); } catch (e) { return {}; } }`,
+      "src/options.ts",
+    );
+    const write = run(
+      `export async function save() { try { await db.orders.insert(order); } catch (e) { /* best-effort */ } }`,
+    );
+    expect(documented).toHaveLength(1);
+    expect(unexplained).toHaveLength(1);
+    expect(write).toHaveLength(1);
+    expect(documented[0]!.scores.agent_risk).toBeLessThan(
+      unexplained[0]!.scores.agent_risk!,
+    );
+    expect(write[0]!.scores.agent_risk).toBeGreaterThan(
+      unexplained[0]!.scores.agent_risk!,
+    );
+  });
+});

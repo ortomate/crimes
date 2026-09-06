@@ -3,7 +3,7 @@
     "id": "refactor-01-plural-mismatch",
     "fixture": "01",
     "kind": "refactor",
-    "prompt": "Clean up name/type mismatches in src/api/state.ts. Use `crimes scan src/api/state.ts --format json` to find every `singular_plural_type_mismatch` finding. For each declaration flagged, propose either (a) a rename to match the type's shape, or (b) a type change to match the name's shape — and explain which side carries the intended meaning. Quote the finding's evidence verbatim.",
+    "prompt": "Clean up name/type mismatches in src/api/state.ts. Use `crimes scan src/api/state.ts --format json` to find every `singular_plural_type_mismatch` finding. For each declaration flagged, propose either (a) a rename to match the type's shape, or (b) a type change to match the name's shape \u2014 and explain which side carries the intended meaning. Quote the finding's evidence verbatim.",
     "expected_artifacts": {
       "referenced_findings": ["singular_plural_type_mismatch"],
       "referenced_files": ["src/api/state.ts"],
@@ -63,19 +63,22 @@
     "id": "refactor-07-stress-frontend",
     "fixture": "07",
     "kind": "refactor",
-    "prompt": "Card.tsx has three frontend agent-risk findings. Use `crimes context src/Card.tsx` and propose a refactor that addresses the design-token escape, the accessibility hazard, and the responsive fragility. Tie each change to its finding type.",
+    "prompt": "Card.tsx has fixed-width layout values. Use `crimes context src/Card.tsx --format json` to identify responsive fragility and propose a change that preserves its content at narrow widths. Tie the change to the finding evidence.",
     "expected_artifacts": {
-      "referenced_findings": [
-        "design_token_escape",
-        "accessible_interaction_risk",
-        "responsive_fragility"
-      ],
+      "referenced_findings": ["responsive_fragility"],
       "referenced_files": ["src/Card.tsx"],
-      "expected_priority": "accessible_interaction_risk"
+      "expected_priority": "responsive_fragility",
+      "finding_labels": [
+        {
+          "type": "responsive_fragility",
+          "file": "src/Card.tsx",
+          "priority": true
+        }
+      ]
     },
     "judge_questions": [
-      "Did the agent suggest tailwind classes (or other design-token references) instead of hex literals?",
-      "Did the agent propose role + tabIndex (or convert the div to a real button) for the click handler?"
+      "Did the proposed layout accommodate narrow screens without hiding content?",
+      "Did the agent tie its proposal to the responsive_fragility evidence?"
     ]
   },
   {
@@ -154,7 +157,7 @@
     "id": "refactor-02-component-shape",
     "fixture": "02",
     "kind": "refactor",
-    "prompt": "The dashboard's invoice forms share a JSX subtree shape across multiple files — when one form changes, the others drift. Use `crimes scan --format json` to find the duplicate_component_shape finding, then propose a shared component that consolidates the repeated div subtree. Name the files that would change and the shared component's public API (props + slots).",
+    "prompt": "The dashboard's invoice forms share a JSX subtree shape across multiple files \u2014 when one form changes, the others drift. Use `crimes scan --format json` to find the duplicate_component_shape finding, then propose a shared component that consolidates the repeated div subtree. Name the files that would change and the shared component's public API (props + slots).",
     "expected_artifacts": {
       "referenced_findings": ["duplicate_component_shape"],
       "referenced_files": [
@@ -188,7 +191,7 @@
     "id": "refactor-01-svg-embedded-raster",
     "fixture": "01",
     "kind": "refactor",
-    "prompt": "Refactor `src/assets/partner-logo.svg` so it lives up to the SVG mime type — vector geometry, no embedded rasters. Use `crimes scan --format json` to find the `svg_with_embedded_raster` finding. Quote both the number of embedded rasters and the MIME types from the finding evidence, then propose the concrete steps to remediate: which parts should be re-authored as vector paths vs. split out to standalone raster assets, and what file(s) the SVG would reference after the refactor. Don't recommend deleting the file — the logo still needs to ship.",
+    "prompt": "Refactor `src/assets/partner-logo.svg` so it lives up to the SVG mime type \u2014 vector geometry, no embedded rasters. Use `crimes scan --format json` to find the `svg_with_embedded_raster` finding. Quote both the number of embedded rasters and the MIME types from the finding evidence, then propose the concrete steps to remediate: which parts should be re-authored as vector paths vs. split out to standalone raster assets, and what file(s) the SVG would reference after the refactor. Don't recommend deleting the file \u2014 the logo still needs to ship.",
     "expected_artifacts": {
       "referenced_findings": ["svg_with_embedded_raster"],
       "referenced_files": ["src/assets/partner-logo.svg"],
@@ -246,7 +249,7 @@
       "expected_priority": "finder_duplicate_filename"
     },
     "judge_questions": [
-      "Did the agent decide which file is canonical on evidence — that the copy is stale (no `plan`, no `owner` role) and that nothing imports it — rather than picking by filename alone?",
+      "Did the agent decide which file is canonical on evidence \u2014 that the copy is stale (no `plan`, no `owner` role) and that nothing imports it \u2014 rather than picking by filename alone?",
       "Did the agent recommend deleting the conflict copy rather than updating both files to match?"
     ]
   }

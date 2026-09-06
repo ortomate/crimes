@@ -1,3 +1,4 @@
+import { findingRankScore } from "./scoring/ranking.js";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { ContextRelatedFile } from "./context-related-files.js";
 import type { CrimesConfig } from "./config.js";
@@ -12,6 +13,22 @@ import { fingerprintFinding } from "./fingerprint.js";
  * "don't make it worse" before the agent edits.
  */
 const GUIDANCE: Record<string, string> = {
+  duplicated_policy:
+    "Read every related policy implementation before changing one side; preserve their shared contract.",
+  contract_drift:
+    "Compare the related contract declarations and their consumers before editing either representation.",
+  config_drift:
+    "Check the documented variable names and source defaults together; do not inspect real environment values.",
+  pass_through_abstraction:
+    "Follow the forwarding chain to the implementation that owns this behaviour before editing.",
+  swallowed_error:
+    "Check the protected operation and recovery contract before relying on this fallback.",
+  sync_io_in_hotpath:
+    "Inspect callers and error propagation before converting blocking I/O to async.",
+  agent_permission_sprawl:
+    "Review committed agent permissions as text; do not execute discovered hooks or commands.",
+  dependency_provenance_gap:
+    "Compare imports with the repository's manifests and lockfile before changing dependencies.",
   large_function: "Prefer extracting pure helpers before adding more branches.",
   large_file: "Read the whole file before editing — propose splits in their own change.",
   direct_date: "Avoid adding more direct clock access; inject time where possible.",
@@ -149,17 +166,11 @@ export function tagTierAndSortByRankScore(
     f.tier = classify(f.file);
   }
   findings.sort((a, b) => {
-    const ra = rankScore(a, recencyEnabled);
-    const rb = rankScore(b, recencyEnabled);
+    const ra = findingRankScore(a, recencyEnabled);
+    const rb = findingRankScore(b, recencyEnabled);
     if (rb !== ra) return rb - ra;
     return existingSecondarySort(a, b);
   });
-}
-
-function rankScore(f: Finding, recencyEnabled: boolean): number {
-  const ar = f.scores.agent_risk ?? 0;
-  const rec = recencyEnabled ? (f.scores.recency ?? 0) : 0;
-  return ar * (1 + rec * 0.5);
 }
 
 /**

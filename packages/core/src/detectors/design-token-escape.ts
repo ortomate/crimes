@@ -13,17 +13,15 @@ import type { JsxAttributeValue, JsxElementInfo } from "../jsx/walk.js";
  */
 export const designTokenEscapeDetector: LanguageJsDetector = {
   id: "design_token_escape",
-  name: "Design Token Escape",
+  name: "Raw Style Concentration",
+  defaultOff: true,
   description:
     "Flags JSX files with many hard-coded style values (hex / rgb / " +
-    "px / numeric radius / shadow) that probably belong in the design " +
-    "system.",
+    "px / numeric radius / shadow) without inferring that a design-token system exists.",
   whyItMatters:
-    "Hard-coded style values spread across components are how design " +
-    "systems quietly stop being followed. The next agent extending a " +
-    "screen has no way to tell which numbers are deliberate exceptions " +
-    "and which are drift; reviewers can't audit the palette from the " +
-    "diff alone.",
+    "Many raw style values make visual changes harder to coordinate. " +
+    "This optional check counts literals; it does not establish that tokens exist " +
+    "or that any value violates a design system.",
 
   pack: "language-js",
   run(ctx) {
@@ -58,18 +56,17 @@ export const designTokenEscapeDetector: LanguageJsDetector = {
       {
         id: "",
         type: "design_token_escape",
-        charge: "Design Token Escape",
+        charge: "Raw Style Concentration",
         severity,
         confidence,
         file: ctx.file,
         summary:
           `${ctx.file} contains ${hits.length} hard-coded style value` +
-          `${hits.length === 1 ? "" : "s"} in JSX. Many of these probably ` +
-          "belong in the design system; agents extending the file may copy " +
-          "them forward without realising they bypass the tokens.",
+          `${hits.length === 1 ? "" : "s"} in JSX. Review whether repeated values should share a definition. ` +
+          "No design-token system was verified.",
         evidence,
         effort: "quick",
-        fix_shape: "replace raw values with the design token",
+        fix_shape: "check for an existing design system before consolidating raw values",
         scores: {
           severity: severity === "medium" ? 0.55 : 0.4,
           confidence,

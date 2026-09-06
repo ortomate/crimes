@@ -3,7 +3,7 @@
     "id": "plan-01-date-string-concat",
     "fixture": "01",
     "kind": "plan",
-    "prompt": "Plan a migration of all manual date-string construction in this repo to standardized formatting (`toISOString()` or `Intl.DateTimeFormat`). Use `crimes scan --format json` to find every `date_string_concat` finding. For each file flagged, propose the specific replacement and explain whether to use `toISOString()` (machine-readable / persistence / IDs) or `Intl.DateTimeFormat` (user-facing). Don't paraphrase — quote each finding's evidence.",
+    "prompt": "Plan a migration of all manual date-string construction in this repo to standardized formatting (`toISOString()` or `Intl.DateTimeFormat`). Use `crimes scan --format json` to find every `date_string_concat` finding. For each file flagged, propose the specific replacement and explain whether to use `toISOString()` (machine-readable / persistence / IDs) or `Intl.DateTimeFormat` (user-facing). Don't paraphrase \u2014 quote each finding's evidence.",
     "expected_artifacts": {
       "referenced_findings": ["date_string_concat"],
       "referenced_files": ["src/date.ts"],
@@ -49,7 +49,7 @@
     "id": "plan-04-hotspots",
     "fixture": "04",
     "kind": "plan",
-    "prompt": "Use `crimes scan --format json` to find the hotspot files: those with high fan-in or fan-out (high_fan_in_fan_out), the large file findings, and the top large_function findings. Propose a triage order — which files would you refactor first to reduce blast radius across the codebase, and which would you leave alone? Justify each pick with the finding's evidence (fan-in / fan-out numbers).",
+    "prompt": "Use `crimes scan --format json` to find the hotspot files: those with high fan-in or fan-out (high_fan_in_fan_out), the large file findings, and the top large_function findings. Propose a triage order \u2014 which files would you refactor first to reduce blast radius across the codebase, and which would you leave alone? Justify each pick with the finding's evidence (fan-in / fan-out numbers).",
     "expected_artifacts": {
       "referenced_findings": ["high_fan_in_fan_out", "large_file", "large_function"],
       "expected_priority": "high_fan_in_fan_out"
@@ -63,7 +63,7 @@
     "id": "plan-01-hardcoded-local-path",
     "fixture": "01",
     "kind": "plan",
-    "prompt": "Plan a portability sweep for this codebase: every developer-specific path baked into source needs to go. Use `crimes scan --format json` to enumerate every `hardcoded_local_path` finding. For each path flagged, propose the specific replacement and explain whether it should go through `os.homedir()` (the user's home is the natural anchor), `process.env.<NAME>` (a deploy-supplied base directory), or a relative path resolved from the repo root. Don't paraphrase — quote the literal path from each finding's evidence.",
+    "prompt": "Plan a portability sweep for this codebase: every developer-specific path baked into source needs to go. Use `crimes scan --format json` to enumerate every `hardcoded_local_path` finding. For each path flagged, propose the specific replacement and explain whether it should go through `os.homedir()` (the user's home is the natural anchor), `process.env.<NAME>` (a deploy-supplied base directory), or a relative path resolved from the repo root. Don't paraphrase \u2014 quote the literal path from each finding's evidence.",
     "expected_artifacts": {
       "referenced_findings": ["hardcoded_local_path"],
       "referenced_files": ["src/api/files.ts"],
@@ -117,14 +117,28 @@
     "id": "plan-16-checkout-rollout",
     "fixture": "16",
     "kind": "plan",
-    "prompt": "The checkout flow is the feature this team is shipping this week. Use `crimes scan --format json` and plan what must be dealt with before it goes out. Lead with the finding that would make the two halves of the codebase disagree about what a basket is, then cover the blocking call on the request path and the discarded error. Give an order of work and say what you would leave until after the rollout.",
+    "prompt": "The checkout flow is the feature this team is shipping this week. Use `crimes scan --format json` and plan what must be dealt with before it goes out. Lead with the finding that would make the two halves of the codebase disagree about what a basket is, then cover the discarded error in the checkout session. Give an order of work and say what you would leave until after the rollout.",
     "expected_artifacts": {
-      "referenced_findings": ["contract_drift", "sync_io_in_hotpath", "swallowed_error"],
+      "referenced_findings": ["contract_drift", "swallowed_error"],
       "referenced_files": ["src/checkout/basket.ts", "src/checkout/session.ts"],
-      "expected_priority": "contract_drift"
+      "expected_priority": "contract_drift",
+      "finding_labels": [
+        {
+          "type": "contract_drift",
+          "file": "src/checkout/basket.ts",
+          "symbol": "Basket",
+          "priority": true
+        },
+        {
+          "type": "swallowed_error",
+          "claim": "comment_only",
+          "file": "src/checkout/session.ts",
+          "symbol": "createSession \u2192 fetch"
+        }
+      ]
     },
     "judge_questions": [
-      "Did the agent identify that the checkout Basket has drifted ahead of the shared one — carrying `currency` and `discountCents` the core declaration has never heard of — rather than describing them as merely 'two similar types'?",
+      "Did the agent identify that the checkout Basket has drifted ahead of the shared one \u2014 carrying `currency` and `discountCents` the core declaration has never heard of \u2014 rather than describing them as merely 'two similar types'?",
       "Did the agent order the work by what blocks the rollout rather than by where the findings happened to sit in the report?"
     ]
   }

@@ -498,3 +498,8 @@ export type {
   VerdictReport,
   VerdictSummary,
 } from "./verdict.js";
+
+export { findingRankScore, fileRiskScore } from "./scoring/ranking.js";
+
+export { previewPinMigration, applyPinMigration } from "./pin-migration.js";
+export type { PinMigrationPlan } from "./pin-migration.js";

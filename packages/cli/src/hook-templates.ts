@@ -28,29 +28,6 @@ export const CLAUDE_HOOK_ENTRY: ClaudeHookEntry = {
   ],
 };
 
-export const CODEX_HOOK_DOCUMENT = JSON.stringify(
-  {
-    _note:
-      "Forward-looking: Codex does not honour PreToolUse hooks as of crimes 0.11.1. The schema mirrors .claude/settings.local.json so this file is ready when the Codex hook surface lands. Safe to delete if your team doesn't want it.",
-    hooks: {
-      PreToolUse: [
-        {
-          matcher: "Edit|Write|NotebookEdit",
-          hooks: [
-            {
-              type: "command",
-              command: "npx -y crimes hook --format compact || true",
-              timeout: 8000,
-            },
-          ],
-        },
-      ],
-    },
-  },
-  null,
-  2,
-);
-
 export type MergeAction = "created" | "merged" | "skipped";
 
 export interface MergeResult {

@@ -362,6 +362,8 @@ export interface WorkingSet {
 }
 
 export interface ScanReport {
+  /** Ranking policy used by this run, including human file groups. */
+  ranking?: { recency_enabled: boolean };
   schema_version: typeof SCHEMA_VERSION;
   /** Discriminator. Always the literal `"scan"`. */
   report_type: "scan";
@@ -427,6 +429,8 @@ export interface ScanReport {
    * then, only the file-level rollup is populated.
    */
   coverage?: {
+    /** Optional detectors intentionally outside this run; not a coverage failure. */
+    detectors_default_off?: string[];
     /** Total files the scan touched (universal pack ran on each). */
     files_total: number;
     /**

@@ -38,6 +38,8 @@ const required = [
   "index.html",
   "docs/index.html",
   "docs/agent-usage/index.html",
+  "docs/reference/index.html",
+  "docs/pin-migration/index.html",
   "docs/configuration/index.html",
   "docs/scoring/index.html",
   "docs/ci/index.html",
@@ -175,6 +177,15 @@ if (!core) {
       "  The detector-count check needs the built registry.",
   );
 } else {
+  const schemas = [
+    ...landingHtml.matchAll(
+      /"schema_version"(?:<[^>]+>)*\s*:(?:<[^>]+>)*\s*"([0-9.]+)"/g,
+    ),
+  ].map((match) => match[1]);
+  if (schemas.length === 0 || schemas.some((schema) => schema !== core.SCHEMA_VERSION))
+    fail("Landing JSON example has a missing or stale schema version.");
+  if (/top 10|ranked by severity|only valid with/.test(landingHtml))
+    fail("Landing workflow copy describes retired scan behavior.");
   const registered = [...core.builtInDetectors, ...core.builtInAssetDetectors];
   // Distinct *types* is the user-facing number: `commented_out_code`
   // ships in two packs but is one thing a reader sees in `findings[]`.

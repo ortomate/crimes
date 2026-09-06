@@ -67,6 +67,7 @@ const BOOLEAN_PREFIX_RE =
 
 export const booleanNamingDriftDetector: LanguageJsDetector = {
   id: "boolean_naming_drift",
+  defaultOff: true,
   name: "Unprefixed Boolean",
   description:
     "Flags declarations that are clearly boolean (annotated `: boolean` " +

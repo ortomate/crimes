@@ -246,3 +246,13 @@ the real result, not a detour:
   dependency-architecture problem rather than a packaging one;
 - settling recency exposes a second unvalidated term in `rank_score` —
   the same way chasing one zero in `0.26.0` produced four findings.
+
+
+## Recorded outcome (6 September 2026)
+
+0.27 shipped claim identity, stale-pin diagnostics and evaluation-gate fixes,
+as recorded in [its release notes](../../docs/releases/v0.27.0.md). The planned
+recency decision, standalone binaries and weak-test granularity did not land.
+0.28 retains recency as an explicit reversible default and improves context,
+ranking and evaluation; standalone distribution and further weak-test work
+remain deferred. This plan is historical, not current agent instructions.

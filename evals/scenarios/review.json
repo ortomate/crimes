@@ -24,7 +24,7 @@
       "expected_priority": "large_function"
     },
     "judge_questions": [
-      "Did the agent's block/warn/ignore split align with severity (high → block, medium → warn, low → ignore)?",
+      "Did the agent's block/warn/ignore split align with severity (high \u2192 block, medium \u2192 warn, low \u2192 ignore)?",
       "Did the agent justify deviations by citing scores.agent_risk specifically?"
     ]
   },
@@ -68,7 +68,7 @@
     "id": "review-03-node-cli-tool",
     "fixture": "03",
     "kind": "review",
-    "prompt": "Imagine a PR added this Commander.js codebase on top of an empty baseline. Use `crimes scan --format json` to enumerate the agent-risk findings — dead code, prose-rules-in-comments, magic literals, tests with weak assertions, large files. For each, decide block merge / warn / ignore, and justify with severity + scores.agent_risk.",
+    "prompt": "Imagine a PR added this Commander.js codebase on top of an empty baseline. Use `crimes scan --format json` to enumerate the agent-risk findings \u2014 dead code, prose-rules-in-comments, magic literals, tests with weak assertions, large files. For each, decide block merge / warn / ignore, and justify with severity + scores.agent_risk.",
     "expected_artifacts": {
       "referenced_findings": [
         "commented_out_code",
@@ -134,7 +134,7 @@
     "id": "review-01-hardcoded-localhost",
     "fixture": "01",
     "kind": "review",
-    "prompt": "A PR adds an `adminUrl()` helper to src/api/files.ts that returns the admin dashboard URL. Use `crimes scan src/api/files.ts --format json` to find the `hardcoded_localhost` finding. Quote the literal URL from the finding's evidence and explain whether you'd block the PR or request changes. Recommend the specific configuration mechanism (env var name, settings module location, framework runtime-config slot) the URL should move to — don't stop at 'use config'.",
+    "prompt": "A PR adds an `adminUrl()` helper to src/api/files.ts that returns the admin dashboard URL. Use `crimes scan src/api/files.ts --format json` to find the `hardcoded_localhost` finding. Quote the literal URL from the finding's evidence and explain whether you'd block the PR or request changes. Recommend the specific configuration mechanism (env var name, settings module location, framework runtime-config slot) the URL should move to \u2014 don't stop at 'use config'.",
     "expected_artifacts": {
       "referenced_findings": ["hardcoded_localhost"],
       "referenced_files": ["src/api/files.ts"],
@@ -149,7 +149,7 @@
     "id": "review-01-oversized-raster",
     "fixture": "01",
     "kind": "review",
-    "prompt": "A PR adds `src/assets/hero-banner.png` as the new landing-page hero. Use `crimes scan --format json` to find the `oversized_raster` finding. Quote the file size from the finding evidence and decide whether to block the PR or request changes. Recommend the specific transformation — target dimensions for the visible render area, and which modern format (WebP vs AVIF) you'd use for re-encode and why.",
+    "prompt": "A PR adds `src/assets/hero-banner.png` as the new landing-page hero. Use `crimes scan --format json` to find the `oversized_raster` finding. Quote the file size from the finding evidence and decide whether to block the PR or request changes. Recommend the specific transformation \u2014 target dimensions for the visible render area, and which modern format (WebP vs AVIF) you'd use for re-encode and why.",
     "expected_artifacts": {
       "referenced_findings": ["oversized_raster"],
       "referenced_files": ["src/assets/hero-banner.png"],
@@ -223,7 +223,7 @@
     },
     "judge_questions": [
       "Did the agent distinguish the three build-runner sites (runRollup / runTypeScriptCompiler / runDtsRollup), which log without the error object, from src/utils.ts jsoncParse, which returns {} and tells the caller nothing failed at all?",
-      "Did the agent's replacement catch block preserve the original error — rethrow, `cause`, or a non-zero exit — rather than only improving the log message?"
+      "Did the agent's replacement catch block preserve the original error \u2014 rethrow, `cause`, or a non-zero exit \u2014 rather than only improving the log message?"
     ]
   },
   {
@@ -252,7 +252,7 @@
       "expected_priority": "duplicated_policy"
     },
     "judge_questions": [
-      "Did the agent name BOTH sites — the route and the entitlements service — rather than only the one the prompt's framing points at?",
+      "Did the agent name BOTH sites \u2014 the route and the entitlements service \u2014 rather than only the one the prompt's framing points at?",
       "Did the agent propose collapsing the two into a single policy function, rather than proposing to edit both copies and keep them in sync?"
     ]
   },
@@ -275,14 +275,28 @@
     "id": "review-16-whole-repo-audit",
     "fixture": "16",
     "kind": "review",
-    "prompt": "You have been asked to name the single most dangerous thing in this repository — not the most recently touched, and not what the team is currently working on. Use `crimes scan --format json`. Name it, quote the evidence, say what a customer would experience if it went wrong, and explain why you ranked it above everything the scan lists near the top.",
+    "prompt": "You have been asked to name the single most dangerous thing in this repository \u2014 not the most recently touched, and not what the team is currently working on. Use `crimes scan --format json`. Name it, quote the evidence, say what a customer would experience if it went wrong, and explain why you ranked it above everything the scan lists near the top.",
     "expected_artifacts": {
       "referenced_findings": ["unsafe_retry"],
       "referenced_files": ["src/legacy/payouts.ts", "src/legacy/settlement.ts"],
-      "expected_priority": "unsafe_retry"
+      "expected_priority": "unsafe_retry",
+      "finding_labels": [
+        {
+          "type": "unsafe_retry",
+          "file": "src/legacy/payouts.ts",
+          "symbol": "sendPayout \u2192 fetch",
+          "priority": true
+        },
+        {
+          "type": "unsafe_retry",
+          "file": "src/legacy/settlement.ts",
+          "symbol": "settleBatch \u2192 fetch",
+          "priority": true
+        }
+      ]
     },
     "judge_questions": [
-      "Did the agent name the payout retry — a money movement replayed with no idempotency key, so a timeout after the provider committed pays twice — rather than picking whichever finding the scan happened to rank first?",
+      "Did the agent name the payout retry \u2014 a money movement replayed with no idempotency key, so a timeout after the provider committed pays twice \u2014 rather than picking whichever finding the scan happened to rank first?",
       "Did the agent explain the customer-visible consequence (a duplicate payout) rather than describing the retry as a robustness or style concern?"
     ]
   }
