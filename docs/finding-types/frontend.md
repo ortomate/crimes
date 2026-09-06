@@ -1,5 +1,14 @@
 # Frontend findings
 
+Since 0.28, `design_token_escape` and `accessible_interaction_risk` are
+optional (`detectors.enable`). The former keeps its stable type but its
+charge is **Raw Style Concentration**: it counts raw style literals and
+size patterns; it does not establish that a design-token system exists.
+Inspect project conventions before recommending tokens. Accessibility
+remains useful to an explicit UI review but is outside default change-risk
+triage. See [configuration](../configuration.md) and [reference](../reference.md).
+
+
 Frontend findings consume the **JSX inspection layer** that `crimes`
 builds during parse. They flag UI-specific risks: hand-rolled values
 that escape the design system, interactive elements without a label,
@@ -13,7 +22,7 @@ For the agent workflow that consumes findings, see
 
 | `Finding.type`                  | Charge                       | Severity range | Confidence |
 | ------------------------------- | ---------------------------- | -------------- | ---------- |
-| `design_token_escape`           | Design Token Escape          | low-medium     | 0.70-0.85  |
+| `design_token_escape`           | Raw Style Concentration          | low-medium     | 0.70-0.85  |
 | `accessible_interaction_risk`   | Hidden Interaction           | low-medium     | 0.70-0.85  |
 | `duplicate_component_shape`     | Duplicate Component Shape    | low-medium     | 0.75-0.85  |
 | `responsive_fragility`          | Responsive Fragility         | low            | 0.65-0.75  |
@@ -29,27 +38,22 @@ iteration, not regression risk.
 
 ---
 
-## Design Token Escape (`design_token_escape`)
+## Raw Style Concentration (`design_token_escape`)
 
-**What it detects.** Hard-coded colour, spacing, or font-size values
-embedded directly in JSX where the repo has a design-token system
-nearby (Tailwind config, CSS variables, or a `tokens.ts` module).
+**What it detects.** A concentration of raw color literals and pixel-size
+values in JSX style expressions. It does not inspect whether the repository
+has a token system. The stable detector id remains `design_token_escape`.
 
-**Example evidence.**
+**Evidence.** Counts and line locations of observed literals. References to
+Tailwind configuration or available tokens are not emitted by this check.
 
-```text
-3 hard-coded colour literals in JSX
-lines: 28 (#0a0a0a), 47 (rgba(255, 99, 132, 0.5)), 102 (#fff)
-tokens detected in repo: tailwind.config.ts → colors.neutral.900
-```
+**Why it may help.** Repeated style values can make coordinated visual
+changes harder. They can also be appropriate local values. Inspect the
+component and project conventions before deciding to consolidate.
 
-**Why it matters.** Hard-coded values bypass the design system. An
-agent updating a colour later won't know it exists, and the
-component drifts away from the rest of the UI on every edit.
-
-**Suggested fix.** Replace the literal with the token name. If no
-matching token exists, the design system needs to grow first — file
-that as a separate change rather than encoding a one-off here.
+**Suggested review.** Reuse existing tokens when they express the same
+meaning. Introduce shared definitions only where repeated values represent
+a shared design decision; do not create a token system to clear a warning.
 
 ---
 

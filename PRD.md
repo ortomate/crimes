@@ -729,6 +729,13 @@ Use a public monorepo.
 crimes/
   apps/
     website/               # crimes.sh site and docs
+
+> This is the original product specification, including historical options
+> and milestone targets. For implemented commands, language support and
+> defaults use [docs/reference.md](./docs/reference.md); for status use
+> [docs/roadmap.md](./docs/roadmap.md). These current references supersede
+> historical “deferred” dates and example schema versions here.
+
   packages/
     cli/                   # published npm package
     core/                  # detectors, scoring, schemas

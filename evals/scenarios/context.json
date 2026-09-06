@@ -1,26 +1,18 @@
 [
   {
-    "id": "context-01-boolean-naming",
-    "fixture": "01",
-    "kind": "context",
-    "prompt": "You are about to add a new `archived` flag to the billing API. Use `crimes context src/api/state.ts --format json` to find existing boolean-typed declarations whose names don't follow the project's prefix convention. Name the two specific identifiers that violate the convention and quote one finding evidence line verbatim.",
-    "expected_artifacts": {
-      "referenced_findings": ["boolean_naming_drift"],
-      "referenced_files": ["src/api/state.ts"]
-    },
-    "judge_questions": [
-      "Did the agent identify at least two of the unprefixed booleans (e.g. `paid`, `expired`, `stale`) by name?",
-      "Did the agent quote a finding-evidence line verbatim and propose `is`/`has`/`should`-prefixed alternatives rather than restating the rule generically?"
-    ]
-  },
-  {
     "id": "context-01-locale-drift",
     "fixture": "01",
     "kind": "context",
     "prompt": "You are about to add a new due-date display to the billing UI by reusing helpers from src/date.ts. Use `crimes context src/date.ts --format json` to find any locale-naive renderers already there. Identify which helper function you should NOT copy as a starting point, name the method it calls, and quote the finding evidence verbatim.",
     "expected_artifacts": {
       "referenced_findings": ["locale_drift"],
-      "referenced_files": ["src/date.ts"]
+      "referenced_files": ["src/date.ts"],
+      "finding_labels": [
+        {
+          "type": "locale_drift",
+          "file": "src/date.ts"
+        }
+      ]
     },
     "judge_questions": [
       "Did the agent name the locale-drifting helper (e.g. `prettyDueDate`) and the `toLocale*()` method it relies on?",
@@ -34,7 +26,15 @@
     "prompt": "You are about to edit src/billing.ts. Use `crimes context src/billing.ts --format json` to gather context. Summarise what the file does, which related files you would also need to read, and which risks the scan flagged.",
     "expected_artifacts": {
       "referenced_findings": ["large_function"],
-      "referenced_files": ["src/billing.ts"]
+      "referenced_files": ["src/billing.ts"],
+      "finding_labels": [
+        {
+          "type": "large_function",
+          "claim": "too_long",
+          "file": "src/billing.ts",
+          "symbol": "generateInvoice"
+        }
+      ]
     },
     "judge_questions": [
       "Did the agent quote at least one finding's evidence verbatim instead of paraphrasing?",
@@ -93,7 +93,7 @@
       "referenced_files": ["src/assets/check-icon.png"]
     },
     "judge_questions": [
-      "Did the agent quote the actual pixel dimensions (e.g. `32 × 32`) from the finding evidence rather than paraphrasing 'small icon'?",
+      "Did the agent quote the actual pixel dimensions (e.g. `32 \u00d7 32`) from the finding evidence rather than paraphrasing 'small icon'?",
       "Did the agent explain at least one concrete reason an SVG wins (DPI independence, smaller bytes, theming via CSS) rather than asserting it generically?"
     ]
   },
@@ -133,7 +133,7 @@
     "id": "context-14-what-was-not-scanned",
     "fixture": "14",
     "kind": "context",
-    "prompt": "You are picking up this billing service and need an honest picture of its risk before you touch anything. Use `crimes scan --format json` and report two things: the findings, and — separately — what the scan did not look at and on whose authority. State how many source files were skipped, name the directory, and say which of the repo's own tools asked for it. Then say whether you would trust the report as a complete picture of the repo's risk, and what you would run to check the skipped code if you had to.",
+    "prompt": "You are picking up this billing service and need an honest picture of its risk before you touch anything. Use `crimes scan --format json` and report two things: the findings, and \u2014 separately \u2014 what the scan did not look at and on whose authority. State how many source files were skipped, name the directory, and say which of the repo's own tools asked for it. Then say whether you would trust the report as a complete picture of the repo's risk, and what you would run to check the skipped code if you had to.",
     "expected_artifacts": {
       "referenced_findings": ["direct_date", "todo_density"],
       "referenced_files": ["app/pricing.py"],
@@ -153,7 +153,16 @@
     "expected_artifacts": {
       "referenced_findings": ["dependency_provenance_gap"],
       "referenced_files": ["src/billing.test.ts", "package.json"],
-      "expected_priority": "dependency_provenance_gap"
+      "expected_priority": "dependency_provenance_gap",
+      "finding_labels": [
+        {
+          "type": "dependency_provenance_gap",
+          "claim": "undeclared_import",
+          "file": "package.json",
+          "symbol": "undeclared imports",
+          "priority": true
+        }
+      ]
     },
     "judge_questions": [
       "Did the agent name `vitest` specifically as the undeclared package rather than describing it as 'a test dependency'?",

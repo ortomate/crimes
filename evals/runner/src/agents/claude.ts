@@ -75,9 +75,13 @@ function runProcess(
   command: string,
   args: string[],
   timeoutMs: number,
+  cwd?: string,
 ): Promise<ProcessResult> {
   return new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      ...(cwd ? { cwd } : {}),
+    });
     let stdout = "";
     let stderr = "";
     const timer = setTimeout(() => {

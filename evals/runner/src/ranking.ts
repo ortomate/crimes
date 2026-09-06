@@ -1,4 +1,4 @@
-import type { ExpectedArtifacts } from "./types.js";
+import type { ExpectedArtifacts, FindingLabel } from "./types.js";
 
 /**
  * A ranking-quality metric over the scan's *own* ordering.
@@ -52,6 +52,9 @@ import type { ExpectedArtifacts } from "./types.js";
 export interface RankedFinding {
   type: string;
   file: string;
+  claim?: string;
+  symbol?: string;
+  discriminator?: string;
 }
 
 export interface RankingScore {
@@ -98,17 +101,28 @@ export function scoreRanking(
     ...concentration,
   };
 
-  if (relevantTypes.size === 0) {
+  if (!expected.finding_labels?.length && relevantTypes.size === 0) {
     return { ...base, skipped: "scenario declares no expected findings" };
   }
 
   const gains = findings.map((f) =>
-    f.type === priority ? 2 : relevantTypes.has(f.type) ? 1 : 0,
+    expected.finding_labels?.length
+      ? Math.max(
+          0,
+          ...expected.finding_labels
+            .filter((label) => matchesLabel(f, label))
+            .map((label) => (label.priority ? 2 : 1)),
+        )
+      : f.type === priority
+        ? 2
+        : relevantTypes.has(f.type)
+          ? 1
+          : 0,
   );
   const relevantCount = gains.filter((g) => g > 0).length;
 
   const firstRelevant = gains.findIndex((g) => g > 0);
-  const firstPriority = priority ? findings.findIndex((f) => f.type === priority) : -1;
+  const firstPriority = gains.findIndex((gain) => gain === 2);
 
   if (relevantCount === 0) {
     // Nothing to rank. This is a *detection* failure, and
@@ -194,4 +208,16 @@ function concentrationOfTop(findings: readonly RankedFinding[]): {
     top20_dominant_share: best / head.length,
     top20_distinct_types: counts.size,
   };
+}
+
+/** A type match at the wrong claim or subject is not evidence of useful ranking. */
+export function matchesLabel(finding: RankedFinding, label: FindingLabel): boolean {
+  return (
+    finding.type === label.type &&
+    finding.file === label.file &&
+    ["claim", "symbol", "discriminator"].every((key) => {
+      const field = key as "claim" | "symbol" | "discriminator";
+      return label[field] === undefined || finding[field] === label[field];
+    })
+  );
 }

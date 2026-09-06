@@ -11,6 +11,7 @@
  */
 import { basename, dirname } from "node:path";
 import type { Finding } from "./finding.js";
+import type { ImportGraph } from "./imports/types.js";
 import type { IaIndex } from "./ia/types.js";
 
 /**
@@ -79,6 +80,7 @@ export interface FindRelatedFilesOptions {
   findings: readonly Finding[];
   /** Files already surfaced as likely tests — excluded so we don't double-count. */
   likelyTests: readonly string[];
+  imports?: ImportGraph | undefined;
 }
 
 /**
@@ -106,11 +108,20 @@ export function findRelatedFiles(options: FindRelatedFilesOptions): ContextRelat
     if (existing) {
       // Don't duplicate the same reason wording on the same file.
       if (!existing.reasons.includes(reason)) existing.reasons.push(reason);
-      existing.score = Math.min(1, existing.score + weight);
+      existing.score = Math.max(existing.score, weight);
     } else {
       accumulator.set(file, { reasons: [reason], score: Math.min(1, weight) });
     }
   };
+
+  // Proven graph edges outrank accumulated filename hints.
+  for (const edge of options.imports?.in.get(fileRel) ?? []) {
+    add(edge.from, edge.typeOnly ? "imports this file's types" : "imports this file", 1);
+  }
+  for (const edge of options.imports?.out.get(fileRel) ?? []) {
+    if (edge.to)
+      add(edge.to, edge.typeOnly ? "type dependency" : "imported by this file", 0.9);
+  }
 
   // (B/C) Finding.related_files passthrough. This is the highest-confidence
   // heuristic — an IA detector has already done cross-file work and

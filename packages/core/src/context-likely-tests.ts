@@ -1,3 +1,4 @@
+import type { ImportGraph } from "./imports/types.js";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, relative, sep } from "node:path";
 import {
@@ -26,26 +27,25 @@ const JS_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|cts|mts)$/;
 const PY_EXT = /\.(py|pyi)$/;
 
 /**
- * Discover the test files that likely cover `targetAbs`. Two passes:
- *
- *  1. **By name.** A sibling test file, or one under a `__tests__/` or
- *     `tests/` directory, whose basename indicates it covers the
- *     target. The naming conventions live in `util/test-files.ts` —
- *     including Python's `test_<name>.py`, a prefix where every other
- *     supported convention is a suffix.
- *  2. **By import.** Test files that reference the target. Restricted
- *     to test files so `likely_tests` doesn't list arbitrary consumers.
+ * Discover tests using resolved import edges first, then filename and
+ * source-text fallbacks. Graph matches lead the result. Fallbacks remain
+ * discovery hints for unresolved imports, not a claim of executed coverage.
  */
 export async function findLikelyTests(args: {
   root: string;
   fileRel: string;
   targetAbs: string;
   allFiles: string[];
+  imports?: ImportGraph | undefined;
 }): Promise<string[]> {
   const { root, fileRel, targetAbs, allFiles } = args;
   const targetBaseNoExt = basename(fileRel).replace(SOURCE_EXT, "");
   const targetDir = toRepoPath(dirname(fileRel));
   const result = new Set<string>();
+  for (const edge of args.imports?.in.get(fileRel) ?? []) {
+    if (isTestPath(edge.from) && !edge.typeOnly) result.add(edge.from);
+  }
+  const graphTests = new Set(result);
 
   for (const abs of allFiles) {
     if (abs === targetAbs) continue;
@@ -81,7 +81,9 @@ export async function findLikelyTests(args: {
     }
   }
 
-  return [...result].sort();
+  return [...result].sort(
+    (a, b) => Number(graphTests.has(b)) - Number(graphTests.has(a)) || a.localeCompare(b),
+  );
 }
 
 /** @deprecated Prefer `isTestFile` from `util/test-files.js`. */

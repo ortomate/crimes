@@ -321,6 +321,10 @@ function buildFinding(
     .add(verdict.deliberate, "suppression appears deliberate", -0.25);
 
   const built = buildEvidence(handler, verdict, boundary, confidence, severity);
+  const intrinsic = fallbackIntrinsic(boundary?.id, verdict);
+  built.evidence.push(
+    `intrinsic agent risk ${intrinsic}: ${boundary?.label ?? "no sensitive operation evidenced"}${verdict.deliberate ? "; documented tolerance" : ""}`,
+  );
   return {
     id: "",
     type: "swallowed_error",
@@ -345,9 +349,23 @@ function buildFinding(
     scores: {
       severity: severity.score(),
       confidence: confidence.value(),
+      agent_risk: intrinsic,
     },
     suggested_actions: buildActions(handler, verdict, boundary),
   };
+}
+
+/** Consequence and declared intent, rather than handler count, set priority. */
+function fallbackIntrinsic(boundary: string | undefined, verdict: Verdict): number {
+  if (
+    ["payment", "persistence", "authorization", "queue", "state_transition"].includes(
+      boundary ?? "",
+    )
+  )
+    return 0.8;
+  if (boundary) return verdict.deliberate ? 0.35 : 0.55;
+  if (verdict.deliberate) return 0.15;
+  return verdict.kind === "empty" || verdict.kind === "discarded_rejection" ? 0.5 : 0.3;
 }
 
 function buildSummary(

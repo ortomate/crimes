@@ -283,7 +283,7 @@ describe("recordUnmatchedPins", () => {
     expect(warning?.files).toBe(1);
     expect(warning?.examples).toEqual(["src/a.ts"]);
     expect(warning?.detail).toContain("no longer matches any finding");
-    expect(warning?.remedy).toContain("Re-record it");
+    expect(warning?.remedy).toContain("crimes migrate-pins --format json");
   });
 
   it("warns about suppressions under their own kind", () => {
@@ -389,7 +389,7 @@ describe("recordUnmatchedPins", () => {
     // No "across N files" clause, and the singular noun comes from the
     // entry count rather than the absent file count.
     expect(warning?.detail).not.toContain("across");
-    expect(warning?.detail).toContain("the file removed");
+    expect(warning?.detail).toContain("1 suppression entry");
   });
 
   // A report with no coverage block scanned nothing, so there is no

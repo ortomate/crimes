@@ -1,15 +1,18 @@
 {
   "schema_version": "0.8.0",
   "report_type": "scan",
+  "ranking": {
+    "recency_enabled": true
+  },
   "repo": {
     "name": "messy-ts-app",
-    "root": "/Users/timcopeland/code/crimes/.claude/worktrees/release-0-27/examples/messy-ts-app"
+    "root": "/path/to/messy-ts-app"
   },
   "summary": {
-    "total": 42,
+    "total": 39,
     "high": 6,
     "medium": 16,
-    "low": 20
+    "low": 17
   },
   "findings": [
     {
@@ -276,50 +279,6 @@
     },
     {
       "id": "crime_00007",
-      "type": "sync_io_in_hotpath",
-      "charge": "Sync I/O in Hot Path",
-      "severity": "low",
-      "confidence": 0.9,
-      "file": "src/api/files.ts",
-      "lines": [
-        12,
-        15
-      ],
-      "summary": "3 synchronous I/O calls inside domain function — each invocation blocks the event loop for the duration of the I/O. Async counterparts exist for every method captured.",
-      "evidence": [
-        "`existsSync` @L12 in `loadPlanSchema` (domain function)",
-        "`statSync` @L13 in `loadPlanSchema` (domain function)",
-        "`readFileSync` @L15 in `loadPlanSchema` (domain function)",
-        "lines: 12, 13, 15",
-        "swap for the async variant (`readFile`, `writeFile`, `exec`, …) and `await` it"
-      ],
-      "effort": "small",
-      "fix_shape": "switch to async I/O; await at the call site",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.9,
-        "agent_risk": 0.38,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "swap_for_async_io",
-          "description": "Replace the `*Sync` call with its async counterpart and `await` it. The function may need to be marked `async`; React components should move the I/O into a Server Component / loader rather than the render body.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "sync_io_in_hotpath.js",
-      "tier": "domain",
-      "fingerprint": "sync_io_in_hotpath::src/api/files.ts::"
-    },
-    {
-      "id": "crime_00008",
       "type": "option_bag_junk_drawer",
       "charge": "Option Bag Junk Drawer",
       "severity": "low",
@@ -361,7 +320,7 @@
       "fingerprint": "option_bag_junk_drawer::src/petty.ts::describeCheckout"
     },
     {
-      "id": "crime_00009",
+      "id": "crime_00008",
       "type": "mixed_utc_local_methods",
       "charge": "Half-UTC, Half-Local",
       "severity": "high",
@@ -402,7 +361,7 @@
       "fingerprint": "mixed_utc_local_methods::src/date.ts::"
     },
     {
-      "id": "crime_00010",
+      "id": "crime_00009",
       "type": "contract_drift",
       "charge": "Contract Split-Brain",
       "severity": "high",
@@ -460,7 +419,7 @@
       "fingerprint": "contract_drift::src/api/state.ts::User"
     },
     {
-      "id": "crime_00011",
+      "id": "crime_00010",
       "type": "contract_drift",
       "charge": "Contract Split-Brain",
       "severity": "high",
@@ -523,7 +482,7 @@
       "fingerprint": "contract_drift::src/api/state.ts::Invoice"
     },
     {
-      "id": "crime_00012",
+      "id": "crime_00011",
       "type": "negative_flag_maze",
       "charge": "Negative Flag Maze",
       "severity": "low",
@@ -565,7 +524,7 @@
       "fingerprint": "negative_flag_maze::src/petty.ts::::9361fc296993"
     },
     {
-      "id": "crime_00013",
+      "id": "crime_00012",
       "type": "timezone_unsafe_parse",
       "charge": "Timezone Roulette",
       "severity": "medium",
@@ -607,7 +566,7 @@
       "fingerprint": "timezone_unsafe_parse::src/date.ts::"
     },
     {
-      "id": "crime_00014",
+      "id": "crime_00013",
       "type": "direct_date",
       "claim": "clock_read",
       "charge": "Temporal Recklessness",
@@ -651,7 +610,7 @@
       "fingerprint": "direct_date/clock_read::src/billing.ts::"
     },
     {
-      "id": "crime_00015",
+      "id": "crime_00014",
       "type": "name_behavior_mismatch",
       "charge": "False Identity",
       "severity": "medium",
@@ -694,7 +653,7 @@
       "fingerprint": "name_behavior_mismatch::src/billing.ts::calculateRefundPreview"
     },
     {
-      "id": "crime_00016",
+      "id": "crime_00015",
       "type": "logic_in_comments",
       "charge": "Logic in the Alibi",
       "severity": "medium",
@@ -737,7 +696,7 @@
       "fingerprint": "logic_in_comments::src/billing.ts::::424ab731a4d3"
     },
     {
-      "id": "crime_00017",
+      "id": "crime_00016",
       "type": "hardcoded_localhost",
       "charge": "Dev-Server URL",
       "severity": "medium",
@@ -779,7 +738,7 @@
       "fingerprint": "hardcoded_localhost::src/api/files.ts::"
     },
     {
-      "id": "crime_00018",
+      "id": "crime_00017",
       "type": "hardcoded_local_path",
       "charge": "Localhost-on-Disk",
       "severity": "medium",
@@ -821,7 +780,7 @@
       "fingerprint": "hardcoded_local_path::src/api/files.ts::"
     },
     {
-      "id": "crime_00019",
+      "id": "crime_00018",
       "type": "dst_naive_arithmetic",
       "charge": "DST-Naive Day Math",
       "severity": "medium",
@@ -863,7 +822,7 @@
       "fingerprint": "dst_naive_arithmetic::src/date.ts::"
     },
     {
-      "id": "crime_00020",
+      "id": "crime_00019",
       "type": "concept_alias_drift",
       "charge": "Concept Alias Drift",
       "severity": "medium",
@@ -910,51 +869,7 @@
       "fingerprint": "concept_alias_drift::docs/billing.md::"
     },
     {
-      "id": "crime_00021",
-      "type": "boolean_naming_drift",
-      "charge": "Unprefixed Boolean",
-      "severity": "low",
-      "confidence": 0.8,
-      "file": "src/api/state.ts",
-      "lines": [
-        15,
-        21
-      ],
-      "summary": "3 boolean-typed declarations without a recognised boolean prefix. Booleans read as nouns when unprefixed; `is`/`has`/`should`/`can` makes intent obvious to the reader.",
-      "evidence": [
-        "`paid` @L15",
-        "`expired` @L18",
-        "`stale` @L21",
-        "lines: 15, 18, 21",
-        "built-in React-state names (loading/ready/active/…) are exempt; add project-specific names via `detectors.options.boolean_naming_drift.allowedNames`"
-      ],
-      "effort": "quick",
-      "fix_shape": "rename to `isX`/`hasX`/`shouldX`; consistent across the module",
-      "scores": {
-        "severity": 0.3,
-        "confidence": 0.8,
-        "agent_risk": 0.29,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "prefix_boolean",
-          "description": "Rename to `is*` / `has*` / `should*` / `can*` (or add to `detectors.options.boolean_naming_drift.allowedNames` if the current name is a project idiom).",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "boolean_naming_drift.js",
-      "tier": "domain",
-      "fingerprint": "boolean_naming_drift::src/api/state.ts::"
-    },
-    {
-      "id": "crime_00022",
+      "id": "crime_00020",
       "type": "direct_date",
       "claim": "clock_read",
       "charge": "Temporal Recklessness",
@@ -998,7 +913,7 @@
       "fingerprint": "direct_date/clock_read::src/api/state.ts::"
     },
     {
-      "id": "crime_00023",
+      "id": "crime_00021",
       "type": "singular_plural_type_mismatch",
       "charge": "Plural Mismatch",
       "severity": "low",
@@ -1040,7 +955,7 @@
       "fingerprint": "singular_plural_type_mismatch::src/api/state.ts::"
     },
     {
-      "id": "crime_00024",
+      "id": "crime_00022",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1080,7 +995,7 @@
       "fingerprint": "orphaned_destination::src/routes/account/subscription.tsx::"
     },
     {
-      "id": "crime_00025",
+      "id": "crime_00023",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1120,7 +1035,7 @@
       "fingerprint": "orphaned_destination::src/routes/team/index.tsx::"
     },
     {
-      "id": "crime_00026",
+      "id": "crime_00024",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1160,7 +1075,7 @@
       "fingerprint": "orphaned_destination::src/routes/workspace/members.tsx::"
     },
     {
-      "id": "crime_00027",
+      "id": "crime_00025",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "medium",
@@ -1204,7 +1119,7 @@
       "fingerprint": "weak_test_signal/no_assertions::src/billing.test.ts::::renders the enterprise plan"
     },
     {
-      "id": "crime_00028",
+      "id": "crime_00026",
       "type": "date_string_concat",
       "charge": "Date String Sewing",
       "severity": "low",
@@ -1246,7 +1161,7 @@
       "fingerprint": "date_string_concat::src/date.ts::"
     },
     {
-      "id": "crime_00029",
+      "id": "crime_00027",
       "type": "locale_drift",
       "charge": "Host-Locale Drift",
       "severity": "low",
@@ -1288,99 +1203,7 @@
       "fingerprint": "locale_drift::src/date.ts::"
     },
     {
-      "id": "crime_00030",
-      "type": "boolean_naming_drift",
-      "charge": "Unprefixed Boolean",
-      "severity": "low",
-      "confidence": 0.8,
-      "file": "src/petty.ts",
-      "lines": [
-        34,
-        34
-      ],
-      "summary": "2 boolean-typed declarations without a recognised boolean prefix. Booleans read as nouns when unprefixed; `is`/`has`/`should`/`can` makes intent obvious to the reader.",
-      "evidence": [
-        "`disableBilling` @L34",
-        "`skipRetry` @L34",
-        "lines: 34, 34",
-        "built-in React-state names (loading/ready/active/…) are exempt; add project-specific names via `detectors.options.boolean_naming_drift.allowedNames`"
-      ],
-      "effort": "quick",
-      "fix_shape": "rename to `isX`/`hasX`/`shouldX`; consistent across the module",
-      "scores": {
-        "severity": 0.3,
-        "confidence": 0.8,
-        "agent_risk": 0.26,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "prefix_boolean",
-          "description": "Rename to `is*` / `has*` / `should*` / `can*` (or add to `detectors.options.boolean_naming_drift.allowedNames` if the current name is a project idiom).",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "boolean_naming_drift.js",
-      "tier": "domain",
-      "fingerprint": "boolean_naming_drift::src/petty.ts::"
-    },
-    {
-      "id": "crime_00031",
-      "type": "swallowed_error",
-      "charge": "Catch and Release",
-      "severity": "low",
-      "confidence": 0.78,
-      "file": "src/billing.ts",
-      "lines": [
-        245,
-        247
-      ],
-      "symbol": "generateInvoice → catch_clause",
-      "claim": "comment_only",
-      "summary": "A failure in `generateInvoice` is caught and discarded — the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed). The caller sees success and there is no record the operation failed.",
-      "evidence": [
-        "protected operation: if (body.length === 0) throw new Error(\"empty body\"); (+1 more statement(s))",
-        "handler kind: try/catch (line 245)",
-        "what happens to the failure: the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed)",
-        "missing signal: no rethrow or rejected promise; no logging, telemetry, or error-wrapping call; no typed error result the caller could branch on; the error is never inspected",
-        "the catch declares no binding, so the error object is not even available to the handler"
-      ],
-      "score_rationale": [
-        "confidence 0.78 = 0.72 base + 0.06 (handler contains only a comment)"
-      ],
-      "effort": "small",
-      "fix_shape": "propagate, or record the error with enough context to act on",
-      "scores": {
-        "severity": 0.35,
-        "confidence": 0.78,
-        "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.26
-      },
-      "suggested_actions": [
-        {
-          "kind": "propagate_or_record",
-          "description": "Rethrow, or record the failure with the error value attached so the stack survives.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "swallowed_error.js",
-      "tier": "domain",
-      "fingerprint": "swallowed_error/comment_only::src/billing.ts::generateInvoice → catch_clause"
-    },
-    {
-      "id": "crime_00032",
+      "id": "crime_00028",
       "type": "docs_code_drift",
       "charge": "Docs-Code Drift",
       "severity": "low",
@@ -1416,7 +1239,7 @@
       "fingerprint": "docs_code_drift::docs/teams.md::"
     },
     {
-      "id": "crime_00033",
+      "id": "crime_00029",
       "type": "commented_out_code",
       "charge": "Commented-Out Corpse",
       "severity": "medium",
@@ -1459,7 +1282,7 @@
       "fingerprint": "commented_out_code::src/billing.ts::::42a4bbb39f1f"
     },
     {
-      "id": "crime_00034",
+      "id": "crime_00030",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "low",
@@ -1503,7 +1326,7 @@
       "fingerprint": "weak_test_signal/weak_assertion_matchers::src/billing.test.ts::::creates an invoice"
     },
     {
-      "id": "crime_00035",
+      "id": "crime_00031",
       "type": "dependency_provenance_gap",
       "charge": "Phantom Accomplice",
       "severity": "low",
@@ -1556,7 +1379,57 @@
       "fingerprint": "dependency_provenance_gap/undeclared_import::package.json::undeclared imports"
     },
     {
-      "id": "crime_00036",
+      "id": "crime_00032",
+      "type": "swallowed_error",
+      "charge": "Catch and Release",
+      "severity": "low",
+      "confidence": 0.78,
+      "file": "src/billing.ts",
+      "lines": [
+        245,
+        247
+      ],
+      "symbol": "generateInvoice → catch_clause",
+      "claim": "comment_only",
+      "summary": "A failure in `generateInvoice` is caught and discarded — the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed). The caller sees success and there is no record the operation failed.",
+      "evidence": [
+        "protected operation: if (body.length === 0) throw new Error(\"empty body\"); (+1 more statement(s))",
+        "handler kind: try/catch (line 245)",
+        "what happens to the failure: the handler contains only a comment (XXX: swallowed error — caller has no way to know the email failed)",
+        "missing signal: no rethrow or rejected promise; no logging, telemetry, or error-wrapping call; no typed error result the caller could branch on; the error is never inspected",
+        "the catch declares no binding, so the error object is not even available to the handler",
+        "intrinsic agent risk 0.3: no sensitive operation evidenced"
+      ],
+      "score_rationale": [
+        "confidence 0.78 = 0.72 base + 0.06 (handler contains only a comment)"
+      ],
+      "effort": "small",
+      "fix_shape": "propagate, or record the error with enough context to act on",
+      "scores": {
+        "severity": 0.35,
+        "confidence": 0.78,
+        "agent_risk": 0.12,
+        "churn": 0,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "propagate_or_record",
+          "description": "Rethrow, or record the failure with the error value attached so the stack survives.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "swallowed_error.js",
+      "tier": "domain",
+      "fingerprint": "swallowed_error/comment_only::src/billing.ts::generateInvoice → catch_clause"
+    },
+    {
+      "id": "crime_00033",
       "type": "large_function",
       "charge": "God Function",
       "severity": "high",
@@ -1600,7 +1473,7 @@
       "fingerprint": "large_function/too_long::src/billing.ts::generateInvoice"
     },
     {
-      "id": "crime_00037",
+      "id": "crime_00034",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "medium",
@@ -1641,7 +1514,7 @@
       "fingerprint": "todo_density::src/todo.ts::"
     },
     {
-      "id": "crime_00038",
+      "id": "crime_00035",
       "type": "svg_with_embedded_raster",
       "charge": "SVG With Embedded Raster",
       "severity": "high",
@@ -1680,7 +1553,7 @@
       "fingerprint": "svg_with_embedded_raster::src/assets/partner-logo.svg::"
     },
     {
-      "id": "crime_00039",
+      "id": "crime_00036",
       "type": "large_file",
       "charge": "God File",
       "severity": "medium",
@@ -1721,7 +1594,7 @@
       "fingerprint": "large_file::src/billing.ts::"
     },
     {
-      "id": "crime_00040",
+      "id": "crime_00037",
       "type": "raster_should_be_vector",
       "charge": "Icon-Sized Raster",
       "severity": "low",
@@ -1759,7 +1632,7 @@
       "fingerprint": "raster_should_be_vector::src/assets/check-icon.png::"
     },
     {
-      "id": "crime_00041",
+      "id": "crime_00038",
       "type": "oversized_raster",
       "charge": "Oversized Raster",
       "severity": "low",
@@ -1798,7 +1671,7 @@
       "fingerprint": "oversized_raster::src/assets/hero-banner.png::"
     },
     {
-      "id": "crime_00042",
+      "id": "crime_00039",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "low",
@@ -1854,17 +1727,14 @@
       "language-js",
       "language-py"
     ],
+    "detectors_default_off": [
+      "accessible_interaction_risk",
+      "boolean_naming_drift",
+      "boolean_naming_drift.py",
+      "design_token_escape",
+      "parallel_destination"
+    ],
     "warnings": [
-      {
-        "kind": "files_excluded",
-        "subject": "config.exclude",
-        "files": 1,
-        "detail": "1 file matched an \"exclude\" pattern and was never read. Findings in it are absent, not zero.",
-        "examples": [
-          ".crimes/suppressions.json"
-        ],
-        "remedy": "Review \"exclude\" in crimes.config.json if any of these should be scanned."
-      },
       {
         "kind": "suppression_entries_unmatched",
         "subject": "superseded",
@@ -1874,7 +1744,7 @@
         "examples": [
           "src/billing.ts"
         ],
-        "remedy": "Re-record it against the current fingerprints. Pins written before schema_version 0.8.0 against a multi-claim detector stopped matching when the claim joined the fingerprint."
+        "remedy": "Preview crimes migrate-pins --format json, review the destinations, then apply the plan. Pins written before schema_version 0.8.0 against a multi-claim detector stopped matching when the claim joined the fingerprint."
       }
     ]
   }

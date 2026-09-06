@@ -1,3 +1,4 @@
+import { registerMigratePinsCommand } from "./commands/migrate-pins.js";
 import { Command } from "commander";
 import { maybeRunAutoInit } from "./auto-init.js";
 import { welcomeBanner as _welcomeBanner } from "./banner.js";
@@ -79,6 +80,7 @@ registerBaselineCommand(program);
 registerVerdictCommand(program);
 registerFeedbackCommand(program);
 registerTriageCommand(program);
+registerMigratePinsCommand(program);
 registerHookCommand(program);
 
 program.parseAsync(process.argv).catch((error: unknown) => {

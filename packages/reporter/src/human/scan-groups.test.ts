@@ -119,3 +119,16 @@ describe("renderFileGroups — per-file budget", () => {
     expect(lines.join("\n")).not.toContain("more in this file");
   });
 });
+
+it("honors the scan's recency policy when grouping files", () => {
+  const recent = finding({
+    file: "recent.ts",
+    scores: { severity: 0.5, confidence: 0.8, agent_risk: 0.4, recency: 1 },
+  });
+  const consequential = finding({
+    file: "older.ts",
+    scores: { severity: 0.5, confidence: 0.8, agent_risk: 0.5, recency: 0 },
+  });
+  expect(groupByFile([recent, consequential])[0]!.file).toBe("recent.ts");
+  expect(groupByFile([recent, consequential], false)[0]!.file).toBe("older.ts");
+});

@@ -1,5 +1,13 @@
 # crimes evals
 
+Current methods and limitations: [docs/evals.md](../docs/evals.md).
+`pnpm evals:outcomes -- --run` adds paired executable edits; the initial
+0.28 trial ties at 3/3 per arm. It is distinct from the older response
+rubric below. 0.28's ranking baseline uses revised default scenarios and
+six claim/subject-specific label sets; do not compare its aggregate to an
+older scenario population without replaying both builds on these labels.
+
+
 Reproducible agent-vs-fixture eval harness for calibrating crimes
 detector quality across releases. Lives outside `packages/` because it
 is a contributor surface, not part of the published `crimes` binary.

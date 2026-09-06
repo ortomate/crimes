@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript, JavaScript and Python repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, frontend and backend disagreeing about their own API, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.27.0",
+            "softwareVersion": "0.28.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/ortomate/crimes",
             "programmingLanguage": "TypeScript",
@@ -98,7 +98,7 @@
               "Pre-edit context briefing for a single file",
               "Claude Code PreToolUse Edit hook installed by `crimes init --agents`",
               "Working-tree-only diff-aware scanning",
-              "Changed-files CI gate with --fail-on",
+              "Working-set CI gate with --fail-on",
               "Branch-level new / fixed / unchanged crimes diff",
               "Baseline snapshot to pin legacy debt and gate on new findings",
               "One-line branch verdict — cleaner, worse, unchanged, or mixed",
@@ -210,7 +210,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.27.0 · One type, one claim · <a href="/docs/releases/v0.27.0/">release notes</a></span>
+          <span class="pill">v0.28.0 · Relevant context, quieter defaults · <a href="/docs/releases/v0.28.0/">release notes</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -288,9 +288,9 @@ crimes scan .</code></pre>
             <h3>Scan a directory</h3>
             <pre><code>crimes scan .</code></pre>
             <p class="note">
-              Discovers TS/JS files, runs every detector, prints the top 10
-              findings ranked by severity. Pass <code>--all</code> for the
-              full list.
+              Scans TypeScript, JavaScript and Python with enabled detectors.
+              Shows the top five files ranked by strongest risk plus diminishing
+              contributions from distinct claims. Pass <code>--all</code> for every finding.
             </p>
           </div>
 
@@ -299,7 +299,7 @@ crimes scan .</code></pre>
             <pre><code>crimes scan . --format json</code></pre>
             <p class="note">
               Versioned via <code>schema_version</code> (currently
-              <code>"0.2.0"</code>). Every report carries a
+              <code>"0.8.0"</code>). Every report carries a
               <code>report_type</code> discriminator so consumers can route
               on one field. Every <code>Finding</code> ships
               <code>effort</code> + <code>fix_shape</code> alongside the
@@ -311,9 +311,9 @@ crimes scan .</code></pre>
             <h3>Pre-edit briefing for a single file</h3>
             <pre><code>crimes context src/billing/tax.ts --format json</code></pre>
             <p class="note">
-              Returns the file's findings, the test files likely to cover it,
-              and short safe-editing notes. The cheapest, most file-specific
-              entry point for an agent.
+              Returns applicable findings from the shared scan analysis, resolved import
+              neighbors, likely tests and safe-editing notes. Pass <code>--root .</code>
+              for monorepo context. Review analysis status and coverage warnings.
             </p>
           </div>
 
@@ -325,10 +325,10 @@ crimes scan --changed --fail-on high</code></pre>
             <p class="note">
               Restricts to files changed in the working tree, optionally
               including commits unique to the current branch.
-              <code>--fail-on low|medium|high</code> (only valid with
-              <code>--changed</code>) exits <code>1</code> when a finding
-              in the changed set meets the threshold — the cheapest CI
-              gate.
+              <code>--fail-on low|medium|high</code> exits <code>1</code> when a visible
+              finding in the selected files meets the threshold. Requires
+              <code>--changed</code>, <code>--files</code>, or <code>--related-to</code>.
+              Use diff, verdict or baseline to gate only new findings.
             </p>
           </div>
 
@@ -610,76 +610,89 @@ jobs:
       <section id="examples">
         <h2>Example output</h2>
 
-        <h3 class="sub">Human report</h3>
-        <pre><code>CRIME SCENE REPORT
-repo: messy-ts-app  ·  5 findings
+        <h3 class="sub">Human report (bundled fixture, without Git history)</h3>
+        <!-- generated:example-human -->
+        <pre><code>stale pins: 1 recorded entry match no finding in this scan.
+            1 × suppressions: still reported under a new fingerprint — NOT silenced any more
+            Run with --explain-coverage for the detail.
 
-HIGH severity (1)
-  1. src/billing.ts:37-240 (generateInvoice)
-     Charge: God Function
-     Summary: generateInvoice spans 204 lines — past the 60-line
-     threshold for a single function. Bodies this size usually mix
-     unrelated responsibilities, and an agent editing one section
-     often misses interactions in another.
+CRIME SCENE REPORT
+repo: messy-ts-app  ·  37 findings across 18 files  ·  6 high  15 medium  16 low  ·  +2 in non-domain paths
+
+Repo-level
+  1. src/api/files.ts
+     Charge: Missing Agent Context
+     Summary: Repo ships no agent-readable instruction files (AGENTS.md, CLAUDE.md, .claude/skills/*/SKILL.md, .agents/skills/*/SKILL.md). Agents loading this repo will not see project commands, conventions, or safety rules and are more likely to make confident-but-wrong edits.
      Evidence:
-       · lines 37–240 (204 lines)
-       · 3.4× the configured 60-line threshold
-       · function declaration
-     id=crime_00001  confidence=0.95
-
-MEDIUM severity (3)
-  1. src/billing.ts:44-260
-     Charge: Temporal Recklessness
-     Summary: 7 direct uses of Date.now()/new Date(). Reading the
-     system clock in domain code makes behaviour non-deterministic
-     and couples tests to wall time.
-     ...
-
-Total 5  ·  high 1  medium 3  low 1</code></pre>
-
-        <h3 class="sub">JSON report (the contract)</h3>
+       · no AGENTS.md found at repo root
+       · no CLAUDE.md found at repo root
+       · no .claude/skills/*/SKILL.md present
+       · no .agents/skills/*/SKILL.md present
+       · package.json declares bin(s): messy — agents have no way to discover commands
+     id=crime_00003  confidence=0.90
+  2. package.json:1 (undeclared imports)
+     Charge: Phantom Accomplice
+     Summary: 1 external package(s) are imported but declared in no applicable package.json. They resolve today through hoisting; a clean install can fail.
+     Evidence:
+… (excerpt)</code></pre>
+        <!-- /generated:example-human -->
+        <h3 class="sub">JSON finding (excerpt; other report fields omitted)</h3>
+        <!-- generated:example-json -->
         <pre><code>{
-  <span class="json-key">"schema_version"</span>: <span class="json-str">"0.2.0"</span>,
-  <span class="json-key">"report_type"</span>: <span class="json-str">"scan"</span>,
-  <span class="json-key">"repo"</span>: { <span class="json-key">"name"</span>: <span class="json-str">"messy-ts-app"</span>, <span class="json-key">"root"</span>: <span class="json-str">"/..."</span> },
-  <span class="json-key">"summary"</span>: { <span class="json-key">"total"</span>: 5, <span class="json-key">"high"</span>: 1, <span class="json-key">"medium"</span>: 3, <span class="json-key">"low"</span>: 1 },
-  <span class="json-key">"findings"</span>: [
+  "schema_version": "0.8.0",
+  "report_type": "scan",
+  "findings": [
     {
-      <span class="json-key">"id"</span>: <span class="json-str">"crime_00001"</span>,
-      <span class="json-key">"type"</span>: <span class="json-str">"large_function"</span>,
-      <span class="json-key">"charge"</span>: <span class="json-str">"God Function"</span>,
-      <span class="json-key">"severity"</span>: <span class="json-str">"high"</span>,
-      <span class="json-key">"confidence"</span>: 0.95,
-      <span class="json-key">"file"</span>: <span class="json-str">"src/billing.ts"</span>,
-      <span class="json-key">"symbol"</span>: <span class="json-str">"generateInvoice"</span>,
-      <span class="json-key">"lines"</span>: [37, 240],
-      <span class="json-key">"summary"</span>: <span class="json-str">"generateInvoice spans 204 lines — past the …"</span>,
-      <span class="json-key">"evidence"</span>: [
-        <span class="json-str">"lines 37–240 (204 lines)"</span>,
-        <span class="json-str">"3.4× the configured 60-line threshold"</span>,
-        <span class="json-str">"function declaration"</span>
+      "id": "crime_00001",
+      "type": "direct_date",
+      "claim": "clock_read",
+      "charge": "Temporal Recklessness",
+      "severity": "high",
+      "confidence": 0.9,
+      "file": "src/date.ts",
+      "lines": [
+        4,
+        40
       ],
-      <span class="json-key">"effort"</span>: <span class="json-str">"medium"</span>,
-      <span class="json-key">"fix_shape"</span>: <span class="json-str">"extract orchestration; move pure helpers to a sibling module"</span>,
-      <span class="json-key">"scores"</span>: {
-        <span class="json-key">"severity"</span>: 0.9,
-        <span class="json-key">"confidence"</span>: 0.95,
-        <span class="json-key">"agent_risk"</span>: 0.95
+      "summary": "8 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
+      "evidence": [
+        "2× Date.now(), 6× new Date()",
+        "1 decide a branch or comparison (lines 4); 7 only record or render the reading",
+        "lines: 4, 8, 13, 17, 22, 29, 33, 40",
+        "a reading in a comparison changes what the code does — tests cannot pin the behaviour without controlling the clock"
+      ],
+      "effort": "small",
+      "fix_shape": "inject a clock; pass through the domain boundary",
+      "scores": {
+        "severity": 0.8,
+        "confidence": 0.9,
+        "agent_risk": 0.44,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
       },
-      <span class="json-key">"suggested_actions"</span>: [
+      "suggested_actions": [
         {
-          <span class="json-key">"kind"</span>: <span class="json-str">"extract_function"</span>,
-          <span class="json-key">"description"</span>: <span class="json-str">"Extract cohesive sections into named helpers …"</span>,
-          <span class="json-key">"risk"</span>: <span class="json-str">"low"</span>
+          "kind": "inject_clock",
+          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
+          "risk": "low"
         }
-      ]
+      ],
+      "pack": "language-js",
+      "detector_id": "direct_date.js",
+      "tier": "domain",
+      "fingerprint": "direct_date/clock_read::src/date.ts::"
     }
   ]
 }</code></pre>
+        <!-- /generated:example-json -->
         <p>
           <code>schema_version</code> is bumped on breaking changes, so
           agents can refuse to consume an unfamiliar shape. The
-          <code>"0.1.0"</code> → <code>"0.2.0"</code> bump in
+          <code>"0.1.0"</code> → <code>"0.8.0"</code> bump in
           <strong>0.11.0</strong> added two required <code>Finding</code>
           fields: <code>effort</code>
           (<code>quick</code>/<code>small</code>/<code>medium</code>/<code>large</code>)

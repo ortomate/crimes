@@ -31,6 +31,10 @@ export function renderCoverageExplain(
   renderUniversalOnlyHistogram(coverage.universal_only_by_extension, out);
   renderByPackage(coverage.by_package, out);
   renderWarnings(coverage.warnings, out);
+  if (coverage.detectors_default_off?.length) {
+    out.write(`  optional detectors off: ${coverage.detectors_default_off.join(", ")}\n`);
+    out.write(`  Enable selected ids with detectors.enable in crimes.config.json.\n`);
+  }
   if (coverage.files_universal_only > 0) {
     const tail =
       languagePacks(coverage.packs_loaded).length === 0

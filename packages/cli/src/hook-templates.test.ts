@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   CLAUDE_HOOK_ENTRY,
-  CODEX_HOOK_DOCUMENT,
   mergeClaudeHook,
   serializeClaudeSettings,
 } from "./hook-templates.js";
@@ -21,16 +20,6 @@ describe("hook-templates", () => {
     // `crimes hook` reads tool_input.file_path from stdin JSON instead.
     expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).not.toContain("$CLAUDE_TOOL_INPUT");
     expect(CLAUDE_HOOK_ENTRY.hooks[0]!.command).not.toContain("$CODEX_TOOL_INPUT");
-    expect(CODEX_HOOK_DOCUMENT).not.toContain("$CLAUDE_TOOL_INPUT");
-    expect(CODEX_HOOK_DOCUMENT).not.toContain("$CODEX_TOOL_INPUT");
-  });
-
-  it("CODEX_HOOK_DOCUMENT is valid JSON with a Codex placeholder _note", () => {
-    const parsed = JSON.parse(CODEX_HOOK_DOCUMENT);
-    expect(parsed._note).toMatch(/Codex/);
-    expect(parsed.hooks.PreToolUse[0].matcher).toBe("Edit|Write|NotebookEdit");
-    expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain("crimes hook");
-    expect(parsed.hooks.PreToolUse[0].hooks[0].command).toContain("--format compact");
   });
 
   it("mergeClaudeHook creates a new document when input is undefined", () => {

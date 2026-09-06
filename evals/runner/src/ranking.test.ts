@@ -92,3 +92,27 @@ describe("scoreRanking — concentration", () => {
     expect(r.top20_distinct_types).toBe(2);
   });
 });
+
+describe("claim and subject ranking labels", () => {
+  it("does not credit the right detector at the wrong claim, file or subject", () => {
+    const label = {
+      type: "swallowed_error",
+      claim: "empty",
+      file: "payment.ts",
+      symbol: "refund",
+      priority: true,
+    };
+    const score = scoreRanking(
+      [
+        { ...label, claim: "comment_only" },
+        { ...label, file: "utility.ts" },
+        { ...label, symbol: "preview" },
+        label,
+      ],
+      { referenced_findings: ["swallowed_error"], finding_labels: [label] },
+    );
+    expect(score.relevant_findings).toBe(1);
+    expect(score.priority_rank).toBe(4);
+    expect(score.ndcg).toBeLessThan(1);
+  });
+});

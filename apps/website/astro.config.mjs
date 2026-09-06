@@ -21,7 +21,7 @@ export default defineConfig({
     starlight({
       title: "crimes docs",
       description:
-        "Documentation for `crimes`, the agent-native change & risk scanner for TypeScript / JavaScript repos.",
+        "Documentation for `crimes`, the agent-native change & risk scanner for TypeScript, JavaScript and Python repos.",
       head: [
         {
           tag: "script",
@@ -53,6 +53,7 @@ export default defineConfig({
           label: "Start here",
           items: [
             { label: "Agent usage", slug: "agent-usage" },
+            { label: "CLI and detector reference", slug: "reference" },
             { label: "Configuration", slug: "configuration" },
             { label: "Scoring", slug: "scoring" },
           ],
@@ -66,6 +67,7 @@ export default defineConfig({
           items: [
             { label: "CI integration", slug: "ci" },
             { label: "Suppressions", slug: "suppressions" },
+            { label: "Pin migration", slug: "pin-migration" },
             { label: "Explain", slug: "explain" },
             { label: "JSON schema", slug: "json-schema" },
             { label: "Packs", slug: "packs" },

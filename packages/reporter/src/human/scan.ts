@@ -37,6 +37,7 @@ export function formatHumanReport(
     colour,
     isColorDisabled: options.noColor === true,
     topFiles: options.topFiles ?? DEFAULT_TOP_FILES,
+    recencyEnabled: report.ranking?.recency_enabled ?? true,
     feedbackHints: options.feedbackHints,
   };
   const lines = renderHeader(report, context, { showAll: options.showAll === true });
@@ -66,6 +67,7 @@ interface RenderContext {
   colour: ColourFns;
   isColorDisabled: boolean;
   topFiles: number;
+  recencyEnabled: boolean;
   feedbackHints?: FeedbackHintOptions;
 }
 
@@ -223,7 +225,7 @@ function renderAllNonDomain(
   report: ScanReport,
   context: RenderContext,
 ): void {
-  const grouped = groupByFile(findings);
+  const grouped = groupByFile(findings, context.recencyEnabled);
   const shown = grouped.slice(0, context.topFiles);
   lines.push("");
   lines.push(context.colour.bold("All findings are in non-domain folders"));
@@ -244,7 +246,7 @@ function renderDomainGroups(
   report: ScanReport,
   context: RenderContext,
 ): void {
-  const grouped = groupByFile(domain);
+  const grouped = groupByFile(domain, context.recencyEnabled);
   const shown = grouped.slice(0, context.topFiles);
   lines.push("");
   lines.push(context.colour.bold("Top files by risk"));

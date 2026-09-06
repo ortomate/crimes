@@ -1,5 +1,11 @@
 # Petty Crimes findings
 
+`boolean_naming_drift` and `boolean_naming_drift.py` are optional in 0.28.
+Enable them for an explicit naming review with `detectors.enable`; the
+default report prioritizes change/agent risk. Other petty detectors keep
+their existing defaults. See [generated reference](../reference.md).
+
+
 Petty crimes flag small codebase irritants that make the next maintainer or
 coding agent hesitate, guess, or copy the wrong thing. They are intentionally
 smaller than structural crimes and IA crimes: the point is not that one

@@ -239,12 +239,15 @@ entirely.
 #### Default-off detectors
 
 A few detectors ship gated: they exist, they are supported, and they do
-not run unless you ask for them by name. `crimes scan` says so on
-stderr when one sits out, because that is a choice we made on your
-behalf rather than one you made.
+not run unless you ask for them by name. They are listed in JSON
+`coverage.detectors_default_off` and human `--explain-coverage`, without a
+repeated stderr notice. This is intentional scope, not incomplete analysis.
 
 | id | why it is gated |
 |---|---|
+| `boolean_naming_drift`, `boolean_naming_drift.py` | Naming conventions belong in an explicit naming review. |
+| `accessible_interaction_risk` | Useful in an accessibility review; outside default change-risk triage. |
+| `design_token_escape` | Raw style concentration does not establish design-system drift; optional UI review. |
 | `parallel_destination` | 2,819 findings from 134 files on n8n's `editor-ui` — 52.8% of that package's entire report — and zero findings on every other repo in the corpus. |
 
 Naming a gated detector in `enable` is **additive**: it switches that

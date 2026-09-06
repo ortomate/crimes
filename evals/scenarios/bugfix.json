@@ -29,7 +29,7 @@
       "expected_priority": "circular_dependency"
     },
     "judge_questions": [
-      "Did the agent correctly identify the cycle (domain → presentation → application → domain)?",
+      "Did the agent correctly identify the cycle (domain \u2192 presentation \u2192 application \u2192 domain)?",
       "Did the agent's fix preserve the dependency direction (lower-layer should not depend on higher)?"
     ]
   },
@@ -52,7 +52,7 @@
     "id": "bugfix-04-weak-tests",
     "fixture": "04",
     "kind": "bugfix",
-    "prompt": "A user is reporting that an esbuild plugin regression slipped through CI even though the relevant test still passes. Use `crimes scan test --format json` to find tests that may not actually be asserting anything, then explain which test you'd strengthen first and what specific assertion you'd add. Don't paraphrase the finding evidence — quote it.",
+    "prompt": "A user is reporting that an esbuild plugin regression slipped through CI even though the relevant test still passes. Use `crimes scan test --format json` to find tests that may not actually be asserting anything, then explain which test you'd strengthen first and what specific assertion you'd add. Don't paraphrase the finding evidence \u2014 quote it.",
     "expected_artifacts": {
       "referenced_findings": ["weak_test_signal"],
       "expected_priority": "weak_test_signal"
@@ -63,25 +63,10 @@
     ]
   },
   {
-    "id": "bugfix-01-sync-io-hotpath",
-    "fixture": "01",
-    "kind": "bugfix",
-    "prompt": "A production handler that used to respond in milliseconds is now stalling under concurrent load — p99 latency spiked and the event loop is reporting lag. Use `crimes scan src/api/files.ts --format json` to find the per-request blocking call(s) responsible. Quote the finding's evidence verbatim, name the specific sync method(s) involved, and propose the smallest async migration that preserves the function's public signature. Don't paper over the symptom with caching — fix the blocking call itself.",
-    "expected_artifacts": {
-      "referenced_findings": ["sync_io_in_hotpath"],
-      "referenced_files": ["src/api/files.ts"],
-      "expected_priority": "sync_io_in_hotpath"
-    },
-    "judge_questions": [
-      "Did the agent name at least one specific synchronous method (`existsSync`, `statSync`, or `readFileSync`) from the finding's evidence rather than 'sync I/O' generically?",
-      "Did the agent's fix swap each `*Sync` call for its async counterpart (`fs.promises.*` or `fs.readFile` with `await`) instead of recommending a cache, a worker thread, or a `setImmediate` wrapper?"
-    ]
-  },
-  {
     "id": "bugfix-11-py-mixed-clocks",
     "fixture": "11",
     "kind": "bugfix",
-    "prompt": "Customers in Europe report that invoices created late in the evening are stamped with the wrong billing period — but only sometimes, and never on our CI runner. Run `crimes scan --format json` on this repo and work out which module is responsible and why the bug is invisible in CI. Explain the mechanism, then propose a fix.",
+    "prompt": "Customers in Europe report that invoices created late in the evening are stamped with the wrong billing period \u2014 but only sometimes, and never on our CI runner. Run `crimes scan --format json` on this repo and work out which module is responsible and why the bug is invisible in CI. Explain the mechanism, then propose a fix.",
     "expected_artifacts": {
       "referenced_findings": ["mixed_utc_local_methods", "direct_date"],
       "referenced_files": ["domain/invoicing.py"],
@@ -123,8 +108,8 @@
       "expected_priority": "unbounded_async_fanout"
     },
     "judge_questions": [
-      "Did the agent identify the `Promise.all` over `Object.keys(files).map(…)` as the fan-out, rather than blaming the filesystem or the CI runner?",
-      "Did the agent propose an actual bound — a concurrency limit or batching — rather than only adding a retry or an error message?"
+      "Did the agent identify the `Promise.all` over `Object.keys(files).map(\u2026)` as the fan-out, rather than blaming the filesystem or the CI runner?",
+      "Did the agent propose an actual bound \u2014 a concurrency limit or batching \u2014 rather than only adding a retry or an error message?"
     ]
   },
   {

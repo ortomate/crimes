@@ -72,6 +72,7 @@ const optionsSchema = z
 
 export const booleanNamingDriftPyDetector: LanguagePyDetector = {
   id: "boolean_naming_drift.py",
+  defaultOff: true,
   name: "Boolean naming drift (Python)",
   description:
     "Flags names bound to boolean expressions that carry neither a boolean-signalling " +

@@ -37,7 +37,18 @@ export interface OssFixtureMeta {
 
 export type ScenarioKind = "refactor" | "bugfix" | "review" | "context" | "plan";
 
+export interface FindingLabel {
+  type: string;
+  file: string;
+  claim?: string;
+  symbol?: string;
+  discriminator?: string;
+  priority?: boolean;
+}
+
 export interface ExpectedArtifacts {
+  /** Precise ranking labels; supersede type-only labels when present. */
+  finding_labels?: FindingLabel[];
   referenced_findings?: string[];
   referenced_files?: string[];
   forbidden_actions?: string[];

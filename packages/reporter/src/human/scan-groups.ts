@@ -1,3 +1,4 @@
+import { fileRiskScore } from "@crimes/core";
 import type { Finding, Severity } from "@crimes/core";
 import { fileRiskSummary } from "./scan-risk-summary.js";
 import type { ColourFns } from "./shared.js";
@@ -13,30 +14,24 @@ export interface FileGroup {
 
 const SEVERITY_RANK: Record<Severity, number> = { high: 3, medium: 2, low: 1 };
 
-function rankScore(f: Finding): number {
-  const agentRisk = f.scores.agent_risk ?? 0;
-  const recency = f.scores.recency ?? 0;
-  return agentRisk * (1 + recency * 0.5);
-}
-
 function maxSeverity(a: Severity, b: Severity): Severity {
   return SEVERITY_RANK[a] >= SEVERITY_RANK[b] ? a : b;
 }
 
-export function groupByFile(findings: Finding[]): FileGroup[] {
+export function groupByFile(findings: Finding[], recencyEnabled = true): FileGroup[] {
   const groups = new Map<string, FileGroup>();
   for (const f of findings) {
     const existing = groups.get(f.file);
     if (existing) {
       existing.findings.push(f);
-      existing.totalRankScore += rankScore(f);
+
       existing.maxSeverity = maxSeverity(existing.maxSeverity, f.severity);
       existing.severityCounts[f.severity] += 1;
     } else {
       groups.set(f.file, {
         file: f.file,
         findings: [f],
-        totalRankScore: rankScore(f),
+        totalRankScore: 0,
         maxSeverity: f.severity,
         severityCounts: {
           high: f.severity === "high" ? 1 : 0,
@@ -46,7 +41,11 @@ export function groupByFile(findings: Finding[]): FileGroup[] {
       });
     }
   }
-  return Array.from(groups.values()).sort((a, b) => b.totalRankScore - a.totalRankScore);
+  for (const group of groups.values())
+    group.totalRankScore = fileRiskScore(group.findings, recencyEnabled);
+  return Array.from(groups.values()).sort(
+    (a, b) => b.totalRankScore - a.totalRankScore || a.file.localeCompare(b.file),
+  );
 }
 
 /**
@@ -191,7 +190,7 @@ function toFileGroup(file: string, findings: Finding[]): FileGroup {
     severityCounts,
     maxSeverity:
       severityCounts.high > 0 ? "high" : severityCounts.medium > 0 ? "medium" : "low",
-    totalRankScore: findings.reduce((total, f) => total + rankScore(f), 0),
+    totalRankScore: fileRiskScore(findings),
   };
 }
 

@@ -92,7 +92,7 @@ describe("syncIoInHotpathDetector", () => {
     expect(pageFindings).toHaveLength(1);
   });
 
-  it("flags sync I/O inside plain domain functions at low severity, even at high call counts", async () => {
+  it("does not infer a hot path from a plain domain function, even with many calls", async () => {
     const findings = await syncIoInHotpathDetector.run(
       makeCtx([
         call("readFileSync", [encl("domain", "loadConfig")], 5),
@@ -101,10 +101,7 @@ describe("syncIoInHotpathDetector", () => {
         call("readFileSync", [encl("domain", "loadConfig")], 8),
       ]),
     );
-    expect(findings).toHaveLength(1);
-    // Domain-only stays low — the call may be wrong, but the per-request
-    // amplification that justifies medium / high isn't there.
-    expect(findings[0]!.severity).toBe("low");
+    expect(findings).toEqual([]);
   });
 
   it("skips calls inside test_callback ancestors anywhere in the chain", async () => {
@@ -135,14 +132,11 @@ describe("syncIoInHotpathDetector", () => {
     expect(findings).toEqual([]);
   });
 
-  it("fires when an unknown-shape callback is nested inside a domain function", async () => {
+  it("does not infer a hot path from a callback inside an ordinary function", async () => {
     const findings = await syncIoInHotpathDetector.run(
       makeCtx([call("readFileSync", [encl("unknown"), encl("domain", "loadAll")])]),
     );
-    expect(findings).toHaveLength(1);
-    const evidence = findings[0]!.evidence.join(" ");
-    // Attribution is to the innermost hot-path ancestor, not the unknown wrapper.
-    expect(evidence).toContain("`loadAll`");
+    expect(findings).toEqual([]);
   });
 
   it("skips test files entirely", async () => {

@@ -15,6 +15,27 @@ is [`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
 For how an agent should _use_ this output, see
 [`agent-usage.md`](./agent-usage.md).
 
+## Additions in crimes 0.28 (schema remains 0.8.0)
+
+These fields are optional additions; existing finding identities are unchanged.
+
+- `ScanReport.ranking?: { recency_enabled: boolean }` records the sort policy
+  used for both finding order and human file groups. Older reports omit it;
+  human rendering then uses the historical enabled default.
+- `coverage.detectors_default_off?: string[]` lists intentionally optional
+  detectors not enabled for this run. This is not incomplete analysis.
+- `ContextReport.analysis_status?: "complete" | "partial" | "not_analyzed"`
+  describes whether the briefing's analysis completed. `complete` means the
+  enabled analysis completed, not that the file is safe or every risk is
+  detectable. Missing status on older reports must not imply completeness.
+- `ContextReport.coverage?` has the same pack/discovery/index diagnostics as
+  scan. Findings include both target-anchored findings and findings whose
+  `related_files` include the target. IDs are local to the context report;
+  fingerprints and scores match a full scan with the same root/config/clock.
+- `migrate-pins` emits `report_type: "pin_migration"` with a reviewed plan;
+  apply emits `report_type: "pin_migration_apply"` and `migrated: number`.
+  Both carry `schema_version`. See [pin migration](./pin-migration.md).
+
 ## Migrating from `0.7.0` to `0.8.0`: one type, one claim
 
 - **New optional field on `Finding`:** `claim?: string`.

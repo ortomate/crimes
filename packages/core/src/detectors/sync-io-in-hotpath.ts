@@ -13,7 +13,6 @@ const HOTPATH_SHAPES: ReadonlySet<FunctionShape> = new Set([
   "route_handler",
   "page_export",
   "react_component",
-  "domain",
 ]);
 
 /**
@@ -28,7 +27,7 @@ const SUPPRESSING_SHAPES: ReadonlySet<FunctionShape> = new Set([
 
 /**
  * `readFileSync` / `writeFileSync` / `execSync` / … invoked inside a
- * function that runs on every request, render, or domain call. The
+ * function with request or render evidence. The
  * synchronous APIs block the event loop, which is a per-request
  * latency tax in route handlers and a render-thread tax in React.
  * Async counterparts (`readFile`, `writeFile`, `exec`) exist for
@@ -49,7 +48,7 @@ export const syncIoInHotpathDetector: LanguageJsDetector = {
   description:
     "Flags synchronous Node.js I/O calls (`fs.readFileSync`, " +
     "`execSync`, …) inside route handlers, page exports, React " +
-    "components, and domain functions — each call blocks the event " +
+    "components, and request/render callbacks — each call blocks the event " +
     "loop on every invocation.",
   whyItMatters:
     "Synchronous I/O inside a hot path is one of the silent " +
@@ -57,9 +56,8 @@ export const syncIoInHotpathDetector: LanguageJsDetector = {
     "fine, the test passes (the test is itself synchronous and " +
     "single-threaded), and the cost only shows up under concurrent " +
     "load. Coding agents tend to reach for the sync variant because " +
-    "it's shorter, then leave it there. Switching to the async API " +
-    "is a mechanical change with no behaviour difference outside the " +
-    "performance envelope.",
+    "it's shorter, then leave it there. Changing to async I/O changes the caller contract; inspect callers " +
+    "and error handling before changing it.",
 
   pack: "language-js",
   run(ctx) {

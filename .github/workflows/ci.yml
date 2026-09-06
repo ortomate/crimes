@@ -48,6 +48,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Verify generated command, detector and example references
+        run: pnpm run docs:check
+
       - name: Typecheck
         run: pnpm run typecheck
 
