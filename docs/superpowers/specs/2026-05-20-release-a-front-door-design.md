@@ -1,4 +1,4 @@
-# Release A — Front-door redesign (design spec)
+# Release A: Front-door redesign (design spec)
 
 **Status:** approved design, pre-plan. Next step is the implementation plan
 written by `superpowers:writing-plans`.
@@ -7,12 +7,12 @@ written by `superpowers:writing-plans`.
 
 **Companion docs**
 
-- `PRD.md` — authoritative product spec; this design must not contradict it.
-- `CLAUDE.md` — coding/governance constraints (signal over exhaustiveness,
+- `PRD.md`: authoritative product spec; this design must not contradict it.
+- `CLAUDE.md`: coding/governance constraints (signal over exhaustiveness,
   schema-as-contract, evidence-before-judgement, eval baseline policy).
-- `evals/README.md` § Versioning policy — between-release patch bumps,
+- `evals/README.md` § Versioning policy: between-release patch bumps,
   Changeset cut at release time.
-- Release B (parallel worktree) — new `triage` command + finding-schema
+- Release B (parallel worktree): new `triage` command + finding-schema
   additions. This release freezes two contracts it depends on.
 
 ---
@@ -28,7 +28,7 @@ the same failure mode:
 3. The tool collapses into a diff-only gate and real debt freezes forever.
 
 Triage of the user reports established that PRD §9 ("show top findings
-only") is not the problem — `formatHumanReport` already caps at 10 and
+only") is not the problem: `formatHumanReport` already caps at 10 and
 renders a `Run with --all` hint
 (`packages/reporter/src/human/scan.ts:16,37,56`). The complaint is
 downstream of that cap: even ten findings, scattered across ten files,
@@ -64,14 +64,16 @@ Each decision below was selected from concrete alternatives during the
 brainstorming session. Rationale captured here so future maintainers can
 re-litigate if needed.
 
-### 5.1 New scan layout — file-grouped, compact lines
+<span id="51-new-scan-layout--file-grouped-compact-lines"></span>
+
+### 5.1 New scan layout: file-grouped, compact lines
 
 `crimes scan` defaults to a file-grouped layout. Per shown file: a header
 line with severity glyph, repo-relative path, finding count, and
 high/medium tally; then one compact line per finding (`charge · symbol
 key-evidence`); then a single "Risk:" line summarising the file's churn
 band, test-gap quartile, and blast radius; then ids. No per-finding
-Charge/Summary/Evidence/Feedback blocks in the default view — those still
+Charge/Summary/Evidence/Feedback blocks in the default view: those still
 appear in `crimes scan --all` and `crimes context`.
 
 A mock of the default view:
@@ -113,11 +115,13 @@ Also flagged elsewhere
 
 Rationale: file-grouped is the smallest layout change that turns the
 report from a finding catalogue into an editing plan. The compact line is
-deliberately information-dense — agents already get the full Finding
+deliberately information-dense: agents already get the full Finding
 shape from `--format json`; humans in the terminal want one row per crime
 they can scan.
 
-### 5.2 Ranking — top-K by Σ rank_score, displayed as severity counts
+<span id="52-ranking--top-k-by-σ-rank_score-displayed-as-severity-counts"></span>
+
+### 5.2 Ranking: top-K by Σ rank_score, displayed as severity counts
 
 **Rank**: sort files by `Σ rank_score`, where `rank_score` is defined in
 §5.3 as `agent_risk × (1 + recency × 0.5)`. When git is unavailable the
@@ -134,7 +138,9 @@ counts fluently; `0.71` requires a calibration in the reader's head.
 (config). `--all` shows every finding from every file as in
 §5.5; `--flat` reverts to today's severity-grouped flat list.
 
-### 5.3 Recency-weighted ranking — multiplicative on agent_risk
+<span id="53-recency-weighted-ranking--multiplicative-on-agent_risk"></span>
+
+### 5.3 Recency-weighted ranking: multiplicative on agent_risk
 
 `rank_score = agent_risk × (1 + recency × 0.5)`
 
@@ -143,7 +149,7 @@ linearly decaying to `0.0` at 14 days, and `0` thereafter. A cold
 high-risk file (`agent_risk 0.80`) still ranks above a warm low-risk file
 (`agent_risk 0.40` → `rank_score 0.60`); a warm high-risk file dominates.
 
-When git is unavailable, `recency = 0` for every file (no-op) — same
+When git is unavailable, `recency = 0` for every file (no-op): same
 graceful degradation pattern `hotspots` already uses. `--no-recency`
 disables the multiplier explicitly.
 
@@ -151,11 +157,13 @@ disables the multiplier explicitly.
 a render-time derived field. (Detectors don't compute it, and bumping the
 schema for a sort key feels wrong.)
 
-### 5.4 Test-gap signal — repo-relative quartile rank
+<span id="54-test-gap-signal--repo-relative-quartile-rank"></span>
+
+### 5.4 Test-gap signal: repo-relative quartile rank
 
 `scoring/build.ts` already computes a raw test-gap value per file
 (`{0, 0.5, 1.0}`). Most repos have so few files at `0` that 80%+ of
-findings emit `test gap 1.00` — meaningless noise.
+findings emit `test gap 1.00`: meaningless noise.
 
 **Fix**: a quartile-rank pass on the raw distribution after raw collection
 but before `agent_risk` is computed:
@@ -177,7 +185,7 @@ weights. Human display switches phrasing:
 
 **Behavioural change visible to JSON consumers.** Same field, same range,
 different distribution. Flagged in release notes; not a `schema_version`
-bump because `finding.ts:31` already labels these scores "ordinal — may
+bump because `finding.ts:31` already labels these scores "ordinal: may
 shift between minor releases" and we are within that contract.
 
 **Small-repo fallback**: when fewer than 4 files are scanned, no quartile
@@ -193,7 +201,9 @@ the standard `rank-avg` behaviour, and avoids the alternative pathology
 where 80% of files end up at `1.0 → quartile 1.0` because tied entries
 were assigned the *highest* rank in the tie.
 
-### 5.5 Scope-aware folder tiers — domain vs non-domain
+<span id="55-scope-aware-folder-tiers--domain-vs-non-domain"></span>
+
+### 5.5 Scope-aware folder tiers: domain vs non-domain
 
 New config key `scopeTiers.nonDomain: string[]` (globs). Findings whose
 `file` matches any pattern are tagged `tier: "nonDomain"`; the rest are
@@ -224,7 +234,7 @@ Default `crimes scan`:
   elsewhere" footer renders per-prefix counts (dimmed):
   `scripts/  6 findings    examples/  3 findings    tests/  12 findings`.
 - The footer's first segment is always the count, not the names of the
-  individual files — it's a pointer, not a section.
+  individual files: it's a pointer, not a section.
 
 `crimes scan --all` flattens both tiers into a single ordered list
 (today's `--all` semantics, just with the new ranking). There is **no**
@@ -232,11 +242,13 @@ separate `--include-non-domain` flag; `--all` covers it.
 
 Backwards compat: when an existing `crimes.config.json` doesn't set
 `scopeTiers.nonDomain`, the scanner applies a **static** default list at
-runtime — all seven patterns shown above, unconditionally. (Repo
+runtime: all seven patterns shown above, unconditionally. (Repo
 inspection only happens at *init* time, not on every scan.) Users opt
 out by setting `scopeTiers.nonDomain: []` explicitly.
 
-### 5.6 Action-close — top file imperative, always
+<span id="56-action-close--top-file-imperative-always"></span>
+
+### 5.6 Action-close: top file imperative, always
 
 If `findings.length > 0`, the report ends with:
 
@@ -252,14 +264,16 @@ existing `✨ No crimes detected. Suspiciously clean.` green line.
 fixtures-only repo, or `scopeTiers` mis-configuration), the top-N file
 list is empty. The action-close falls back to pointing at the
 heaviest non-domain file, with phrasing adjusted: `→ Start with
-\`crimes context <topFile>\` — every finding is in non-domain folders;
+\`crimes context <topFile>\`: every finding is in non-domain folders;
 review your scopeTiers config if that surprises you.`
 
 The full numeric summary (`Total 173 · high 23 medium 91 low 59`) moves
-behind `--show-summary` (off by default) but remains in JSON output —
+behind `--show-summary` (off by default) but remains in JSON output:
 agents still get the structured count via `report.summary`.
 
-### 5.7 `context --json` — add `clues` wrapper
+<span id="57-context---json--add-clues-wrapper"></span>
+
+### 5.7 `context --json`: add `clues` wrapper
 
 `ContextReport` gains an optional `clues` object. Frozen shape (Release B's
 PreToolUse hook will parse this):
@@ -298,7 +312,7 @@ PreToolUse hook will parse this):
   (regardless of whether they currently match a finding).
 - `clues.test_gap.percentile` omitted in small-repo fallback (§5.4);
   `clues.test_gap.label` is `"unknown"` in that case.
-- `clues.related_signals` is always present, always `[]` in Release A —
+- `clues.related_signals` is always present, always `[]` in Release A:
   reserved seam for Release B's triage workflow.
 - `clues` itself omitted when all three of `churn`/`suppressions`/`test_gap`
   would be empty.
@@ -316,7 +330,9 @@ that collector (additional `--pretty=format` fields, or a follow-up
 `git log` per file). The extension is part of this release's scope, not
 out-of-band.
 
-### 5.8 Auto-init on first run — two prompts, agent-aware
+<span id="58-auto-init-on-first-run--two-prompts-agent-aware"></span>
+
+### 5.8 Auto-init on first run: two prompts, agent-aware
 
 **Trigger** (any subcommand except `init`, `feedback`, `ignore`,
 `baseline`, and `unignore`):
@@ -362,9 +378,9 @@ CRIME SCENE REPORT
   other than `none`. Each session writes at most one skill, for the
   detected agent. Never both. When both `.claude/` and `.agents/` exist
   but no env var is set, detection priority 3 wins (Claude) and Codex
-  is *not* prompted in the same session — a user who wants both still
+  is *not* prompted in the same session: a user who wants both still
   runs `crimes init --agents` explicitly. Existing `crimes init
-  --agents` retains its current behaviour (writes both) — auto-init is
+  --agents` retains its current behaviour (writes both): auto-init is
   the conservative path.
 - `--init` global flag re-enters the prompt block even when
   `crimes.config.json` exists (useful when user declined and changed
@@ -372,7 +388,7 @@ CRIME SCENE REPORT
 - `--no-init` global flag suppresses the whole block.
 - CI (`process.env.CI`), non-TTY (`!process.stdout.isTTY`), or user abort
   (SIGINT during the prompt): no files written, no marker, exit code 130
-  on SIGINT. The original command does **not** run after a SIGINT — we
+  on SIGINT. The original command does **not** run after a SIGINT: we
   treat it as cancel-the-whole-invocation.
 
 **Generated config (medium detection)**:
@@ -393,16 +409,18 @@ CRIME SCENE REPORT
 - `--no-detect` flag (on `crimes init` only) bypasses detection and
   writes the pure static template; auto-init never sets this.
 
-### 5.9 Docs reorder — context-first
+<span id="59-docs-reorder--context-first"></span>
+
+### 5.9 Docs reorder: context-first
 
 Scope:
 
-- `README.md` — quick-start swaps order: `context` headline command,
+- `README.md`: quick-start swaps order: `context` headline command,
   `scan` second, `verdict` third. "What it finds" section unchanged.
-- `packages/cli/src/index.ts` `welcomeBanner()` — first listed command
+- `packages/cli/src/index.ts` `welcomeBanner()`: first listed command
   becomes `crimes context <file>`; `crimes init --agents` follows.
   `addHelpText("after", ...)` similarly reorders.
-- `docs/agent-usage.md` — restructure to `context → scan → verdict` flow;
+- `docs/agent-usage.md`: restructure to `context → scan → verdict` flow;
   body content reused, just reordered.
 
 Not in scope: `apps/website/`, `docs/releases/`. Release B will add
@@ -413,11 +431,11 @@ afterwards.
 
 | Package | New file(s) | Modified file(s) |
 |---|---|---|
-| `@crimes/core` | — | `scoring/build.ts`, `scan.ts`, `context.ts`, `config.ts`, `finding.ts` (only doc comments) |
-| `@crimes/language-js` | — | — |
-| `@crimes/reporter` | — | `human/scan.ts`, `human/context.ts`, `human/shared.ts` |
+| `@crimes/core` | n/a | `scoring/build.ts`, `scan.ts`, `context.ts`, `config.ts`, `finding.ts` (only doc comments) |
+| `@crimes/language-js` | n/a | n/a |
+| `@crimes/reporter` | n/a | `human/scan.ts`, `human/context.ts`, `human/shared.ts` |
 | `@crimes/cli` | `commands/auto-init.ts` (or `auto-init.ts` at the top level), `commands/init-detect.ts` | `index.ts`, `commands/scan.ts`, `commands/context.ts`, `commands/init.ts` |
-| Docs | — | `README.md`, `docs/agent-usage.md` |
+| Docs | n/a | `README.md`, `docs/agent-usage.md` |
 | Tests | many `*.test.ts` siblings | snapshot updates throughout reporter |
 
 ## 7. Data flow
@@ -461,7 +479,7 @@ Cataloged in the decisions above; gathered here for the implementer:
 
 ## 9. Testing strategy
 
-- **Unit (Vitest)** — new tests:
+- **Unit (Vitest)**: new tests:
   - `scoring/build.test.ts`: quartile pass on synthetic distributions,
     N<4 fallback, recency window math, git-unavailable degradation.
   - `scan.test.ts`: tiering via globs, `topFiles` truncation, action
@@ -505,17 +523,17 @@ Per `evals/README.md` § Versioning policy:
 These two surfaces are frozen as of the spec being approved. Release B
 should parse against them without further negotiation.
 
-1. **`ContextReport.clues`** — shape in §5.7. Omission rules are part of
+1. **`ContextReport.clues`**: shape in §5.7. Omission rules are part of
    the contract; Release B's PreToolUse hook must treat absent fields
    as "no signal", not as zero. Renames or restructures during Release
    A implementation require an explicit cross-thread sync.
 
-2. **`scopeTiers.nonDomain`** — `string[]` of globs under
+2. **`scopeTiers.nonDomain`**: `string[]` of globs under
    `crimes.config.json`. Release B adds its own keys (`triage.*`)
    without touching this one.
 
-Anything else in this design — the scan layout, action-close, auto-init
-flow, recency formula, test_gap quartile semantics — is internal to
+Anything else in this design (the scan layout, action-close, auto-init
+flow, recency formula, test_gap quartile semantics) is internal to
 Release A and may evolve through implementation without breaking
 Release B.
 

@@ -1,4 +1,4 @@
-# Release B — Triage as the front door (design spec)
+# Release B: Triage as the front door (design spec)
 
 **Status:** approved design, pre-plan. Next step is the implementation plan
 written by `superpowers:writing-plans`.
@@ -7,12 +7,12 @@ written by `superpowers:writing-plans`.
 
 **Companion docs**
 
-- `PRD.md` — authoritative product spec; this design must not contradict it.
-- `CLAUDE.md` — coding/governance constraints (signal over exhaustiveness,
+- `PRD.md`: authoritative product spec; this design must not contradict it.
+- `CLAUDE.md`: coding/governance constraints (signal over exhaustiveness,
   schema-as-contract, evidence-before-judgement, eval baseline policy).
-- `evals/README.md` § Versioning policy — between-release patch bumps,
+- `evals/README.md` § Versioning policy: between-release patch bumps,
   Changeset cut at release time.
-- `docs/superpowers/specs/2026-05-20-release-a-front-door-design.md` —
+- `docs/superpowers/specs/2026-05-20-release-a-front-door-design.md`:
   Release A (front-door redesign), shipped at `crimes@0.10.0`. Release B
   consumes the contracts Release A froze (`context --json` `clues` block;
   `scopeTiers.nonDomain` config key).
@@ -28,7 +28,7 @@ forever. Release A reshaped the first screen so users reach for `crimes
 context <file>` instead of `baseline`. Release B closes the loop on the
 other half of the failure: when the user *does* want to set aside
 findings in bulk, give them a structured triage path with per-finding
-disposition + reason + owner + date — and make the choices stop being
+disposition + reason + owner + date, and make the choices stop being
 permanent.
 
 `crimes baseline save` stays in place; it's the escape hatch, not the
@@ -43,13 +43,13 @@ front door.
 
 A fresh user who runs `crimes scan` and sees 150 findings reaches for
 `crimes triage` rather than `crimes baseline`, and the result is per-finding
-disposition with reason + owner + date — not bulk amnesia. When the user
+disposition with reason + owner + date, not bulk amnesia. When the user
 later edits a file containing a `wont-fix` or `needs-design` entry, the
 finding resurfaces with a "was this still intentional?" framing.
 
 ## 4. Non-goals for this release
 
-- New detectors. Detector taxonomy stays frozen — Release B is workflow +
+- New detectors. Detector taxonomy stays frozen: Release B is workflow +
   schema fields + renderer, not new signal.
 - `crimes baseline` deprecation. Baseline stays as the escape hatch; the
   brief is explicit that triage is the front door, not the replacement.
@@ -60,7 +60,9 @@ finding resurfaces with a "was this still intentional?" framing.
 
 ## 5. Decisions made
 
-### 5.1 `crimes triage` command — per-finding interactive walk
+<span id="51-crimes-triage-command--per-finding-interactive-walk"></span>
+
+### 5.1 `crimes triage` command: per-finding interactive walk
 
 Top-of-rank-first interactive walk over findings, with five disposition
 states. Each disposition writes to `.crimes/triage.json` immediately
@@ -94,7 +96,7 @@ Keys: f fix-now · p fix-this-PR · d needs-design · w wont-fix · s scaffoldin
 - A finding already in `.crimes/triage.json` is **skipped** unless
   `--retriage` is passed. `--retriage <fingerprint-or-file>` re-opens
   the disposition prompt for matching entries.
-- `k` (skip) leaves the finding un-triaged — no entry written.
+- `k` (skip) leaves the finding un-triaged: no entry written.
   Re-running `crimes triage` re-prompts.
 - `q` (quit) saves accumulated progress and exits 0.
 - Owner prompt defaults to the last owner set in this session (so a
@@ -118,13 +120,13 @@ crimes triage --retriage <target>   # re-open dispositions for matching entries
 ```
 
 **`--apply <file>` document shape**: the file accepts the same shape as
-`.crimes/triage.json` (see §5.2) — top-level `schema_version`,
+`.crimes/triage.json` (see §5.2): top-level `schema_version`,
 `report_type: "triage"`, and `entries[]`. Entries are merged into the
 on-disk triage by fingerprint: an applied entry whose fingerprint
 matches an existing one **overwrites** it (with the applied entry's
 `reason` / `owner` / `date`); fingerprints not in the applied file are
 left untouched. The applied file's `created_at` / `updated_at` are
-ignored — `crimes triage --apply` sets `updated_at` to the system clock
+ignored: `crimes triage --apply` sets `updated_at` to the system clock
 at apply time.
 
 **`--retriage <target>` target syntax**: accepts either a fingerprint
@@ -142,13 +144,15 @@ gives the scripted equivalent.
 `--owner <handle>` sets the default owner for every disposition this
 run. `--no-color` disables ANSI.
 
-### 5.2 Storage — separate `.crimes/triage.json`
+<span id="52-storage--separate-crimestriagejson"></span>
+
+### 5.2 Storage: separate `.crimes/triage.json`
 
 Triage lives in its own file alongside `baseline.json` and
 `suppressions.json`. Three reasons:
 
 1. `fix-now` / `fix-this-PR` / `needs-design` / `scaffolding` carry
-   semantic meaning beyond "silence me" — overloading `suppressions.json`
+   semantic meaning beyond "silence me": overloading `suppressions.json`
    would mix two distinct contracts.
 2. Existing tooling (`crimes ignore`, `crimes feedback`, suppressions
    audit) keeps working unchanged.
@@ -157,7 +161,7 @@ Triage lives in its own file alongside `baseline.json` and
    incrementally.
 
 The scan pipeline reads all three files (baseline, suppressions, triage)
-and applies them as parallel filter layers — no duplication of state,
+and applies them as parallel filter layers: no duplication of state,
 no synthetic mirroring between files.
 
 **Schema** (`packages/core/src/triage.ts`, validated with zod, mirroring
@@ -227,13 +231,15 @@ silenced dispositions resurface when the file is touched (see §5.4).
 - `needs-design` is excluded by default but a new `--gate-needs-design`
   flag opts in to treating it as gate-relevant (teams that consider
   "needs design" as "must resolve before merging").
-- `fix-now` and `fix-this-PR` participate in the gate normally — they
+- `fix-now` and `fix-this-PR` participate in the gate normally: they
   are visible findings.
 - A new `--gate-resurfaced` flag (off by default) makes `--fail-on`
   count resurfaced findings on touched files. Off by default because
   the user already triaged them; we surface as a reminder, not a block.
 
-### 5.4 Resurfacing pipeline — zero-effort, default on
+<span id="54-resurfacing-pipeline--zero-effort-default-on"></span>
+
+### 5.4 Resurfacing pipeline: zero-effort, default on
 
 **Trigger** (every `crimes scan` invocation):
 
@@ -258,7 +264,7 @@ on every `crimes scan`:
 user is editing the file. The finding might already be fixed
 (renamed symbol, deleted block, extracted function). Re-running the
 relevant detector on just the touched files is cheap (TS-only parses
-a single file) and yields a real `Finding` with current evidence —
+a single file) and yields a real `Finding` with current evidence:
 line numbers, current symbol position, current scoring. When the
 re-detect produces zero matching findings for the stored fingerprint,
 the resurfaced entry is silently dropped (we do not nag users about
@@ -283,10 +289,12 @@ path constructs a minimal scoring context (single file, no global
 test-gap quartile pass) and invokes only the relevant detector. When
 the detector requires repo-wide state (e.g. `circular_dep`), the
 resurface path falls back to running a full scan filtered to the
-diff'd file set — slower than ideal but bounded by the small number
+diff'd file set: slower than ideal but bounded by the small number
 of touched files in a typical branch.
 
-### 5.5 Resurfacing — JSON & human shape
+<span id="55-resurfacing--json--human-shape"></span>
+
+### 5.5 Resurfacing: JSON & human shape
 
 **JSON additions to `Finding`** (additive, lifted by the schema bump in
 §5.6):
@@ -320,7 +328,7 @@ practice (a finding either has a triage entry, a baseline entry, or
 neither; if both, triage wins because it's more specific). Both fields
 are absent on findings that aren't resurfaced.
 
-**Human renderer** — a new sub-section before the "Top files by risk"
+**Human renderer**: a new sub-section before the "Top files by risk"
 header, only rendered when resurfaced findings exist:
 
 ```
@@ -339,10 +347,10 @@ Top files by risk
 
 `▼` glyph distinguishes resurfaced rows from `🚨`/`⚠️`/`🔎`. In
 `--no-color` / non-TTY contexts it falls back to the prose
-`"resurfaced — was previously triaged: wont-fix"`.
+`"resurfaced: was previously triaged: wont-fix"`.
 
 Baseline resurfacings get a separate sub-header
-`"You're editing files captured in .crimes/baseline.json — was this still
+`"You're editing files captured in .crimes/baseline.json: was this still
 intentional?"` when no triage resurfacings exist, or are folded into the
 same block with a distinct marker when both exist.
 
@@ -373,7 +381,7 @@ export interface Finding {
 
 Both fields are **required on output** (always present, no `?`) so
 agents can rely on them. Consumers of the old `0.1.0` shape simply
-ignore unknown fields — strict-additive, no field changed shape, name,
+ignore unknown fields: strict-additive, no field changed shape, name,
 or semantics.
 
 **Detector-side wiring** (`packages/core/src/detector.ts`): the existing
@@ -440,8 +448,8 @@ existing skill files:
 |---|---|
 | `.claude/skills/crimes/SKILL.md` | unchanged (0.9.0+) |
 | `.agents/skills/crimes/SKILL.md` | unchanged (0.9.0+) |
-| `.claude/settings.local.json` | **NEW** — merge-write a PreToolUse Edit hook |
-| `.agents/settings.local.json` | **NEW (placeholder)** — same JSON shape; Codex doesn't honour PreToolUse today but the file is documented as a forward-looking stub |
+| `.claude/settings.local.json` | **NEW**: merge-write a PreToolUse Edit hook |
+| `.agents/settings.local.json` | **NEW (placeholder)**: same JSON shape; Codex doesn't honour PreToolUse today but the file is documented as a forward-looking stub |
 
 Asymmetric note: the user picked "Claude + Codex" in the brainstorming
 session, against the recommendation to write Claude-only. The Codex
@@ -483,13 +491,13 @@ never overwritten wholesale):
    `hooks.PreToolUse[]`, write back preserving formatting (2-space
    indent, trailing newline).
 4. If it exists with malformed JSON: write to stderr
-   `crimes: .claude/settings.local.json is malformed — refusing to
+   `crimes: .claude/settings.local.json is malformed: refusing to
    modify. Pass --force to overwrite.` and exit 2.
 
 **`--force`** overwrites only the crimes hook entry; never touches
 non-crimes entries.
 
-**Stub `.agents/settings.local.json`** (valid JSON — no comments,
+**Stub `.agents/settings.local.json`** (valid JSON: no comments,
 explanatory text carried as an underscore-prefixed key that most JSON
 consumers ignore):
 
@@ -514,7 +522,7 @@ consumers ignore):
 ```
 
 The `_note` key is the spec-level convention for "this is a placeholder"
-documentation — implementers may instead drop a sibling `.agents/README`
+documentation: implementers may instead drop a sibling `.agents/README`
 or `.agents/settings.local.README.md` if a future Codex schema rejects
 unknown top-level keys. At code time, pick whichever shape the current
 Codex contract tolerates; the spec requires *only* that the placeholder
@@ -527,16 +535,16 @@ exists and that its purpose is discoverable to the reader.
 - `--force` overwrites the crimes hook entry but never non-crimes
   entries.
 
-**`crimes init` (without `--agents`)** does not write hooks — the
+**`crimes init` (without `--agents`)** does not write hooks: the
 existing config-only path stays unchanged.
 
 ### 5.8 Human-readable secondary scores in the human renderer
 
 `scores.blast_radius: 0.72`, `scores.churn: 0.41`, `scores.test_gap:
-1.0` are JSON values — kept untouched, schema is a public API. This is
+1.0` are JSON values: kept untouched, schema is a public API. This is
 a **renderer-only** change.
 
-**Where it shows up** — scan per-file `Risk:` line and context
+**Where it shows up**: scan per-file `Risk:` line and context
 per-finding score block:
 
 Before (scan default view, file header):
@@ -586,7 +594,7 @@ unavailable (git missing, scoring context not wired in a test stub),
 the formatter falls back to the raw quartile label only (`blast
 top-quartile`). Never shows a bare decimal in the new output.
 
-**JSON callout for agent integrators** — release notes explicitly say
+**JSON callout for agent integrators**: release notes explicitly say
 "numerics in JSON are unchanged; only the human renderer reformats."
 
 ### 5.9 Website + in-repo docs
@@ -598,22 +606,22 @@ the changes ship the moment they merge.
 
 **In-repo (Markdown) updates:**
 
-- `README.md` — add `crimes triage` to the Quick start triad; new
+- `README.md`: add `crimes triage` to the Quick start triad; new
   "Triage workflow" section with the disposition table; document
   `.crimes/triage.json`; update version pin to `0.11.0`.
-- `docs/agent-usage.md` — insert triage step between scan and verdict
+- `docs/agent-usage.md`: insert triage step between scan and verdict
   in the pre-edit / post-edit flow; document the PreToolUse hook
   contract; update the test-gap consumer-migration note from Release A.
-- `docs/json-schema.md` — schema bump migration note; new fields
+- `docs/json-schema.md`: schema bump migration note; new fields
   (`effort`, `fix_shape`, `previously_triaged`, `previous_triage`,
   `previously_baselined`, `previous_baseline`).
-- `docs/configuration.md` — `triage.resurfaceBase`; interaction with
-  `scopeTiers.nonDomain` (resurfacing crosses tiers — a touched
+- `docs/configuration.md`: `triage.resurfaceBase`; interaction with
+  `scopeTiers.nonDomain` (resurfacing crosses tiers: a touched
   non-domain file's triaged finding still resurfaces).
-- `docs/roadmap.md` — Release B mirror entry.
-- `docs/releases/v0.11.0.md` — new release notes file with both
+- `docs/roadmap.md`: Release B mirror entry.
+- `docs/releases/v0.11.0.md`: new release notes file with both
   releases' user-facing content described in the brief.
-- `PRD.md` — §9 finding-schema example refreshed with `effort` +
+- `PRD.md`: §9 finding-schema example refreshed with `effort` +
   `fix_shape`; §18 config section adds `triage`; §22 milestone table
   updated.
 
@@ -631,8 +639,8 @@ the changes ship the moment they merge.
 | Releases index | link to v0.10.0 | link to v0.11.0 |
 
 **Verification before merge**: workspace site build (`pnpm
---filter @crimes/website build` or whichever workspace command exists
-— locate at planning time) must run clean; preview locally and check
+--filter @crimes/website build` or whichever workspace command exists:
+locate at planning time) must run clean; preview locally and check
 the rendered triad.
 
 ## 6. Architecture summary
@@ -640,7 +648,7 @@ the rendered triad.
 | Package | New file(s) | Modified file(s) |
 |---|---|---|
 | `@crimes/core` | `triage.ts`, `triage.test.ts`, `resurface.ts`, `resurface.test.ts`, `detector-defaults.ts`, `detector-defaults.test.ts` | `finding.ts` (`Effort`, `fix_shape`, `previously_triaged`, `previously_baselined`, `SCHEMA_VERSION` → `"0.2.0"`), `detector.ts` (`createFinding` accepts new fields), `scan.ts` (apply triage filter + resurface pipeline), `config.ts` (new `triage` config key), every detector source under `detectors/` (populate `effort` + `fix_shape`) |
-| `@crimes/language-js` | — | — |
+| `@crimes/language-js` | n/a | n/a |
 | `@crimes/reporter` | `human/score-format.ts`, `human/score-format.test.ts`, `human/triage.ts` | `human/scan.ts` (resurface block, score reformatting, `▶ fix-now` annotation), `human/context.ts` (score reformatting + `fix_shape` rendering), `human/shared.ts` (shared glyph helpers), `reporter.test.ts` (snapshot updates) |
 | `@crimes/cli` | `commands/triage.ts`, `commands/triage.test.ts`, `hook-templates.ts` | `index.ts` (register `triage`), `commands/init.ts` (`.claude/settings.local.json` write + `.agents/settings.local.json` stub + `--no-hooks`), `commands/scan.ts` (no surface change; just calls new core path) |
 | Docs | `docs/releases/v0.11.0.md`, `docs/superpowers/specs/2026-05-20-release-b-triage-design.md` (this file), website pages updated | `README.md`, `PRD.md`, `docs/agent-usage.md`, `docs/json-schema.md`, `docs/configuration.md`, `docs/roadmap.md` |
@@ -668,7 +676,7 @@ on individual `Finding` entries. Resurfaced findings are emitted at the
 **start** of `findings[]` (before non-resurfaced findings), in
 `rank_score` order within the resurfaced subset. JSON consumers
 distinguish them by checking `previously_triaged === true ||
-previously_baselined === true`; no separate top-level field is added —
+previously_baselined === true`; no separate top-level field is added:
 the existing `findings[]` array stays the single source of truth.
 
 ## 8. Error / edge handling
@@ -684,40 +692,40 @@ the existing `findings[]` array stays the single source of truth.
 | `crimes triage --apply` with malformed JSON | `MalformedTriageError`, exit 2 |
 | `.claude/settings.local.json` malformed when init runs | Exit 2 with clear message; `--force` overwrites |
 | `.claude/settings.local.json` already has a crimes hook | Skip (idempotent) |
-| `effort`/`fix_shape` missing from a detector in dev | Throws — detector author sees the bug |
+| `effort`/`fix_shape` missing from a detector in dev | Throws: detector author sees the bug |
 | `effort`/`fix_shape` missing from a detector in prod | Falls back to `DETECTOR_DEFAULTS[type]` → `GENERIC_DEFAULT`; single stderr warning per type per run |
 | Both `previously_triaged` and `previously_baselined` would apply | `previously_triaged` wins (more specific) |
-| Schema bump consumer that hard-checks `schema_version === "0.1.0"` | Breaks — explicitly documented in migration note |
+| Schema bump consumer that hard-checks `schema_version === "0.1.0"` | Breaks: explicitly documented in migration note |
 
 ## 9. Testing strategy
 
 - **Unit (Vitest), TDD per `superpowers:test-driven-development`:**
-  - `core/src/triage.test.ts` — schema load/save, fingerprint matching,
+  - `core/src/triage.test.ts`: schema load/save, fingerprint matching,
     disposition state transitions, `MalformedTriageError`, owner empty
     string allowed, date format validation.
-  - `core/src/resurface.test.ts` — diff-driven file set, base-branch
+  - `core/src/resurface.test.ts`: diff-driven file set, base-branch
     detection, on-base skip, git-unavailable degradation, re-detect
     drop-when-fixed, triage-wins-over-baseline merge.
-  - `core/src/detector-defaults.test.ts` — every registered detector
+  - `core/src/detector-defaults.test.ts`: every registered detector
     type has both fields; unknown type → `GENERIC_DEFAULT`.
-  - `core/src/finding.test.ts` (extend) — `Effort` enum, `fix_shape`
+  - `core/src/finding.test.ts` (extend): `Effort` enum, `fix_shape`
     length cap, schema validation.
-  - `cli/src/commands/triage.test.ts` — interactive readline flow with
+  - `cli/src/commands/triage.test.ts`: interactive readline flow with
     mocked stdin (mirror `auto-init.test.ts`), non-TTY refusal,
     `--apply` non-interactive, `--list`, `--clear`, `--retriage`,
     SIGINT mid-walk preserves progress.
-  - `cli/src/commands/init.test.ts` (extend) —
+  - `cli/src/commands/init.test.ts` (extend):
     `.claude/settings.local.json` write, merge-into-existing,
     malformed-existing error path, `--no-hooks`, `--force`,
     `.agents/settings.local.json` stub content.
-  - `reporter/src/human/score-format.test.ts` — interpretive prose for
+  - `reporter/src/human/score-format.test.ts`: interpretive prose for
     all input combos, fallback to quartile-only when raw numerics
     missing.
-- **Reporter snapshot updates** (`reporter.test.ts`) — scan +
+- **Reporter snapshot updates** (`reporter.test.ts`): scan +
   context snapshots updated for the resurface block, secondary-score
   prose, and `▶ fix-now` annotation; one snapshot of the legacy
   `--flat` path preserved to detect regression.
-- **Smoke (`pnpm --filter crimes smoke`)** — pack tarball, install in
+- **Smoke (`pnpm --filter crimes smoke`)**: pack tarball, install in
   temp dir, run:
   1. `crimes triage --apply <fixture>.json` exits 0 and writes
      `.crimes/triage.json`.
@@ -727,7 +735,7 @@ the existing `findings[]` array stays the single source of truth.
      a `PreToolUse` entry whose `command` contains `crimes context`.
   4. `crimes scan --format json | jq '.findings[0].effort'` returns a
      non-empty string.
-- **Evals** — every commit that changes finding shape, scoring, or
+- **Evals**: every commit that changes finding shape, scoring, or
   filtering re-runs `pnpm run evals` and commits
   `evals/results/<version>/`. The schema bump commit moves every
   fixture's output (new `effort` + `fix_shape` keys appear). Commit
@@ -745,7 +753,7 @@ Per `evals/README.md` § Versioning policy:
   - Patch when human renderer secondary-score reformatting lands.
   - Hook write logic in `init` typically lands without an eval shift
     (no finding output change), but if eval snapshots move (they
-    shouldn't — init doesn't run during scan), patch-bump.
+    shouldn't: init doesn't run during scan), patch-bump.
 - **One Changeset at end of release** describing this as a **minor**
   bump (`0.10.x → 0.11.0`). Body explicitly calls out:
   - `schema_version` `"0.1.0"` → `"0.2.0"`.
@@ -769,7 +777,7 @@ Release B depends on are live:
   secondary-score formatter (§5.8).
 - `scopeTiers.nonDomain` config key. Consumed by the triage interactive
   walk's default scope (domain-only) and by the resurface pipeline (a
-  touched non-domain file's triaged finding still resurfaces — see §8).
+  touched non-domain file's triaged finding still resurfaces: see §8).
 
 No worktree coordination remaining; the parallel-development concern in
 the brief was resolved when Release A landed.

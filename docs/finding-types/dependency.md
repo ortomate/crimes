@@ -20,7 +20,7 @@ For the agent workflow that consumes findings, see
 | `high_fan_in_fan_out`    | Crowded Module          | low-medium     | 0.70-0.80  |
 
 All four use the standard `Finding` shape and add an `imports_limited`
-flag to `ScanReport` when the graph hit its performance budget — same
+flag to `ScanReport` when the graph hit its performance budget: same
 shape as `HotspotsReport.history_limited`.
 
 ---
@@ -42,7 +42,7 @@ matching rule: { from: "ui", cannotImport: ["db", "infrastructure"] }
 ```
 
 **Why it matters.** Architecture rules are usually enforced
-informally — a tribal "UI components don't talk to the database"
+informally: a tribal "UI components don't talk to the database"
 norm. Coding agents have no access to that norm, so the first edit
 that pulls a db query into a component looks reasonable in isolation
 and gets merged. Encoding the rule in `crimes.config.json` makes the
@@ -86,7 +86,7 @@ the other rather than peer with it.
 ## Deep Import Abuse (`deep_import`)
 
 **What it detects.** Imports that reach more than `n` segments deep
-into another package's source tree — typically
+into another package's source tree: typically
 `@org/pkg/src/internal/util/format`. The detector applies to
 workspace-relative imports too.
 
@@ -105,7 +105,7 @@ even though nothing about the package's public API changed.
 
 **Suggested fix.** Add the function to the package's public
 `index.ts` and import it from there. If the function isn't ready to
-be public, the import was probably premature — find a cheaper
+be public, the import was probably premature: find a cheaper
 surface to depend on.
 
 ---

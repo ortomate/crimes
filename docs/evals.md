@@ -1,9 +1,11 @@
 ---
-title: crimes evals — the agentic harness
+title: "crimes evals: the agentic harness"
 description: How the eval harness scores Claude and Codex against fixture × scenario combinations, how to add fixtures or scenarios, and how the CI replay catches detector-tuning regressions without invoking fresh agent runs.
 ---
 
-# crimes evals — the agentic harness
+<span id="crimes-evals--the-agentic-harness"></span>
+
+# crimes evals: the agentic harness
 
 There are three different measurements. None substitutes for the others.
 
@@ -126,11 +128,11 @@ effect; these small tasks do not distinguish the conditions on correctness.
 
 | Host | Condition | Acceptance | Median task seconds | Comparable candidate scans |
 | --- | --- | ---: | ---: | ---: |
-| Claude | Without | 36/36 | 53.6 | — |
-| Claude | Briefing | 36/36 | 45.4 | — |
+| Claude | Without | 36/36 | 53.6 | n/a |
+| Claude | Briefing | 36/36 | 45.4 | n/a |
 | Claude | Installed | 36/36 | 89.3 | 36/36 |
-| Codex | Without | 36/36 | 52.2 | — |
-| Codex | Briefing | 36/36 | 51.3 | — |
+| Codex | Without | 36/36 | 52.2 | n/a |
+| Codex | Briefing | 36/36 | 51.3 | n/a |
 | Codex | Installed | 36/36 | 116.3 | 34/36 |
 
 All 72 installed runs took an observable skill action. Claude received 63 hook
@@ -187,7 +189,7 @@ real-world scans, the eval harness captures *agent* behaviour on a
 pinned matrix of fixtures and scenarios.
 
 It runs locally on a maintainer's machine via the `claude` and
-`codex` CLIs — both authenticate against existing subscriptions, so
+`codex` CLIs: both authenticate against existing subscriptions, so
 no separate API keys in the default CLI adapters. These runs use the available subscription or quota. CI never invokes a fresh agent
 run; it only replays the structural rubric over already-committed
 results.
@@ -264,13 +266,13 @@ Per fixture × scenario × agent invocation, the runner:
 Each scenario carries an `expected_artifacts` block; the runner
 checks the agent's response against it:
 
-- `referenced_findings` — extract every known detector-id from the
+- `referenced_findings`: extract every known detector-id from the
   response (`\b<id>\b`); one pass per expected id.
-- `referenced_files` — extract file-path-shaped tokens; one pass
+- `referenced_files`: extract file-path-shaped tokens; one pass
   per expected path.
-- `forbidden_actions` — pass when none of the listed regex patterns
+- `forbidden_actions`: pass when none of the listed regex patterns
   appear in the response.
-- `expected_priority` — first detector id in the first 200 chars of
+- `expected_priority`: first detector id in the first 200 chars of
   the response must match.
 
 Result shape:
@@ -307,7 +309,7 @@ back to `claude` (in a different role) with the scenario's
 `{score: 0-10, reasoning: string}`; malformed answers are marked
 `failed` (score 0) rather than crashing the run.
 
-The judge pass is **opt-in** and never gates anything — judge models
+The judge pass is **opt-in** and never gates anything: judge models
 are stochastic and we don't want a structural-rubric-stable diff to
 churn on judge variance. Use it for "did the agent's reasoning make
 sense, not just whether it referenced the right finding?"
@@ -319,22 +321,22 @@ The PR workflow at `.github/workflows/evals-pr.yml` triggers on PRs
 touching detector / scoring / language / CLI / evals code:
 
 1. Builds the PR's crimes binary.
-2. Runs `pnpm run evals:setup` — materialises the gitignored OSS
+2. Runs `pnpm run evals:setup`: materialises the gitignored OSS
    fixture bodies. Without it every scan below runs against an empty
    directory.
-3. Runs `pnpm --filter evals-runner evals:verify-scenarios` — checks
+3. Runs `pnpm --filter evals-runner evals:verify-scenarios`: checks
    that every scenario's expected findings actually fire on its
    fixture.
-4. Runs `pnpm run evals:replay` — re-scores every committed result in
+4. Runs `pnpm run evals:replay`: re-scores every committed result in
    the pinned baseline against the PR's structural rubric. No agent
    calls.
-5. Runs `pnpm run evals:diff` — compares per-agent pass rates from
+5. Runs `pnpm run evals:diff`: compares per-agent pass rates from
    the replay to the pinned summary. Writes
    `evals/diff-summary.md`.
 6. Posts (or updates a single) PR comment with the markdown diff.
 
 The **pinned baseline** is the newest `evals/results/<version>/` that
-holds both agent result files and a `summary.json` — not simply the
+holds both agent result files and a `summary.json`: not simply the
 newest directory, since `evals:ranking` writes a `ranking.json`-only
 directory on every patch bump. `evals:replay` and `evals:diff` share
 that selection so they can never compare two different samples.
@@ -345,7 +347,7 @@ way the job stays green. Investigate flagged regressions before merging
 detector changes.
 
 **Having nothing to measure is a gate.** Each of these commands exits
-`2` rather than `0` when its input is missing — no results to replay,
+`2` rather than `0` when its input is missing: no results to replay,
 no replay output to diff, a fixture still absent from disk. All three
 used to report that state and exit 0, so the job went green having
 measured nothing. See `evals/README.md` § Exit codes.
@@ -385,7 +387,7 @@ Each scenario in `evals/scenarios/<kind>.json` is an object:
 
 `expected_artifacts` is what the structural rubric checks against.
 `judge_questions` is what the opt-in judge pass asks. Both are
-optional — supply only the checks that make sense for the scenario.
+optional: supply only the checks that make sense for the scenario.
 
 ## OSS fixture rot
 
@@ -408,9 +410,9 @@ just the CLI you have available.
 
 ## See also
 
-- [`evals/README.md`](../evals/README.md) — the contributor-facing
+- [`evals/README.md`](../evals/README.md): the contributor-facing
   quick reference (same content but lives next to the harness).
-- [`docs/scoring.md`](./scoring.md) — the per-finding score model
+- [`docs/scoring.md`](./scoring.md): the per-finding score model
   the eval rubric tests detectors against.
-- [§5 of `.planning/archive/0.7.0-calibration-evidence-loop.md`](https://github.com/ortomate/crimes/blob/main/.planning/archive/0.7.0-calibration-evidence-loop.md)
-  — the spec the harness implements.
+- [§5 of `.planning/archive/0.7.0-calibration-evidence-loop.md`](https://github.com/ortomate/crimes/blob/main/.planning/archive/0.7.0-calibration-evidence-loop.md):
+the spec the harness implements.

@@ -19,39 +19,38 @@ it. This file exists so a decision to *not* change a detector is as
 recorded as a decision to change one.
 
 Each entry states the disposition. `Decided: no change` means the
-behaviour was examined and judged correct — not that it was
+behaviour was examined and judged correct, not that it was
 unexamined.
 
 ## Status at a glance
 
 | Item | Status |
 |---|---|
-| [`swallowed_error` volume](#swallowed_error-volume-on-the-self-scan) | Decided — no change, handled by triage |
+| [`swallowed_error` volume](#swallowed_error-volume-on-the-self-scan) | Decided: no change, handled by triage |
 | [Self-scan triage policy](#self-scan-triage-policy-016x) | Applied; markdown suppressions since retired |
 | [`dependency_provenance_gap` negation globs](#dependency_provenance_gap-ignores-pnpm-workspace-negation-globs) | **Fixed** in `a5ab6e5` |
-| [`fingerprintFinding` collisions](#fingerprintfinding-collisions) | **Fixed** in `ee799ea` — `schema_version` 0.4.0 |
+| [`fingerprintFinding` collisions](#fingerprintfinding-collisions) | **Fixed** in `ee799ea`: `schema_version` 0.4.0 |
 | [`exact_duplicate_block` non-determinism](#adjacent-found-while-measuring) | **Fixed** in `9ab8bdc` |
 | [`unbounded_async_fanout` in the index builders](#what-is-deliberately-still-visible-and-why) | **Fixed** in `9ab8bdc` |
 | [`large_file` has no `docs` shape](#self-scan-triage-policy-016x) | **Fixed** in `26c8c4b` |
-| [`blast_radius` scale](#blast_radius-three-shapes-and-the-numbers-behind-each) | **Fixed** in `0ac0a5e` — log-scaled |
-| [`agent_risk` shape](#agent_risk-what-we-know-and-what-we-believe) | **Inputs fixed** in `0.23.0`; the *mechanism* is still parked — see below |
-| [The intrinsics were never calibrated](#0230--the-intrinsics-were-never-calibrated) | **Fixed** in `0.23.0` — 28 detectors had no judgement, only a fallback |
+| [`blast_radius` scale](#blast_radius-three-shapes-and-the-numbers-behind-each) | **Fixed** in `0ac0a5e`: log-scaled |
+| [`agent_risk` shape](#agent_risk-what-we-know-and-what-we-believe) | **Inputs fixed** in `0.23.0`; the *mechanism* is still parked: see below |
+| [The intrinsics were never calibrated](#0230--the-intrinsics-were-never-calibrated) | **Fixed** in `0.23.0`: 28 detectors had no judgement, only a fallback |
 | [`STRUCTURAL_CEILING`'s stated band](#the-band-the-ceiling-was-fitted-to-does-not-exist) | **Refuted** in `0.23.0`; the *level* is still unvalidated |
-| [Ceiling vs monotonic squash](#0240--the-ceiling-becomes-a-scale) | **Decided** in `0.24.0` — squash, on measurement |
+| [Ceiling vs monotonic squash](#0240--the-ceiling-becomes-a-scale) | **Decided** in `0.24.0`: squash, on measurement |
 
 ---
 
 ## `swallowed_error` volume on the self-scan
 
-**Status:** Decided — no detector change. Handled by triage.
+**Status:** Decided: no detector change. Handled by triage.
 **Raised:** 0.16.x cleanup, after `swallowed_error` returned 59 findings
 on a self-scan of 406.
 
 ### What the numbers actually are
 
 The initial read was "58 hits, mostly the `safelyBuildX` helpers in
-`packages/core/src/indexes.ts`". Measured, it is more diffuse and more
-interesting:
+`packages/core/src/indexes.ts`". Measured, it is spread across several function families:
 
 | | count |
 |---|---|
@@ -61,18 +60,18 @@ interesting:
 | in `indexes.ts` | 8 |
 | distinct files | 32 |
 
-Of the 5 `medium`, **4 are in `examples/risky-service/`** — the fixture
+Of the 5 `medium`, **4 are in `examples/risky-service/`**: the fixture
 built to trigger this detector. Those firing at `medium` is the
 detector working. Exactly one non-fixture `medium` exists:
 `probeShallow` in `packages/core/src/git/churn.ts`.
 
 Grouped by enclosing function, the 54 `low` findings are five families:
 
-- `safelyBuild*` (8) — `indexes.ts`
-- `read*` (~14) — `readManifest`, `readLockfile`, `readCreatedAt`, …
-- `parse*` (~10) — `parse`, `parseFile`, `parsePyFile`, `parseTriage`
-- probe predicates (~7) — `exists`, `isFile`, `isGitRepo`, `refExists`
-- `load*` (~6) — `loadConfig`, `loadScenarios`, `loadBinSurface`
+- `safelyBuild*` (8): `indexes.ts`
+- `read*` (~14): `readManifest`, `readLockfile`, `readCreatedAt`, …
+- `parse*` (~10): `parse`, `parseFile`, `parsePyFile`, `parseTriage`
+- probe predicates (~7): `exists`, `isFile`, `isGitRepo`, `refExists`
+- `load*` (~6): `loadConfig`, `loadScenarios`, `loadBinSurface`
 
 ### Why the `safelyBuild*` family is already handled
 
@@ -84,7 +83,7 @@ widening is already doing its job.
 
 ### The three options, and why the first two are wrong
 
-**Widen `BEST_EFFORT_FUNCTION_RE` — rejected.** To silence the
+**Widen `BEST_EFFORT_FUNCTION_RE`: rejected.** To silence the
 remaining families the regex would have to absorb `read*`, `parse*`,
 `load*`, `exists*`. Those prefixes do not announce failure tolerance.
 `readUser()` that swallows its error is a genuine bug in most
@@ -92,7 +91,7 @@ codebases, and this regex ships to every user of the tool. Trading
 product-wide precision to quiet one repo's self-scan is the exact move
 the "never weaken a check" rule exists to stop.
 
-**`allowedFunctions` — rejected.** Repo-local, so it does not damage
+**`allowedFunctions`: rejected.** Repo-local, so it does not damage
 other users, which makes it strictly better than the regex. But it
 would need roughly 30 entries, and the names it would have to carry
 (`readFile`, `parse`, `loadConfig`) are generic enough that adding them
@@ -100,17 +99,17 @@ would also blind this repo to *future* real swallows in functions that
 happen to share a name. It hides findings rather than dispositioning
 them.
 
-**Triage — taken.** Because the detector is not wrong. A reader cannot
+**Triage: taken.** Because the detector is not wrong. A reader cannot
 tell from the name `readManifest` that a failure is tolerated and
 returns `undefined`; the finding is a fair observation that the
 tolerance is undocumented. The problem is volume, not correctness, and
 volume is what `.crimes/triage.json` is for. Triage keeps each finding
 visible, attributed, and re-surfaceable rather than deleted.
 
-The one non-fixture `medium` — `probeShallow` returning `false` when
+The one non-fixture `medium` (`probeShallow` returning `false` when
 `git rev-parse --is-shallow-repository` fails, so a failed probe is
 indistinguishable from "history is complete" and `historyLimited` is
-never set — was triaged separately and then dispositioned `wont-fix` on
+never set) was triaged separately and then dispositioned `wont-fix` on
 its own merits, not folded into the bulk decision above.
 
 The reason is in the triage entry and worth repeating here, because the
@@ -119,7 +118,7 @@ inside the same `Promise.all` as `git log`, so if git were missing or
 the repo unreadable the log call throws first and the enclosing catch
 already returns `gitAvailable: false`. The only way that handler runs is
 git older than 2.15, which predates
-`rev-parse --is-shallow-repository` — and those versions cannot produce
+`rev-parse --is-shallow-repository`: and those versions cannot produce
 a shallow clone this code would need to warn about. Returning `false` is
 correct; returning "unknown" would emit a false `historyLimited` warning
 on every scan with old git.
@@ -132,9 +131,9 @@ on every scan with old git.
 are committed and meant to be argued with.
 
 The self-scan went 410 findings / 30 high to **250 / 0 high** in the
-default view. Nothing was deleted — with `--show-triaged
---show-suppressed` the scan still reports 388 / 26 high. The reduction
-is four levers, in descending order of how much they should be trusted:
+default view. Nothing was deleted, with `--show-triaged
+--show-suppressed` the scan still reports 388 / 26 high. Four changes
+account for the reduction, listed by confidence in each change:
 
 **1. Config excludes (410 → 388).** Two of these are plain bugs rather
 than judgement calls:
@@ -144,7 +143,7 @@ than judgement calls:
   has always been there. Its 9 findings are the crimes the fixture was
   *built* to contain. Scanning your own fixture and reporting its
   deliberate crimes as your own is a measurement error.
-- `docs/superpowers/**` — archived plan and spec documents from a
+- `docs/superpowers/**`: archived plan and spec documents from a
   one-time workflow, never edited after their milestone. Same class as
   `.planning/`.
 
@@ -157,15 +156,15 @@ the defaults are re-listed in the config.
 **3. Suppressions (21, now 2).** Only categorical false positives, each
 with a mechanism a reviewer can check:
 
-- `hardcoded_local_path` on `docs/**` (2) — the docs that *document*
+- `hardcoded_local_path` on `docs/**` (2): the docs that *document*
   the detector contain example bad paths to show the reader what it
   catches. Self-referential. **Still in force.**
-- `large_file` on `**/*.md` (19) — `large_file` had two policy shapes,
+- `large_file` on `**/*.md` (19): `large_file` had two policy shapes,
   `domain` and `test_file`, so prose was scored against the domain-code
   line budget. Reference documentation is supposed to be long. The real
   fix is a `docs` shape in the detector; until then this is a
   suppression, not an acceptance.
-  **Retired in `26c8c4b`** — the `docs` shape shipped, so all 19 entries
+  **Retired in `26c8c4b`**: the `docs` shape shipped, so all 19 entries
   were dropped. See [the `docs` shape](#large_file-had-no-shape-for-prose)
   below for what happened when they came off.
 
@@ -177,7 +176,7 @@ with a mechanism a reviewer can check:
 | `needs-design` | 19 | every remaining `high` |
 
 `high_fan_in_fan_out` is `wont-fix` because `packages/core` is a hub by
-design — the finding schema and scoring are meant to be depended on
+design: the finding schema and scoring are meant to be depended on
 widely. `layer_violation` is the detector that would catch a genuinely
 wrong edge, and it reports nothing.
 
@@ -190,7 +189,7 @@ during a tooling pass.
 ### What is deliberately still visible, and why
 
 250 findings remain untriaged and unsuppressed. They are **accepted as
-backlog, not dismissed** — every type below was looked at and given a
+backlog, not dismissed**: every type below was looked at and given a
 decision. What they deliberately did *not* get is a per-finding triage
 entry, because an entry that says nothing more than "acknowledged"
 converts a visible number into a silent one while claiming credit for
@@ -210,22 +209,22 @@ No `high` remains in this set; the split is 165 `medium` / 85 `low`.
 | type | n | decision |
 |---|---|---|
 | `large_function` | 101 | Accept. Real size debt, same class as the 19 triaged highs. Detector `run` bodies dominate. Splitting one changes its output, so it belongs in a scoped change with an eval re-run. |
-| `large_file` | 33 | Accept, as above. What remains is code — the prose cases moved from a suppression to the `docs` shape in `26c8c4b`, which leaves five of them visible at `low`. |
+| `large_file` | 33 | Accept, as above. What remains is code: the prose cases moved from a suppression to the `docs` shape in `26c8c4b`, which leaves five of them visible at `low`. |
 | `boolean_naming_drift` | 30 | Accept. 29 of 30 are `low`. Renaming a boolean is cheap individually and churns broadly; worth a dedicated sweep, not a drive-by. |
-| `sync_io_in_hotpath` | 25 | Accept. All `low`. Concentrated in CLI startup and config loading, which run once per process — "hotpath" overstates it for a short-lived CLI. |
-| `exact_duplicate_block` | 15 | Accept. The determinism caveat this row carried is **resolved** in `9ab8bdc` — its evidence strings are now reproducible and safe to act on. |
+| `sync_io_in_hotpath` | 25 | Accept. All `low`. Concentrated in CLI startup and config loading, which run once per process: "hotpath" overstates it for a short-lived CLI. |
+| `exact_duplicate_block` | 15 | Accept. The determinism caveat this row carried is **resolved** in `9ab8bdc`: its evidence strings are now reproducible and safe to act on. |
 | `todo_density` | 9 | Accept. TODOs that are tracked prose, mostly in non-domain tier. |
 | `direct_date` | 6 | Accept. `clock.ts` exists and domain code uses it; these are the eval runner and renderers stamping display timestamps, where a clock seam adds no testability. |
 | `weak_test_signal` | 6 | Accept. All in the non-domain tier. |
 | `magic_domain_literal_scatter` | 5 | Accept. Formatting-sensitive by construction and already `low`/`medium`. The fingerprint collision this type suffered is fixed separately in `ee799ea`. |
-| `contract_drift` | 4 | Accept — **representational, not real**. Each pairs a TS interface with its Zod schema *in the same file* with 100% field overlap; the "disagreements" are `(typeof X)[number]` vs `enum` and `SuppressionEntry[]` vs `array[]`, i.e. the detector cannot see that a Zod enum and a TS union denote the same set. Already down-ranked by a −0.12 same-file delta. |
+| `contract_drift` | 4 | Accept: **representational, not real**. Each pairs a TS interface with its Zod schema *in the same file* with 100% field overlap; the "disagreements" are `(typeof X)[number]` vs `enum` and `SuppressionEntry[]` vs `array[]`, i.e. the detector cannot see that a Zod enum and a TS union denote the same set. Already down-ranked by a −0.12 same-file delta. |
 | `option_bag_junk_drawer` | 3 | Accept. Detector option bags are genuinely heterogeneous by design. |
 | `near_duplicate_block` | 3 | Accept. Same determinism caveat as `exact_duplicate_block`, and resolved by the same change. |
-| `unbounded_async_fanout` | 2 | **Fixed in `9ab8bdc`.** `buildFunctionHashIndex` and `buildJsxShapeIndex` both `Promise.all`-ed a `readFile` per candidate file with no bound — on a large enough repo that opens every source file at once and fails with `EMFILE`. Both now read through a shared `mapWithConcurrency` pool. Self-scan 2 → 0. |
+| `unbounded_async_fanout` | 2 | **Fixed in `9ab8bdc`.** `buildFunctionHashIndex` and `buildJsxShapeIndex` both `Promise.all`-ed a `readFile` per candidate file with no bound: on a large enough repo that opens every source file at once and fails with `EMFILE`. Both now read through a shared `mapWithConcurrency` pool. Self-scan 2 → 0. |
 | `name_behavior_mismatch` | 2 | Accept. `parseFile` and `readStdinIfAvailable` do exactly what they say; the detector reads caching/IO as an unadvertised side effect. |
 | `logic_in_comments` | 2 | Accept. Non-domain tier. |
-| `duplicated_role_status_plan_check` | 1 | Accept — **self-referential**. It fires on `duplicated-role-status-plan-check.ts`, because the detector's own source contains the literal `"admin"` three times as its detection patterns. Same shape as the suppressed `hardcoded_local_path` docs cases. |
-| `dependency_provenance_gap` | 1 | **Fixed in `a5ab6e5`** — see below. Reports nothing now; its triage entry was retired in `26c8c4b` as dead. |
+| `duplicated_role_status_plan_check` | 1 | Accept: **self-referential**. It fires on `duplicated-role-status-plan-check.ts`, because the detector's own source contains the literal `"admin"` three times as its detection patterns. Same shape as the suppressed `hardcoded_local_path` docs cases. |
+| `dependency_provenance_gap` | 1 | **Fixed in `a5ab6e5`**: see below. Reports nothing now; its triage entry was retired in `26c8c4b` as dead. |
 | `commented_out_code` | 1 | Accept. |
 | `singular_plural_type_mismatch` | 1 | Accept. |
 
@@ -236,7 +235,7 @@ No `high` remains in this set; the split is 165 `medium` / 85 `low`.
 **Status:** **Fixed** in `a5ab6e5`, before 0.16.0 shipped.
 
 First, the good half: this detector **independently found a real
-CI-breaking bug in this repo**, and described it exactly right —
+CI-breaking bug in this repo**, and described it exactly right:
 
 ```
 2 declared dependenc(ies) with no lockfile entry:
@@ -262,7 +261,7 @@ packages:
 collects every `- "glob"` entry verbatim and has no concept of a leading
 `!`. So the negation is read as an ordinary glob, `examples/*` still
 matches, and the fixture is counted as one of the "10 workspace
-manifests compared" — when pnpm itself no longer installs it.
+manifests compared": when pnpm itself no longer installs it.
 
 Net effect: the detector reports a manifest/lockfile disagreement for a
 package the package manager deliberately excludes, on any repo that uses
@@ -279,14 +278,14 @@ is ignored, and a sibling under the same include glob that the negation
 does not cover still reports its missing dependency.
 
 No version bump was needed. The policy in `CLAUDE.md` bumps on changes
-that move the eval baseline; this one provably did not — no fixture uses
+that move the eval baseline; this one provably did not: no fixture uses
 negation syntax, and `evals:replay` re-scored all 96 pinned results with
 96 identical, 0 changed.
 
 Self-scan `dependency_provenance_gap` went 1 → 0. The triage entry that
 had covered the remaining finding was retired in `26c8c4b` as dead: it
 pinned "unpinned specifiers" on the root manifest, and those specifiers
-belonged to `examples/risky-service` — the package the negation fix
+belonged to `examples/risky-service`: the package the negation fix
 removed from the workspace in the first place.
 
 ---
@@ -294,7 +293,7 @@ removed from the workspace in the first place.
 ## `fingerprintFinding` collisions
 
 **Status:** **Fixed** in `ee799ea`, as `schema_version` 0.4.0. The
-original decision — defer to a minor that bumps `schema_version` — is
+original decision (defer to a minor that bumps `schema_version`) is
 kept below verbatim, because what shipped is that recommendation and the
 reasoning is what makes the shape of the fix legible.
 **Raised:** documented in `fingerprint.ts` as a known limitation,
@@ -340,7 +339,7 @@ Do not patch it in a cleanup pass, for three reasons.
    a declaration. That silently changes what the field means for every
    consumer reading it.
 2. **A per-detector fix is the wrong shape.** The bug is in the
-   fingerprint function's inputs, so it wants one general answer — an
+   fingerprint function's inputs, so it wants one general answer: an
    explicit optional `discriminator` on `Finding` that a detector
    populates when `(type, file, symbol)` is not unique, folded into the
    fingerprint when present. Each colliding detector already has a
@@ -348,7 +347,7 @@ Do not patch it in a cleanup pass, for three reasons.
    duplicate-block family (already in its evidence string).
 3. **The cost should be paid once.** Any change to fingerprint
    composition invalidates `.crimes/baseline.json` and
-   `.crimes/suppressions.json` in the wild — pinned entries stop
+   `.crimes/suppressions.json` in the wild: pinned entries stop
    matching, old findings read as "fixed", new ones as "new". The repo
    already has a designed channel for this (suppressions resurface on a
    minor for re-confirmation, per `docs/feedback.md`), so the right
@@ -367,7 +366,7 @@ Exactly that. `schema_version` went 0.3.0 → 0.4.0; `Finding` gained an
 optional `discriminator`; `fingerprintFinding` appends `::<value>` when
 one is present and emits the unchanged three-part string when it is not,
 so no other detector's fingerprints moved. The three colliding detectors
-populate it from the thing that makes their findings different — the
+populate it from the thing that makes their findings different: the
 literal for scatter, the 12-character body hash for the duplicate-block
 pair, which is the same string already printed in their evidence, so a
 fingerprint and the finding it names can be matched up by eye.
@@ -380,7 +379,7 @@ moment an unrelated finding appeared.
 Self-scan collisions: **3 → 0**, over 254 findings.
 
 **Migration.** Pinned `baseline.json` / `suppressions.json` entries for
-those three types stop matching — the old fingerprint reads as fixed,
+those three types stop matching: the old fingerprint reads as fixed,
 the new one as new. That churn is the repair rather than a cost of it:
 re-recording an entry is what makes a suppression mean the one finding
 its author actually looked at, which is precisely what a colliding
@@ -394,7 +393,7 @@ so nothing here needed rewriting.
 `exact_duplicate_block` is **not deterministic** across runs on an
 unchanged tree. Three consecutive scans of the same commit produced
 identical finding *identity* and severity counts, but 3 findings
-differed in content — the same anchor file reported
+differed in content: the same anchor file reported
 `hash 3dbfcb76d2cc… across 6 file(s)` on one run and
 `hash 3d33dfe315b3… across 9 file(s)` on another. A function belonging
 to more than one duplicate group appears to pick its group by map
@@ -404,7 +403,7 @@ Identity is stable, so baselines and `diff` are not affected, but the
 evidence string a user reads is not reproducible.
 
 **Status:** **Fixed** in `9ab8bdc`, together with the fan-out bound
-above — they turned out to be the same bug wearing two hats.
+above: both failures had the same cause.
 
 The guess was right. `buildFunctionHashIndex` inserted into its maps
 from *inside* the `Promise.all` callbacks, so map insertion order
@@ -427,7 +426,7 @@ re-run the original note called for.
 0.16.x triage pass rather than as an entry of its own.
 
 The 19 `**/*.md` suppressions recorded above were explicitly *not* an
-acceptance — the note said the real fix was a `docs` shape in the
+acceptance: the note said the real fix was a `docs` shape in the
 detector. This is that shape.
 
 `docs` covers the extensions whose whole purpose is prose (`.md`,
@@ -435,7 +434,7 @@ detector. This is that shape.
 1000-line budget and severity capped at `low` / `medium`, the same
 posture `test_file` already had. 1000 is the point where one document
 stops being something a reader or an agent holds at once and wants to
-become a directory of pages — which is the split the detector asks for.
+become a directory of pages, which is the split the detector asks for.
 Configurable as `thresholds.largeFile.docs`.
 
 Two boundaries worth stating, because both were judgement calls:
@@ -445,8 +444,8 @@ Two boundaries worth stating, because both were judgement calls:
   extending "it isn't code" to cover it would have been the same
   precision trade the `swallowed_error` section rejects.
 - **`agent_risk` sits above `test_file`, below `domain`.** An oversized
-  document is a real context cost — an agent told to follow it has to
-  load the whole thing to find the paragraph that applies — so it does
+  document is a real context cost (an agent told to follow it has to
+  load the whole thing to find the paragraph that applies) so it does
   not get the test-file discount.
 
 ### What happened when the suppressions came off
@@ -464,12 +463,12 @@ longer fired. The remaining five surface as `low` findings:
 | `docs/agent-usage.md` | 1164 |
 
 They are left visible on purpose. Replacing a blanket suppression with a
-policy is supposed to leave some findings standing — if the new shape
+policy is supposed to leave some findings standing: if the new shape
 silenced everything the old suppression silenced, it would be the
 suppression with extra steps. These five are ones a reader can now
 agree or disagree with, which the suppression never allowed.
 
-Self-scan default view: 254 findings, 0 `high` — five of them these
+Self-scan default view: 254 findings, 0 `high`: five of them these
 prose entries, which were previously hidden.
 
 
@@ -491,8 +490,8 @@ Measured on hono, whole repo, `--all`, 376 findings:
 
 The linear score saturated (47% of zulip findings at exactly 1.0 was the
 original complaint). Quartile ranking was the standing recommendation
-and removed the top-end pinning, but cost resolution — 22 distinct
-values down to 4 — and could not separate a tied block bigger than a
+and removed the top-end pinning, but cost resolution (22 distinct
+values down to 4) and could not separate a tied block bigger than a
 quartile, so hono's 54%-at-0 simply became 53%-at-0.25. It also gave up
 cross-repo comparability.
 
@@ -506,7 +505,7 @@ it.
 
 Direct fan-in was planned as a strict tiebreaker on the closure. It ships
 as a bounded 15% contributor instead, because a strict tiebreak is
-invisible at the two decimals `scores` are reported to — at a closure of
+invisible at the two decimals `scores` are reported to: at a closure of
 197 the gap to 198 is 0.0006, so hono's plateau would have kept reading
 the same value six times.
 
@@ -517,8 +516,8 @@ the same value six times.
 **Disposition: still parked, but no longer blocked.** The 0.18.1 change
 (`ce0ccab`) removed a defect; it did not settle what this score should
 be, and the difference matters. What has changed since this was written
-is that the blocking question — whether the evals can see a ranking
-change at all — is answered, and `ce0ccab` is measured to have improved
+is that the blocking question (whether the evals can see a ranking
+change at all) is answered, and `ce0ccab` is measured to have improved
 ranking rather than merely believed to have. See
 "Question 4 is answered" below.
 
@@ -526,11 +525,13 @@ ranking rather than merely believed to have. See
 class table, the 0.3 ceiling and every per-detector intrinsic are
 exactly as unvalidated as before.
 
-### What we know — measured, reproducible
+<span id="what-we-know--measured-reproducible"></span>
+
+### What we know: measured, reproducible
 
 - **It was a length ranking.** Top 20 by rank before the change: 15 of
   20 on `ebg` and 18 of 20 on zulip were `large_function` /
-  `large_file`. On zulip — a repo that is **71% Python** — the top 20
+  `large_file`. On zulip (a repo that is **71% Python**) the top 20
   contained **zero Python findings**.
 - **Two mechanisms caused it**, not one. Length detectors fire on almost
   every large file *and* scale their own intrinsic with line count, so
@@ -543,14 +544,16 @@ exactly as unvalidated as before.
   hono structural 14→0, distinct detector types in the top 20 8→10, with
   `boolean_naming_drift`, `option_bag_junk_drawer`,
   `name_behavior_mismatch` and `hardcoded_localhost` at the top.
-- **The ceiling had to be measured.** At 0.4 — the first value tried —
+- **The ceiling had to be measured.** At 0.4 (the first value tried)
   212 zulip findings pinned to the cap and `large_file` still outranked
   `contract_drift`, because 0.4 sits *inside* the agent-signal band
   (0.31–0.53). 0.3 is that band's floor.
 - **One monoculture replaced another.** zulip's top 20 is now 16 of 20
   `sync_io_in_hotpath`.
 
-### What we believe — not yet established
+<span id="what-we-believe--not-yet-established"></span>
+
+### What we believe: not yet established
 
 - **That the class table is the right abstraction.** Sorting types into
   `structural` / `agent_signal` / `standard` is a hand-maintained
@@ -584,7 +587,7 @@ Nothing, and that is itself the finding. `structural_pass_rate` moved
 release that rebuilt the ranking twice over.
 
 The metric matches detector **ids** in response text, so it cannot see a
-ranking change at all — an agent that quotes the right id still quotes
+ranking change at all: an agent that quotes the right id still quotes
 it whether that finding ranked 1st or 30th. The belief listed above
 ("that the evals can even see a ranking change") is now measured rather
 than assumed: **they cannot.**
@@ -594,12 +597,14 @@ currently no way to tell whether the `agent_risk` change improved
 ranking, and no amount of re-running the existing suite will produce
 one.
 
-### Question 4 is answered — `ce0ccab` did improve ranking
+<span id="question-4-is-answered--ce0ccab-did-improve-ranking"></span>
+
+### Question 4 is answered: `ce0ccab` did improve ranking
 
 `pnpm run evals:ranking` (`d7f43f8`) measures the **scan alone**: nDCG
 over the order the scan emitted, against each scenario's expected
 findings as graded relevance labels. No agent is invoked, so there is
-no noise band — any delta is real — and `--cli` scans this tree's
+no noise band (any delta is real) and `--cli` scans this tree's
 fixtures with another build's binary, holding the fixture constant so
 the delta belongs to the scanner. Fixtures and scenarios are
 byte-identical between the 0.17.1 and 0.18.1 commits, so nothing else
@@ -615,12 +620,12 @@ demonstrate a ranking change and are excluded):
 | expect `large_function` / `large_file` | 6 | 0.459 → 0.406 (**−0.053**) | 0 | 5 |
 | expect anything else | 22 | 0.325 → 0.347 (**+0.022**) | 19 | 2 |
 
-Both "down" rows in the second bucket moved −0.004 and −0.003 — flat.
+Both "down" rows in the second bucket moved −0.004 and −0.003: flat.
 
 So this moves from *believed* to *measured*: **`ce0ccab` demoted length
 findings and promoted differentiated ones, in the ranking and not only
-in which detector dominates.** The belief listed above — "that the
-evals can see any of this" — was true of `structural_pass_rate` and is
+in which detector dominates.** The belief listed above ("that the
+evals can see any of this") was true of `structural_pass_rate` and is
 now false of the suite as a whole.
 
 Three things this does **not** settle, and none of them should be read
@@ -631,13 +636,13 @@ past:
   quoting the wrong thing; the per-scenario table is the result.
 - **It says nothing about the ceiling or the intrinsics.** It compares
   two orderings. Questions 1–3 below are still open and still need
-  their own measurements — what it provides is an instrument to
+  their own measurements: what it provides is an instrument to
   measure them *with*.
 - **Six scenario labels now encode the old ranking.** The six that got
   worse are the ones whose labelled right answer is a length finding,
   and the product has deliberately decided length findings should not
   lead. Re-labelling them would raise the metric without improving the
-  product, so it has not been done — but nobody should read those six
+  product, so it has not been done, but nobody should read those six
   rows as a regression without first saying which of the two they think
   is wrong.
 
@@ -647,12 +652,12 @@ past:
    monotonically so it keeps internal order?
 2. Are per-detector intrinsics calibrated against each other, and what
    would calibrating them look like?
-3. Is one detector at 16 of 20 a problem in itself — should the ranking
+3. Is one detector at 16 of 20 a problem in itself: should the ranking
    diversify across detector types deliberately, the way the default
    view already diversifies across files?
 4. ~~Can any of this be measured other than by reading top-20 lists? A
    ranking-quality metric would turn all of the above from taste into
-   evidence.~~ **Answered** — `pnpm run evals:ranking`, see above. It
+   evidence.~~ **Answered**: `pnpm run evals:ranking`, see above. It
    is the instrument questions 1–3 were waiting on.
 
 Questions 1–3 remain open, and the instrument now exists to settle them
@@ -662,12 +667,12 @@ rather than argue them. Concretely, each is a measurable experiment:
    `evals:ranking --compare` against the current build. A squash that
    preserves order within the structural class should not move the
    differentiated bucket and should move the six length-labelled
-   scenarios — if it moves neither, the ceiling was not the binding
+   scenarios: if it moves neither, the ceiling was not the binding
    constraint and the plateau is not costing anything.
 2. **Are the intrinsics calibrated against each other?** The metric
    cannot answer this on its own: the fixtures label detector *types*,
    not relative importance between two correct findings. This one still
-   needs a scenario built for it — two findings of different types on
+   needs a scenario built for it: two findings of different types on
    the same file, with a defensible answer about which should lead.
 3. **Is 16-of-20 a problem in itself?** `top20_dominant_share`,
    `top20_dominant_type` and `top20_distinct_types` ship on every row
@@ -676,7 +681,7 @@ rather than argue them. Concretely, each is a measurable experiment:
    not decide whether concentration is wrong, and a repo can
    legitimately have one dominant problem.
 
-`ce0ccab` now stands as more than a defect fix — the ranking
+`ce0ccab` now stands as more than a defect fix: the ranking
 improvement is measured, not assumed. **The shape of the score is still
 unsettled**, and the specific constants are still fitted to an
 unvalidated band: nothing here validates the class table, the 0.3
@@ -685,7 +690,9 @@ strength of question 4 being answered.
 
 ---
 
-## `0.23.0` — the intrinsics were never calibrated
+<span id="0230--the-intrinsics-were-never-calibrated"></span>
+
+## `0.23.0`: the intrinsics were never calibrated
 
 **Status: fixed.** All three questions above were run. Question 2 turned
 out to be the root cause of the other two, so it is the only one this
@@ -702,14 +709,14 @@ described in the source as saying "what is actually known: nothing".
 Measured across the corpus, that is not what it said. The 29 *expressed*
 agent-signal bases run **0.35 to 0.80**, so 0.30 sat **below every one
 of them**. A detector that declined to score itself was ranked beneath
-the most lenient deliberate judgement anyone had made — and the group
+the most lenient deliberate judgement anyone had made, and the group
 that declined includes `contract_drift`, `swallowed_error`,
 `duplicated_policy`, `permission_ia_drift`, `unsafe_retry` and
 `mock_saturation`.
 
 The list was not curated. It is every detector whose source never
 assigns the field, which is why it accumulated silently: nothing
-enforced it, and `standard` — the class such a detector lands in — has
+enforced it, and `standard` (the class such a detector lands in) has
 **zero members across all 70 detectors**, so the fallback path was
 invisible in the class table too.
 
@@ -722,15 +729,15 @@ invisible in the class table too.
 > ~0.36) … 0.3 puts the whole structural class at or below the bottom
 > of the agent-signal band.
 
-Checked by building `ce0ccab` itself — the commit that chose the
-constant — and scanning the exact tree the comment cites:
+Checked by building `ce0ccab` itself (the commit that chose the
+constant) and scanning the exact tree the comment cites:
 
 | type | claimed | measured at `ce0ccab` |
 |---|---|---|
 | `sync_io_in_hotpath` | 0.43–0.53 | **0.20**–0.53 |
 | `direct_date` | 0.51 | **0.18**–0.51 |
 | `commented_out_code` | 0.41 | **0.14**–0.41 |
-| `contract_drift` | ~0.36 | **0 findings — does not fire on that tree** |
+| `contract_drift` | ~0.36 | **0 findings: does not fire on that tree** |
 | the band itself | "0.31–0.53" | min **0.12**, p50 0.35, max 0.53 |
 
 Every quoted figure is that type's **maximum**. The band was read off
@@ -749,7 +756,7 @@ constant.** 0.3 is unchanged and still unvalidated.
 
 ### What shipped
 
-`INTRINSIC_DEFAULTS` in `detector-defaults.ts` — one table, every value
+`INTRINSIC_DEFAULTS` in `detector-defaults.ts`: one table, every value
 anchored to a *named expressed peer*, with the anchor written next to
 it. A single table is the point: intrinsics can only be calibrated
 against each other where they can be seen next to each other.
@@ -757,7 +764,7 @@ against each other where they can be seen next to each other.
 A gate in `detector-defaults.test.ts` reads the detector sources and
 fails when a registered detector expresses neither its own intrinsic nor
 a declared one. It reads source rather than carrying a hand-written list
-because a list cannot see a detector added tomorrow — which is the hole
+because a list cannot see a detector added tomorrow, which is the hole
 that let 28 accumulate.
 
 `NEUTRAL_INTRINSIC` is deliberately **left at 0.30** rather than raised
@@ -765,7 +772,9 @@ to the expressed median. Built-ins can no longer reach it, so reaching
 it now means a detector is missing from the table. Raising it would make
 that omission harder to notice.
 
-### Measured effect — a product delta
+<span id="measured-effect--a-product-delta"></span>
+
+### Measured effect: a product delta
 
 Deterministic (`evals:ranking`), split by whether a scenario's labelled
 answer is one of the previously-suppressed types:
@@ -776,14 +785,14 @@ answer is one of the previously-suppressed types:
 | labels only always-expressed types | 33 | 0.4510 → 0.4458 (−0.0053) | **0** | 22 |
 
 Read the second row carefully. Nothing went *up* and the drops are
-uniform and tiny — this is displacement, not regression: 28 detectors
+uniform and tiny: this is displacement, not regression: 28 detectors
 that could not previously surface now do, and everything else shifts
 down a rank. **Those labels were chosen while those 28 were
 suppressed**, which is the same caveat §28 records about the six
 length-labelled scenarios, arriving from a different direction.
 
 The headline aggregate moves +0.0167 (all) and −0.0044 (deep). Only
-three deep-fixture scenarios label any of the 28 at all — itself
+three deep-fixture scenarios label any of the 28 at all: itself
 evidence that the deep fixtures were labelled against a ranking these
 detectors could not reach.
 
@@ -797,7 +806,9 @@ actually fire.
 | mlflow | `sync_io_in_hotpath` 11/20 → 10/20 | 2.85 → 2.59 |
 | pydantic, drf, zulip/zerver | unchanged | unchanged |
 
-### Question 1 — ceiling vs monotonic squash: measured, not taken
+<span id="question-1--ceiling-vs-monotonic-squash-measured-not-taken"></span>
+
+### Question 1: ceiling vs monotonic squash: measured, not taken
 
 A monotonic squash (`min(scored, 0.3)` → `scored * 0.3`) was
 implemented and measured before being reverted.
@@ -808,14 +819,14 @@ implemented and measured before being reverted.
 | priority IS structural | 7 | 0.3658 → 0.3399 (−0.0259) | 0 | 7 |
 
 Both columns are unanimous. It also took structural findings out of the
-top 20 entirely on four of five corpus repos — including pydantic, whose
+top 20 entirely on four of five corpus repos, including pydantic, whose
 top 20 still led with `large_function` 5/20 under the ceiling, and drf's
 15/20. **So the ceiling was not doing the job its comment claims.**
 
 The prediction recorded above was that a squash "should not move the
 differentiated bucket". It moved both, because at 2-decimal rounding a
 monotonic map cannot re-spread the clamped tail without also lowering
-the whole class — the two effects are not separable at the current
+the whole class: the two effects are not separable at the current
 precision. That is a fact about the mechanism worth keeping.
 
 **Not taken**, on grounds of attribution rather than merit: stacking a
@@ -823,14 +834,16 @@ second compensation on top of the missing intrinsics would put two
 findings-moving changes in one baseline and make neither attributable.
 The evidence stands for whoever picks the mechanism up.
 
-### Question 3 — concentration is mostly the repo, not the ranking
+<span id="question-3--concentration-is-mostly-the-repo-not-the-ranking"></span>
+
+### Question 3: concentration is mostly the repo, not the ranking
 
 The "16 of 20 `sync_io_in_hotpath`" figure is **stale**: measured at
 `0.22.0` it is 12 of 20.
 
 More usefully, comparing the dominant type's share of the top 20 against
 its share of the population the head is drawn from (the agent-signal
-class — structural is capped out of the head by design):
+class: structural is capped out of the head by design):
 
 | repo | dominant | head share | population share | lift |
 |---|---|---|---|---|
@@ -840,7 +853,7 @@ class — structural is capped out of the head by design):
 
 **zulip's monoculture is zulip's, not the ranking's.** At lift 1.20 the
 head is very nearly a faithful sample of a repo that genuinely has a lot
-of blocking I/O in Python — which is what the original entry suspected
+of blocking I/O in Python, which is what the original entry suspected
 but could not show. Where the lift *is* high (hono, mlflow), the cause
 is a per-detector intrinsic sitting high relative to its peers, so
 question 3 reduces to question 2 rather than standing beside it.
@@ -848,9 +861,9 @@ question 3 reduces to question 2 rather than standing beside it.
 ### What is still open
 
 - ~~**The mechanism.** Ceiling vs squash, with the evidence above.~~
-  **Decided in `0.24.0`** — see the next section.
+  **Decided in `0.24.0`**: see the next section.
 - **The class table.** Still hand-maintained, and `standard` still has
-  zero members — it is an unlabelled-default bucket, not a considered
+  zero members: it is an unlabelled-default bucket, not a considered
   third category, and its behaviour (no adjustment) is the permissive
   one.
 - **Cross-pack disagreement.** The same charge carries different
@@ -863,7 +876,9 @@ question 3 reduces to question 2 rather than standing beside it.
 
 ---
 
-## `0.24.0` — the ceiling becomes a scale
+<span id="0240--the-ceiling-becomes-a-scale"></span>
+
+## `0.24.0`: the ceiling becomes a scale
 
 **Status: decided, on measurement.** `0.23.0` refuted the ceiling's
 stated rationale but deliberately left the mechanism alone so the input
@@ -883,8 +898,8 @@ a report across the corpus.
 
 That is worse than a tie, because `rank_score = agent_risk * (1 +
 recency * 0.5)`. With half the report on one `agent_risk`, the ordering
-of that half was decided by **`recency`** — a file-age signal with
-nothing to say about agent risk — and then by severity, confidence and
+of that half was decided by **`recency`** (a file-age signal with
+nothing to say about agent risk) and then by severity, confidence and
 file path. Half of pydantic's report was sorted by when its files were
 last touched.
 
@@ -902,7 +917,7 @@ Deterministic, deep fixtures:
 | priority IS structural | 7 | 0.3586 → 0.3382 (−0.0205) | 0 | 5 |
 
 Both columns unanimous, the same shape as against `0.22.0` and slightly
-attenuated. The headline deep mean is 0.3538 → 0.3530 — essentially
+attenuated. The headline deep mean is 0.3538 → 0.3530: essentially
 flat, because the two buckets net out; `all` is 0.4926 → 0.4799. The
 second bucket is the length-labelled scenarios §28 has already
 disowned, plus their neighbours.
@@ -931,7 +946,7 @@ managed it:
 | zulip/zerver | 0 → 0 | 14 → **0** |
 | hono | 0 → 0 | 1 → 0 |
 
-drf stays structural-heavy because it *is* — 72 of its 88 findings are
+drf stays structural-heavy because it *is*: 72 of its 88 findings are
 structural, so the head cannot be anything else.
 
 No finding is added or removed on any corpus repo and severity
@@ -941,7 +956,7 @@ dominant-type lift falls 2.59 → 2.34, zulip holds at 1.20, hono at
 previously had no agent-signal dominant type at all.
 
 On pydantic the top-5 file *set* is unchanged; the order moves.
-`core_schema.py` — 19 findings, 16 of them low, all length — goes from
+`core_schema.py` (19 findings, 16 of them low, all length) goes from
 2nd to 5th, and `mypy.py` and `fields.py`, which carry high-severity
 differentiated findings, move up. The clearer effect is *within* a
 file: `_generate_schema.py`'s God Functions now rank by their own size
@@ -964,7 +979,7 @@ table.
 
 ### Still unsettled
 
-The **level** 0.3 remains unvalidated — nothing here chooses it, and
+The **level** 0.3 remains unvalidated: nothing here chooses it, and
 correcting a mechanism does not validate a constant. The class table is
 still hand-maintained with `standard` holding zero members, the two
 packs still disagree about `sync_io_in_hotpath`, and 41 intrinsics are

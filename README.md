@@ -97,7 +97,7 @@ and reports what changed. Agent/JSON calls receive a safe update command on
 stderr. CI stays read-only. Custom instructions and hook settings are preserved;
 `--no-skill-update` skips maintenance. [Setup and upgrade guide](./docs/skills.md).
 
-## Status — crimes@0.29.0
+## Status: crimes@0.29.0
 
 0.29 reuses analysis inputs, adds interruption recovery for pin migration,
 and expands the completed-edit benchmark. JSON schema remains **0.8.0**.

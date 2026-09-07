@@ -33,7 +33,7 @@ duplicate location in `evidence`.
 ## Exact Duplicate Block (`exact_duplicate_block`)
 
 **What it detects.** Function bodies or self-contained statement
-blocks with identical AST hashes across two or more locations —
+blocks with identical AST hashes across two or more locations:
 including hash-equivalent forms (whitespace, identifier rename,
 reformatted but structurally identical).
 
@@ -48,12 +48,12 @@ each block: 34 lines, 8 statements
 ```
 
 **Why it matters.** Three copies of the same logic is a refactor
-that was almost done — usually one team member started it, didn't
+that was almost done: usually one team member started it, didn't
 finish, and the others copied the older version. Every bug-fix has
 to be applied three times; one of them will be missed.
 
 **Suggested fix.** Extract the body into a named function in a
-shared module. Where the inputs differ slightly, parameterise them —
+shared module. Where the inputs differ slightly, parameterise them:
 the AST hash collapses identifier rename, so the detector already
 matched parameter-renames as duplicates.
 
@@ -62,7 +62,7 @@ matched parameter-renames as duplicates.
 ## Near-Duplicate Block (`near_duplicate_block`)
 
 **What it detects.** Function bodies that match by AST hash with
-small deltas — typically one extra statement, one branch flipped,
+small deltas: typically one extra statement, one branch flipped,
 or one parameter substituted. Uses a Jaccard-style similarity over
 the hash bag rather than an exact-match equality.
 
@@ -117,4 +117,4 @@ the policy auditable.
 `hasAdminRole(user)`) into a shared policy module. Every call site
 imports the predicate; future policy edits happen in one place. The
 detector continues to flag if duplicate copies of the *new* helper
-appear — by design.
+appear: by design.

@@ -1,4 +1,4 @@
-PRD: crimes — Agent-Native Codebase Risk Scanner
+PRD: crimes: Agent-Native Codebase Risk Scanner
 
 1. Summary
 
@@ -474,7 +474,7 @@ One type, one claim
 
 `type` names the detector. `claim` names what the detector alleged.
 Those coincide only while a detector says exactly one thing, and some
-detectors say several — `weak_test_signal` alleges both "this test
+detectors say several: `weak_test_signal` alleges both "this test
 contains no expect/assert calls" and "this test only uses weak assertion
 matchers", which are different questions with different answers and
 different fixes.
@@ -494,7 +494,7 @@ Concretely:
 - A detector that can make more than one claim declares them, and every
   finding it emits carries the claim it makes.
 - `claim` is folded into the fingerprint as `<type>/<claim>`, so a pin
-  recorded against one claim cannot silence another — including after
+  recorded against one claim cannot silence another, including after
   the same code changes claim underneath it.
 - `detectors.disable` accepts `<type>/<claim>`.
 - A finding may assert a conjunction about one subject (`config_drift`
@@ -1035,13 +1035,13 @@ The README should include:
 Two keys govern how much the scan is allowed to skip, and both default
 to the safe-but-quiet answer with an explicit way out (added 0.25.0):
 
-- `excludeDefaults` (default `true`) — a user `exclude` is **additive**
+- `excludeDefaults` (default `true`): a user `exclude` is **additive**
   to the built-in list. Set `false` for wholesale replacement, which is
   the only way to *un*-exclude something the defaults drop. Governs
   `assets.exclude` too. Before 0.25.0 replacement was the only
   behaviour, so setting one pattern silently un-excluded `node_modules`
   and every lockfile.
-- `honourToolingExcludes` (default `true`) — skip paths the repository's
+- `honourToolingExcludes` (default `true`): skip paths the repository's
   own tooling excludes, but only when **two or more independent tools**
   name the same path (ruff, coverage, pyright, codespell; build-backend
   tables are never read). Every skipped file is reported under
@@ -1054,19 +1054,19 @@ to the safe-but-quiet answer with an explicit way out (added 0.25.0):
   `.eslintignore` no longer exists (ESLint 9 moved to flat-config
   `ignores`), root `tsconfig.exclude` names nothing crimes does not
   already exclude, and **zero patterns corroborate on any of the four**.
-  The rule is also what stops a real accident — n8n's `.prettierignore`
+  The rule is also what stops a real accident: n8n's `.prettierignore`
   ends `# Handled by biome` / `**/*.ts`, and a reader that read a
   formatter's ignore file as a maintenance claim would drop all 18,783
   of its TypeScript files. See
   `docs/dogfooding/2026-08-11-tooling-excludes-js.md`, which also sizes
-  the one JS signal that *is* worth reading — `.gitattributes`
+  the one JS signal that *is* worth reading: `.gitattributes`
   `linguist-generated`, which is a provenance claim and so belongs to the
   `generated` scope class, not to this mechanism. **Read since `0.25.10`**,
   from a single source and with no corroboration rule: a tool's
   preferences need corroborating, a repository's claim about who wrote
   its own file does not. It drops findings under the same policy as an
   `@generated` banner and emits no `coverage.warnings[]` entry, because
-  the file was analysed — it is not a gap in coverage.
+  the file was analysed: it is not a gap in coverage.
 
 crimes.config.json example:
 
@@ -1417,13 +1417,13 @@ Deliverables:
 
 Versioned milestones (post-launch)
 
-crimes@0.11.0 — Triage as the front door (Release B)
+crimes@0.11.0: Triage as the front door (Release B)
 
 Theme: explicit per-finding triage replaces reflexive baseline.
 
 Deliverables:
 
-* crimes triage command — top-of-rank interactive walk with five dispositions (fix-now, fix-this-PR, needs-design, wont-fix, scaffolding)
+* crimes triage command: top-of-rank interactive walk with five dispositions (fix-now, fix-this-PR, needs-design, wont-fix, scaffolding)
 * .crimes/triage.json on-disk schema with required reason + owner + date per entry
 * Triage- and baseline-aware resurfacing on touched files (config.triage.resurfaceBase, default "main")
 * New Finding fields effort + fix_shape; schema_version bump 0.1.0 → 0.2.0

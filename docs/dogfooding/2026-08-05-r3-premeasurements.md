@@ -3,7 +3,7 @@
 Measurements taken before touching any detector, on the same
 `choreograph.cc@5107cce` worktree used for
 [Step 0](./2026-08-05-choreograph-reverify.md). Recorded here so the R3
-work starts from evidence rather than from the notes' own suggestions —
+work starts from evidence rather than from the notes' own suggestions:
 two of which do not survive contact with the file that prompted them.
 
 Nothing below has been acted on. Each entry is a hypothesis with a
@@ -18,7 +18,7 @@ The [field notes](./2026-08-05-choreograph-field-notes.md) ask:
 
 > Consider exempting modules whose exports are **type-only**.
 
-`src/lib/types.ts` — the file flagged at 33 importers — exports:
+`src/lib/types.ts` (the file flagged at 33 importers) exports:
 
 | kind | count |
 |---|---|
@@ -47,12 +47,14 @@ types module would silently re-arm the finding.
 So the importer-side signal separates this module cleanly where the
 exports-side rule does not.
 
-### But it is not obviously the right rule either — decide in R3, with a corpus number
+<span id="but-it-is-not-obviously-the-right-rule-either--decide-in-r3-with-a-corpus-number"></span>
+
+### But it is not obviously the right rule either: decide in R3, with a corpus number
 
 A type-only edge is not a *runtime* coupling, which is what
 `blast_radius` is about. It is still a **compile-time** coupling: change
 an interface and all 19 importers fail to build. The honest question is
-not "is this coupling real" — it is — but "is it the kind of coupling
+not "is this coupling real" (it is) but "is it the kind of coupling
 this charge is about". `high_fan_in_fan_out`'s own rationale is that a
 hub is expensive to change; for a types module that is true and also its
 entire purpose, and the failure mode is loud and immediate rather than
@@ -77,7 +79,7 @@ honest, and `CLAUDE.md` says evidence before judgement.
 **Note the interaction:** `blast_radius` normalises
 `transitiveImporterCount`, and R4 carries an open item about that count
 treating a file as its own importer on a cycle. Changing what counts as
-an importer touches both. Do not tune them in the same eval run — the
+an importer touches both. Do not tune them in the same eval run: the
 aggregate cannot attribute two changes at once.
 
 ---
@@ -99,8 +101,8 @@ The representative hit, `src/lib/types.ts` L239:
 
 That comment *does* reference adjacent identifiers, so the first
 proposed fix would not silence it. It is explanatory prose that happens
-to contain two modal words. The second fix — prescriptive vs
-explanatory — is the one that addresses this hit, and it is the harder
+to contain two modal words. The second fix (prescriptive vs
+explanatory) is the one that addresses this hit, and it is the harder
 one.
 
 **Measure the split on the corpus before choosing**, per the plan. The
@@ -120,9 +122,8 @@ byte-identically to the notes:
 9× Date.now(), 4× new Date()
 ```
 
-and essentially all of it is display formatting. The notes' framing —
-time used in a **branch or comparison** is the risky case; time used as
-a value to record or display is not — is the right axis. What has not
+and essentially all of it is display formatting. The notes' framing (time used in a **branch or comparison** is the risky case; time used as
+a value to record or display is not) is the right axis. What has not
 been measured is how much of the corpus's 91-per-repo volume is which.
 
 That measurement is the first R3 task for this detector, and it is
@@ -148,11 +149,11 @@ app has this shape**, because `createClient()` constructs the client *in
 order to do the read*.
 
 The question for R3 is whether the fix is a `createClient` allowlist
-(narrow, and a treadmill — the next framework has a different name) or a
+(narrow, and a treadmill: the next framework has a different name) or a
 rule about **constructor-like calls whose result is used within the same
 function**, which is what actually distinguishes "this `get*` writes
 something" from "this `get*` builds the thing it reads through".
 
 The second is the real rule. Measure how many corpus hits it silences
-before committing to it — a rule that quiets a whole detector is as
+before committing to it: a rule that quiets a whole detector is as
 suspect as one that fires on everything.

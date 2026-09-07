@@ -51,7 +51,7 @@ This is a **pnpm workspace monorepo**:
 | `packages/core`        | Detector contract, finding schema, scan orchestration           |
 | `packages/language-js` | TS/JS file discovery and AST parsing                            |
 | `packages/reporter`    | Human-readable and JSON output formatters                       |
-| `apps/website`         | `crimes.sh` — Astro + Starlight, auto-deploys from `main`        |
+| `apps/website` | `crimes.sh`: Astro + Starlight, auto-deploys from `main` |
 | `examples/messy-ts-app`| Intentionally crime-ridden fixture used by smoke tests          |
 | `evals/`               | Fixture × scenario × agent harness; see `evals/README.md`        |
 
@@ -92,21 +92,21 @@ This is a **pnpm workspace monorepo**:
 
 Detector design rules:
 
-- Findings must include concrete **evidence** strings — facts a reader can verify.
+- Findings must include concrete **evidence** strings: facts a reader can verify.
 - `confidence` is honest: don't claim 1.0 unless you literally cannot be wrong.
 - No I/O. Detectors run against `ctx.source` and `ctx.parsed`.
 - Keep heuristics conservative. A noisy detector is a disabled detector.
 
 ## Adding a new language
 
-The registry exists as of 0.12.0 — you don't wire packs into `scan.ts`
+The registry exists as of 0.12.0: you don't wire packs into `scan.ts`
 by hand any more. `packages/language-py` (0.14.0) is the worked example
 to copy; read it alongside this section.
 
 1. **Create `packages/language-<lang>`** alongside `language-js`. It
    exports a `<LANG>_EXTENSIONS` constant, a `parse<Lang>File` function,
    and the parsed-file type its detectors read. It must not depend on
-   `@crimes/core` — core depends on it.
+   `@crimes/core`: core depends on it.
 
 2. **Register the claim.** `packages/core/src/discovery/language-pack-router.ts`
    seeds the router from each pack's own exported extension list:
@@ -119,7 +119,7 @@ to copy; read it alongside this section.
    language; core only does the seeding, because `registerPackExtensions`
    lives in core and a pack calling it would be a dependency cycle.
    `LanguagePackRouter` then routes files to the claiming pack and
-   `ScanReport.coverage` picks it up automatically — no second list.
+   `ScanReport.coverage` picks it up automatically: no second list.
 
    Keep the import cheap. Core loads every pack's module eagerly just to
    read its extensions, so anything expensive (a WASM runtime, a parser
@@ -132,7 +132,7 @@ to copy; read it alongside this section.
    routing block in `scan-detect.ts`.
 
    Only carry indexes the language actually has. The Python context
-   deliberately omits `jsxShapeIndex` and `functionHashIndex` — adding
+   deliberately omits `jsxShapeIndex` and `functionHashIndex`: adding
    fields "for symmetry" is how a pack seam quietly becomes
    JS-shaped.
 
@@ -148,7 +148,7 @@ to copy; read it alongside this section.
    found. Since 0.13.0 it is 0.40 of the unified formula, and detectors
    that omit it fall back to a deliberately-compressed severity-derived
    default. A detector without an opinion ranks below one with an
-   opinion — which is the intended behaviour, so don't be the former.
+   opinion, which is the intended behaviour, so don't be the former.
 
 6. **Check `test_gap` understands the language's test convention.**
    `testBaseCovers` in `packages/core/src/scoring/build.ts` pairs a
@@ -191,6 +191,18 @@ CI uses the Node version in `.nvmrc`, matching release development. It also
 builds/verifies the documentation site and tests a freshly packed npm
 artifact. Live agent trials are explicit opt-in and never run in CI.
 
+## Documentation style
+
+Use direct, factual prose. Describe what a command does and what the reader
+needs to do next. Avoid promotional claims, repeated slogans, forced
+contrasts and em dashes in authored prose. Use sentences, commas or
+parentheses as the meaning requires. Keep captured output, quoted source
+and fixture data verbatim.
+
+Edit `docs/` and the documentation generators, not the mirrored site pages.
+Keep visible homepage answers and their structured data consistent. Run
+`pnpm docs:generate` and the website build checks after changing generators.
+
 ## Formatting and linting
 
 **Biome is the only formatter and the only linter.** Do not add ESLint,
@@ -201,7 +213,7 @@ Two things about it are worth knowing before you change it.
 
 **Fixtures are never formatted.** `examples/`, `evals/fixtures/`,
 `docs/fixtures/`, and `evals/results/` are excluded in
-`files.includes`. Those directories are *scanner input* — their
+`files.includes`. Those directories are *scanner input*: their
 formatting is the test data. Reformatting them would silently change
 what the detectors report and invalidate the pinned expected outputs.
 
@@ -219,11 +231,11 @@ Three rules are turned off, each with the reasoning recorded inline in
 idiom, 1033 times), `style/useTemplate` (fires almost entirely on
 `expr + "\n"`, where the autofix is worse than the input), and the
 linter as a whole on `apps/website/landing/index.html` (90 real a11y
-findings deferred pending a markup + CSS change — see below).
+findings deferred pending a markup + CSS change: see below).
 
 Prefer a targeted `// biome-ignore lint/<rule>: <reason>` over widening
 a config disable. The directive must be on the line *immediately* above
-the offending line, and the whole reason must fit on that one line — a
+the offending line, and the whole reason must fit on that one line: a
 wrapped `//` block silently stops suppressing, though Biome will tell
 you via `suppressions/unused`.
 
@@ -232,7 +244,7 @@ you via `suppressions/unused`.
 Read [`docs/calibration-followups.md`](./docs/calibration-followups.md)
 first. It records the calibration questions that have already been
 examined and the reasoning behind every entry in
-`.crimes/suppressions.json` and `.crimes/triage.json` — including which
+`.crimes/suppressions.json` and `.crimes/triage.json`: including which
 detector-widening changes were deliberately *rejected*, and why. A
 "no change" decision there is a decision, not an oversight.
 

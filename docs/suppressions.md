@@ -4,7 +4,7 @@
 has deliberately decided to live with. Suppressed findings are
 filtered out of every report by default; the gate (`--fail-on`) never
 trips on them. The file is intended to be **committed** and reviewed
-in PRs — every entry requires a `reason`.
+in PRs: every entry requires a `reason`.
 
 ## When to use a suppression vs the alternatives
 
@@ -12,7 +12,7 @@ in PRs — every entry requires a `reason`.
 | --------- | ------------ |
 | A specific finding is acceptable in this one place. | `crimes ignore <fingerprint> --reason "…"` |
 | A particular value is fine for *one* detector across the whole repo. | `detectors.options.<id>` in [`configuration.md`](./configuration.md#detectorsoptions). |
-| You're migrating to `crimes` and don't want to fix everything first. | `crimes baseline save` — see [`ci.md`](./ci.md). |
+| You're migrating to `crimes` and don't want to fix everything first. | `crimes baseline save`: see [`ci.md`](./ci.md). |
 | A detector fundamentally doesn't fit the repo. | `detectors.disable` in [`configuration.md`](./configuration.md). |
 | A threshold is wrong for the repo. | `thresholds.*` in [`configuration.md`](./configuration.md). |
 | You want to silence the entire codebase. | Don't. Choose one of the above. |
@@ -43,9 +43,9 @@ without one.
 
 ### Other flags
 
-- `--file <path>` — override `.crimes/suppressions.json`.
-- `--dry-run` — print the entry that would be written and exit.
-- `--no-verify` — skip the fresh scan that confirms the fingerprint
+- `--file <path>`: override `.crimes/suppressions.json`.
+- `--dry-run`: print the entry that would be written and exit.
+- `--no-verify`: skip the fresh scan that confirms the fingerprint
   matches a real finding. Useful for pre-emptively suppressing a
   finding the detector hasn't seen yet (rare).
 
@@ -79,7 +79,7 @@ for the field-by-field reference.
 `created_by` is filled in from `git config user.email` when available;
 omit it if your repo doesn't carry one. The denormalised `type` /
 `claim` / `file` / `symbol` fields are redundant for matching (only
-`fingerprint` drives it) but are load-bearing for human review — a
+`fingerprint` drives it) but help human review: a
 reviewer scanning `git diff .crimes/suppressions.json` can read the
 entry without parsing the fingerprint.
 
@@ -107,7 +107,7 @@ have been indistinguishable from one that did not.
 The claim is part of the fingerprint, so a suppression cannot leak
 across claims: if the test later grows a `toBeTruthy()` and the finding
 becomes `weak_assertion_matchers`, this entry stops matching and the new
-statement surfaces for a fresh judgement. That is deliberate — the
+statement surfaces for a fresh judgement. That is deliberate: the
 reason recorded here is an answer to a question that is no longer being
 asked.
 
@@ -132,19 +132,18 @@ but with two extra fields:
 }
 ```
 
-- `source: "manual"` (the default when absent) — the long-standing
+- `source: "manual"` (the default when absent): the long-standing
   `crimes ignore` path. These stay silent while the fingerprint still matches, until removed.
-- `source: "feedback"` — managed by `crimes feedback`. These
+- `source: "feedback"`: managed by `crimes feedback`. These
   **auto-resurface** when the crimes minor moves past
   `crimes_version_pinned`. The next scan on a newer minor keeps the
   finding in `findings[]` tagged `previously_suppressed: true`, the
   human reporter prints a "⚠ Previously marked fp in 0.7" hint per
-  finding, and a one-line stderr breadcrumb tells you to run
+  finding, and a one-line stderr notice tells you to run
   `crimes feedback recheck`.
 
-The mechanism is what keeps the calibration loop alive across
-releases — see [`feedback.md`](./feedback.md#the-auto-resurface-loop)
-for the full lifecycle.
+See [`feedback.md`](./feedback.md#the-auto-resurface-loop)
+for how feedback suppressions are reviewed across releases.
 
 ## Removing a suppression
 
@@ -155,14 +154,14 @@ crimes unignore 'large_function/too_long::src/billing.ts::generateInvoice'
 
 `crimes unignore` is symmetric to `crimes ignore`:
 
-- Takes a stable fingerprint (no id support — once suppressed, there
+- Takes a stable fingerprint (no id support: once suppressed, there
   is no per-scan id to look up).
 - `--dry-run` previews without writing.
 - `--file <path>` honours the same override as `crimes ignore`.
 - Exits `2` on an unknown fingerprint, with a pointer at
   `crimes audit-suppressions`.
 
-The file is **never deleted** — an empty `suppressions: []` array
+The file is **never deleted**: an empty `suppressions: []` array
 stays so reviewers can see the file exists and has been intentionally
 cleared. Delete it by hand if you truly want it gone.
 
@@ -176,15 +175,15 @@ crimes audit-suppressions --format json
 Lists every entry sorted oldest first, with `age_days` and a per-entry
 `concerns` array. Entries are flagged when:
 
-- **`stale`** — older than 180 days.
-- **`short_reason`** — `reason.trim().length < 16`.
-- **`vague_reason`** — the reason reads as a deferral keyword (`tmp`,
+- **`stale`**: older than 180 days.
+- **`short_reason`**: `reason.trim().length < 16`.
+- **`vague_reason`**: the reason reads as a deferral keyword (`tmp`,
   `todo`, `wip`, `fixme`, `noisy`, `legacy`, `later`, `skip`,
   `ignore`, `too noisy`, `we know …`).
 
 The human report groups entries into "Flagged" and "Active". The JSON
 output carries the same data under `report_type:
-"audit_suppressions"` — agents can re-sort or filter without
+"audit_suppressions"`: agents can re-sort or filter without
 re-running heuristics.
 
 Run it as part of a quarterly suppression review, or wire it into a
@@ -195,10 +194,10 @@ nightly CI job that watches the count and reasons.
 The file is intended to be **committed**. Reviewers should:
 
 1. **Read the reason.** "TODO" or "too noisy" usually means the
-   suppression is wrong — either fix the code or tune the detector.
+   suppression is wrong: either fix the code or tune the detector.
    `crimes audit-suppressions` surfaces these automatically.
 2. **Verify the fingerprint maps to a real, ongoing exception.** The
-   denormalised `file` / `symbol` are there for this — you should
+   denormalised `file` / `symbol` are there for this: you should
    recognise what is being suppressed without grepping the codebase.
 3. **Check the count and the ages.** A growing
    `.crimes/suppressions.json` is a smell. `crimes audit-suppressions`
@@ -227,7 +226,7 @@ threshold check.
 | `.crimes/baseline.json` | `.crimes/suppressions.json` |
 | ----------------------- | --------------------------- |
 | Repo-wide snapshot of pre-existing findings. | Per-finding deliberate exception with a reason. |
-| Forward-only — new findings are blocked. | Manual exceptions persist; feedback exceptions resurface on later minors. |
+| Forward-only: new findings are blocked. | Manual exceptions persist; feedback exceptions resurface on later minors. |
 | Written by `crimes baseline save`. | Written by `crimes ignore`; removed by `crimes unignore`; reviewed by `crimes audit-suppressions`. |
 | Read by `crimes baseline check`. | Read by every report-producing command. |
 | Use when adopting `crimes` for the first time. | Use when one specific finding is acceptable. |
@@ -240,8 +239,8 @@ to document the specific findings the team has triaged.
 - **"Too noisy" as the reason.** If your reason is "too noisy", the
   suppression is probably wrong. Tune the detector via config (per-shape
   thresholds, disable on a research repo) or fix the code.
-- **Whole-codebase suppressions.** There is no glob support on purpose
-  — the on-disk-as-review-artefact discipline only works when every
+- **Whole-codebase suppressions.** There is no glob support on purpose:
+reviewing the file only works when every
   entry maps to one specific finding.
 - **Stale suppressions.** Renaming a file can change its fingerprint. Review unmatched-pin
   warnings and migration candidates before deleting or replacing a decision.

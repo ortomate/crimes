@@ -1,12 +1,10 @@
 # `direct_date`: the second R3 precision item, and the example that was wrong
 
 **Charge:** Temporal Recklessness.
-**Complaint:** [field notes](./2026-08-05-choreograph-field-notes.md) —
-"conflates reading time with recording it… the genuinely risky case —
-time used in a **branch or comparison** — is a much narrower and more
+**Complaint:** [field notes](./2026-08-05-choreograph-field-notes.md) ("conflates reading time with recording it… the genuinely risky case)
+time used in a **branch or comparison** (is a much narrower and more
 valuable signal than time used as a value to record or display."
-**Status vs `main`:** [re-verified](./2026-08-05-choreograph-reverify.md)
-— 91 findings, and the cited evidence string reproduced byte-identically.
+**Status vs `main`:** [re-verified](./2026-08-05-choreograph-reverify.md)) 91 findings, and the cited evidence string reproduced byte-identically.
 
 ---
 
@@ -17,7 +15,7 @@ The notes cite `src/components/admin/JobDetail.tsx`:
 > As shipped, `JobDetail.tsx` reports "9× Date.now(), 4× new Date()" and
 > essentially all of it is display formatting.
 
-Opening the file — the rule this codebase keeps re-learning — found:
+Opening the file (the rule this codebase keeps re-learning) found:
 
 ```ts
 // line 870
@@ -32,7 +30,7 @@ and the same shape again at line 1086 for the audio poll. Plus line 642,
 the case the notes describe as the valuable one. "Essentially all of it
 is display formatting" is not true of this file.
 
-So the narrowing as proposed — report only comparisons — **would not
+So the narrowing as proposed (report only comparisons) **would not
 have fixed the complaint about this file**, because the file would have
 kept the finding. What was actually wrong is that the evidence could not
 tell the reporter which three of the thirteen mattered. The count was
@@ -52,12 +50,12 @@ conclusion rather than for the invitation.
 `DateUse` gains `usage: "compared" | "value"`, classified in the parser
 by walking up from the reading:
 
-- **`compared`** — reaches a relational/equality operator, or sits in an
+- **`compared`**: reaches a relational/equality operator, or sits in an
   `if` / `while` / `for` / ternary condition. Arithmetic, parentheses,
   `.getTime()` and non-null assertions are transparent, because
   `Date.now() - startedAt >= TIMEOUT` is the canonical shape and the
   reading is three nodes down from the comparison.
-- **`value`** — consumed by a call argument, a property assignment, a
+- **`value`**: consumed by a call argument, a property assignment, a
   return, a template literal, JSX.
 - **one hop through a local binding**, because `const now = Date.now()`
   followed by `now > deadline` is at least as common as the inline form.
@@ -67,7 +65,7 @@ by walking up from the reading:
 **Unknown resolves to `compared`.** A wrong answer in that direction
 leaves a finding's severity where it already was; the other direction
 silently downgrades a real one. (The one-hop scan needed a re-entry
-guard — the declaration's own name is a reference to itself, and the
+guard: the declaration's own name is a reference to itself, and the
 first version recursed until the stack ran out.)
 
 Evidence gains one line:
@@ -116,7 +114,7 @@ scripts/_telos-andrew-conversations.ts     none decide a branch — all  8 recor
 `JobDetail.tsx` **stays `high`**, correctly, and now names lines 642,
 870 and 1086 out of its thirteen.
 
-Eval fixtures: **0 of 15 moved** — fingerprints *and severities*
+Eval fixtures: **0 of 15 moved**: fingerprints *and severities*
 compared, since this change moves severity. `evals/results/0.18.4/`
 stands; a re-run could only measure agent nondeterminism.
 

@@ -6,7 +6,7 @@ write, a fan-out that scales with the data, and a test that stays green
 regardless.
 
 None of these is a bug the type checker can see, and none is a bug the
-test suite will catch — in one case because the test suite is the
+test suite will catch: in one case because the test suite is the
 problem.
 
 All four are **file-local**: they read the parsed file and nothing
@@ -26,7 +26,9 @@ For the wire format, see [`docs/json-schema.md`](../json-schema.md).
 
 ---
 
-## `swallowed_error` — Catch and Release
+<span id="swallowed_error--catch-and-release"></span>
+
+## `swallowed_error`: Catch and Release
 
 ### What it detects
 
@@ -47,15 +49,15 @@ A handler swallows when it neither **propagates** the failure nor
 Any one of these means nothing is reported:
 
 - **rethrow**, including `return Promise.reject(e)`
-- **a typed result** — `return { ok: false, error: e }`. Nothing was
+- **a typed result**: `return { ok: false, error: e }`. Nothing was
   lost; the caller can still branch on it. Both halves are required: a
   discriminant (`ok` / `success` / `status` / `type`) *and* a carrier
   (`error` / `err` / `reason` / `cause`).
-- **observability with the error attached** — any call whose method
+- **observability with the error attached**: any call whose method
   name is observability-shaped (`log`, `warn`, `error`,
   `captureException`, `recordException`, `reportError`, `notify`, …)
   that receives the error value. **No specific library is required.**
-- **error discrimination** — `e.code === "ENOENT"`,
+- **error discrimination**: `e.code === "ENOENT"`,
   `e instanceof NotFound`, `isFooError(e)`. Inspecting the error and
   recovering from a specific case is precise error handling.
 
@@ -71,7 +73,7 @@ Severity and confidence both drop when the suppression is *documented*:
   name: `safelyBuildIndex`, `tryParse`, `maybeReadConfig`,
   `readOrNull`. The author declared the contract in the signature and
   every caller reads it there.
-- `.catch(noop)` — a named no-op is a deliberate choice, and is
+- `.catch(noop)`: a named no-op is a deliberate choice, and is
   reported as such rather than as an anonymous discarded rejection
 
 ### Severity escalation
@@ -119,7 +121,7 @@ swallowed_error · Catch and Release · medium (0.92)
 - Test files never fire. Tests catch deliberately and constantly.
 - Generated and vendored code never fires.
 - A handler doing something the collector does not recognise is
-  **silent** — reporting "we could not tell what this does" is noise.
+  **silent**: reporting "we could not tell what this does" is noise.
 
 ### Fingerprint stability
 
@@ -153,7 +155,9 @@ receives the error, and does not tell you which library to use.
 
 ---
 
-## `unsafe_retry` — Double Jeopardy
+<span id="unsafe_retry--double-jeopardy"></span>
+
+## `unsafe_retry`: Double Jeopardy
 
 ### What it detects
 
@@ -169,8 +173,8 @@ the customer is charged twice, the order ships twice, or the queue
 receives a duplicate nothing downstream expects.
 
 **The absence of an idempotency signal around a retried mutation is the
-finding.** Everything else — no bound, no backoff, no jitter, no error
-classification — appears as *supporting evidence on the same finding*
+finding.** Everything else (no bound, no backoff, no jitter, no error
+classification) appears as *supporting evidence on the same finding*
 rather than as separate ones. They are symptoms of the same unreviewed
 retry, and four findings for one construct would be four times the
 noise for none of the extra signal.
@@ -189,7 +193,7 @@ retrying and is not reported.
 
 ### Recognised mutations
 
-- HTTP `POST`, `PUT`, `PATCH`, `DELETE` — via `fetch(url, { method })`
+- HTTP `POST`, `PUT`, `PATCH`, `DELETE`: via `fetch(url, { method })`
   or `axios.post` / `client.put` / `http.delete` shapes
 - a callee whose name carries a write-shaped word: `create`, `insert`,
   `update`, `upsert`, `delete`, `save`, `publish`, `enqueue`, `send`,
@@ -259,7 +263,9 @@ An SDK documented as idempotent is respected via `idempotentCalls`.
 
 ---
 
-## `unbounded_async_fanout` — Concurrency Stampede
+<span id="unbounded_async_fanout--concurrency-stampede"></span>
+
+## `unbounded_async_fanout`: Concurrency Stampede
 
 ### What it detects
 
@@ -272,20 +278,22 @@ visible.
 The code is correct. It passes review, passes tests, and works in every
 environment where the collection is small. Then a backfill runs, or a
 customer with 40 000 rows signs up, and the same line opens 40 000
-sockets at once. The failure lands on the *dependency* — connections
-exhausted, rate limits, file descriptors — so the stack trace points
+sockets at once. The failure lands on the *dependency* (connections
+exhausted, rate limits, file descriptors) so the stack trace points
 somewhere other than the cause.
 
 What makes it a **change** risk is that nothing about the line changes
 when the danger arrives. The collection got bigger somewhere else.
 
-### Required signals — all three
+<span id="required-signals--all-three"></span>
+
+### Required signals: all three
 
 1. The collection is **not statically sized** (not a small array
    literal; the bound is 8 by default).
-2. The callback does something **expensive** per element — network,
+2. The callback does something **expensive** per element: network,
    database, filesystem, subprocess, or queue work.
-3. **No bound is visible** — no `.slice()` / `.take()`, no
+3. **No bound is visible**: no `.slice()` / `.take()`, no
    `take` / `limit` / `first` / `pageSize` option on the producing
    query, no batching helper, no concurrency-limit library, no
    `concurrency` option.
@@ -304,8 +312,8 @@ return Promise.all(orders.map((o) => api.post("/notify", o)));
 ```
 
 Without that, the most common real-world fan-out would classify as an
-opaque parameter. The resolution is scope-lite — it does not track
-reassignment or shadowing — and is treated as a hint that raises
+opaque parameter. The resolution is scope-lite (it does not track
+reassignment or shadowing) and is treated as a hint that raises
 confidence, never as proof.
 
 ### Example
@@ -350,7 +358,9 @@ therefore a property of the data rather than of the program.
 
 ---
 
-## `mock_saturation` — Mock Alibi
+<span id="mock_saturation--mock-alibi"></span>
+
+## `mock_saturation`: Mock Alibi
 
 ### What it detects
 
@@ -362,7 +372,7 @@ replaced with a thing that does nothing, with the arguments I
 expected." That is a restatement of the implementation, not a check on
 it. It passes before and after a refactor that breaks production, and
 it fails whenever the implementation is improved without changing
-behaviour — the exact opposite of what a test should do.
+behaviour: the exact opposite of what a test should do.
 
 ### This is not "mocks are bad"
 
@@ -371,8 +381,8 @@ test that mocks a clock and asserts a returned value is excellent. The
 detector requires a **combination**:
 
 - most collaborators replaced (default: ≥80%), **and**
-- at least one replacement is *hollow* — a factory of bare `vi.fn()` /
-  `jest.fn()` with no implementation, or an auto-mocked module — **and**
+- at least one replacement is *hollow* (a factory of bare `vi.fn()` /
+  `jest.fn()` with no implementation, or an auto-mocked module) **and**
 - **every** assertion is a mock interaction
 
 Any one of those alone is normal. Together they mean the test cannot
@@ -397,7 +407,7 @@ snapshot of mock output is a snapshot of the mock.
 
 The denominator is the union of (production modules the test imports,
 **excluding the subject**) and (modules the test mocks by specifier).
-The subject is what is being tested, not a collaborator — counting it
+The subject is what is being tested, not a collaborator: counting it
 would cap a fully-saturated two-import test at 50%.
 
 Test infrastructure (`vitest`, `jest`, `sinon`, `chai`, `msw`, …) and
@@ -412,8 +422,7 @@ collector covers all four.
 
 ### Severity escalation
 
-Rises when the doubles stand in for consequential boundaries —
-persistence, payment, authorization, queues — because those are where
+Rises when the doubles stand in for consequential boundaries (persistence, payment, authorization, queues) because those are where
 "it called the right function" and "it did the right thing" diverge
 most expensively. Rises furthest when **the subject itself is mocked**,
 which means the code the test is named for never runs.
@@ -451,7 +460,7 @@ Deliberately **additive**. The recommendation is never "remove the
 mocks":
 
 1. Keep this test, and add an assertion on something the subject
-   produces — a returned value, a thrown error, a state change.
+   produces: a returned value, a thrown error, a state change.
 2. Add one integration or contract test that exercises the riskiest
    mocked boundary for real; an in-memory or containerised substitute
    is enough.

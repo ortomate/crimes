@@ -3,8 +3,8 @@
 Structural crimes flag file- and function-shaped code smells: bodies
 that are too long, too many TODOs, or testability issues that come
 from reaching for environment-coupled primitives in domain code.
-They're the oldest detector category — `crimes@0.1.0` shipped the
-first four — and the most fixture-tuned.
+They're the oldest detector category (`crimes@0.1.0` shipped the
+first four) and the most fixture-tuned.
 
 For the wire format, see [`docs/json-schema.md`](../json-schema.md).
 For the agent workflow that consumes findings, see
@@ -41,7 +41,7 @@ shapes and applies a tailored budget per shape, so a 240-line
 `describe()` callback isn't charged at the same threshold as a
 240-line domain function.
 
-| Shape                   | Threshold | Severity at threshold | Severity at 2× |
+| Shape | Threshold | Severity at threshold | Severity at 2× |
 | ----------------------- | --------- | --------------------- | -------------- |
 | `domain`                | config (default 60) | medium | high |
 | `route_handler`         | 100       | medium                | high           |
@@ -69,8 +69,8 @@ shape: React component (PascalCase name "PricingPage"; body returns JSX)
 **Why it matters.** Bodies past the shape's threshold usually mix
 multiple responsibilities. An agent editing one section misses
 interactions in another, and the function becomes a magnet for
-further duplication. Smaller, named helpers give every editor — human
-or AI — a smaller surface to reason about per edit.
+further duplication. Smaller, named helpers give every editor (human
+or AI) a smaller surface to reason about per edit.
 
 **Suggested fix.** The `suggested_actions[0].description` is tailored
 to the shape: extract markup sections for React components, extract
@@ -89,7 +89,7 @@ domain threshold, kept for back-compat) and the per-shape
 **What it detects.** Source files past a per-shape line threshold.
 Counts non-empty lines so generated whitespace can't lower the count.
 
-| Shape       | Threshold              | Severity at threshold | Severity at 2× |
+| Shape | Threshold | Severity at threshold | Severity at 2× |
 | ----------- | ---------------------- | --------------------- | -------------- |
 | `domain`    | config (default 300)   | medium                | high           |
 | `test_file` | 1500                   | low                   | medium         |
@@ -104,7 +104,7 @@ The `docs` shape (new in 0.17.0) matches `.md`, `.mdx`, `.markdown`,
 `.rst`, `.adoc`, `.asciidoc`, and `.txt`. Without it, prose was scored
 against the domain-code budget, so a schema reference or a
 configuration guide was charged as a God File for being thorough. Data
-formats stay on the `domain` budget — a 3000-line `.json` is a finding,
+formats stay on the `domain` budget: a 3000-line `.json` is a finding,
 not a document.
 
 **Example evidence.**
@@ -148,14 +148,14 @@ worst lines: 33, 47, 88, 102, 178
 
 **Why it matters.** High marker density is a *map of the unowned
 work in the file*. Without context, an agent can't tell whether each
-TODO is "fix this before merging" or "we accepted this years ago" —
+TODO is "fix this before merging" or "we accepted this years ago":
 so it either treats everything as urgent or learns to ignore the
 marker entirely. Reducing density forces the team to either resolve
 or stop pretending the TODO is meaningful.
 
-**Suggested fix.** Convert load-bearing TODOs into tracker tickets
+**Suggested fix.** Convert TODOs that track required work into tracker tickets
 referenced by id. Delete or close the rest. The detector doesn't
-care about marker style — `// TODO(@alex)` survives unchanged.
+care about marker style: `// TODO(@alex)` survives unchanged.
 
 **Self-reference exemption (new in 0.6.0).** A file whose own source
 contains the literal token sequence `TODO|FIXME|XXX|HACK` (i.e., it
@@ -171,7 +171,7 @@ one marker name in passing is unaffected.
 **What it detects.** Domain code that reaches directly for
 `Date.now()` or `new Date()` rather than accepting an injectable
 clock. Files matching the test glob (`*.test.ts`, `*.spec.ts`,
-`__tests__/**`) are exempt — explicit test-time injection is the
+`__tests__/**`) are exempt: explicit test-time injection is the
 fix, not the smell.
 
 **Example evidence.**
@@ -184,8 +184,8 @@ file lives in domain path (no test-file shape)
 
 **Why it matters.** A domain function that reads "now" from the
 process is untestable without monkeypatching, runs differently in
-prod vs CI, and silently fails timezone tests. Pass a clock — an
-`Injectable<() => Date>` or just a `now()` parameter — and the
+prod vs CI, and silently fails timezone tests. Pass a clock (an
+`Injectable<() => Date>` or just a `now()` parameter) and the
 finding goes away.
 
 **Suggested fix.** Replace the direct call with a parameter on the
@@ -197,10 +197,10 @@ from the entry point and a fixed timestamp from tests.
 ## Timezone Roulette (`timezone_unsafe_parse`)
 
 **What it detects.** `new Date("…")` calls whose string argument has
-no timezone marker — no trailing `Z`, no `±HH:MM` offset, no
+no timezone marker: no trailing `Z`, no `±HH:MM` offset, no
 `GMT±NNNN` segment. The detector skips literals that don't look
 date-like (no 4-digit year + separator), epoch numbers, multi-arg
-forms, and dynamic expressions. Test files are exempt — fixtures
+forms, and dynamic expressions. Test files are exempt: fixtures
 routinely pin literal dates.
 
 **Example evidence.**
@@ -222,13 +222,13 @@ depending on their shape:
 - `"2026-12-25T07:00:00Z"` → **UTC**, explicit. No ambiguity.
 - `"2026-12-25T07:00:00+05:30"` → that offset, explicit.
 
-Coding agents are especially prone to this — they copy a literal
+Coding agents are especially prone to this: they copy a literal
 that worked in one environment and silently break in another. Adding
 `Z` or an explicit offset removes the guess.
 
 **Severity ramp.** Default `medium`; escalates to `high` when one
 file accrues 5 or more unsafe literals (a systemic pattern, not an
-accident). Confidence is `0.90` — the pattern is unambiguous when
+accident). Confidence is `0.90`: the pattern is unambiguous when
 the string survives the date-like filter.
 
 **Suggested fix.** Append `Z` for UTC, an explicit `±HH:MM` offset,
@@ -252,7 +252,7 @@ to `detectors.options.timezone_unsafe_parse.allowedLiterals` in
 }
 ```
 
-The option is validated at config-load time — unknown keys or
+The option is validated at config-load time: unknown keys or
 wrong-shape values fail fast with `ConfigParseError` (exit `2`).
 For a one-off exception, prefer `crimes ignore <fingerprint>`
 with a reason instead.
@@ -281,7 +281,7 @@ quietly misbehaves whenever the runtime sits in a non-UTC timezone.
 Convention: UTC for storage and computation, local only at the
 display boundary.
 
-**Severity.** High by default — the bug class is silent and rarely
+**Severity.** High by default: the bug class is silent and rarely
 caught by tests. Confidence `0.85` (heuristic: the receiver is
 inferred from name, not type).
 
@@ -309,7 +309,7 @@ pass an explicit locale (e.g. 'en-US') or use Intl.DateTimeFormat
 machine, `"15/03/2026"` on a UK one, and `"15.03.2026"` on a German
 one. For logs, IDs, persisted text, or anything passed across a
 network, the drift produces silent bugs. For user-facing copy, the
-implicit locale is rarely the right contract either — make it
+implicit locale is rarely the right contract either: make it
 explicit.
 
 **Severity ramp.** Default `low`; bumped to `medium` in
@@ -354,7 +354,7 @@ March or October.
 with 3+ occurrences also escalates.
 
 **Suggested fix.** Use a timezone-aware library that knows about
-the calendar — Luxon's `plus({ days: 1 })`, the Temporal API,
+the calendar: Luxon's `plus({ days: 1 })`, the Temporal API,
 date-fns-tz, etc. For low-level "exactly N milliseconds later",
 keep the math but rename the variable to `nextEpochMs` so the
 reader doesn't expect a calendar day.
@@ -364,7 +364,7 @@ reader doesn't expect a calendar day.
 ## Date String Sewing (`date_string_concat`)
 
 **What it detects.** String literals concatenated with Date method
-results — `"year-" + d.getUTCFullYear()` or
+results: `"year-" + d.getUTCFullYear()` or
 `d.getMonth() + "-month"`. The parser captures only the
 concat-with-literal form to keep noise low.
 
@@ -394,9 +394,9 @@ or a timezone-aware library's formatter.
 
 ## Unprefixed Boolean (`boolean_naming_drift`)
 
-**What it detects.** Declarations whose value is clearly boolean —
+**What it detects.** Declarations whose value is clearly boolean:
 annotated `: boolean`, or initialised from `true`/`false`/`!x`/
-`a === b`/`a || b` — and whose name lacks a recognised boolean
+`a === b`/`a || b`: and whose name lacks a recognised boolean
 prefix (`is`/`has`/`should`/`can`/`will`/`did`/`was`/`were`/`are`/
 `needs`/`wants`/`allows`/`supports`/`owns`/`knows`/`expects`/
 `requires`/`enables`/`prevents`/`blocks`/`denies`).
@@ -456,8 +456,8 @@ that are project-specific UI-state idioms, add them to
 **What it detects.** Declarations where the name's plural shape
 disagrees with the annotated type's array shape:
 
-- `users: User` — name plural, type singular
-- `user: User[]` (or `Array<User>` / `ReadonlyArray<User>`) — name
+- `users: User`: name plural, type singular
+- `user: User[]` (or `Array<User>` / `ReadonlyArray<User>`): name
   singular, type array
 
 **Example evidence.**
@@ -471,14 +471,14 @@ v1 detector — type aliases and generic types are silently skipped
 **Why it matters.** When an identifier's plural form lies about
 the value's shape, readers and coding agents iterate the wrong
 way: `for (const u of users)` against a `User`, or `.find(...)`
-on a `User[]`. The name and the type are both load-bearing — they
+on a `User[]`. The check uses both the name and the type: they
 should agree.
 
 **v1 limitations.** The detector fires only on a bare type
 annotation that's either an `Identifier` (`User`) or a simple
 array shape (`User[]` / `Array<User>` / `ReadonlyArray<User>`).
 Aliased types (`type UserId = string`), generic types (`Map<…>`),
-and union types are silently skipped. This is intentional — the
+and union types are silently skipped. This is intentional: the
 v1 detector trades coverage for confidence. A v2 backed by full
 type info is tracked for 0.9.0+.
 
@@ -487,7 +487,7 @@ offenders in one file. Confidence `0.70`.
 
 **Uncountable nouns.** Names matching the built-in uncountable
 list (`data`, `information`, `news`, `software`, `staff`, …) are
-exempt — they're singular and plural simultaneously.
+exempt: they're singular and plural simultaneously.
 
 **Project-specific exemptions** via
 `detectors.options.singular_plural_type_mismatch.allowedNames`.
@@ -498,14 +498,13 @@ diverges, add the name to `allowedNames`.
 
 ## Sync I/O in Hot Path (`sync_io_in_hotpath`)
 
-**What it detects.** Calls to synchronous Node.js I/O APIs —
-`fs.readFileSync` / `fs.writeFileSync` / `fs.existsSync` /
+**What it detects.** Calls to synchronous Node.js I/O APIs (`fs.readFileSync` / `fs.writeFileSync` / `fs.existsSync` /
 `fs.statSync` / `fs.readdirSync` / the rest of the `node:fs`
 `*Sync` family, plus the synchronous process-spawning helpers
-(`execSync`, `spawnSync`, `execFileSync`) — invoked inside a
+(`execSync`, `spawnSync`, `execFileSync`)) invoked inside a
 function whose `FunctionShape` is one of `route_handler`,
 `page_export`, `react_component`, or `domain`. Test callbacks and
-CLI command-registrar callbacks are exempt — sync I/O in those
+CLI command-registrar callbacks are exempt: sync I/O in those
 shapes is either intentional or harmless.
 
 The detector consumes the `syncIoCalls` parser surface (added in
@@ -540,16 +539,16 @@ single-threaded), and the cost only materialises under
 concurrent load.
 
 **Severity ramp.**
-- `high` — two or more sync calls inside the same request-surface
+- `high`: two or more sync calls inside the same request-surface
   shape (`route_handler` / `page_export` / `react_component`).
-- `medium` — one sync call inside a request-surface shape.
-- `low` — sync calls inside `domain` functions. Domain stays low
+- `medium`: one sync call inside a request-surface shape.
+- `low`: sync calls inside `domain` functions. Domain stays low
   because the per-request amplification that justifies medium /
   high isn't there; the bug class becomes "library happens to
   block under load" rather than "request handler stalls on every
   hit". Available under `--all`.
 
-Confidence `0.90` — the syntactic pattern is unambiguous.
+Confidence `0.90`: the syntactic pattern is unambiguous.
 
 **Suggested fix.** Replace the `*Sync` call with its async
 counterpart (`readFile`, `writeFile`, `exec`, …) and `await` it.
@@ -559,12 +558,12 @@ than the render body.
 
 ## Localhost-on-Disk (`hardcoded_local_path`)
 
-**What it detects.** User-home subpaths hardcoded into source —
+**What it detects.** User-home subpaths hardcoded into source:
 `/Users/<name>/…` (macOS), `/home/<name>/…` (Linux), and
 `C:\Users\<name>\…` (Windows, including the forward-slashed
 `C:/Users/<name>/…` form many editors display). Test files,
 `scripts/`, `examples/`, `fixtures/`, and `test/` / `tests/`
-directories are exempt — these are surfaces where a developer-
+directories are exempt: these are surfaces where a developer-
 specific path is legitimate.
 
 **Example evidence.**
@@ -589,7 +588,7 @@ surface.
 hardcoded paths in one file. Confidence `0.90`.
 
 **Project-specific exemptions** via
-`detectors.options.hardcoded_local_path.allowedPaths` — list any
+`detectors.options.hardcoded_local_path.allowedPaths`: list any
 literal substrings that should be tolerated (sample paths in
 docstrings, intentionally-embedded references).
 
@@ -613,7 +612,7 @@ supplies its own.
 ## Dev-Server URL (`hardcoded_localhost`)
 
 **What it detects.** Dev-server URLs hardcoded into non-test,
-non-config source — `localhost:NNNN`, `127.0.0.1:NNNN`,
+non-config source: `localhost:NNNN`, `127.0.0.1:NNNN`,
 `0.0.0.0:NNNN`, and the IPv6 loopback `[::1]:NNNN`. The port
 requirement (2–5 digits) is what makes the signal strong: a bare
 `localhost` reference is often a doc placeholder, but
@@ -640,8 +639,8 @@ the URL of one specific dev server on one specific machine. In
 production the request hits whatever the deploy environment
 happens to have running on that port (often nothing), and the
 failure mode is opaque. Coding agents reach for the literal
-because they were just shown a working dev URL in the conversation
-— it sticks around long after that conversation ends.
+because they were just shown a working dev URL in the conversation:
+it sticks around long after that conversation ends.
 Configuration (env vars, settings module, framework runtime config)
 makes the per-environment value explicit.
 

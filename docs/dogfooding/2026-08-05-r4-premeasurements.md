@@ -6,10 +6,12 @@ in opposite directions.
 
 ---
 
-## `large_file` counts blank lines — the impact is 2–4× smaller than the entry claims
+<span id="large_file-counts-blank-lines--the-impact-is-24-smaller-than-the-entry-claims"></span>
+
+## `large_file` counts blank lines: the impact is 2–4× smaller than the entry claims
 
 **The entry:** "Fixing it drops every number **15–25%** and retunes
-thresholds repo-wide — calibration, not a bugfix."
+thresholds repo-wide: calibration, not a bugfix."
 
 **Measured**, on every file currently carrying a `large_file` finding:
 
@@ -17,10 +19,10 @@ thresholds repo-wide — calibration, not a bugfix."
 |---|---|---|---|---|
 | choreograph.cc | 33 | 12.2% | ~10% | ~20% |
 | crimes (self-scan) | 100 | 5.6% | **3.6%** | 18.8% |
-| hono | 26 | 8.9% | **8.9%** | — |
+| hono | 26 | 8.9% | **8.9%** | n/a |
 
 **The 15–25% figure is wrong**, and the way it is wrong matters. The
-high numbers come almost entirely from **prose** — `docs/superpowers/plans/*`
+high numbers come almost entirely from **prose**: `docs/superpowers/plans/*`
 runs 19–23% blank, because markdown is blank-line separated by
 construction. Actual source files run **3.6–10%**.
 
@@ -35,7 +37,7 @@ noise of any threshold worth having.
 
 **Revised disposition:** this is closer to a bugfix than the entry
 allows. A function named `countNonEmptyLines` that counts every line is
-a naming lie — the kind `name_behavior_mismatch` exists to charge — and
+a naming lie (the kind `name_behavior_mismatch` exists to charge) and
 the corrected number moves code files by single digits. It still needs a
 baseline and an `evals:ranking` pass, but "retunes thresholds repo-wide"
 overstates it.
@@ -56,7 +58,9 @@ given its own threshold three releases ago.
 
 ---
 
-## The cross-file Python fixture — the obvious version of it proves nothing
+<span id="the-cross-file-python-fixture--the-obvious-version-of-it-proves-nothing"></span>
+
+## The cross-file Python fixture: the obvious version of it proves nothing
 
 **The entry:** "Add a fixture with a base-class assertion helper and one
 with an imported one, so the suite can see this class of change at all.
@@ -75,7 +79,7 @@ class. Scanned with both builds:
 | current (post symbol index) | 1 |
 
 **No difference.** The same-file matcher has always been
-`/^assert[A-Z_]/`, and `assert_invoice_balances` matches it — `assert`
+`/^assert[A-Z_]/`, and `assert_invoice_balances` matches it: `assert`
 followed by `_`. This is precisely what §4.1 recorded when the original
 blocker was closed:
 
@@ -85,12 +89,12 @@ blocker was closed:
 > *not* named `assert*` — zulip's `self.verify_action()`.
 
 Renaming the helpers to `verify_invoice_balances`, `expect_gross_for`
-and `expect_account` — the shape that actually needs the index:
+and `expect_account`: the shape that actually needs the index:
 
 | build | `weak_test_signal` findings |
 |---|---|
-| `0.17.0` (pre symbol index) | **2** — including `tests/test_invoices.py` |
-| current (post symbol index) | **1** — `test_invoices.py` correctly credited |
+| `0.17.0` (pre symbol index) | **2**: including `tests/test_invoices.py` |
+| current (post symbol index) | **1**: `test_invoices.py` correctly credited |
 
 Now the fixture can see the change. `tests/test_reporting.py` still
 fires in both, which is the guard that the fixture did not simply go
@@ -100,7 +104,7 @@ quiet.
 with an imported one" describes the *location* of the helper and says
 nothing about its *name*, and the name is what decides whether the old
 matcher already handled it. A fixture built to the entry's letter would
-have been committed, passed review, and measured nothing — the same
+have been committed, passed review, and measured nothing: the same
 failure the entry exists to fix, one level up.
 
 Ready to apply, validated both ways:
@@ -116,7 +120,9 @@ Needs its own eval baseline, since it changes what the agents are shown.
 
 ---
 
-## `transitiveImporterCount` counts a file as its own importer — measured, and the answer is no change
+<span id="transitiveimportercount-counts-a-file-as-its-own-importer--measured-and-the-answer-is-no-change"></span>
+
+## `transitiveImporterCount` counts a file as its own importer: measured, and the answer is no change
 
 **The entry:** "Left deliberately; it is the number `blast_radius`
 normalises. Now that `blast_radius` is log-scaled with a direct-count
@@ -136,7 +142,7 @@ Two things were measured.
 | cal.com | 2,079 | **0 (0.0%)** |
 
 The log scale worked. There is no longer a compressed band at the top
-for an off-by-one to hide in — but there is also no longer a score
+for an off-by-one to hide in, but there is also no longer a score
 crying out for correction.
 
 **Second, how many files the self-count can even reach:**
@@ -147,7 +153,7 @@ crying out for correction.
 | crimes (self-scan) | 1 of 1,169 | 0.1% |
 | hono | 4 of 152 | 2.6% |
 
-**Disposition: no change, and this is the §15 shape** — the entry's
+**Disposition: no change, and this is the §15 shape**: the entry's
 premise is sound but acting on it buys nothing. The defect is real (a
 file on a cycle counts itself), it is confined to 0–2.6% of files, and
 its magnitude is **+1 on a log-scaled input**. Changing it would move a
@@ -155,12 +161,12 @@ handful of scores by less than a rounding step and invalidate a
 baseline for the privilege.
 
 What is *not* wrong is the honesty: the function's doc comment already
-says what it computes —
+says what it computes:
 
 > the result is "files that can reach this one, plus this one if it is
 > cyclic", not a fan-in count
 
-— and `blast_radius_direct_importers` has existed since `0.5.0` for
+, and `blast_radius_direct_importers` has existed since `0.5.0` for
 anyone who wants the fan-in number. Nothing is lying, which was the
 original reason for leaving it.
 

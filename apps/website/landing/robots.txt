@@ -1,46 +1,7 @@
-# crimes.sh — robots.txt
-# crimes is open-source and benefits from being cited by search and
-# AI answer engines. Allow all crawlers by default.
+# Allow crawlers to read the homepage and documentation.
 
 User-agent: *
 Allow: /
 
-# AI / answer-engine crawlers — explicitly allowed so crimes can be
-# cited as a source in AI Overviews, Perplexity, ChatGPT, etc.
-User-agent: GPTBot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: OAI-SearchBot
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: Claude-Web
-Allow: /
-
-User-agent: anthropic-ai
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: Perplexity-User
-Allow: /
-
-User-agent: Google-Extended
-Allow: /
-
-User-agent: Applebot-Extended
-Allow: /
-
-User-agent: CCBot
-Allow: /
-
-User-agent: cohere-ai
-Allow: /
-
 Sitemap: https://crimes.sh/sitemap.xml
+Sitemap: https://crimes.sh/docs/sitemap-index.xml

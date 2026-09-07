@@ -1,8 +1,8 @@
 # `crimes.config.json` reference
 
-Zero-config works for most repos. Use `crimes.config.json` only when the
-defaults are wrong for your repo — tuning thresholds, disabling
-detectors that don't apply, seeding product-specific concept aliases.
+Most repos can use the defaults. Add `crimes.config.json` to change
+thresholds, disable detectors that do not apply or supply product-specific
+concept aliases.
 
 The config lives at the repo root as `crimes.config.json`. The
 `.crimes/` directory next to it is a tooling output directory
@@ -114,8 +114,8 @@ Every key is optional. Missing keys take the defaults documented in
 
 ### `$schema`
 
-Optional URL pointing at the JSON schema. Parsed but not consumed by
-the CLI — there only for IDE validation.
+Optional JSON schema URL for IDE validation. The CLI parses the field
+but does not use it.
 
 ### `include` / `exclude`
 
@@ -131,10 +131,10 @@ override below.
 
 ### `thresholds.largeFunction.<shape>`
 
-Per-shape `large_function` overrides. Any subset is fine — unset shapes
+Per-shape `large_function` overrides. Any subset is fine: unset shapes
 use the built-in defaults:
 
-| Shape                   | Default threshold |
+| Shape | Default threshold |
 | ----------------------- | ----------------- |
 | `domain`                | 60                |
 | `route_handler`         | 100               |
@@ -155,10 +155,10 @@ at `low` / `medium`.
 
 ### `thresholds.largeFile.<shape>`
 
-Per-shape `large_file` overrides (new in 0.6.0). Any subset is fine
-— unset shapes use the built-in defaults:
+Per-shape `large_file` overrides (new in 0.6.0). Any subset is fine:
+unset shapes use the built-in defaults:
 
-| Shape       | Default threshold |
+| Shape | Default threshold |
 | ----------- | ----------------- |
 | `domain`    | 300               |
 | `test_file` | 1500              |
@@ -173,8 +173,7 @@ The `docs` shape (new in 0.17.0) matches `.md`, `.mdx`, `.markdown`,
 `.rst`, `.adoc`, `.asciidoc`, and `.txt`. Reference documentation is
 supposed to be long, so measuring prose against the domain-code budget
 produced findings nobody could act on. Severity caps at `low` /
-`medium`, same as `test_file`. Data formats — `.json`, `.yaml`, `.csv`
-— are deliberately *not* docs: a 3000-line config file is still a
+`medium`, same as `test_file`. Data formats (`.json`, `.yaml`, `.csv`) are deliberately *not* docs: a 3000-line config file is still a
 finding worth having.
 
 `thresholds.largeFile.domain` wins over the legacy
@@ -183,7 +182,7 @@ finding worth having.
 ### `thresholds.assetWeight`
 
 Severity thresholds for `oversized_raster` (new in 0.8.0). Sizes
-are in KB (1 KB = 1024 bytes); any subset is fine — unset levels
+are in KB (1 KB = 1024 bytes); any subset is fine: unset levels
 use the built-in defaults:
 
 | Knob       | Default |
@@ -248,7 +247,7 @@ repeated stderr notice. This is intentional scope, not incomplete analysis.
 | `boolean_naming_drift`, `boolean_naming_drift.py` | Naming conventions belong in an explicit naming review. |
 | `accessible_interaction_risk` | Useful in an accessibility review; outside default change-risk triage. |
 | `design_token_escape` | Raw style concentration does not establish design-system drift; optional UI review. |
-| `parallel_destination` | 2,819 findings from 134 files on n8n's `editor-ui` — 52.8% of that package's entire report — and zero findings on every other repo in the corpus. |
+| `parallel_destination` | 2,819 findings from 134 files on n8n's `editor-ui` (52.8% of that package's entire report) and zero findings on every other repo in the corpus. |
 
 Naming a gated detector in `enable` is **additive**: it switches that
 detector on and leaves everything else alone.
@@ -260,7 +259,7 @@ detector on and leaves everything else alone.
 }
 ```
 
-Mixing the two kinds does what it looks like — the default-on ids form
+Mixing the two kinds does what it looks like: the default-on ids form
 the allowlist, and the gated id is added to it:
 
 ```jsonc
@@ -278,13 +277,13 @@ named in both does not run.
 > hint verbatim turned off all 68 other detectors and the asset pass,
 > with no warning. On the `05-stress-ia-drift` fixture that took a scan
 > from 13 findings to 1.
-- An unknown detector id in either list raises a CLI error (exit `2`)
-  — typos should not silently no-op. See the table in
+- An unknown detector id in either list raises a CLI error (exit `2`):
+typos should not silently no-op. See the table in
   [generated reference](./reference.md#detectors) for the full list of ids.
 
 #### Disabling one claim
 
-Eleven detectors make more than one **claim** — statements with their
+Eleven detectors make more than one **claim**: statements with their
 own truth values and their own fixes. `weak_test_signal` says both
 "this test contains no expect/assert calls" and "this test only uses
 weak assertion matchers". Both entries accept `<id>/<claim>` so you can
@@ -301,7 +300,7 @@ that is right:
 }
 ```
 
-The detector still runs — only the named claim is dropped from the
+The detector still runs: only the named claim is dropped from the
 findings. The bare id keeps its old meaning and disables the whole
 detector.
 
@@ -316,7 +315,7 @@ claims that detector declares. The full list is in
 [`json-schema.md`](./json-schema.md#claim).
 
 **Anti-pattern:** disabling a whole detector is a blunt tool, and
-disabling a whole *multi-claim* detector is bluntest of all — it is how
+disabling a whole *multi-claim* detector is bluntest of all: it is how
 one repo silenced 67 correct findings after checking three that were
 not. Prefer a claim selector over an id, and a `crimes ignore` with a
 reason over either. Reserve a bare `disable` for detectors that
@@ -325,9 +324,8 @@ codebase where TODO is a tracking convention, not debt).
 
 ### `detectors.options`
 
-Per-detector exemption values. Sits between `detectors.disable`
-(kills the detector everywhere) and `crimes ignore` (kills one
-specific finding) — `detectors.options.<id>` lets you say "this
+Per-detector exemption values. Unlike `detectors.disable`, which disables
+a detector, or `crimes ignore`, which suppresses a specific finding, `detectors.options.<id>` lets you say "this
 value is fine for this detector across the whole codebase, but
 keep firing on others."
 
@@ -348,15 +346,15 @@ keep firing on others."
 
 Each detector that accepts options declares its own schema; the
 config loader validates supplied options against the schema at
-load time. Three failure modes — all CLI exit `2`
+load time. These configuration errors all exit `2`
 (`ConfigParseError`):
 
-1. `detectors.options.<id>`: unknown detector id — the id doesn't
+1. `detectors.options.<id>`: unknown detector id: the id doesn't
    match any built-in.
-2. `detectors.options.<id>`: this detector accepts no options —
+2. `detectors.options.<id>`: this detector accepts no options:
    the id is real but the detector has not registered any options
    schema.
-3. `detectors.options.<id>`: ... — the value's shape doesn't
+3. `detectors.options.<id>`: ... the value's shape doesn't
    match the detector's declared options.
 
 The keys each detector understands are documented alongside that
@@ -476,7 +474,7 @@ legacy severity-grouped layout.
 }
 ```
 
-Defaults to `5`. JSON output is unaffected — the `topFiles` knob only
+Defaults to `5`. JSON output is unaffected: the `topFiles` knob only
 shapes the human renderer.
 
 ### `triage.resurfaceBase` (since 0.11.0)
@@ -505,11 +503,11 @@ Resurfacing is skipped silently when:
 
 - `triage.resurfaceBase` is `""`.
 - The directory is not a git repository.
-- `HEAD` resolves to the same ref as `<resurfaceBase>` — you're on the
+- `HEAD` resolves to the same ref as `<resurfaceBase>`: you're on the
   base, there's no diff to compute.
 
 **Interaction with `scopeTiers.nonDomain`.** Resurfacing crosses
-tiers — a triaged finding in a non-domain file (e.g. under
+tiers: a triaged finding in a non-domain file (e.g. under
 `scripts/**` or `**/__tests__/**`) **still resurfaces** when that file
 is in the branch diff. The non-domain footer is a *display* tier, not
 a "we don't care about it" tier; once you've explicitly triaged the
@@ -630,5 +628,5 @@ crimes: crimes.config.json at .../crimes.config.json is invalid:
 thresholds.largeFileLines: Expected number, received string
 ```
 
-Unknown top-level keys are preserved silently — `crimes` may extend
+Unknown top-level keys are preserved silently: `crimes` may extend
 the schema in future releases without breaking older config files.

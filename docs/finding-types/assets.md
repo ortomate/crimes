@@ -32,7 +32,7 @@ detector-set `severity` and `confidence` as the ranking signal.
 
 **What it detects.** Raster images (`png` / `jpg` / `jpeg` / `gif` /
 `webp` / `avif`) whose byte size exceeds the configured asset-weight
-thresholds. The detector only reads `byteSize` from `fs.stat` —
+thresholds. The detector only reads `byteSize` from `fs.stat`:
 flagging a 5 MB image is a single syscall.
 
 **Example evidence.**
@@ -52,7 +52,7 @@ there; resizing + re-encoding rarely affects how the image actually
 renders.
 
 **Severity ramp.** Default thresholds in KB: `low: 200`,
-`medium: 500`, `high: 1000` — mirroring Core Web Vitals "good /
+`medium: 500`, `high: 1000`: mirroring Core Web Vitals "good /
 needs improvement / poor" guidance. Configurable via
 `thresholds.assetWeight`:
 
@@ -68,7 +68,7 @@ needs improvement / poor" guidance. Configurable via
 }
 ```
 
-Confidence stays at `0.95` — the signal is just bytes-on-disk.
+Confidence stays at `0.95`: the signal is just bytes-on-disk.
 
 **Project-specific exemptions** via
 `detectors.options.oversized_raster.allowedPaths`:
@@ -100,7 +100,7 @@ default). These are almost always cases where an SVG would scale
 cleanly across DPIs and ship smaller.
 
 The detector reads each file's header bytes via a tiny in-tree
-dimension parser (PNG + GIF + JPEG only — WebP / AVIF return
+dimension parser (PNG + GIF + JPEG only: WebP / AVIF return
 "unparseable" and are silently skipped in v1).
 
 **Example evidence.**
@@ -114,11 +114,11 @@ consider replacing with an SVG icon — same render at every DPI, smaller bytes
 **Why it matters.** An icon-sized PNG is one resolution wide. On
 every higher-DPI display it either pixel-blurs or sits at the wrong
 size; the fix is almost always an SVG. Coding agents reach for raster
-icons because they treat icons like screenshots — bring the literal
+icons because they treat icons like screenshots: bring the literal
 pixels, paste them in. The detector starts the conversation at "is
 this really raster on purpose?"
 
-**Severity.** Always `low` — single-finding noise per icon, not a
+**Severity.** Always `low`: single-finding noise per icon, not a
 deploy blocker. Confidence `0.85`.
 
 **Project-specific exemptions / threshold tuning** via
@@ -139,7 +139,7 @@ deploy blocker. Confidence `0.85`.
 
 **Suggested fix.** Re-author or re-export the icon as an SVG. If the
 source is a designer's PNG, the original vector likely exists in
-Figma / Sketch / Illustrator — re-export from there.
+Figma / Sketch / Illustrator: re-export from there.
 
 ---
 

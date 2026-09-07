@@ -84,12 +84,12 @@ These are non-negotiable inside this repo:
    branch present on `origin/`). Local feature branches are fine.
 3. **Don't auto-fix detector findings** without (a) a clear user request,
    (b) tests that cover the touched behaviour, and (c) a scoped change. The
-   product's whole point is to surface risk — silently "fixing" findings
+   product's whole point is to surface risk: silently "fixing" findings
    erodes the contract.
 4. **Don't add backwards-compatibility hacks** to the finding schema. If
    you need to break it, bump `schema_version` and update
    [`docs/json-schema.md`](./docs/json-schema.md).
-5. **Don't introduce LLM SDKs, Rust, or oclif** in v0 — explicitly deferred
+5. **Don't introduce LLM SDKs, Rust, or oclif** in v0: explicitly deferred
    per [`PRD.md`](./PRD.md) and [`CLAUDE.md`](./CLAUDE.md).
 6. **Don't re-implement ESLint, Biome, Semgrep, or SonarQube detectors.**
    `crimes` is positioned as change-risk and agent-risk, not style or
@@ -104,13 +104,13 @@ These are non-negotiable inside this repo:
    to analyse it would make this tool an RCE vector.
    (c) **Never put a configuration value in a finding.** `config_drift`
    reports names, locations, and literal defaults from committed
-   source. A real `.env` is never opened — enforced at discovery in
+   source. A real `.env` is never opened: enforced at discovery in
    `risk/env-inventory.ts`, with a second independent filter.
 7. **Treat the JSON schema as a public API.** New optional fields are OK;
    removing or repurposing existing ones is a breaking change requiring a
    `schema_version` bump.
 8. **Run `pnpm verify` before declaring work complete.** Build +
-   typecheck + test must all pass. (Not `pnpm ci` — pnpm reserves that
+   typecheck + test must all pass. (Not `pnpm ci`: pnpm reserves that
    name.)
 9. **Commit when work is ready** (per the user's global preference in
    `CLAUDE.md`). Don't wait for explicit permission on every logical unit.

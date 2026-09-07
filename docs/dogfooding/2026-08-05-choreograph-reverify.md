@@ -8,7 +8,7 @@ eval-baseline bumps (`0.18.0`–`0.18.4`). Before scoping any work off those
 notes, we had to know which complaints still reproduce.
 
 **A fix shipped against a stale complaint is worse than no fix, because it
-looks like progress.** This document is what stopped that from happening —
+looks like progress.** This document is what stopped that from happening:
 and it also stopped one hypothesis in the release plan from being acted on.
 
 ---
@@ -17,7 +17,7 @@ and it also stopped one hypothesis in the release plan from being acted on.
 
 The repo under test is available locally. The field notes describe a task that
 *began* at `choreograph.cc@5107cce` ("feat(artist): cap family presence",
-2026-08-04) — the last commit before the cost-tracking work the notes
+2026-08-04): the last commit before the cost-tracking work the notes
 accompany. That snapshot was checked out into a dedicated git worktree so
 churn and blame resolve against real history:
 
@@ -43,11 +43,11 @@ reporter's assumption. It is wrong, and the numbers prove it:
 
 | | total | high | medium | low | `schema_version` |
 |---|---|---|---|---|---|
-| **notes as written** | 499 | 34 | 269 | 196 | — |
+| **notes as written** | 499 | 34 | 269 | 196 | n/a |
 | **`0.17.0` on `5107cce`** | **498** | **34** | **268** | **196** | 0.4.0 |
 | **`main` on `5107cce`** | 491 | 35 | 265 | 191 | 0.6.0 |
 
-`0.17.0` reproduces the notes to within **one medium finding** — consistent
+`0.17.0` reproduces the notes to within **one medium finding**: consistent
 with the reporter scanning a working tree carrying an uncommitted edit.
 `main` does not reproduce them. The published version is what was measured.
 
@@ -65,7 +65,7 @@ inapplicable here:
 
 - `commented_out_code` fires **2 times** on this repo in both builds. The
   airflow drop was a fix to a detector that was misfiring on a *specific
-  shape* — huge commented-out blocks — that choreograph does not contain.
+  shape* (huge commented-out blocks) that choreograph does not contain.
 - `parallel_destination` produces **zero** findings here in either build, so
   gating it off changed nothing.
 
@@ -115,8 +115,8 @@ it was.** Nothing in the unreleased work addressed any of them.
 | 2 | `scripts/` is a third of findings | **stands** | 157 → **148**; still 30% of the total |
 | 3 | `logic_in_comments` worst FP rate | **stands** | 10 → 10, **the same files**: `types.ts` L239, `job-processor.ts` ×2, `game-generator/generate.ts`, `api/admin/jobs/route.ts` |
 | 4 | `direct_date` conflates read/record | **stands** | `JobDetail.tsx` evidence string is byte-identical: `"9× Date.now(), 4× new Date()"` |
-| 5 | `high_fan_in_fan_out` on a types module | **stands** | `src/lib/types.ts` — **33 importers**, unchanged |
-| 6 | `name_behavior_mismatch` on data access | **stands** | `src/lib/api.ts` — **5 hits**, all `side-effect-like calls: createClient` |
+| 5 | `high_fan_in_fan_out` on a types module | **stands** | `src/lib/types.ts`: **33 importers**, unchanged |
+| 6 | `name_behavior_mismatch` on data access | **stands** | `src/lib/api.ts`: **5 hits**, all `side-effect-like calls: createClient` |
 | 7 | no way to scope to a plan | **stands** | `crimes context <file>` takes exactly one positional arg |
 | 8 | output ordering loses the header | **stands** | `scan --top 15` emits **296 lines**; the summary is line 6 |
 | 9 | agent discoverability | **stands** | the `--help` tips block names `init --agents` and `context <file>` and **still does not mention `--changed`** |
@@ -138,7 +138,7 @@ scan --changed --base HEAD~1   →  11 findings across 7 files (3 high, 4 medium
 scan --changed                 →  clean tree: nothing
 ```
 
-`--changed` works, and works well — 491 → 11 is exactly the compression the
+`--changed` works, and works well: 491 → 11 is exactly the compression the
 complaint asks for. **But it only works after the edits exist.** The field
 notes describe crimes being used *mid-design, to scope cleanup before writing
 code*: at that moment the tree is clean and sitting on `main`, so
@@ -148,7 +148,7 @@ invocation is unavailable in the exact workflow the notes describe.
 So R2's five items are not equally weighted by this evidence:
 
 - **R2.1 (document `--changed --base main` as the default)** is right for the
-  *review* half of an agent loop — after edits, before commit. It does not
+  *review* half of an agent loop: after edits, before commit. It does not
   serve the *scoping* half, and documenting it as "the" agent default would
   send an agent in choreograph's position to a command that prints nothing.
   Document it as the **post-edit** default, paired with the scoping command
@@ -170,7 +170,9 @@ for that half of the loop.
 Found while scoping R2, by checking what existed before adding
 anything. Recorded here because both were about to be built twice.
 
-### Ask 2 — "`scaffolding` globs in `crimes.config.json`, applied at scan time"
+<span id="ask-2--scaffolding-globs-in-crimesconfigjson-applied-at-scan-time"></span>
+
+### Ask 2: "`scaffolding` globs in `crimes.config.json`, applied at scan time"
 
 **This ships today, on by default, and `scripts/**` is literally the
 first entry.**
@@ -210,10 +212,12 @@ the contract.
 **Where the notes were wrong:** the mechanism existed and was working.
 The complaint was real, and its cause was in the renderer, not in
 missing configuration. Adding a `scaffolding` glob would have been a
-second way to say what `scopeTiers.nonDomain` already says — the "don't
+second way to say what `scopeTiers.nonDomain` already says: the "don't
 invent a third location" rule in `CLAUDE.md`, applied to scope classes.
 
-### Ask 4 — "exempt type-only modules from fan-in"
+<span id="ask-4--exempt-type-only-modules-from-fan-in"></span>
+
+### Ask 4: "exempt type-only modules from fan-in"
 
 Not shipped, but the rule as proposed would not have worked. See
 [`2026-08-05-r3-premeasurements.md`](./2026-08-05-r3-premeasurements.md):
@@ -227,10 +231,10 @@ exports-are-type-only test fails on the file that prompted the ask.
 One hour. It bought:
 
 - confirmation that all four R3 precision complaints are live (they are, and
-  the plan had already verified this independently — this is a second,
+  the plan had already verified this independently: this is a second,
   stronger confirmation with byte-identical evidence strings);
 - **deletion of the plan's hypothesis** that the volume complaint might have
-  self-resolved — it did not, and R2's scaffolding/working-set work is fully
+  self-resolved: it did not, and R2's scaffolding/working-set work is fully
   justified;
 - **a re-ordering of R2** on evidence rather than on the notes' own
   ordering.

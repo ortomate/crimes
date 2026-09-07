@@ -26,7 +26,7 @@ crimes explain crime_00005 --from scan.json
 ```
 
 The scan output is already in the agent's context. `--from` reuses it
-instead of re-scanning — fast, deterministic, no surprises.
+instead of re-scanning. The explanation uses the findings from that report.
 
 Either `crime_00005` (per-scan id) or
 `large_function::src/billing.ts::generateInvoice` (stable fingerprint)
@@ -40,13 +40,12 @@ crimes explain large_function::src/billing.ts::generateInvoice
 ```
 
 No `--from`. The command runs a fresh scan against the cwd, then
-looks up the finding. Slower than `--from`, but standalone — works
-without setup. Use this from the terminal when you want a quick
-look-up.
+looks up the finding. This takes longer than `--from` and needs no saved
+report. Use it for a terminal lookup.
 
 Default mode silently includes suppressed findings (annotated as
 such). The point of `crimes explain` is to read about a finding the
-team has already chosen to live with — running `explain` after
+team has already chosen to live with: running `explain` after
 suppressing should still work.
 
 ## Output
@@ -109,7 +108,7 @@ for the full schema.
 
 ## Determinism
 
-`crimes explain` is fully deterministic — no LLM, no network. Every
+`crimes explain` is fully deterministic: no LLM, no network. Every
 string in the output is either:
 
 - already on the finding (`charge`, `evidence`, `suggested_actions`,
@@ -121,8 +120,8 @@ The same input always produces the same output.
 
 ## Exit codes
 
-- `0` — success.
-- `2` — `--from` file missing or invalid, id/fingerprint did not
+- `0`: success.
+- `2`: `--from` file missing or invalid, id/fingerprint did not
   resolve, bad `--format`.
 
 ## Agent recipe

@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>crimes — agent-native change & risk scanner for TS/JS & Python</title>
+    <title>crimes: change risk for TypeScript, JavaScript and Python</title>
     <meta
       name="description"
-      content="Open-source CLI that scans TypeScript, JavaScript & Python repos for change risk and AI-agent risk — including drift between the two. Local, deterministic, no cloud. JSON output is the contract."
+      content="Open-source CLI that scans TypeScript, JavaScript & Python repos for change risk and AI-agent risk, including disagreements between languages. Runs locally and produces versioned JSON reports."
     />
     <meta name="theme-color" content="#0a0a0a" />
     <meta name="color-scheme" content="dark" />
-    <meta name="author" content="Andrew Mayfield" />
+    <meta name="author" content="Ortomate" />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <meta
       name="keywords"
@@ -19,7 +19,7 @@
     <link rel="canonical" href="https://crimes.sh/" />
 
     <!-- Open Graph -->
-    <meta property="og:title" content="crimes — built for agents, readable by humans" />
+    <meta property="og:title" content="crimes: built for agents, readable by humans" />
     <meta
       property="og:description"
       content="A local, open-source CLI that ranks change-risk and agent-risk in TS/JS and Python repos, including findings that span both. JSON output is the contract."
@@ -32,14 +32,14 @@
     <meta property="og:image:type" content="image/svg+xml" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="crimes — a crime scene investigator for your codebase. Built for agents, readable by humans." />
+    <meta property="og:image:alt" content="crimes: a crime scene investigator for your codebase. Built for agents, readable by humans." />
 
     <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="crimes — built for agents, readable by humans" />
+    <meta name="twitter:title" content="crimes: built for agents, readable by humans" />
     <meta name="twitter:description" content="Open-source CLI that ranks change-risk and agent-risk in TS/JS and Python repos, including findings that span both. JSON output is the contract." />
     <meta name="twitter:image" content="https://crimes.sh/og-image.svg" />
-    <meta name="twitter:image:alt" content="crimes — a crime scene investigator for your codebase." />
+    <meta name="twitter:image:alt" content="crimes: a crime scene investigator for your codebase." />
 
     <!-- Icons -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -59,15 +59,16 @@
             "name": "crimes",
             "description": "Open-source CLI that scans TypeScript, JavaScript and Python repos for change risk and AI-agent risk, including findings that span both languages.",
             "inLanguage": "en-US",
-            "publisher": { "@id": "https://crimes.sh/#author" }
+            "publisher": {
+              "@id": "https://crimes.sh/#publisher"
+            }
           },
           {
-            "@type": "Person",
-            "@id": "https://crimes.sh/#author",
-            "name": "Andrew Mayfield",
-            "url": "https://andrewmayfield.com",
+            "@type": "Organization",
+            "@id": "https://crimes.sh/#publisher",
+            "name": "Ortomate",
+            "url": "https://ortomate.ai",
             "sameAs": [
-              "https://andrewmayfield.com",
               "https://github.com/ortomate"
             ]
           },
@@ -79,7 +80,7 @@
             "applicationCategory": "DeveloperApplication",
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
-            "description": "A local, open-source CLI that scans TypeScript, JavaScript and Python repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, frontend and backend disagreeing about their own API, and patterns that confuse AI coding agents.",
+            "description": "A local, open-source CLI that scans TypeScript, JavaScript and Python repositories for change risk and agent risk, including duplicated business rules, unclear sources of truth, weakly tested hotspots and API disagreements.",
             "softwareVersion": "0.29.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/ortomate/crimes",
@@ -101,23 +102,25 @@
               "Working-set CI gate with --fail-on",
               "Branch-level new / fixed / unchanged crimes diff",
               "Baseline snapshot to pin legacy debt and gate on new findings",
-              "One-line branch verdict — cleaner, worse, unchanged, or mixed",
+              "One-line branch verdict: cleaner, worse, unchanged, or mixed",
               "Churn × findings hotspots",
               "Information architecture detectors: Missing Agent Context, Route Metadata Drift, Duplicated Navigation Source, Concept Alias Drift, Docs-Code Drift",
               "Correctness-risk detectors: Catch and Release, Double Jeopardy, Concurrency Stampede, Mock Alibi",
-              "Cross-file authority detectors: Policy Doppelg\u00e4nger, Contract Split-Brain, Environment Roulette, Abstraction Laundering",
-              "Agent-hygiene detectors: Phantom Accomplice, Loaded Agent \u2014 fully local, no registry calls, nothing executed",
+              "Cross-file authority detectors: Policy Doppelgänger, Contract Split-Brain, Environment Roulette, Abstraction Laundering",
+              "Agent-hygiene detectors: Phantom Accomplice, Loaded Agent: fully local, no registry calls, nothing executed",
               "Cross-file related_files for IA findings",
               "Per-finding effort + fix_shape on every Finding",
               "Stable, versioned JSON output for AI agents",
               "Python language pack with real parsing, not regexes",
-              "Universal pack — file-level and git-derived findings in any language",
+              "Universal pack: file-level and git-derived findings in any language",
               "Cross-language detectors: route drift, type drift, concept alias drift between Python and TypeScript",
               "Per-finding feedback loop (tp/fp/known) that auto-suppresses and resurfaces for re-confirmation",
               "Claude Code skill and AGENTS.md integration",
               "GitHub Actions example for PR gating"
             ],
-            "author": { "@id": "https://crimes.sh/#author" }
+            "author": {
+              "@id": "https://crimes.sh/#publisher"
+            }
           },
           {
             "@type": "FAQPage",
@@ -128,7 +131,7 @@
                 "name": "What is crimes?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "crimes is an open-source CLI that scans a TypeScript, JavaScript or Python repository for change risk and AI-agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents. In a polyglot repo it also reports disagreements between languages, such as a frontend calling an endpoint the backend does not serve. It runs locally with no cloud calls and outputs both a human-readable report and a stable, versioned JSON contract."
+                  "text": "crimes is an open-source CLI that scans a TypeScript, JavaScript or Python repository for change risk and AI-agent risk, including duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents. In a polyglot repo it also reports disagreements between languages, such as a frontend calling an endpoint the backend does not serve. It runs locally with no cloud calls and outputs both a human report and a stable, versioned JSON contract."
                 }
               },
               {
@@ -136,7 +139,7 @@
                 "name": "How is crimes different from ESLint, Biome, Semgrep, or SonarQube?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "crimes is not a linter, a security scanner, or a quality platform. ESLint and Biome catch style and correctness; Semgrep and CodeQL catch security issues; SonarQube wraps both with a dashboard. crimes ranks change risk and agent risk — where future edits are most likely to go wrong and what an AI coding agent needs to know before editing a file. It is deliberately scoped to that wedge and does not re-implement other tools."
+                  "text": "crimes is not a linter, a security scanner, or a quality platform. ESLint and Biome catch style and correctness; Semgrep and CodeQL catch security issues; SonarQube wraps both with a dashboard. crimes ranks places where future edits may go wrong and supplies context for reviewing those edits."
                 }
               },
               {
@@ -144,7 +147,7 @@
                 "name": "Does crimes send my code to a server or LLM?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "No. crimes runs entirely on your machine. There are no accounts, no telemetry, and no SaaS dashboard. Core detectors are deterministic AST and file-content analysis. Any future LLM-assisted features will be optional, additive, and opt-in — never load-bearing."
+                  "text": "No. crimes runs entirely on your machine. There are no accounts, no telemetry, and no SaaS dashboard. Core detectors are deterministic AST and file-content analysis. It does not use an LLM."
                 }
               },
               {
@@ -152,7 +155,7 @@
                 "name": "Which languages does crimes support?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "TypeScript and JavaScript (including JSX and TSX) and Python. A universal pack runs on every file in any language, so a Rust or Go repo still gets file-level and git-derived findings. Since 0.15.0 a cross-language pack also reports disagreements between Python and TypeScript that neither language\u0027s own tooling can see — a frontend calling a path the backend does not serve, or a type listed differently on each side."
+                  "text": "TypeScript and JavaScript (including JSX and TSX) and Python. A universal pack runs on every file in any language, so a Rust or Go repo still gets file-level and git-derived findings. Since 0.15.0 a cross-language pack also reports disagreements between Python and TypeScript that neither language's own tooling can see, such as a frontend calling a path the backend does not serve, or a type listed differently on each side."
                 }
               },
               {
@@ -160,7 +163,7 @@
                 "name": "How do AI coding agents use crimes?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Agents read two on-disk artefacts that ship in the repo. Claude Code picks up the .claude/skills/crimes/SKILL.md skill automatically; Codex CLI, Cursor, Aider, Continue, and Copilot Workspace read AGENTS.md at the repo root. The recommended loop is: run crimes context <file> --format json before editing, then crimes scan --changed --format json after editing, and treat any new severity: high finding as a blocker."
+                  "text": "Run crimes init --agents to install the Claude Code and Codex skills, the Claude Code edit hook and a managed AGENTS.md section. The workflow is to run crimes context <file> --format json before editing, then crimes scan --changed --format json after editing, and treat any new severity: \"high\" finding as a blocker."
                 }
               },
               {
@@ -168,7 +171,7 @@
                 "name": "Why is the JSON output called the contract?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "The JSON shape is the product, not an afterthought. Every finding is a typed record with id, type, claim, charge, severity, confidence, evidence, scores, and suggested_actions. Since 0.27.0 a finding also names the claim it makes, so a detector that can say more than one thing says which one — and a suppression aimed at one claim cannot silence another. The top-level schema_version field is bumped on any breaking change, so an AI agent or CI system can refuse to consume an unfamiliar shape rather than guess. The human terminal output is a renderer over the same schema."
+                  "text": "JSON is the versioned interface used by agents and CI. Every finding is a typed record with id, type, claim, charge, severity, confidence, evidence, scores, and suggested_actions. The top-level schema_version is bumped on any breaking change, so an AI agent or CI system can refuse to consume an unfamiliar shape rather than guess. The human terminal output is a renderer over the same schema."
                 }
               },
               {
@@ -192,7 +195,7 @@
     <a class="skip" href="#main">Skip to content</a>
 
     <header class="topbar">
-      <a class="brand" href="#top" aria-label="crimes — home">
+      <a class="brand" href="#top" aria-label="crimes home">
         <span class="brand-mark" aria-hidden="true">⌖</span>
         <span class="brand-name">crimes</span>
       </a>
@@ -219,14 +222,12 @@
         <p class="lede">
           <code>crimes</code> is an open-source CLI that scans
           <strong>TypeScript, JavaScript and Python</strong> repositories for
-          <strong>change risk</strong> and <strong>agent risk</strong> —
-          duplicated business rules, ambiguous sources of truth, weakly
-          tested hotspots, failures swallowed without a trace, and patterns
-          that confuse AI coding agents. In a polyglot repo it also reports
-          the disagreements <em>between</em> languages that neither side's
-          own tooling can see. A universal pack runs on every file in any
-          language, so a Rust or Go repo still gets findings. Local,
-          deterministic, no cloud.
+          <strong>change risk</strong> and <strong>agent risk</strong>.
+          It finds duplicated business rules, unclear sources of truth,
+          weakly tested hotspots and swallowed errors. It also checks for
+          disagreements between Python and TypeScript, such as an API path
+          that exists on only one side. File-level and Git checks work in
+          any language. All analysis runs locally.
         </p>
 
         <div class="cta-row">
@@ -251,9 +252,8 @@ src/billing.ts  7 findings · 1 high, 4 medium, 2 low
      id=crime_00003 … crime_00022</span></code></pre>
 
         <p class="hero-foot">
-          Not another linter. Not a security scanner. <code>crimes</code>
-          answers: <em>where is future change most likely to go wrong, and
-          what should a human or agent know before editing it?</em>
+          Use the findings to decide where an edit needs more care,
+          which tests to run and what related code to check.
         </p>
       </section>
 
@@ -274,14 +274,14 @@ crimes scan .</code></pre>
 
         <p class="note">
           <code>pnpm dlx crimes scan</code> and <code>bunx crimes scan</code>
-          also work. Homebrew lands after npm — see the
+          also work. See the installation plans in the
           <a href="https://github.com/ortomate/crimes/blob/main/docs/roadmap.md">roadmap</a>.
         </p>
       </section>
 
       <section id="quickstart">
         <h2>Quick start</h2>
-        <p>Nine commands cover everything <code>crimes</code> does today:</p>
+        <p>Start with these commands. The <a href="/docs/reference/">CLI reference</a> lists all commands and options:</p>
 
         <div class="qs">
           <div class="qs-row">
@@ -339,15 +339,15 @@ crimes diff origin/main...HEAD --format json</code></pre>
             <p class="note">
               <strong>New</strong>, <strong>fixed</strong>, and
               <strong>unchanged</strong> crimes between two Git refs.
-              Working-tree-safe — exports each ref into a temp dir via
-              <code>git archive</code>. Findings are matched by stable
+              Exports each ref into a temporary directory via
+              <code>git archive</code>, leaving your working tree intact. Findings are matched by stable
               fingerprint, so unrelated line shifts don't register as
               fix + new.
             </p>
           </div>
 
           <div class="qs-row">
-            <h3>Baseline — pin legacy debt, gate on new</h3>
+            <h3>Baseline: gate on new findings</h3>
             <pre><code>crimes baseline save
 git add .crimes/baseline.json &amp;&amp; git commit -m "Add crimes baseline"
 crimes baseline check --fail-on medium</code></pre>
@@ -362,7 +362,7 @@ crimes baseline check --fail-on medium</code></pre>
           </div>
 
           <div class="qs-row">
-            <h3>Branch verdict — cleaner, worse, unchanged, or mixed</h3>
+            <h3>Branch verdict: compare risk</h3>
             <pre><code>crimes verdict --base origin/main --format json
 crimes verdict --base origin/main --fail-on new-high</code></pre>
             <p class="note">
@@ -375,7 +375,7 @@ crimes verdict --base origin/main --fail-on new-high</code></pre>
           </div>
 
           <div class="qs-row">
-            <h3>Triage — the front door for existing findings</h3>
+            <h3>Triage: record a decision for each finding</h3>
             <pre><code>crimes triage
 crimes triage --list
 crimes triage --retriage src/billing.ts</code></pre>
@@ -388,26 +388,23 @@ crimes triage --retriage src/billing.ts</code></pre>
               owner. Silenced dispositions and baseline entries
               <strong>resurface</strong> in <code>crimes scan</code>
               when the file is in the branch diff against
-              <code>main</code> — a one-time decision doesn't become
-              permanent amnesia. Persisted to
+              <code>main</code>, so earlier decisions can be reviewed. Stored in
               <code>.crimes/triage.json</code>, intended to be
               committed.
             </p>
           </div>
 
           <div class="qs-row">
-            <h3>Feedback — tell it when it's wrong</h3>
+            <h3>Feedback: report a false positive</h3>
             <pre><code>crimes feedback &lt;fingerprint&gt; --verdict fp --note "…"
 crimes feedback summary
 crimes feedback recheck</code></pre>
             <p class="note">
-              A false positive is a calibration signal, not a shrug.
               <code>--verdict fp</code> requires a note and writes a
               suppression <strong>pinned to the current crimes minor</strong>,
-              so the finding comes back for re-confirmation the next time
-              the detector could plausibly have changed —
+              so the finding returns for review after a minor-version update.
               <code>crimes feedback recheck</code> lists each one with what
-              actually changed for that detector. Verdicts land in
+              changed for that detector. Verdicts are stored in
               <code>.crimes/feedback.jsonl</code> and feed the eval harness
               that gates every release.
             </p>
@@ -427,11 +424,11 @@ crimes feedback recheck</code></pre>
       <section id="agents">
         <h2>Built for agents</h2>
         <p>
-          The wedge isn't "better linter". It's <em>local, open-source,
-          agent-native codebase risk and context</em>. <code>crimes</code>
-          ships two on-disk artefacts that AI coding agents pick up
-          automatically — <strong>there is nothing to install into a
-          prompt</strong>.
+          Run <code>crimes init --agents</code> in your project to install
+          the bundled Claude Code and Codex skills, a managed section in
+          <code>AGENTS.md</code>, and the Claude Code edit hook. Normal CLI
+          use checks for skill updates after an npm upgrade. See
+          <a href="/docs/skills/">agent setup and updates</a> for details.
         </p>
 
         <div class="cards">
@@ -441,17 +438,11 @@ crimes feedback recheck</code></pre>
               <h3><code>.claude/skills/crimes/SKILL.md</code></h3>
             </header>
             <p>
-              A Claude Code skill that loads on demand. Tells Claude
-              <em>when</em> to run <code>crimes</code>, <em>which</em>
-              command to use, and <em>how</em> to read the JSON.
-              Auto-discovered by Claude Code in any repo with a
-              <code>SKILL.md</code> under
-              <code>.claude/skills/&lt;name&gt;/</code>. As of
-              <strong>0.11.0</strong>, <code>crimes init --agents</code>
-              also installs a Claude Code
-              <strong>PreToolUse Edit hook</strong> in
-              <code>.claude/settings.local.json</code> so the pre-edit
-              briefing runs automatically — no prompt required.
+              The skill explains when to run <code>crimes</code>, which
+              command to use and how to interpret the JSON. The
+              <strong>PreToolUse hook</strong> in
+              <code>.claude/settings.local.json</code> supplies context
+              before supported edits.
             </p>
             <ul class="card-list">
               <li>Pre-edit (automatic via PreToolUse): <code>crimes context &lt;file&gt; --format json</code></li>
@@ -463,18 +454,17 @@ crimes feedback recheck</code></pre>
 
           <article class="card">
             <header class="card-head">
-              <span class="card-tag">Codex · Cursor · Aider · &nbsp;more</span>
-              <h3><code>AGENTS.md</code></h3>
+              <span class="card-tag">Codex and other agents</span>
+              <h3><code>.agents/skills/crimes/SKILL.md</code></h3>
             </header>
             <p>
-              The convention OpenAI Codex CLI, Cursor, Aider, Continue, and
-              Copilot Workspace read on startup. A single file at the repo
-              root with install commands, the shipped CLI surface, package
-              boundaries, and agent safety rules — no auto-publish, no
-              silent auto-fix.
+              Codex uses the bundled skill to choose commands and interpret
+              findings. The managed <code>AGENTS.md</code> section gives
+              agents that read it the same pre-edit and post-edit workflow.
+              Setup preserves existing project instructions.
             </p>
             <ul class="card-list">
-              <li>Stable JSON makes <code>crimes</code> output safe to feed back into the agent loop</li>
+              <li>Versioned JSON lets agents check the report format before using it</li>
               <li>Same pre / post-edit workflow as Claude</li>
               <li>Works with any agent that reads <code>AGENTS.md</code></li>
             </ul>
@@ -484,16 +474,16 @@ crimes feedback recheck</code></pre>
         <h3 class="sub">Recommended loop</h3>
         <ol class="loop">
           <li>
-            <strong>Before editing</strong> a specific file —
+            <strong>Before editing</strong> a specific file, run
             <code>crimes context &lt;file&gt; --format json</code>.
             Read every <code>high</code> severity finding first. Under
-            Claude Code with the <code>0.12.0</code> PreToolUse hook
+            Claude Code with the PreToolUse hook
             installed, this fires automatically on every
             <code>Edit</code> / <code>Write</code> /
             <code>NotebookEdit</code>.
           </li>
           <li>
-            <strong>Triage findings interactively</strong> —
+            <strong>Triage findings interactively.</strong>
             <code>crimes triage</code> walks each finding top-of-rank
             first, asking for a disposition
             (<code>fix-now</code> / <code>fix-this-PR</code> /
@@ -503,38 +493,36 @@ crimes feedback recheck</code></pre>
             file is touched on the branch.
           </li>
           <li>
-            <strong>After editing</strong> — re-scan only what you touched:
+            <strong>After editing,</strong> re-scan what you touched:
             <code>crimes scan --changed --format json</code>. Diff the
             findings against the pre-edit run.
           </li>
           <li>
-            <strong>Before opening the PR</strong> —
+            <strong>Before opening the PR,</strong> run
             <code>crimes verdict --base origin/main --fail-on new-high</code>
             for the one-line "did this branch help or hurt?" answer,
             with a hard gate on any new high finding.
           </li>
           <li>
-            <strong>Triaging the wider repo</strong> —
+            <strong>To review the wider repo,</strong> use
             <code>crimes hotspots --format json</code> ranks files by an
             aggregate of git churn and current findings.
           </li>
         </ol>
         <p>
           Decision rule: any <strong>new <code>severity: "high"</code>
-          finding</strong> introduced by your edit is a blocker — fix it, or
+          finding</strong> introduced by your edit is a blocker. Fix it, or
           surface it to the user citing the finding <code>id</code> and
           <code>charge</code>. Quote <code>evidence[]</code> back to the
-          user when you explain a decision: it is deterministic AST or
-          file-content data, not opinion.
+          user when you explain a decision, and check it against the code.
         </p>
       </section>
 
       <section id="ci">
         <h2>CI</h2>
         <p>
-          <code>crimes</code> is built for CI. Three deterministic gating
-          modes — pick whichever fits the contract you want with your
-          team. All three share the same exit-code shape:
+          Choose a gate for selected files, new findings against a baseline,
+          or changes across a branch. All three use the same exit codes:
           <code>0</code> success / no blocking findings,
           <code>1</code> a configured <code>--fail-on</code> threshold
           met, <code>2</code> a usage or environment error.
@@ -558,7 +546,7 @@ crimes feedback recheck</code></pre>
             <span role="cell"><strong>B · Baseline</strong></span>
             <span role="cell"><code>crimes baseline check --fail-on medium</code></span>
             <span role="cell">
-              Legacy repo — commit <code>.crimes/baseline.json</code>,
+              Commit existing findings to <code>.crimes/baseline.json</code>,
               then fail only on <strong>new</strong> debt.
             </span>
           </div>
@@ -572,7 +560,7 @@ crimes feedback recheck</code></pre>
           </div>
         </div>
 
-        <h3 class="sub">GitHub Actions — copy / paste</h3>
+        <h3 class="sub">GitHub Actions example</h3>
         <pre><code><span class="comment"># .github/workflows/crimes.yml</span>
 name: crimes
 on:
@@ -586,7 +574,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          <span class="comment"># `verdict` resolves `origin/main` — fetch full history.</span>
+          <span class="comment"># Fetch full history so `verdict` can resolve `origin/main`.</span>
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -691,13 +679,11 @@ Repo-level
         <!-- /generated:example-json -->
         <p>
           <code>schema_version</code> is bumped on breaking changes, so
-          agents can refuse to consume an unfamiliar shape. The
-          <code>"0.1.0"</code> → <code>"0.8.0"</code> bump in
-          <strong>0.11.0</strong> added two required <code>Finding</code>
-          fields: <code>effort</code>
+          agents can refuse to consume an unfamiliar shape. Every finding
+          includes <code>effort</code>
           (<code>quick</code>/<code>small</code>/<code>medium</code>/<code>large</code>)
           and <code>fix_shape</code> (a one-line description of the shape
-          of the fix). Three docs back this contract up:
+          of the fix). These references describe the contract:
         </p>
         <ul>
           <li>
@@ -705,7 +691,7 @@ Repo-level
               href="https://github.com/ortomate/crimes/blob/main/docs/agent-usage.md"
               ><code>docs/agent-usage.md</code></a
             >
-            — pre-edit / post-edit workflow, shipped vs deferred, exit-code
+            covers the pre-edit and post-edit workflow, shipped and deferred commands, and exit-code
             behaviour
           </li>
           <li>
@@ -713,14 +699,14 @@ Repo-level
               href="https://github.com/ortomate/crimes/blob/main/docs/json-schema.md"
               ><code>docs/json-schema.md</code></a
             >
-            — every field of the wire format, required vs reserved
+            describes every field of the wire format, including required and reserved fields
           </li>
           <li>
             <a
               href="https://github.com/ortomate/crimes/blob/main/docs/fixtures/messy-ts-app.json"
               ><code>docs/fixtures/messy-ts-app.json</code></a
             >
-            — the full pinned sample output, version-controlled
+            contains the full, version-controlled sample output
           </li>
         </ul>
       </section>
@@ -731,7 +717,7 @@ Repo-level
           <strong>69 detectors across ten families.</strong> The two tables
           below are the founding families, shown in full because they are
           the easiest to picture. Every family after them links to its own
-          reference page — each one lists every detector, what raises and
+          reference page. Each lists the detectors, what raises and
           lowers its confidence, and the near-misses it deliberately does
           not fire on.
         </p>
@@ -770,7 +756,7 @@ Repo-level
           <div class="row" role="row">
             <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/petty.md"><strong>Petty crimes</strong></a></span>
             <span role="cell"><code>v0.3.0</code></span>
-            <span role="cell">Which small lies — dead code, misleading names, logic hidden in comments — will mislead the next reader?</span>
+            <span role="cell">Could dead code, misleading names or logic hidden in comments confuse the next reader?</span>
           </div>
           <div class="row" role="row">
             <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/assets.md"><strong>Assets</strong></a></span>
@@ -790,7 +776,7 @@ Repo-level
           <div class="row" role="row">
             <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/agent-hygiene.md"><strong>Agent hygiene</strong></a></span>
             <span role="cell"><code>v0.16.0</code></span>
-            <span role="cell">Imports with no declaring manifest, and repo-local agent config granting unrestricted execution. Fully local — no registry calls, nothing executed.</span>
+            <span role="cell">Imports with no declaring manifest, and repo-local agent config granting unrestricted execution. Uses local records without contacting registries or executing configuration.</span>
           </div>
         </div>
 
@@ -801,7 +787,7 @@ Repo-level
           every file in any language, so a Rust or Go repo still gets
           file-level and git-derived findings. The
           <strong>Python pack</strong> (<code>v0.14.0</code>) brings real
-          parsing — not regexes — to <code>.py</code> sources. And the
+          parsing to <code>.py</code> sources. The
           <strong>cross-language pack</strong> (<code>v0.15.0</code>)
           reports what neither language's own tooling can: a frontend
           calling a path the backend does not serve, a closed set listed
@@ -851,17 +837,16 @@ Repo-level
           </div>
         </div>
 
-        <h3 class="sub">Information architecture detectors · new in v0.3.0</h3>
+        <h3 class="sub">Information architecture detectors</h3>
         <p>
           <strong>IA crimes</strong> surface deterministic evidence that
-          the repo tells <em>multiple competing stories about the same
-          product concept</em> — what something is called, where it lives,
-          which implementation owns it. No LLM, no API key, no network.
+          names, locations or implementations of a product concept
+          disagree. The checks run locally without an LLM or API key.
           Every finding cites concrete files, lines, and string literals;
           cross-file findings populate <code>related_files</code> and
           render as an "Also touches:" block in the human report.
         </p>
-        <div class="detector-table" role="table" aria-label="Information architecture detectors new in v0.3.0">
+        <div class="detector-table" role="table" aria-label="Information architecture detectors">
           <div class="row head" role="row">
             <span role="columnheader">Detector</span>
             <span role="columnheader">Charge</span>
@@ -949,9 +934,8 @@ package.json declares bin(s): messy — agents have no way to discover commands
 docs/teams.md:5 → ./setup.md (not found)</code></pre>
 
         <p class="note">
-          Built for humans and coding agents. IA findings phrase summaries
-          as "appears to" / "may" — they are
-          <strong>ambiguity signals</strong>, not claims of semantic truth.
+          IA findings describe possible ambiguity. Check the cited files
+          before deciding whether the difference is intentional.
           Long-form reference (quorum rules, false-positive notes,
           suggested fixes):
           <a
@@ -964,18 +948,12 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
           Every finding includes <strong>evidence</strong> (raw facts the
           detector observed) and <strong>scores</strong>
           (<code>severity</code>, <code>confidence</code>,
-          <code>agent_risk</code>). No verdicts without receipts.
+          <code>agent_risk</code>).
         </p>
       </section>
 
       <section id="faq">
         <h2>FAQ</h2>
-        <p>
-          Short, direct answers to the questions that come up most often.
-          Every answer is also encoded as
-          <a href="https://schema.org/FAQPage"><code>FAQPage</code></a>
-          structured data, so AI assistants can quote them verbatim.
-        </p>
 
         <div class="faq">
           <details>
@@ -984,7 +962,7 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
               <code>crimes</code> is an open-source CLI that scans a
               TypeScript, JavaScript or Python repository for
               <strong>change risk</strong> and <strong>AI-agent
-              risk</strong> — duplicated business rules, ambiguous sources
+              risk</strong>, including duplicated business rules, ambiguous sources
               of truth, weakly tested hotspots, and patterns that confuse
               AI coding agents. In a polyglot repo it also reports
               disagreements <em>between</em> languages, such as a frontend
@@ -1004,10 +982,8 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
               quality platform. ESLint and Biome catch style and
               correctness; Semgrep and CodeQL catch security issues;
               SonarQube wraps both with a dashboard. <code>crimes</code>
-              ranks change-risk and agent-risk — <em>where future edits are
-              most likely to go wrong, and what an AI coding agent needs to
-              know before editing a file</em>. It is deliberately scoped to
-              that wedge and does not re-implement other tools.
+              ranks places where future edits may go wrong and supplies
+              context for reviewing those edits.
             </p>
           </details>
 
@@ -1019,8 +995,7 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
               No. <code>crimes</code> runs entirely on your machine. There
               are no accounts, no telemetry, and no SaaS dashboard. Core
               detectors are deterministic AST and file-content analysis.
-              Any future LLM-assisted features will be optional, additive,
-              and opt-in — never load-bearing.
+              It does not use an LLM.
             </p>
           </details>
 
@@ -1033,7 +1008,7 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
               git-derived findings. Since <strong>0.15.0</strong> a
               cross-language pack also reports disagreements
               <em>between</em> Python and TypeScript that neither
-              language's own tooling can see — a frontend calling a path
+              language's own tooling can see, such as a frontend calling a path
               the backend does not serve, or a type listed differently
               on each side.
             </p>
@@ -1042,12 +1017,9 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
           <details>
             <summary>How do AI coding agents use <code>crimes</code>?</summary>
             <p>
-              Agents read two on-disk artefacts that ship in the repo.
-              Claude Code picks up
-              <code>.claude/skills/crimes/SKILL.md</code> automatically;
-              Codex CLI, Cursor, Aider, Continue, and Copilot Workspace
-              read <code>AGENTS.md</code> at the repo root. The recommended
-              loop is: run
+              Run <code>crimes init --agents</code> to install the Claude
+              Code and Codex skills, the Claude Code edit hook and a managed
+              <code>AGENTS.md</code> section. The workflow is to run
               <code>crimes context &lt;file&gt; --format json</code> before
               editing, then <code>crimes scan --changed --format json</code>
               after editing, and treat any new
@@ -1058,9 +1030,9 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
           <details>
             <summary>Why is the JSON output called <em>the contract</em>?</summary>
             <p>
-              The JSON shape <strong>is</strong> the product, not an
-              afterthought. Every finding is a typed record with
-              <code>id</code>, <code>type</code>, <code>charge</code>,
+              JSON is the versioned interface used by agents and CI.
+              Every finding is a typed record with
+              <code>id</code>, <code>type</code>, <code>claim</code>, <code>charge</code>,
               <code>severity</code>, <code>confidence</code>,
               <code>evidence</code>, <code>scores</code>, and
               <code>suggested_actions</code>. The top-level
@@ -1090,8 +1062,7 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
       <section id="next" class="strip">
         <h2>What's next</h2>
         <p>
-          Active development. Per-version release notes — every detector,
-          schema change, and command added so far — live on the
+          Read about released detectors, schema changes and commands on the
           <a href="https://github.com/ortomate/crimes/releases">GitHub Releases page</a>.
           The forward roadmap is in
           <a href="https://github.com/ortomate/crimes/blob/main/docs/roadmap.md"
@@ -1109,15 +1080,16 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
           <code>crimes</code> is
           <a href="https://github.com/ortomate/crimes/blob/main/LICENSE">MIT-licensed</a>
           and runs entirely on your machine. No accounts, no telemetry, no
-          SaaS dashboard. Core detectors are deterministic; any
-          LLM-assisted features in the future are optional and additive.
+          SaaS dashboard. Analysis uses deterministic checks of your files
+          and Git history.
         </p>
         <p>
           Detectors live in <code>packages/core</code>, language parsing in
           <code>packages/language-js</code> and
           <code>packages/language-py</code>, reporters in
-          <code>packages/reporter</code>. Adding a detector — or a whole
-          language pack — is a pull request, not a plugin marketplace.
+          <code>packages/reporter</code>. See the
+          <a href="https://github.com/ortomate/crimes/blob/main/CONTRIBUTING.md">contribution guide</a>
+          to add a detector or language pack.
         </p>
       </section>
     </main>
@@ -1136,10 +1108,10 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
         <span aria-hidden="true">·</span>
         <a href="https://github.com/ortomate/crimes/blob/main/docs/json-schema.md">JSON schema</a>
         <span aria-hidden="true">·</span>
-        <a href="https://andrewmayfield.com" rel="author me">By Andrew Mayfield ↗</a>
+        <a href="https://ortomate.ai">An Ortomate Initiative ↗</a>
       </div>
       <p class="footnote">
-        MIT licensed. Deterministic, local, agent-native.
+        © 2026 Ortomate. MIT licensed.
       </p>
     </footer>
   </body>

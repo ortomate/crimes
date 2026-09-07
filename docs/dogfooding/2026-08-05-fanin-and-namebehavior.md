@@ -1,7 +1,7 @@
 # `high_fan_in_fan_out` and `name_behavior_mismatch`: R3 items 3 and 4
 
-Both re-verified against `main` before anything was touched — see
-[the Step 0 pass](./2026-08-05-choreograph-reverify.md) — and both
+Both re-verified against `main` before anything was touched (see
+[the Step 0 pass](./2026-08-05-choreograph-reverify.md)) and both
 [pre-measured](./2026-08-05-r3-premeasurements.md) before a line was
 changed, which is what stopped item 3 shipping the wrong rule.
 
@@ -16,7 +16,7 @@ whose exports are type-only**."
 **Measured before implementing:** that file exports **24** interfaces
 and **one** `const` (`JOB_STUCK_THRESHOLD_SECONDS`). An
 exports-are-type-only test fails on the exact file the complaint is
-about — and would silently re-arm the moment anyone added a constant to
+about, and would silently re-arm the moment anyone added a constant to
 any types module. A rule a single line defeats is a rule that quietly
 stops working.
 
@@ -45,7 +45,7 @@ evidence before judgement.
 
 The reasoning behind the demotion, stated so it can be argued with: the
 coupling is real, and it is **compile-time**. Change an interface and
-every importer fails to build — loudly, immediately, before anything
+every importer fails to build: loudly, immediately, before anything
 ships. That is a different risk from a runtime hub, and ranking them
 together is what made this read as a category error.
 
@@ -69,7 +69,7 @@ demotion is correct rather than incidental.
 
 ## `name_behavior_mismatch`: building the thing you read through
 
-**Complaint:** "`getChoreoByDate() → calls createClient` — flagged five
+**Complaint:** "`getChoreoByDate() → calls createClient`: flagged five
 times in `api.ts` alone, because a `get*` function makes a
 'side-effect-like call'. But `createClient()` is constructing the client
 in order to *do the read*. Every data-access layer in every Next.js app
@@ -84,12 +84,12 @@ export async function getChoreoByDate(person: string, date: string) {
 ```
 
 The result is bound, then dereferenced. A `create*` called for its
-*effect* — `await createOrder(cart)` — has no such follow-up: the return
+*effect* (`await createOrder(cart)`) has no such follow-up: the return
 value is returned, discarded or destructured, never used as a receiver.
 
 So the rule is that **shape**, not a `createClient` allowlist. An
-allowlist is a treadmill — the next framework names it `getConnection`,
-`makePool`, `initSupabase` — and it would bake one ecosystem's
+allowlist is a treadmill (the next framework names it `getConnection`,
+`makePool`, `initSupabase`) and it would bake one ecosystem's
 vocabulary into a detector that is supposed to be about naming in
 general.
 
@@ -105,7 +105,7 @@ const json = await res.json()
 
 That fits the shape exactly, and a network call is a side effect
 whatever you do with the response. The callee now has to *look* like a
-constructor — `/^(?:create|make|build|init|connect|open)[A-Z_]/` — which
+constructor: `/^(?:create|make|build|init|connect|open)[A-Z_]/`: which
 is what "factory" means. Anchored and requiring a capitalised
 remainder, so `create` matches `createAdminClient` but not `created`.
 
@@ -119,7 +119,7 @@ Only the factory call is discounted. A `get*` that builds a client
 | choreograph `name_behavior_mismatch` | 19 | **7** |
 | choreograph total findings | 491 | 475 |
 
-All **12** removals are `createClient` / `createAdminClient` — the
+All **12** removals are `createClient` / `createAdminClient`: the
 complaint exactly, across `src/lib/api.ts` (5), `lib/api.ts` (2),
 `integrations/store.ts`, `notify/emails.ts`, `collectors/location.ts`,
 `collectors/apple-health.ts` and one script.
@@ -132,7 +132,7 @@ three React `set*` state writers.
 
 ### One known false positive left, out of scope
 
-`scripts/_backfill-song-type.ts` reports `setUTCDate` — a `Date` mutator
+`scripts/_backfill-song-type.ts` reports `setUTCDate`: a `Date` mutator
 caught by the `set[A-Z]` pattern. That is a different defect (the
 side-effect regex not knowing built-in methods) and tuning it in the
 same change would break the one-at-a-time rule. Recorded, not fixed.

@@ -1,4 +1,4 @@
-# Wider codebase support — three-release design
+# Wider codebase support: three-release design
 
 > **Renumbering note (added 2026-07-31).** This document was written
 > before the ranking work claimed `0.13.0`. The version numbers below
@@ -25,7 +25,7 @@ depend on `ParsedFile` from `packages/language-js/`, so even
 file-level detectors that are conceptually language-agnostic
 (`large_file`, asset detectors, `hardcoded_localhost`) only fire on
 files the JS pack claims. Running `crimes scan .` on a Python, Go,
-or Rust repo today returns nothing useful — which reads as "the tool
+or Rust repo today returns nothing useful, which reads as "the tool
 is broken" rather than "no language pack installed."
 
 The architecture was designed for multiple language packs from day
@@ -40,14 +40,14 @@ every language.
 A three-release arc, scoped so each release is independently
 shippable and the schema bump only happens once:
 
-1. **0.12.0 — universal pack.** Extract a universal-pack detector
+1. **0.12.0: universal pack.** Extract a universal-pack detector
    pass that runs without parsing. Refactor `DetectorContext` into a
    discriminated union. Move file discovery to `core`. Bump schema
    `0.2.0` → `0.3.0` to add `Finding.pack` + `ScanReport.coverage`.
-2. **0.13.0 — Python language pack.** First non-JS pack via
+2. **0.13.0: Python language pack.** First non-JS pack via
    tree-sitter-python. Port eight detectors. Proves the
    language-pack interface is real and reusable.
-3. **0.14.0 — polyglot IA + monorepo coverage.** Three new
+3. **0.14.0: polyglot IA + monorepo coverage.** Three new
    cross-language detectors (`cross_language_concept_alias_drift`,
    `cross_language_route_drift`, `cross_language_type_drift`).
    Coverage block goes per-package in monorepos. This is the
@@ -57,7 +57,7 @@ shippable and the schema bump only happens once:
 language-js / language-py / cross-language axis. The existing
 `Finding.tier` field already carries scope tier (`domain` /
 `nonDomain`) from `scopeTiers.nonDomain` config, so the new axis
-lives on a new field — `Finding.pack` — to avoid collision. The TS
+lives on a new field (`Finding.pack`) to avoid collision. The TS
 type for the new field is `Pack`, defined alongside the existing
 `Tier` type but distinct from it.
 
@@ -79,7 +79,7 @@ Each detector belongs to exactly one pack, declared at registration:
   required pack(s). Examples: `large_function`,
   `circular_dependency`, all date/time detectors, `sync_io_in_hotpath`.
   A Python `large_function` is a *different detector* from a JS
-  `large_function` — same abstract `type`, but different parsers,
+  `large_function`: same abstract `type`, but different parsers,
   fixtures, and detector ids (`large_function.js` vs `large_function.py`).
 - **Cross-language pack** (lands in 0.14.0). Evidence requires
   aligning artifacts from two or more language packs. Examples:
@@ -111,7 +111,7 @@ type DetectorContext =
       git: GitContext; ia: IaIndex; config: CrimesConfig };
 ```
 
-Asset detectors fold into the universal pack — the existing
+Asset detectors fold into the universal pack: the existing
 `AssetDetectorContext` becomes a specialised `UniversalFile` whose
 `read()` is lazy and per-file cached, preserving the 0.8.0 asset
 pipeline behaviour.
@@ -152,7 +152,9 @@ custom hand-rolled Python parser (decade-long maintenance trap).
 
 ## Release breakdown
 
-### `crimes@0.12.0` — universal pack
+<span id="crimes0120--universal-pack"></span>
+
+### `crimes@0.12.0`: universal pack
 
 **Goal:** "Works on any repo, honest about what's covered."
 
@@ -161,7 +163,7 @@ custom hand-rolled Python parser (decade-long maintenance trap).
 - **Pack model lands.** `DetectorContext` becomes the discriminated
   union above. Detector registry routes by `pack` + `context_kind`.
 - **File discovery moves to `core`.** Language packs register
-  claimed extensions. No behaviour change for JS users — the same
+  claimed extensions. No behaviour change for JS users: the same
   files get parsed and the same detectors fire.
 - **Detector inventory split.** No detectors are removed or
   re-implemented; only re-categorised:
@@ -183,7 +185,7 @@ custom hand-rolled Python parser (decade-long maintenance trap).
   coverage: 412 files, 18% covered by language packs (js).
             Run with --explain-coverage for the breakdown.
   ```
-  JSON output is silent — the `coverage` block in `ScanReport`
+  JSON output is silent: the `coverage` block in `ScanReport`
   carries the same data.
 - **`crimes context <file>` accepts any extension.** Returns
   universal-pack findings + git/IA context, even when no language
@@ -209,10 +211,12 @@ records. Mitigation: the canonical **fingerprint** formula stays
 `<type>::<file>::<symbol>` and continues to use the **abstract**
 `type`, not the qualified `detector_id`. Existing fingerprints are
 untouched. The 0.12.0 first-run logs a one-line note when it
-detects pre-0.12 on-disk artefacts that lack the new fields — but
+detects pre-0.12 on-disk artefacts that lack the new fields, but
 they continue to work as-is.
 
-### `crimes@0.13.0` — Python language pack
+<span id="crimes0130--python-language-pack"></span>
+
+### `crimes@0.13.0`: Python language pack
 
 **Goal:** Prove the language-pack interface is real and reusable.
 
@@ -223,25 +227,25 @@ they continue to work as-is.
   `ParsedPyFile` + a pack-registration function. Uses
   `tree-sitter` + `tree-sitter-python`.
 - **Initial Python detector slate (8):**
-  1. `large_function.py` — function-level line/branch thresholds
+  1. `large_function.py`: function-level line/branch thresholds
      mirroring the JS shape policy (test fixtures, FastAPI route
      handlers, Django views, CLI Click/Typer commands have
      per-shape thresholds).
-  2. `direct_date.py` — `datetime.datetime.now()` /
+  2. `direct_date.py`: `datetime.datetime.now()` /
      `datetime.now()` without `tz=` argument; analogous to the JS
      `direct_date` charge.
-  3. `sync_io_in_hotpath.py` — `open()`, `requests.get`,
+  3. `sync_io_in_hotpath.py`: `open()`, `requests.get`,
      `urllib.request.urlopen`, `subprocess.run` inside FastAPI
      route handlers, Django views, Flask routes, or domain
      functions.
-  4. `circular_dependency.py` — Python module import graph.
-  5. `deep_import.py` — `from a.b.c.d import …` past a configurable
+  4. `circular_dependency.py`: Python module import graph.
+  5. `deep_import.py`: `from a.b.c.d import …` past a configurable
      depth.
-  6. `weak_test_signal.py` — `pytest` / `unittest` test files with
+  6. `weak_test_signal.py`: `pytest` / `unittest` test files with
      too few assertions, single-test files for large modules.
-  7. `mixed_utc_local_methods.py` — `.utcnow()` and `.now()` used
+  7. `mixed_utc_local_methods.py`: `.utcnow()` and `.now()` used
      on the same module's surface, mirroring the JS family.
-  8. `boolean_naming_drift.py` — Python booleans whose names lack
+  8. `boolean_naming_drift.py`: Python booleans whose names lack
      the `is_`/`has_`/`should_` prefix convention, with an
      allowlist mirroring the JS-side React-state allowlist for
      idiomatic Python state names.
@@ -259,11 +263,13 @@ they continue to work as-is.
   shows `files_by_language: { js: 412, py: 138 }`.
 - **`crimes init --agents`** updated to mention Python coverage in
   the generated agent skills.
-- **Schema unchanged** — `pack` and `coverage` were already shipped
+- **Schema unchanged**: `pack` and `coverage` were already shipped
   in 0.12.0. New `Finding.pack: "language-py"` values land
   additively.
 
-### `crimes@0.14.0` — polyglot IA + monorepo coverage
+<span id="crimes0140--polyglot-ia--monorepo-coverage"></span>
+
+### `crimes@0.14.0`: polyglot IA + monorepo coverage
 
 **Goal:** Cross-language findings that no single-language tool can
 produce. This is the differentiator.
@@ -271,19 +277,19 @@ produce. This is the differentiator.
 **Changes:**
 
 - **Three cross-language detectors:**
-  - **`cross_language_concept_alias_drift`** — extends 0.3.0's
+  - **`cross_language_concept_alias_drift`**: extends 0.3.0's
     `concept_alias_drift` to consider Python symbol names +
     docstrings alongside JS identifiers. Same evidence model
     (≥3 disagreeing sources, ≥2 distinct directories), broader
     source pool. Fires when `team` / `workspace` / `organisation`
     appear inconsistently across `users.py`, `team_service.py`,
     `WorkspaceProvider.tsx`, etc.
-  - **`cross_language_route_drift`** — FastAPI / Django / Flask
+  - **`cross_language_route_drift`**: FastAPI / Django / Flask
     route declarations on the Python side, matched against TS
     fetch sites + nav labels on the JS side. Fires when
     `@app.get("/api/users")` in `routes/users.py` is labelled
     `team` in the frontend nav array. Evidence cap 8.
-  - **`cross_language_type_drift`** — Python `Plan` enum or
+  - **`cross_language_type_drift`**: Python `Plan` enum or
     Pydantic class referenced as a closed set of string literals
     on the TS side, where the string set diverges from the
     canonical type's members. Symmetric: same detector fires on
@@ -356,7 +362,7 @@ type ScanReport = {
 ```
 
 `Finding.type` semantics are unchanged. Consumers that grouped by
-`type` continue to work — the qualified form lives in the new
+`type` continue to work: the qualified form lives in the new
 `detector_id` field and is purely informational for users that need
 to disambiguate "JS large_function" from "Python large_function".
 `Finding.tier` (existing scope-tier field) is untouched.
@@ -370,17 +376,17 @@ and the 0.12.0 release notes.
 - **Coverage banner** triggers when >50% of discovered files have
   no pack claim. One line, above the file-grouped scan output.
   Suppressed in JSON output and when `--no-color` is set.
-- **`crimes scan --explain-coverage`** new flag — prints
+- **`crimes scan --explain-coverage`** new flag: prints
   per-language breakdown, extension-to-pack map, loaded packs.
-- **`crimes context <unsupported.rs>`** — universal-pack findings +
+- **`crimes context <unsupported.rs>`**: universal-pack findings +
   git/IA context, with `agent_guidance_reason: "no language pack
   claims .rs files; install or wait for one."` No error, no
   exit-2.
-- **`crimes scan` on a Rust-only repo** — prints universal-pack
+- **`crimes scan` on a Rust-only repo**: prints universal-pack
   findings + banner. Does **not** print "no crimes detected" (which
   today reads as a clean bill of health on what is in fact an
   unparsed repo).
-- **`crimes init`** — generated `crimes.config.json` gains a
+- **`crimes init`**: generated `crimes.config.json` gains a
   commented `coverage` section explaining pack semantics. The
   generated `AGENTS.md` mentions that universal-pack findings on
   unsupported-language files have full confidence on the things
@@ -411,7 +417,7 @@ and the 0.12.0 release notes.
   what's missing ("install a Python pack for full coverage") so
   thinness is legible and provisional, not a verdict on the tool.
   Landing-page copy explicitly says "works on every codebase" only
-  in the context of the coverage model — never as an unqualified
+  in the context of the coverage model: never as an unqualified
   claim.
 - **Cross-language IA false-positive blast radius.**
   Cross-language detectors have 2× the source surface for false
@@ -436,7 +442,7 @@ and the 0.12.0 release notes.
 - **Cross-language *import graph*.** Detecting that a TS
   `fetch("/api/users")` lines up with a FastAPI
   `@app.get("/api/users")` route requires real cross-language
-  symbol resolution and is its own subtree — deferred to 0.15.0+.
+  symbol resolution and is its own subtree: deferred to 0.15.0+.
 - **LLM-assisted modes.** `PRD.md` §26 `crimes ask` stays
   deferred. Nothing in this arc requires an LLM.
 - **`crimes` becoming a multi-language linter.** The wedge stays
@@ -469,6 +475,6 @@ and the 0.12.0 release notes.
 
 After this design is approved, hand off to `writing-plans` to
 produce implementation plans for **0.12.0 first** (universal pack).
-0.13.0 and 0.14.0 get their own plans after 0.12.0 ships — the
+0.13.0 and 0.14.0 get their own plans after 0.12.0 ships: the
 language-pack interface details depend on what falls out of the
 0.12.0 refactor.

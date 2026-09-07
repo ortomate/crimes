@@ -32,7 +32,7 @@ All five emit the standard `Finding` shape. The detectors run only on
 files that the parser identifies as JSX-bearing.
 
 `visual_regression_review_hint` shipped in 0.6.0 and was removed in
-0.7.5 — its trigger ("file changed many times recently") was a poor
+0.7.5: its trigger ("file changed many times recently") was a poor
 proxy for "needs visual review": active development often means rapid
 iteration, not regression risk.
 
@@ -60,7 +60,7 @@ a shared design decision; do not create a token system to clear a warning.
 ## Hidden Interaction (`accessible_interaction_risk`)
 
 **What it detects.** JSX elements that handle pointer events
-(`onClick`, `onMouseDown`, etc.) but have no accessible label —
+(`onClick`, `onMouseDown`, etc.) but have no accessible label:
 typically a `<div>` or `<span>` with handlers and no `aria-label`,
 `aria-labelledby`, role, or visible text child.
 
@@ -110,7 +110,7 @@ the others, and the divergence locks the duplication in.
 
 **Suggested fix.** Extract a shared `Card` primitive that takes the
 specific bits as props or children. The detector counts identical
-shape, not identical content — so the primitive doesn't have to be
+shape, not identical content, so the primitive doesn't have to be
 exhaustive.
 
 ---
@@ -131,7 +131,7 @@ hard-pixel measurements: w-[847px], w-[1230px]
 ```
 
 **Why it matters.** Heavy per-element breakpoint logic is hard to
-keep coherent — the next change at one breakpoint silently breaks
+keep coherent: the next change at one breakpoint silently breaks
 another. Hard-pixel widths bypass the type ramp entirely. Both
 patterns surface frequently in agent-generated UI that pixel-pushed
 its way to "looks right at this zoom".
@@ -145,7 +145,7 @@ spacing scale (`w-1/3`, `max-w-prose`) or container queries.
 ## Copy / IA Drift, frontend variant (`copy_ia_drift`)
 
 **What it detects.** Multiple JSX strings naming the same
-destination differently — e.g. one nav file using "Members" and a
+destination differently: e.g. one nav file using "Members" and a
 breadcrumb using "Team". Reads the IA index to confirm the
 destinations resolve to the same route.
 
@@ -160,7 +160,7 @@ src/routes/team/index.tsx:8 (breadcrumb) → "Team"
 **Why it matters.** Copy drift makes the same area of the product
 feel like two different places to users; agents picking up "fix the
 copy on Team" can't tell which version is canonical. The detector
-surfaces them as a *list* — picking the canonical wording is a
+surfaces them as a *list*: picking the canonical wording is a
 human call.
 
 **Suggested fix.** Pick one canonical label and update all surfaces.

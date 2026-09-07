@@ -286,7 +286,7 @@ For current exact types use the [generated reference](./api-types.md).
   `symbol` already are.
 - **`fingerprint` changes shape when `claim` is set.** The leading
   segment becomes `<type>/<claim>`. Findings from single-claim
-  detectors — the large majority — keep the shape they have always had.
+  detectors (the large majority) keep the shape they have always had.
 
 ### What was wrong
 
@@ -300,7 +300,7 @@ Test "…" contains no expect/assert calls.
 Test "…" only uses weak assertion matchers.
 ```
 
-Two questions, two answers, two fixes — under one `type`, which is what
+Two questions, two answers, two fixes: under one `type`, which is what
 triage, suppressions, baseline, and `detectors.disable` all key on. On a
 761-file repo a consumer verified three findings of the first shape,
 found all three false, and disabled the type. That was correct about the
@@ -315,12 +315,12 @@ A claim is an assertion with its own truth value and its own fix. Count
 and wording variation is not a claim: "1 declaration" and "3
 declarations" are the same statement.
 
-Most multi-claim detectors pick exactly one claim per finding — a test
+Most multi-claim detectors pick exactly one claim per finding: a test
 either asserts nothing or asserts weakly. A few assert a **conjunction**
 about one subject: `config_drift` reports one finding per environment
 variable listing everything wrong with it, because a reviewer wants
 `DATABASE_URL`'s problems in one place. Those carry a **composite**
-claim — the atoms sorted and joined with `+`:
+claim: the atoms sorted and joined with `+`:
 
 ```
 config_drift/type_disagreement+undocumented::src/env.ts::DATABASE_URL
@@ -367,7 +367,7 @@ the whole detector, so existing config keeps working:
 
 A composite is matched by atom, so `config_drift/client_exposed_secret`
 also drops a finding claiming
-`client_exposed_secret+undocumented` — asking not to hear about
+`client_exposed_secret+undocumented`: asking not to hear about
 client-exposed secrets means it whether or not the variable has other
 problems too. A misspelled claim is rejected at config load and the
 error names the claims that detector declares.
@@ -381,7 +381,7 @@ are unaffected. Re-record a decision only when you have reconsidered it.
 
 ## `0.22.0`: fingerprints move for findings that were colliding
 
-**No schema change** — no field is added, renamed, or retyped, and
+**No schema change**: no field is added, renamed, or retyped, and
 `schema_version` stays at `0.7.0`. What changes is the *value* of
 `fingerprint` for a small set of findings, which matters to anyone
 holding pinned entries in `.crimes/suppressions.json`,
@@ -393,13 +393,13 @@ Four detectors could emit more than one finding per
 
 | detector | why it collided | now discriminated by |
 | --- | --- | --- |
-| `large_function` (Python) | one method name on several classes in a module — airflow's operator pattern gives `sagemaker.py` four `execute`s | the class, else the start line |
+| `large_function` (Python) | one method name on several classes in a module: airflow's operator pattern gives `sagemaker.py` four `execute`s | the class, else the start line |
 | `sync_io_in_hotpath` (Python) | same, for the enclosing hot function | the class, else the start line |
 | `commented_out_code` (non-JS files) | every block in a file shared one fingerprint; the language-js variant has hashed the block since `0.17.0` | a hash of the block's text |
 | `weak_test_signal` (JS) | two `it(...)` blocks in one file wearing the same title | the title, plus the start line |
 
 **Only ambiguous fingerprints move.** A finding whose `symbol` is
-already unique in its file keeps the fingerprint it has always had —
+already unique in its file keeps the fingerprint it has always had:
 that rule is why the churn is small. Measured across four repos and
 7,888 findings: **16 fingerprints retired, 51 introduced**, every one
 of the 16 having previously covered two or more findings. hono, which
@@ -417,7 +417,7 @@ meant. `crimes feedback recheck` names the change per detector.
 - **New `coverage.warnings[].kind`:** `working_set_path_unmatched`.
 
 `working_set` is present only when the scan was narrowed with
-`--files` or `--related-to`, and records the *resolved* set —
+`--files` or `--related-to`, and records the *resolved* set:
 for `--related-to` that is the result of the import-graph walk, not the
 seeds you passed.
 
@@ -440,7 +440,7 @@ this codebase keeps getting bitten by. An agent must be able to confirm
 what was looked at.
 
 `--changed` continues to report through `changed_files` and sets no
-`working_set` — the two carry different information (`changed_files`
+`working_set`: the two carry different information (`changed_files`
 includes files outside the discoverable source set, which a working set
 by construction cannot).
 
@@ -450,23 +450,23 @@ needs no change. `additionalProperties: false` validators and
 suppressions and triage files written at `0.6.0` are read unchanged.
 
 Consumers switching on `coverage.warnings[].kind` should already
-tolerate an unrecognised value — the field documents that new kinds may
+tolerate an unrecognised value: the field documents that new kinds may
 be added in a minor.
 
 ## Migrating from `0.5.0` to `0.6.0`
 
 - **New required field on every finding:** `fingerprint`.
-- **New optional field:** `score_rationale` — how `confidence` and
+- **New optional field:** `score_rationale`: how `confidence` and
   `severity` were arrived at, as a base value plus named deltas. The finding's
-  stable identity — `<type>::<file>::<symbol>`, plus `::<discriminator>`
+  stable identity: `<type>::<file>::<symbol>`, plus `::<discriminator>`
   when the detector sets one.
 
-This is the handle four commands accept — `crimes ignore`, `crimes
-unignore`, `crimes feedback`, `crimes triage` — and until now the JSON
+This is the handle four commands accept (`crimes ignore`, `crimes
+unignore`, `crimes feedback`, `crimes triage`) and until now the JSON
 did not contain it. `id` is positional and only means something inside
 the report that produced it, so a consumer wanting to act on a finding
 had to rebuild the fingerprint from the other fields and hope its
-construction matched the one in `fingerprintFinding` — including the
+construction matched the one in `fingerprintFinding`: including the
 discriminator rule, which is exactly the part a reimplementation gets
 wrong.
 
@@ -483,8 +483,8 @@ was mislabelled.
 
 - **Renamed:** `scores.blast_radius_importers` →
   `scores.blast_radius_transitive_importers`. Same value, honest name.
-  It is the size of the file's transitive importer closure — every file
-  that can *reach* it — not a count of files that import it.
+  It is the size of the file's transitive importer closure (every file
+  that can *reach* it) not a count of files that import it.
 - **New optional field:** `scores.blast_radius_direct_importers`. The
   number of distinct files with a direct import edge to this one,
   deduplicated across repeated imports from the same file and excluding
@@ -492,7 +492,7 @@ was mislabelled.
 
 Consumers that hard-checked `schema_version === "0.4.0"` must accept
 `"0.5.0"`. Consumers reading `blast_radius_importers` must rename the
-key — and should look hard at whether they wanted
+key, and should look hard at whether they wanted
 `blast_radius_direct_importers` instead, because the old name promised
 the direct count and delivered the closure.
 
@@ -503,7 +503,7 @@ corpus `src/utils/mime.ts` has 5 direct importers and a closure of 240;
 six files in the core component all report exactly 197 while their
 direct fan-in ranges from 2 to 70.
 
-`scores.blast_radius` itself is unchanged — it is still
+`scores.blast_radius` itself is unchanged: it is still
 `min(transitive_closure / 50, 1)`. Only the reporting is corrected; the
 score's calibration is a separate decision. No fingerprint changes, so
 no `.crimes/baseline.json` or `.crimes/suppressions.json` entry is
@@ -537,7 +537,7 @@ old fingerprint reads as fixed, the new one reads as new. Re-run
 That churn is the point rather than a side effect. Before `0.4.0` those
 detectors could emit several findings sharing one fingerprint, so
 `crimes ignore <fingerprint>` on one of them silently suppressed the
-others — a user got findings hidden that they never saw. Re-recording
+others: a user got findings hidden that they never saw. Re-recording
 each entry is what makes the suppression mean the one finding its author
 actually looked at.
 
@@ -549,11 +549,11 @@ three types.
 
 `crimes@0.12.0` bumps the schema:
 
-- **New required field on `Finding`:** `pack: "universal" | "language-js" | "language-py" | "cross-language"`. Tells you which detector pack produced the finding. The existing `tier?` field (scope tier — `domain`/`nonDomain`) is unrelated and unchanged.
+- **New required field on `Finding`:** `pack: "universal" | "language-js" | "language-py" | "cross-language"`. Tells you which detector pack produced the finding. The existing `tier?` field (scope tier: `domain`/`nonDomain`) is unrelated and unchanged.
 - **New required field on `Finding`:** `detector_id`. Qualified detector id (`large_function.js`, `large_function.py`); the bare `type` field is unchanged and stays the canonical grouping key.
 - **New optional field on `ScanReport`:** `coverage`. Per-pack file-count breakdown. Absent when scanning a path with zero discovered files.
 
-Consumers that hard-checked `schema_version === "0.2.0"` must accept `"0.3.0"`. Grouping by `type` keeps working — `detector_id` only matters when you need to disambiguate "JS large_function" from "Python large_function" (lands in 0.13.0).
+Consumers that hard-checked `schema_version === "0.2.0"` must accept `"0.3.0"`. Grouping by `type` keeps working: `detector_id` only matters when you need to disambiguate "JS large_function" from "Python large_function" (lands in 0.13.0).
 
 ## Migration note: schema_version 0.1.0 → 0.2.0
 
@@ -570,10 +570,10 @@ Consumers that hard-checked `schema_version === "0.1.0"` must accept
 
 Effort ladder:
 
-- `quick` — ≤1-line change.
-- `small` — under one hour of work.
-- `medium` — fits within one PR.
-- `large` — needs design.
+- `quick`: ≤1-line change.
+- `small`: under one hour of work.
+- `medium`: fits within one PR.
+- `large`: needs design.
 
 `fix_shape` is a one-line description of the *shape* of the fix
 (e.g. `"extract orchestration; move pure helpers to a sibling module"`),

@@ -1,4 +1,4 @@
-# Release A — Front-door redesign Implementation Plan
+# Release A: Front-door redesign Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -12,11 +12,13 @@
 
 **Versioning:** Patch-bump `packages/cli/package.json` on every commit that changes finding ordering, scoring, or detector behaviour, and re-run `pnpm run evals` (committing `evals/results/<version>/` alongside). No Changesets between tasks. One Changeset at Task 17 cuts the release as a minor (`0.9.2 → 0.10.0`).
 
-**Tests-first:** every code-touching task starts with a failing test. The "Run test to verify it fails" step is mandatory — if it passes, the test isn't actually exercising the new behaviour.
+**Tests-first:** every code-touching task starts with a failing test. The "Run test to verify it fails" step is mandatory: if it passes, the test isn't actually exercising the new behaviour.
 
 ---
 
-## Task 1: Config schema — `scopeTiers.nonDomain` and `scan.topFiles`
+<span id="task-1-config-schema--scopetiersnondomain-and-scantopfiles"></span>
+
+## Task 1: Config schema: `scopeTiers.nonDomain` and `scan.topFiles`
 
 **Spec ref:** §5.5 (scope tiers), §5.2 (top-N default).
 
@@ -446,7 +448,7 @@ describe("test_gap quartile pass", () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm --filter @crimes/core test build`
-Expected: 3 new tests FAIL — `rawForFile` doesn't exist, and `forFile` returns raw values.
+Expected: 3 new tests FAIL: `rawForFile` doesn't exist, and `forFile` returns raw values.
 
 - [ ] **Step 3: Extend the index interface**
 
@@ -510,7 +512,7 @@ function buildTestGapIndex(args: {
 }
 ```
 
-The `agent_risk` formula in `computeAgentRisk` is unchanged — it still consumes `forFile`'s output as the `test_gap` weight. The score is still `[0,1]`, only the distribution shifts.
+The `agent_risk` formula in `computeAgentRisk` is unchanged: it still consumes `forFile`'s output as the `test_gap` weight. The score is still `[0,1]`, only the distribution shifts.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -552,7 +554,9 @@ git commit -m "chore: refresh eval baseline for 0.9.3 (test_gap quartile pass)"
 
 ---
 
-## Task 4: Churn collector — `last_commit_at` and `unique_authors_90d`
+<span id="task-4-churn-collector--last_commit_at-and-unique_authors_90d"></span>
+
+## Task 4: Churn collector: `last_commit_at` and `unique_authors_90d`
 
 **Spec ref:** §5.7 (clues.churn shape), §6 (extend `collectChurn`).
 
@@ -607,7 +611,7 @@ describe("collectChurn — author tracking", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @crimes/core test churn`
-Expected: FAIL — `uniqueAuthors` is undefined on `FileChurn`.
+Expected: FAIL: `uniqueAuthors` is undefined on `FileChurn`.
 
 - [ ] **Step 3: Extend `FileChurn` and the parser**
 
@@ -790,7 +794,7 @@ describe("ScoringContext.recency", () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm --filter @crimes/core test build`
-Expected: FAIL — `recencyForDate` not exported, `ctx.recency` undefined.
+Expected: FAIL: `recencyForDate` not exported, `ctx.recency` undefined.
 
 - [ ] **Step 3: Implement the recency index**
 
@@ -887,7 +891,7 @@ EOF
 - Create: `packages/core/src/scoring/tier.test.ts`
 - Modify: `packages/core/src/index.ts`
 
-**Background:** Tier is computed from `finding.file` against `config.scopeTiers.nonDomain` globs. We reuse the same `picomatch`-style matching the existing exclude/include logic uses — `@crimes/language-js` already has a glob matcher; check `discoverFiles` for the canonical pattern. New helper because tier is also needed in `context.ts` for "is this file a domain file?" decisions.
+**Background:** Tier is computed from `finding.file` against `config.scopeTiers.nonDomain` globs. We reuse the same `picomatch`-style matching the existing exclude/include logic uses: `@crimes/language-js` already has a glob matcher; check `discoverFiles` for the canonical pattern. New helper because tier is also needed in `context.ts` for "is this file a domain file?" decisions.
 
 - [ ] **Step 1: Find the existing glob matcher**
 
@@ -1034,7 +1038,7 @@ EOF
 
 ## Task 7: `FindingScores.recency` + populate in `finaliseFindingScores`
 
-**Spec ref:** §5.3 (recency-on-Finding so reporter can compute rank_score), §11 (frozen contract — additive).
+**Spec ref:** §5.3 (recency-on-Finding so reporter can compute rank_score), §11 (frozen contract: additive).
 
 **Files:**
 - Modify: `packages/core/src/finding.ts`
@@ -1129,7 +1133,7 @@ export function finaliseFindingScores(
 }
 ```
 
-The `agent_risk` formula stays unchanged — recency is a *separate* multiplier applied at sort time, not folded into the unified score.
+The `agent_risk` formula stays unchanged: recency is a *separate* multiplier applied at sort time, not folded into the unified score.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -1226,7 +1230,7 @@ function longFunctionFixture(name: string): string {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @crimes/core test scan`
-Expected: FAIL — `tier` is undefined on findings.
+Expected: FAIL: `tier` is undefined on findings.
 
 - [ ] **Step 3: Add the helper and wire it in**
 
@@ -1276,7 +1280,7 @@ In `packages/core/src/context.ts`, do the same.
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm --filter @crimes/core test`
-Expected: all PASS. Older tests that assert finding order may need snapshot updates — only update if the new order is *the* intended new order (per spec); never silence an ordering test by deleting it.
+Expected: all PASS. Older tests that assert finding order may need snapshot updates: only update if the new order is *the* intended new order (per spec); never silence an ordering test by deleting it.
 
 - [ ] **Step 5: Patch-bump and commit**
 
@@ -1319,7 +1323,7 @@ git commit -m "chore: refresh eval baseline for 0.9.5 (rank_score sort + tier)"
 
 - [ ] **Step 1: Add the helper for per-file suppression listing**
 
-In `packages/core/src/suppressions.ts`, add (signature only — the file is large; place near the existing `partitionFindings`):
+In `packages/core/src/suppressions.ts`, add (signature only: the file is large; place near the existing `partitionFindings`):
 
 ```typescript
 import type { SuppressionEntry } from "./suppressions.js";
@@ -1347,7 +1351,7 @@ export function suppressionsForFile(
 }
 ```
 
-Implementation specifics depend on the existing suppression entry shape — read `suppressions.ts` to mirror its existing matching predicate. Add a unit test in `suppressions.test.ts` covering: file-scoped match, fingerprint-scoped match, `matches_current_finding` flag.
+Implementation specifics depend on the existing suppression entry shape: read `suppressions.ts` to mirror its existing matching predicate. Add a unit test in `suppressions.test.ts` covering: file-scoped match, fingerprint-scoped match, `matches_current_finding` flag.
 
 - [ ] **Step 2: Write the failing context tests**
 
@@ -1413,7 +1417,7 @@ describe("context — clues", () => {
 - [ ] **Step 3: Run tests to verify they fail**
 
 Run: `pnpm --filter @crimes/core test context`
-Expected: FAIL — `clues` not on the report shape.
+Expected: FAIL: `clues` not on the report shape.
 
 - [ ] **Step 4: Add the `clues` shape and populate it**
 
@@ -1481,9 +1485,9 @@ In the `context()` function body (right before the `return report` block), build
   }
 ```
 
-Note: `churnResultByFile` and `suppressions.entries` need to be propagated from earlier in the function — adjust the existing scoring setup so the raw `CollectChurnResult` is reachable (today only `ChurnIndex.forFile` is exposed; we need the full list to grab `latestChange` and `uniqueAuthors` for the inspected file).
+Note: `churnResultByFile` and `suppressions.entries` need to be propagated from earlier in the function: adjust the existing scoring setup so the raw `CollectChurnResult` is reachable (today only `ChurnIndex.forFile` is exposed; we need the full list to grab `latestChange` and `uniqueAuthors` for the inspected file).
 
-Wire `suppressions` loading: `context()` doesn't currently load suppressions itself — that's done by the CLI command. Move the load into core (with the `config.suppressions.path` honoured) so the JSON report is self-sufficient. Alternative: accept `suppressionsEntries: SuppressionEntry[]` as a new `ContextOptions` field and have the CLI pass it. Pick whichever fits better; the test calls `context()` directly without suppressions, so the CLI-passing approach keeps tests narrow.
+Wire `suppressions` loading: `context()` doesn't currently load suppressions itself: that's done by the CLI command. Move the load into core (with the `config.suppressions.path` honoured) so the JSON report is self-sufficient. Alternative: accept `suppressionsEntries: SuppressionEntry[]` as a new `ContextOptions` field and have the CLI pass it. Pick whichever fits better; the test calls `context()` directly without suppressions, so the CLI-passing approach keeps tests narrow.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -1521,7 +1525,9 @@ EOF
 
 ---
 
-## Task 10: Reporter — quartile label for `test_gap` in `human/shared.ts`
+<span id="task-10-reporter--quartile-label-for-test_gap-in-humansharedts"></span>
+
+## Task 10: Reporter: quartile label for `test_gap` in `human/shared.ts`
 
 **Spec ref:** §5.4 (human display switches phrasing).
 
@@ -1567,7 +1573,7 @@ function stubFinding(scores: Partial<FindingScores>): Finding {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @crimes/reporter test`
-Expected: FAIL — still shows `0.75` etc.
+Expected: FAIL: still shows `0.75` etc.
 
 - [ ] **Step 3: Update `renderRiskProfileLine`**
 
@@ -1632,7 +1638,9 @@ EOF
 
 ---
 
-## Task 11: Reporter — new file-grouped scan layout
+<span id="task-11-reporter--new-file-grouped-scan-layout"></span>
+
+## Task 11: Reporter: new file-grouped scan layout
 
 **Spec ref:** §5.1 (layout), §5.2 (per-file ordering), §5.5 ("Also flagged elsewhere"), §5.6 (action-close), §8 (`--flat` parity, all-non-domain edge case).
 
@@ -1729,7 +1737,7 @@ Helpers `stubReport`, `domainFinding`, `nonDomainFinding` build minimal `ScanRep
 - [ ] **Step 3: Run tests to verify they fail**
 
 Run: `pnpm --filter @crimes/reporter test`
-Expected: FAIL — old layout still emitted.
+Expected: FAIL: old layout still emitted.
 
 - [ ] **Step 4: Implement the new layout**
 
@@ -1812,7 +1820,7 @@ Helpers:
   - `id=` range line if multiple findings
 - `nonDomainCountsLine(findings)`: `scripts/  6 findings    examples/  3 findings    tests/  12 findings`. Determine prefix via `file.split("/")[0]` for `scripts/`/`examples/`/`fixtures/`/`public/`; group test files under `tests/`.
 - `renderFindingCompact(f, n, colour, opts)`: for `--all` mode; one block per finding, using today's `renderFinding` shape but without the per-file header.
-- `formatHumanReportFlat`: extracted today's exact rendering — verbatim move into a sibling function called only when `options.flat === true`.
+- `formatHumanReportFlat`: extracted today's exact rendering: verbatim move into a sibling function called only when `options.flat === true`.
 
 "Key evidence" extraction for the compact line: take up to 2 evidence strings, joined by `, `. If none, just the charge.
 
@@ -1854,7 +1862,9 @@ EOF
 
 ---
 
-## Task 12: Reporter — render `clues` in context human output
+<span id="task-12-reporter--render-clues-in-context-human-output"></span>
+
+## Task 12: Reporter: render `clues` in context human output
 
 **Spec ref:** §5.7 (renders between Likely tests and Findings blocks).
 
@@ -1946,7 +1956,9 @@ EOF
 
 ---
 
-## Task 13: CLI scan flags — `--top`, `--flat`, `--no-recency`
+<span id="task-13-cli-scan-flags----top---flat---no-recency"></span>
+
+## Task 13: CLI scan flags: `--top`, `--flat`, `--no-recency`
 
 **Spec ref:** §5.1, §5.3, §8 (`--flat` parity).
 
@@ -2345,7 +2357,7 @@ EOF
 - Create: `packages/cli/src/auto-init.ts`
 - Create: `packages/cli/src/auto-init.test.ts`
 - Modify: `packages/cli/src/index.ts`
-- Modify: `packages/cli/src/commands/init.ts` (add `--init` re-entry support — though the trigger lives globally)
+- Modify: `packages/cli/src/commands/init.ts` (add `--init` re-entry support: though the trigger lives globally)
 
 **Background:** The auto-init module exports `maybeRunAutoInit(command, options)`. The CLI entry hooks it as a Commander `preAction` on the program. The hook:
 
@@ -2787,10 +2799,10 @@ Update the Status section to describe Release A: file-grouped scan, clues on con
 
 Restructure top-level sections in this order:
 
-1. **Pre-edit briefing** (`crimes context <file>`) — what to read first
+1. **Pre-edit briefing** (`crimes context <file>`): what to read first
 2. **Scan and post-edit gates** (`crimes scan`, `crimes scan --changed`)
 3. **Verdict** (`crimes verdict`)
-4. **Hotspots / diff / ask** — supporting commands
+4. **Hotspots / diff / ask**: supporting commands
 
 Lift agent-context language already present in the doc; only reorder and tighten transitions.
 
@@ -2850,7 +2862,7 @@ If `pnpm ci` or smoke fails: diagnose, fix on a follow-up commit, re-run. Do not
 
 ## Self-review (after writing the plan)
 
-Spec coverage check — every spec section maps to at least one task:
+Spec coverage check: every spec section maps to at least one task:
 
 - §5.1 layout → Task 11
 - §5.2 ranking → Tasks 6 (tier), 8 (sort), 11 (display)
@@ -2863,12 +2875,12 @@ Spec coverage check — every spec section maps to at least one task:
 - §5.9 docs → Tasks 16 (banner), 17 (docs + release)
 - §11 frozen contracts → Tasks 1 (scopeTiers config), 9 (clues shape)
 
-Placeholder scan: no "TBD", "TODO", "fill in", "similar to". Step 1 of Task 11 has a step labelled "Substeps:" with multiple bullets — those are explicit substeps within one Task step, not placeholders.
+Placeholder scan: no "TBD", "TODO", "fill in", "similar to". Step 1 of Task 11 has a step labelled "Substeps:" with multiple bullets: those are explicit substeps within one Task step, not placeholders.
 
 Type/signature consistency:
-- `Tier` type defined in `scoring/tier.ts` (Task 6) is referenced in `Finding` (Task 6) and in the tagger (Task 8) — consistent.
+- `Tier` type defined in `scoring/tier.ts` (Task 6) is referenced in `Finding` (Task 6) and in the tagger (Task 8): consistent.
 - `RecencyIndex` (Task 5), `recency` on `FindingScores` (Task 7), and `rank_score` formula in `tagTierAndSortByRankScore` (Task 8) all line up: `agent_risk * (1 + (recency ?? 0) * 0.5)`.
-- `ContextClues.test_gap.label` enum `"top-quartile" | "median" | "bottom-quartile" | "unknown"` (Task 9) matches the renderer's `testGapLabel` (Task 10) — note: spec uses `"~median"` for the human label but the JSON enum stays plain `"median"`. Confirmed in spec §5.7 (JSON) vs §5.4 (human display).
+- `ContextClues.test_gap.label` enum `"top-quartile" | "median" | "bottom-quartile" | "unknown"` (Task 9) matches the renderer's `testGapLabel` (Task 10): note: spec uses `"~median"` for the human label but the JSON enum stays plain `"median"`. Confirmed in spec §5.7 (JSON) vs §5.4 (human display).
 - `MARKER_PATH = ".crimes/.skip-init"` (Task 15) matches spec §5.8.
 
 No spec requirement is uncovered. No types are introduced without definition.

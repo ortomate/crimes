@@ -1,4 +1,4 @@
-# Release B — Triage as the Front Door Implementation Plan
+# Release B: Triage as the Front Door Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -14,15 +14,15 @@
 
 The engineer implementing this plan should keep these files open:
 
-- `docs/superpowers/specs/2026-05-20-release-b-triage-design.md` — design spec this plan implements. When in doubt, the spec wins.
-- `packages/core/src/finding.ts` — public schema; `SCHEMA_VERSION` lives here.
-- `packages/core/src/baseline.ts` — load/save/validate pattern to mirror for triage.
-- `packages/core/src/suppressions.ts` — zod schema + load helpers; structural reference for triage.
-- `packages/core/src/fingerprint.ts` — `<type>::<file>::<symbol-or-empty>` identity used by baseline/suppressions/triage.
-- `packages/core/src/scan.ts` — main scan pipeline; new triage + resurface stages slot in here.
-- `packages/core/src/scoring/build.ts` — `finaliseFindingScores` lives here; new `applyDetectorDefaults` runs alongside it.
-- `packages/cli/src/commands/init.ts` and `packages/cli/src/auto-init.ts` — existing patterns for writing files into `.claude/` / `.agents/`.
-- `packages/reporter/src/human/scan.ts` and `packages/reporter/src/human/context.ts` — render-side files modified for resurface block, fix-shape rendering, and secondary-score reformatting.
+- `docs/superpowers/specs/2026-05-20-release-b-triage-design.md`: design spec this plan implements. When in doubt, the spec wins.
+- `packages/core/src/finding.ts`: public schema; `SCHEMA_VERSION` lives here.
+- `packages/core/src/baseline.ts`: load/save/validate pattern to mirror for triage.
+- `packages/core/src/suppressions.ts`: zod schema + load helpers; structural reference for triage.
+- `packages/core/src/fingerprint.ts`: `<type>::<file>::<symbol-or-empty>` identity used by baseline/suppressions/triage.
+- `packages/core/src/scan.ts`: main scan pipeline; new triage + resurface stages slot in here.
+- `packages/core/src/scoring/build.ts`: `finaliseFindingScores` lives here; new `applyDetectorDefaults` runs alongside it.
+- `packages/cli/src/commands/init.ts` and `packages/cli/src/auto-init.ts`: existing patterns for writing files into `.claude/` / `.agents/`.
+- `packages/reporter/src/human/scan.ts` and `packages/reporter/src/human/context.ts`: render-side files modified for resurface block, fix-shape rendering, and secondary-score reformatting.
 
 The repo follows TDD. Every task that touches code starts with a failing test.
 
@@ -32,11 +32,13 @@ The repo follows TDD. Every task that touches code starts with a failing test.
 - Renderer-only and docs-only tasks do **not** patch-bump.
 - One Changeset at the **end** of the release rolls accumulated patches into the minor `0.10.x → 0.11.0` bump.
 
-**Branch hygiene:** all tasks land on `main` (no PR gating between them — this is solo work; commits stack).
+**Branch hygiene:** all tasks land on `main` (no PR gating between them: this is solo work; commits stack).
 
 ---
 
-## Phase 1 — Schema additions (`effort`, `fix_shape`, schema_version bump)
+<span id="phase-1--schema-additions-effort-fix_shape-schema_version-bump"></span>
+
+## Phase 1: Schema additions (`effort`, `fix_shape`, schema_version bump)
 
 ### Task 1: Add `Effort` type and the `fix_shape` field to the public schema
 
@@ -91,22 +93,24 @@ Then, in the `Finding` interface (currently lines 57–112), add these two field
   fix_shape: string;
 ```
 
-These fields are **required** on output. Consumers reading the old `0.1.0` shape ignore unknown fields — strict-additive.
+These fields are **required** on output. Consumers reading the old `0.1.0` shape ignore unknown fields: strict-additive.
 
 - [ ] **Step 3: Run the existing test suite to see all the failures the schema change creates**
 
 Run: `pnpm --filter @crimes/core test --run 2>&1 | tail -40`
 Expected: ~60–120 TypeScript errors in detector and scan test files about missing `effort` / `fix_shape` properties on the constructed `Finding` literals.
 
-This is the desired failure — every place that constructs a `Finding` is now flagged by the typechecker. We will fix them in Task 2 by populating defaults in finalisation, so test stubs and detector outputs don't have to manually add the fields.
+This is the desired failure: every place that constructs a `Finding` is now flagged by the typechecker. We will fix them in Task 2 by populating defaults in finalisation, so test stubs and detector outputs don't have to manually add the fields.
 
-- [ ] **Step 4: Do not commit yet — Task 2 lands the defaults that make these errors go away**
+- [ ] **Step 4: Do not commit yet: Task 2 lands the defaults that make these errors go away**
 
 Task 1 alone leaves the build broken. Continue to Task 2 in the same working session.
 
 ---
 
-### Task 2: `detector-defaults.ts` — populate `effort` + `fix_shape` per detector type
+<span id="task-2-detector-defaultsts--populate-effort--fix_shape-per-detector-type"></span>
+
+### Task 2: `detector-defaults.ts`: populate `effort` + `fix_shape` per detector type
 
 **Files:**
 - Create: `packages/core/src/detector-defaults.ts`
@@ -269,7 +273,7 @@ Expected: PASS.
 
 If the "covers every registered detector id" assertion fails, the diff tells you which id is missing. Add it to `DETECTOR_DEFAULTS` with a one-line `fix_shape` matching the detector's domain.
 
-- [ ] **Step 5: Do not commit yet — Task 3 wires this into finalisation**
+- [ ] **Step 5: Do not commit yet: Task 3 wires this into finalisation**
 
 Continue to Task 3.
 
@@ -279,11 +283,11 @@ Continue to Task 3.
 
 **Files:**
 - Modify: `packages/core/src/scoring/build.ts:329-353`
-- Modify: `packages/core/src/scoring/build.test.ts` (or whatever the existing test file is named — the directory has a test file for the scoring module already)
+- Modify: `packages/core/src/scoring/build.test.ts` (or whatever the existing test file is named: the directory has a test file for the scoring module already)
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `packages/core/src/scoring/build.test.ts` (create the file if it doesn't exist, but it should — `ls packages/core/src/scoring/` to confirm):
+Append to `packages/core/src/scoring/build.test.ts` (create the file if it doesn't exist, but it should: `ls packages/core/src/scoring/` to confirm):
 
 ```typescript
 import { describe, expect, it } from "vitest";
@@ -341,7 +345,7 @@ describe("finaliseFindingScores — applies detector defaults", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @crimes/core test -- scoring/build --run`
-Expected: FAIL — "expected 'placeholder…' to be 'extract pure helpers…'" or similar.
+Expected: FAIL: "expected 'placeholder…' to be 'extract pure helpers…'" or similar.
 
 - [ ] **Step 3: Implement the defaults pass in `finaliseFindingScores`**
 
@@ -395,13 +399,13 @@ Expected: PASS (all three new tests plus existing ones).
 
 Run: `pnpm --filter @crimes/core test --run 2>&1 | tail -20`
 
-The detector-output tests will still fail wherever they assert exact `Finding` shape against fixtures or snapshots — they need to expect `effort` and `fix_shape` now. We'll patch them in the next step.
+The detector-output tests will still fail wherever they assert exact `Finding` shape against fixtures or snapshots: they need to expect `effort` and `fix_shape` now. We'll patch them in the next step.
 
 - [ ] **Step 6: Update detector test fixtures + snapshots**
 
 The detector tests construct expected findings as object literals. Every one that asserts equality against a full `Finding` object needs `effort` and `fix_shape` added.
 
-For tests that do a partial-shape assertion (`expect(finding).toMatchObject({ type, severity })`), nothing changes — those still pass.
+For tests that do a partial-shape assertion (`expect(finding).toMatchObject({ type, severity })`), nothing changes: those still pass.
 
 For tests that compare against snapshots (e.g. `expect(findings).toMatchInlineSnapshot()`), re-run with `--update-snapshots` to regenerate.
 
@@ -420,7 +424,7 @@ Inspect each updated snapshot. Every diff should show two added lines per findin
 +    "fix_shape": "extract pure helpers; keep the orchestrator thin",
 ```
 
-Reject any diff that's not those two additions (or `severity`/`charge` changes — the snapshot may have other drift; if so, stop and investigate before continuing).
+Reject any diff that's not those two additions (or `severity`/`charge` changes: the snapshot may have other drift; if so, stop and investigate before continuing).
 
 For non-snapshot tests that build a `Finding` literal and now fail with TypeScript errors (`Property 'effort' is missing`), the fix is the same two lines, picked from `DETECTOR_DEFAULTS[type]`.
 
@@ -437,7 +441,7 @@ Expected after all fixes: PASS across `@crimes/core`.
 Run: `pnpm --filter @crimes/reporter test --run -u`
 Then: `pnpm --filter crimes test --run -u`
 
-Same diff inspection — only `effort` / `fix_shape` additions.
+Same diff inspection: only `effort` / `fix_shape` additions.
 
 - [ ] **Step 8: Patch-bump `packages/cli/package.json`**
 
@@ -454,7 +458,7 @@ Expected: completes, writes a new `evals/results/0.10.1/` directory.
 
 Run: `git status evals/results/ && git diff --stat evals/results/`
 
-Expect: a new `evals/results/0.10.1/` directory with results identical in structure to `evals/results/0.10.0/` except every finding now carries `effort` and `fix_shape`. No quality movement — this is a measurement-shape correction (the schema gained two fields).
+Expect: a new `evals/results/0.10.1/` directory with results identical in structure to `evals/results/0.10.0/` except every finding now carries `effort` and `fix_shape`. No quality movement: this is a measurement-shape correction (the schema gained two fields).
 
 - [ ] **Step 11: Commit Tasks 1, 2, and 3 together**
 
@@ -485,13 +489,17 @@ gain two keys per finding; rankings unchanged.
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
-Note: the test files modified may include far more than the list above — adjust the `git add` to match what `git status` shows after Step 7.
+Note: the test files modified may include far more than the list above: adjust the `git add` to match what `git status` shows after Step 7.
 
 ---
 
-## Phase 2 — Triage core (storage + scan integration)
+<span id="phase-2--triage-core-storage--scan-integration"></span>
 
-### Task 4: `triage.ts` — load, validate, save `.crimes/triage.json`
+## Phase 2: Triage core (storage + scan integration)
+
+<span id="task-4-triagets--load-validate-save-crimestriagejson"></span>
+
+### Task 4: `triage.ts`: load, validate, save `.crimes/triage.json`
 
 **Files:**
 - Create: `packages/core/src/triage.ts`
@@ -828,7 +836,7 @@ Expected: PASS (all six assertions).
 
 - [ ] **Step 5: Export `triage` symbols from the package index**
 
-Open `packages/core/src/index.ts` (lines 1–end) and add a new export block. The file already has `export *` blocks per module — add one:
+Open `packages/core/src/index.ts` (lines 1–end) and add a new export block. The file already has `export *` blocks per module: add one:
 
 ```typescript
 export {
@@ -909,7 +917,7 @@ Use the existing `makeTempConfigRoot` helper if `config.test.ts` already has one
 - [ ] **Step 3: Run the test to verify it fails**
 
 Run: `pnpm --filter @crimes/core test -- config --run`
-Expected: FAIL — `triage` not defined on `CrimesConfig`.
+Expected: FAIL: `triage` not defined on `CrimesConfig`.
 
 - [ ] **Step 4: Implement the config key**
 
@@ -932,9 +940,9 @@ const TriageConfigSchema = z
 triage: TriageConfigSchema.optional(),
 ```
 
-3. Add the same to the type-only `CrimesConfig` interface (or auto-derived type — follow the existing pattern). If the type is `z.infer<typeof CrimesConfigSchema>`, the field appears automatically.
+3. Add the same to the type-only `CrimesConfig` interface (or auto-derived type: follow the existing pattern). If the type is `z.infer<typeof CrimesConfigSchema>`, the field appears automatically.
 
-4. In whatever defaulting code already runs at config-load time, ensure `config.triage` is always a populated object with `resurfaceBase: "main"` (even when the user didn't supply one). The existing pattern almost certainly applies `z.parse(rawConfig).` and uses the schema defaults — verify by reading the actual loader.
+4. In whatever defaulting code already runs at config-load time, ensure `config.triage` is always a populated object with `resurfaceBase: "main"` (even when the user didn't supply one). The existing pattern almost certainly applies `z.parse(rawConfig).` and uses the schema defaults: verify by reading the actual loader.
 
 - [ ] **Step 5: Run the test to verify it passes**
 
@@ -1069,7 +1077,7 @@ describe("applyTriageFilter", () => {
 - [ ] **Step 3: Run test to verify it fails**
 
 Run: `pnpm --filter @crimes/core test -- triage-filter --run`
-Expected: FAIL — "Cannot find module './triage-filter.js'".
+Expected: FAIL: "Cannot find module './triage-filter.js'".
 
 - [ ] **Step 4: Implement `packages/core/src/triage-filter.ts`**
 
@@ -1206,14 +1214,14 @@ Expected: PASS.
 
 - [ ] **Step 9: Patch-bump + evals**
 
-Triage filtering changes the default `findings[]` for any repo with a populated `.crimes/triage.json`. The eval fixtures don't have one, so the eval *output* should be unchanged — but the safe move is to patch-bump anyway because the code path that produces findings is different.
+Triage filtering changes the default `findings[]` for any repo with a populated `.crimes/triage.json`. The eval fixtures don't have one, so the eval *output* should be unchanged, but the safe move is to patch-bump anyway because the code path that produces findings is different.
 
 Set `packages/cli/package.json` `"version"` to `"0.10.2"`.
 
 Run: `pnpm run evals`
 Inspect: `git diff evals/results/`
 
-Expected: identical content under `evals/results/0.10.2/` to `evals/results/0.10.1/`. If anything differs, investigate — the triage stage shouldn't move scores when no triage file exists.
+Expected: identical content under `evals/results/0.10.2/` to `evals/results/0.10.1/`. If anything differs, investigate: the triage stage shouldn't move scores when no triage file exists.
 
 - [ ] **Step 10: Commit**
 
@@ -1237,7 +1245,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Phase 3 — Resurfacing pipeline
+<span id="phase-3--resurfacing-pipeline"></span>
+
+## Phase 3: Resurfacing pipeline
 
 ### Task 7: `previously_triaged` / `previously_baselined` annotations on `Finding`
 
@@ -1287,7 +1297,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-### Task 8: `resurface.ts` — diff-driven re-detect of triaged/baselined findings
+<span id="task-8-resurfacets--diff-driven-re-detect-of-triagedbaselined-findings"></span>
+
+### Task 8: `resurface.ts`: diff-driven re-detect of triaged/baselined findings
 
 **Files:**
 - Create: `packages/core/src/resurface.ts`
@@ -1421,7 +1433,7 @@ describe("collectResurfaced", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @crimes/core test -- resurface --run`
-Expected: FAIL — "Cannot find module './resurface.js'".
+Expected: FAIL: "Cannot find module './resurface.js'".
 
 - [ ] **Step 3: Implement `packages/core/src/resurface.ts`**
 
@@ -1543,9 +1555,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Locate scan's git plumbing**
 
-Open `packages/core/src/scan.ts` and find `getChangedFiles` (it's imported from `./git/changed-files.js` at line 20). The existing `--changed` path uses it. Find where the existing branch-detection happens (likely in `git/` — look for files that return a ref name).
+Open `packages/core/src/scan.ts` and find `getChangedFiles` (it's imported from `./git/changed-files.js` at line 20). The existing `--changed` path uses it. Find where the existing branch-detection happens (likely in `git/`: look for files that return a ref name).
 
-Run: `ls packages/core/src/git/` and read the most relevant file (probably `head-ref.ts` or similar — if not present, the resurface stage will fall back to running `git rev-parse --abbrev-ref HEAD` via simple-git directly).
+Run: `ls packages/core/src/git/` and read the most relevant file (probably `head-ref.ts` or similar: if not present, the resurface stage will fall back to running `git rev-parse --abbrev-ref HEAD` via simple-git directly).
 
 - [ ] **Step 2: Write the failing test**
 
@@ -1586,7 +1598,7 @@ Fill in the test bodies using the existing fixture helpers. If `scan.test.ts` al
 - [ ] **Step 3: Run test to verify it fails**
 
 Run: `pnpm --filter @crimes/core test -- scan --run -t resurfacing`
-Expected: FAIL — assertions fail because resurface isn't wired into `scan` yet.
+Expected: FAIL: assertions fail because resurface isn't wired into `scan` yet.
 
 - [ ] **Step 4: Implement resurface wiring in `scan.ts`**
 
@@ -1681,12 +1693,12 @@ function recomputeSummary(findings: Finding[]): ScanSummary {
 }
 ```
 
-When the codebase already exposes these helpers (look at `packages/core/src/git/` — `changed-files.ts` will reveal the simple-git pattern), reuse them. Don't introduce duplicate plumbing.
+When the codebase already exposes these helpers (look at `packages/core/src/git/`: `changed-files.ts` will reveal the simple-git pattern), reuse them. Don't introduce duplicate plumbing.
 
 - [ ] **Step 5: Run the tests**
 
 Run: `pnpm --filter @crimes/core test -- scan --run`
-Expected: PASS — including the four new resurfacing tests.
+Expected: PASS, including the four new resurfacing tests.
 
 - [ ] **Step 6: Patch-bump + evals**
 
@@ -1694,7 +1706,7 @@ Resurfacing changes finding output in the presence of a triage or baseline file 
 
 Set `packages/cli/package.json` `"version"` to `"0.10.3"`.
 Run: `pnpm run evals`
-Inspect: `git diff evals/results/` — should show only the directory rename.
+Inspect: `git diff evals/results/`: should show only the directory rename.
 
 - [ ] **Step 7: Commit**
 
@@ -1716,9 +1728,13 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Phase 4 — Triage CLI command
+<span id="phase-4--triage-cli-command"></span>
 
-### Task 10: `commands/triage.ts` — interactive walk + `--apply` / `--list` / `--clear`
+## Phase 4: Triage CLI command
+
+<span id="task-10-commandstriagets--interactive-walk----apply----list----clear"></span>
+
+### Task 10: `commands/triage.ts`: interactive walk + `--apply` / `--list` / `--clear`
 
 **Files:**
 - Create: `packages/cli/src/commands/triage.ts`
@@ -1824,7 +1840,7 @@ describe("crimes triage", () => {
 - [ ] **Step 3: Run test to verify it fails**
 
 Run: `pnpm --filter crimes test -- commands/triage --run`
-Expected: FAIL — the triage command isn't registered.
+Expected: FAIL: the triage command isn't registered.
 
 - [ ] **Step 4: Implement `commands/triage.ts`**
 
@@ -2149,7 +2165,7 @@ import { registerTriageCommand } from "./commands/triage.js";
 registerTriageCommand(program);
 ```
 
-Also update the existing `COMMANDS_THAT_SKIP_PROMPT` set in `auto-init.ts` to include `"triage"` — running triage should not trigger the auto-init flow:
+Also update the existing `COMMANDS_THAT_SKIP_PROMPT` set in `auto-init.ts` to include `"triage"`: running triage should not trigger the auto-init flow:
 
 ```typescript
 const COMMANDS_THAT_SKIP_PROMPT = new Set([
@@ -2165,7 +2181,7 @@ const COMMANDS_THAT_SKIP_PROMPT = new Set([
 - [ ] **Step 6: Run the tests**
 
 Run: `pnpm --filter crimes test -- commands/triage --run`
-Expected: PASS — all six scenarios.
+Expected: PASS: all six scenarios.
 
 - [ ] **Step 7: Commit**
 
@@ -2186,7 +2202,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Phase 5 — Scan flags + reporter for triage + resurface
+<span id="phase-5--scan-flags--reporter-for-triage--resurface"></span>
+
+## Phase 5: Scan flags + reporter for triage + resurface
 
 ### Task 11: Wire `--show-triaged`, `--gate-needs-design`, `--gate-resurfaced` on `crimes scan`
 
@@ -2222,7 +2240,7 @@ it("--gate-resurfaced + --fail-on flags a resurfaced finding", async () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter crimes test -- commands/scan --run -t "show-triaged|gate-needs-design|gate-resurfaced"`
-Expected: FAIL — flags not yet registered.
+Expected: FAIL: flags not yet registered.
 
 - [ ] **Step 3: Add the flags to scan**
 
@@ -2268,13 +2286,13 @@ The cleanest approach is to thread `gateNeedsDesign` and `gateResurfaced` into `
 - [ ] **Step 4: Run the tests**
 
 Run: `pnpm --filter crimes test -- commands/scan --run`
-Expected: PASS — all three new tests.
+Expected: PASS: all three new tests.
 
 - [ ] **Step 5: Patch-bump + evals**
 
 These flags change gate behaviour only when used; default eval output unchanged.
 Set `packages/cli/package.json` `"version"` to `"0.10.4"`.
-Run: `pnpm run evals` — verify only the directory rename in the diff.
+Run: `pnpm run evals`: verify only the directory rename in the diff.
 
 - [ ] **Step 6: Commit**
 
@@ -2295,7 +2313,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-### Task 12: Reporter — resurface block in `human/scan.ts`
+<span id="task-12-reporter--resurface-block-in-humanscants"></span>
+
+### Task 12: Reporter: resurface block in `human/scan.ts`
 
 **Files:**
 - Modify: `packages/reporter/src/human/scan.ts`
@@ -2340,7 +2360,7 @@ it("renders the resurface block above the top-files section when any finding is 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @crimes/reporter test --run -t "resurface block"`
-Expected: FAIL — the header isn't rendered.
+Expected: FAIL: the header isn't rendered.
 
 - [ ] **Step 3: Implement the resurface section in `human/scan.ts`**
 
@@ -2390,14 +2410,14 @@ if (resurfaced.length > 0) {
 // Existing top-files rendering should now iterate over `fresh`, not `report.findings`.
 ```
 
-Make sure to replace the existing iteration's source with `fresh` (NOT `report.findings`), so resurfaced findings appear only in the resurface block — not duplicated below.
+Make sure to replace the existing iteration's source with `fresh` (NOT `report.findings`), so resurfaced findings appear only in the resurface block, not duplicated below.
 
 Move shared helpers (`groupBy`, glyph selection) into `human/shared.ts` if they don't already live there.
 
 - [ ] **Step 4: Run all reporter tests**
 
 Run: `pnpm --filter @crimes/reporter test --run -u`
-Expected: PASS. Inspect the snapshot diff before continuing — only resurface-related changes.
+Expected: PASS. Inspect the snapshot diff before continuing: only resurface-related changes.
 
 - [ ] **Step 5: Render fix-now / fix-this-PR annotations**
 
@@ -2428,9 +2448,13 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Phase 6 — Human-readable secondary scores
+<span id="phase-6--human-readable-secondary-scores"></span>
 
-### Task 13: `score-format.ts` — pure formatters for blast / churn / test_gap / fan-in
+## Phase 6: Human-readable secondary scores
+
+<span id="task-13-score-formatts--pure-formatters-for-blast--churn--test_gap--fan-in"></span>
+
+### Task 13: `score-format.ts`: pure formatters for blast / churn / test_gap / fan-in
 
 **Files:**
 - Create: `packages/reporter/src/human/score-format.ts`
@@ -2488,7 +2512,7 @@ describe("formatTestGap", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @crimes/reporter test -- score-format --run`
-Expected: FAIL — module not found.
+Expected: FAIL: module not found.
 
 - [ ] **Step 3: Implement `human/score-format.ts`**
 
@@ -2581,11 +2605,11 @@ Each match is a candidate for replacement. The `Risk:` line in `scan.ts` and the
 
 - [ ] **Step 2: Update `human/scan.ts` Risk lines**
 
-Replace the current `blast ${score.toFixed(2)}` with `blast ${formatBlastRadius(score, importerCount)}`. The importer count comes from the scoring context (already populated in `ScoringContext.blastRadius` — wire it through the per-file aggregation function if not already exposed).
+Replace the current `blast ${score.toFixed(2)}` with `blast ${formatBlastRadius(score, importerCount)}`. The importer count comes from the scoring context (already populated in `ScoringContext.blastRadius`: wire it through the per-file aggregation function if not already exposed).
 
-Replace `churn high` with `formatChurn(score, commits90d, lastCommitAt)` — these inputs flow through the file's primary finding's scoring or from a fresh helper that reads from the report's `clues` analogue (scan doesn't have `clues`, but the per-file summary already aggregates churn).
+Replace `churn high` with `formatChurn(score, commits90d, lastCommitAt)`: these inputs flow through the file's primary finding's scoring or from a fresh helper that reads from the report's `clues` analogue (scan doesn't have `clues`, but the per-file summary already aggregates churn).
 
-For `test gap top-quartile`, no change needed — the renderer already uses a quartile label.
+For `test gap top-quartile`, no change needed: the renderer already uses a quartile label.
 
 - [ ] **Step 3: Update `human/context.ts` per-finding scores block**
 
@@ -2606,13 +2630,13 @@ out.push(
 );
 ```
 
-The exact `clues` shape is frozen by Release A — see `docs/releases/v0.10.0.md` § `clues` block on `crimes context --json`.
+The exact `clues` shape is frozen by Release A: see `docs/releases/v0.10.0.md` § `clues` block on `crimes context --json`.
 
 - [ ] **Step 4: Update snapshot tests**
 
 Run: `pnpm --filter @crimes/reporter test --run -u`
 
-Inspect the diff — every snapshot of `scan` and `context` human output should show:
+Inspect the diff: every snapshot of `scan` and `context` human output should show:
 - `blast 0.72` → `blast top-quartile (11 importers)`
 - `churn 0.41` → `churn 24 commits over 90d · last touched 2 days ago`
 - `test gap 1.00` → `test gap top-quartile`
@@ -2624,7 +2648,7 @@ Reject anything else in the diff (e.g. if a test mistakenly captures both the ol
 Run: `pnpm --filter crimes smoke 2>&1 | grep -E 'blast|churn|test_gap'`
 The JSON portion of the smoke should still emit raw numeric values.
 
-- [ ] **Step 6: Commit (renderer-only — no patch bump)**
+- [ ] **Step 6: Commit (renderer-only: no patch bump)**
 
 ```bash
 git add packages/reporter/src/human/scan.ts \
@@ -2641,7 +2665,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Phase 7 — PreToolUse hook in `init --agents`
+<span id="phase-7--pretooluse-hook-in-init---agents"></span>
+
+## Phase 7: PreToolUse hook in `init --agents`
 
 ### Task 15: `hook-templates.ts` + merge logic for `.claude/settings.local.json`
 
@@ -2721,7 +2747,7 @@ describe("hook-templates", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter crimes test -- hook-templates --run`
-Expected: FAIL — module not found.
+Expected: FAIL: module not found.
 
 - [ ] **Step 3: Implement `hook-templates.ts`**
 
@@ -2836,7 +2862,7 @@ export function serializeClaudeSettings(doc: ClaudeSettings): string {
 - [ ] **Step 4: Run the test**
 
 Run: `pnpm --filter crimes test -- hook-templates --run`
-Expected: PASS — all six assertions.
+Expected: PASS: all six assertions.
 
 - [ ] **Step 5: Wire the hook write into `commands/init.ts`**
 
@@ -2908,7 +2934,7 @@ Add imports: `readFileSync` to the existing `node:fs` import line.
 
 - [ ] **Step 6: Update `init.test.ts`**
 
-Add five test cases (mirror the existing test style — fixture in tmpdir, runCli, assert filesystem):
+Add five test cases (mirror the existing test style: fixture in tmpdir, runCli, assert filesystem):
 
 ```typescript
 it("--agents writes .claude/settings.local.json with a crimes PreToolUse hook", async () => {
@@ -2968,7 +2994,7 @@ it("writes a Codex placeholder when --agents (or --codex-skill) is set", async (
 Run: `pnpm --filter crimes test -- init --run`
 Expected: PASS.
 
-- [ ] **Step 8: Commit (no patch bump — hooks don't affect findings)**
+- [ ] **Step 8: Commit (no patch bump: hooks don't affect findings)**
 
 ```bash
 git add packages/cli/src/hook-templates.ts \
@@ -2988,9 +3014,11 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Phase 8 — In-repo docs
+<span id="phase-8--in-repo-docs"></span>
 
-Each task in this phase is small (one or two file edits). Group as listed; commit each task on its own. **No patch bumps** — docs don't move eval baselines.
+## Phase 8: In-repo docs
+
+Each task in this phase is small (one or two file edits). Group as listed; commit each task on its own. **No patch bumps**: docs don't move eval baselines.
 
 ### Task 16: Update `README.md`
 
@@ -3015,7 +3043,7 @@ Add a new bullet between the existing `crimes scan` and `crimes verdict` entries
 
 - [ ] **Step 3: Add a "Triage workflow" section**
 
-Insert after the Quick Start section (or in whichever place feels natural — follow the existing section organisation):
+Insert after the Quick Start section (or in whichever place feels natural: follow the existing section organisation):
 
 ```markdown
 ## Triage workflow
@@ -3117,7 +3145,7 @@ Consumers that hard-checked `schema_version === "0.1.0"` must accept
 - [ ] **Step 2: Document the new optional annotations**
 
 Add entries for `triaged`, `previously_triaged`, `previous_triage`,
-`previously_baselined`, `previous_baseline` — mirror the spec
+`previously_baselined`, `previous_baseline`: mirror the spec
 description in §5.5 of the design.
 
 - [ ] **Step 3: Commit**
@@ -3144,7 +3172,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 2: Explain the interaction with `scopeTiers.nonDomain`**
 
-Add a paragraph noting that resurfacing **crosses tiers** — a triaged
+Add a paragraph noting that resurfacing **crosses tiers**: a triaged
 finding in a non-domain file still resurfaces when that file is in the
 branch diff. The default `crimes triage` walk visits domain-tier only;
 use `crimes triage --all` to include non-domain.
@@ -3191,17 +3219,17 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 Use `docs/releases/v0.10.0.md` as the structural template. Sections:
 
-1. **TL;DR** — minor release, schema bump, new triage command,
+1. **TL;DR**: minor release, schema bump, new triage command,
    resurfacing, PreToolUse hook, secondary-score rendering.
-2. **Things requiring agent attention** — `schema_version` `0.1.0` →
+2. **Things requiring agent attention**: `schema_version` `0.1.0` →
    `0.2.0`; new required fields on `Finding`.
-3. **What shipped** — one subsection per item (triage command,
+3. **What shipped**: one subsection per item (triage command,
    resurfacing, schema additions, PreToolUse hook, secondary scores).
-4. **What's not in 0.11.0** — same disclaimers as Release A
+4. **What's not in 0.11.0**: same disclaimers as Release A
    (no new detectors, no `crimes ask`).
-5. **Upgrading** — `npm install -g crimes@0.11.0` + the JSON consumer
+5. **Upgrading**: `npm install -g crimes@0.11.0` + the JSON consumer
    migration line.
-6. **Notable links** — `docs/superpowers/specs/2026-05-20-release-b-triage-design.md`
+6. **Notable links**: `docs/superpowers/specs/2026-05-20-release-b-triage-design.md`
    plus deep links into modified source files.
 
 - [ ] **Step 2: Commit**
@@ -3243,7 +3271,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Phase 9 — Website
+<span id="phase-9--website"></span>
+
+## Phase 9: Website
 
 ### Task 23: Update website homepage + nav
 
@@ -3257,17 +3287,17 @@ Run: `find apps/website/src -name "*.astro" -o -name "*.md" -o -name "*.mdx" | x
 
 - [ ] **Step 2: Update the hero to include triage**
 
-Add `crimes triage` as the second front-door command after `crimes context`. The exact markup depends on the existing template — match the styling already used for `crimes context`.
+Add `crimes triage` as the second front-door command after `crimes context`. The exact markup depends on the existing template: match the styling already used for `crimes context`.
 
 - [ ] **Step 3: Update the sidebar/nav config**
 
 Add a "Triage" entry under the docs section. Demote any prominent
-mention of "baseline" to an "Escape hatch" subsection or footnote — the
+mention of "baseline" to an "Escape hatch" subsection or footnote: the
 brief is explicit that baseline is no longer the front door.
 
 - [ ] **Step 4: Run the website locally and visually inspect**
 
-Run: `pnpm --filter @crimes/website dev` (or whichever workspace command — check `apps/website/package.json` `scripts`).
+Run: `pnpm --filter @crimes/website dev` (or whichever workspace command: check `apps/website/package.json` `scripts`).
 Open: `http://localhost:4321` (Astro default).
 
 Check that the hero renders, the nav reorders, and no broken links appear.
@@ -3364,7 +3394,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Phase 10 — Release wrap-up
+<span id="phase-10--release-wrap-up"></span>
+
+## Phase 10: Release wrap-up
 
 ### Task 26: Smoke test the published surface
 
@@ -3384,7 +3416,7 @@ Expected: build + typecheck + test across every workspace package, all green.
 
 Common failure modes:
 - A detector test wasn't updated for the `effort` / `fix_shape` schema
-  bump — search and apply the same two-line addition.
+  bump: search and apply the same two-line addition.
 - A reporter snapshot in `human/context` wasn't regenerated.
 - The website build fails on a markdown link to a path that didn't get
   created.
@@ -3475,7 +3507,7 @@ git commit -m "chore: changeset for crimes@0.11.0 — triage as the front door
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
-Pushing to `main` and cutting the tag are out of scope for this plan — they're a separate release procedure tracked in `docs/releasing.md`.
+Pushing to `main` and cutting the tag are out of scope for this plan: they're a separate release procedure tracked in `docs/releasing.md`.
 
 ---
 
@@ -3484,10 +3516,10 @@ Pushing to `main` and cutting the tag are out of scope for this plan — they're
 Run these sanity checks as the engineer wraps up:
 
 - [ ] `git log --oneline 0.10.0..HEAD` shows the commit sequence: schema bump → triage core → triage CLI → resurface → flags → reporter → hook → docs → website → changeset.
-- [ ] `cat packages/cli/package.json | grep version` shows a patch version (e.g. `0.10.4`) — the Changeset bumps it to `0.11.0` at release time.
+- [ ] `cat packages/cli/package.json | grep version` shows a patch version (e.g. `0.10.4`): the Changeset bumps it to `0.11.0` at release time.
 - [ ] `evals/results/` contains a directory for every patch-bump commit.
 - [ ] `pnpm ci` passes from a clean checkout.
 - [ ] `pnpm --filter crimes smoke` passes.
 - [ ] Visual inspection of crimes.sh preview shows the triad (`context`, `triage`, `scan`) leading the homepage.
 
-If any of those fails, do not cut the tag — fix the failure first.
+If any of those fails, do not cut the tag: fix the failure first.

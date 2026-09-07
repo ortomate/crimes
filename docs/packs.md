@@ -5,14 +5,14 @@ read. Each finding carries a `pack` field identifying its origin pack.
 
 ## Packs
 
-- **`universal`** — Evidence is filename + bytes + git + IA index.
+- **`universal`**: Evidence is filename + bytes + git + IA index.
   Runs on every discovered file in every repo. Includes the asset
   pipeline (raster size, SVG content).
-- **`language-js`** — Requires AST parsing via `@crimes/language-js`
+- **`language-js`**: Requires AST parsing via `@crimes/language-js`
   (TypeScript-ESTree). Runs only on `.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts`.
-- **`language-py`** (0.14.0) — Requires AST parsing via
+- **`language-py`** (0.14.0): Requires AST parsing via
   `@crimes/language-py` (tree-sitter-python). Runs only on `.py/.pyi`.
-- **`cross-language`** (0.15.0) — Requires aligning artefacts from
+- **`cross-language`** (0.15.0): Requires aligning artefacts from
   two or more language packs. Runs once per scan, after every per-pack
   pass.
 
@@ -25,15 +25,15 @@ domain-code scope or the non-domain scope".
 
 ## Detector ids vs finding types
 
-`Finding.type` is the **abstract charge** — `large_function` — and is
+`Finding.type` is the **abstract charge** (`large_function`) and is
 the same string regardless of which language produced it. Everything
 that groups or matches findings keys off `type`: the reporter,
 baselines, suppressions, triage, and feedback. Fingerprints are
 `<type>::<file>::<symbol>[::<discriminator>]`, which is why adding a language pack never
 invalidates anything already on disk.
 
-`Finding.detector_id` is the **qualified** form — `large_function.js`,
-`large_function.py` — populated at finalisation.
+`Finding.detector_id` is the **qualified** form (`large_function.js`,
+`large_function.py`) populated at finalisation.
 
 The detector's own `id`, the one you write in config, differs by pack
 for historical reasons:
@@ -133,8 +133,8 @@ Override any of them under
 
 The Python import graph feeds `circular_dependency.py`,
 `deep_import.py`, and `scores.blast_radius`. Package roots are found the
-way Python finds them — walk up from a file while each directory
-contains an `__init__.py` — so flat layouts and `src/` layouts both work
+way Python finds them (walk up from a file while each directory
+contains an `__init__.py`) so flat layouts and `src/` layouts both work
 without either being special-cased.
 
 Resolved: absolute (`from billing.service import x`), relative
@@ -153,7 +153,7 @@ blast radius; a guessed edge would invent a dependency and produce a
 `test_billing.py` and `billing_test.py` pair with `billing.py`, whether
 they sit beside it or under a `tests/` directory. Before 0.14.0 only
 suffix conventions were understood, so every Python file scored
-`test_gap: 1.0` — "no test at all" — regardless of coverage.
+`test_gap: 1.0` ("no test at all") regardless of coverage.
 
 `crimes context` reads the same table for `likely_tests`, and matches
 Python imports by dotted module path (`from billing.rates import x`,
@@ -166,7 +166,7 @@ a subdirectory of a Python repo still scans the whole project.
 ## The cross-language pack
 
 Three detectors, added in 0.15.0. Each one reports a disagreement
-**between** two languages — the findings no single-language tool can
+**between** two languages: the findings no single-language tool can
 produce, because neither side's type checker, linter or compiler can
 see the other half.
 
@@ -179,7 +179,7 @@ see the other half.
 ### How they run
 
 Unlike every other detector, these run **once per scan** rather than
-once per file — a cross-language finding is by definition about two
+once per file: a cross-language finding is by definition about two
 files, so there is no single "current" file. The detector receives the
 whole parsed corpus (`ctx.files`, each entry tagged with its pack) and
 picks its own anchor.
@@ -192,7 +192,7 @@ would edit first; the rest goes in `related_files`.
 ### What they will not do
 
 The false-positive surface for a cross-language detector is roughly
-squared — two languages' worth of source to mismatch — so all three are
+squared (two languages' worth of source to mismatch) so all three are
 deliberately conservative:
 
 - **They never fire one-sided.** Each returns early unless both
@@ -215,8 +215,8 @@ and ``/users/${id}`` all compare equal. A route or URL that only exists
 at runtime is invisible to it, and the finding's own evidence says so.
 
 One non-obvious behaviour worth knowing: `cross_language_concept_alias_drift`
-reads Python docstrings, so a docstring that uses both names — "the
-team, called a workspace in the UI" — suppresses the finding. That is
+reads Python docstrings, so a docstring that uses both names ("the
+team, called a workspace in the UI") suppresses the finding. That is
 intentional. A codebase that documents its own mapping where a reader
 will find it has this problem far less than one that does not.
 
@@ -224,7 +224,7 @@ will find it has this problem far less than one that does not.
 
 `crimes context <file>` auto-scopes to the nearest enclosing package
 root, which keeps the pre-edit briefing fast. In a monorepo that root
-is one package — so the other language is not in scope, and the
+is one package, so the other language is not in scope, and the
 cross-language detectors correctly decline to fire one-sided:
 
 ```console
@@ -236,7 +236,7 @@ risk: HIGH  (2 findings)          # whole monorepo in scope
 ```
 
 Pass `--root` at the monorepo root when you want cross-language
-findings from `context`. `crimes scan` is unaffected — it uses the root
+findings from `context`. `crimes scan` is unaffected: it uses the root
 you give it, so cross-language findings appear normally there.
 
 This is a deliberate trade rather than an oversight: widening the
@@ -259,7 +259,7 @@ claimed:
 ```
 
 `packs_loaded` names every pack that ran. The universal pack always
-leads it — it claims every file unconditionally, so a repo no language
+leads it: it claims every file unconditionally, so a repo no language
 pack recognises still reports `["universal"]`. Coverage prose in the
 human reporter filters it out, because "which language packs claimed
 files" is the question a coverage banner answers.
@@ -267,14 +267,14 @@ files" is the question a coverage banner answers.
 The human reporter prints a one-line banner when >50% of files
 were unclaimed; `--explain-coverage` prints the full breakdown.
 
-Coverage is derived from the `LanguagePackRouter` — the same registry
-the detector orchestrator routes on — so it cannot drift from what
+Coverage is derived from the `LanguagePackRouter` (the same registry
+the detector orchestrator routes on) so it cannot drift from what
 actually ran. A pack that registers extensions is reported here
 automatically; there is no second list to update.
 
 ### `by_package` (0.15.0)
 
-On a monorepo — two or more directories carrying a package manifest —
+On a monorepo (two or more directories carrying a package manifest)
 coverage gains a per-package breakdown:
 
 ```json
@@ -290,7 +290,7 @@ coverage gains a per-package breakdown:
 
 The repo-wide `files_by_language` says a repo is 75% TypeScript.
 `by_package` says *which part* is the Python one, which is what decides
-where a change is risky — in a mostly-TypeScript repo a single Python
+where a change is risky: in a mostly-TypeScript repo a single Python
 service otherwise looks like a rounding error.
 
 Details worth knowing:
@@ -298,7 +298,7 @@ Details worth knowing:
 - **Absent on single-package repos**, so presence is itself the "this
   is a monorepo" signal. One entry restating the repo total would be
   noise.
-- **Manifests are found on disk**, not in the discovered file set —
+- **Manifests are found on disk**, not in the discovered file set:
   `include` covers source and docs, so `package.json` and
   `pyproject.toml` are never scanned. `Cargo.toml` and `go.mod` count
   as package roots too, even though no pack parses those languages:

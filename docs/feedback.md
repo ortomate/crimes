@@ -1,24 +1,22 @@
 ---
-title: crimes feedback — the calibration loop
-description: How to capture true/false-positive verdicts on crimes findings so each release gets better, and how the auto-resurface mechanism keeps the loop alive across minor bumps.
+title: "crimes feedback: the calibration loop"
+description: Record true and false positives, and review earlier feedback after a minor-version update.
 ---
 
-# `crimes feedback` — the calibration loop
+<span id="crimes-feedback--the-calibration-loop"></span>
 
-The 0.7.0 release adds **one new command**: `crimes feedback`.
+# `crimes feedback`: the calibration loop
 
-It exists so the experience of running crimes on a real codebase can
-get *better* over time without depending on someone reading bug
-reports and triaging tickets. Every verdict you record — `tp` (true
-positive), `fp` (false positive), or `known` (acknowledged) — is
-pinned to the crimes minor that produced the finding, and the
-`fp`-flagged ones automatically resurface for re-confirmation when
-the next minor ships. The trajectory those re-confirmations carve
-out (`fp` → `tp` after a tuning change, or `fp` → `fp` again
-because nothing helped) is the highest-value calibration data we
-collect.
+`crimes feedback` records which findings were useful and which were wrong.
+Every verdict (`tp` for true positive, `fp` for false positive, or `known`
+for acknowledged) records the minor version that produced the finding.
+False positives return for review after a minor-version update.
+Repeated verdicts show whether a detector change helped: `fp` → `tp`
+records a corrected finding, while `fp` → `fp` records a continuing problem.
 
-## TL;DR — the three commands you'll use
+<span id="tldr--the-three-commands-youll-use"></span>
+
+## Common commands
 
 ```bash
 # See a finding you disagree with? Mark it false positive — one command, one note.
@@ -47,16 +45,15 @@ already printed at the bottom of every finding in `crimes scan` /
 | `fp`    | yes (note required)   | yes (`source: "feedback"`, pinned to current minor) | upserts the suppression with the new reason |
 | `known` | yes                   | no                 | no change to suppressions |
 
-- `tp` — "true positive, the finding caught a real issue." If you'd
+- `tp`: "true positive, the finding caught a real issue." If you'd
   previously marked it `fp`, the `tp` deletes the suppression so the
-  finding is visible again. The transition is the calibration win
-  ("we used to be wrong; now we're right").
-- `fp` — "false positive, the detector got this wrong." Writes a
+  finding is visible again. This records that the finding is now valid.
+- `fp`: "false positive, the detector got this wrong." Writes a
   feedback entry AND a suppression. The suppression is tagged
   `source: "feedback"` with `crimes_version_pinned: "<minor>"`. On
   every scan with that crimes minor the finding stays silent; on the
   first scan with a newer minor it resurfaces for re-confirmation.
-- `known` — "I'm aware of this, leaving it for now." Records the
+- `known`: "I'm aware of this, leaving it for now." Records the
   judgment without silencing.
 
 ## Feedback from `crimes triage`
@@ -68,15 +65,15 @@ verdict is a byproduct of it.
 
 | Triage disposition | Verdict recorded |
 |--------------------|------------------|
-| `fix-now`, `fix-this-PR`, `needs-design` | `tp` — you're committing to act, so you agree it's real |
-| `scaffolding` | `known` — real pattern, intentional here |
-| `wont-fix` | **asks you** — see below |
+| `fix-now`, `fix-this-PR`, `needs-design` | `tp`: you're committing to act, so you agree it's real |
+| `scaffolding` | `known`: real pattern, intentional here |
+| `wont-fix` | **asks you**: see below |
 
 The triage `reason` carries across as the feedback note.
 
 `wont-fix` is the one disposition that doesn't imply a verdict. It
 conflates "crimes was wrong" with "crimes was right and we accept the
-risk", and those are opposite calibration signals — the first should
+risk", and those are opposite calibration signals: the first should
 retune a detector, the second must not. So interactive triage asks one
 extra question:
 
@@ -140,19 +137,19 @@ they always match the version that produced them; see the
 
 ### Re-feedback on a resurfaced finding
 
-- `--verdict fp` — rewrites the suppression's `crimes_version_pinned`
+- `--verdict fp`: rewrites the suppression's `crimes_version_pinned`
   to the current minor and appends a feedback entry with
   `resurfaced_from: "<previous-minor>"`. The finding is silent again
   for one more release.
-- `--verdict tp` — deletes the suppression entirely and appends a
+- `--verdict tp`: deletes the suppression entirely and appends a
   feedback entry with `resurfaced_from` set. The finding will
   surface normally on every future scan.
-- `--verdict known` — keeps the suppression but doesn't bump its
+- `--verdict known`: keeps the suppression but doesn't bump its
   pinned version; it'll resurface again next minor.
 
 ### Why minor-version granularity (not patch)
 
-Patch releases (0.7.0 → 0.7.1) are bug fixes — detector behaviour
+Patch releases (0.7.0 → 0.7.1) are bug fixes: detector behaviour
 shouldn't change meaningfully. Resurfacing on every patch would be
 annoying without signal. Minor releases (0.7.0 → 0.8.0) are where
 detector tuning lives, so resurfacing aligns with the "did the new
@@ -210,13 +207,13 @@ crimes feedback export --format md
 
 ## Where the data lives
 
-- **Per-repo:** `.crimes/feedback.jsonl` — committed, reviewed in PRs
+- **Per-repo:** `.crimes/feedback.jsonl`: committed, reviewed in PRs
   alongside `.crimes/baseline.json` and `.crimes/suppressions.json`.
-- **Global rollup:** `~/.crimes/feedback-rollup.jsonl` — per-machine,
+- **Global rollup:** `~/.crimes/feedback-rollup.jsonl`: per-machine,
   not committed anywhere. Set `CRIMES_HOME` to override the home
   directory (useful for sandboxed test setups).
 
-Both files are JSON-Lines (one entry per line). Append-only —
+Both files are JSON-Lines (one entry per line). Append-only:
 re-feedback on the same fingerprint appends a new line; read paths
 walk backwards from EOF for the current verdict. The history is
 preserved deliberately so "how did my judgment evolve?" is

@@ -15,7 +15,9 @@ team's gate. The scanner runs locally without an LLM or network access.
 
 These commands answer different questions. Usually one gate is enough.
 
-### Mode A — Changed-files gate
+<span id="mode-a--changed-files-gate"></span>
+
+### Mode A: Changed-files gate
 
 ```bash
 # Working tree versus HEAD:
@@ -32,7 +34,9 @@ retain cross-file evidence and do not promise a cheaper scan. The gate checks
 all visible eligible findings in that set, including old debt. Use a baseline
 or committed-ref comparison when you mean *new findings only*.
 
-### Mode B — Baseline gate
+<span id="mode-b--baseline-gate"></span>
+
+### Mode B: Baseline gate
 
 Review the findings you intend to accept, then save and commit a baseline:
 
@@ -58,7 +62,9 @@ configuration or incomplete analysis can change what is reported. Preview
 baseline accepts everything currently reported; do that only after reviewing
 those decisions. It is not routine upgrade housekeeping.
 
-### Mode C — Branch verdict
+<span id="mode-c--branch-verdict"></span>
+
+### Mode C: Branch verdict
 
 ```bash
 crimes verdict --base origin/main --format json

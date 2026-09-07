@@ -1,9 +1,9 @@
-# Claims — one type, one claim
+# Claims: one type, one claim
 
 `type` names the detector. **`claim` names what the detector alleged.**
 
-Those were the same thing for as long as every detector said exactly one
-thing. Eleven do not.
+Some detectors make several distinct claims. The `claim` field identifies
+which one a finding makes.
 
 This page is for people adding or changing detectors. If you are
 consuming the JSON, read [`json-schema.md`](./json-schema.md#claim); if
@@ -19,10 +19,9 @@ Test "renders the enterprise plan" contains no expect/assert calls.
 Test "creates an invoice" only uses weak assertion matchers.
 ```
 
-Different questions, different answers, different fixes. On a 761-file
+These messages need different fixes. On a 761-file
 TypeScript monorepo it produced 105 findings. A consumer read the first
-message, verified three findings of that shape, found all three false —
-they asserted through a same-file helper the detector does not follow —
+message, verified three findings of that shape, found all three false (they asserted through a same-file helper the detector does not follow)
 and disabled the type.
 
 That judgement was correct about 38 findings and wrong about 67 others,
@@ -31,9 +30,8 @@ which were right and named something worth fixing: 449 instances of
 if it finds nothing, so the assertion proves nothing the query had not
 already proved.
 
-The mistake is one a careful reader makes once. An agent triaging by
-`type` makes it every single time — and `crimes` is marketed as built
-for agents, so this is the main path.
+Grouping by `type` alone can lead a reviewer or agent to apply one
+judgement to findings that make different claims.
 
 ## The rule
 
@@ -82,7 +80,7 @@ export const weakTestSignalDetector: LanguageJsDetector = {
 ```
 
 Claim ids are `[a-z0-9_]+`, unique within the detector, and **stable
-across releases** — they appear in users' committed config and
+across releases**: they appear in users' committed config and
 suppression files. Rename one with the same care as renaming the
 detector.
 
@@ -92,7 +90,7 @@ fingerprint shape they have always had.
 
 ### Alternatives vs conjunctions
 
-Most multi-claim detectors pick exactly **one** claim per finding — a
+Most multi-claim detectors pick exactly **one** claim per finding: a
 test either asserts nothing or asserts weakly, never both. Emit a single
 atom.
 
@@ -109,12 +107,12 @@ claim: composeClaim(issues.map((i) => i.id)),
 // -> "type_disagreement+undocumented"
 ```
 
-`composeClaim` sorts and de-duplicates. That is load-bearing, not
-tidiness: if the id depended on the order the checks happened to run in,
+`composeClaim` sorts and de-duplicates to keep ids independent of check
+order. If the id depended on the order the checks happened to run in,
 an unrelated reordering inside the detector would move every fingerprint
 it emits and silently drop every pin against them.
 
-A composite is still one truth value — the conjunction holds exactly
+A composite is still one truth value: the conjunction holds exactly
 when every atom does. It is **not** a licence to bundle. If a detector's
 claims are alternatives, emit atoms, so silencing one cannot silence the
 other.
@@ -127,7 +125,7 @@ declare and set claims anyway.
 
 Consumers group by `type`, and a labelled finding sitting beside an
 unlabelled one under the same type is exactly the ambiguity `claim`
-exists to remove — an agent cannot name that group, pass it to
+exists to remove: an agent cannot name that group, pass it to
 `detectors.disable`, or describe it in a triage note. The rule is
 enforced by `detector-claims.test.ts`: for any abstract type, either
 every detector emitting it declares claims, or none does.
@@ -137,7 +135,7 @@ every detector emitting it declares claims, or none does.
 - **The fingerprint** gains the claim on its first segment:
   `weak_test_signal/no_assertions::test/a.test.ts::::renders the plan`.
   It rides on `type` rather than becoming a fifth segment because the
-  fourth is the discriminator — opaque detector-chosen text that may
+  fourth is the discriminator: opaque detector-chosen text that may
   itself contain `::`, so nothing appended after it can be read back
   out.
 - **Pins move.** Every existing suppression, baseline entry, and triage
@@ -153,7 +151,7 @@ every detector emitting it declares claims, or none does.
   a homogeneous one.
 
 Because pins move, a change here needs its **own release and its own
-eval baseline**. Don't bundle it with a scoring change — nothing would
+eval baseline**. Don't bundle it with a scoring change: nothing would
 be attributable afterwards.
 
 ## The gate
@@ -162,7 +160,7 @@ be attributable afterwards.
 registry is well-formed, and `scan.test.ts` asserts the runtime half:
 every emitted `finding.claim` is an atom the detector declared. The
 declaration would be worth nothing if a detector could emit a claim that
-is not in it — `detectors.disable` validates against the declaration and
+is not in it: `detectors.disable` validates against the declaration and
 would reject a selector for a claim that really ships.
 
 If you add a second claim to a detector that had one, the gate will

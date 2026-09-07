@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-05
 **Version:** `crimes@latest` via `npx` (0.18.x era)
-**Repo under test:** choreograph.cc — Next.js 16 App Router, TypeScript strict, ~209 files, personal daily-art pipeline
+**Repo under test:** choreograph.cc: Next.js 16 App Router, TypeScript strict, ~209 files, personal daily-art pipeline
 **Reporter:** Claude Opus 5, acting as the implementing developer
 **Task shape:** one-shot design + planning task, NOT an ongoing hygiene loop
 
@@ -17,14 +17,14 @@
 
 The user asked for a feature (per-post cost tracking + an admin costs report)
 and said "let's run crimes and do any relevant cleanup as we go". So crimes
-was used **mid-design, to scope cleanup for a refactor touching ~19 files** —
+was used **mid-design, to scope cleanup for a refactor touching ~19 files**:
 deciding what to fix alongside the feature and what to explicitly leave.
 
 Commands actually run: `scan --top 15`, `scan --top 3`, `context <file>`,
 `--help`, `scan --help`. Not run: `triage`, `baseline`, `verdict`, `diff`,
 `hotspots`, `explain`, `feedback`, `ignore`.
 
-Headline result: **499 findings across 209 files — 34 high, 269 medium,
+Headline result: **499 findings across 209 files: 34 high, 269 medium,
 196 low.** Six were acted on.
 
 ## What genuinely worked
@@ -33,13 +33,13 @@ Headline result: **499 findings across 209 files — 34 high, 269 medium,
 
 `daily-agents.ts` and `JobDetail.tsx` came back as the two worst files, and
 they were independently the two files the task touched most. That is not a
-result a plain linter produces — the risk scoring (churn × blast radius ×
+result a plain linter produces: the risk scoring (churn × blast radius ×
 test gap) did real work.
 
 ### `Exact Duplicate Block` found the flagship finding
 
 It caught `repairJsonControlChars` cloned across `creative-pass.ts` and
-`daily-agents.ts`. That clone was **deliberate** — the source carries a
+`daily-agents.ts`. That clone was **deliberate**: the source carries a
 comment reading "Lifted from creative-pass.ts; duplicated on purpose to
 avoid refactoring a piece of critical working code as part of this PR."
 
@@ -52,7 +52,7 @@ finding justified the run.**
 
 It flagged scattered `*_MODEL` env reads (`GAME_PITCH_MODEL`, 2 reads across
 2 files). Centralising them surfaced that `game_pitch` skips `CREATIVE_MODEL`
-while every sibling agent honours it — a real inconsistency nobody had
+while every sibling agent honours it: a real inconsistency nobody had
 noticed, now preserved deliberately with a comment.
 
 The finding did not state the bug. It pointed at the rock the bug was under.
@@ -60,7 +60,7 @@ That is the right level of ambition for a static tool.
 
 ### `Double Jeopardy` is a novel category
 
-"retry construct: attempt loop … retried mutation — fetch at line 71
+"retry construct: attempt loop … retried mutation: fetch at line 71
 (HTTP POST)" is a genuinely useful thing to name, and not something other
 tools in this space surface.
 
@@ -97,12 +97,12 @@ to be justified to the user.
 For an agent specifically, a large number invites one of two failure modes:
 over-fixing (scope explosion into unrelated files) or dismissing the tool
 wholesale. **`--changed --base main` is the answer, and it was not reached
-for** — bare `scan` is the obvious invocation and the flag only appears in
+for**: bare `scan` is the obvious invocation and the flag only appears in
 `--help`.
 
 ### `scripts/ 157 findings`
 
-Roughly a third of all findings live in `scripts/` — one-off `_check-*.ts`
+Roughly a third of all findings live in `scripts/`: one-off `_check-*.ts`
 diagnostics and backfill utilities that are quick and dirty *by design*.
 
 `triage` offers a `scaffolding` disposition, but that is per-finding and
@@ -118,15 +118,15 @@ Representative hit, from `src/lib/types.ts`:
 > for publish). Authored by the Curator…"
 > — rule terms: never, required
 
-That is **documentation of a deliberate design decision** — precisely what
+That is **documentation of a deliberate design decision**: precisely what
 you want in a codebase. The rule appears to key on modal words
 (must / always / never / required / before) without distinguishing:
 
 - "this comment asserts a rule the code does not enforce" (actionable), from
 - "this comment explains why the code is the way it is" (a virtue)
 
-This repo documents its reasoning unusually well — it has a detailed
-CLAUDE.md and inline rationale comments throughout — and the rule
+This repo documents its reasoning unusually well (it has a detailed
+CLAUDE.md and inline rationale comments throughout) and the rule
 systematically punishes that. It fired on `types.ts`, `job-processor.ts`
 (twice), `game-generator/generate.ts`, and `api/admin/jobs/route.ts`. None
 were actionable.
@@ -140,7 +140,7 @@ prescriptive vs explanatory.
 Flagged `formatTs()` in a UI component rendering a timestamp, and
 `completed_at: new Date().toISOString()` writing a DB column. Both are fine.
 
-The genuinely risky case — time used in a **branch or comparison** — is a
+The genuinely risky case (time used in a **branch or comparison**) is a
 much narrower and more valuable signal than time used as a value to record
 or display. As shipped, `JobDetail.tsx` reports "9× Date.now(), 4× new
 Date()" and essentially all of it is display formatting.
@@ -153,7 +153,7 @@ type-only.
 
 ### `False Identity` on data access
 
-`getChoreoByDate() → calls createClient` — flagged five times in `api.ts`
+`getChoreoByDate() → calls createClient`: flagged five times in `api.ts`
 alone, because a `get*` function makes a "side-effect-like call". But
 `createClient()` is constructing the client in order to *do the read*.
 Every data-access layer in every Next.js app has this shape.
@@ -181,7 +181,7 @@ crimes". Search order was `~/.claude/skills`, `~/.claude/commands`,
 *directory* in `~/dev`, then `which crimes` (nothing), then a guess at
 `npx crimes@latest`. **Four steps to first run.**
 
-`crimes init --agents` is the fix, and it is real — but it is a tip at the
+`crimes init --agents` is the fix, and it is real, but it is a tip at the
 bottom of `--help`, which an agent only reads if it has already decided to
 run `--help`. If that command writes discovery info into `AGENTS.md` /
 `CLAUDE.md`, that is the entire onboarding story for agents and deserves to
@@ -189,10 +189,10 @@ be the loudest thing in the README's agent section. It was not set up in
 this repo.
 
 **2. That findings would be scopeable to a working set.** They are ranked
-globally by risk — valid, but a different question from "what is relevant
+globally by risk: valid, but a different question from "what is relevant
 to what I am about to do".
 
-**3. That `--fail-on` was the CI story.** It is — but it requires
+**3. That `--fail-on` was the CI story.** It is, but it requires
 `--changed`. The combination `--changed --base main --fail-on medium` is the
 most valuable invocation for this workflow and the least discoverable one.
 
@@ -211,7 +211,7 @@ most valuable invocation for this workflow and the least discoverable one.
 This was a **one-shot design task, not an ongoing hygiene loop**. The
 `triage → baseline → verdict` commands are clearly built for the latter and
 were not exercised. The "499 findings is overwhelming" complaint is quite
-possibly exactly what `baseline` exists to solve — weight it accordingly.
+possibly exactly what `baseline` exists to solve: weight it accordingly.
 
 ## What was actually fixed as a result
 

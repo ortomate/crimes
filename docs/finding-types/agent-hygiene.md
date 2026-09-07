@@ -21,7 +21,9 @@ deterministic file, rather than once per file scanned.
 
 ---
 
-## `dependency_provenance_gap` — Phantom Accomplice
+<span id="dependency_provenance_gap--phantom-accomplice"></span>
+
+## `dependency_provenance_gap`: Phantom Accomplice
 
 ### Scope: local provenance only
 
@@ -52,14 +54,14 @@ on a fingerprint:
 Every `package.json` in the tree is inventoried. Resolution walks from
 the importing file's **nearest** enclosing manifest up to the repo
 root, which is how both pnpm workspaces and npm hoisting actually
-behave — a dependency declared at the workspace root satisfies an
+behave: a dependency declared at the workspace root satisfies an
 import in a child package.
 
 **Workspace membership matters.** A manifest is a workspace member when
 it is the root manifest, or its directory matches a glob declared in
 `pnpm-workspace.yaml` or a root `workspaces` field. Manifests outside
-the workspace — a sample app under `examples/`, an eval fixture, a
-vendored project — are **not** compared against the root lockfile.
+the workspace (a sample app under `examples/`, an eval fixture, a
+vendored project) are **not** compared against the root lockfile.
 They were never installed by it, and comparing them would report every
 one of their dependencies as missing.
 
@@ -77,7 +79,7 @@ sample app that happens to be named `react` cannot make every real
 - type-only imports backed by an `@types/*` package, including the
   scoped flattening (`@scope/pkg` → `@types/scope__pkg`)
 - peer, optional, bundled, `workspace:`, `file:`, and `link:`
-  dependencies, for the lockfile comparison — none of those is required
+  dependencies, for the lockfile comparison: none of those is required
   to appear in a lock
 
 ### Lockfile support
@@ -87,7 +89,7 @@ sample app that happens to be named `react` cannot make every real
 | `pnpm-lock.yaml`     | `<name>@<version>` keys, matched by pattern across format revisions (v5-v9) |
 | `package-lock.json`  | the v2/v3 `packages` install-path tree **and** the v1 `dependencies` tree |
 | `yarn.lock`          | entry headers (`name@range:`), v1 and berry                  |
-| `bun.lockb`          | recorded as present but **unparsed** — it is binary          |
+| `bun.lockb` | recorded as present but **unparsed**: it is binary |
 
 A lockfile that yields zero names is marked `unparsed`, and the
 detector says nothing rather than reporting that every dependency is
@@ -135,7 +137,7 @@ imports are affected; it is damped when every affected import is
 type-only (-0.18), when only test or fixture files are affected
 (-0.12), and in monorepos where resolution walks upward (-0.08).
 
-Unpinned specifiers carry the highest confidence (0.85+) — the
+Unpinned specifiers carry the highest confidence (0.85+): the
 specifier text is read directly from the manifest and requires no
 inference.
 
@@ -166,7 +168,9 @@ deliberately out of scope.
 
 ---
 
-## `agent_permission_sprawl` — Loaded Agent
+<span id="agent_permission_sprawl--loaded-agent"></span>
+
+## `agent_permission_sprawl`: Loaded Agent
 
 ### What it inspects
 
@@ -193,7 +197,9 @@ costume. This is the single most important property of this detector.
 
 ### Three tiers, deliberately separated
 
-#### 1. Executable configuration — medium to high
+<span id="1-executable-configuration--medium-to-high"></span>
+
+#### 1. Executable configuration: medium to high
 
 These run.
 
@@ -201,19 +207,23 @@ These run.
 | ------------------------------------------------ | -------------- |
 | hook pipes remote content into a shell            | +0.45          |
 | hook prints or transmits environment variables    | +0.40          |
-| `Bash(*)` / bare `Bash` — unrestricted execution  | +0.35          |
+| `Bash(*)` / bare `Bash`: unrestricted execution | +0.35 |
 | pre-approved destructive or self-elevating command| +0.30          |
 | hook interpolates repo-controlled text into a shell | +0.30       |
 | `Write(…)` reaching outside the repository        | +0.25          |
 | unattended network action on an edit event        | +0.22          |
 
-#### 2. MCP servers — medium
+<span id="2-mcp-servers--medium"></span>
+
+#### 2. MCP servers: medium
 
 A server launched with `npx -y <package>` downloads and runs code that
 no lockfile in the repo pins. Environment **names** passed through are
 listed; values are never read.
 
-#### 3. Prose directives — low, always
+<span id="3-prose-directives--low-always"></span>
+
+#### 3. Prose directives: low, always
 
 An instruction file telling an agent to skip verification, ignore
 higher-level instructions, expose secrets, edit outside the repository,
@@ -222,7 +232,7 @@ or push without asking.
 **Low severity and low confidence, always.** A sentence is not an
 execution path, and a repository may have entirely legitimate reasons
 for each of them. The finding says the sentence exists and is worth a
-reviewer's eye — not that it is wrong. `scores.severity` is
+reviewer's eye, not that it is wrong. `scores.severity` is
 hard-capped below the medium band so prose can never outrank an
 executable hazard in the default ranking, and the evidence says so:
 
@@ -306,4 +316,4 @@ agent_permission_sprawl · Loaded Agent · high (0.90)
 ### Resilience
 
 A settings file that does not parse configures nothing, so the detector
-says nothing — reporting the malformed JSON is another tool's job.
+says nothing: reporting the malformed JSON is another tool's job.

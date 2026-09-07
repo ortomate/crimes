@@ -1,7 +1,7 @@
 # Information Architecture findings
 
 Information architecture (IA) findings flag places where a repo gives
-**multiple competing answers to the same structural question** — what a
+**multiple competing answers to the same structural question**: what a
 concept is called, where it lives, which implementation owns it, how users
 move through the product. They are the form of agent-risk `crimes` cares
 about most: deterministic evidence of source-of-truth ambiguity that
@@ -40,7 +40,7 @@ Every IA detector in `crimes` produces findings that are **evidence-first
 ambiguity signals**, not claims of semantic truth. We say _"appears to
 disagree"_, not _"is wrong"_. The detector cites the file, line, and
 literal that disagrees. If the team has accepted the alias on purpose,
-the finding is still useful — it surfaces the place where future edits
+the finding is still useful: it surfaces the place where future edits
 need a deliberate vocabulary choice.
 
 **No LLM, no API key, no network access** is required to produce these
@@ -62,14 +62,14 @@ markdown headings, and file paths.
 All five emit findings in the same `Finding` shape as the existing
 structural detectors (`large_file`, `large_function`, etc.). Cross-file
 findings populate the previously-reserved `related_files` field. The
-schema is otherwise unchanged — `schema_version` is still `"0.1.0"`.
+schema is otherwise unchanged: `schema_version` is still `"0.1.0"`.
 
 ---
 
 ## Missing Agent Context
 
 **What it detects.** Repos that declare a `bin` in `package.json` but
-ship **no** agent-readable instructions — no `AGENTS.md`, no `CLAUDE.md`,
+ship **no** agent-readable instructions: no `AGENTS.md`, no `CLAUDE.md`,
 no `.claude/skills/*/SKILL.md`, and no `.agents/skills/*/SKILL.md`.
 Agents loading the repo have nothing
 to read: no install / build commands, no architecture notes, no safety
@@ -87,7 +87,7 @@ package.json declares bin(s): messy — agents have no way to discover commands
 
 **Why it matters.** A repo that ships a CLI is a public surface that an
 agent will probably touch on someone else's behalf. Without project
-context, the agent will default to generic conventions — and generic
+context, the agent will default to generic conventions, and generic
 conventions are how regressions land.
 
 **Suggested fix.** Add an `AGENTS.md` covering install / build / test /
@@ -99,7 +99,7 @@ finding; ship more than one for richer coverage.
 
 - The detector requires a declared `bin` in `package.json`. Libraries,
   internal packages, and tiny test fixtures without a `bin` will not
-  fire — agents are far less likely to be the primary editors there.
+  fire: agents are far less likely to be the primary editors there.
 - Monorepos: today the detector only checks the **scanned root**. A
   per-package `bin` inside `packages/<foo>/package.json` will not
   trigger the finding when scanning the monorepo root. Per-package
@@ -128,22 +128,22 @@ nav label in src/nav/registry.ts: Plans
 
 **Why it matters.** An agent asked to "rename the billing page" will edit
 the file it grepped first and leave the other three vocabularies stale.
-Reviewers reading the PR will not notice — the diff looks consistent in
+Reviewers reading the PR will not notice: the diff looks consistent in
 isolation. The next agent picks up the inconsistent state and amplifies
 it.
 
 **Suggested fix.** Pick the canonical name for the destination
 (`Subscription`? `Plans`? `Billing`?) and align every source that
-labels it — route path, file location, component name, page title /
+labels it: route path, file location, component name, page title /
 metadata, and nav labels. Document the decision in the page header so
 the next agent sees it before editing.
 
 **False-positive notes.**
 
-- Layouts and wrapper routes are skipped — the detector only inspects
+- Layouts and wrapper routes are skipped: the detector only inspects
   files whose route is a leaf path. A `layout.tsx` that wraps multiple
   pages does not fire.
-- Translation-key labels are not used as drift signals — only literal
+- Translation-key labels are not used as drift signals: only literal
   string labels count. A `<Title>{t("billing.page.title")}</Title>` is
   ignored.
 - Two-source disagreement is **not** enough; the detector requires
@@ -154,8 +154,7 @@ the next agent sees it before editing.
 ## Duplicated Navigation Source
 
 **What it detects.** A single internal destination (e.g.
-`/settings/billing`) appears in **two or more nav-like source files** —
-sidebars, route registries, breadcrumbs, sitemap arrays — with
+`/settings/billing`) appears in **two or more nav-like source files** (sidebars, route registries, breadcrumbs, sitemap arrays) with
 **different non-empty labels**. The detector parses top-level array
 literals containing objects with destination + label keys
 (`{ to, label }`, `{ path, title }`, etc.) and groups by normalised
@@ -182,7 +181,7 @@ agent cannot diverge them silently.
 
 **False-positive notes.**
 
-- External URLs (`https://…`, `mailto:`, anchors `#…`) are skipped — only
+- External URLs (`https://…`, `mailto:`, anchors `#…`) are skipped: only
   internal destinations starting with `/` are grouped.
 - Both nav sources must declare the destination with a **non-empty**
   label. A nav entry with a destination but no label is ignored.
@@ -197,7 +196,7 @@ agent cannot diverge them silently.
 (`team` / `workspace` / `organisation` / `account` for the tenant
 concept; `plan` / `tier` / `subscription` / `package` for billing;
 `user` / `member` / `seat`; etc.) appear across the repo's **product
-surface** — route paths, page labels, nav entries, doc headings — with
+surface** (route paths, page labels, nav entries, doc headings) with
 each alias landing in **≥2 distinct directories**. The detector emits at
 most one finding per concept group and caps the total at the three
 strongest groups per scan.
@@ -219,7 +218,7 @@ corresponding logic under the other three aliases stays put and
 diverges. Reviewers, customers, and docs all keep paying the cost.
 
 **Suggested fix.** Pick the canonical alias (or document the deliberate
-distinction between aliases — `account` for billing, `workspace` for
+distinction between aliases: `account` for billing, `workspace` for
 collaboration, etc.). Update the docs that describe the concept first
 so future edits have a single reference.
 
@@ -227,7 +226,7 @@ so future edits have a single reference.
 
 - Quorum is strict: **≥3 aliases from the same group, each in ≥2 distinct
   directories, with ≥1 product-surface hit** (route, label, nav, or doc
-  heading — not just a file-path token). Reduces noise on repos that
+  heading, not just a file-path token). Reduces noise on repos that
   legitimately distinguish, say, `account` (billing identity) from
   `workspace` (collaboration scope).
 - Test, fixture, and mock files are excluded from alias counting
@@ -235,7 +234,7 @@ so future edits have a single reference.
   `*.test.*`, `*.spec.*`).
 - This is an **ambiguity signal**, not a rename instruction. Aliases
   used deliberately (compat layers, migration shims, multi-tenancy
-  boundaries) will still trip the detector — the right response is
+  boundaries) will still trip the detector: the right response is
   often to document the distinction, not to consolidate.
 - The seeded alias catalogue ships in
   [`packages/core/src/ia/aliases.ts`](../../packages/core/src/ia/aliases.ts).
@@ -269,17 +268,17 @@ is right, do it in the same PR as whatever caused the drift.
 **False-positive notes.**
 
 - External links (`http://`, `https://`, `mailto:`, `tel:`, `ftp://`)
-  are not validated — only local links.
+  are not validated: only local links.
 - Anchor-only links (`#section`) are ignored.
 - Query strings and fragments are stripped before resolution.
 - Links inside inline backtick spans (`` `[label](path)` ``) are not
-  flagged — examples in code-doc text are common and benign.
+  flagged: examples in code-doc text are common and benign.
 - The detector currently scans `docs/**/*.md` + root-level `*.md` /
   `*.mdx`. Markdown elsewhere in the tree is not walked.
 - **Command-drift** detection (docs referencing a CLI command the `bin`
   does not implement) is **deferred to a later release**. It needs
   deterministic command-registration scanning that we have not yet
-  shipped — until then, broken command references are not flagged.
+  shipped: until then, broken command references are not flagged.
 
 ---
 
@@ -288,23 +287,23 @@ is right, do it in the same PR as whatever caused the drift.
 Every finding above is built from one or more of these inputs, all
 deterministic:
 
-- **Path tokens** — repo-relative POSIX file paths, normalised and
+- **Path tokens**: repo-relative POSIX file paths, normalised and
   stop-word filtered.
-- **Route paths** — derived from `src/pages/`, `src/app/`, `src/routes/`,
+- **Route paths**: derived from `src/pages/`, `src/app/`, `src/routes/`,
   `src/screens/` (and their unprefixed variants) by convention.
-- **AST results** — `<title>`, `metadata.title`, `document.title`,
+- **AST results**: `<title>`, `metadata.title`, `document.title`,
   `useTitle()`-style hooks, top-level nav-array literals, default-export
   identifiers, and `<Breadcrumb>` / `<Nav*>` / `<Sidebar*>` /
   `<Menu*>` / `<Tab*>` label attributes.
-- **Markdown headings + local link targets** — parsed without an
+- **Markdown headings + local link targets**: parsed without an
   external markdown library, conservative about ambiguous syntax.
-- **`package.json` `bin` entries** — read once per scan.
+- **`package.json` `bin` entries**: read once per scan.
 
 No detector calls out to an LLM, no detector reads the network, and no
 detector consults git history. Two runs over the same repo produce
 identical IA findings (same fingerprints, same evidence).
 
-This is intentional. Every IA finding must be **quotable verbatim** —
+This is intentional. Every IA finding must be **quotable verbatim**:
 the user, reviewer, or agent reading the report should be able to point
 at a line in a specific file and say "this is the evidence." Anything
 softer than that belongs in a PR comment, not a deterministic detector.
@@ -314,7 +313,7 @@ softer than that belongs in a PR comment, not a deterministic detector.
 ## New in 0.6.0
 
 Five additional IA detectors land in `crimes@0.6.0`. Each follows the
-same evidence-first contract above — concrete files, line numbers,
+same evidence-first contract above: concrete files, line numbers,
 and quoted literals; hedged phrasing on the summary; no LLM.
 
 ### Orphaned Destination (`orphaned_destination`)
@@ -340,7 +339,7 @@ no top-level export in any src/routes/** file declares this path
 > [`configuration.md`](../configuration.md#default-off-detectors).
 
 Two nav-like surfaces declare different routes for the same canonical
-destination — e.g. `/billing` vs `/account/billing` vs
+destination: e.g. `/billing` vs `/account/billing` vs
 `/settings/subscription`.
 
 **Example evidence.**
@@ -355,7 +354,7 @@ src/nav/footer.tsx:22  → /settings/subscription
 ### Permission IA Drift (`permission_ia_drift`)
 
 The same role / permission identifier is categorised differently
-across surfaces — e.g. a nav source treats `billing-admin` as a
+across surfaces: e.g. a nav source treats `billing-admin` as a
 sub-role of `admin` while a route guard treats it as a peer.
 
 **Example evidence.**
