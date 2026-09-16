@@ -159,14 +159,14 @@ const families = readdirSync(familyDir)
   .sort();
 
 const unlinkedFamilies = families.filter(
-  (f) => !landingHtml.includes(`docs/finding-types/${f}.md`),
+  (f) => !landingHtml.includes(`href="/docs/finding-types/${f}/"`),
 );
 if (unlinkedFamilies.length > 0) {
   fail(
     `${unlinkedFamilies.length} detector famil(y/ies) have a reference page that the ` +
       `landing page never links to:\n    ${unlinkedFamilies.join(", ")}\n` +
       '  Add a row to the family table in the "What it detects today" section naming\n' +
-      "  the question that family answers, linking to docs/finding-types/<family>.md.",
+      "  the question that family answers, linking to /docs/finding-types/<family>/.",
   );
 }
 

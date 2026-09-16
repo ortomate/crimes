@@ -199,13 +199,14 @@
         <span class="brand-mark" aria-hidden="true">⌖</span>
         <span class="brand-name">crimes</span>
       </a>
-      <nav class="topnav" aria-label="Section navigation">
+      <nav class="topnav" aria-label="Main navigation">
         <a href="#install">Install</a>
         <a href="#quickstart">Quick start</a>
         <a href="#agents">For agents</a>
         <a href="#ci">CI</a>
         <a href="#detects">Detectors</a>
         <a href="#faq">FAQ</a>
+        <a class="docs-link" href="/docs/">Docs</a>
         <a class="external" href="https://github.com/ortomate/crimes">GitHub ↗</a>
       </nav>
     </header>
@@ -275,7 +276,7 @@ crimes scan .</code></pre>
         <p class="note">
           <code>pnpm dlx crimes scan</code> and <code>bunx crimes scan</code>
           also work. See the installation plans in the
-          <a href="https://github.com/ortomate/crimes/blob/main/docs/roadmap.md">roadmap</a>.
+          <a href="/docs/roadmap/">roadmap</a>.
         </p>
       </section>
 
@@ -585,7 +586,7 @@ jobs:
         <p class="note">
           Full integration guide and Mode A / B swaps:
           <a
-            href="https://github.com/ortomate/crimes/blob/main/docs/ci.md"
+            href="/docs/ci/"
             ><code>docs/ci.md</code></a
           >. Copy-paste workflow:
           <a
@@ -688,7 +689,7 @@ Repo-level
         <ul>
           <li>
             <a
-              href="https://github.com/ortomate/crimes/blob/main/docs/agent-usage.md"
+              href="/docs/agent-usage/"
               ><code>docs/agent-usage.md</code></a
             >
             covers the pre-edit and post-edit workflow, shipped and deferred commands, and exit-code
@@ -696,7 +697,7 @@ Repo-level
           </li>
           <li>
             <a
-              href="https://github.com/ortomate/crimes/blob/main/docs/json-schema.md"
+              href="/docs/json-schema/"
               ><code>docs/json-schema.md</code></a
             >
             describes every field of the wire format, including required and reserved fields
@@ -729,52 +730,52 @@ Repo-level
             <span role="columnheader">The question it asks</span>
           </div>
           <div class="row" role="row">
-            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/structural.md"><strong>Structural</strong></a></span>
+            <span role="cell"><a href="/docs/finding-types/structural/"><strong>Structural</strong></a></span>
             <span role="cell"><code>v0.1.0</code></span>
             <span role="cell">Is this unit too big, too deep, or too temporally reckless to edit safely?</span>
           </div>
           <div class="row" role="row">
-            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/ia.md"><strong>Information architecture</strong></a></span>
+            <span role="cell"><a href="/docs/finding-types/ia/"><strong>Information architecture</strong></a></span>
             <span role="cell"><code>v0.3.0</code></span>
             <span role="cell">Does the repo tell more than one story about the same product concept?</span>
           </div>
           <div class="row" role="row">
-            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/dependency.md"><strong>Dependency graph</strong></a></span>
+            <span role="cell"><a href="/docs/finding-types/dependency/"><strong>Dependency graph</strong></a></span>
             <span role="cell"><code>v0.6.0</code></span>
             <span role="cell">Which edges between modules are cycles, layer violations, or reach past a public entry point?</span>
           </div>
           <div class="row" role="row">
-            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/duplication.md"><strong>Duplication</strong></a></span>
+            <span role="cell"><a href="/docs/finding-types/duplication/"><strong>Duplication</strong></a></span>
             <span role="cell"><code>v0.6.0</code></span>
             <span role="cell">Where does the same body exist twice, so every fix has to land twice?</span>
           </div>
           <div class="row" role="row">
-            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/frontend.md"><strong>Frontend / UI</strong></a></span>
+            <span role="cell"><a href="/docs/finding-types/frontend/"><strong>Frontend / UI</strong></a></span>
             <span role="cell"><code>v0.6.0</code></span>
             <span role="cell">Which UI code will an agent restyle, relabel, or duplicate because nothing marks it as canonical?</span>
           </div>
           <div class="row" role="row">
-            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/petty.md"><strong>Petty crimes</strong></a></span>
+            <span role="cell"><a href="/docs/finding-types/petty/"><strong>Petty crimes</strong></a></span>
             <span role="cell"><code>v0.3.0</code></span>
             <span role="cell">Could dead code, misleading names or logic hidden in comments confuse the next reader?</span>
           </div>
           <div class="row" role="row">
-            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/assets.md"><strong>Assets</strong></a></span>
+            <span role="cell"><a href="/docs/finding-types/assets/"><strong>Assets</strong></a></span>
             <span role="cell"><code>v0.10.0</code></span>
             <span role="cell">Which images are the wrong format or weight for how they are actually used?</span>
           </div>
           <div class="row" role="row">
-            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/correctness.md"><strong>Correctness risk</strong></a></span>
+            <span role="cell"><a href="/docs/finding-types/correctness/"><strong>Correctness risk</strong></a></span>
             <span role="cell"><code>v0.16.0</code></span>
             <span role="cell">What does this code do when something goes wrong? A swallowed failure, a retry that replays a payment, a test green through any refactor.</span>
           </div>
           <div class="row" role="row">
-            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/authority.md"><strong>Cross-file authority</strong></a></span>
+            <span role="cell"><a href="/docs/finding-types/authority/"><strong>Cross-file authority</strong></a></span>
             <span role="cell"><code>v0.16.0</code></span>
             <span role="cell">Where does the repo keep its truth twice? The same authorization rule in two files, one record with two disagreeing declarations.</span>
           </div>
           <div class="row" role="row">
-            <span role="cell"><a href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/agent-hygiene.md"><strong>Agent hygiene</strong></a></span>
+            <span role="cell"><a href="/docs/finding-types/agent-hygiene/"><strong>Agent hygiene</strong></a></span>
             <span role="cell"><code>v0.16.0</code></span>
             <span role="cell">Imports with no declaring manifest, and repo-local agent config granting unrestricted execution. Uses local records without contacting registries or executing configuration.</span>
           </div>
@@ -939,7 +940,7 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
           Long-form reference (quorum rules, false-positive notes,
           suggested fixes):
           <a
-            href="https://github.com/ortomate/crimes/blob/main/docs/finding-types/ia.md"
+            href="/docs/finding-types/ia/"
             ><code>docs/finding-types/ia.md</code></a
           >.
         </p>
@@ -1065,7 +1066,7 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
           Read about released detectors, schema changes and commands on the
           <a href="https://github.com/ortomate/crimes/releases">GitHub Releases page</a>.
           The forward roadmap is in
-          <a href="https://github.com/ortomate/crimes/blob/main/docs/roadmap.md"
+          <a href="/docs/roadmap/"
             ><code>docs/roadmap.md</code></a
           >; the authoritative product spec is
           <a href="https://github.com/ortomate/crimes/blob/main/PRD.md"
@@ -1102,11 +1103,11 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
         <span aria-hidden="true">·</span>
         <a href="https://github.com/ortomate/crimes/blob/main/PRD.md">PRD</a>
         <span aria-hidden="true">·</span>
-        <a href="https://github.com/ortomate/crimes/blob/main/docs/agent-usage.md">Agent guide</a>
+        <a href="/docs/agent-usage/">Agent guide</a>
         <span aria-hidden="true">·</span>
-        <a href="https://github.com/ortomate/crimes/blob/main/docs/ci.md">CI guide</a>
+        <a href="/docs/ci/">CI guide</a>
         <span aria-hidden="true">·</span>
-        <a href="https://github.com/ortomate/crimes/blob/main/docs/json-schema.md">JSON schema</a>
+        <a href="/docs/json-schema/">JSON schema</a>
         <span aria-hidden="true">·</span>
         <a href="https://ortomate.ai">An Ortomate Initiative ↗</a>
       </div>
