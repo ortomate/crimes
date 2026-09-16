@@ -15,14 +15,17 @@ node apps/website/scripts/verify-build.mjs
 ```
 
 The website checks cover internal links and anchors, product claims,
-canonical URLs, Vercel's trailing-slash policy and the sitemap tree
+canonical URLs, Vercel's documentation redirects and the sitemap tree
 advertised in `robots.txt`. Rebuild before checking.
 
 ## URLs and indexing
 
-Documentation URLs end in `/`. Keep Astro's `trailingSlash: "always"`
-and Vercel's `trailingSlash: true` together. Sitemap entries, canonical
-tags and internal links must use the same URL that serves the page.
+Documentation URLs end in `/`. Astro uses `trailingSlash: "always"`.
+Vercel uses explicit directory redirects in `vercel.json`: its built-in
+`trailingSlash` option must stay unset because even `true` strips slashes
+from dotted release paths such as `/docs/releases/v0.29.0/`.
+Sitemap entries, canonical tags and internal links must use the same URL
+that serves the page.
 Link to hosted documentation from the homepage; GitHub links are for
 repository content such as source files and raw fixtures.
 
@@ -32,6 +35,7 @@ the actual host as well as the build:
 ```sh
 curl -sSI https://crimes.sh/docs/
 curl -sSI https://crimes.sh/docs/agent-usage/
+curl -sSI https://crimes.sh/docs/releases/v0.29.0/
 curl -sSI https://crimes.sh/docs
 curl -sSI https://crimes.sh/docs/sitemap-index.xml
 ```

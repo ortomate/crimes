@@ -19,6 +19,18 @@ const failures = new Set();
 const hosting = JSON.parse(
   readFileSync(new URL("../vercel.json", import.meta.url), "utf8"),
 );
+// Vercel's built-in slash normalizer strips slashes from dotted version
+// paths even when set to true. Use explicit directory redirects instead.
+if (hosting.trailingSlash !== undefined)
+  failures.add("Vercel trailingSlash must be unset; dotted releases are directory URLs");
+function redirectFor(path) {
+  for (const route of hosting.routes ?? []) {
+    const pattern = new RegExp(route.src);
+    if (route.status === 308 && pattern.test(path))
+      return path.replace(pattern, route.headers.Location);
+  }
+  return path;
+}
 const canonicals = new Set();
 for (const [file, html] of contents) {
   // Astro's generated 404 canonical points to a virtual route, not an output file.
@@ -31,15 +43,18 @@ for (const [file, html] of contents) {
   } else {
     canonicals.add(expected);
   }
-  // Static directory pages, their canonicals and the host must agree.
-  // Otherwise Vercel redirects every URL advertised by the sitemap.
-  if (page !== "/" && hosting.trailingSlash !== page.endsWith("/")) {
-    failures.add(`${page} (canonical conflicts with Vercel trailingSlash)`);
+  if (redirectFor(page) !== page) {
+    failures.add(`${page} (canonical URL redirects)`);
+  }
+  if (page !== "/" && redirectFor(page.replace(/\/$/, "")) !== page) {
+    failures.add(`${page} (slashless URL does not redirect to its canonical)`);
   }
   for (const match of html.matchAll(/href="([^"]+)"/g)) {
     const href = match[1].replaceAll("&amp;", "&");
     const url = new URL(href, `https://crimes.sh${page}`);
     if (url.origin !== "https://crimes.sh") continue;
+    if (redirectFor(url.pathname) !== url.pathname)
+      failures.add(`${page} → ${href} (internal URL redirects)`);
     const path = resolve(dist, "." + decodeURIComponent(url.pathname));
     const target =
       existsSync(path) && statSync(path).isDirectory()

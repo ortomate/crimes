@@ -12,7 +12,7 @@ import { remarkRepositoryLinks } from "./scripts/repository-links.mjs";
 export default defineConfig({
   site: "https://crimes.sh",
   base: "/docs",
-  // Keep Vercel's trailingSlash setting aligned with these canonical URLs.
+  // Keep Vercel's documentation redirects aligned with these canonical URLs.
   trailingSlash: "always",
   markdown: { remarkPlugins: [remarkRepositoryLinks] },
   // Astro's `base` only rewrites URLs — output file paths stay flat

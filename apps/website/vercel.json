@@ -5,7 +5,18 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": null,
   "cleanUrls": true,
-  "trailingSlash": true,
+  "routes": [
+    {
+      "src": "^(/docs(?:/[^/.]+)*)$",
+      "headers": { "Location": "$1/" },
+      "status": 308
+    },
+    {
+      "src": "^(/docs/releases/v[0-9]+\\.[0-9]+\\.[0-9]+)$",
+      "headers": { "Location": "$1/" },
+      "status": 308
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
