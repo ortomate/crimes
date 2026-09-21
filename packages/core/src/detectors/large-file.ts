@@ -3,7 +3,7 @@ import type { UniversalDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
-type LargeFileShape = "domain" | "test_file" | "docs";
+type LargeFileShape = "domain" | "test_file" | "docs" | "data";
 
 /**
  * Prose and markup files: reference documentation, not modules.
@@ -13,6 +13,22 @@ type LargeFileShape = "domain" | "test_file" | "docs";
  * finding worth keeping.
  */
 export const DOCS_EXT_RE = /\.(md|mdx|markdown|rst|adoc|asciidoc|txt)$/i;
+
+/**
+ * Structured data: records, fixtures, exports and configuration.
+ *
+ * These are scanned (see `DEFAULT_SOURCE_INCLUDES`) and a hand-maintained
+ * 3000-line config is still a finding worth keeping — that decision is
+ * unchanged. What changes is the *severity*: field notes from rolecred
+ * (2026-09-22) recorded generated audit JSON arriving as `high` and
+ * outranking the runtime changes the developer had come to review.
+ *
+ * Extension is the only signal available here. The universal pack has no
+ * parser, and `looksGeneratedSource` cannot help: JSON has no comment
+ * syntax, so a generated `.json` carries no banner to find. Lockfiles and
+ * manifests are already excluded by path in `DEFAULT_CONFIG`.
+ */
+export const DATA_EXT_RE = /\.(json|jsonc|json5|yaml|yml|toml)$/i;
 
 /**
  * Default line budget for the `docs` shape.
@@ -25,6 +41,16 @@ export const DOCS_EXT_RE = /\.(md|mdx|markdown|rst|adoc|asciidoc|txt)$/i;
  * the split this detector asks for.
  */
 const DEFAULT_DOCS_THRESHOLD = 1000;
+
+/**
+ * Default line budget for the `data` shape.
+ *
+ * Matched to the `docs` budget for the same reason: like a reference
+ * document, a data file is expected to be long, and measuring it against
+ * the 300-line domain budget says nothing about whether anyone has to
+ * maintain it.
+ */
+const DEFAULT_DATA_THRESHOLD = 1000;
 
 /**
  * Per-shape size policy. `domain` reads the configured threshold so existing
@@ -68,6 +94,18 @@ export function policyForFile(
       agentRiskScale: 0.5,
     };
   }
+  if (shape === "data") {
+    return {
+      threshold: overrides?.data ?? DEFAULT_DATA_THRESHOLD,
+      severityAtThreshold: "low",
+      severityAtTwoX: "medium",
+      label: "data file",
+      // Below the document scale. An agent asked to change behaviour
+      // rarely has to load a data file at all, where an oversized
+      // document it has been told to follow must be read to be obeyed.
+      agentRiskScale: 0.5,
+    };
+  }
   if (shape === "docs") {
     return {
       threshold: overrides?.docs ?? DEFAULT_DOCS_THRESHOLD,
@@ -98,6 +136,9 @@ export function policyForFile(
  */
 export function shapeForFile(file: string): LargeFileShape {
   if (DOCS_EXT_RE.test(file)) return "docs";
+  // Before the test-file rule: a fixture named `users.test.json` is data
+  // whichever way it is read, and the data budget is the lower of the two.
+  if (DATA_EXT_RE.test(file)) return "data";
   return isTestFile(file) ? "test_file" : "domain";
 }
 
@@ -135,7 +176,9 @@ export const largeFileDetector: UniversalDetector = {
       ? `File is ${lines} lines (threshold ${policy.threshold}). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.`
       : shape === "docs"
         ? `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Documents this long are read in fragments: a reader or agent looking for one rule loads the whole file and may act on the wrong section.`
-        : `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.`;
+        : shape === "data"
+          ? `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Check whether it is generated or bulk data before acting: length is a maintenance signal only for a file somebody edits by hand.`
+          : `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.`;
     const thresholdEvidence = isDomain
       ? `${ratio.toFixed(1)}× the configured ${policy.threshold}-line threshold`
       : `${ratio.toFixed(1)}× the configured ${policy.threshold}-line ${policy.label} threshold`;
@@ -160,12 +203,17 @@ export const largeFileDetector: UniversalDetector = {
         ...(shape === "docs"
           ? ["shape: document (matches .md/.mdx/.markdown/.rst/.adoc/.txt)"]
           : []),
+        ...(shape === "data"
+          ? ["shape: data file (matches .json/.jsonc/.json5/.yaml/.yml/.toml)"]
+          : []),
       ],
       effort: "medium",
       fix_shape:
         shape === "docs"
           ? "split into per-topic pages; one subject per document"
-          : "split by responsibility; one concern per module",
+          : shape === "data"
+            ? "exclude it if it is generated; split by subject if it is maintained by hand"
+            : "split by responsibility; one concern per module",
       scores: {
         severity: severityScore(severity),
         confidence: round(confidence),
@@ -175,7 +223,7 @@ export const largeFileDetector: UniversalDetector = {
       },
       suggested_actions: [
         {
-          kind: "split_file",
+          kind: shape === "data" ? "exclude_or_split_data" : "split_file",
           description: suggestedActionFor(shape),
           risk: "medium",
         },
@@ -187,6 +235,13 @@ export const largeFileDetector: UniversalDetector = {
 };
 
 function suggestedActionFor(shape: LargeFileShape): string {
+  if (shape === "data") {
+    return (
+      "Confirm whether the file is generated. If it is, exclude it in " +
+      "crimes.config.json so it stops competing with code findings; if it " +
+      "is maintained by hand, split it by subject."
+    );
+  }
   if (shape === "test_file") {
     return (
       "Split the suite into per-feature or per-scenario files so each " +

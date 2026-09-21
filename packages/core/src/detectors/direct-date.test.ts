@@ -22,6 +22,17 @@ function makeCtx(
   };
 }
 
+function makeParsedCtx(source: string, file = "src/date.ts"): LanguageJsDetectorContext {
+  return {
+    kind: "language-js",
+    file,
+    absolutePath: `/tmp/${file}`,
+    source,
+    parsed: parseFile({ absolutePath: `/tmp/${file}`, source }),
+    config: DEFAULT_CONFIG,
+  };
+}
+
 describe("directDateDetector", () => {
   it("returns nothing when there are no Date uses", async () => {
     const findings = await directDateDetector.run(makeCtx([]));
@@ -235,5 +246,46 @@ ${body}
 `;
     const findings = await directDateDetector.run(makeSourceCtx(source));
     expect(findings[0]!.severity).toBe("high");
+  });
+});
+
+describe("directDateDetector — clock read vs conversion", () => {
+  it("does not count new Date(value) as a clock read", async () => {
+    // Field notes, rolecred 2026-09-22: `new Date(evidence.submitted_at)`
+    // was reported as a system-clock dependency. It formats a timestamp
+    // that already exists. The detector's claim is `clock_read`, so this
+    // is a false claim rather than a debatable one.
+    const source = [
+      "export function formatSubmitted(evidence: Evidence) {",
+      "  return new Date(evidence.submitted_at).toISOString();",
+      "}",
+    ].join("\n");
+    const findings = await directDateDetector.run(makeParsedCtx(source));
+    expect(findings).toEqual([]);
+  });
+
+  it("still counts new Date() with no arguments", async () => {
+    const source = [
+      "export function stamp() {",
+      "  const a = new Date();",
+      "  const b = new Date();",
+      "  return [a, b];",
+      "}",
+    ].join("\n");
+    const findings = await directDateDetector.run(makeParsedCtx(source));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.evidence[0]).toContain("2× new Date()");
+  });
+
+  it("counts only the clock reads when a file both parses and reads", async () => {
+    const source = [
+      "export function age(evidence: Evidence) {",
+      "  const submitted = new Date(evidence.submitted_at);",
+      "  return Date.now() - submitted.getTime();",
+      "}",
+    ].join("\n");
+    const findings = await directDateDetector.run(makeParsedCtx(source));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.evidence[0]).toBe("1× Date.now()");
   });
 });

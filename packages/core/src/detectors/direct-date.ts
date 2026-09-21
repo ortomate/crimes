@@ -28,7 +28,17 @@ export const directDateDetector: LanguageJsDetector = {
     if (isTestFile(ctx.file)) return [];
     if (isClockBoundary(ctx.file)) return [];
 
-    const hits = ctx.parsed.dateNowOrNewDateUses;
+    // `new Date(value)` converts a timestamp that already exists; it does
+    // not read the clock. The parser already separates the two —
+    // `DateUse.argKind` is `"none"` only for the no-argument form — and
+    // this detector's single claim is `clock_read`, so counting a
+    // conversion here asserts something untrue rather than something
+    // debatable. Field notes, rolecred 2026-09-22:
+    // `new Date(evidence.submitted_at)` reported as a system-clock
+    // dependency was the finding that cost the reporter's trust in the
+    // rest. The string-literal form keeps its own charge,
+    // `timezone_unsafe_parse`, which is where parse safety belongs.
+    const hits = ctx.parsed.dateNowOrNewDateUses.filter(isClockRead);
     if (hits.length === 0) return [];
 
     // Split the uses by what the clock reading is *for*. A reading that
@@ -134,6 +144,20 @@ function pickSeverity(count: number, comparedCount: number): Severity {
   if (count >= 8) return "high";
   if (count >= 2) return "medium";
   return "low";
+}
+
+/**
+ * Is this use a reading of the current time?
+ *
+ * `Date.now()` always is. `new Date()` is; `new Date(x)` is not.
+ * An absent `argKind` resolves to "clock read": the parser sets it for
+ * every `new` use it records, so the only way to reach this branch is a
+ * hand-built fixture, and leaving the finding in place is the direction
+ * that fails safe.
+ */
+function isClockRead(use: DateUse): boolean {
+  if (use.kind === "now") return true;
+  return use.argKind === undefined || use.argKind === "none";
 }
 
 function isClockBoundary(file: string): boolean {

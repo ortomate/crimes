@@ -49,6 +49,13 @@ export const nameBehaviorMismatchDetector: LanguageJsDetector = {
       const name = fn.name;
       if (!name || !looksPure(name) || DISCLOSES_MUTATION.test(name)) continue;
       if (isTestFile(ctx.file)) continue;
+      // A React component is not a function whose name promises purity.
+      // `render` is itself a pure prefix, every component sets state, and
+      // `setX(...)` from `useState` matches SIDE_EFFECT_CALL — so the
+      // shape scores as a mismatch by construction. Excluded on the
+      // parser's own classification (PascalCase name + JSX in the body)
+      // rather than on a name pattern.
+      if (fn.shape === "react_component") continue;
 
       const body = lines.slice(fn.startLine - 1, fn.endLine).join("\n");
       const score = scoreBody(body);
@@ -110,7 +117,30 @@ interface BodyScore {
 
 function looksPure(name: string): boolean {
   const lower = `${name[0]!.toLowerCase()}${name.slice(1)}`;
-  return PURE_PREFIXES.some((prefix) => lower === prefix || lower.startsWith(prefix));
+  return PURE_PREFIXES.some(
+    (prefix) => lower === prefix || startsWithWord(lower, prefix),
+  );
+}
+
+/**
+ * Does `name` start with `prefix` as a *word*, rather than as a run of
+ * characters that happens to match?
+ *
+ * Field notes, rolecred 2026-09-22: `ReadinessForm` was charged as a
+ * `read` function, and its React state updates were then read as the
+ * hidden side effects that "prove" the mismatch. Two errors compound
+ * into one confident finding, and the first of them is this test.
+ *
+ * A camelCase or PascalCase boundary is an uppercase letter (`readUser`),
+ * an underscore (`read_user`), or the end of the name — all of which are
+ * cases where `next !== next.toLowerCase()` or the character is not a
+ * lowercase letter. `readiness` continues the word and is not a match.
+ */
+function startsWithWord(name: string, prefix: string): boolean {
+  if (!name.startsWith(prefix)) return false;
+  const next = name[prefix.length];
+  if (next === undefined) return true;
+  return next === next.toUpperCase();
 }
 
 function scoreBody(body: string): BodyScore | undefined {

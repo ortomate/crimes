@@ -1,6 +1,6 @@
 // One generated capability reference for humans, agents and the landing page.
 import { execFileSync } from "node:child_process";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
@@ -14,6 +14,27 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const version = JSON.parse(
   await readFile(resolve(root, "packages/cli/package.json"), "utf8"),
 ).version;
+
+/**
+ * The version the *public site* may claim, which is not the package
+ * version. Between releases the package version takes continuous-
+ * improvement patch bumps (see `evals/README.md`): those redirect the
+ * eval results directory and are never published to npm, so stamping one
+ * onto the landing page would advertise a version nobody can install and
+ * link to release notes that do not exist. The published set is the
+ * `docs/releases/vX.Y.Z.md` files — a release writes one, a patch bump
+ * does not.
+ */
+const publishedVersion = (await readdir(resolve(root, "docs/releases")))
+  .flatMap((name) => {
+    const match = /^v(\d+)\.(\d+)\.(\d+)\.md$/.exec(name);
+    return match ? [[Number(match[1]), Number(match[2]), Number(match[3])]] : [];
+  })
+  .sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2])
+  .map((parts) => parts.join("."))
+  .at(-1);
+if (publishedVersion === undefined)
+  throw new Error("No docs/releases/vX.Y.Z.md found; cannot stamp the landing page");
 const detectors = [...builtInDetectors, ...builtInAssetDetectors].sort((a, b) =>
   a.id.localeCompare(b.id),
 );
@@ -77,7 +98,7 @@ JSON schema: ${SCHEMA_VERSION}. TypeScript, JavaScript, Python, cross-language a
 - https://crimes.sh/docs/api-types/
 - https://crimes.sh/docs/json-schema/
 - https://crimes.sh/docs/scoring/
-- https://crimes.sh/docs/releases/v${version}/
+- https://crimes.sh/docs/releases/v${publishedVersion}/
 `;
 const escapeHtml = (text) =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -114,11 +135,11 @@ const excerpt = {
 };
 let landing = await readFile(resolve(root, "apps/website/landing/index.html"), "utf8");
 landing = landing
-  .replace(/("softwareVersion"\s*:\s*")[^"]+/, `$1${version}`)
-  .replace(/(<span class="pill">v)[0-9.]+/, `$1${version}`)
+  .replace(/("softwareVersion"\s*:\s*")[^"]+/, `$1${publishedVersion}`)
+  .replace(/(<span class="pill">v)[0-9.]+/, `$1${publishedVersion}`)
   .replace(
     /(<span class="pill">[\s\S]*?href="\/docs\/releases\/v)[0-9.]+/,
-    `$1${version}`,
+    `$1${publishedVersion}`,
   )
   .replace(/(currently\s*<code>")[^"]+/, `$1${SCHEMA_VERSION}`);
 for (const [name, content] of [

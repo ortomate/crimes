@@ -7,6 +7,13 @@
 **Task shape:** ongoing feature development — context reports plus before/after
 scans across a multi-file change, not a one-shot audit
 
+> **Disposition (0.29.1, same day):** the three confirmed items are fixed
+> under the continuous-improvement patch bump — prefix word boundary and a
+> React-component exclusion in `name_behavior_mismatch`, `argKind` honoured
+> in `direct_date`, and a `data` shape for `large_file`. Ranking is
+> unchanged at NDCG 0.4770 / 0.3895 deep. The two re-verify items are
+> still open and still need a 0.29.0 re-run in the reporting repo.
+
 > **Triage status:** each complaint below was checked against `main` at
 > 0.29.0 on the day it arrived. Three reproduce in current source and are
 > cited to the line. Two map to 0.29.0 advice changes the reporter had not
@@ -133,13 +140,14 @@ column, not in the miss column.
 
 ## Recommended disposition
 
-Not applied in this pass. Costs as required by the round protocol:
+Costs as required by the round protocol. The first three landed in
+0.29.1 on the day the notes were written; the last two are unchanged:
 
 | Item | Cost |
 | --- | --- |
-| `name_behavior_mismatch` word boundary | detector tuning: patch bump + eval re-run |
-| `direct_date` honours `argKind` | detector tuning: patch bump + eval re-run |
-| `large_file` generated shape | detector tuning + config default; patch bump + eval re-run |
+| `name_behavior_mismatch` word boundary | done in 0.29.1 |
+| `direct_date` honours `argKind` | done in 0.29.1 |
+| `large_file` data shape | done in 0.29.1 (`thresholds.largeFile.data`) |
 | Limits / "role" | re-run on 0.29.0 first; fingerprint needed |
 | Shared-schema split advice | re-run on 0.29.0 first |
 
