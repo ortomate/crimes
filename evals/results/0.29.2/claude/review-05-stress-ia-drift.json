@@ -1,0 +1,121 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T03:13:51.669Z",
+  "run_id": "853ed6b4-7b09-4267-a482-a882758d7b5c",
+  "response": "Read all 14 files and cross-checked each finding against source. This is a seeded fixture — every file carries a comment narrating its intended crime — so I'm judging severity by what each pattern would mean in a real repo, and flagging where the scan's own ranking misleads.\n\n## The scan's ranking inverts the actual risk\n\nThe 5 medium findings are mostly the *cheap* ones. The real blocker is hiding in the low-severity orphan cluster, and one medium is understated.\n\n---\n\n## Blocking\n\n**1. `/admin` permission drift — and an actual auth bypass inside it** (`crime_00010`, medium → should be high)\n\nThe scan reports three role tokens across three files. It missed that two of them contradict each other *in the same file*:\n\n```\nsrc/routes/admin.ts:4   export const requiredRole = \"owner\";\nsrc/routes/admin.ts:9   if (currentUser.role === \"manager\") return { ok: true, legacy: true };\nsrc/routes/admin.ts:10  if (currentUser.role !== \"owner\") return null;\n```\n\nThe exported contract says owner-only. The implemented guard grants access to `manager` on the line *before* the owner check ever runs. `nav.ts:10` gates the link on `role: \"admin\"` — a token no guard tests. So a manager sees no nav entry but passes the guard, and an admin sees the entry but is rejected.\n\nThis isn't label drift. It's a stale privilege path that still works, and `requiredRole` documents it away. Fix before merge: delete the `manager` branch or make it the declared role, then make `nav.ts` and the guard read the same constant.\n\n**2. Nav points at routes that don't exist** — *not reported by any detector*\n\nThe four `orphaned_destination` findings (all low) are the symptom. The cause is a pluralization split across the three sources, and the scan never joins them:\n\n| nav.ts href | route file | docs/routes.md |\n|---|---|---|\n| `/teams` | `teams.ts` → `/teams` ✅ | `/team` ❌ |\n| `/workspaces` | `workspace.ts` → `/workspace` ❌ | `/workspace` |\n| `/organisations` | `organisation.ts` → `/organisation` ❌ | `/organisation` |\n| *(absent)* | `billing-plans.ts`, `admin/billing-plans.ts` | `/billing-plan` ❌ |\n\nTwo of four nav links are dead. The detector only walks route→nav, so it flagged the routes as orphaned and never flagged the nav entries as dangling — same fact, and the direction it reports is the harmless one. `/teams` being the *only* unflagged route confirms the pattern: it's the one path where nav and code happen to agree.\n\nSame gap in components — `href=\"/seats/manage\"`, `/users/manage`, `/teams/manage` have no backing route file anywhere.\n\nPick singular or plural, apply to all three sources, add a test that asserts every `NAV` href resolves.\n\n**3. `commander` undeclared — plus the bin entry won't run** (`crime_00013`, medium — confirmed)\n\n`package.json` has no `dependencies` key at all; `bin/iaq.ts:5` imports `commander`. Clean install fails. Also unreported: `\"bin\": { \"iaq\": \"./bin/iaq.ts\" }` points a `#!/usr/bin/env node` shebang at a TypeScript file — that fails on execution, not just install. Both are ship-breaking for a package declaring a bin.\n\n---\n\n## Follow-up\n\n- **`parallel_destination` billing-plans** (`crime_00003`) — confirmed, both files are empty stubs returning `[]`, neither in nav. Real, but nothing is built yet. Decide canonical placement when billing gets implemented.\n- **Tenant alias group** (`crime_00002`) — organisation/team/workspace. All three route modules are byte-identical `listX`/`getX` stubs, which supports the detector's read that they're one concept. But org ⊃ workspace ⊃ team is also a legitimate hierarchy. This is a product decision, not a refactor; the medium severity overstates it.\n- **Action label drift** (`crime_00004`) — archive/delete/remove across three components. Genuine copy inconsistency, zero functional risk. Copy-guide work.\n- **Docs reference dead CLI commands** (`crime_00012`) — `iaq teams`, `iaq workspace`, `iaq refresh` vs. an advertised surface of `get`, `list`. Confirmed and correct.\n- **No agent context** (`crime_00001`) — true, and the highest-leverage cheap fix given everything above: a repo this inconsistent is exactly where an agent guesses wrong.\n\n---\n\n## Two things to discount\n\n- **`crime_00004` and `crime_00009` are the same finding.** Identical summary, identical evidence lines, identical `related_files`; only `detector_id` (`action_label_drift.js` vs `copy_ia_drift.js`) and `fix_shape` differ. Real total is 12, not 13 — and both fingerprints survived dedup, which looks like a tool bug worth filing.\n- **`crime_00011` (`docs/routes.md:14 → /admin not found`) is close to a false positive** despite 0.9 confidence. The link is `[admin console](/admin)` — a route URL, and that route exists (`src/routes/admin.ts`, plus `src/routes/admin/`). The detector resolved it as a repo-relative *file* path. The doc is stale about the *role*, not the destination, and that's already `crime_00010`.\n\n---\n\n**Merge gate:** items 1–3. Item 1 alone — a live `manager` bypass under an `owner` label — is enough to hold the branch. Everything else is backlog.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "parallel_destination",
+      "crime_00004": "action_label_drift",
+      "crime_00005": "orphaned_destination",
+      "crime_00006": "orphaned_destination",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "copy_ia_drift",
+      "crime_00010": "permission_ia_drift",
+      "crime_00011": "docs_code_drift",
+      "crime_00012": "command_drift_docs_code_drift",
+      "crime_00013": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Parallel Destination": "parallel_destination",
+      "Action Label Drift": "action_label_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Copy / IA Drift": "copy_ia_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "no AGENTS.md found at repo root": "missing_agent_context",
+      "no CLAUDE.md found at repo root": "missing_agent_context",
+      "no .claude/skills/*/SKILL.md present": "missing_agent_context",
+      "no .agents/skills/*/SKILL.md present": "missing_agent_context",
+      "package.json declares bin(s): iaq — agents have no way to discover commands": "missing_agent_context",
+      "alias group: tenant": "concept_alias_drift",
+      "aliases found: organisation, team, workspace": "concept_alias_drift",
+      "\"organisation\" in 2 file(s): src/nav.ts, src/routes/organisation.ts": "concept_alias_drift",
+      "\"organisation\"": "concept_alias_drift",
+      "\"team\" in 3 file(s): src/components/TeamList.tsx, src/nav.ts, src/routes/teams.ts": "concept_alias_drift",
+      "\"workspace\" in 2 file(s): src/nav.ts, src/routes/workspace.ts": "concept_alias_drift",
+      "routes: /admin/billing-plans, /billing-plans": "parallel_destination",
+      "files: src/routes/admin/billing-plans.ts, src/routes/billing-plans.ts": "parallel_destination",
+      "shared tokens: billing, plan": "parallel_destination",
+      "no nav, doc, or import link between them": "parallel_destination",
+      "route path: /admin/billing-plans": "orphaned_destination",
+      "file: src/routes/admin/billing-plans.ts": "orphaned_destination",
+      "no in-repo import targets this route file": "orphaned_destination",
+      "route path: /billing-plans": "orphaned_destination",
+      "file: src/routes/billing-plans.ts": "orphaned_destination",
+      "route path: /organisation": "orphaned_destination",
+      "file: src/routes/organisation.ts": "orphaned_destination",
+      "route path: /workspace": "orphaned_destination",
+      "file: src/routes/workspace.ts": "orphaned_destination",
+      "destination: /admin": "permission_ia_drift",
+      "tokens: admin, manager, owner": "permission_ia_drift",
+      "nav (src/nav.ts:6): nav attr role=admin": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:2): role literal \"admin\"": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:2): role literal \"manager\"": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:4): role literal \"owner\"": "permission_ia_drift",
+      "route_guard (src/routes/admin.ts:9): role literal \"manager\"": "permission_ia_drift",
+      "+2 more signal(s)": "permission_ia_drift",
+      "docs/routes.md:14 → /admin (not found)": "docs_code_drift",
+      "docs/routes.md:23 references \"iaq teams\"": "command_drift_docs_code_drift",
+      "docs/routes.md:27 references \"iaq workspace\"": "command_drift_docs_code_drift",
+      "\"iaq workspace\"": "command_drift_docs_code_drift",
+      "docs/routes.md:31 references \"iaq refresh\"": "command_drift_docs_code_drift",
+      "\"iaq refresh\"": "command_drift_docs_code_drift",
+      "advertised: iaq: get, list": "command_drift_docs_code_drift",
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`commander` — imported at bin/iaq.ts as \"commander\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      }
+    ]
+  }
+}

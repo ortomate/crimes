@@ -1,0 +1,89 @@
+{
+  "scenario": "bugfix-11-py-mixed-clocks",
+  "agent": "codex",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T02:10:19.601Z",
+  "run_id": "7f60df80-19ac-44a8-bac8-5f2d7e914e75",
+  "response": "I’ll run the scan and trace the invoice timestamps and billing-period logic to see how the host timezone affects them.\n\n\nThe mismatch is in `domain/invoicing.py`: it stamps `issued_at` with host-local time and `period_start` with UTC, but neither value carries a timezone. I’ll check a month-boundary example. This fixture has no tests or CI configuration, so I can explain how a UTC runner masks the bug, but can’t verify the runner’s settings.\n\n\n`domain/invoicing.py` is responsible. I ran `crimes scan --format json`; it returned eight findings, including `mixed_utc_local_methods` and `direct_date` in this module.\n\nIn [build_invoice](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-0Nc3Cl/domain/invoicing.py:20):\n\n```python\nissued = datetime.now()           # host-local time, no timezone\nperiod_start = datetime.utcnow()  # UTC time, no timezone\n```\n\nBoth values are **naive datetimes**: Python cannot distinguish their timezone conventions. Comparisons treat them as belonging to the same clock, and extracting their dates or months can produce different billing periods.\n\nI reproduced the mismatch at a fixed instant, `2026-04-30 22:30 UTC`:\n\n| Host timezone | `issued_at` | `period_start` |\n|---|---|---|\n| UTC | April 30, 22:30 | April 30, 22:30 |\n| Europe/Berlin | May 1, 00:30 | April 30, 22:30 |\n\nThis explains the intermittency: the offset exists throughout the day, but changes the calendar period only near a boundary. DST changes that window. The relevant timezone is the **server’s**, not automatically the customer’s.\n\nA UTC-configured CI runner hides the offset because local time and UTC agree. This fixture contains no CI configuration or tests to confirm that setting, and no downstream period-bucketing code; the inconsistent timestamps themselves are directly confirmed.\n\nThe proposed fix is to:\n\n- Inject a clock returning `datetime.now(timezone.utc)` and read it **once per invoice**, deriving both timestamps from that instant.\n- Define the billing timezone explicitly. Use UTC for UTC-based periods; for customer-local periods, convert with `ZoneInfo(customer.billing_timezone)` before calculating the period boundary.\n- Update coupon expiry comparisons at line 53 and `summarise` at line 79 to use aware datetimes too. Normalize existing naive inputs according to their documented timezone.\n- Add fixed-clock regression tests around month/year boundaries and DST, running with UTC and European host timezones. Results should depend only on the chosen billing timezone.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      }
+    ]
+  }
+}

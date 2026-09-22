@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T02:18:26.596Z",
+  "run_id": "0c859dd8-d2e1-45bc-be2d-dfc3f2d3ecd2",
+  "response": "I’ll run the requested context command and check what it says about extending `src/add.ts`.\n\n\n`crimes context src/add.ts --format json` completed successfully:\n\n- **No findings** for `src/add.ts`; reported risk is **`none`**.\n- No agent guidance or deterministic related files were identified.\n- Likely tests: `src/add.test.ts`; test coverage remains **unknown**.\n\n**The file appears safe to extend based on these checks.** The supplied repository scan flags one separate, low-severity issue: `src/add.test.ts` imports undeclared `vitest`, which could break testing on a clean install. Declare it in the applicable manifest and run the tests when extending the file.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

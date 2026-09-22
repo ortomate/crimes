@@ -1,0 +1,75 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T02:52:01.102Z",
+  "run_id": "f5ba00a7-577c-4caf-81a2-30562f395190",
+  "response": "I’ll run the scan and inspect the layer rules and imports, then tie each proposed change to its finding.\n\n\n`crimes scan --format json` confirmed **one `layer_violation` and one `deep_import`**, plus the related cycle and undeclared dependency. No files changed.\n\n1. **`crime_00003` — `layer_violation`**  \n   Medium severity; confidence **0.95**. In `src/domain/billing.ts:2`, break:\n   ```ts\n   import { renderInvoice } from \"../presentation/invoice-view.js\";\n   ```\n   This violates `domain cannotImport presentation`.\n\n   Have `chargeCustomer` return a domain-owned `BillingResult`, let `runBillingFlow` return that result, and let presentation render it. Keep the allowed direction **presentation → application → domain**. Moving the rendering import into application would also violate the configuration.\n\n   Make `renderInvoice` a pure formatter; move its `runBillingFlow()` invocation into a separate presentation entry point. Removing the domain → presentation edge also breaks **`crime_00002`**, the three-file cycle, whose current calls recurse through rendering and billing.\n\n2. **`crime_00004` — `deep_import`**  \n   Low severity; confidence **0.85**. In `src/application/billing-flow.ts:4`, replace:\n   ```ts\n   import { internalHelper } from \"some-pkg/dist/internal/private/helper.js\";\n   ```\n   Redirect this capability through a **verified documented package export**, either the package root or a supported public subpath. The repository provides no evidence that `internalHelper` is publicly exported, so simply changing the specifier to `\"some-pkg\"` is not yet justified.\n\n   If no public equivalent exists, replace the capability or request an upstream public API. An adapter that still imports the private path would retain the underlying problem. If the package remains, declare a verified compatible version in `package.json`, addressing **`crime_00001`** separately.\n\n**Agent risk differs by boundary:** `layer_violation` concerns the repository’s intended dependency direction; an automated fix can misplace responsibilities or introduce another forbidden edge. `deep_import` concerns an external package’s supported contract; an automated fix can invent an export or substitute behavior that is not equivalent.\n\nThe supplied report scores those risks **0.10 versus 0.08**; the fresh scan reports **0.09 versus 0.08**, with different churn inputs. These scores are distinct from severity and confidence.\n\nAfter implementation, verify billing completes without recursive re-entry, invoice formatting remains correct, the chosen public API resolves in a clean install, and rerun the scan.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap",
+      "crime_00002": "circular_dependency",
+      "crime_00003": "layer_violation",
+      "crime_00004": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap",
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`some-pkg` — imported at src/application/billing-flow.ts as \"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "\"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap",
+      "cycle size: 3 files": "circular_dependency",
+      "member: src/application/billing-flow.ts": "circular_dependency",
+      "member: src/domain/billing.ts": "circular_dependency",
+      "member: src/presentation/invoice-view.ts": "circular_dependency",
+      "src/domain/billing.ts (layer: domain) imports src/presentation/invoice-view.ts (layer: presentation)": "layer_violation",
+      "rule: domain cannotImport presentation": "layer_violation",
+      "1 deep import across 1 package": "deep_import",
+      "specifier: some-pkg/dist/internal/private/helper.js": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

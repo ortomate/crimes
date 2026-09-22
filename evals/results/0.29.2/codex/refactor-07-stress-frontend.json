@@ -1,0 +1,48 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T02:44:24.016Z",
+  "run_id": "4fdac1ca-0707-4d18-853a-f483b3dec0c2",
+  "response": "I’ll run the requested context command and inspect the card, then propose a fluid layout change tied to the finding evidence. I’m using the impeccable skill for the responsive UI review.\n\n\n`crimes context src/Card.tsx --format json` confirms `crime_00001` (`responsive_fragility`, low severity, confidence 0.65): fixed widths of **800px and 720px**, plus **18px typography** without media queries.\n\nProposed changes in `src/Card.tsx`:\n\n| Element | Proposed styles | Reason |\n|---|---|---|\n| Card | `width: \"100%\"`, `maxWidth: \"50rem\"`, `boxSizing: \"border-box\"`, `minWidth: 0` | Fits the available container, including padding, while retaining a desktop width cap. |\n| Card height | Replace `height: 600` with `minHeight: \"37.5rem\"` | Allows the card to grow as content wraps. |\n| Content | `width: \"100%\"`, `maxWidth: \"45rem\"`, `fontSize: \"1.125rem\"`, `overflowWrap: \"anywhere\"` | Replaces the flagged 720px width and uses relative typography; long text can wrap. |\n| Sidebar | `width: \"100%\"`, `maxWidth: \"15rem\"` | Prevents its additional fixed 240px width from overflowing smaller containers. |\n\nKeep `{children}` and `sidebar` intact, with no clipping or hiding. This follows the finding’s fluid-layout recommendation without requiring media queries.\n\nNo files changed. Validate the proposal at 320px, in a narrow parent container, and with long content and enlarged text.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      }
+    ]
+  }
+}

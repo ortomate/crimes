@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T02:18:05.617Z",
+  "run_id": "ae5ae5ac-ceda-43b1-b0d4-80036d62d741",
+  "response": "## crimes context: `src/add.ts` — clean\n\n```\nrisk: none    high 0 | medium 0 | low 0 | total 0\nanalysis_status: complete\n```\n\n**What it found on this file: nothing.** Zero findings, no agent guidance, no related files. The report explains both absences rather than leaving them ambiguous:\n\n- `agent_guidance_reason`: \"no findings on this file and no deterministic related files\"\n- `related_files_reason`: \"no neighbourhood signal — no related_files from findings, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"\n\nThat's a genuine clean result, not a skipped analysis — `analysis_status: complete`, and coverage confirms the JS pack loaded and scanned both `.ts` files (the third file, `package.json`, was universal-only).\n\n**Useful signal it did give:** `likely_tests: [\"src/add.test.ts\"]`. That test exists and covers `add` directly, so you have a place to extend tests alongside the code.\n\n## The one repo-wide finding — not on your file\n\nThe repo scan reports a single **low** finding, `dependency_provenance_gap` (\"Phantom Accomplice\", confidence 0.56) against `package.json`: `vitest` is imported by `src/add.test.ts` but declared in no manifest. And indeed `package.json` has no `dependencies` or `devDependencies` block at all.\n\nIt does **not** attach to `src/add.ts`, which is why the context report is empty. It resolves today via hoisting; a clean install could fail. Fix is a one-liner — add `vitest` to `devDependencies` — but it's orthogonal to your edit.\n\n## Verdict: safe to extend\n\nThe file is four lines including the comment, has a direct test, no importers, no blast radius, and no findings. Nothing here constrains how you change it.\n\nTwo things worth keeping in mind as you extend it, both structural rather than warnings:\n\n1. **Low blast radius is also low coverage of signal.** `blast_radius: 0` and `test_gap: \"unknown\"` mean crimes has no neighbourhood to reason about — a clean context report on an isolated leaf file tells you much less than one on a well-connected file. It's clean because there's nothing there yet, so don't read it as validation of a design.\n2. **If you add anything with external deps,** the existing `vitest` gap means the manifest is already untrustworthy as a record of what this package needs. Worth declaring both `vitest` and anything new you import in the same pass.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

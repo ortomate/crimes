@@ -1,0 +1,55 @@
+{
+  "scenario": "context-14-what-was-not-scanned",
+  "agent": "codex",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T02:24:23.296Z",
+  "run_id": "0fe4cceb-c228-4567-9738-f92c962b768e",
+  "response": "I’ll run the scan and check the repository’s tooling configuration so I can separate findings from excluded code and identify who requested the exclusion.\n\nI ran `crimes scan --format json`. It reported **2 medium findings, 0 high, and 0 low**:\n\n- **`app/pricing.py:20` — direct clock read:** `datetime.now()` makes fixed-time testing harder and produces a timezone-naive datetime. Inject a clock and make the timezone explicit.\n- **`app/pricing.py:8–11` — unfinished work:** four TODOs cover plan configuration, annual discounts, a reportedly incorrect CA tax rule, and currency rounding. These need investigation; the scan does not establish their billing impact.\n\nSeparately, **2 Python source files under `legacy_v1/` were skipped**: `legacy_v1/discounts.py` and `legacy_v1/pricing.py`. The repository’s own [pyproject.toml](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-zNaRL9/pyproject.toml:10) requests those exclusions through:\n\n- **Ruff:** `extend-exclude = ['legacy_v1']`\n- **coverage.py:** `omit = ['legacy_v1/*']`\n- **codespell:** `skip = '.git,legacy_v1/*'`\n\nCrimes honored those tooling settings. This is configuration authority, **not evidence that the code is safe or unused**. Hatch’s packaging exclusion and uv’s `exclude-newer` duration are separate settings.\n\n**I would not trust this as a complete picture of repository risk.** Coverage included only one Python file and one TOML file; findings in the skipped code are absent, not zero. Five detectors were also disabled by default.\n\nTo check the excluded code, I would set `\"honourToolingExcludes\": false` in `crimes.config.json`, then rerun:\n\n```sh\ncrimes scan --format json\n```\n\nI would verify that both legacy files are included and the exclusion warning disappears, then review and test their billing behavior. An expanded static scan still cannot establish billing correctness.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Unfinished Business": "todo_density"
+    },
+    "detector_id_by_evidence": {
+      "1× datetime.now()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "1 of 1 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20": "direct_date",
+      "181.8 markers per 1k LOC (threshold 10)": "todo_density"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "app/pricing.py",
+        "observed": "app/pricing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}
