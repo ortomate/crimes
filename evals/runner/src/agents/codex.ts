@@ -17,12 +17,19 @@ export type InvokeCodexOptions = InvokeClaudeOptions;
  * accepted for older CLI versions.
  */
 export async function invokeCodex(options: InvokeCodexOptions): Promise<AgentRunResult> {
-  const args = ["exec", "--json", options.prompt];
+  // `--skip-git-repo-check` is required, not optional politeness: the
+  // runner hands every invocation a throwaway fixture copy with no
+  // `.git`, and codex refuses to start outside a "trusted directory"
+  // without it. The check exists to stop an agent editing a repository
+  // it was not pointed at — which is precisely what the sandbox already
+  // guarantees, by giving it nothing but a disposable copy.
+  const args = ["exec", "--json", "--skip-git-repo-check", options.prompt];
   if (options.model) args.push("--model", options.model);
   const { stdout, stderr, exitCode } = await runProcess(
     "codex",
     args,
     options.timeoutMs ?? 600_000,
+    options.cwd,
   );
 
   if (exitCode !== 0) {
