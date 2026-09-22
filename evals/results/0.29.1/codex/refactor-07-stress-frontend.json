@@ -1,0 +1,48 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T00:22:33.244Z",
+  "run_id": "a474f90d-f72e-44d3-b097-ddc199165992",
+  "response": "I’ll run the requested context command and inspect `Card.tsx`, using the crimes risk and frontend review skills to tie the proposal to the actual layout.\n\n\n`crimes context src/Card.tsx --root . --format json` completed successfully. It confirms one **low-severity `responsive_fragility` finding** (confidence 0.65):\n\n- Outer width: **800px**.\n- Content width: **720px**.\n- Typography: **18px**, with no media query.\n\nThe widths can exceed a narrow container. The typography evidence is a heuristic; missing media queries alone does not prove breakage.\n\nFor [Card.tsx](/Users/andrew/dev/crimes/evals/fixtures/07-stress-frontend/src/Card.tsx), I propose these inline-style replacements, preserving the children, sidebar, colors, and click behavior:\n\n```tsx\n// Outer card: replace width, maxWidth, and height; add boxSizing.\nwidth: \"100%\",\nmaxWidth: \"50rem\",\nheight: \"auto\",\nboxSizing: \"border-box\",\n\n// Content: replace width and fontSize; add maxWidth and wrapping.\nwidth: \"100%\",\nmaxWidth: \"45rem\",\nfontSize: \"1.125rem\",\noverflowWrap: \"anywhere\",\n\n// Sidebar: replace width; add maxWidth.\nwidth: \"100%\",\nmaxWidth: \"15rem\",\n```\n\nFluid widths directly address the reported 800px/720px evidence. `border-box` includes the existing padding within the available width. Removing the source’s fixed **600px height** lets wrapped content expand vertically. The sidebar already stacks below the content, so no breakpoint is needed.\n\nValidate at 320px, 375px, and desktop widths with long content and enlarged text: both content areas should remain visible without horizontal page overflow. Context discovered no likely tests; that is not proof of absent coverage.\n\nProposal only; no files changed or tests run.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      }
+    ]
+  }
+}

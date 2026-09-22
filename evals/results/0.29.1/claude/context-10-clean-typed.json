@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T00:07:39.651Z",
+  "run_id": "0ef122f5-02bb-44a4-9bfe-813633a50cca",
+  "response": "## `crimes context src/billing.ts --root . --format json`\n\nConfirmed: **zero findings** on this file. `risk.level: \"none\"`, all severity buckets at 0, `analysis_status: \"complete\"`, `agent_guidance: []`.\n\n**`likely_tests`: `src/billing.test.ts`** — the only entry.\n\n### Why this is low risk to edit\n\nThe evidence the report gives, plus what the file itself shows:\n\n- **Analysis is complete, not partial.** `analysis_status: \"complete\"` with `coverage.warnings` absent, and both `universal` and `language-js` packs loaded. The empty findings list is a real result, not a parse failure. Five detectors are default-off (`accessible_interaction_risk`, `boolean_naming_drift`, `design_token_escape`, `parallel_destination`) — none of them apply to a pure formatting helper anyway.\n- **No blast radius.** `related_files: []`, with an explicit reason: \"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings.\" Nothing in the repo imports `billing.ts` except its own test, so a change here can't ripple.\n- **The surface is tiny and total.** One interface and one pure function, 10 lines. `currency` is a closed union of three literals, `format` takes one argument and returns a string, no I/O, no mutation, no async, no error paths. TypeScript will catch a signature break at compile time.\n- **A test exists and exercises the function directly.** `billing.test.ts` covers USD and EUR through the public export.\n\n### Two caveats worth stating plainly\n\n**`test_gap` is `{\"raw\": 0, \"label\": \"unknown\"}` — not a coverage claim.** crimes discovered a co-located test by naming convention; it did not measure what that test covers. In fact the coverage is partial: GBP is untested, and neither negative amounts nor the rounding behaviour of `toFixed(2)` (banker's-rounding surprises like `1.005`) has a case. If your edit touches rounding or currency handling, add the case rather than trusting the green.\n\n**The repo-level scan does flag one thing adjacent to this file.** `crimes scan` reports a low-severity `dependency_provenance_gap` (`Phantom Accomplice`, confidence 0.56): `vitest` is imported by `src/billing.test.ts` but declared in no `package.json` — the manifest here has no `dependencies` or `devDependencies` block at all. It resolves today through hoisting from the workspace root; a clean install of this fixture in isolation would fail. It doesn't appear in the `context` output because it's attributed to `package.json`, not to `billing.ts` — worth knowing if you ever run these tests outside the monorepo.\n\nOne note on the workflow: the fixture has no local `node_modules/.bin/crimes`, so I used the workspace-root install at `/Users/andrew/dev/crimes/node_modules/.bin/crimes` (0.29.1) with `--root .` pointed at the fixture.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

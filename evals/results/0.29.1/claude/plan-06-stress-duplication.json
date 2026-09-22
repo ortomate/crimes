@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T00:14:22.339Z",
+  "run_id": "7687c849-f62b-470c-8ff4-84c410949168",
+  "response": "Verified the findings against the fixture source directly (the bodies, not just the hashes). One correction to how the scan reads, which shapes the plan:\n\n**The three sanitise bodies are token-identical modulo renaming.** `diff` on `sanitize-a/b/c` bodies with identifiers normalised comes back clean — `working`/`cleaned`/`normalised`, `raw`/`input`/`value` are the only deltas. There are no differing values to parameterise, so `fix_shape: \"pass the differing values as args\"` overstates it: this is a straight three-into-one collapse.\n\n**The three role checks are not the same check.** `crime_00001` reports \"2 distinct expression shapes\" — that's a syntax count. The semantics diverge three ways:\n\n| helper | expression | means |\n|---|---|---|\n| `assertAdminA` | `role === \"admin\"` | admin only |\n| `assertAdminB` | `role === \"admin\" \\|\\| role === \"owner\"` | admin **or owner** — strictly wider |\n| `assertAdminC` | `role !== \"admin\"` | **inverted** — true for non-admins |\n\n`assertAdminC` returns `true` when the role is *not* admin, under a name that asserts the opposite. Any mechanical \"extract one policy function\" pass — which is exactly what `suggested_actions[0]` proposes — either grants `owner` three new capabilities or flips C's call sites. That's the whole reason these two consolidations belong in separate steps with a decision gate between them.\n\n---\n\n## Step 1 — Collapse the sanitisers (mechanical, no semantic decisions)\n\nCloses `crime_00002`.\n\nCreate `src/sanitize.ts` with a single `sanitizeText(input: string): string` holding the shared body verbatim. Then delete `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` from `sanitize-a/b/c.ts`.\n\nTwo things to get right:\n\n- **The regex is not what it prints.** Line 13 of each file is `/[\\x00-\\x1f]/g` written with *literal* control bytes in the source (`od` confirms `\\0` through `037`). Copy the bytes; don't retype from a terminal render, or you'll silently narrow the strip to ASCII space-through-hyphen.\n- **Leave `assertAdminA/B/C` where they are.** They're already hoisted out of the sanitise bodies. Touching them here is step 2's job, and mixing the two makes the diff unreviewable.\n\nIn this fixture nothing imports these (`blast_radius: 0`), so the old files can go. In a repo with call sites, keep each original name as a one-line re-export alias in step 1 and drop the aliases in a follow-up — that keeps step 1 a pure move.\n\n**Verify:** a characterisation test before you move anything. `test_gap: 0.5` across every finding, and there is no test directory — table-drive the old and new implementations over the same inputs (empty, whitespace-only, `\\x00` embedded, >1000 chars, leading `<`/`>`, literal `\\x`, `!!!!` ×6, all-caps >30 chars, all-caps ≤30 chars) and assert identical output. Then re-scan: `crime_00002` should be gone.\n\n## Step 2 — Reconcile the role checks (needs a decision, then it's mechanical)\n\nAddresses `crime_00001`.\n\nOrder matters — after step 1, `sanitize-a/b/c.ts` are ~8-line files containing nothing but their admin guard, so the three-way divergence is visible side by side instead of buried under 27 lines of string munging.\n\n**The gate.** Before writing code, answer: *does `owner` get admin capabilities?* Nothing in the fixture tells you; it's a product call, not a refactor call. The two defensible outcomes:\n\n- **Yes** → `isAdmin` becomes the union, and A's and C's call sites widen. Say so explicitly in the commit — this grants access that didn't exist.\n- **No** (recommended default) → `owner` stays a separate concept with its own named predicate. Widening authorisation as a side effect of a dedup is the failure mode the finding is warning about.\n\n**Then, in `src/policy.ts`:**\n\n```ts\nconst ADMIN_ROLES = [\"admin\"] as const;\n\nexport function isAdmin(role: string): boolean {\n  return (ADMIN_ROLES as readonly string[]).includes(role);\n}\n\n// Only if the gate answered \"no\" — owner is a distinct grant, not admin.\nexport function isAdminOrOwner(role: string): boolean {\n  return isAdmin(role) || role === \"owner\";\n}\n\nexport const canEditBilling  = isAdmin;\nexport const canSeeAuditLog  = isAdmin;\nexport const canImpersonate  = isAdmin;\n```\n\nKeep all three capability names exported. They're identical *today*, but \"can this role impersonate a user\" and \"can this role edit billing\" are questions that should be allowed to diverge without a refactor — collapsing them to one function is the opposite of the fix. One predicate, three named capabilities pointing at it.\n\nThen delete `assertAdminA` (→ `isAdmin`) and `assertAdminB` (→ `isAdminOrOwner`, or `isAdmin` if the gate said yes). **Delete `assertAdminC` outright** and invert at each call site as `!isAdmin(role)` — don't port the negation into a new `isNotAdmin` helper. A predicate whose name asserts the opposite of its return value is how this drift started.\n\n**Verify:** unit tests over `[\"admin\", \"owner\", \"member\", \"\", \"ADMIN\"]` for each exported predicate — `\"ADMIN\"` in particular, since the current checks are case-sensitive and `includes` keeps them that way. Re-scan: `crime_00001` should drop to `src/policy.ts` alone and likely clear the detector's file-count threshold entirely.\n\n---\n\n## Optional third slice (outside your ask, but it's nearly free)\n\n`crime_00003/4/5` are one problem, not three: `telemetry-a.ts` and `telemetry-b.ts` are byte-identical, and each contains the `Date.now()` that produces a separate `direct_date` finding. Delete `telemetry-b.ts`, and the clock injection becomes a one-line change in one file instead of a two-file consistency problem:\n\n```ts\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  now: () => number = Date.now,\n): void\n```\n\nThree findings close for roughly the cost of one. Worth folding in only if you're already in these files — it's genuinely independent of steps 1 and 2, so it can land first, last, or never without affecting either.\n\n## Why this order\n\nStep 1 is provably behaviour-preserving and I can demonstrate that with `diff`. Step 2 cannot be, under any sequencing — it requires a product decision that the scan output does not contain and cannot contain. Running them as one change set means the one diff a reviewer must read closely (an authorisation change) arrives buried in 80 lines of mechanical deletion. Splitting them puts the decision on its own line.\n\nA note on the tooling, since this is a fixture for it: `crime_00001`'s `related_files` lists `sanitize-a/b/c.ts` and its evidence interleaves `policy.ts:3` with `sanitize-a.ts:7` as though they were occurrences of one rule. They're occurrences of one *literal*. The detector is doing what it says on the tin — `discriminator: \"role.admin\"` — but `fix_shape: \"centralise the policy check; everyone calls the one helper\"` reads as a safe mechanical instruction for what is, here, a three-way semantic conflict including an inversion. An agent that acted on `suggested_actions` without reading the three bodies would widen or invert an auth check. That may be worth a fixture assertion.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T01:28:30.425Z",
+  "run_id": "3e5e0c7e-529a-4c49-9332-0ec6892c102f",
+  "response": "Ran the scan, then went further — because the scan alone would have given you a misleading answer.\n\n## What `crimes scan` reported\n\nOne finding, high severity: `tests/test_reporting.py` — all 4 test functions assert nothing (`weak_test_signal/file_asserts_nothing`). That's correct and it's the headline crime.\n\nTwo things the scan output does **not** tell you, and I want to be explicit rather than let the single finding read as \"everything else is fine\":\n\n- `tests/test_invoices.py` also looks silent line-locally, and crimes deliberately did **not** flag it — it follows assertions one hop into `tests/support.py` (`verify_invoice_balances`, `InvoiceCase.expect_gross_for`). Correct call: assertions do exist.\n- `billing/ledger.py` has **no test file at all**. A missing test file produces no finding. The `test_gap: 0` score on the finding is about file discovery, not test coverage — absence of a finding here is not evidence of safety.\n\nSo I measured it directly: full coverage run, then 11 targeted mutations against a throwaway copy (`/tmp`, now deleted — the fixture is unmodified).\n\n## Coverage says 91%. The suite catches 2 of 11 deliberate bugs.\n\n```\nbilling/invoices.py   100%     billing/ledger.py      83%\nbilling/rates.py      100%     billing/reporting.py   90%\n```\n\n| Mutation | Suite |\n|---|---|\n| `RATES[\"DE\"]` 0.19 → 0.50 | **caught** |\n| `invoices` tax doubled (breaks `gross == net + tax`) | **caught** |\n| `DEFAULT_RATE` 0.2 → 0.9 | survived |\n| `RATES[\"FR\"]` 0.20 → 0.50 | survived |\n| `build_invoice` ignores `region`, always uses 0.2 | survived |\n| `apply_credit` ignores the credit entirely | survived |\n| `post_entry` gross uses `(1 - rate)` | survived |\n| `reverse_entry` drops the sign flip | survived |\n| `build_report` total = net instead of gross | survived |\n| csv export drops the total column | survived |\n| json export returns `{}` | survived |\n\n## Genuinely covered\n\n**`billing/rates.py`** — the only module with real, value-pinning assertions. `rate_for(\"GB\") == 0.20` and `rate_for(\"DE\") == 0.19` are literal expectations; changing DE breaks the suite.\n\nTwo soft spots even here: `test_unknown_region_falls_back_to_default` imports `DEFAULT_RATE` and compares `rate_for(\"ZZ\")` against it — tautological, so changing the default to 0.9 passes. `FR` is never asserted at a literal value. And `is_zero_rated` is tested only via `assert not is_zero_rated(...)`; with no zero entry in `RATES` and a nonzero default, its `True` branch is currently unreachable, so those assertions can't fail by construction.\n\n**`billing/invoices.py`, partially** — `InvoiceCase.expect_gross_for` does real work: `[1000] @ GB → 1200.0` pins an actual number, which is what catches the doubled-tax mutation.\n\n## Only looks covered\n\n**`billing/invoices.py`, the other three tests.** `verify_invoice_balances` asserts `gross == net + tax` and `net >= 0`. Given `tax = net*rate` and `gross = net*(1+rate)`, the first is arithmetically true for *any* rate — it cannot fail as long as `build_invoice` keeps that shape. So the three tests that only call it assert a tautology. Concretely: the region lookup can be deleted entirely and all three stay green. `apply_credit` has three tests and none of them check that the credit was applied — it can become a no-op silently. Credits larger than net (negative `net`) are never exercised, so the `net >= 0` half never fires either.\n\n**`billing/reporting.py`** — the flagged file. 90% line coverage, zero assertions. Every output-shape bug I injected survived. The `raise ValueError` branch for an unsupported format isn't even executed, so it has neither coverage nor assertions.\n\n**`billing/ledger.py` — the sharpest trap.** No test file exists, yet it reports 83% coverage, because `reporting.build_report` calls `post_entry` and the hollow reporting tests execute it. Inverting its VAT arithmetic is invisible to the suite. `reverse_entry` is the one genuinely uncovered function (line 17 missing) — which makes it *safer* to touch than `post_entry`, because at least nothing claims to protect it.\n\n## For the refactor\n\nOrder of danger, highest first: `ledger.py` (protected by nothing, reported as covered) → `reporting.py` (executed, never checked) → `apply_credit` and the region argument in `invoices.py` (tautological guard) → `rates.py` (real coverage; watch the default and FR).\n\nBefore refactoring, the cheapest real protection is pinning values where assertions already run: add expected `gross`/`tax` numbers to `expect_gross_for` calls for a non-GB region, assert the credited total in `apply_credit` tests, and give `ledger.post_entry` a test file of its own. That converts the three surviving invoice mutations and the ledger ones into failures without restructuring anything.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      }
+    ]
+  }
+}

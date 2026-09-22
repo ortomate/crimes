@@ -1,0 +1,83 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "codex",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T00:35:53.082Z",
+  "run_id": "4347da41-c553-4b24-89c2-55075a466aca",
+  "response": "I’m using the crimes risk-analysis skill to scan the fixture and inspect the function’s callers and tests, so the plan is grounded in its behavior.\n\n\n`build_invoice` is the strongest candidate: pricing, coupon rules, tax, formatting, and three clock reads share one control flow. The scan also connects it to an import cycle and finds no likely tests. The plan needs to preserve details such as expiry equality and usage-cap warnings before changing structure or time handling.\n\n\n**Choose `build_invoice` in [domain/invoicing.py:15](/Users/andrew/dev/crimes/evals/fixtures/11-py-service/domain/invoicing.py:15), spanning lines 15–75.** I ran `crimes scan --format json` on `11-py-service`; it reproduced the eight findings supplied.\n\nIts risk extends beyond 61 lines:\n\n- **Interdependent business rules:** five-level nesting combines subscription pricing, usage caps, skipped items, coupons, VAT, and presentation. Changing one branch can alter totals, warnings, or discount ordering.\n- **Hidden time inputs:** the function makes three clock reads, mixing naive local time with naive UTC. Coupon eligibility depends on when execution reaches its comparison. The fourth module-level read belongs to `summarise`.\n- **Fragile dependencies:** invoicing imports `format_money`, while rendering imports its `LINE_ITEM_CAP`. Fresh-process checks confirmed that importing either module currently raises `ImportError`.\n- **Weak regression protection:** context reports complete analysis but no likely tests; the fixture contains no test files. `get_invoice` directly consumes its returned dictionary.\n\nThis is a combined judgment from the code and overlapping findings—not a claim that its `large_function` score alone ranks highest.\n\nConcrete refactor plan:\n\n1. **Remove the import blocker.** Move `LINE_ITEM_CAP` into a dependency-free `domain/invoice_policy.py`; import it from invoicing and rendering. Test both import orders in fresh processes.\n2. **Characterize current behavior with fixed time.** Cover annual prepaid/non-prepaid subscriptions, monthly subscriptions, missing/nonpositive quantities, usage at 500 and 501 units, expired/equal/future coupon expiry, fixed/percentage discounts, stacked bonuses, VAT fallback, and formatted output. Preserve surprising behavior: subscription pricing ignores positive quantity, and bonuses can push discounts above subtotal.\n3. **Extract pure calculations.** Introduce `price_item(item, cap)`, returning amount and warnings; `price_items(items, cap)`, aggregating subtotal, skipped items, and warnings; and `calculate_discount(subtotal, coupon, now)`. Preserve arithmetic order, defaults, exceptions, and warning order.\n4. **Keep `build_invoice` as the orchestrator.** Retain its five existing arguments and output keys. It should obtain time, aggregate prices, calculate discounts, apply VAT, format the total, and assemble the result.\n5. **Handle time migration separately.** Inject a clock while initially preserving read timing. Then adopt aware UTC with an explicit policy for incoming coupon timestamps and update `summarise` consistently. Using one instant throughout changes expiry-boundary behavior and needs its own tests.\n6. **Validate behavior and risk.** Run the characterization and caller tests, then compare scans by fingerprint. A shorter function alone is insufficient evidence of success.\n\nNo source edits made. Repository `pnpm verify` passed with lint warnings; it does not establish coverage of this invoice behavior.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

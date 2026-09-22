@@ -1,0 +1,85 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T00:21:52.327Z",
+  "run_id": "121c5af3-6a8b-43aa-9d0f-d801ec70f25d",
+  "response": "I’ll use the crimes-codebase-risk skill to confirm the finding and inspect the three functions before proposing the shared API.\n\n\nConfirmed by running the local `crimes scan --format json`: `near_duplicate_block` reports **three occurrences, medium severity, 0.85 confidence**:\n\n- [sanitize-a.ts:10–36](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-a.ts:10): `sanitizeUserInput`\n- [sanitize-b.ts:9–35](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-b.ts:9): `sanitizeText`\n- [sanitize-c.ts:9–35](/Users/andrew/dev/crimes/evals/fixtures/06-stress-duplication/src/sanitize-c.ts:9): `cleanMessage`\n\nSource inspection confirms that only the function and local variable names differ; the operations and constants match.\n\nProposed shared API in a new `src/sanitize.ts`:\n\n```ts\nexport declare function sanitizeText(input: string): string;\n```\n\nKeep the existing string contract and runtime null/undefined handling. Preserve the exact operation order, including the 1,000-character truncation before rejection checks, punctuation thresholds, and uppercase conversion. No options are needed because the implementations have identical settings.\n\nFiles that would change:\n\n| File | Proposed change |\n|---|---|\n| `src/sanitize.ts` | Add the single implementation. |\n| `src/sanitize-a.ts` | Replace its sanitiser with `export { sanitizeText as sanitizeUserInput } from \"./sanitize.js\";`. |\n| `src/sanitize-b.ts` | Replace its sanitiser with `export { sanitizeText } from \"./sanitize.js\";`. |\n| `src/sanitize-c.ts` | Replace its sanitiser with `export { sanitizeText as cleanMessage } from \"./sanitize.js\";`. |\n| `src/sanitize.test.ts` | Add behaviour and boundary tests, including equivalence through all three existing exports. |\n\nThe re-exports preserve existing import paths and names. Keep the admin guards separate: they have different semantics, including owner access and a negated check. Policy and telemetry findings warrant separate work.\n\nThis is a proposal only; no files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}
