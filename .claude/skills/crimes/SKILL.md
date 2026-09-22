@@ -48,9 +48,14 @@ to a one-off command solely to make the risk report clean.
 Exit 2 means a usage/environment error; exit 1 can mean a configured gate
 failed. A successful exit does not establish complete analysis or safety.
 
-Within the user's scope, record a false positive with `./node_modules/.bin/crimes feedback
-<fingerprint> --verdict fp --note "<reason>"`. This writes feedback and a
-suppression. Reconfirm resurfaced feedback with the user. For stale identities,
+Within the user's scope, record what each finding was worth. A finding that
+was wrong: `./node_modules/.bin/crimes feedback <fingerprint> --verdict fp
+--note "<reason>"`, which writes feedback and a suppression. A finding that
+changed what you read, edited or tested: the same command with
+`--verdict tp`. One you are leaving deliberately: `--verdict known`.
+Record the confirmations as well as the rejections; a detector judged only
+when it is wrong cannot be told apart from one that is never right.
+Reconfirm resurfaced feedback with the user. For stale identities,
 preview `./node_modules/.bin/crimes migrate-pins --format json`, review candidates, then apply
 the reviewed file. An absent observation is not proof of a resolved problem;
 never silently renew an expiry or prior decision.
@@ -64,4 +69,4 @@ customized-file diffs before replacing. CI skips maintenance; use
 `--no-skill-update` when a task requires no maintenance notices or updates.
 More detail: https://crimes.sh/docs/agent-usage/
 
-<!-- crimes-skill {"format":1,"version":"0.29.0","sha256":"37c69f9f31c46c0cb1c163a63f7065894ba9928ccd27ace0eaadcbc11a7438cc"} -->
+<!-- crimes-skill {"format":1,"version":"0.29.2","sha256":"ce9b894f271993515bb7aa95a2ea6530f9f81ec1ca3a0c905c04ac9a8453e09b"} -->

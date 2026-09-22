@@ -71,6 +71,11 @@ explain its evidence and the options rather than silently suppressing it.
   from `weak_test_signal/weak_assertion_matchers`.
 - For a false positive: `crimes feedback '<fingerprint>' --verdict fp --note 'why'`.
   This writes local feedback and a suppression pinned to the current minor.
+- For a finding that changed what you read, edited or tested: the same
+  command with `--verdict tp`. For one you are leaving deliberately:
+  `--verdict known`. Record these too. Act rate is what decides whether a
+  detector is kept, and a detector judged only when it is wrong cannot be
+  distinguished from one that is never right.
 - Do not silently renew a previously suppressed false positive. Ask whether
   it remains false or has been resolved; preserve the calibration signal.
 - In a non-TTY, use `crimes triage --apply decisions.json`. The minimal input
