@@ -8,5 +8,4 @@ export const UserSchema = z.object({
   role: z.enum(["admin", "member", "owner"]),
   plan: z.enum(["free", "pro", "enterprise"]),
   createdAt: z.string(),
-  deletedAt: z.string().nullable().optional(),
 });
