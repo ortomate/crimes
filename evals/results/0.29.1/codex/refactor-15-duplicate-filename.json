@@ -2,9 +2,9 @@
   "scenario": "refactor-15-duplicate-filename",
   "agent": "codex",
   "crimes_version": "0.29.1",
-  "timestamp": "2026-09-22T00:39:38.198Z",
-  "run_id": "62464922-0fda-45e5-acc0-6f9fa1a75080",
-  "response": "I’ll use the crimes codebase-risk skill, run the scan before editing, and compare both schema files and their references to identify the canonical one.\n\nTwo files declare `UserSchema`. The README and API contract point to `src/repo/user-schema.ts`; the suffixed file identifies itself as a stale conflict copy and lacks `plan` and the `owner` role. Neither schema is imported by this fixture’s write path, so I can identify the intended canonical schema but can’t claim it currently validates database writes.\n\nI’ll add an optional, nullable string `deletedAt` there, following `createdAt`’s string representation and allowing existing records without the field. Editing only the copy would leave the intended schema unchanged and deepen the drift.\n\nThe field is added, and direct schema checks pass for omitted, null, and string values while rejecting numbers. The post-edit scan retains the same 22 finding fingerprints, with no new findings. Full repository verification is still running.\n\nFor production code, I recommend deleting the stale copy after checking for unique changes. This repository deliberately retains it as a detector fixture, so I’m leaving it intact.\n\nAdded `deletedAt: z.string().nullable().optional()` to [src/repo/user-schema.ts](/Users/andrew/dev/crimes/examples/risky-service/src/repo/user-schema.ts:11).\n\n**Two files declare the persisted `UserSchema`.** The unsuffixed file is canonical: the API contract points to it, while `user-schema 2.ts` explicitly describes itself as a stale Finder/iCloud copy. The copy lacks `plan` and the `owner` role, corroborating the scan’s duplicate-filename and contract-drift findings.\n\nEditing only the copy would leave the canonical schema unchanged; parsing through the unchanged canonical Zod object would strip `deletedAt`. Neither schema currently has runtime importers in this fixture, so this change alone does not alter database writes.\n\nRecommend deleting the duplicate from production after checking for unique changes. Here, retain it as the intentionally planted detector fixture.\n\nRan `crimes scan --format json` before editing. Post-edit fingerprints are unchanged; schema checks and `pnpm verify` passed. Committed as `b2d5611`.",
+  "timestamp": "2026-09-22T01:45:17.557Z",
+  "run_id": "4653fff8-c591-498f-9944-9b83dad6ed2e",
+  "response": "I’m using the crimes codebase-risk skill to run the scan first, then compare the schema declarations and their references before adding `deletedAt`.\n\n\nThere are two `UserSchema` declarations. The README and the suffixed file’s comment identify `user-schema 2.ts` as a stale conflict copy; it lacks `plan` and the `owner` role. The API contract also points to `user-schema.ts`.\n\nNeither schema has an importer in this fixture, so imports don’t establish ownership here. I’ll add `deletedAt` to the documented persistence schema as an optional, nullable string, matching its existing timestamp representation and allowing older records to parse.\n\n\nThe field is added, and parsing checks pass for omitted, null, and string values; numeric values are rejected. The second scan retains the same 22 findings with no new fingerprints. Full repository verification is running.\n\nEditing only the stale copy would leave the intended schema unchanged, so that schema would still strip `deletedAt` when parsing. I’ve left the copy untouched: removal is appropriate for application code, but here it is an intentional detector fixture.\n\n\n`pnpm verify` passed. I’m committing the one-line schema change now; the duplicate and the pre-existing evaluation-result changes remain untouched.\n\n\nAdded `deletedAt: z.string().nullable().optional()` to [user-schema.ts](/Users/andrew/dev/crimes/examples/risky-service/src/repo/user-schema.ts:11). Committed as `2838ccf`.\n\n- **Two files declare the persisted schema:** `user-schema.ts` and `user-schema 2.ts`.\n- **Canonical:** `user-schema.ts`. The API contract references it; the README and duplicate’s comment identify the suffixed file as stale. It lacks `plan` and the `owner` role. Neither schema has importers in this fixture, so imports alone cannot establish ownership.\n- **Editing only the duplicate** would leave the canonical schema unchanged; parsing through it would still strip `deletedAt` as an unknown field.\n- **Recommendation:** remove the stale duplicate in application code after checking for unique changes. Here, retain it as an intentional detector fixture unless its evaluation expectations are also updated.\n\nRan the JSON scan before editing. Post-edit findings remain unchanged at 22. Parsing checks and `pnpm verify` passed.",
   "scan_context": {
     "detector_id_by_finding_id": {
       "crime_00001": "contract_drift",
@@ -200,8 +200,8 @@
     }
   },
   "structural_score": {
-    "passed": 1,
-    "failed": 2,
+    "passed": 0,
+    "failed": 3,
     "details": [
       {
         "check": "referenced_findings",
@@ -212,8 +212,8 @@
       {
         "check": "referenced_files",
         "expected": "src/repo/user-schema.ts",
-        "observed": "src/repo/user-schema.ts",
-        "passed": true
+        "observed": null,
+        "passed": false
       },
       {
         "check": "expected_priority",
