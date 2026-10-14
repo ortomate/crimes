@@ -151,9 +151,11 @@ function findCallbackBodyStart(
   let best = -1;
   for (const pattern of patterns) {
     for (const match of call.matchAll(pattern)) {
-      const index = match.index ?? 0;
-      const brace = call.indexOf("{", index);
-      if (brace === -1) continue;
+      // Both patterns end on the body's `{`. Searching forward from the
+      // match start instead found the first `{` of a destructured
+      // parameter — `async ({ page }) => {` — and read ` page ` as the
+      // whole test, so every Playwright fixture test "asserted nothing".
+      const brace = (match.index ?? 0) + match[0].length - 1;
       const absolute = callOpen + 1 + brace;
       if (best === -1 || absolute < best) best = absolute;
     }
