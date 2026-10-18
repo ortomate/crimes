@@ -352,6 +352,33 @@ describe("finaliseFindingScores — blast radius counts", () => {
   });
 });
 
+describe("finaliseFindingScores — files no language pack parses", () => {
+  it("leaves test gap and blast radius unmeasured rather than 0", () => {
+    const finding = {
+      file: "core/Film.java",
+      severity: "high" as const,
+      scores: { severity: 0.9, confidence: 0.8 },
+    } as unknown as import("../finding.js").Finding;
+    const scoring = {
+      churn: { forFile: () => 0.6, limited: false },
+      testGap: { forFile: () => 0, rawForFile: () => 1 },
+      blastRadius: {
+        forFile: () => 0,
+        transitiveCountForFile: () => 0,
+        directCountForFile: () => 0,
+      },
+      recency: { forFile: () => 1, limited: false },
+    } as import("./build.js").ScoringContext;
+    finaliseFindingScores(finding, scoring);
+    expect(finding.scores.churn).toBe(0.6);
+    expect(finding.scores.test_gap).toBeUndefined();
+    expect(finding.scores.blast_radius).toBeUndefined();
+    expect(finding.scores.blast_radius_direct_importers).toBeUndefined();
+    expect(finding.scores.blast_radius_transitive_importers).toBeUndefined();
+    expect(finding.scores.agent_risk).toBeTypeOf("number");
+  });
+});
+
 describe("test_gap quartile pass", () => {
   it("returns the raw value for the inspected file via rawForFile", async () => {
     const dir = await makeRepo({

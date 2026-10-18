@@ -96,4 +96,27 @@ describe("buildCoverage", () => {
     expect(cov.packs_loaded).toEqual(["universal", "language-py"]);
     expect(cov.files_by_language).toEqual({ py: 1 });
   });
+
+  it("warns about source code no pack parses, but not about docs or data", () => {
+    const cov = buildCoverage({
+      files: ["/r/a.ts", "/r/core/Film.java", "/r/core/Show.java", "/r/README.md"],
+      router: routerFor({ ".ts": "language-js" }),
+      root: "/r",
+    });
+    const universal = cov.warnings?.filter((w) => w.kind === "files_universal_only");
+    expect(universal).toHaveLength(1);
+    expect(universal![0]).toMatchObject({
+      subject: ".java",
+      files: 2,
+      examples: ["core/Film.java", "core/Show.java"],
+    });
+  });
+
+  it("emits no warnings field when every code file is claimed", () => {
+    const cov = buildCoverage({
+      files: ["/r/a.ts", "/r/README.md"],
+      router: routerFor({ ".ts": "language-js" }),
+    });
+    expect(cov.warnings).toBeUndefined();
+  });
 });

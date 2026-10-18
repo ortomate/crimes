@@ -4,6 +4,7 @@ import {
 } from "./discovery/coverage-warnings.js";
 import { existsSync } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join, parse, resolve } from "node:path";
+import { isUnsupportedCodeFile } from "./discovery/code-extensions.js";
 import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import type { CrimesConfig } from "./config.js";
 import {
@@ -179,9 +180,12 @@ function hasProjectRootMarker(dir: string): boolean {
  * {@link PROJECT_ROOT_MARKERS}. Returns its absolute path, or
  * `undefined` if none is found before the filesystem root.
  *
- * The walk is bounded by the filesystem root — there is no separate stop
- * condition, so callers that want to confine the search to a specific
- * subtree should resolve `start` and check against that subtree themselves.
+ * The walk never leaves the enclosing git repository: a directory holding
+ * `.git` (a directory, or a file for worktrees and submodules) is returned
+ * when no marker sits at or below it. Without that stop, a Maven, Gradle
+ * or Xcode repository with no marker of its own resolved to an unrelated
+ * `~/package.json`, and `context` scanned the user's home directory.
+ * Outside any repository the walk is bounded by the filesystem root.
  *
  * Callers should pass an already-canonicalised (realpath'd) directory so
  * the returned root matches the canonical form of any sibling absolute
@@ -194,6 +198,7 @@ export async function findNearestPackageRoot(start: string): Promise<string | un
   // eslint-disable-next-line no-constant-condition
   while (true) {
     if (hasProjectRootMarker(dir)) return dir;
+    if (existsSync(join(dir, ".git"))) return dir;
     const parent = dirname(dir);
     if (parent === dir || parent === parse(dir).root) {
       // Final check at the filesystem root before giving up.
@@ -315,6 +320,16 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   };
 
   const claimingPack = resolveLanguagePackRouter().claimingPack(targetAbs);
+  // A file in a language no pack parses got universal checks only. Its
+  // empty test and importer lists mean "not looked for", so the status
+  // must not read "complete".
+  if (
+    report.analysis_status === "complete" &&
+    !claimingPack &&
+    isUnsupportedCodeFile(targetAbs)
+  ) {
+    report.analysis_status = "partial";
+  }
   applyEmptyReasons(report, {
     unclaimedExtension: claimingPack
       ? undefined

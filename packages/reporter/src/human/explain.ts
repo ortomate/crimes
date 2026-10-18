@@ -126,6 +126,12 @@ function explainRiskProfileBlock(finding: Finding, colour: ColourFns): string[] 
   lines.push(
     `  · churn:        ${(churn ?? 0).toFixed(2)} — ` + churnExplain(churn ?? 0),
   );
+  if (test_gap === undefined && blast_radius === undefined) {
+    lines.push(
+      "  · test gap, blast radius: not measured — no language pack parses this file",
+    );
+    return lines;
+  }
   lines.push(
     `  · test gap:     ${(test_gap ?? 0).toFixed(2)} — ` + testGapExplain(test_gap ?? 0),
   );

@@ -34,5 +34,6 @@ export {
   buildCoverageBanner,
   buildCoverageWarningNotice,
   buildUnmatchedPinsNotice,
+  buildUniversalOnlyNotice,
   renderCoverageExplain,
 } from "./coverage.js";

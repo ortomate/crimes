@@ -532,6 +532,12 @@ export interface ScanReport {
  * - `files_unparsed` — the file was read but the parser threw, so its
  *   functions, imports and symbols are missing from every cross-file
  *   index. `subject` is the pack id.
+ * - `files_universal_only` — source code in a language no loaded pack
+ *   parses (Java, Kotlin, Swift, …). The universal pack read it, so its
+ *   size and comment findings are real, but nothing parser-derived ran:
+ *   no functions, imports or tests, and no test gap or blast radius.
+ *   `subject` is the extension. Not skipped work — see
+ *   `isSkippedWorkKind`. Added in 0.29.4.
  * - `files_partial_parse` — the parser recovered but flagged syntax
  *   errors, so everything reported about that file describes the part
  *   that parsed. `subject` is the pack id. On `language-py` the
@@ -568,6 +574,7 @@ export type CoverageWarningKind =
   | "files_unreadable"
   | "files_unparsed"
   | "files_partial_parse"
+  | "files_universal_only"
   | "index_truncated"
   | "index_unavailable"
   | "working_set_path_unmatched"

@@ -1,6 +1,7 @@
 // Type-only import — erased at compile time, so this does not create a
 // runtime cycle with context.ts, which imports this module's functions.
 import type { ContextClues, ContextReport } from "./context.js";
+import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import type { Finding } from "./finding.js";
 import type { ScoringContext } from "./scoring/build.js";
 import { suppressionsForFile } from "./suppressions.js";
@@ -53,8 +54,10 @@ export function buildClues(args: {
   }
 
   // test_gap — raw {0, 0.5, 1} plus the quartile percentile and label.
-  // Skipped rather than fabricated when scoring is unavailable.
-  if (scoring) {
+  // Skipped rather than fabricated when scoring is unavailable, and for
+  // a file no language pack parses: its raw value would be 1 ("no test
+  // found") only because nothing looked.
+  if (scoring && resolveLanguagePackRouter().claimingPack(fileRel) !== undefined) {
     const raw = scoring.testGap.rawForFile(fileRel);
     const score = scoring.testGap.forFile(fileRel);
     clues.test_gap =
@@ -108,7 +111,11 @@ export function applyEmptyReasons(
     report.related_files_reason =
       "no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings";
   }
-  if (likely_tests.length === 0) {
+  if (likely_tests.length === 0 && args.unclaimedExtension !== undefined) {
+    report.likely_tests_reason =
+      `no language pack parses ${args.unclaimedExtension} files, so their test ` +
+      "conventions and imports were not checked; absence of a match is not absence of tests";
+  } else if (likely_tests.length === 0) {
     report.likely_tests_reason =
       "no test file matched the target basename (looked for siblings, " +
       "__tests__/ and tests/ directories, and the .test / .spec / _test / " +

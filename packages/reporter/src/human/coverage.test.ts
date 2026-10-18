@@ -4,6 +4,7 @@ import type { ScanReport } from "@crimes/core";
 import {
   buildCoverageBanner,
   buildCoverageWarningNotice,
+  buildUniversalOnlyNotice,
   buildUnmatchedPinsNotice,
   renderCoverageExplain,
 } from "./coverage.js";
@@ -234,5 +235,28 @@ describe("unmatched pin warnings", () => {
     expect(out).toContain("Re-record them against the current fingerprints.");
     // File-shaped kinds keep saying "files".
     expect(out).toContain("30 files");
+  });
+});
+
+describe("buildUniversalOnlyNotice", () => {
+  const withWarnings = (
+    warnings: NonNullable<ScanReport["coverage"]>["warnings"],
+  ): ScanReport["coverage"] => ({ ...coverage(100, 60)!, warnings });
+
+  it("names the unparsed code and keeps it out of the skipped total", () => {
+    const cov = withWarnings([
+      { kind: "files_universal_only", subject: ".java", files: 50, detail: "d" },
+      { kind: "files_universal_only", subject: ".kt", files: 10, detail: "d" },
+      { kind: "files_not_discovered", subject: ".jsp", files: 7, detail: "d" },
+    ]);
+    const notice = buildUniversalOnlyNotice(cov);
+    expect(notice).toContain("partial: 60 source files");
+    expect(notice).toContain("50 × .java, 10 × .kt");
+    expect(buildCoverageWarningNotice(cov)).toContain("skipped: 7 files");
+    expect(buildUnmatchedPinsNotice(cov)).toBeNull();
+  });
+
+  it("returns null when every code file had a pack", () => {
+    expect(buildUniversalOnlyNotice(coverage(10, 2))).toBeNull();
   });
 });

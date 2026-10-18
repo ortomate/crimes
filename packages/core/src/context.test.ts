@@ -589,6 +589,39 @@ describe("context", () => {
       expect(found).toBe(join(root, "inner"));
     });
 
+    it("stops at the enclosing git repository instead of escaping it", async () => {
+      // A Maven repo has no package.json; an unrelated one sits above it,
+      // as `~/package.json` does on many machines.
+      const root = await makeRepo({
+        "package.json": "{}",
+        "repo/.git/HEAD": "ref: refs/heads/main\n",
+        "repo/pom.xml": "<project/>\n",
+        "repo/core/src/main/java/Film.java": "class Film {}\n",
+      });
+      const found = await findNearestPackageRoot(join(root, "repo/core/src/main/java"));
+      expect(found).toBe(join(root, "repo"));
+    });
+
+    it("treats a .git file (worktree or submodule) as a repository boundary", async () => {
+      const root = await makeRepo({
+        "package.json": "{}",
+        "sub/.git": "gitdir: ../.git/modules/sub\n",
+        "sub/src/x.kt": "//\n",
+      });
+      const found = await findNearestPackageRoot(join(root, "sub/src"));
+      expect(found).toBe(join(root, "sub"));
+    });
+
+    it("still prefers a package inside the repository", async () => {
+      const root = await makeRepo({
+        "repo/.git/HEAD": "ref: refs/heads/main\n",
+        "repo/web/package.json": "{}",
+        "repo/web/src/x.ts": "//\n",
+      });
+      const found = await findNearestPackageRoot(join(root, "repo/web/src"));
+      expect(found).toBe(join(root, "repo/web"));
+    });
+
     it("returns undefined when no package.json exists above the start", async () => {
       // We can't reliably assert "no package.json on the path to /" because
       // the test runner's own workspace has one. Instead, verify by using
@@ -745,6 +778,30 @@ describe("context — universal pack on unsupported extensions", () => {
     const report = await context({ root, file: "main.rs" });
     expect(report.file).toBe("main.rs");
     expect(report.agent_guidance_reason).toMatch(/no language pack claims \.rs files/);
+  });
+
+  it("reports a file in an unparsed language as partial, not complete", async () => {
+    const root = await makeRepo({
+      "core/Film.java": "class Film {}\n",
+      "core/FilmTest.java": "class FilmTest {}\n",
+    });
+    const report = await context({ root, file: "core/Film.java" });
+    expect(report.analysis_status).toBe("partial");
+    expect(report.agent_guidance[0]).toMatch(/incomplete/i);
+    // Nothing looked for tests, so no test-gap clue is fabricated.
+    expect(report.clues?.test_gap).toBeUndefined();
+    expect(report.likely_tests_reason).toMatch(/not checked/);
+    expect(
+      report.coverage?.warnings?.some(
+        (w) => w.kind === "files_universal_only" && w.subject === ".java",
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps docs complete: the universal pack is their whole analysis", async () => {
+    const root = await makeRepo({ "notes.md": "# Notes\n" });
+    const report = await context({ root, file: "notes.md" });
+    expect(report.analysis_status).toBe("complete");
   });
 
   it("notes 'universal-pack findings only' when a universal detector fires", async () => {
