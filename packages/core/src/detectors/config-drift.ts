@@ -71,6 +71,33 @@ type Options = z.infer<typeof optionsSchema>;
 const MAX_FINDINGS = 12;
 
 /**
+ * Values the runtime supplies, so `.env.example` never lists them and
+ * "undocumented" is a false claim. Only that claim is dropped: a type or
+ * default disagreement over one of these names is still real.
+ *
+ * Vite's built-ins count only when read through `import.meta.env`,
+ * where Vite injects them; a `process.env.DEV` is somebody's own
+ * variable. `CI` is set by every hosted CI runner and is absent locally
+ * by design.
+ */
+const VITE_BUILTINS: ReadonlySet<string> = new Set([
+  "MODE",
+  "BASE_URL",
+  "PROD",
+  "DEV",
+  "SSR",
+]);
+const PLATFORM_SET: ReadonlySet<string> = new Set(["CI"]);
+
+function runtimeProvided(variable: EnvVariableRecord): boolean {
+  if (PLATFORM_SET.has(variable.name)) return true;
+  return (
+    VITE_BUILTINS.has(variable.name) &&
+    variable.reads.every((r) => r.via === "import.meta.env")
+  );
+}
+
+/**
  * Name fragments that mean a value must not reach a browser.
  *
  * Boundaries are `_` or string edges rather than `\b`, because
@@ -308,7 +335,8 @@ function assessVariable(
   if (
     options.reportUndocumented !== false &&
     env.inventoryFiles.length > 0 &&
-    !variable.documented
+    !variable.documented &&
+    !runtimeProvided(variable)
   ) {
     issues.push({
       id: "undocumented",

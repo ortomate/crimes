@@ -145,6 +145,26 @@ describe("config_drift — false-positive boundaries", () => {
     expect(findByName(await runOn(repo), "ONE_OFF")).toBeUndefined();
   });
 
+  it("does not call Vite's import.meta.env built-ins or CI undocumented", async () => {
+    const repo = await makeRepo({
+      ".env.example": "VITE_API_URL=\n",
+      "src/a.ts": `export const d = import.meta.env.DEV; export const c = process.env.CI;`,
+      "src/b.ts": `export const e = import.meta.env.DEV; export const f = process.env.CI;`,
+    });
+    const findings = await runOn(repo);
+    expect(findByName(findings, "DEV")).toBeUndefined();
+    expect(findByName(findings, "CI")).toBeUndefined();
+  });
+
+  it("still calls a process.env.DEV undocumented: Vite does not inject it", async () => {
+    const repo = await makeRepo({
+      ".env.example": "VITE_API_URL=\n",
+      "src/a.ts": `export const d = process.env.DEV;`,
+      "src/b.ts": `export const e = process.env.DEV;`,
+    });
+    expect(findByName(await runOn(repo), "DEV")?.claim).toBe("undocumented");
+  });
+
   it("does not treat a non-secret public variable as exposure", async () => {
     const repo = await makeRepo({
       "src/a.ts": `export const u = process.env.NEXT_PUBLIC_SITE_URL;`,

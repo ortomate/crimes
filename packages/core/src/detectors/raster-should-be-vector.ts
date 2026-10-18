@@ -1,3 +1,5 @@
+import { readdirSync } from "node:fs";
+import { basename, dirname, extname } from "node:path";
 import { z } from "zod";
 import type { AssetDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
@@ -22,6 +24,92 @@ const optionsSchema = z
   .strict();
 
 const DEFAULT_ICON_SIZE_MAX = 64;
+
+/**
+ * Same-format rasters in one directory at which they are treated as one
+ * asset set (a flag set, a sprite source, an admin theme's icons). 243
+ * country-flag PNGs are one decision, not 243 findings.
+ */
+const ASSET_SET_MIN = 20;
+
+/**
+ * Android density buckets (`drawable-hdpi`, `mipmap-xxhdpi`, with any
+ * other qualifiers). Shipping one raster per density *is* the platform's
+ * answer to the multi-DPI problem this detector exists to raise.
+ */
+const ANDROID_DENSITY_DIR =
+  /(?:^|\/)res\/(?:drawable|mipmap)(?:-[a-z0-9]+)*-(?:ldpi|mdpi|hdpi|xhdpi|xxhdpi|xxxhdpi|tvdpi)(?:-[a-z0-9]+)*\//;
+
+/** `icon@2x.png`, `icon@3x.png`: resolution variants, the web/iOS answer. */
+const RESOLUTION_VARIANT = /@[23]x\.[a-z]+$/i;
+
+/**
+ * Email templates: major mail clients (Gmail, Outlook) do not render
+ * SVG, so a raster is the requirement, not a shortcut.
+ */
+const EMAIL_SEGMENT = /(?:^|\/)(?:email|emails|mail|mails)\//i;
+
+/**
+ * True when a raster is not a candidate for SVG regardless of size. Each
+ * reason is a constraint SVG cannot meet or a DPI strategy already in
+ * place.
+ */
+function exemption(file: string, format: string, buffer: Buffer, dims: Dims): boolean {
+  // A JPEG is photographic by construction: an avatar, a thumbnail.
+  if (format === "jpeg") return true;
+  // Animation: a spinner or loader. SVG can animate, but replacing a
+  // GIF loader is a redesign, not the conversion the finding proposes.
+  if (format === "gif" && isAnimatedGif(buffer)) return true;
+  // A 1px line or tile is a spacer or a repeating background.
+  if (Math.min(dims.width, dims.height) <= 2) return true;
+  if (ANDROID_DENSITY_DIR.test(file)) return true;
+  if (RESOLUTION_VARIANT.test(file)) return true;
+  if (EMAIL_SEGMENT.test(file)) return true;
+  return false;
+}
+
+interface Dims {
+  width: number;
+  height: number;
+}
+
+function isAnimatedGif(buffer: Buffer): boolean {
+  return buffer.includes("NETSCAPE2.0") || buffer.includes("ANIMEXTS1.0");
+}
+
+/**
+ * Sibling listings, cached per scan. The config object is created once
+ * per scan, so it scopes the cache without module-level state that a
+ * long-lived process would see go stale.
+ */
+const siblingCache = new WeakMap<object, Map<string, string[]>>();
+
+/**
+ * Same-extension siblings of `absolutePath`, sorted, or `undefined` when
+ * the directory cannot be read.
+ */
+function sameFormatSiblings(scanKey: object, absolutePath: string): string[] | undefined {
+  let byDir = siblingCache.get(scanKey);
+  if (!byDir) {
+    byDir = new Map();
+    siblingCache.set(scanKey, byDir);
+  }
+  const dir = dirname(absolutePath);
+  const ext = extname(absolutePath).toLowerCase();
+  const key = `${dir}\0${ext}`;
+  const cached = byDir.get(key);
+  if (cached) return cached;
+  let names: string[];
+  try {
+    names = readdirSync(dir)
+      .filter((n) => extname(n).toLowerCase() === ext)
+      .sort();
+  } catch {
+    return undefined;
+  }
+  byDir.set(key, names);
+  return names;
+}
 
 /**
  * A raster image whose width and height both fit inside an icon-sized
@@ -65,6 +153,12 @@ export const rasterShouldBeVectorDetector: AssetDetector = {
     if (!dims) return []; // unsupported format / unparseable — skip
 
     if (dims.width > iconMax || dims.height > iconMax) return [];
+    if (exemption(ctx.file, dims.format, buffer, dims)) return [];
+
+    // A large same-format set is reported once, on its first member.
+    const siblings = sameFormatSiblings(ctx.config, ctx.absolutePath) ?? [];
+    const assetSet = siblings.length >= ASSET_SET_MIN;
+    if (assetSet && siblings[0] !== basename(ctx.absolutePath)) return [];
 
     const finding: Finding = {
       id: "",
@@ -80,6 +174,12 @@ export const rasterShouldBeVectorDetector: AssetDetector = {
       evidence: [
         `dimensions: ${dims.width} × ${dims.height} px (≤ ${iconMax} threshold both sides)`,
         `format: ${dims.format}`,
+        ...(assetSet
+          ? [
+              `one of ${siblings.length} ${extname(ctx.file).toLowerCase()} files in ` +
+                `${dirname(ctx.file)}/ — the set is one decision, reported once here`,
+            ]
+          : []),
         `consider replacing with an SVG icon — same render at every DPI, smaller bytes`,
       ],
       effort: "quick",

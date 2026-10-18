@@ -116,4 +116,44 @@ describe("scan honours a repo's own tooling excludes", () => {
       report.coverage?.warnings?.some((w) => w.kind === "files_excluded_by_tooling"),
     ).toBeFalsy();
   });
+
+  describe("ESLint and Prettier in a nested JS package", () => {
+    const jsNoisy = (): string =>
+      "// TODO: a\n// TODO: b\n// TODO: c\n// TODO: d\n" +
+      Array.from({ length: 20 }, (_, i) => `export const x${i} = ${i};`).join("\n");
+
+    it("skips a path both tools ignore, anchored to the package", async () => {
+      const root = await repo({
+        "web/frontend/package.json": "{}",
+        "web/frontend/eslint.config.mjs":
+          "export default [\n  { ignores: ['js/lib/*', 'dist/*'] },\n];\n",
+        "web/frontend/.prettierignore": "/js/lib/\n",
+        "web/frontend/js/lib/vendor.js": jsNoisy(),
+        "web/frontend/js/lib/plugins/plugin.js": jsNoisy(),
+        "web/frontend/js/site/app.js": jsNoisy(),
+        // Same relative path outside the package: not governed by it.
+        "other/js/lib/mine.js": jsNoisy(),
+      });
+      const report = await scan({ root });
+      const files = new Set(report.findings.map((f) => f.file));
+      expect([...files].some((f) => f.startsWith("web/frontend/js/lib/"))).toBe(false);
+      expect(files.has("web/frontend/js/site/app.js")).toBe(true);
+      expect(files.has("other/js/lib/mine.js")).toBe(true);
+
+      const warning = report.coverage?.warnings?.find(
+        (w) => w.kind === "files_excluded_by_tooling",
+      );
+      expect(warning?.subject).toBe("web/frontend/js/lib");
+      expect(warning?.files).toBe(2);
+    });
+
+    it("leaves a path only one tool ignores", async () => {
+      const root = await repo({
+        "eslint.config.js": "export default [{ ignores: ['legacy/*'] }];\n",
+        "legacy/old.js": jsNoisy(),
+      });
+      const report = await scan({ root });
+      expect(report.findings.some((f) => f.file === "legacy/old.js")).toBe(true);
+    });
+  });
 });

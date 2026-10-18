@@ -1,3 +1,6 @@
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../config.js";
 import type { CrimesConfig } from "../config.js";
@@ -114,5 +117,77 @@ describe("rasterShouldBeVectorDetector", () => {
       }),
     );
     expect(findings).toEqual([]);
+  });
+
+  describe("rasters SVG cannot replace, or whose DPI is already handled", () => {
+    const fires = async (file: string, buffer: Buffer = makePng(32, 32)) =>
+      (await rasterShouldBeVectorDetector.run(makeCtx({ buffer, file }))).length > 0;
+
+    it("skips JPEGs, which are photographic", async () => {
+      const jpeg = Buffer.from([
+        0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x20, 0x00, 0x20, 0x03, 0x01,
+        0x22, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01,
+      ]);
+      expect(
+        (
+          await rasterShouldBeVectorDetector.run(
+            makeCtx({ buffer: jpeg, file: "img/avatars/a.jpg", extension: ".jpg" }),
+          )
+        ).length,
+      ).toBe(0);
+    });
+
+    it("skips animated GIFs but not still ones", async () => {
+      const gif = (animated: boolean) => {
+        const head = Buffer.alloc(13);
+        head.write("GIF89a", 0, "ascii");
+        head.writeUInt16LE(16, 6);
+        head.writeUInt16LE(16, 8);
+        return animated ? Buffer.concat([head, Buffer.from("!\xffNETSCAPE2.0")]) : head;
+      };
+      expect(await fires("img/spinner.gif", gif(true))).toBe(false);
+      expect(await fires("img/still.gif", gif(false))).toBe(true);
+    });
+
+    it("skips 1px spacers and tiles", async () => {
+      expect(await fires("img/divider.png", makePng(1, 20))).toBe(false);
+    });
+
+    it("skips Android density buckets, with or without other qualifiers", async () => {
+      expect(await fires("app/src/main/res/drawable-xxhdpi/ic_star.png")).toBe(false);
+      expect(await fires("app/src/main/res/drawable-ldrtl-hdpi/ic_back.png")).toBe(false);
+      expect(await fires("app/src/main/res/mipmap-mdpi/ic_launcher.png")).toBe(false);
+      expect(await fires("app/src/main/res/drawable/ic_star.png")).toBe(true);
+    });
+
+    it("skips @2x / @3x resolution variants", async () => {
+      expect(await fires("img/logo@2x.png")).toBe(false);
+    });
+
+    it("skips email template assets", async () => {
+      expect(await fires("web/img/email/brand/logo.png")).toBe(false);
+    });
+  });
+
+  it("reports a large same-format set once, on its first member", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "crimes-raster-set-"));
+    const names = Array.from(
+      { length: 25 },
+      (_, i) => `F${String(i).padStart(2, "0")}.png`,
+    );
+    for (const name of names) await writeFile(join(dir, name), makePng(24, 16));
+    const config = { ...DEFAULT_CONFIG };
+    const results = await Promise.all(
+      names.map((name) =>
+        rasterShouldBeVectorDetector.run({
+          ...makeCtx({ buffer: makePng(24, 16), file: `img/flags/${name}`, config }),
+          absolutePath: join(dir, name),
+        }),
+      ),
+    );
+    const findings = results.flat();
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.file).toBe("img/flags/F00.png");
+    expect(findings[0]!.evidence.join(" ")).toContain("one of 25 .png files");
   });
 });
