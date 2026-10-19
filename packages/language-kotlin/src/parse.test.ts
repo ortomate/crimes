@@ -128,6 +128,24 @@ describe("parseKotlinFile — catch blocks", () => {
   });
 });
 
+describe("parseKotlinFile — what a clock reading is for", () => {
+  it("tells readings that decide a branch from ones that are recorded", async () => {
+    const parsed = await parse(`class C {
+  fun f(deadline: Instant, last: Long) {
+    entity.created = Date()
+    if (System.currentTimeMillis() - last > LIMIT) refresh()
+    val late = deadline.isBefore(Instant.now())
+  }
+}
+`);
+    expect(parsed.clockReads.map((r) => r.usage)).toEqual([
+      "value",
+      "compared",
+      "compared",
+    ]);
+  });
+});
+
 describe("parseKotlinFile — clock reads", () => {
   it("finds wall-clock reads, not injected clocks or stopwatches", async () => {
     const parsed = await parse(`class C(private val clock: java.time.Clock) {

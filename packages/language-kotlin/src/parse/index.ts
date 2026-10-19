@@ -558,6 +558,7 @@ function visitCall(
     ctx.result.clockReads.push({
       line: node.startPosition.row + 1,
       callee,
+      usage: classifyUsage(node),
       ...(ctx.fn !== undefined ? { enclosingMethod: ctx.fn.fn.name } : {}),
     });
   }
@@ -584,6 +585,102 @@ function isElapsedTimer(call: Node): boolean {
     const left = parent.childForFieldName("left");
     const other = left?.id === call.id ? parent.childForFieldName("right") : left;
     return other?.type === "identifier" && TIMER_NAME.test(other.text);
+  }
+  return false;
+}
+
+const COMPARISON_OPERATOR = /^(?:<|<=|>|>=|==|!=|===|!==)$/;
+const ARITHMETIC_OPERATOR = /^[-+*/%]$/;
+const COMPARE_METHOD = /^(?:before|after|compareTo|isBefore|isAfter|isEqual|equals)$/;
+const TRANSPARENT_METHOD =
+  /^(?:getTime|toEpochMilli|toEpochMilliseconds|epochSeconds|getTimeInMillis|toInstant|atZone|toLocalDate|toLocalDateTime|truncatedTo|plus\w*|minus\w*|with\w*)$/;
+
+/**
+ * Compared or only recorded? The Java pack's walk, over Kotlin's nodes:
+ * operators are `binary_expression`s with an `operator` field, a method on
+ * the reading is a `call_expression` around a `navigation_expression`, and
+ * conditions are `if_expression` / `while_statement` `condition` fields.
+ */
+function classifyUsage(node: Node, followBinding = true): "compared" | "value" {
+  let current = node;
+  let parent = node.parent;
+  while (parent) {
+    const advance = (): void => {
+      current = parent!;
+      parent = parent!.parent;
+    };
+    switch (parent.type) {
+      case "binary_expression": {
+        const op = parent.childForFieldName("operator")?.text ?? "";
+        if (COMPARISON_OPERATOR.test(op)) return "compared";
+        if (ARITHMETIC_OPERATOR.test(op)) {
+          advance();
+          continue;
+        }
+        return "value";
+      }
+      case "parenthesized_expression":
+      case "unary_expression":
+      case "as_expression":
+        advance();
+        continue;
+      case "if_expression":
+      case "while_statement":
+      case "do_while_statement":
+        return parent.childForFieldName("condition")?.id === current.id
+          ? "compared"
+          : "value";
+      case "navigation_expression": {
+        if (parent.namedChildren[0]?.id !== current.id) return "value";
+        const name = parent.namedChildren[parent.namedChildCount - 1]?.text ?? "";
+        if (COMPARE_METHOD.test(name)) return "compared";
+        if (TRANSPARENT_METHOD.test(name)) {
+          // Skip the call wrapping `now.plusDays(1)` as well.
+          advance();
+          if ((parent as Node | null)?.type === "call_expression") advance();
+          continue;
+        }
+        return "value";
+      }
+      case "value_argument": {
+        const call = parent.parent?.parent;
+        const name = call?.type === "call_expression" ? calleeOf(call).name : "";
+        if (COMPARE_METHOD.test(name)) return "compared";
+        if (/^(?:between|max|min|maxOf|minOf)$/.test(name) && call) {
+          current = call;
+          parent = call.parent;
+          continue;
+        }
+        return "value";
+      }
+      case "property_declaration": {
+        if (!followBinding) return "value";
+        const name = parent.namedChildren
+          .find((c) => c?.type === "variable_declaration")
+          ?.namedChildren.find((c) => c?.type === "identifier");
+        return name && bindingIsCompared(name) ? "compared" : "value";
+      }
+      default:
+        return "value";
+    }
+  }
+  return "compared";
+}
+
+function bindingIsCompared(nameNode: Node): boolean {
+  let scope = nameNode.parent;
+  while (
+    scope &&
+    scope.type !== "function_declaration" &&
+    scope.type !== "lambda_literal"
+  ) {
+    scope = scope.parent;
+  }
+  if (!scope) return true;
+  for (const id of scope.descendantsOfType("identifier")) {
+    if (!id || id.id === nameNode.id || id.text !== nameNode.text) continue;
+    if (id.parent?.type === "variable_declaration") continue;
+    if (classifyUsage(id, false) === "compared") return true;
   }
   return false;
 }

@@ -35,7 +35,21 @@ export function makeDirectDateDetector<P extends StructuredPack>(
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .map(([callee, n]) => `${n}× ${show(callee)}`)
         .join(", ");
-      const severity = pickSeverity(hits.length);
+      // A reading that decides a branch changes what the program does; one
+      // that is recorded or rendered changes only what it outputs. Same
+      // split, wording and severity rule as the JS detector.
+      const compared = hits.filter((h) => h.usage !== "value");
+      const recorded = hits.filter((h) => h.usage === "value");
+      const severity = pickSeverity(hits.length, compared.length);
+      const usageLine =
+        compared.length > 0 && recorded.length > 0
+          ? `${compared.length} decide a branch or comparison (lines ${compared
+              .map((h) => h.line)
+              .slice(0, 6)
+              .join(", ")}); ${recorded.length} only record or render the reading`
+          : compared.length > 0
+            ? `all ${compared.length} decide a branch or comparison`
+            : `none decide a branch — all ${recorded.length} record or render the reading`;
 
       const finding: Finding = {
         id: "",
@@ -49,7 +63,15 @@ export function makeDirectDateDetector<P extends StructuredPack>(
         summary:
           `${hits.length} direct clock read${hits.length === 1 ? "" : "s"}. Domain code ` +
           "that reads the clock cannot be tested at a fixed moment.",
-        evidence: [breakdown, lineList(hits.map((h) => h.line)), cfg.testabilityNote],
+        evidence: [
+          breakdown,
+          usageLine,
+          lineList(hits.map((h) => h.line)),
+          compared.length > 0
+            ? cfg.testabilityNote
+            : "these readings change what the code outputs, not what it does — lower " +
+              "risk, but still untestable without a fixed clock",
+        ],
         effort: "small",
         fix_shape: cfg.fixShape,
         scores: {
@@ -72,7 +94,11 @@ export function makeDirectDateDetector<P extends StructuredPack>(
   return detector as unknown as Extract<Detector, { pack: P }>;
 }
 
-function pickSeverity(total: number): Severity {
+function pickSeverity(total: number, compared: number): Severity {
+  // All recorded or rendered caps at medium however many there are, as in
+  // the JS detector: timestamp columns are a testability cost, not a
+  // poll timeout.
+  if (compared === 0) return total >= 2 ? "medium" : "low";
   if (total >= 8) return "high";
   if (total >= 2) return "medium";
   return "low";

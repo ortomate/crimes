@@ -138,6 +138,13 @@ export interface JavaClockRead {
   line: number;
   /** As written: `"System.currentTimeMillis"`, `"Instant.now"`, `"new Date"`. */
   callee: string;
+  /**
+   * What the reading is for. `compared` decides a branch or comparison
+   * (`if (now.after(deadline))`, `System.currentTimeMillis() - t > LIMIT`);
+   * `value` is recorded or rendered (`setCreated(new Date())`). Same split,
+   * and same "unknown is compared" rule, as the JS pack's `DateUse.usage`.
+   */
+  usage: "compared" | "value";
   enclosingMethod?: string;
 }
 

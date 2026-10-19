@@ -176,6 +176,29 @@ describe("parseJavaFile — clock reads", () => {
   });
 });
 
+describe("parseJavaFile — what a clock reading is for", () => {
+  it("tells readings that decide a branch from ones that are recorded", async () => {
+    const parsed = await parse(`class C {
+  void f(Date deadline, long last) {
+    entity.setCreated(new Date());
+    if (System.currentTimeMillis() - last > LIMIT) { refresh(); }
+    boolean late = deadline.before(new Date());
+    Date now = new Date();
+    if (now.after(deadline)) { expire(); }
+    return Instant.now().plusSeconds(60);
+  }
+}
+`);
+    expect(parsed.clockReads.map((r) => [r.line, r.usage])).toEqual([
+      [3, "value"],
+      [4, "compared"],
+      [5, "compared"],
+      [6, "compared"],
+      [8, "value"],
+    ]);
+  });
+});
+
 describe("parseJavaFile — malformed input", () => {
   it("flags syntax it could not parse instead of throwing", async () => {
     const parsed = await parse("class A { void f( { }");

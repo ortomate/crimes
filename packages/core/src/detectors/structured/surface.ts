@@ -64,6 +64,8 @@ export interface StructuredCatch {
 export interface StructuredClockRead {
   line: number;
   callee: string;
+  /** `compared` decides a branch; `value` is recorded or rendered. */
+  usage: "compared" | "value";
 }
 
 export interface StructuredFile {

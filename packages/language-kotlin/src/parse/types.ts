@@ -95,6 +95,8 @@ export interface KotlinCatch {
 export interface KotlinClockRead {
   line: number;
   callee: string;
+  /** `compared` decides a branch or comparison; `value` is recorded or rendered. */
+  usage: "compared" | "value";
   enclosingMethod?: string;
 }
 

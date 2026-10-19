@@ -105,6 +105,22 @@ describe("parseSwiftFile — catch blocks", () => {
   });
 });
 
+describe("parseSwiftFile — what a clock reading is for", () => {
+  it("tells readings that decide a branch from ones that are recorded", async () => {
+    const parsed = await parse(`func f(expiry: Date) {
+  entry.created = Date()
+  if Date() > expiry { refresh() }
+  guard Date().timeIntervalSince(expiry) < 60 else { return }
+}
+`);
+    expect(parsed.clockReads.map((r) => r.usage)).toEqual([
+      "value",
+      "compared",
+      "compared",
+    ]);
+  });
+});
+
 describe("parseSwiftFile — clock reads", () => {
   it("finds Date() and Date.now, not injected defaults or stopwatches", async () => {
     const parsed = await parse(`func f(now: Date = Date()) {

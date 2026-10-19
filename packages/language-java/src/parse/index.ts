@@ -512,6 +512,7 @@ function visitInvocation(
     ctx.result.clockReads.push({
       line: lineOf(node),
       callee,
+      usage: classifyUsage(node),
       ...(ctx.method !== undefined ? { enclosingMethod: ctx.method.name } : {}),
     });
   }
@@ -562,8 +563,113 @@ function visitCreation(
   ctx.result.clockReads.push({
     line: lineOf(node),
     callee: `new ${typeName}`,
+    usage: classifyUsage(node),
     ...(ctx.method !== undefined ? { enclosingMethod: ctx.method.name } : {}),
   });
+}
+
+const COMPARISON_OPERATOR = /^(?:<|<=|>|>=|==|!=)$/;
+const ARITHMETIC_OPERATOR = /^[-+*/%]$/;
+/** Methods whose call on a reading is itself the comparison. */
+const COMPARE_METHOD = /^(?:before|after|compareTo|isBefore|isAfter|isEqual|equals)$/;
+/** Methods that pass the reading on unchanged in meaning. */
+const TRANSPARENT_METHOD =
+  /^(?:getTime|toEpochMilli|getTimeInMillis|getEpochSecond|toInstant|atZone|atOffset|toLocalDate|toLocalDateTime|truncatedTo|plus\w*|minus\w*|with\w*)$/;
+
+/**
+ * Is this clock reading compared or only recorded? Walks up through the
+ * forms a reading passes through on its way to a test — arithmetic,
+ * parentheses, casts, `getTime()`/`plusDays()` — and stops at anything
+ * that consumes it instead (a setter argument, an assignment, a return).
+ * A local binding is followed one hop, as in the JS pack. Unknown
+ * resolves to `compared`: the wrong answer in that direction leaves a
+ * severity where it was; the other silently downgrades a real one.
+ */
+function classifyUsage(node: Node, followBinding = true): "compared" | "value" {
+  let current = node;
+  let parent = node.parent;
+  while (parent) {
+    const advance = (): void => {
+      current = parent!;
+      parent = parent!.parent;
+    };
+    switch (parent.type) {
+      case "binary_expression": {
+        const op = parent.childForFieldName("operator")?.text ?? "";
+        if (COMPARISON_OPERATOR.test(op)) return "compared";
+        if (ARITHMETIC_OPERATOR.test(op)) {
+          advance();
+          continue;
+        }
+        return "value";
+      }
+      case "parenthesized_expression":
+      case "cast_expression":
+      case "unary_expression":
+        advance();
+        continue;
+      case "if_statement":
+      case "while_statement":
+      case "do_statement":
+      case "ternary_expression":
+        return parent.childForFieldName("condition")?.id === current.id
+          ? "compared"
+          : "value";
+      case "method_invocation": {
+        if (parent.childForFieldName("object")?.id !== current.id) return "value";
+        const name = parent.childForFieldName("name")?.text ?? "";
+        if (COMPARE_METHOD.test(name)) return "compared";
+        if (TRANSPARENT_METHOD.test(name)) {
+          advance();
+          continue;
+        }
+        return "value";
+      }
+      case "argument_list": {
+        // `deadline.before(new Date())`, `Duration.between(start, now())`.
+        const call = parent.parent;
+        const name = call?.childForFieldName("name")?.text ?? "";
+        if (call?.type === "method_invocation" && COMPARE_METHOD.test(name))
+          return "compared";
+        if (call?.type === "method_invocation" && /^(?:between|max|min)$/.test(name)) {
+          current = call;
+          parent = call.parent;
+          continue;
+        }
+        return "value";
+      }
+      case "variable_declarator": {
+        if (!followBinding) return "value";
+        const name = parent.childForFieldName("name");
+        return name && bindingIsCompared(name, classifyUsage) ? "compared" : "value";
+      }
+      default:
+        return "value";
+    }
+  }
+  return "compared";
+}
+
+/** Is the name bound at `nameNode` read inside a comparison in its method? */
+function bindingIsCompared(
+  nameNode: Node,
+  classify: (node: Node, followBinding: boolean) => "compared" | "value",
+): boolean {
+  let scope = nameNode.parent;
+  while (
+    scope &&
+    !["method_declaration", "constructor_declaration", "lambda_expression"].includes(
+      scope.type,
+    )
+  ) {
+    scope = scope.parent;
+  }
+  if (!scope) return true;
+  for (const id of scope.descendantsOfType("identifier")) {
+    if (!id || id.id === nameNode.id || id.text !== nameNode.text) continue;
+    if (classify(id, false) === "compared") return true;
+  }
+  return false;
 }
 
 /**

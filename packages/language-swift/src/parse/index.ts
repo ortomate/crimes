@@ -188,6 +188,7 @@ function collect(tree: Tree, source: string, result: ParsedSwiftFile): void {
           result.clockReads.push({
             line: node.startPosition.row + 1,
             callee: "Date.now",
+            usage: classifyUsage(node),
             ...(fn !== undefined ? { enclosingMethod: fn.fn.name } : {}),
           });
         }
@@ -479,8 +480,91 @@ function visitCall(
   ctx.result.clockReads.push({
     line: node.startPosition.row + 1,
     callee: name,
+    usage: classifyUsage(node),
     ...(ctx.fn !== undefined ? { enclosingMethod: ctx.fn.fn.name } : {}),
   });
+}
+
+const TRANSPARENT_SUFFIX =
+  /^\.(?:timeIntervalSince\w*|addingTimeInterval|advanced|distance|timeIntervalSinceReferenceDate)$/;
+const COMPARE_SUFFIX = /^\.(?:compare)$/;
+
+/**
+ * Compared or only recorded? The Java pack's walk over Swift's nodes:
+ * comparisons are `comparison_expression` / `equality_expression`,
+ * arithmetic `additive_expression` / `multiplicative_expression`,
+ * conditions the `condition` field of `if`, `guard`, `while` and
+ * ternaries, and `Date().timeIntervalSince(x)` keeps the value flowing.
+ */
+function classifyUsage(node: Node, followBinding = true): "compared" | "value" {
+  let current = node;
+  let parent = node.parent;
+  while (parent) {
+    const advance = (): void => {
+      current = parent!;
+      parent = parent!.parent;
+    };
+    switch (parent.type) {
+      case "comparison_expression":
+      case "equality_expression":
+        return "compared";
+      case "additive_expression":
+      case "multiplicative_expression":
+      case "tuple_expression":
+      case "prefix_expression":
+      case "postfix_expression":
+        advance();
+        continue;
+      case "if_statement":
+      case "guard_statement":
+      case "while_statement":
+      case "ternary_expression":
+        return parent.childForFieldName("condition")?.id === current.id
+          ? "compared"
+          : "value";
+      case "navigation_expression": {
+        if (parent.childForFieldName("target")?.id !== current.id) return "value";
+        const suffix = parent.childForFieldName("suffix")?.text ?? "";
+        if (COMPARE_SUFFIX.test(suffix)) return "compared";
+        if (TRANSPARENT_SUFFIX.test(suffix)) {
+          advance();
+          if ((parent as Node | null)?.type === "call_expression") advance();
+          continue;
+        }
+        return "value";
+      }
+      case "property_declaration": {
+        if (!followBinding) return "value";
+        const name = parent.childForFieldName("name");
+        return name && bindingIsCompared(name) ? "compared" : "value";
+      }
+      default:
+        return "value";
+    }
+  }
+  return "compared";
+}
+
+function bindingIsCompared(nameNode: Node): boolean {
+  const bound = nameNode.descendantsOfType("simple_identifier")[0] ?? nameNode;
+  let scope = nameNode.parent;
+  while (
+    scope &&
+    ![
+      "function_declaration",
+      "init_declaration",
+      "lambda_literal",
+      "computed_property",
+    ].includes(scope.type)
+  ) {
+    scope = scope.parent;
+  }
+  if (!scope) return true;
+  for (const id of scope.descendantsOfType("simple_identifier")) {
+    if (!id || id.id === bound.id || id.text !== bound.text) continue;
+    if (classifyUsage(id, false) === "compared") return true;
+  }
+  return false;
 }
 
 /** `let start = Date()` starts a stopwatch; it does not depend on the date. */

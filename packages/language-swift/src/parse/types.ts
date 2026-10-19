@@ -101,6 +101,8 @@ export interface SwiftClockRead {
   line: number;
   /** `Date` (for `Date()`), `Date.now`, `NSDate`. */
   callee: string;
+  /** `compared` decides a branch or comparison; `value` is recorded or rendered. */
+  usage: "compared" | "value";
   enclosingMethod?: string;
 }
 
