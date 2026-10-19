@@ -47,7 +47,8 @@ describe("readEslintFlatIgnores", () => {
   });
 
   it("drops template literals with interpolation", () => {
-    const source = "export default [{ ignores: [`${root}/dist`] }]";
+    // Built by concatenation so the test source holds a literal `${`.
+    const source = "export default [{ ignores: [`$" + "{root}/dist`] }]";
     expect(readEslintFlatIgnores(source, "eslint.config.js")).toBeUndefined();
   });
 
