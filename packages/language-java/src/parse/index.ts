@@ -1,4 +1,4 @@
-import type { Node } from "web-tree-sitter";
+import type { Node, Tree } from "web-tree-sitter";
 import { ensureJavaParser } from "./grammar.js";
 import type {
   JavaCatch,
@@ -100,7 +100,7 @@ export async function parseJavaFile(input: ParseJavaInput): Promise<ParsedJavaFi
   if (!tree) return result;
   try {
     result.hasSyntaxErrors = tree.rootNode.hasError;
-    collect(tree.rootNode, result);
+    collect(tree, input.source, result);
   } finally {
     tree.delete();
   }
@@ -109,119 +109,177 @@ export async function parseJavaFile(input: ParseJavaInput): Promise<ParsedJavaFi
   return result;
 }
 
-interface Frame {
-  node: Node;
-  type?: ParsedJavaType;
-  method?: ParsedJavaMethod;
-  localCalls?: Set<string>;
+interface MethodState {
+  method: ParsedJavaMethod;
+  calls: Set<string>;
+  depth: number;
+}
+
+/** What entering a node changed, so leaving it can put it back. */
+interface Open {
+  nodeType: string;
+  type: ParsedJavaType | undefined;
+  method: MethodState | undefined;
   inFinally: boolean;
+  counted: boolean;
 }
 
 /**
- * Iterative depth-first walk. Recursion would be simpler, but a deeply
- * nested builder chain can overflow the stack, and that would take out
- * the scan instead of one file.
+ * Depth-first walk over a `TreeCursor`.
+ *
+ * A cursor walk avoids materialising a JS `Node` for every node in the
+ * tree — on a 2,300-file Java repository that marshalling cost more than parsing itself —
+ * and only the node types this parser reads are turned into `Node`s.
+ * It is also iterative, so a deeply nested builder chain cannot overflow
+ * the stack and take out the scan.
  */
-function collect(root: Node, result: ParsedJavaFile): void {
+function collect(tree: Tree, source: string, result: ParsedJavaFile): void {
   const referenced = new Set<string>();
   const declared = new Set<string>();
-  const callSets = new Map<ParsedJavaMethod, Set<string>>();
-  const stack: Frame[] = [{ node: root, inFinally: false }];
+  const states: MethodState[] = [];
+  const open: Open[] = [];
+  let type: ParsedJavaType | undefined;
+  let method: MethodState | undefined;
+  let inFinally = false;
+  const cursor = tree.walk();
 
-  while (stack.length > 0) {
-    const frame = stack.pop()!;
-    const { node } = frame;
-    let { type, method, localCalls } = frame;
-    let inFinally = frame.inFinally;
-
-    switch (node.type) {
+  const enter = (): boolean => {
+    const nodeType = cursor.nodeType;
+    const entry: Open = { nodeType, type, method, inFinally, counted: false };
+    let descend = true;
+    switch (nodeType) {
       case "package_declaration": {
-        const name = node.namedChildren.find(
+        const name = cursor.currentNode.namedChildren.find(
           (c) => c?.type === "scoped_identifier" || c?.type === "identifier",
         );
         if (name) result.packageName = name.text;
         break;
       }
       case "import_declaration":
-        result.imports.push(buildImport(node));
+        result.imports.push(buildImport(cursor.currentNode));
         // Nothing inside an import is a type reference of this file's own.
-        continue;
+        descend = false;
+        break;
       case "finally_clause":
         inFinally = true;
+        break;
+      case "class_body":
+        // An anonymous class body's code belongs to its own methods.
+        method = undefined;
         break;
       case "method_declaration":
       case "constructor_declaration":
       case "compact_constructor_declaration": {
-        method = buildMethod(node, type);
-        localCalls = new Set<string>();
-        callSets.set(method, localCalls);
-        result.methods.push(method);
+        const built = buildMethod(cursor.currentNode, type);
+        method = { method: built, calls: new Set(), depth: 0 };
+        states.push(method);
+        result.methods.push(built);
         break;
       }
       case "catch_clause": {
-        const caught = buildCatch(node, { method, type, inFinally });
+        const caught = buildCatch(cursor.currentNode, {
+          method: method?.method,
+          type,
+          inFinally,
+        });
         if (caught) result.catches.push(caught);
         break;
       }
       case "method_invocation":
-        visitInvocation(node, { method, localCalls, result, referenced });
+        visitInvocation(cursor.currentNode, {
+          method: method?.method,
+          localCalls: method?.calls,
+          result,
+          referenced,
+        });
         break;
       case "object_creation_expression":
-        visitCreation(node, { method, result });
+        visitCreation(cursor.currentNode, { method: method?.method, result });
         break;
       case "field_access": {
-        const object = node.childForFieldName("object");
+        const object = cursor.currentNode.childForFieldName("object");
         if (object?.type === "identifier") addTypeLike(referenced, object.text);
         break;
       }
       case "assert_statement":
-        if (method) method.assertionCount += 1;
+        if (method) method.method.assertionCount += 1;
         break;
       case "type_identifier":
-        referenced.add(node.text);
+        referenced.add(source.slice(cursor.startIndex, cursor.endIndex));
         break;
       case "marker_annotation":
       case "annotation": {
-        const name = node.childForFieldName("name");
+        const name = cursor.currentNode.childForFieldName("name");
         if (name?.type === "identifier") referenced.add(name.text);
         break;
       }
       default: {
-        const kind = TYPE_DECLARATIONS[node.type];
+        const kind = TYPE_DECLARATIONS[nodeType];
         if (kind !== undefined) {
-          const built = buildType(node, kind, type);
+          const built = buildType(cursor.currentNode, kind, type);
           if (built) {
             result.types.push(built);
             declared.add(built.name);
             type = built;
-            // A nested type's methods are not the outer method's.
             method = undefined;
-            localCalls = undefined;
+          }
+        } else if (method && COMPOUND_STATEMENTS.has(nodeType)) {
+          // An `else if` continues its chain rather than opening a level.
+          const elseIf =
+            nodeType === "if_statement" &&
+            cursor.currentFieldName === "alternative" &&
+            open[open.length - 1]?.nodeType === "if_statement";
+          if (!elseIf) {
+            method.depth += 1;
+            if (method.depth > method.method.maxNestingDepth) {
+              method.method.maxNestingDepth = method.depth;
+            }
+            entry.counted = true;
           }
         }
       }
     }
+    open.push(entry);
+    return descend;
+  };
 
-    // Anonymous class bodies belong to their own methods.
-    const childMethod = node.type === "class_body" ? undefined : method;
-    const childCalls = node.type === "class_body" ? undefined : localCalls;
-    for (let i = node.childCount - 1; i >= 0; i -= 1) {
-      const child = node.child(i);
-      if (!child) continue;
-      stack.push({
-        node: child,
-        ...(type !== undefined ? { type } : {}),
-        ...(childMethod !== undefined ? { method: childMethod } : {}),
-        ...(childCalls !== undefined ? { localCalls: childCalls } : {}),
-        inFinally,
-      });
+  const leave = (): void => {
+    const entry = open.pop()!;
+    if (entry.counted && method) method.depth -= 1;
+    type = entry.type;
+    method = entry.method;
+    inFinally = entry.inFinally;
+  };
+
+  try {
+    let descend = enter();
+    for (;;) {
+      if (descend && cursor.gotoFirstChild()) {
+        descend = enter();
+        continue;
+      }
+      leave();
+      let moved = cursor.gotoNextSibling();
+      while (!moved) {
+        if (!cursor.gotoParent()) {
+          finish();
+          return;
+        }
+        leave();
+        moved = cursor.gotoNextSibling();
+      }
+      descend = enter();
     }
+  } finally {
+    cursor.delete();
   }
 
-  for (const [method, calls] of callSets) method.localCalls = [...calls];
-  // A file's own types are not references to elsewhere.
-  for (const name of declared) referenced.delete(name);
-  result.referencedTypes = [...referenced].sort();
+  function finish(): void {
+    for (const state of states) state.method.localCalls = [...state.calls];
+    // A file's own types are not references to elsewhere.
+    for (const name of declared) referenced.delete(name);
+    result.referencedTypes = [...referenced].sort();
+  }
 }
 
 function buildImport(node: Node): JavaImport {
@@ -289,7 +347,8 @@ function buildMethod(node: Node, type: ParsedJavaType | undefined): ParsedJavaMe
     shapeEvidence: evidence,
     annotations,
     paramCount,
-    maxNestingDepth: body ? nestingDepth(body) : 0,
+    // Filled in by the walk, which tracks compound statements as it goes.
+    maxNestingDepth: 0,
     ...(type !== undefined ? { className: type.name } : {}),
     hasBody: body !== null,
     assertionCount: 0,
@@ -539,37 +598,6 @@ function signatureLine(node: Node): number {
     if (keyword) return lineOf(keyword);
   }
   return lineOf(node);
-}
-
-/**
- * Deepest nesting of compound statements. An `else if` continues its
- * chain rather than opening a level, and an anonymous class body is its
- * own methods' business.
- */
-function nestingDepth(body: Node): number {
-  let max = 0;
-  const stack: { node: Node; depth: number }[] = [{ node: body, depth: 0 }];
-  while (stack.length > 0) {
-    const { node, depth } = stack.pop()!;
-    let here = depth;
-    if (COMPOUND_STATEMENTS.has(node.type) && !isElseIf(node)) {
-      here = depth + 1;
-      if (here > max) max = here;
-    }
-    for (const child of node.namedChildren) {
-      if (child && child.type !== "class_body") stack.push({ node: child, depth: here });
-    }
-  }
-  return max;
-}
-
-function isElseIf(node: Node): boolean {
-  const parent = node.parent;
-  return (
-    node.type === "if_statement" &&
-    parent?.type === "if_statement" &&
-    parent.childForFieldName("alternative")?.id === node.id
-  );
 }
 
 function simpleName(name: string): string {

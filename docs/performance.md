@@ -6,8 +6,12 @@ brief report is not necessarily a cheap report.
 
 The 0.29 implementation reuses source reads and extracted JS/Python parse
 data within a single analysis. It retains no compiler ASTs and no persistent
-disk cache. The reuse budget is bounded; eviction costs another read/parse
-without reducing coverage. A fresh command creates a fresh session, so edits,
+disk cache. The reuse budget is bounded (128 MB of source plus extracted
+parse data, 16,384 entries); eviction costs another read/parse without
+reducing coverage. 0.29.6 raised it from 32 MB / 4,096: on a 3,400-file
+Java + JS repository the smaller budget evicted every Java parse before the
+detector pass reused it, so each file was parsed twice and each JS file three
+times. Peak RSS did not change (499 MB), and `context` fell from 16 s to 9 s. A fresh command creates a fresh session, so edits,
 renames, deletions, configuration, Git state and upgrades are re-evaluated.
 
 Coverage attribution uses the same glob matcher in bounded batches, avoiding

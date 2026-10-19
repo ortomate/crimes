@@ -27,7 +27,7 @@ export class AnalysisInputs {
   private readonly pending = new Map<string, Promise<string>>();
   private bytes = 0;
 
-  constructor(private readonly maxBytes = 32 * 1024 * 1024) {}
+  constructor(private readonly maxBytes = 128 * 1024 * 1024) {}
 
   readSync(path: string): string {
     const cached = this.get(path);
@@ -109,7 +109,7 @@ export class AnalysisInputs {
     if (previous) this.bytes -= previous.bytes;
     this.entries.delete(path);
     if (entry.bytes > this.maxBytes) return;
-    while (this.bytes + entry.bytes > this.maxBytes || this.entries.size >= 4096) {
+    while (this.bytes + entry.bytes > this.maxBytes || this.entries.size >= 16384) {
       const oldest = this.entries.keys().next().value;
       if (oldest === undefined) break;
       this.bytes -= this.entries.get(oldest)!.bytes;

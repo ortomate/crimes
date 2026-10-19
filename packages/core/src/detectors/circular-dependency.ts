@@ -47,6 +47,19 @@ export const circularDependencyDetector: LanguageJsDetector = {
  * the anchor file is always position 0.
  */
 function collectValueCycles(graph: ImportGraph): string[][] {
+  // `run` is called once per JS file over one shared graph; computing the
+  // components once per graph, not once per file, is what kept this
+  // detector from dominating `context` on a repo with a large Java graph.
+  const cached = CYCLES_CACHE.get(graph);
+  if (cached) return cached;
+  const fresh = computeValueCycles(graph);
+  CYCLES_CACHE.set(graph, fresh);
+  return fresh;
+}
+
+const CYCLES_CACHE = new WeakMap<ImportGraph, string[][]>();
+
+function computeValueCycles(graph: ImportGraph): string[][] {
   const adj = buildValueAdjacency(graph);
   const indices = new Map<string, number>();
   const lowlinks = new Map<string, number>();
@@ -109,6 +122,10 @@ function buildValueAdjacency(graph: ImportGraph): Map<string, Set<string>> {
     if (edge.external) continue;
     if (edge.to.length === 0) continue;
     if (edgeIsTypeOnly(edge)) continue;
+    // Java edges only ever join Java files, so no cycle through them can
+    // be anchored on the JS file this detector reports on. Leaving them
+    // out keeps the recursive walk off a graph it can never report.
+    if (edge.from.endsWith(".java")) continue;
     ensure(edge.from).add(edge.to);
     ensure(edge.to);
   }
