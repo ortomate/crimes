@@ -78,10 +78,18 @@ const CODE_TOKENS = [
  * module is a documentation-shaped lie about what the code does. Below
  * `duplicated_policy` 0.65, because a dormant block cannot be enforced
  * against anybody.
+ *
+ * `0.01` step (0.31; was 0.03). At 0.03 the cap arrived at six code-like
+ * lines, so a six-line block and a sixty-line one scored alike, and a
+ * four-line block (0.51) outranked an empty `catch (Exception)` (0.50).
+ * Large mobile view controllers carry many short blocks, which then
+ * filled six to eight of a scan's top ten. At 0.01 the cap arrives at 16
+ * lines, which is what the paragraph above describes. Labelled ranking
+ * scenarios: mean nDCG over the deep set +0.0008.
  */
 export const COMMENTED_OUT_CODE_LADDER: IntrinsicLadder = {
   base: 0.45,
-  step: 0.03,
+  step: 0.01,
   cap: 0.6,
 };
 

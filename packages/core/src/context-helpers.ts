@@ -1,4 +1,4 @@
-import { findingRankScore } from "./scoring/ranking.js";
+import { findingRankScore, repeatDecayedRankScores } from "./scoring/ranking.js";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { ContextRelatedFile } from "./context-related-files.js";
 import type { CrimesConfig } from "./config.js";
@@ -171,6 +171,13 @@ export function tagTierAndSortByRankScore(
     if (rb !== ra) return rb - ra;
     return existingSecondarySort(a, b);
   });
+  // Second pass: repeats of one claim in one file give way. The first
+  // pass's order breaks ties, so the result is still total.
+  const keys = repeatDecayedRankScores(findings, recencyEnabled);
+  const position = new Map(findings.map((f, i) => [f, i]));
+  findings.sort(
+    (a, b) => keys.get(b)! - keys.get(a)! || position.get(a)! - position.get(b)!,
+  );
 }
 
 /**

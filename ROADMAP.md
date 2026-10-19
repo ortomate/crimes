@@ -19,11 +19,14 @@ Reviewed: 2026-10-19. This file records desired outcomes; the
   use it on the private estate it was built against and judge whether its
   briefings are useful, not just correct.
 - **0.31: scan ranking that leads with what matters on JVM and mobile code.**
-  On the estate behind 0.30 a full scan's top ten is still clock reads and
-  commented-out code, because the 0.24 calibration ranks those signals
-  above large, churning, untested files. Revisit the structural scale and
-  the commented-out-code budget against that estate and the labelled
-  ranking scenarios together.
+  Started in 0.30.2: blast radius no longer counts round import cycles
+  (it ranked nothing on Kotlin), the commented-out-code ramp saturates at
+  16 lines instead of 6, and one file's repeated findings give way to
+  other files'. Raising the structural scale was measured and rejected.
+  Still open: clock reads lead both Java backends' top tens, and
+  weak-test findings cannot rank because a test file has no test gap or
+  blast of its own; score them by the code under test. See
+  [calibration follow-ups](./docs/calibration-followups.md).
 - **0.31 milestone: templates and stylesheets.** JSP (`.jsp`, `.jspf`,
   `.tag`) and LESS/CSS packs. Server-rendered views and stylesheets are a
   large share of older Java web estates (on the estate behind 0.30, about

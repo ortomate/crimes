@@ -36,19 +36,18 @@ export interface FindingScores {
    */
   blast_radius?: number;
   /**
-   * Size of the file's transitive importer closure: every in-repo file
-   * that reaches it through one or more import edges. The integer source
-   * of `blast_radius`. Populated when the scoring context resolves an
-   * import graph.
+   * How many in-repo files reach this one through import edges, without
+   * going round an import cycle it sits on. The integer source of
+   * `blast_radius`. Populated when the scoring context resolves an import
+   * graph.
    *
    * This is a **reachability** measure, not a fan-in measure, and the two
-   * diverge sharply on real repos. Because the walk follows import edges
-   * without cycle-breaking, a file that sits on an import cycle counts
-   * *itself*, and every member of a strongly-connected component reports
-   * the same number. On the `hono` corpus `src/utils/mime.ts` has 5 direct
-   * importers and a transitive closure of 240; six files in the core
-   * component all report exactly 197 while their direct fan-in ranges
-   * from 2 to 70.
+   * diverge sharply on real repos: on the `hono` corpus
+   * `src/utils/mime.ts` has 5 direct importers and reach 240. Members of
+   * the file's own strongly connected component count only when they
+   * import it directly, and the file never counts itself. Before 0.30.2
+   * every member of a component reported the component's size; on a
+   * Kotlin app with one 627-file component that was nearly every file.
    *
    * Renamed from `blast_radius_importers` in `schema_version` 0.5.0: the
    * old name promised a fan-in count it never delivered. Use

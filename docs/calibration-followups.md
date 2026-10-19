@@ -1134,3 +1134,49 @@ findings against the code.
   genuinely assertion-free.
 - **`swallowed_error`: `ignored2` is still `ignored`.** Java and Kotlin
   accept a numbered deliberate name for nested handlers.
+
+## 0.30.2: scan ranking on JVM and mobile code
+
+The 0.31 item: a full scan's top ten on the private Java/Kotlin/Swift
+estate was clock reads and commented-out code. Three candidate causes were
+measured offline (a re-scorer that reproduces `evals:ranking` exactly)
+against the 62 labelled scenarios and the estate's top tens, then
+confirmed with real scans. Two changes and one rejected hypothesis:
+
+- **Blast radius walks the condensation.** On the Kotlin app 627 of 1,220
+  files formed one strongly connected component, so every member
+  reported the component's reach: `blast_radius` p10/p50/p90 was
+  0.76/0.77/0.81 and the term ranked nothing. Co-members now count only
+  when they import the file directly; files outside the component count
+  as before. Kotlin 0.10/0.25/0.53; Java and JS distributions barely
+  move (their components are small). An import graph that is mostly one
+  cycle is normal for these languages, not a resolver fault: out-degree
+  median 4, in-degree median 2.
+- **`commented_out_code` step 0.03 → 0.01**, base and cap unchanged.
+  The ramp saturated at six code-like lines, against its own stated
+  intent (twenty lines earn the cap), and put a four-line block above an
+  empty `catch (Exception)`.
+- **One file's repeats give way.** Each further finding of the same
+  claim in a file sorts at 0.75ⁿ of its rank score. One 35-line region
+  of alternative server configs on the iOS app filled five of the top
+  ten. Order only; no score changes.
+- **Rejected: raising the structural scale.** 0.3 → 0.4 or 0.5, for
+  `large_function` alone or every structural type, lowered the labelled
+  metric (deep 0.4059 → 0.3880 at 0.4 for all structural types) and moved
+  no estate top ten. Large untested functions do not rank low because of
+  the scale; they rank low against agent signals in the same files.
+- **Rejected: giving weak-test findings full test gap.** Test files carry
+  test gap and blast 0 by construction, so the structured packs'
+  `weak_test_signal` (intrinsic 0.32 for one silent test in thirteen)
+  cannot rank. Setting test gap to 1 for the type lowered 21 scenarios:
+  JS weak tests already carry 0.58–0.68. Scoring a test by its subject's
+  context is the better design and needs the subject resolved first.
+
+Measured: `mean_ndcg_deep` 0.3996 → 0.4059 (29 up, 5 down, deep set
+unchanged). The largest drop is `review-02-react-dashboard` (0.856 →
+0.722), whose label counts *every* `commented_out_code` finding as
+relevant; the labels encode the old ranking there. Estate top tens:
+commented-out blocks 7 → 3 on iOS, 6 → 5 on Android; each top ten spans
+more files. **Still open:** clock reads hold five or six of the top ten
+on both Java backends, and short commented-out blocks in central Android
+files still rank above most swallowed errors there.
