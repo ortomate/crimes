@@ -4,9 +4,11 @@
  * and EL functions, and `web.xml`, whose `<jsp-config>` adds preludes and
  * codas to pages and can map a taglib URI to a TLD location.
  *
- * Both are read with patterns over comment-stripped text, not an XML
- * parser. Their schemas are flat and fixed, and a descriptor that does
- * not match yields fewer facts rather than an error.
+ * Both are read by locating elements with `indexOf` over comment-stripped
+ * text, not with an XML parser or regular expressions: their schemas are
+ * flat and fixed, and a descriptor from an untrusted repository must not
+ * be able to make extraction super-linear. A descriptor that does not
+ * match yields fewer facts rather than an error.
  */
 
 import type { DeclaredAttribute, JspPropertyGroup, ParsedTld, TldTag } from "./types.js";
@@ -18,65 +20,33 @@ export interface ParsedWebXml {
 }
 
 export function parseTld(source: string): ParsedTld {
-  let text = stripXmlComments(source).replace(
-    /<description>[\s\S]*?<\/description>/g,
-    "",
-  );
+  let text = removeBlocks(stripXmlComments(source), "description", () => undefined);
   const tags: TldTag[] = [];
   const tagFiles: ParsedTld["tagFiles"] = [];
   const functions: ParsedTld["functions"] = [];
   const otherClasses: string[] = [];
 
-  text = text.replace(/<tag>([\s\S]*?)<\/tag>/g, (_, body: string) => {
-    const attributes: DeclaredAttribute[] = [];
-    const own = body.replace(
-      /<attribute>([\s\S]*?)<\/attribute>/g,
-      (_a, attr: string) => {
-        const name = field(attr, "name");
-        if (name !== undefined) {
-          attributes.push({
-            name,
-            required: field(attr, "required")?.toLowerCase() === "true",
-          });
-        }
-        return "";
-      },
-    );
-    const name = field(own, "name");
-    if (name !== undefined) {
-      const tagClass = field(own, "tag-class");
-      const teiClass = field(own, "tei-class");
-      tags.push({
-        name,
-        ...(tagClass !== undefined ? { tagClass } : {}),
-        ...(teiClass !== undefined ? { teiClass } : {}),
-        attributes,
-        dynamicAttributes: field(own, "dynamic-attributes")?.toLowerCase() === "true",
-      });
-    }
-    return "";
+  text = removeBlocks(text, "tag", (body) => {
+    const tag = readTldTag(body);
+    if (tag !== undefined) tags.push(tag);
   });
-  text = text.replace(/<tag-file>([\s\S]*?)<\/tag-file>/g, (_, body: string) => {
+  text = removeBlocks(text, "tag-file", (body) => {
     const name = field(body, "name");
     const path = field(body, "path");
     if (name !== undefined && path !== undefined) tagFiles.push({ name, path });
-    return "";
   });
-  text = text.replace(/<function>([\s\S]*?)<\/function>/g, (_, body: string) => {
+  text = removeBlocks(text, "function", (body) => {
     const name = field(body, "name");
     const functionClass = field(body, "function-class");
     if (name !== undefined && functionClass !== undefined)
       functions.push({ name, functionClass });
-    return "";
   });
-  text = text.replace(
-    /<(listener|validator)>([\s\S]*?)<\/\1>/g,
-    (_, kind: string, body: string) => {
+  for (const kind of ["listener", "validator"] as const) {
+    text = removeBlocks(text, kind, (body) => {
       const cls = field(body, `${kind}-class`);
       if (cls !== undefined) otherClasses.push(cls);
-      return "";
-    },
-  );
+    });
+  }
 
   const uri = field(text, "uri");
   return {
@@ -88,40 +58,94 @@ export function parseTld(source: string): ParsedTld {
   };
 }
 
+function readTldTag(body: string): TldTag | undefined {
+  const attributes: DeclaredAttribute[] = [];
+  const own = removeBlocks(body, "attribute", (attr) => {
+    const name = field(attr, "name");
+    if (name !== undefined) {
+      attributes.push({
+        name,
+        required: field(attr, "required")?.toLowerCase() === "true",
+      });
+    }
+  });
+  const name = field(own, "name");
+  if (name === undefined) return undefined;
+  const tagClass = field(own, "tag-class");
+  const teiClass = field(own, "tei-class");
+  return {
+    name,
+    ...(tagClass !== undefined ? { tagClass } : {}),
+    ...(teiClass !== undefined ? { teiClass } : {}),
+    attributes,
+    dynamicAttributes: field(own, "dynamic-attributes")?.toLowerCase() === "true",
+  };
+}
+
 export function parseWebXml(source: string): ParsedWebXml {
   const text = stripXmlComments(source);
   const propertyGroups: JspPropertyGroup[] = [];
-  for (const m of text.matchAll(
-    /<jsp-property-group>([\s\S]*?)<\/jsp-property-group>/g,
-  )) {
-    const body = m[1]!;
+  removeBlocks(text, "jsp-property-group", (body) => {
     const preludes = fields(body, "include-prelude");
     const codas = fields(body, "include-coda");
-    if (preludes.length === 0 && codas.length === 0) continue;
+    if (preludes.length === 0 && codas.length === 0) return;
     propertyGroups.push({ urlPatterns: fields(body, "url-pattern"), preludes, codas });
-  }
+  });
   const taglibs: ParsedWebXml["taglibs"] = [];
-  for (const m of text.matchAll(/<taglib>([\s\S]*?)<\/taglib>/g)) {
-    const uri = field(m[1]!, "taglib-uri");
-    const location = field(m[1]!, "taglib-location");
+  removeBlocks(text, "taglib", (body) => {
+    const uri = field(body, "taglib-uri");
+    const location = field(body, "taglib-location");
     if (uri !== undefined && location !== undefined) taglibs.push({ uri, location });
-  }
+  });
   return { propertyGroups, taglibs };
 }
 
+/** Comments removed; an unterminated one runs to the end, as in XML. */
 function stripXmlComments(source: string): string {
-  return source.replace(/<!--[\s\S]*?-->/g, "");
-}
-
-function field(body: string, name: string): string | undefined {
-  const m = new RegExp(`<${name}>\\s*([^<]*?)\\s*</${name}>`).exec(body);
-  return m === null || m[1] === "" ? undefined : m[1];
-}
-
-function fields(body: string, name: string): string[] {
-  const out: string[] = [];
-  for (const m of body.matchAll(new RegExp(`<${name}>\\s*([^<]*?)\\s*</${name}>`, "g"))) {
-    if (m[1] !== "") out.push(m[1]!);
+  let out = "";
+  let k = 0;
+  for (;;) {
+    const open = source.indexOf("<!--", k);
+    if (open < 0) return out + source.slice(k);
+    out += source.slice(k, open);
+    const close = source.indexOf("-->", open + 4);
+    if (close < 0) return out;
+    k = close + 3;
   }
+}
+
+/**
+ * Hand each `<tag>…</tag>` body to `visit`, and return the text with
+ * those elements removed. Linear: each search starts where the last one
+ * ended, and an unclosed element ends the walk.
+ */
+function removeBlocks(text: string, tag: string, visit: (body: string) => void): string {
+  const open = `<${tag}>`;
+  const close = `</${tag}>`;
+  let out = "";
+  let k = 0;
+  for (;;) {
+    const start = text.indexOf(open, k);
+    if (start < 0) return out + text.slice(k);
+    const end = text.indexOf(close, start + open.length);
+    if (end < 0) return out + text.slice(k);
+    out += text.slice(k, start);
+    visit(text.slice(start + open.length, end));
+    k = end + close.length;
+  }
+}
+
+/** Trimmed text of the first `<name>` element, if it has any. */
+function field(body: string, name: string): string | undefined {
+  return fields(body, name, 1)[0];
+}
+
+function fields(body: string, name: string, max = Number.POSITIVE_INFINITY): string[] {
+  const out: string[] = [];
+  removeBlocks(body, name, (inner) => {
+    if (out.length >= max || inner.includes("<")) return;
+    const value = inner.trim();
+    if (value !== "") out.push(value);
+  });
   return out;
 }

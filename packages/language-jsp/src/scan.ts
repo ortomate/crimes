@@ -30,10 +30,14 @@ import type {
 const PREFIXED_NAME = /([A-Za-z_][\w-]*):([A-Za-z_][\w.-]*)/y;
 const CLOSING_TAG = /<\/([A-Za-z_][\w-]*):([A-Za-z_][\w.-]*)\s*>/y;
 const DIRECTIVE_NAME = /\s*([A-Za-z][\w.-]*)/y;
-const QUALIFIED_NAME = /\b[a-z_][\w]*(?:\.[a-z_][\w]*)+(?:\.[A-Z][\w]*)+/g;
-const EL_FUNCTION = /([A-Za-z_][\w-]*):([A-Za-z_][\w]*)\s*\(/g;
-/** Longest attribute section a start tag may have before we give up on it. */
+// Both start only where a name run starts, so a long run of word
+// characters is tried once rather than from every position inside it.
+const QUALIFIED_NAME = /(?<![\w.])[a-z_]\w*(?:\.[a-z_]\w*)+(?:\.[A-Z]\w*)+/g;
+const EL_FUNCTION = /(?<![\w-])([A-Za-z_][\w-]*):([A-Za-z_]\w*)\s*\(/g;
+/** Longest start tag or directive the scanner reads before giving up on it. */
 const MAX_TAG_LENGTH = 64 * 1024;
+/** Deepest element nesting tracked; deeper (unclosed) elements fall off the bottom. */
+const MAX_OPEN_ELEMENTS = 256;
 
 export function jspKindFor(absolutePath: string): JspFileKind {
   const lower = absolutePath.toLowerCase();
@@ -52,6 +56,11 @@ export function parseJspFile(input: ParseJspInput): ParsedJspFile {
   const qualified = new Set<string>();
   const elFunctions = new Map<string, { prefix: string; name: string }>();
   const open: JspElement[] = [];
+  // Characters spent on start tags that turned out not to close. Each
+  // failure can cost up to MAX_TAG_LENGTH, so without a budget a file of
+  // unclosed `<x:a "` would scan quadratically. Past it, prefixed
+  // elements are no longer read; directives and scriptlets still are.
+  let failureBudget = 2 * source.length + MAX_TAG_LENGTH;
 
   const noteEl = (text: string): void => {
     if (!text.includes("{")) return;
@@ -106,6 +115,10 @@ export function parseJspFile(input: ParseJspInput): ParsedJspFile {
       }
       continue;
     }
+    if (failureBudget <= 0) {
+      i = lt + 1;
+      continue;
+    }
     PREFIXED_NAME.lastIndex = lt + 1;
     const name = PREFIXED_NAME.exec(source);
     const after = name === null ? "" : (source[lt + 1 + name[0].length] ?? "");
@@ -114,7 +127,8 @@ export function parseJspFile(input: ParseJspInput): ParsedJspFile {
       continue;
     }
     const tag = readAttributes(source, lt + 1 + name[0].length);
-    if (tag === undefined) {
+    if (typeof tag === "number") {
+      failureBudget -= tag - lt;
       i = lt + 1;
       continue;
     }
@@ -146,7 +160,10 @@ export function parseJspFile(input: ParseJspInput): ParsedJspFile {
           owner.childAttributes.push(attrName.value.trim());
         }
       }
-      if (!tag.selfClosing) open.push(element);
+      if (!tag.selfClosing) {
+        open.push(element);
+        if (open.length > MAX_OPEN_ELEMENTS) open.shift();
+      }
     }
     i = textStart = tag.end;
   }
@@ -189,13 +206,21 @@ function readDirective(body: string, line: number): JspDirective | undefined {
   const m = DIRECTIVE_NAME.exec(body);
   if (m === null) return undefined;
   const attrs = readAttributes(`${body.slice(m[0].length)}>`, 0);
-  return { name: m[1]!, attributes: attrs?.attributes ?? [], line };
+  return {
+    name: m[1]!,
+    attributes: typeof attrs === "number" ? [] : attrs.attributes,
+    line,
+  };
 }
 
-/** End of a directive: the first `%>` outside a quoted value. */
+/**
+ * End of a directive: the first `%>` outside a quoted value, or the first
+ * `%>` at all when quotes do not balance within bounds.
+ */
 function directiveEnd(source: string, from: number): number {
   let quote: string | undefined;
-  for (let k = from; k < source.length - 1; k += 1) {
+  const limit = Math.min(source.length - 1, from + MAX_TAG_LENGTH);
+  for (let k = from; k < limit; k += 1) {
     const c = source[k];
     if (quote !== undefined) {
       if (c === "\\") k += 1;
@@ -211,14 +236,15 @@ function directiveEnd(source: string, from: number): number {
 
 /**
  * Read `name="value"` pairs from `from` to the end of a start tag.
- * Returns undefined when the tag never closes within bounds or a `<`
- * appears where an attribute should be — the mark of text that only
- * looked like a tag.
+ * Fails when the tag never closes within bounds or a `<` appears where an
+ * attribute should be — the mark of text that only looked like a tag —
+ * and then returns the offset it had read to, so callers can account for
+ * the cost.
  */
 function readAttributes(
   source: string,
   from: number,
-): { attributes: JspAttribute[]; selfClosing: boolean; end: number } | undefined {
+): { attributes: JspAttribute[]; selfClosing: boolean; end: number } | number {
   const attributes: JspAttribute[] = [];
   const limit = Math.min(source.length, from + MAX_TAG_LENGTH);
   let k = from;
@@ -231,7 +257,7 @@ function readAttributes(
     if (c === ">") return { attributes, selfClosing: false, end: k + 1 };
     if (c === "/" && source[k + 1] === ">")
       return { attributes, selfClosing: true, end: k + 2 };
-    if (c === "<" || c === '"' || c === "'" || c === "=") return undefined;
+    if (c === "<" || c === '"' || c === "'" || c === "=") return k;
     const nameStart = k;
     while (k < limit && !/[\s=/>"'<]/.test(source[k]!)) k += 1;
     const name = source.slice(nameStart, k);
@@ -250,7 +276,7 @@ function readAttributes(
     const quote = source[k];
     if (quote === '"' || quote === "'") {
       const end = quotedValueEnd(source, k + 1, quote, limit);
-      if (end < 0) return undefined;
+      if (end < 0) return limit;
       const value = source.slice(k + 1, end);
       attributes.push({ name, value, dynamic: isDynamic(value) });
       k = end + 1;
@@ -262,7 +288,7 @@ function readAttributes(
       attributes.push({ name, value, dynamic: isDynamic(value) });
     }
   }
-  return undefined;
+  return limit;
 }
 
 /** Index of the closing quote, stepping over EL, expressions and escapes. */
@@ -285,8 +311,8 @@ function quotedValueEnd(
       continue;
     }
     if (c === "<" && source.startsWith("<%=", k)) {
-      const end = source.indexOf("%>", k + 3);
-      if (end < 0 || end >= limit) return -1;
+      const end = indexWithin(source, "%>", k + 3, limit);
+      if (end < 0) return -1;
       k = end + 2;
       continue;
     }
@@ -339,6 +365,20 @@ function elSpans(text: string): string[] {
 
 function isDynamic(value: string): boolean {
   return value.includes("${") || value.includes("#{") || value.includes("<%=");
+}
+
+/** `indexOf` that never reads past `limit`. */
+function indexWithin(
+  source: string,
+  needle: string,
+  from: number,
+  limit: number,
+): number {
+  const last = limit - needle.length;
+  for (let k = from; k <= last; k += 1) {
+    if (source.startsWith(needle, k)) return k;
+  }
+  return -1;
 }
 
 function indexOrEnd(source: string, needle: string, from: number): number {

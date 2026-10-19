@@ -195,3 +195,39 @@ describe("parseWebXml", () => {
     });
   });
 });
+
+describe("parseJspFile on hostile input", () => {
+  // Each shape used to cost a full bounded scan per occurrence; together
+  // they would take minutes at this size if any path were quadratic.
+  const shapes: [string, string][] = [
+    ["EL left open inside attribute values", '<x:a b="${'],
+    ["unclosed expressions in attributes", '<x:a b="<%= '],
+    ["unbalanced directive quotes", '<%@ page a="%>'],
+    ["unclosed elements", "<x:a>"],
+    ["long name runs", `${"a".repeat(2000)}.b `],
+  ];
+  for (const [label, unit] of shapes) {
+    it(`stays linear on ${label}`, () => {
+      const source = unit.repeat(Math.ceil(400_000 / unit.length));
+      const started = performance.now();
+      parseJspFile({ absolutePath: "/x.jsp", source });
+      expect(performance.now() - started).toBeLessThan(2000);
+    });
+  }
+});
+
+describe("descriptors on hostile input", () => {
+  const shapes: [string, (s: string) => unknown, string][] = [
+    ["unterminated comments", parseTld, "<!-- "],
+    ["unclosed tag elements", parseTld, "<tag><name>"],
+    ["whitespace-only fields", parseWebXml, `<taglib-uri>${" ".repeat(64)}`],
+  ];
+  for (const [label, parse, unit] of shapes) {
+    it(`stays linear on ${label}`, () => {
+      const source = unit.repeat(Math.ceil(400_000 / unit.length));
+      const started = performance.now();
+      parse(source);
+      expect(performance.now() - started).toBeLessThan(2000);
+    });
+  }
+});
