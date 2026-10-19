@@ -1,6 +1,7 @@
 import type { Detector } from "../../detector.js";
 import type { PreFinding as Finding, Severity } from "../../finding.js";
 import { classifyScope } from "../../util/scope-class.js";
+import { scaleRecordedOnly } from "../direct-date.js";
 import { intrinsicFor, lineList, severityScore } from "../py/shared.js";
 import type { LanguageProfile, StructuredContext, StructuredPack } from "./surface.js";
 
@@ -77,12 +78,10 @@ export function makeDirectDateDetector<P extends StructuredPack>(
         scores: {
           severity: severityScore(severity),
           confidence: 0.9,
-          agent_risk: intrinsicFor({
-            count: hits.length,
-            base: 0.45,
-            step: 0.07,
-            cap: 0.85,
-          }),
+          agent_risk: scaleRecordedOnly(
+            intrinsicFor({ count: hits.length, base: 0.45, step: 0.07, cap: 0.85 }),
+            compared.length,
+          ),
         },
         suggested_actions: [
           { kind: "inject_clock", description: cfg.injectAdvice, risk: "low" },

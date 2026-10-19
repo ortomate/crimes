@@ -16,6 +16,8 @@ import {
 import { applyEmptyReasons, buildClues } from "./context-clues.js";
 import { safeRealpath } from "./util/realpath.js";
 import { findLikelyTests } from "./context-likely-tests.js";
+import { collectCoChanges } from "./git/co-change.js";
+import { isTestFile } from "./util/test-files.js";
 import type { ContextRelatedFile } from "./context-related-files.js";
 import { findRelatedFiles } from "./context-related-files.js";
 import type { Detector } from "./detector.js";
@@ -269,13 +271,22 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   );
   assignIdsAndFingerprints(findings);
 
-  const likely_tests = await findLikelyTests({
+  const graphTests = await findLikelyTests({
     root,
     fileRel,
     targetAbs,
     allFiles,
     imports,
   });
+  // Tests that keep changing with this file are likely its tests, whatever
+  // they are called. Listed after the name- and import-matched ones.
+  const coChange = await collectCoChanges({ root, fileRel });
+  const likely_tests = [
+    ...graphTests,
+    ...coChange.files
+      .map((c) => c.file)
+      .filter((f) => isTestFile(f) && !graphTests.includes(f)),
+  ];
 
   // Repo-relative POSIX paths for every discovered file — the
   // related-files helper works in that vocabulary so it can compare
@@ -288,6 +299,8 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     findings,
     likelyTests: likely_tests,
     imports,
+    coChanges: coChange.files,
+    coChangeWindow: coChange.inspected,
   });
 
   const agent_guidance = buildGuidance(findings, related_files);

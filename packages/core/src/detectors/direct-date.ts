@@ -112,7 +112,10 @@ export const directDateDetector: LanguageJsDetector = {
         // The nearest JS hazard is `new Date("2026-12-20")`, where the
         // *string* decides UTC-or-local. That is a different operation
         // and already has its own charge, `timezone_unsafe_parse`.
-        agent_risk: intrinsicFrom(hits.length, { base: 0.45, step: 0.07, cap: 0.85 }),
+        agent_risk: scaleRecordedOnly(
+          intrinsicFrom(hits.length, { base: 0.45, step: 0.07, cap: 0.85 }),
+          compared.length,
+        ),
       },
       suggested_actions: [
         {
@@ -128,6 +131,25 @@ export const directDateDetector: LanguageJsDetector = {
     return [finding];
   },
 };
+
+/**
+ * How much of the clock-read intrinsic a file keeps when none of its
+ * readings decides anything.
+ *
+ * Severity already capped such files at medium, but ranking reads
+ * `agent_risk`, which counted every reading alike. On a private
+ * Java/Kotlin/Swift estate 75% of clock-read findings were record-only —
+ * `setCreated(new Date())` and timestamp columns — and they filled six to
+ * eight of the top ten places in each JVM repository, above swallowed
+ * errors in payment and persistence code. Shared with the Java, Kotlin
+ * and Swift detector so the packs rank the same evidence the same way.
+ */
+export const RECORDED_ONLY_CLOCK_SCALE = 0.6;
+
+export function scaleRecordedOnly(intrinsic: number, comparedCount: number): number {
+  if (comparedCount > 0) return intrinsic;
+  return Math.round(intrinsic * RECORDED_ONLY_CLOCK_SCALE * 100) / 100;
+}
 
 function pickSeverity(count: number, comparedCount: number): Severity {
   // A single use is noise. Two or more direct clock reads in one file is a

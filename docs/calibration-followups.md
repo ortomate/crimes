@@ -1077,3 +1077,26 @@ or tightening the structured-surface detectors in
   both sides, as Python's benchmark exemption is. In a test class that
   extends another, an unresolved no-receiver call gets the benefit of the
   doubt as a possible inherited assertion helper; the evidence counts them.
+
+## 0.29.11: record-only clock reads rank lower; briefings use co-change
+
+- **`direct_date`, JS and structured packs:** a file whose readings only
+  record or render (`setCreated(new Date())`, timestamp columns) keeps
+  `RECORDED_ONLY_CLOCK_SCALE` (0.6) of the ladder's intrinsic. Severity
+  already capped those files at medium; ranking reads `agent_risk`, which
+  did not distinguish them, so on a private Java/Kotlin/Swift estate
+  clock reads (75% record-only) filled six to eight of each JVM
+  repository's top ten. The ladder literals are unchanged, so the
+  cross-pack parity gate still compares like with like. Python has no
+  decide/record split yet and is unaffected.
+- **Commented-out code on Swift is left alone, deliberately.** On the iOS
+  repository it fills six of the top ten. That follows the 0.25.9 ladder
+  (0.45–0.60, an agent signal: dormant code gets revived) meeting long
+  blocks in large controllers and few strong Swift signals; it is not a
+  Swift-specific error. Changing it is a JS decision too.
+- **`context` related files and likely tests read git history.** Files
+  changed in the same commits as the target (≥2 of its last 40 non-merge
+  commits, sweeps of 40+ files excluded) get up to four of the ten
+  related-file places, and co-changed test files join likely tests. On 82
+  replayed commits this roughly doubled how often a briefing named the
+  files the change went on to touch. See `git/co-change.ts`.

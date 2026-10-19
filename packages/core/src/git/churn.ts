@@ -196,7 +196,7 @@ interface SpawnResult {
   stdout: string;
 }
 
-function runGit(root: string, args: string[]): Promise<SpawnResult> {
+export function runGit(root: string, args: string[]): Promise<SpawnResult> {
   return new Promise((resolvePromise, reject) => {
     // `spawn` with an args array does not invoke a shell, so the `since`
     // string can't be interpreted as a command.
@@ -317,7 +317,7 @@ export async function collectChurn(
  * the callers below already degrade to `gitAvailable: false`, and
  * failing to resolve is not a reason to lose the non-symlinked case.
  */
-function resolveRealPath(path: string): string {
+export function resolveRealPath(path: string): string {
   try {
     return realpathSync(path);
   } catch {
@@ -331,7 +331,7 @@ function resolveRealPath(path: string): string {
  * treated as outside the repo and return the empty string — that
  * should be impossible given the upward walk, but stays defensive.
  */
-function toPosixRelative(gitRoot: string, target: string): string {
+export function toPosixRelative(gitRoot: string, target: string): string {
   const rel = relative(resolve(gitRoot), resolve(target));
   if (rel.length === 0) return "";
   if (rel.startsWith("..")) return "";
@@ -344,7 +344,7 @@ function toPosixRelative(gitRoot: string, target: string): string {
  * scan directory (empty when scan root == git root). Returns
  * `undefined` when the file is outside `scanPath`.
  */
-function rebaseChurnFile(file: string, scanPath: string): string | undefined {
+export function rebaseChurnFile(file: string, scanPath: string): string | undefined {
   if (scanPath.length === 0) return file;
   if (file === scanPath) return "";
   const prefix = `${scanPath}/`;

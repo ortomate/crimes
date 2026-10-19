@@ -288,4 +288,17 @@ describe("directDateDetector — clock read vs conversion", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]!.evidence[0]).toBe("1× Date.now()");
   });
+
+  it("ranks a file whose readings only record below one whose readings decide", async () => {
+    const recorded = await directDateDetector.run(
+      makeParsedCtx("export const a = { created: new Date(), at: Date.now() };\n"),
+    );
+    const compared = await directDateDetector.run(
+      makeParsedCtx(
+        "export function late(d: number) { const x = new Date(); return Date.now() > d; }\n",
+      ),
+    );
+    expect(recorded[0]!.scores.agent_risk).toBeLessThan(compared[0]!.scores.agent_risk!);
+    expect(recorded[0]!.scores.agent_risk).toBe(0.31);
+  });
 });

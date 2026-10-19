@@ -81,7 +81,23 @@ export interface FindRelatedFilesOptions {
   /** Files already surfaced as likely tests — excluded so we don't double-count. */
   likelyTests: readonly string[];
   imports?: ImportGraph | undefined;
+  /**
+   * Files that changed in the same commits as the target, most first
+   * (`git/co-change.ts`). Up to {@link CO_CHANGE_SLOTS} of them are
+   * guaranteed a place, so a class with hundreds of importers cannot push
+   * out the files a change to it usually touches.
+   */
+  coChanges?: readonly { file: string; commits: number }[];
+  /** How many of the target's commits `coChanges` was counted over. */
+  coChangeWindow?: number;
 }
+
+/**
+ * Related-file places reserved for history. Four of ten: enough to carry
+ * the cross-layer files imports cannot see, while graph edges keep the
+ * majority.
+ */
+export const CO_CHANGE_SLOTS = 4;
 
 /**
  * Run all enabled heuristics and return a ranked, capped, deduplicated
@@ -173,7 +189,21 @@ export function findRelatedFiles(options: FindRelatedFilesOptions): ContextRelat
     }
   }
 
-  return [...accumulator.entries()]
+  // History: files changed with the target in at least two recent
+  // commits. Weighted by how often, below a proven import edge.
+  const window = options.coChangeWindow ?? 0;
+  const historyFiles = new Set<string>();
+  for (const { file, commits } of options.coChanges ?? []) {
+    if (file === fileRel || likelyTestSet.has(file)) continue;
+    historyFiles.add(file);
+    add(
+      file,
+      `changed with this file in ${commits} of its last ${window} commits`,
+      Math.min(0.85, 0.5 + 0.07 * commits),
+    );
+  }
+
+  const ranked = [...accumulator.entries()]
     .map(
       ([file, { reasons, score }]): ContextRelatedFile => ({
         file,
@@ -186,8 +216,20 @@ export function findRelatedFiles(options: FindRelatedFilesOptions): ContextRelat
       const as = a.score ?? 0;
       if (bs !== as) return bs - as;
       return a.file.localeCompare(b.file);
-    })
-    .slice(0, RELATED_FILES_CAP);
+    });
+
+  // Reserve places for history, in the order git gave it (most often
+  // first), then fill the rest by score.
+  const reserved = (options.coChanges ?? [])
+    .map((c) => c.file)
+    .filter((f) => historyFiles.has(f))
+    .slice(0, CO_CHANGE_SLOTS);
+  const chosen = new Set(reserved);
+  for (const entry of ranked) {
+    if (chosen.size >= RELATED_FILES_CAP) break;
+    chosen.add(entry.file);
+  }
+  return ranked.filter((entry) => chosen.has(entry.file));
 }
 
 /**
