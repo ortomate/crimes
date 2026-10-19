@@ -142,10 +142,15 @@ function detectorsWithoutExpressedIntrinsic(): string[] {
   for (const d of [...builtInDetectors, ...builtInAssetDetectors]) {
     // Match the detector to its source by the `id:` literal it declares,
     // so a rename cannot silently drop a detector out of this gate.
-    const owning = [...sources.values()].filter((src) =>
-      new RegExp(`id:\\s*["'\`]${d.id.replace(/[.*+?^$()|[\]\\]/g, "\\$&")}["'\`]`).test(
-        src,
-      ),
+    // Structured-surface detectors are built by a factory per language,
+    // so their source declares `id: \`large_function.${profile.suffix}\``.
+    const base = d.id.replace(/\.[a-z]+$/, "").replace(/[.*+?^$()|[\]\\]/g, "\\$&");
+    const factoryId = new RegExp(`id:\\s*\`${base}\\.\\$\\{profile\\.suffix\\}\``);
+    const owning = [...sources.values()].filter(
+      (src) =>
+        new RegExp(
+          `id:\\s*["'\`]${d.id.replace(/[.*+?^$()|[\]\\]/g, "\\$&")}["'\`]`,
+        ).test(src) || factoryId.test(src),
     );
     if (owning.length === 0) {
       throw new Error(
