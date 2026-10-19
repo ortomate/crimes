@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "tsup";
 // @ts-expect-error -- plain .mjs build helper owned by @crimes/language-py.
 import { copyWasmAssets } from "../language-py/scripts/copy-wasm.mjs";
+// @ts-expect-error -- plain .mjs build helper owned by @crimes/language-java.
+import { copyJavaWasmAssets } from "../language-java/scripts/copy-wasm.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(here, "package.json"), "utf8")) as {
@@ -52,5 +54,8 @@ export default defineConfig({
   // makes the published single-file CLI able to parse Python at all.
   async onSuccess() {
     copyWasmAssets(resolve(here, "dist"));
+    // The Java grammar travels the same way; the runtime blob above is
+    // shared by both packs.
+    copyJavaWasmAssets(resolve(here, "dist"));
   },
 });

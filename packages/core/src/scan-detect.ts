@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { looksMinifiedSource } from "./util/scope-class.js";
 import { relative, sep } from "node:path";
 import { parseFile } from "@crimes/language-js";
+import { parseJavaFile } from "@crimes/language-java";
 import { parsePyFile } from "@crimes/language-py";
 import type { CrimesConfig } from "./config.js";
 import type {
@@ -12,6 +13,7 @@ import type {
   Detector,
   LanguageJsDetectorContext,
   LanguagePyDetectorContext,
+  LanguageJavaDetectorContext,
   PackedFile,
 } from "./detector.js";
 import { groupDetectorsByPack } from "./detector-registry.js";
@@ -434,6 +436,41 @@ export async function runDetectorsForFile(args: {
       absolutePath: args.absolutePath,
       parsed,
     });
+  }
+
+  // Language-java pack. Same shape as the Python branch. Java takes no
+  // part in the cross-language pass yet, so it parses only when it has
+  // detectors to run.
+  const javaDetectors = args.grouped["language-java"] ?? [];
+  if (
+    javaDetectors.length > 0 &&
+    args.langPack.claims("language-java", args.absolutePath)
+  ) {
+    const source = args.indexes.inputs
+      ? await args.indexes.inputs.read(args.absolutePath)
+      : await readFile(args.absolutePath, "utf8");
+    const parsed = args.indexes.inputs
+      ? await args.indexes.inputs.java(args.absolutePath, source)
+      : await profileAsync("parse.detector-java", () =>
+          parseJavaFile({ absolutePath: args.absolutePath, source }),
+        );
+    if (parsed.hasSyntaxErrors) {
+      args.indexes.warnings?.record("files_partial_parse", "language-java", { file });
+    }
+    const javaCtx: LanguageJavaDetectorContext = {
+      kind: "language-java",
+      file,
+      absolutePath: args.absolutePath,
+      source,
+      parsed,
+      config: args.config,
+      imports: args.indexes.imports,
+      scoring: args.indexes.scoring,
+    };
+    for (const detector of javaDetectors) {
+      const detectorFindings = await detector.run(javaCtx);
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
+    }
   }
 
   return findings;

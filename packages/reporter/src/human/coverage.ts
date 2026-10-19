@@ -4,6 +4,7 @@ import { isSkippedWorkKind, isUnmatchedPinKind, type ScanReport } from "@crimes/
 const PACK_LABELS: Record<string, string> = {
   js: "language-js (.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts)",
   py: "language-py (.py/.pyi)",
+  java: "language-java (.java)",
 };
 
 /**

@@ -11,7 +11,14 @@
 //
 // Run with: `pnpm --filter crimes smoke` (or `pnpm -F crimes run smoke`).
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -325,6 +332,43 @@ try {
       `${pyFindings.length} language-py findings, ` +
       `packs=${pyReport.coverage.packs_loaded.join("+")}\n`,
   );
+
+  // Same packaging risk for the Java pack: its grammar is a separate WASM
+  // blob copied beside the bundle. Written inline rather than kept as an
+  // eval fixture, so it cannot move the evaluation baseline.
+  step("crimes scan on a Java fixture (exercises the vendored Java grammar)");
+  const javaRoot = mkdtempSync(join(tmp, "java-"));
+  const javaFiles = {
+    "src/main/java/com/acme/om/Film.java":
+      "package com.acme.om;\npublic class Film {\n  public void sync() {\n" +
+      Array.from({ length: 70 }, (_, i) => `    step${i}();`).join("\n") +
+      "\n  }\n}\n",
+    "src/main/java/com/acme/om/Review.java":
+      "package com.acme.om;\npublic class Review { private Film film; }\n",
+  };
+  for (const [rel, source] of Object.entries(javaFiles)) {
+    const abs = join(javaRoot, rel);
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, source);
+  }
+  const javaReport = JSON.parse(
+    run(installedBin, ["scan", javaRoot, "--format", "json"]).stdout,
+  );
+  assert(
+    (javaReport.coverage?.files_by_language?.java ?? 0) === 2,
+    "java scan: coverage.files_by_language.java is not 2 — the pack claimed no files",
+  );
+  const javaFindings = javaReport.findings.filter((f) => f.pack === "language-java");
+  assert(
+    javaFindings.length > 0,
+    "java scan: no language-java findings — the grammar probably failed to load",
+  );
+  // Review uses Film with no import; only the same-package resolver sees it.
+  assert(
+    javaFindings.some((f) => (f.scores?.blast_radius_direct_importers ?? 0) > 0),
+    "java scan: Film has no importers — same-package resolution produced nothing",
+  );
+  process.stdout.write(`  → ${javaFindings.length} language-java findings\n`);
 
   process.stdout.write(`\n✓ smoke test passed (crimes@${expectedVersion})\n`);
 } finally {

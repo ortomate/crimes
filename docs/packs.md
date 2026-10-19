@@ -12,6 +12,11 @@ read. Each finding carries a `pack` field identifying its origin pack.
   (TypeScript-ESTree). Runs only on `.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts`.
 - **`language-py`** (0.14.0): Requires AST parsing via
   `@crimes/language-py` (tree-sitter-python). Runs only on `.py/.pyi`.
+- **`language-java`** (0.29.6): Requires AST parsing via
+  `@crimes/language-java` (tree-sitter-java). Runs only on `.java`. Its
+  import graph adds same-package edges, which Java resolves without an
+  `import`. Ships `large_function.java`, `swallowed_error.java`,
+  `direct_date.java` and `weak_test_signal.java`.
 - **`cross-language`** (0.15.0): Requires aligning artefacts from
   two or more language packs. Runs once per scan, after every per-pack
   pass.

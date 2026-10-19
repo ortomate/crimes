@@ -90,11 +90,11 @@ const MAX_FINDINGS_PER_FILE = 8;
  * purpose". Recognised because a codebase that documents its best-effort
  * paths should not be nagged about them.
  */
-const DELIBERATE_RE =
+export const DELIBERATE_RE =
   /\b(best[- ]effort|fire[- ]and[- ]forget|non[- ]critical|optional|advisory|cleanup|clean[- ]up|teardown|shutdown|dispose|ignore[ds]? (?:on purpose|deliberately|intentionally)|deliberately|intentionally|safe to ignore|not fatal|never fatal)\b/i;
 
 /** Enclosing-function names where suppression is conventional. */
-const CLEANUP_FUNCTION_RE =
+export const CLEANUP_FUNCTION_RE =
   /^(cleanup|clean|teardown|tearDown|dispose|destroy|close|shutdown|stop|finalize|finalise|unmount|abort)/i;
 
 /**
@@ -106,7 +106,7 @@ const CLEANUP_FUNCTION_RE =
  * down-rank: the author declared the contract in the name, and every
  * caller reads it there.
  */
-const BEST_EFFORT_FUNCTION_RE =
+export const BEST_EFFORT_FUNCTION_RE =
   /^(safely|try|maybe|attempt|best[Ee]ffort|optional|soft|quiet|silent)[A-Z_]|(?:OrNull|OrUndefined|OrDefault|OrEmpty|IfPossible|Safe)$/;
 
 export const swallowedErrorDetector: LanguageJsDetector = {

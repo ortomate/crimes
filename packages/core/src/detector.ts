@@ -1,4 +1,5 @@
 import type { ParsedFile } from "@crimes/language-js";
+import type { ParsedJavaFile } from "@crimes/language-java";
 import type { ParsedPyFile } from "@crimes/language-py";
 import type { z } from "zod";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
@@ -113,6 +114,10 @@ export type Detector =
       run(ctx: LanguagePyDetectorContext): Promise<PreFinding[]> | PreFinding[];
     })
   | (BaseDetector & {
+      pack: "language-java";
+      run(ctx: LanguageJavaDetectorContext): Promise<PreFinding[]> | PreFinding[];
+    })
+  | (BaseDetector & {
       pack: "cross-language";
       run(ctx: CrossLanguageDetectorContext): Promise<PreFinding[]> | PreFinding[];
     });
@@ -137,6 +142,9 @@ export type LanguageJsDetector = Extract<Detector, { pack: "language-js" }>;
  * tests and in the language-py scan pipeline.
  */
 export type LanguagePyDetector = Extract<Detector, { pack: "language-py" }>;
+
+/** Convenience alias for the language-java branch of the `Detector` union. */
+export type LanguageJavaDetector = Extract<Detector, { pack: "language-java" }>;
 
 /**
  * Convenience alias for the cross-language branch of the `Detector`
@@ -245,6 +253,7 @@ export type DetectorContext =
   | UniversalDetectorContext
   | LanguageJsDetectorContext
   | LanguagePyDetectorContext
+  | LanguageJavaDetectorContext
   | CrossLanguageDetectorContext;
 
 /**
@@ -487,6 +496,32 @@ export interface LanguagePyDetectorContext {
    * finalisation happens after `run()` returns, so detectors rarely need
    * to read it directly.
    */
+  scoring?: ScoringContext;
+}
+
+/**
+ * Per-file context for the Java pack.
+ *
+ * Carries only what Java has: the parsed surface, the shared import
+ * graph (with Java's same-package edges merged in), and scoring. No
+ * symbol index yet — `weak_test_signal.java` follows helpers within the
+ * file only, and says so in its evidence.
+ */
+export interface LanguageJavaDetectorContext {
+  kind: "language-java";
+  /** Repo-relative path with forward slashes. */
+  file: string;
+  /** Absolute path on disk. */
+  absolutePath: string;
+  /** Raw file source. */
+  source: string;
+  /** Parsed Java surface — see `@crimes/language-java`. */
+  parsed: ParsedJavaFile;
+  /** Resolved config (already merged with defaults). */
+  config: CrimesConfig;
+  /** Optional repo-level import graph. Absent in unit-test stubs. */
+  imports?: ImportGraph;
+  /** Optional per-file scoring context. */
   scoring?: ScoringContext;
 }
 

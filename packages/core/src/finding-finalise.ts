@@ -5,6 +5,7 @@ const PACK_SUFFIX: Record<Pack, string | null> = {
   universal: null,
   "language-js": "js",
   "language-py": "py",
+  "language-java": "java",
   "cross-language": "x",
 };
 

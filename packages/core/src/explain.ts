@@ -152,7 +152,7 @@ function resolveDetectorFor(finding: Finding) {
     if (exact) return exact;
     // A language-pack finding whose detector declares an unqualified id
     // (the JS pack's historical form): `large_function.js` → `large_function`.
-    const unqualified = qualified.replace(/\.(js|py|x)$/, "");
+    const unqualified = qualified.replace(/\.(js|py|java|x)$/, "");
     const byPack = builtInDetectors.find(
       (d) => d.id === unqualified && d.pack === finding.pack,
     );

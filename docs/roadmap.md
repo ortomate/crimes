@@ -18,6 +18,7 @@ records next outcomes; [strategy](../STRATEGY.md) records the objective;
 | Local scan, JSON and human output | Shipped. Default human view prioritizes five files; JSON retains all visible findings. |
 | TypeScript / JavaScript | Shipped language pack, AST and resolved import graph. |
 | Python | Shipped language pack and packaged parser WASM, including import/test discovery. |
+| Java | Language pack on the shared tree-sitter runtime (0.29.6): import and same-package graph, JUnit test discovery, four detectors. No cross-language or symbol index yet. |
 | Universal and cross-language checks | Shipped; read coverage to distinguish universal checks from parsed language analysis. |
 | Pre-edit context | Shared scan analysis, related-file findings, graph-first neighbors/tests, status and coverage diagnostics in 0.28. |
 | Working sets | `--changed`, `--files`, `--related-to`; full repository analysis supplies cross-file evidence before output selection. |
@@ -46,7 +47,8 @@ These remain available for explicitly scoped reviews.
   still analyzes the repository. See [performance](./performance.md) for
   reproducible timing, memory and unchanged-report checks. No disk cache ships.
 - Homebrew and standalone binaries, with Python WASM parity verification.
-- Further language packs and cross-language import resolution.
+- Further language packs (Kotlin and Swift report as `files_universal_only`)
+  and cross-language import resolution.
 - `crimes ask`, other LLM-assisted modes, hosted services and paid tiers.
 
 The [archived 0.27 sprint](../.planning/archive/SPRINT-0.27.md) records planned

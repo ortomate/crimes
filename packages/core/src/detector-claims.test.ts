@@ -41,6 +41,10 @@ describe("declared detector claims", () => {
       "large_function", // large_function.py also emits `deeply_nested`
       "direct_date", // direct_date.py also emits `naive_datetime`
       "weak_test_signal.py", // weak-test-signal.ts emits the other two
+      // The Java pack labels for the same reason as the Python one.
+      "large_function.java",
+      "direct_date.java",
+      "weak_test_signal.java",
     ]);
     for (const d of allDetectors) {
       if (d.claims === undefined) continue;

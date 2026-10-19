@@ -1,4 +1,5 @@
 import { extname } from "node:path";
+import { JAVA_EXTENSIONS } from "@crimes/language-java";
 import { PY_EXTENSIONS } from "@crimes/language-py";
 import type { Pack } from "../pack.js";
 
@@ -48,6 +49,7 @@ const packExtensions = new Map<Pack, Set<string>>();
 // router here costs a JS-only scan nothing.
 packExtensions.set("language-js", new Set<string>(JS_EXTENSIONS));
 packExtensions.set("language-py", new Set<string>(PY_EXTENSIONS));
+packExtensions.set("language-java", new Set<string>(JAVA_EXTENSIONS));
 
 /**
  * Idempotently register a pack's extension claim list. Subsequent calls

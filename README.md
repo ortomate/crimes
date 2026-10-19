@@ -9,7 +9,7 @@
 `crimes` is a local, deterministic CLI for **change risk and agent risk**.
 It finds duplicated policies, drifting contracts, hidden side effects,
 weak test signals and dependencies an unfamiliar contributor could miss.
-It supports TypeScript, JavaScript and Python, with universal checks for
+It supports TypeScript, JavaScript, Python and Java, with universal checks for
 other files and cross-language checks for polyglot repositories.
 No account, cloud service or LLM is required to run the scanner.
 

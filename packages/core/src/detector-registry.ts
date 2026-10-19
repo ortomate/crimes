@@ -6,6 +6,7 @@ import type {
   CrossLanguageDetector,
   LanguageJsDetector,
   LanguagePyDetector,
+  LanguageJavaDetector,
   UniversalDetector,
 } from "./detector.js";
 import { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
@@ -68,6 +69,7 @@ import { unboundedAsyncFanoutDetector } from "./detectors/unbounded-async-fanout
 import { unsafeRetryDetector } from "./detectors/unsafe-retry.js";
 import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 import { pythonDetectors } from "./detectors/py/index.js";
+import { javaDetectors } from "./detectors/java/index.js";
 import { crossLanguageDetectors } from "./detectors/cross/index.js";
 
 /**
@@ -154,6 +156,7 @@ export const builtInDetectors: Detector[] = [
   // the findings they emit carry the abstract `type` so cross-language
   // grouping still works. See `detectors/py/shared.ts`.
   ...pythonDetectors,
+  ...javaDetectors,
   // Cross-language pack (0.15.0). Run once per scan after every
   // per-language pass, over the whole parsed corpus.
   ...crossLanguageDetectors,
@@ -375,7 +378,7 @@ export function declaredClaimsFor(id: string): readonly string[] {
   // `swallowed_error.js` has to resolve back to `swallowed_error` —
   // without this, looking a finding's own detector up in the registry
   // that produced it returns nothing.
-  const unsuffixed = id.replace(/\.(js|py|x)$/, "");
+  const unsuffixed = id.replace(/\.(js|py|java|x)$/, "");
   return findDeclared(unsuffixed) ?? [];
 }
 
@@ -492,6 +495,7 @@ export interface GroupedDetectors {
   universal?: UniversalDetector[];
   "language-js"?: LanguageJsDetector[];
   "language-py"?: LanguagePyDetector[];
+  "language-java"?: LanguageJavaDetector[];
   "cross-language"?: CrossLanguageDetector[];
 }
 
@@ -523,6 +527,10 @@ export function groupDetectorsByPack(detectors: readonly Detector[]): GroupedDet
       const bucket = grouped["language-py"] ?? [];
       bucket.push(d as LanguagePyDetector);
       grouped["language-py"] = bucket;
+    } else if (d.pack === "language-java") {
+      const bucket = grouped["language-java"] ?? [];
+      bucket.push(d as LanguageJavaDetector);
+      grouped["language-java"] = bucket;
     } else if (d.pack === "cross-language") {
       const bucket = grouped["cross-language"] ?? [];
       bucket.push(d as CrossLanguageDetector);

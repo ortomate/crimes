@@ -17,6 +17,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
+import { buildJavaImportEdges } from "./java.js";
 import { buildPythonImportEdges } from "./python.js";
 import type { PySymbolIndex } from "../py/symbol-index.js";
 import type { ImportEdge, ImportGraph } from "./types.js";
@@ -118,6 +119,18 @@ export async function buildImportGraph(
     if (/\.pyi?$/.test(abs)) files.add(toRepoPath(root, abs));
   }
 
+  // Java edges, including the implicit same-package ones. Every Java file
+  // is a node even when nothing references it.
+  const java = await buildJavaImportEdges({
+    inputs: options.inputs,
+    root,
+    files: options.files,
+    maxFiles,
+    ...(options.warnings !== undefined ? { warnings: options.warnings } : {}),
+  });
+  edges.push(...java.edges);
+  for (const f of java.files) files.add(f);
+
   await Promise.all(
     sourceFiles.map(async (abs) => {
       const fromRel = toRepoPath(root, abs);
@@ -171,12 +184,13 @@ export async function buildImportGraph(
   };
   const aliasPatterns = collectAliasPatterns(root);
   if (aliasPatterns.length > 0) graph.aliasPatterns = aliasPatterns;
-  if (limited || python.limited) {
+  if (limited || python.limited || java.limited) {
     graph.limited = true;
     graph.limitedReason =
       `import graph truncated to first ${maxFiles} source files; ` +
       "rankings should be treated as advisory";
-    const dropped = jsCandidates.length - sourceFiles.length + python.droppedFiles;
+    const dropped =
+      jsCandidates.length - sourceFiles.length + python.droppedFiles + java.droppedFiles;
     options.warnings?.record("index_truncated", "imports", { files: dropped });
   }
   return graph;

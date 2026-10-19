@@ -73,7 +73,7 @@ const llms = `# crimes
 
 Local, deterministic change-risk and agent-risk CLI. MIT. No LLM or cloud required.
 Repository package version: ${version}. Use npm view crimes version to verify the published version.
-JSON schema: ${SCHEMA_VERSION}. TypeScript, JavaScript, Python, cross-language analysis and universal checks.
+JSON schema: ${SCHEMA_VERSION}. TypeScript, JavaScript, Python, Java, cross-language analysis and universal checks.
 
 ## Workflow
 

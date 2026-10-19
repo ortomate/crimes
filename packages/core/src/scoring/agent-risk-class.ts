@@ -262,7 +262,7 @@ export type AgentRiskClass = "structural" | "standard" | "agent_signal";
  */
 export function agentRiskClassOf(type: string | undefined): AgentRiskClass {
   if (typeof type !== "string" || type.length === 0) return "standard";
-  const bare = type.replace(/\.(js|py|x)$/, "");
+  const bare = type.replace(/\.(js|py|java|x)$/, "");
   if (STRUCTURAL_TYPES.has(bare)) return "structural";
   if (AGENT_SIGNAL_TYPES.has(bare)) return "agent_signal";
   return "standard";

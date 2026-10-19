@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { parseFile, type ParsedFile } from "@crimes/language-js";
+import { parseJavaFile, type ParsedJavaFile } from "@crimes/language-java";
 import { parsePyFile, type ParsedPyFile } from "@crimes/language-py";
 import { profileAsync, profileSync } from "./profile.js";
 
@@ -8,6 +9,7 @@ interface Entry {
   source: string;
   js?: ParsedFile;
   py?: ParsedPyFile;
+  java?: ParsedJavaFile;
   bytes: number;
 }
 
@@ -74,6 +76,20 @@ export class AnalysisInputs {
     this.put(path, {
       source,
       py: parsed,
+      bytes: 2 * (source.length + JSON.stringify(parsed).length),
+    });
+    return parsed;
+  }
+
+  async java(path: string, source: string): Promise<ParsedJavaFile> {
+    const cached = this.get(path);
+    if (cached?.source === source && cached.java) return cached.java;
+    const parsed = await profileAsync("input.parse-java", () =>
+      parseJavaFile({ absolutePath: path, source }),
+    );
+    this.put(path, {
+      source,
+      java: parsed,
       bytes: 2 * (source.length + JSON.stringify(parsed).length),
     });
     return parsed;
