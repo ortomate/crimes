@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AssetDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
+import { isSnapshotBaseline } from "../util/snapshot-baselines.js";
 
 const optionsSchema = z
   .object({
@@ -51,6 +52,7 @@ export const oversizedRasterDetector: AssetDetector = {
     for (const a of allowed) {
       if (ctx.file.includes(a)) return [];
     }
+    if (isSnapshotBaseline(ctx.file)) return [];
 
     const weight = ctx.config.thresholds.assetWeight ?? {};
     const lowKb = weight.lowKb ?? DEFAULT_LOW_KB;

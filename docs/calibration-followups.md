@@ -1100,3 +1100,37 @@ or tightening the structured-surface detectors in
   related-file places, and co-changed test files join likely tests. On 82
   replayed commits this roughly doubled how often a briefing named the
   files the change went on to touch. See `git/co-change.ts`.
+
+## 0.30.1: reading public Java, Kotlin and Swift repositories
+
+Scanned three public repositories chosen to become eval fixtures (a Java
+blog server, a Compose Android sample, a UIKit iOS app) and read the
+findings against the code.
+
+- **Screenshot-test baselines are test data.** `oversized_raster` and
+  `raster_should_be_vector` skip images under `__Snapshots__/`,
+  `__image_snapshots__/`, and `screenshots/` or `snapshots/` inside a
+  test tree (`util/snapshot-baselines.ts`). They were 161 of the iOS
+  app's 200 `oversized_raster` findings and every image finding on the
+  Android sample apart from documentation.
+- **`raster_should_be_vector` on iOS asset catalogs.** `.appiconset/`
+  members must be PNGs; `@1x` and Xcode's suffixed variants
+  (`bg@2x~ipad.png`, `icon@2x-1.png`) are a resolution set like `@2x`.
+  A single-scale PNG icon in an `.imageset` is still reported: asset
+  catalogs take PDF and SVG. The iOS app 93 → 24.
+- **`weak_test_signal.kt`: generic and screenshot assertions.**
+  tree-sitter-kotlin reads `assertIs<Success>(x)` as two comparisons, so
+  a test function with no assertion call node falls back to its source
+  text. Roborazzi-style `capture*` helpers and names containing
+  `Screenshot`/`Snapshot` count as assertions; bare `capture()` (a
+  Mockito captor) does not. The Android sample 17 → 1; the survivor
+  scrolls and never checks.
+- **XCTest suites on a project base class.** `final class FormatTests:
+  TestCase` in a file importing XCTest is a test case, so its `test*`
+  methods get the test budget (the iOS app's `large_function.swift`
+  285 → 169). Receiver calls named `assert[A-Z]…` count as assertions
+  (ReactiveSwift `TestObserver.assertValues`); Swift's own `assert(_:)`
+  does not. Two of 95 newly visible silent-test files remain, both
+  genuinely assertion-free.
+- **`swallowed_error`: `ignored2` is still `ignored`.** Java and Kotlin
+  accept a numbered deliberate name for nested handlers.

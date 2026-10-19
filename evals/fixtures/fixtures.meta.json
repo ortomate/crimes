@@ -112,6 +112,27 @@
       "name": "recency",
       "kind": "generated",
       "purpose": "Materialised by evals:setup from 16-recency-template/ (which is committed), with git history built in four age tranches dated relative to RANKING_REFERENCE_DATE. The only fixture where `recency` and `churn` are live signals, and deep enough (34 findings) to count toward mean_ndcg_deep. Its two scenarios test the recency multiplier's premise from both sides: plan-16-checkout-rollout's answer is in the newest tranche, review-16-whole-repo-audit's in the oldest."
+    },
+    {
+      "id": "17",
+      "path": "evals/fixtures/17-jvm-blog-server",
+      "name": "jvm-blog-server",
+      "kind": "oss-clone",
+      "purpose": "Apache Roller, a Java blog server (Struts, JPA) with JSP views and a small JS layer. Exercises the Java pack: swallowed_error at persistence and servlet boundaries, direct_date in entity code, large_function in managers and actions, and the JVM import graph."
+    },
+    {
+      "id": "18",
+      "path": "evals/fixtures/18-kotlin-android",
+      "name": "kotlin-android",
+      "kind": "oss-clone",
+      "purpose": "Now in Android, Google's Compose sample app: a small, well-tested multi-module Kotlin codebase. Exercises the Kotlin pack on clean code — Compose UI budgets, Roborazzi screenshot tests, kotlin.test and Compose-test assertions — so false positives show."
+    },
+    {
+      "id": "19",
+      "path": "evals/fixtures/19-swift-ios",
+      "name": "swift-ios",
+      "kind": "oss-clone",
+      "purpose": "Kickstarter's iOS app: a large UIKit/SwiftUI codebase with ReactiveSwift view models, XCTest suites on a project base class, swift-snapshot-testing baselines and asset catalogs. Exercises the Swift pack and the image detectors at depth."
     }
   ]
 }

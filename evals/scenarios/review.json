@@ -299,5 +299,130 @@
       "Did the agent name the payout retry \u2014 a money movement replayed with no idempotency key, so a timeout after the provider committed pays twice \u2014 rather than picking whichever finding the scan happened to rank first?",
       "Did the agent explain the customer-visible consequence (a duplicate payout) rather than describing the retry as a robustness or style concern?"
     ]
+  },
+  {
+    "id": "review-17-swallowed-authz",
+    "fixture": "17",
+    "kind": "review",
+    "prompt": "You are starting a hardening pass on this Java blog server and have one day. Run `crimes scan --format json` and decide which three findings you would fix first. For each, name the file and method, say what goes wrong for a user when the failure happens, and quote the finding's evidence verbatim.",
+    "expected_artifacts": {
+      "referenced_findings": ["swallowed_error"],
+      "referenced_files": [
+        "app/src/main/java/org/apache/roller/weblogger/ui/struts2/admin/CreateUserBean.java",
+        "app/src/main/java/org/apache/roller/weblogger/ui/struts2/util/UIAction.java"
+      ],
+      "expected_priority": "swallowed_error",
+      "finding_labels": [
+        {
+          "type": "swallowed_error",
+          "claim": "empty",
+          "file": "app/src/main/java/org/apache/roller/weblogger/ui/struts2/admin/CreateUserBean.java",
+          "symbol": "CreateUserBean.copyFrom",
+          "priority": true
+        },
+        {
+          "type": "swallowed_error",
+          "claim": "empty",
+          "file": "app/src/main/java/org/apache/roller/weblogger/ui/struts2/util/UIAction.java",
+          "symbol": "UIAction.isUserIsAdmin",
+          "priority": true
+        },
+        {
+          "type": "swallowed_error",
+          "claim": "log_without_error",
+          "file": "app/src/main/java/org/apache/roller/weblogger/ui/rendering/model/MenuModel.java",
+          "symbol": "MenuModel.getAdminMenu"
+        }
+      ]
+    },
+    "judge_questions": [
+      "Did the agent explain that a failed permission lookup in `CreateUserBean.copyFrom` leaves `administrator` false, so saving the form can silently remove a user's admin rights?",
+      "Did the agent prefer the permission-check handlers over commented-out code or clock reads, and say why?"
+    ]
+  },
+  {
+    "id": "review-18-clean-android",
+    "fixture": "18",
+    "kind": "review",
+    "prompt": "This Android sample is known for its test discipline. Run `crimes scan --format json` and report whether any test cannot fail. Name the test function, explain what it exercises without checking, and quote the finding's evidence verbatim. Do not report findings the JSON does not contain.",
+    "expected_artifacts": {
+      "referenced_findings": ["weak_test_signal"],
+      "referenced_files": [
+        "feature/topic/impl/src/androidTest/kotlin/com/google/samples/apps/nowinandroid/feature/topic/impl/TopicScreenTest.kt"
+      ],
+      "expected_priority": "weak_test_signal",
+      "finding_labels": [
+        {
+          "type": "weak_test_signal",
+          "claim": "file_asserts_nothing",
+          "file": "feature/topic/impl/src/androidTest/kotlin/com/google/samples/apps/nowinandroid/feature/topic/impl/TopicScreenTest.kt",
+          "priority": true
+        }
+      ]
+    },
+    "judge_questions": [
+      "Did the agent identify `news_whenSuccessAndTopicIsSuccess_isShown` as scrolling to a node without asserting anything about it?",
+      "Did the agent avoid presenting the screenshot tests as assertion-free?"
+    ]
+  },
+  {
+    "id": "review-19-silent-view-model-tests",
+    "fixture": "19",
+    "kind": "review",
+    "prompt": "A reviewer suspects some view-model tests in this iOS app pass whatever the code does. Run `crimes scan --format json`, find the tests crimes says assert nothing, and for each name the test method, what it drives, and what assertion is missing. Quote the finding's evidence verbatim.",
+    "expected_artifacts": {
+      "referenced_findings": ["weak_test_signal"],
+      "referenced_files": [
+        "LibraryTests/Library/ViewModels/FindFriendsViewModelTests.swift",
+        "LibraryTests/Library/ViewModels/VideoViewModelTests.swift"
+      ],
+      "expected_priority": "weak_test_signal",
+      "finding_labels": [
+        {
+          "type": "weak_test_signal",
+          "file": "LibraryTests/Library/ViewModels/FindFriendsViewModelTests.swift",
+          "priority": true
+        },
+        {
+          "type": "weak_test_signal",
+          "file": "LibraryTests/Library/ViewModels/VideoViewModelTests.swift",
+          "priority": true
+        }
+      ]
+    },
+    "judge_questions": [
+      "Did the agent name `testSource` and `testTrackVideoCompletionViaScrubbing` and say neither checks an output?",
+      "Did the agent recognise that the suite's other tests do assert, through `TestObserver.assertValues`?"
+    ]
+  },
+  {
+    "id": "review-19-keychain-fallback",
+    "fixture": "19",
+    "kind": "review",
+    "prompt": "Before a release, audit this iOS app's error handling. Run `crimes scan --format json` and pick the swallowed error with the worst user-facing consequence. Explain the failure path, which caller depends on the result, and quote the finding's evidence verbatim.",
+    "expected_artifacts": {
+      "referenced_findings": ["swallowed_error"],
+      "referenced_files": ["Library/Sources/Library/Library/Keychain.swift"],
+      "expected_priority": "swallowed_error",
+      "finding_labels": [
+        {
+          "type": "swallowed_error",
+          "claim": "bland_fallback",
+          "file": "Library/Sources/Library/Library/Keychain.swift",
+          "symbol": "Keychain.hasPassword",
+          "priority": true
+        },
+        {
+          "type": "swallowed_error",
+          "claim": "log_without_error",
+          "file": "KsApi/Sources/KsApi/lib/HTML Parser/HTMLParser.swift",
+          "symbol": "HTMLParser.parse"
+        }
+      ]
+    },
+    "judge_questions": [
+      "Did the agent trace `hasPassword` returning false on a keychain error into the save path choosing `SecItemAdd` over `SecItemUpdate`?",
+      "Did the agent quote the finding's evidence rather than paraphrase it?"
+    ]
   }
 ]

@@ -162,6 +162,14 @@ describe("rasterShouldBeVectorDetector", () => {
 
     it("skips @2x / @3x resolution variants", async () => {
       expect(await fires("img/logo@2x.png")).toBe(false);
+      expect(await fires("Assets.xcassets/bg.imageset/bg@2x~ipad.png")).toBe(false);
+      expect(await fires("Assets.xcassets/a.imageset/icon@1x.png")).toBe(false);
+    });
+
+    it("skips Xcode app-icon sets and screenshot-test baselines", async () => {
+      expect(await fires("Assets.xcassets/AppIcon.appiconset/icon_20pt.png")).toBe(false);
+      expect(await fires("Tests/__Snapshots__/RowTests/testRow.1.png")).toBe(false);
+      expect(await fires("Assets.xcassets/chevron.imageset/chevron.png")).toBe(true);
     });
 
     it("skips email template assets", async () => {

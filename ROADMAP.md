@@ -31,9 +31,12 @@ Reviewed: 2026-10-19. This file records desired outcomes; the
   grammar decision for JSP (embedded Java, EL and tag libraries), links
   from templates to the Java they call, and detectors chosen for what those
   files hide from an agent rather than style rules.
-- **Measure the new packs.** Eval fixtures and scenarios for Java, Kotlin
-  and Swift, pinned from real public repositories rather than written for
-  the purpose; today no fixture exercises them.
+- **Measure the new packs.** Fixtures `17`–`19` pin a public Java blog
+  server, Compose Android sample and UIKit iOS app, with five labelled
+  scenarios (0.30.1). They show the 0.31 ranking problem on public code: a
+  cache-busting `Date()` ranks first on the iOS app and its two
+  assertion-free view-model tests 64th and 65th. Still to do: their first
+  live agent round, and more scenarios as calibration decisions need them.
 - **Large-repository cost.** A full n8n scan takes about 27 minutes, nearly
   all of it TypeScript parsing for the IA index. A persistent cache is the
   obvious lever and conflicts with the guarantee that every command

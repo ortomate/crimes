@@ -44,6 +44,21 @@ const DISABLED_ANNOTATIONS = new Set(["Ignore", "Disabled"]);
  */
 const ASSERTION_NAME = /^(?:assert|verify|expect|should)|^(?:fail|andExpect)$/;
 
+/**
+ * Screenshot and snapshot tests assert by comparing against a recorded
+ * image: Roborazzi `captureRoboImage`, project helpers such as
+ * `captureMultiTheme`, Paparazzi `snapshot`, Shot `compareScreenshot`.
+ * Bare `capture()` is excluded — that is Mockito's argument captor.
+ */
+const SCREENSHOT_NAME = /^capture[A-Z]\w*$|[Ss]creenshot|[Ss]napshot/;
+
+/**
+ * Assertion-call shapes in source text, for the fallback below. Generic
+ * calls (`assertIs<Success>(x)`) are what the grammar misparses.
+ */
+const ASSERTION_TEXT =
+  /\b(?:assert\w*|verify\w*|expect\w*|should\w*|fail|capture[A-Z]\w*)\s*(?:<[^()]*?>)?\s*[({]/;
+
 const CLOCK_TYPES = new Set([
   "Instant",
   "LocalDate",
@@ -110,6 +125,9 @@ interface FunctionState {
   fn: ParsedKotlinFunction;
   calls: Set<string>;
   depth: number;
+  /** Source range, for the assertion text fallback. */
+  start: number;
+  end: number;
 }
 
 interface Open {
@@ -132,7 +150,13 @@ function collect(tree: Tree, source: string, result: ParsedKotlinFile): void {
   const cursor = tree.walk();
 
   const startFunction = (built: ParsedKotlinFunction): void => {
-    fn = { fn: built, calls: new Set(), depth: 0 };
+    fn = {
+      fn: built,
+      calls: new Set(),
+      depth: 0,
+      start: cursor.startIndex,
+      end: cursor.endIndex,
+    };
     states.push(fn);
     result.methods.push(built);
   };
@@ -279,7 +303,19 @@ function collect(tree: Tree, source: string, result: ParsedKotlinFile): void {
   }
 
   function finish(): void {
-    for (const state of states) state.fn.localCalls = [...state.calls];
+    for (const state of states) {
+      state.fn.localCalls = [...state.calls];
+      // tree-sitter-kotlin reads `assertIs<Success>(x)` as two
+      // comparisons, so a generic assertion leaves no call node. Only when
+      // the tree found nothing, look at the function's own text.
+      if (state.fn.assertionCount === 0 && state.fn.hasBody) {
+        const body = source.slice(state.start, state.end);
+        const signatureEnd = body.indexOf(state.fn.name) + state.fn.name.length;
+        if (ASSERTION_TEXT.test(body.slice(Math.max(0, signatureEnd)))) {
+          state.fn.assertionCount = 1;
+        }
+      }
+    }
     result.topLevelDeclarations = [...topLevel].sort();
     for (const name of declared) referenced.delete(name);
     for (const name of topLevel) referenced.delete(name);
@@ -520,7 +556,9 @@ function visitCall(
   // imported top-level and extension functions.
   ctx.referenced.add(name);
   if (ctx.fn) {
-    if (ASSERTION_NAME.test(name)) ctx.fn.fn.assertionCount += 1;
+    if (ASSERTION_NAME.test(name) || SCREENSHOT_NAME.test(name)) {
+      ctx.fn.fn.assertionCount += 1;
+    }
     if (receiver === undefined || receiver.type === "this_expression")
       ctx.fn.calls.add(name);
   }

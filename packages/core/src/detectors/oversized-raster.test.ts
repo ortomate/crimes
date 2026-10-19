@@ -81,6 +81,16 @@ describe("oversizedRasterDetector", () => {
     expect(findings).toEqual([]);
   });
 
+  it("skips recorded screenshot-test baselines", async () => {
+    const findings = await oversizedRasterDetector.run(
+      makeCtx({
+        byteSize: 800 * 1024,
+        file: "AppTests/__Snapshots__/FeedTests/testFeed.1.png",
+      }),
+    );
+    expect(findings).toEqual([]);
+  });
+
   it("reports the file extension in evidence", async () => {
     const findings = await oversizedRasterDetector.run(
       makeCtx({ byteSize: 800 * 1024, extension: ".jpg" }),

@@ -105,6 +105,25 @@ describe("parseKotlinFile — functions", () => {
   });
 });
 
+describe("parseKotlinFile — assertions the grammar misreads", () => {
+  it("credits generic assertions and screenshot captures", async () => {
+    const parsed = await parse(`class T {
+  @Test fun generic() = runTest { assertIs<Success>(result) }
+  @Test fun screenshot() { composeTestRule.captureMultiTheme("Button") { NiaButton() } }
+  @Test fun robo() { onRoot().captureRoboImage("x.png") }
+  @Test fun captor() { val c = slot.capture() }
+}
+`);
+    const byName = Object.fromEntries(
+      parsed.methods.map((m) => [m.name, m.assertionCount]),
+    );
+    expect(byName.generic).toBeGreaterThan(0);
+    expect(byName.screenshot).toBeGreaterThan(0);
+    expect(byName.robo).toBeGreaterThan(0);
+    expect(byName.captor).toBe(0);
+  });
+});
+
 describe("parseKotlinFile — catch blocks", () => {
   it("reports what each handler does with the failure", async () => {
     const parsed = await parse(`class S {

@@ -103,6 +103,7 @@ describe("swallowed_error.java", () => {
       'catch (IOException e) { LOG.warn("save failed", e); }',
       "catch (IOException e) { throw new IllegalStateException(e); }",
       "catch (IOException ignored) { }",
+      "catch (Exception ignored2) { return null; }",
       "catch (ObjectNotFoundException e) { return null; }",
       "catch (FormValidationException e) { /* errors already on the result */ }",
       "catch (Exception e) { // best effort, the cache refills\n }",
