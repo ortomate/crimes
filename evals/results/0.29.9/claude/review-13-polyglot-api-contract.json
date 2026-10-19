@@ -1,0 +1,90 @@
+{
+  "scenario": "review-13-polyglot-api-contract",
+  "agent": "claude",
+  "crimes_version": "0.29.9",
+  "timestamp": "2026-10-19T02:30:34.684Z",
+  "run_id": "cb8e8ef1-33ef-4be9-bafd-6c0163405ab5",
+  "response": "I read the three source files as well as the scan output. **There are 9 disagreements between the client and the API, and the scan reported 4 of them.** In two places the scan describes the failure wrongly, one of its 5 findings is not a contract problem, and the plan-change fix it suggests would not work.\n\n## Ranked by how they would fail in production\n\nI ranked silent failures first. Those survive QA and do damage over time. The loud ones break for every user, so someone notices quickly.\n\n### 1. The two sides have different plan lists, and neither side checks — silent, hits paying customers *(crime_00001, but the scan's description is wrong)*\n- `plans.py:10` has `free|pro|team|scale`. `workspace-client.ts:10` has `free|pro|enterprise`.\n- The scan says each side \"will reject\" the other's values. **Neither side rejects anything.** The TypeScript type disappears at runtime and `res.json()` is just cast to it (`workspace-client.ts:19`). So `\"team\"` and `\"scale\"` reach the UI as plans it has no case for: switches fall through and labels come out `undefined`.\n- On the backend, `change_team_plan(team_id, plan: str)` (`routes.py:26`) takes any string and echoes it back. So `\"enterprise\"` would be stored. `seats_for` would then quietly give it **1 seat**, because of the `.get(plan, 1)` fallback at `plans.py:28`.\n- Test accounts on free or pro work fine, so this survives testing. Only team, scale and enterprise customers (the ones paying) are affected.\n\n### 2. `workspaceSeats` puts the text `:id` in the URL instead of the id — silent, wrong data *(missed: the scan counted it as a match)*\n- `workspace-client.ts:28` uses `fetch(\"/api/teams/:id/seats\")`. This is a plain string, not a template, and the `id` argument is never used.\n- Every call asks about a team whose id is literally `\":id\"`. The scan read `:id` as a route parameter, so it reported this as matching the backend.\n- With the current stub, the backend ignores `team_id` and returns 200 with 1 seat, so it looks like it works. With a real lookup it returns a 404, or another tenant's data.\n\n### 3. `changeWorkspacePlan` has three bugs on one line — a billing write that can't succeed *(crime_00003 found only the first)*\n`workspace-client.ts:34` has these problems, stacked:\n1. It sends **PUT**, but the backend route is **POST** (`routes.py:25`), so you get a 405. This is the one the scan found.\n2. Fix the method and you get **422**: FastAPI expects `plan` as a required query parameter, and the client never sends `plan` at all (no body, no query string).\n3. Fix that and it still changes the plan of team `\":id\"`, because of the same literal-string bug as #2.\n\nThe scan's suggested fix (\"change the call to POST\") gets you past the first error and straight into the second.\n\n### 4. `getWorkspace` calls a route that doesn't exist — a 404 that looks like data *(missed)*\n- `workspace-client.ts:18` calls `GET \"/api/workspaces/\" + id`. The backend only serves `/api/teams/{team_id}`.\n- The scan matches literal strings only, and it says so itself (\"a route or URL assembled at runtime is invisible to this check\"). This URL is built by joining strings, so it was skipped. That makes the client's main read call broken without being flagged.\n- Nothing checks `res.ok`, so the call resolves normally with `{\"detail\":\"Not Found\"}` as the `Workspace`. `id` and `plan` come back `undefined` and the error shows up somewhere further away.\n\n### 5. `createWorkspace` posts to a route that doesn't exist, with no body *(crime_00005 found the path only)*\n- `workspace-client.ts:23` sends `POST /api/workspaces`, but the backend route is `POST /api/teams`, so you get a 404.\n- Behind that: `create_team(payload: dict)` requires a JSON body, and the client sends none. Fixing the path just turns the 404 into a 422.\n\n## Problems shared by all of the above\n- **No error handling anywhere in the client.** None of the four functions checks `res.ok`. A 404, 405 or 422 resolves as a successful object, which turns every loud failure above into a quiet one.\n- **The tenant is called \"workspace\" on one side and \"team\" on the other** *(crime_00004, low)*. This doesn't fail by itself, but it is the direct cause of #4 and #5: both wrong paths use `/workspaces`. Fixing paths one by one without renaming will let it happen again.\n\n## Not a contract issue\n- **crime_00002, \"False Identity\" on `getWorkspace`, is noise.** A GET request is a read, and it is exactly what the name says. You can dismiss it.\n\n## Suggested fix order\n1. Make the Python `Plan` enum the single source of truth. Type the route as `plan: Plan` so the backend validates it, and generate the TypeScript union and client from FastAPI's OpenAPI schema. That one change catches #1 and every path, method and body mismatch in #3 to #5.\n2. Until then, the quick fixes are:\n   - Use template literals with `${id}` in place of `:id`.\n   - Change the paths to `/api/teams`.\n   - Use POST and send `plan` in the plan-change call.\n   - Send a body in `createWorkspace`.\n   - Add a `res.ok` check in one shared fetch wrapper.\n\nI haven't changed any files.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    },
+    "detector_id_by_evidence": {
+      "packages/api/billing/plans.py:10 — Plan declares [free, pro, team, scale]": "cross_language_type_drift",
+      "packages/web/src/workspace-client.ts:10 — Plan declares [free, pro, enterprise]": "cross_language_type_drift",
+      "shared: free, pro": "cross_language_type_drift",
+      "only in Python: scale, team — the TypeScript side will reject these values": "cross_language_type_drift",
+      "only in TypeScript: enterprise — the Python side will reject this value": "cross_language_type_drift",
+      "side-effect-like calls: fetch": "name_behavior_mismatch",
+      "2 side-effect signals in the function body": "name_behavior_mismatch",
+      "frontend: packages/web/src/workspace-client.ts:34 — PUT /api/teams/:id/plan": "cross_language_route_drift",
+      "backend:  packages/api/billing/routes.py:25 — POST /api/teams/{team_id}/plan (change_team_plan)": "cross_language_route_drift",
+      "methods declared: POST": "cross_language_route_drift",
+      "concept group \"tenant\" is named differently on each side of the boundary": "cross_language_concept_alias_drift",
+      "Python uses: team": "cross_language_concept_alias_drift",
+      "TypeScript uses: workspace": "cross_language_concept_alias_drift",
+      "packages/api/billing/plans.py:10 — docstring of Plan (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:11 — def get_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:16 — def create_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:21 — def team_seats (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:26 — def change_team_plan (team)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:17 — getWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:22 — createWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:27 — workspaceSeats() (workspace)": "cross_language_concept_alias_drift",
+      "preferred form for this group: \"organization\"": "cross_language_concept_alias_drift",
+      "\"organization\"": "cross_language_concept_alias_drift",
+      "1 frontend call reaches a path no backend route declares": "cross_language_route_drift",
+      "packages/web/src/workspace-client.ts:23 — POST /api/workspaces": "cross_language_route_drift",
+      "4 backend routes declared across 1 file": "cross_language_route_drift",
+      "backend owns: /api — calls outside those namespaces are not counted here": "cross_language_route_drift",
+      "matched on literal path strings — a route or URL assembled at runtime is invisible to this check": "cross_language_route_drift",
+      "decorator routing only — Django `urlpatterns` and DRF `router.register` are not read, so a repo using them looks routeless": "cross_language_route_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_route_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": "cross_language_type_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_route_drift",
+        "observed": "cross_language_type_drift",
+        "passed": false
+      }
+    ]
+  }
+}

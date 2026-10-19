@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.29.9",
+  "timestamp": "2026-10-19T02:15:04.545Z",
+  "run_id": "cce7d7f0-83bf-482e-877b-fbacc0a21d8d",
+  "response": "I ran `crimes context src/add.ts --format json`. It found nothing in `src/add.ts`, so the file is safe to extend.\n\n**Results for `src/add.ts`:**\n- **Risk level:** `none`. There are 0 findings (0 high, 0 medium, 0 low).\n- **Analysis status:** `complete`. The language-js pack was loaded and the file was fully analysed, so \"no findings\" really means clean, not \"not checked\".\n- **Agent guidance and related files:** both empty. crimes found no neighbouring files that would need to change along with this one.\n- **Likely tests:** `src/add.test.ts`. Update or add tests there when you extend `add.ts`.\n- **Test gap:** `unknown`. This is not a warning; crimes just didn't have enough signal to rate test coverage.\n\n**Repo-wide context from the scan (not about this file):**\n- There is one **low**-severity finding (confidence 0.56). `vitest` is imported in `src/add.test.ts` but isn't listed in `package.json`.\n- It works today because the package is hoisted from elsewhere, but a clean install could break the test run.\n- Confidence was lowered because only test files are affected. The fix is quick: add `vitest` to `devDependencies`.\n- This doesn't block editing `add.ts`. It's only relevant if you'll be running or relying on the test file.\n\n**Caveat:** a few detectors are off by default, such as `boolean_naming_drift`, `design_token_escape` and `parallel_destination`. They are mostly about UI and naming, so they probably don't matter for a tiny arithmetic module.\n\nYou can go ahead with `src/add.ts` and keep `src/add.test.ts` up to date as you change it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

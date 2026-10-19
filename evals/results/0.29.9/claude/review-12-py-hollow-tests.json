@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.29.9",
+  "timestamp": "2026-10-19T02:29:54.114Z",
+  "run_id": "2337bd09-33cb-4fb7-bc11-b46f3a30915e",
+  "response": "I used the scan output you provided as the starting point, then read the test and source files myself. The scan reported one finding, and it's real. But some of what it didn't report matters more for your refactor than what it did.\n\n## Summary\n\n| Module | What the tests look like | What they actually protect |\n|---|---|---|\n| `billing/rates.py` | Real tests | **Genuinely covered** |\n| `billing/invoices.py` | Looks like it asserts nothing | **Genuinely covered**. The checks live in a shared helper file. |\n| `billing/reporting.py` | 4 tests, all passing | **Only looks covered**. Nothing is ever checked. |\n| `billing/ledger.py` | No test file at all | **Only looks covered**. It runs during the reporting tests but nothing checks it. |\n\n## Genuinely covered\n\n**`rates.py`**: `tests/test_rates.py` checks exact values: `rate_for(\"GB\") == 0.20` and `\"DE\" == 0.19`, the fallback for an unknown region, and `is_zero_rated` returning false. If the refactor changes a rate or breaks the fallback, a test fails. One gap: `FR`'s 0.20 is never checked by `rate_for`; it's only reached through `is_zero_rated`.\n\n**`invoices.py`**: At a glance, `tests/test_invoices.py` checks nothing. Every test just calls `verify_invoice_balances(...)` or `self.expect_gross_for(...)`. Both helpers are in `tests/support.py` and do check results:\n- `verify_invoice_balances` checks `gross == net + tax` and `net >= 0`.\n- `InvoiceCase.expect_gross_for` checks the exact gross (for example, 1000 in GB gives 1200.0) and the account.\n\nThe scanner follows calls into imported helpers, so it correctly didn't flag this file. It's real protection, with two limits:\n- The balance check would still pass if `tax` were computed with the wrong rate, as long as `gross` came out consistent with it.\n- No test checks the actual total after `apply_credit`. The test named `test_credit_reduces_the_total` only checks that the result balances and isn't negative, so the \"reduces\" part is never verified.\n\n## Only looks covered\n\n**`reporting.py`**: This is finding `crime_00001`, rated high severity at 0.85 confidence. All 4 tests in `tests/test_reporting.py` contain zero checks. They pass as long as `build_report` and `export_report` don't raise an error. If the refactor made `total` come out as 0, swapped the CSV columns, or returned `None` from the JSON export, the suite would stay green. Even the error path is untested: no test calls `export_report` with an unsupported format and expects the `ValueError`.\n\n**`ledger.py`**: The scan didn't flag this module. It has no test file at all. But `build_report` calls `post_entry`, so line coverage counts ledger as exercised: the `.coverage` file in the repo reports **83%** for `ledger.py` and 90% for `reporting.py`. That figure comes entirely from the reporting tests, which check nothing, so in practice ledger is protected at 0%. `reverse_entry` is never called by any test. A bug in `post_entry`'s gross calculation would pass every test.\n\n## Caveats on the tooling\n\n- **The scan has no way to show the ledger gap.** Its one finding has `test_gap: 0` and `blast_radius: 0`, and it says nothing about a module with no tests. \"One finding\" doesn't mean \"everything else is fine.\"\n- **Don't rely on the line-coverage numbers.** They're high exactly where protection is weakest, because executing code isn't the same as checking it. The `.coverage` file also looks stale: it has no entry for `invoices.py`, even though the pytest cache shows all 12 tests passed.\n- The scanner didn't read `pyproject.toml`, `crimes.config.json` or `.coverage`. None of them contain logic, so that doesn't matter here.\n\n## Before refactoring\n\n1. Add real checks to `test_reporting.py`: the exact `total`, the CSV string, the JSON dict, and `pytest.raises(ValueError)` for a bad format.\n2. Write `tests/test_ledger.py` covering `post_entry` and `reverse_entry`. Reversing an entry should negate both net and gross.\n3. Optionally, add an exact-total check after `apply_credit` and a check on the `tax` value in the invoice tests.\n\nAs things stand, only `rates.py` and `invoices.py` are safe to refactor against this suite. `reporting.py` and `ledger.py` have no real protection.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

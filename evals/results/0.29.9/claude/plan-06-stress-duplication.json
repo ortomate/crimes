@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.29.9",
+  "timestamp": "2026-10-19T02:18:26.909Z",
+  "run_id": "256b41a2-4ef8-4668-b773-fb9a7dc708ba",
+  "response": "I read the fixture source as well as the scan output, because a few things in the code change how this refactor has to be done safely.\n\n## What the scan found, checked against the code\n\n| Finding | Status in the code | Plan |\n|---|---|---|\n| `crime_00002` near-duplicate sanitiser: `sanitizeUserInput` / `sanitizeText` / `cleanMessage` | The three bodies are identical apart from variable names. | **Step 1** |\n| `crime_00001` duplicated `\"admin\"` check (7 occurrences, 4 files) | `policy.ts` has 3 identical `canX` functions. The `sanitize-*` files each have an `assertAdmin*` guard, and **the three guards behave differently**. | **Step 2** |\n| `crime_00003` duplicated `recordSanitiseEvent` (telemetry-a/b) | Exact copy. | Out of scope; a follow-up |\n| `crime_00004/5` `Date.now()` | Only used for the telemetry timestamp. | Out of scope; do it with `crime_00003` |\n\nThere are three things to know before starting:\n\n1. **The role guards are not three copies of one rule.** You can't merge them into one function without changing behaviour:\n   - `assertAdminA` (`src/sanitize-a.ts:6`): `role === \"admin\"`\n   - `assertAdminB` (`src/sanitize-b.ts:5`): `role === \"admin\" || role === \"owner\"`, so `owner` is allowed here and nowhere else\n   - `assertAdminC` (`src/sanitize-c.ts:5`): `role !== \"admin\"`. Despite its name, this returns `true` for everyone *except* admins. Either it's inverted by mistake or it's really a deny-check. Someone needs to decide which.\n\n   This is exactly the \"rules drifting silently\" problem the scan warns about. Step 2 makes the differences visible instead of hiding them.\n2. **The sanitiser regex contains raw control bytes.** `/[ -]/g` on line 13 shows up as a space and a hyphen, but the file actually holds the bytes `\\0`–`\\037`, i.e. `/[\\x00-\\x1F]/g`. If you copy it by retyping what you see, it becomes \"strip spaces and hyphens\" and the behaviour changes. Write the escaped form explicitly.\n3. **There are no tests and no importers** (blast radius 0, `test_gap` 0.5, and nothing imports these modules). So the refactor is cheap, but characterisation tests have to be written first, because nothing else will catch a regression.\n\n## Step 1: one shared sanitiser (addresses `crime_00002`)\n\n**Commit 1a: characterisation tests (no source changes).** Add a table-driven test that runs the same inputs through all three current functions and asserts identical output:\n- `null`/`undefined` (they reach the guard via `as any`)\n- leading/trailing whitespace\n- control characters `\\x00`–`\\x1F`, plus plain spaces and hyphens, which must be **kept** (this pins down the regex trap)\n- a string over 1000 characters\n- strings starting with `<` or `>`\n- a string containing the literal `\\x`\n- more than 5 `!!!`/`???` runs\n- an all-caps string over 30 characters, and one of 30 or fewer\n\n**Commit 1b: extract the helper.**\n- New file `src/sanitize.ts` exporting `sanitize(raw: string): string`. The body is copied from `sanitizeUserInput` with the regex written as `/[\\x00-\\x1F]/g`.\n- The scan's suggested `fix_shape` is \"pass the differing values as args\". Nothing actually differs today (1000, 0.9, 30 and 5 are the same in every copy), so **don't add options yet**. Give them named constants (`MAX_LENGTH`, etc.) and parameterise only when a caller needs it.\n- Keep `sanitizeUserInput`, `sanitizeText` and `cleanMessage` as one-line aliases (`export const sanitizeText = sanitize;`) so the public names keep working. Mark them `@deprecated`.\n- The tests from 1a must pass unchanged. Re-run `crimes scan` and expect `crime_00002` to be gone.\n\n## Step 2: one policy module for role checks (addresses `crime_00001`)\n\n**Commit 2a: pin down current behaviour.** Test every guard and every `canX` against `\"admin\"`, `\"owner\"`, `\"user\"` and `\"\"`. This records that B allows `owner` and that C is inverted.\n\n**Commit 2b: centralise.** Put everything in `src/policy.ts` (which is where the scan anchors the finding):\n\n```ts\nexport type Role = \"admin\" | \"owner\" | (string & {});\n\nexport function isAdmin(role: Role): boolean {\n  return role === \"admin\";\n}\nexport function isAdminOrOwner(role: Role): boolean {\n  return isAdmin(role) || role === \"owner\";\n}\n\nexport const canEditBilling = isAdmin;\nexport const canSeeAuditLog = isAdmin;\nexport const canImpersonate = isAdmin;\n```\n\nThen in the sanitize files:\n- `assertAdminA` becomes `isAdmin`.\n- `assertAdminB` becomes `isAdminOrOwner`. Owner access is now a named, deliberate rule rather than a stray `||`.\n- `assertAdminC` becomes `!isAdmin(role)`, with a `// TODO(owner): confirm intended semantics` comment. Pick one of these:\n  - **(a)** It's a bug. Change it to `isAdmin` and update the 2a test. That's a behaviour change, so make it a separate commit.\n  - **(b)** It's intended as a deny-check. Rename it to `isNotAdmin` or move the negation to the call site.\n\n  Don't fold this into the mechanical refactor commit.\n- Move the guards out of `sanitize-*.ts` entirely. A role check doesn't belong in a text-sanitiser module, and Step 1 already leaves those files as thin aliases. Re-export from the old names only if something external depends on them; nothing in the repo does.\n- Re-run `crimes scan`. `\"admin\"` should now appear once, in `isAdmin`, and `crime_00001` should be gone.\n\n## Order and risk\n\n- **Step 1 before Step 2.** Step 1 is behaviour-preserving with a mechanically checkable result. Step 2 involves a semantic decision (the inverted `assertAdminC`).\n- The scan rates both steps medium risk. With the characterisation tests first, I'd expect Step 1 to be low risk and Step 2 low risk as well, apart from the `assertAdminC` decision.\n- **Follow-up, not part of this two-step change:** move `recordSanitiseEvent` into one `src/telemetry.ts` with an injected `now: () => number = Date.now`. That clears `crime_00003`, `crime_00004` and `crime_00005` together.\n\nI haven't changed any files: this is the plan only. The fixture has no test runner configured; `package.json` defines no scripts or dev dependencies, so the tests need one added (e.g. vitest).",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

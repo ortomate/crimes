@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.29.9",
+  "timestamp": "2026-10-19T02:30:12.524Z",
+  "run_id": "de98d3d8-6179-46ab-bc23-fe28100478d7",
+  "response": "I’ll run the scan and inspect the tests to distinguish code that merely executes from behavior the suite actually checks.\n\n\n`crimes scan --format json` reproduced **one high-severity finding**: all four tests in `tests/test_reporting.py:11–25` lack assertions. Inspecting the suite shows three distinct levels of protection:\n\n| Package area | What the tests actually protect | What remains unprotected |\n|---|---|---|\n| `billing/rates.py` | Direct assertions check GB = 0.20, DE = 0.19, unknown-region fallback to `DEFAULT_RATE`, and nonzero status for GB/FR. | No positive zero-rate case; the fallback test does not independently pin the default’s numeric value. |\n| `billing/invoices.py` | **Real, but partial protection.** Imported `verify_invoice_balances` asserts `gross == net + tax` and nonnegative net. Inherited `InvoiceCase.expect_gross_for` checks expected gross and account for a GB invoice and an empty DE invoice. | Credit tests check only balance invariants. Despite their names, they do not verify that a credit reduces the total or that zero credit preserves the invoice. Returning the original invoice from `apply_credit` would satisfy these assertions. |\n| `billing/reporting.py` | Smoke protection: report construction and CSV/JSON export must execute without raising for the supplied inputs. | No checks of accounts, regions, lines, totals, CSV formatting, or JSON output. The “round trip” test only builds and exports; it never reads anything back or compares results. Unsupported-format errors are untested. |\n| `billing/ledger.py` | `post_entry` executes indirectly through reporting. | No assertions validate ledger results. `reverse_entry` is never called by the tests. There is no dedicated ledger test file. |\n\nThe invoice tests **should not be classified as hollow** merely because assertions live elsewhere: `tests/support.py:14–26` contains meaningful checks reached through imported helpers and a base class. Conversely, executing reporting and ledger lines does not establish their correctness; wrong values can pass provided subsequent operations still work.\n\nThe scan’s `coverage.files_total: 9` describes **files inspected by the scanner**, not runtime test coverage or behavioral protection. A single finding does not certify the rest of the package.\n\nBefore refactoring, prioritize reporting output assertions, ledger posting/reversal tests, and exact before/after credit expectations.\n\nI also attempted `python3 -m pytest -q`, but this environment lacks `pytest`; test execution remains unverified.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}
