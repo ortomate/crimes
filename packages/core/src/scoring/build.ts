@@ -32,6 +32,7 @@ import type { Finding, FindingScores, Severity } from "../finding.js";
 import { collectChurn } from "../git/churn.js";
 import { referenceNowMs } from "../util/reference-clock.js";
 import type { CollectChurnResult } from "../git/churn.js";
+import { componentIds } from "../imports/components.js";
 import type { ImportGraph } from "../imports/types.js";
 import { TEST_DIR_RE, isTestFile, testBaseCovers } from "../util/test-files.js";
 import { quartileScores } from "./quartile.js";
@@ -395,12 +396,14 @@ function buildBlastRadiusIndex(args: {
   const transitiveMemo = new Map<string, number>();
   const directMemo = new Map<string, number>();
   const { imports } = args;
+  let components: Map<string, number> | undefined;
 
   const transitiveFor = (repoPath: string): number => {
     if (!imports) return 0;
     const cached = transitiveMemo.get(repoPath);
     if (cached !== undefined) return cached;
-    const count = transitiveImporterCount(imports, repoPath);
+    components ??= componentIds(imports);
+    const count = transitiveImporterCount(imports, repoPath, components);
     transitiveMemo.set(repoPath, count);
     return count;
   };
@@ -459,28 +462,43 @@ function logNormalise(count: number, reference: number): number {
 }
 
 /**
- * Size of the transitive importer closure of `start`.
+ * Files that reach `start` through import edges, walking the
+ * condensation rather than round `start`'s own import cycle.
  *
- * Deliberately unchanged: this is the number `blast_radius` has always
- * normalised, and retuning the score is a calibration decision made
- * separately. Note that it counts `start` itself whenever `start` sits on
- * an import cycle — the walk reaches back round to it — so the result is
- * "files that can reach this one, plus this one if it is cyclic", not a
- * fan-in count. See {@link BlastRadiusIndex.transitiveCountForFile}.
+ * Inside a strongly connected component every member reaches every
+ * other, so the plain closure gave each member the component's size. On
+ * JS that is a few files; on Java, Kotlin and Swift, where classes
+ * reference each other both ways, it is most of an app (one Kotlin app:
+ * a 627-file component, `blast_radius` 0.76–0.81 for 80% of files). So
+ * a co-member counts, and is walked through, only when it imports
+ * `start` directly, and `start` never counts itself. Files outside the
+ * component count as before, so a utility the tangle depends on keeps
+ * its reach. Not a fan-in count: see
+ * {@link BlastRadiusIndex.transitiveCountForFile}.
  */
-function transitiveImporterCount(imports: ImportGraph, start: string): number {
-  const visited = new Set<string>();
+function transitiveImporterCount(
+  imports: ImportGraph,
+  start: string,
+  components: ReadonlyMap<string, number>,
+): number {
+  const own = components.get(start);
+  const direct = new Set((imports.in.get(start) ?? []).map((e) => e.from));
+  const visited = new Set<string>([start]);
   const stack = [start];
+  let count = 0;
   while (stack.length > 0) {
     const current = stack.pop()!;
     const incoming = imports.in.get(current) ?? [];
     for (const edge of incoming) {
       if (visited.has(edge.from)) continue;
+      const sameComponent = own !== undefined && components.get(edge.from) === own;
+      if (sameComponent && !direct.has(edge.from)) continue;
       visited.add(edge.from);
       stack.push(edge.from);
+      count += 1;
     }
   }
-  return visited.size;
+  return count;
 }
 
 /**

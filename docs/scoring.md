@@ -14,7 +14,10 @@ agent_risk = round(round(raw) × 0.30)           for structural findings
 rank_score = agent_risk × (1 + 0.50 × recency)
 ```
 
-`rank_score` is a sort key, not a stored Finding field. `scan --no-recency`
+`rank_score` is a sort key, not a stored Finding field. After the first
+sort, each further finding of the same `(type, claim)` in the same file
+sorts at `0.75^n` of its `rank_score`, so one file's repeats give way to
+other files' findings; scores themselves are unchanged. `scan --no-recency`
 disables its recency term. The default remains enabled: recent edits are
 useful context, but do not establish defects. Ties break on severity,
 confidence, file, line and fingerprint. Numeric scores are rounded to two
@@ -37,7 +40,7 @@ product calibration choice, not a scientifically validated boundary.
 | --- | --- | --- |
 | `churn` | `min(commits in 90 days / 20, 1)` | Change frequency. Missing git history is not evidence of stability. |
 | `test_gap` | Relative quartile of the raw discovery signal below | Test discoverability, not measured code coverage. |
-| `blast_radius` | `0.85 × min(log1p(transitive importers)/log1p(2000), 1) + 0.15 × min(log1p(direct importers)/log1p(250), 1)` | Dependency reach plus direct use. |
+| `blast_radius` | `0.85 × min(log1p(transitive importers)/log1p(2000), 1) + 0.15 × min(log1p(direct importers)/log1p(250), 1)` | Dependency reach plus direct use. Reach is walked without going round the file's own import cycle: co-members count only when they import it directly. |
 | `recency` | 1 through seven days; linear decay to 0 at fourteen days | Age of the latest commit. Unavailable history contributes 0. |
 
 Raw test-discovery values are 0 when the target is a test or is imported by
@@ -55,8 +58,8 @@ parsing can hide graph edges. `coverage.warnings` reports known gaps.
 The blast-radius integers are separately available as
 `scores.blast_radius_direct_importers` and
 `scores.blast_radius_transitive_importers`. Direct counts exclude self-edges
-and deduplicate source files. Transitive reach includes a cycle's own file,
-so files in the same component can share reach despite different fan-in.
+and deduplicate source files. Transitive reach excludes the file itself and
+any member of its own import cycle that does not import it directly.
 
 ## File priority in human reports
 

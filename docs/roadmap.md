@@ -49,6 +49,9 @@ These remain available for explicitly scoped reviews.
   still analyzes the repository. See [performance](./performance.md) for
   reproducible timing, memory and unchanged-report checks. No disk cache ships.
 - Homebrew and standalone binaries, with Python WASM parity verification.
+- Scan ranking on JVM and mobile code: clock reads still lead Java backends'
+  top tens, and weak-test findings on test files cannot rank (0.30.2 notes in
+  [calibration follow-ups](./calibration-followups.md)).
 - JSP and LESS/CSS packs (the 0.31 milestone in the [product roadmap](../ROADMAP.md));
   today they are reported under `files_not_discovered`.
 - A live agent round on the Java, Kotlin and Swift fixtures (`17`–`19`, added in

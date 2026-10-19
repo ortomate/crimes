@@ -420,6 +420,551 @@
     },
     {
       "id": "crime_00010",
+      "type": "negative_flag_maze",
+      "charge": "Negative Flag Maze",
+      "severity": "low",
+      "confidence": 0.72,
+      "file": "src/petty.ts",
+      "lines": [
+        35,
+        35
+      ],
+      "discriminator": "9361fc296993",
+      "summary": "Conditional combines 2 negative flags. Double-negative logic is easy to invert during maintenance.",
+      "evidence": [
+        "negative flags: disableBilling, skipRetry",
+        "condition: !disableBilling && !skipRetry"
+      ],
+      "effort": "small",
+      "fix_shape": "invert flags to read positively; consolidate combined states",
+      "scores": {
+        "severity": 0.25,
+        "confidence": 0.72,
+        "agent_risk": 0.36,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "rename_or_simplify_flags",
+          "description": "Prefer positive flag names or extract the predicate into a named helper before extending this condition.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "negative_flag_maze.js",
+      "tier": "domain",
+      "fingerprint": "negative_flag_maze::src/petty.ts::::9361fc296993"
+    },
+    {
+      "id": "crime_00011",
+      "type": "timezone_unsafe_parse",
+      "charge": "Timezone Roulette",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/date.ts",
+      "lines": [
+        29,
+        33
+      ],
+      "summary": "2 `new Date(\"…\")` calls parsing a string with no timezone marker. The runtime applies its own timezone, which is rarely the one the literal author had in mind.",
+      "evidence": [
+        "unsafe literals: \"2026-12-25T07:00:00\", \"2026-12-20\"",
+        "lines: 29, 33",
+        "add `Z` for UTC, `±HH:MM` for an offset, or parse through a timezone-aware library"
+      ],
+      "effort": "small",
+      "fix_shape": "parse with explicit timezone; reject ambiguous inputs",
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.35,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "fix_timezone_parse",
+          "description": "Append `Z` (UTC) or `±HH:MM` to the literal, or parse through a library that mandates an explicit zone.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "timezone_unsafe_parse.js",
+      "tier": "domain",
+      "fingerprint": "timezone_unsafe_parse::src/date.ts::"
+    },
+    {
+      "id": "crime_00012",
+      "type": "name_behavior_mismatch",
+      "charge": "False Identity",
+      "severity": "medium",
+      "confidence": 0.8,
+      "file": "src/billing.ts",
+      "symbol": "calculateRefundPreview",
+      "lines": [
+        40,
+        44
+      ],
+      "summary": "calculateRefundPreview has a safe-sounding name but appears to perform side effects. Misleading names make edits riskier because callers may treat the function as pure.",
+      "evidence": [
+        "name prefix suggests a pure transformation",
+        "side-effect-like calls: saveRefundAudit, sendRefundEmail",
+        "3 side-effect signals in the function body"
+      ],
+      "effort": "small",
+      "fix_shape": "rename to match behaviour, or change the body to match the name",
+      "scores": {
+        "severity": 0.55,
+        "confidence": 0.8,
+        "agent_risk": 0.31,
+        "churn": 0,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "rename_or_extract_side_effect",
+          "description": "Rename the function to disclose the side effect, or extract the pure calculation/read from the mutation.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "name_behavior_mismatch.js",
+      "tier": "domain",
+      "fingerprint": "name_behavior_mismatch::src/billing.ts::calculateRefundPreview"
+    },
+    {
+      "id": "crime_00013",
+      "type": "logic_in_comments",
+      "charge": "Logic in the Alibi",
+      "severity": "medium",
+      "confidence": 0.74,
+      "file": "src/billing.ts",
+      "lines": [
+        39,
+        39
+      ],
+      "discriminator": "424ab731a4d3",
+      "summary": "Comment appears to carry a rule that nearby code does not obviously encode. Hidden prose rules are easy for agents and new maintainers to miss.",
+      "evidence": [
+        "comment says: \"Only owners can refund enterprise plans unless billing support approves.\"",
+        "rule terms: only, unless",
+        "domain terms not found nearby: owner, plan, billing, refund"
+      ],
+      "effort": "small",
+      "fix_shape": "lift the prose rule to an assert / type / test / config check",
+      "scores": {
+        "severity": 0.5,
+        "confidence": 0.74,
+        "agent_risk": 0.31,
+        "churn": 0,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "encode_comment_rule",
+          "description": "Move the rule into a named guard, type, config value, or test; keep comments for rationale.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "logic_in_comments.js",
+      "tier": "domain",
+      "fingerprint": "logic_in_comments::src/billing.ts::::424ab731a4d3"
+    },
+    {
+      "id": "crime_00014",
+      "type": "hardcoded_localhost",
+      "charge": "Dev-Server URL",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/api/files.ts",
+      "lines": [
+        8,
+        8
+      ],
+      "summary": "1 hardcoded dev-server URL (`localhost:NNNN` / `127.0.0.1:NNNN` / `0.0.0.0:NNNN`) in non-test, non-config source. These literals only work against whichever dev server happens to be running on that port — every other environment silently fails to connect.",
+      "evidence": [
+        "`localhost:3000` @L8",
+        "lines: 8",
+        "move the value behind a config / env var (`process.env.API_URL`, settings module, etc.)"
+      ],
+      "effort": "quick",
+      "fix_shape": "lift the host to config or env; default for dev only",
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.3,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "move_url_to_config",
+          "description": "Replace the literal with a config-supplied URL (`process.env.API_URL`, a settings module, or the framework's runtime config). Keep the dev-server URL in `.env.local` / `.env.example` so each environment supplies its own.",
+          "risk": "low"
+        }
+      ],
+      "pack": "universal",
+      "detector_id": "hardcoded_localhost",
+      "tier": "domain",
+      "fingerprint": "hardcoded_localhost::src/api/files.ts::"
+    },
+    {
+      "id": "crime_00015",
+      "type": "hardcoded_local_path",
+      "charge": "Localhost-on-Disk",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/api/files.ts",
+      "lines": [
+        9,
+        9
+      ],
+      "summary": "1 hardcoded user-home path (`/Users/<name>/`, `/home/<name>/`, or `C:\\Users\\<name>\\`) in non-test source. These paths exist on exactly one machine — the code silently breaks for every other developer, every CI runner, and every deploy.",
+      "evidence": [
+        "`/Users/andrew/dev/crimes/schema.json` @L9",
+        "lines: 9",
+        "replace with `os.homedir()`, `process.env.HOME`, or a config-driven base path"
+      ],
+      "effort": "quick",
+      "fix_shape": "use a portable path or resolve from a configured root",
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.3,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "use_portable_home_path",
+          "description": "Replace the literal with `os.homedir()` (or `process.env.HOME`) and join the remainder, or pass the base path through configuration so each environment supplies its own.",
+          "risk": "low"
+        }
+      ],
+      "pack": "universal",
+      "detector_id": "hardcoded_local_path",
+      "tier": "domain",
+      "fingerprint": "hardcoded_local_path::src/api/files.ts::"
+    },
+    {
+      "id": "crime_00016",
+      "type": "dst_naive_arithmetic",
+      "charge": "DST-Naive Day Math",
+      "severity": "medium",
+      "confidence": 0.8,
+      "file": "src/date.ts",
+      "lines": [
+        52,
+        52
+      ],
+      "summary": "1 day-level millisecond constant in arithmetic. A day isn't 86,400,000 ms on DST-transition days; manual ms math drifts silently.",
+      "evidence": [
+        "+ 86400000 (day) @L52",
+        "lines: 52",
+        "use a calendar-aware library (Luxon, Temporal, date-fns-tz) for day math"
+      ],
+      "effort": "medium",
+      "fix_shape": "use a DST-aware library; never add seconds to a wall-clock date",
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.8,
+        "agent_risk": 0.3,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "use_calendar_aware_lib",
+          "description": "Replace ms-arithmetic with a timezone-aware addDays/subtract operation that knows about DST and leap years.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "dst_naive_arithmetic.js",
+      "tier": "domain",
+      "fingerprint": "dst_naive_arithmetic::src/date.ts::"
+    },
+    {
+      "id": "crime_00017",
+      "type": "concept_alias_drift",
+      "charge": "Concept Alias Drift",
+      "severity": "medium",
+      "confidence": 0.75,
+      "file": "docs/billing.md",
+      "summary": "4 aliases from the \"tenant\" concept group appear across 5 files. An agent extending one vocabulary may duplicate logic that already exists under another name.",
+      "evidence": [
+        "alias group: tenant",
+        "aliases found: account, organisation, team, workspace",
+        "\"account\" in 2 file(s): docs/billing.md, src/routes/account/subscription.tsx",
+        "\"organisation\" in 2 file(s): docs/teams.md, src/routes/team/index.tsx",
+        "\"team\" in 2 file(s): docs/teams.md, src/routes/team/index.tsx",
+        "\"workspace\" in 2 file(s): docs/teams.md, src/routes/workspace/members.tsx"
+      ],
+      "effort": "small",
+      "fix_shape": "rename the alias to match the canonical term; one term per concept",
+      "scores": {
+        "severity": 0.55,
+        "confidence": 0.75,
+        "agent_risk": 0.3,
+        "churn": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "consolidate_concept",
+          "description": "Pick or document the canonical term, and use aliases deliberately rather than accidentally.",
+          "risk": "medium"
+        }
+      ],
+      "related_files": [
+        "docs/teams.md",
+        "src/routes/account/subscription.tsx",
+        "src/routes/team/index.tsx",
+        "src/routes/workspace/members.tsx"
+      ],
+      "pack": "language-js",
+      "detector_id": "concept_alias_drift.js",
+      "tier": "domain",
+      "fingerprint": "concept_alias_drift::docs/billing.md::"
+    },
+    {
+      "id": "crime_00018",
+      "type": "direct_date",
+      "claim": "clock_read",
+      "charge": "Temporal Recklessness",
+      "severity": "low",
+      "confidence": 0.9,
+      "file": "src/api/state.ts",
+      "lines": [
+        18,
+        18
+      ],
+      "summary": "1 direct use of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
+      "evidence": [
+        "1× Date.now()",
+        "all 1 decide a branch or comparison",
+        "lines: 18",
+        "a reading in a comparison changes what the code does — tests cannot pin the behaviour without controlling the clock"
+      ],
+      "effort": "small",
+      "fix_shape": "inject a clock; pass through the domain boundary",
+      "scores": {
+        "severity": 0.35,
+        "confidence": 0.9,
+        "agent_risk": 0.28,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "inject_clock",
+          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "direct_date.js",
+      "tier": "domain",
+      "fingerprint": "direct_date/clock_read::src/api/state.ts::"
+    },
+    {
+      "id": "crime_00019",
+      "type": "singular_plural_type_mismatch",
+      "charge": "Plural Mismatch",
+      "severity": "low",
+      "confidence": 0.7,
+      "file": "src/api/state.ts",
+      "lines": [
+        24,
+        27
+      ],
+      "summary": "2 declarations whose plural form disagrees with the annotated type's array shape.",
+      "evidence": [
+        "plural name, singular type: `users: User` @L24",
+        "singular name, array type: `invoice: Invoice[]` @L27",
+        "v1 detector — type aliases and generic types are silently skipped"
+      ],
+      "effort": "quick",
+      "fix_shape": "make the name agree with the type — `users` for array, `user` for scalar",
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.7,
+        "agent_risk": 0.28,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "rename_or_reshape",
+          "description": "Rename the variable to match the type's shape, or change the type to match the name. If the project intentionally diverges, add the name to `detectors.options.singular_plural_type_mismatch.allowedNames`.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "singular_plural_type_mismatch.js",
+      "tier": "domain",
+      "fingerprint": "singular_plural_type_mismatch::src/api/state.ts::"
+    },
+    {
+      "id": "crime_00020",
+      "type": "orphaned_destination",
+      "charge": "Orphaned Destination",
+      "severity": "low",
+      "confidence": 0.65,
+      "file": "src/routes/account/subscription.tsx",
+      "summary": "Route /account/subscription appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
+      "evidence": [
+        "route path: /account/subscription",
+        "file: src/routes/account/subscription.tsx",
+        "no nav source references this destination",
+        "no internal doc link references this destination",
+        "no in-repo import targets this route file"
+      ],
+      "effort": "quick",
+      "fix_shape": "delete the orphan destination or wire it up",
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.65,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0,
+        "agent_risk": 0.28
+      },
+      "suggested_actions": [
+        {
+          "kind": "link_or_retire",
+          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "orphaned_destination.js",
+      "tier": "domain",
+      "fingerprint": "orphaned_destination::src/routes/account/subscription.tsx::"
+    },
+    {
+      "id": "crime_00021",
+      "type": "orphaned_destination",
+      "charge": "Orphaned Destination",
+      "severity": "low",
+      "confidence": 0.65,
+      "file": "src/routes/team/index.tsx",
+      "summary": "Route /team appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
+      "evidence": [
+        "route path: /team",
+        "file: src/routes/team/index.tsx",
+        "no nav source references this destination",
+        "no internal doc link references this destination",
+        "no in-repo import targets this route file"
+      ],
+      "effort": "quick",
+      "fix_shape": "delete the orphan destination or wire it up",
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.65,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0,
+        "agent_risk": 0.28
+      },
+      "suggested_actions": [
+        {
+          "kind": "link_or_retire",
+          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "orphaned_destination.js",
+      "tier": "domain",
+      "fingerprint": "orphaned_destination::src/routes/team/index.tsx::"
+    },
+    {
+      "id": "crime_00022",
+      "type": "orphaned_destination",
+      "charge": "Orphaned Destination",
+      "severity": "low",
+      "confidence": 0.65,
+      "file": "src/routes/workspace/members.tsx",
+      "summary": "Route /workspace/members appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
+      "evidence": [
+        "route path: /workspace/members",
+        "file: src/routes/workspace/members.tsx",
+        "no nav source references this destination",
+        "no internal doc link references this destination",
+        "no in-repo import targets this route file"
+      ],
+      "effort": "quick",
+      "fix_shape": "delete the orphan destination or wire it up",
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.65,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0,
+        "agent_risk": 0.28
+      },
+      "suggested_actions": [
+        {
+          "kind": "link_or_retire",
+          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "orphaned_destination.js",
+      "tier": "domain",
+      "fingerprint": "orphaned_destination::src/routes/workspace/members.tsx::"
+    },
+    {
+      "id": "crime_00023",
       "type": "contract_drift",
       "charge": "Contract Split-Brain",
       "severity": "high",
@@ -480,551 +1025,6 @@
       "detector_id": "contract_drift.js",
       "tier": "domain",
       "fingerprint": "contract_drift::src/api/state.ts::Invoice"
-    },
-    {
-      "id": "crime_00011",
-      "type": "negative_flag_maze",
-      "charge": "Negative Flag Maze",
-      "severity": "low",
-      "confidence": 0.72,
-      "file": "src/petty.ts",
-      "lines": [
-        35,
-        35
-      ],
-      "discriminator": "9361fc296993",
-      "summary": "Conditional combines 2 negative flags. Double-negative logic is easy to invert during maintenance.",
-      "evidence": [
-        "negative flags: disableBilling, skipRetry",
-        "condition: !disableBilling && !skipRetry"
-      ],
-      "effort": "small",
-      "fix_shape": "invert flags to read positively; consolidate combined states",
-      "scores": {
-        "severity": 0.25,
-        "confidence": 0.72,
-        "agent_risk": 0.36,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "rename_or_simplify_flags",
-          "description": "Prefer positive flag names or extract the predicate into a named helper before extending this condition.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "negative_flag_maze.js",
-      "tier": "domain",
-      "fingerprint": "negative_flag_maze::src/petty.ts::::9361fc296993"
-    },
-    {
-      "id": "crime_00012",
-      "type": "timezone_unsafe_parse",
-      "charge": "Timezone Roulette",
-      "severity": "medium",
-      "confidence": 0.9,
-      "file": "src/date.ts",
-      "lines": [
-        29,
-        33
-      ],
-      "summary": "2 `new Date(\"…\")` calls parsing a string with no timezone marker. The runtime applies its own timezone, which is rarely the one the literal author had in mind.",
-      "evidence": [
-        "unsafe literals: \"2026-12-25T07:00:00\", \"2026-12-20\"",
-        "lines: 29, 33",
-        "add `Z` for UTC, `±HH:MM` for an offset, or parse through a timezone-aware library"
-      ],
-      "effort": "small",
-      "fix_shape": "parse with explicit timezone; reject ambiguous inputs",
-      "scores": {
-        "severity": 0.6,
-        "confidence": 0.9,
-        "agent_risk": 0.35,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "fix_timezone_parse",
-          "description": "Append `Z` (UTC) or `±HH:MM` to the literal, or parse through a library that mandates an explicit zone.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "timezone_unsafe_parse.js",
-      "tier": "domain",
-      "fingerprint": "timezone_unsafe_parse::src/date.ts::"
-    },
-    {
-      "id": "crime_00013",
-      "type": "name_behavior_mismatch",
-      "charge": "False Identity",
-      "severity": "medium",
-      "confidence": 0.8,
-      "file": "src/billing.ts",
-      "symbol": "calculateRefundPreview",
-      "lines": [
-        40,
-        44
-      ],
-      "summary": "calculateRefundPreview has a safe-sounding name but appears to perform side effects. Misleading names make edits riskier because callers may treat the function as pure.",
-      "evidence": [
-        "name prefix suggests a pure transformation",
-        "side-effect-like calls: saveRefundAudit, sendRefundEmail",
-        "3 side-effect signals in the function body"
-      ],
-      "effort": "small",
-      "fix_shape": "rename to match behaviour, or change the body to match the name",
-      "scores": {
-        "severity": 0.55,
-        "confidence": 0.8,
-        "agent_risk": 0.31,
-        "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "rename_or_extract_side_effect",
-          "description": "Rename the function to disclose the side effect, or extract the pure calculation/read from the mutation.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "name_behavior_mismatch.js",
-      "tier": "domain",
-      "fingerprint": "name_behavior_mismatch::src/billing.ts::calculateRefundPreview"
-    },
-    {
-      "id": "crime_00014",
-      "type": "logic_in_comments",
-      "charge": "Logic in the Alibi",
-      "severity": "medium",
-      "confidence": 0.74,
-      "file": "src/billing.ts",
-      "lines": [
-        39,
-        39
-      ],
-      "discriminator": "424ab731a4d3",
-      "summary": "Comment appears to carry a rule that nearby code does not obviously encode. Hidden prose rules are easy for agents and new maintainers to miss.",
-      "evidence": [
-        "comment says: \"Only owners can refund enterprise plans unless billing support approves.\"",
-        "rule terms: only, unless",
-        "domain terms not found nearby: owner, plan, billing, refund"
-      ],
-      "effort": "small",
-      "fix_shape": "lift the prose rule to an assert / type / test / config check",
-      "scores": {
-        "severity": 0.5,
-        "confidence": 0.74,
-        "agent_risk": 0.31,
-        "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "encode_comment_rule",
-          "description": "Move the rule into a named guard, type, config value, or test; keep comments for rationale.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "logic_in_comments.js",
-      "tier": "domain",
-      "fingerprint": "logic_in_comments::src/billing.ts::::424ab731a4d3"
-    },
-    {
-      "id": "crime_00015",
-      "type": "hardcoded_localhost",
-      "charge": "Dev-Server URL",
-      "severity": "medium",
-      "confidence": 0.9,
-      "file": "src/api/files.ts",
-      "lines": [
-        8,
-        8
-      ],
-      "summary": "1 hardcoded dev-server URL (`localhost:NNNN` / `127.0.0.1:NNNN` / `0.0.0.0:NNNN`) in non-test, non-config source. These literals only work against whichever dev server happens to be running on that port — every other environment silently fails to connect.",
-      "evidence": [
-        "`localhost:3000` @L8",
-        "lines: 8",
-        "move the value behind a config / env var (`process.env.API_URL`, settings module, etc.)"
-      ],
-      "effort": "quick",
-      "fix_shape": "lift the host to config or env; default for dev only",
-      "scores": {
-        "severity": 0.6,
-        "confidence": 0.9,
-        "agent_risk": 0.3,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "move_url_to_config",
-          "description": "Replace the literal with a config-supplied URL (`process.env.API_URL`, a settings module, or the framework's runtime config). Keep the dev-server URL in `.env.local` / `.env.example` so each environment supplies its own.",
-          "risk": "low"
-        }
-      ],
-      "pack": "universal",
-      "detector_id": "hardcoded_localhost",
-      "tier": "domain",
-      "fingerprint": "hardcoded_localhost::src/api/files.ts::"
-    },
-    {
-      "id": "crime_00016",
-      "type": "hardcoded_local_path",
-      "charge": "Localhost-on-Disk",
-      "severity": "medium",
-      "confidence": 0.9,
-      "file": "src/api/files.ts",
-      "lines": [
-        9,
-        9
-      ],
-      "summary": "1 hardcoded user-home path (`/Users/<name>/`, `/home/<name>/`, or `C:\\Users\\<name>\\`) in non-test source. These paths exist on exactly one machine — the code silently breaks for every other developer, every CI runner, and every deploy.",
-      "evidence": [
-        "`/Users/andrew/dev/crimes/schema.json` @L9",
-        "lines: 9",
-        "replace with `os.homedir()`, `process.env.HOME`, or a config-driven base path"
-      ],
-      "effort": "quick",
-      "fix_shape": "use a portable path or resolve from a configured root",
-      "scores": {
-        "severity": 0.6,
-        "confidence": 0.9,
-        "agent_risk": 0.3,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "use_portable_home_path",
-          "description": "Replace the literal with `os.homedir()` (or `process.env.HOME`) and join the remainder, or pass the base path through configuration so each environment supplies its own.",
-          "risk": "low"
-        }
-      ],
-      "pack": "universal",
-      "detector_id": "hardcoded_local_path",
-      "tier": "domain",
-      "fingerprint": "hardcoded_local_path::src/api/files.ts::"
-    },
-    {
-      "id": "crime_00017",
-      "type": "dst_naive_arithmetic",
-      "charge": "DST-Naive Day Math",
-      "severity": "medium",
-      "confidence": 0.8,
-      "file": "src/date.ts",
-      "lines": [
-        52,
-        52
-      ],
-      "summary": "1 day-level millisecond constant in arithmetic. A day isn't 86,400,000 ms on DST-transition days; manual ms math drifts silently.",
-      "evidence": [
-        "+ 86400000 (day) @L52",
-        "lines: 52",
-        "use a calendar-aware library (Luxon, Temporal, date-fns-tz) for day math"
-      ],
-      "effort": "medium",
-      "fix_shape": "use a DST-aware library; never add seconds to a wall-clock date",
-      "scores": {
-        "severity": 0.6,
-        "confidence": 0.8,
-        "agent_risk": 0.3,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "use_calendar_aware_lib",
-          "description": "Replace ms-arithmetic with a timezone-aware addDays/subtract operation that knows about DST and leap years.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "dst_naive_arithmetic.js",
-      "tier": "domain",
-      "fingerprint": "dst_naive_arithmetic::src/date.ts::"
-    },
-    {
-      "id": "crime_00018",
-      "type": "concept_alias_drift",
-      "charge": "Concept Alias Drift",
-      "severity": "medium",
-      "confidence": 0.75,
-      "file": "docs/billing.md",
-      "summary": "4 aliases from the \"tenant\" concept group appear across 5 files. An agent extending one vocabulary may duplicate logic that already exists under another name.",
-      "evidence": [
-        "alias group: tenant",
-        "aliases found: account, organisation, team, workspace",
-        "\"account\" in 2 file(s): docs/billing.md, src/routes/account/subscription.tsx",
-        "\"organisation\" in 2 file(s): docs/teams.md, src/routes/team/index.tsx",
-        "\"team\" in 2 file(s): docs/teams.md, src/routes/team/index.tsx",
-        "\"workspace\" in 2 file(s): docs/teams.md, src/routes/workspace/members.tsx"
-      ],
-      "effort": "small",
-      "fix_shape": "rename the alias to match the canonical term; one term per concept",
-      "scores": {
-        "severity": 0.55,
-        "confidence": 0.75,
-        "agent_risk": 0.3,
-        "churn": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "consolidate_concept",
-          "description": "Pick or document the canonical term, and use aliases deliberately rather than accidentally.",
-          "risk": "medium"
-        }
-      ],
-      "related_files": [
-        "docs/teams.md",
-        "src/routes/account/subscription.tsx",
-        "src/routes/team/index.tsx",
-        "src/routes/workspace/members.tsx"
-      ],
-      "pack": "language-js",
-      "detector_id": "concept_alias_drift.js",
-      "tier": "domain",
-      "fingerprint": "concept_alias_drift::docs/billing.md::"
-    },
-    {
-      "id": "crime_00019",
-      "type": "direct_date",
-      "claim": "clock_read",
-      "charge": "Temporal Recklessness",
-      "severity": "low",
-      "confidence": 0.9,
-      "file": "src/api/state.ts",
-      "lines": [
-        18,
-        18
-      ],
-      "summary": "1 direct use of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
-      "evidence": [
-        "1× Date.now()",
-        "all 1 decide a branch or comparison",
-        "lines: 18",
-        "a reading in a comparison changes what the code does — tests cannot pin the behaviour without controlling the clock"
-      ],
-      "effort": "small",
-      "fix_shape": "inject a clock; pass through the domain boundary",
-      "scores": {
-        "severity": 0.35,
-        "confidence": 0.9,
-        "agent_risk": 0.28,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "inject_clock",
-          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "direct_date.js",
-      "tier": "domain",
-      "fingerprint": "direct_date/clock_read::src/api/state.ts::"
-    },
-    {
-      "id": "crime_00020",
-      "type": "singular_plural_type_mismatch",
-      "charge": "Plural Mismatch",
-      "severity": "low",
-      "confidence": 0.7,
-      "file": "src/api/state.ts",
-      "lines": [
-        24,
-        27
-      ],
-      "summary": "2 declarations whose plural form disagrees with the annotated type's array shape.",
-      "evidence": [
-        "plural name, singular type: `users: User` @L24",
-        "singular name, array type: `invoice: Invoice[]` @L27",
-        "v1 detector — type aliases and generic types are silently skipped"
-      ],
-      "effort": "quick",
-      "fix_shape": "make the name agree with the type — `users` for array, `user` for scalar",
-      "scores": {
-        "severity": 0.3,
-        "confidence": 0.7,
-        "agent_risk": 0.28,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "rename_or_reshape",
-          "description": "Rename the variable to match the type's shape, or change the type to match the name. If the project intentionally diverges, add the name to `detectors.options.singular_plural_type_mismatch.allowedNames`.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "singular_plural_type_mismatch.js",
-      "tier": "domain",
-      "fingerprint": "singular_plural_type_mismatch::src/api/state.ts::"
-    },
-    {
-      "id": "crime_00021",
-      "type": "orphaned_destination",
-      "charge": "Orphaned Destination",
-      "severity": "low",
-      "confidence": 0.65,
-      "file": "src/routes/account/subscription.tsx",
-      "summary": "Route /account/subscription appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
-      "evidence": [
-        "route path: /account/subscription",
-        "file: src/routes/account/subscription.tsx",
-        "no nav source references this destination",
-        "no internal doc link references this destination",
-        "no in-repo import targets this route file"
-      ],
-      "effort": "quick",
-      "fix_shape": "delete the orphan destination or wire it up",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.65,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.28
-      },
-      "suggested_actions": [
-        {
-          "kind": "link_or_retire",
-          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "orphaned_destination.js",
-      "tier": "domain",
-      "fingerprint": "orphaned_destination::src/routes/account/subscription.tsx::"
-    },
-    {
-      "id": "crime_00022",
-      "type": "orphaned_destination",
-      "charge": "Orphaned Destination",
-      "severity": "low",
-      "confidence": 0.65,
-      "file": "src/routes/team/index.tsx",
-      "summary": "Route /team appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
-      "evidence": [
-        "route path: /team",
-        "file: src/routes/team/index.tsx",
-        "no nav source references this destination",
-        "no internal doc link references this destination",
-        "no in-repo import targets this route file"
-      ],
-      "effort": "quick",
-      "fix_shape": "delete the orphan destination or wire it up",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.65,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.28
-      },
-      "suggested_actions": [
-        {
-          "kind": "link_or_retire",
-          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "orphaned_destination.js",
-      "tier": "domain",
-      "fingerprint": "orphaned_destination::src/routes/team/index.tsx::"
-    },
-    {
-      "id": "crime_00023",
-      "type": "orphaned_destination",
-      "charge": "Orphaned Destination",
-      "severity": "low",
-      "confidence": 0.65,
-      "file": "src/routes/workspace/members.tsx",
-      "summary": "Route /workspace/members appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
-      "evidence": [
-        "route path: /workspace/members",
-        "file: src/routes/workspace/members.tsx",
-        "no nav source references this destination",
-        "no internal doc link references this destination",
-        "no in-repo import targets this route file"
-      ],
-      "effort": "quick",
-      "fix_shape": "delete the orphan destination or wire it up",
-      "scores": {
-        "severity": 0.4,
-        "confidence": 0.65,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0,
-        "agent_risk": 0.28
-      },
-      "suggested_actions": [
-        {
-          "kind": "link_or_retire",
-          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "orphaned_destination.js",
-      "tier": "domain",
-      "fingerprint": "orphaned_destination::src/routes/workspace/members.tsx::"
     },
     {
       "id": "crime_00024",
@@ -1188,49 +1188,6 @@
     },
     {
       "id": "crime_00028",
-      "type": "commented_out_code",
-      "charge": "Commented-Out Corpse",
-      "severity": "medium",
-      "confidence": 0.9,
-      "file": "src/billing.ts",
-      "lines": [
-        33,
-        37
-      ],
-      "discriminator": "42a4bbb39f1f",
-      "summary": "Comment block appears to contain disabled code. Dead implementation snippets can mislead humans and agents into copying or reviving stale behaviour.",
-      "evidence": [
-        "5 comment lines",
-        "code-like tokens: const, if, await",
-        "first code-like line: const legacyRefund = await loadRefund(user.id);"
-      ],
-      "effort": "quick",
-      "fix_shape": "delete; git history preserves it",
-      "scores": {
-        "severity": 0.45,
-        "confidence": 0.9,
-        "agent_risk": 0.23,
-        "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "delete_dead_comment_code",
-          "description": "Delete the disabled code, or replace it with a short rationale that explains the active implementation.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "commented_out_code.js",
-      "tier": "domain",
-      "fingerprint": "commented_out_code::src/billing.ts::::42a4bbb39f1f"
-    },
-    {
-      "id": "crime_00029",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "low",
@@ -1274,7 +1231,7 @@
       "fingerprint": "weak_test_signal/weak_assertion_matchers::src/billing.test.ts::::creates an invoice"
     },
     {
-      "id": "crime_00030",
+      "id": "crime_00029",
       "type": "dependency_provenance_gap",
       "charge": "Phantom Accomplice",
       "severity": "low",
@@ -1321,6 +1278,49 @@
       "detector_id": "dependency_provenance_gap",
       "tier": "domain",
       "fingerprint": "dependency_provenance_gap/undeclared_import::package.json::undeclared imports"
+    },
+    {
+      "id": "crime_00030",
+      "type": "commented_out_code",
+      "charge": "Commented-Out Corpse",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/billing.ts",
+      "lines": [
+        33,
+        37
+      ],
+      "discriminator": "42a4bbb39f1f",
+      "summary": "Comment block appears to contain disabled code. Dead implementation snippets can mislead humans and agents into copying or reviving stale behaviour.",
+      "evidence": [
+        "5 comment lines",
+        "code-like tokens: const, if, await",
+        "first code-like line: const legacyRefund = await loadRefund(user.id);"
+      ],
+      "effort": "quick",
+      "fix_shape": "delete; git history preserves it",
+      "scores": {
+        "severity": 0.45,
+        "confidence": 0.9,
+        "agent_risk": 0.2,
+        "churn": 0,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "delete_dead_comment_code",
+          "description": "Delete the disabled code, or replace it with a short rationale that explains the active implementation.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "commented_out_code.js",
+      "tier": "domain",
+      "fingerprint": "commented_out_code::src/billing.ts::::42a4bbb39f1f"
     },
     {
       "id": "crime_00031",
