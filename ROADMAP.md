@@ -18,6 +18,12 @@ Reviewed: 2026-10-19. This file records desired outcomes; the
   packs on one shared structured-surface detector slate. Before release,
   use it on the private estate it was built against and judge whether its
   briefings are useful, not just correct.
+- **0.31: scan ranking that leads with what matters on JVM and mobile code.**
+  On the estate behind 0.30 a full scan's top ten is still clock reads and
+  commented-out code, because the 0.24 calibration ranks those signals
+  above large, churning, untested files. Revisit the structural scale and
+  the commented-out-code budget against that estate and the labelled
+  ranking scenarios together.
 - **0.31 milestone: templates and stylesheets.** JSP (`.jsp`, `.jspf`,
   `.tag`) and LESS/CSS packs. Server-rendered views and stylesheets are a
   large share of older Java web estates (on the estate behind 0.30, about

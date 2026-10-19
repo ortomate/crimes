@@ -81,7 +81,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript, JavaScript, Python, Java, Kotlin and Swift repositories for change risk and agent risk, including duplicated business rules, unclear sources of truth, weakly tested hotspots and API disagreements.",
-            "softwareVersion": "0.29.0",
+            "softwareVersion": "0.30.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/ortomate/crimes",
             "programmingLanguage": "TypeScript",
@@ -216,7 +216,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.29.0 · Relevant context, quieter defaults · <a href="/docs/releases/v0.29.0/">release notes</a></span>
+          <span class="pill">v0.30.0 · Java, Kotlin and Swift · <a href="/docs/releases/v0.30.0/">release notes</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -716,7 +716,7 @@ Repo-level
       <section id="detects">
         <h2>What it detects today</h2>
         <p>
-          <strong>69 detectors across ten families.</strong> The two tables
+          <strong>81 detectors across ten families.</strong> The two tables
           below are the founding families, shown in full because they are
           the easiest to picture. Every family after them links to its own
           reference page. Each lists the detectors, what raises and
@@ -1095,8 +1095,11 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
         </p>
         <p>
           Detectors live in <code>packages/core</code>, language parsing in
-          <code>packages/language-js</code> and
-          <code>packages/language-py</code>, reporters in
+          <code>packages/language-js</code>,
+          <code>packages/language-py</code>,
+          <code>packages/language-java</code>,
+          <code>packages/language-kotlin</code> and
+          <code>packages/language-swift</code>, reporters in
           <code>packages/reporter</code>. See the
           <a href="https://github.com/ortomate/crimes/blob/main/CONTRIBUTING.md">contribution guide</a>
           to add a detector or language pack.

@@ -1,9 +1,9 @@
 # Implementation status
 
-Repository version: **crimes 0.29.0**, JSON schema **0.8.0**.
+Repository version: **crimes 0.30.0** (prepared), JSON schema **0.8.0**.
 The [npm package](https://www.npmjs.com/package/crimes) and
 `npm view crimes version` identify the published version; a checkout can be ahead.
-[0.29.0 release notes](./releases/v0.29.0.md) record the
+[0.30.0 release notes](./releases/v0.30.0.md) record the
 change and verification. Prior versions are documented in
 [release history](https://github.com/ortomate/crimes/tree/main/docs/releases).
 
