@@ -49,6 +49,11 @@ These remain available for explicitly scoped reviews.
   still analyzes the repository. See [performance](./performance.md) for
   reproducible timing, memory and unchanged-report checks. No disk cache ships.
 - Homebrew and standalone binaries, with Python WASM parity verification.
+- JSP and LESS/CSS packs (the 0.31 milestone in the [product roadmap](../ROADMAP.md));
+  today they are reported under `files_not_discovered`.
+- Eval fixtures for Java, Kotlin and Swift: no fixture exercises those packs yet.
+- Package-level cycles for Java/Kotlin, a cross-file symbol index for the
+  structured packs, and Java 21 type patterns (a tree-sitter-java gap).
 - Further language packs (Go, Rust, C# and others report as `files_universal_only`)
   and cross-language import resolution.
 - `crimes ask`, other LLM-assisted modes, hosted services and paid tiers.

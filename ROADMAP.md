@@ -1,6 +1,6 @@
 # Product roadmap
 
-Reviewed: 2026-09-07. This file records desired outcomes; the
+Reviewed: 2026-10-19. This file records desired outcomes; the
 [implementation status](./docs/roadmap.md) records what exists.
 
 - **0.28: trustworthy briefings and quieter defaults.** Share scan/context
@@ -12,6 +12,31 @@ Reviewed: 2026-09-07. This file records desired outcomes; the
   analysis, preserve complete reports, expand behavioral trials and make pin
   replacement recoverable. [Release evidence](./docs/releases/v0.29.0.md)
   records performance, edit outcomes and the limits of those measurements.
+- **0.30: say what was not seen; read the JVM and Swift.** Honest coverage
+  for languages no pack parses, quieter defaults on real estates (tooling
+  excludes, icon rasters, runtime env vars), and Java, Kotlin and Swift
+  packs on one shared structured-surface detector slate. Before release,
+  use it on the private estate it was built against and judge whether its
+  briefings are useful, not just correct.
+- **0.31 milestone: templates and stylesheets.** JSP (`.jsp`, `.jspf`,
+  `.tag`) and LESS/CSS packs. Server-rendered views and stylesheets are a
+  large share of older Java web estates (on the estate behind 0.30, about
+  1,650 files) and are currently only reported as undiscovered. Needs a
+  grammar decision for JSP (embedded Java, EL and tag libraries), links
+  from templates to the Java they call, and detectors chosen for what those
+  files hide from an agent rather than style rules.
+- **Measure the new packs.** Eval fixtures and scenarios for Java, Kotlin
+  and Swift, pinned from real public repositories rather than written for
+  the purpose; today no fixture exercises them.
+- **Large-repository cost.** A full n8n scan takes about 27 minutes, nearly
+  all of it TypeScript parsing for the IA index. A persistent cache is the
+  obvious lever and conflicts with the guarantee that every command
+  re-evaluates from scratch; decide that trade explicitly.
+- **JVM and Swift depth.** Package-level cycle detection for Java and
+  Kotlin (file-level cycles are routine there); a cross-file symbol index
+  so `weak_test_signal` can follow inherited helpers instead of giving them
+  the benefit of the doubt; a newer tree-sitter-java for Java 21 type
+  patterns.
 - **Demonstrate better edits.** Move beyond the fixed synthetic suite to
   representative changes and independently reported use. Retain failures,
   scope expansion and integration cost alongside acceptance results.
