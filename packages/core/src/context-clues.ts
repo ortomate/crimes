@@ -1,6 +1,7 @@
 // Type-only import — erased at compile time, so this does not create a
 // runtime cycle with context.ts, which imports this module's functions.
 import type { ContextClues, ContextReport } from "./context.js";
+import { isUnsupportedCodeFile } from "./discovery/code-extensions.js";
 import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import type { Finding } from "./finding.js";
 import type { ScoringContext } from "./scoring/build.js";
@@ -111,7 +112,11 @@ export function applyEmptyReasons(
     report.related_files_reason =
       "no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings";
   }
-  if (likely_tests.length === 0 && args.unclaimedExtension !== undefined) {
+  if (
+    likely_tests.length === 0 &&
+    args.unclaimedExtension !== undefined &&
+    isUnsupportedCodeFile(report.file)
+  ) {
     report.likely_tests_reason =
       `no language pack parses ${args.unclaimedExtension} files, so their test ` +
       "conventions and imports were not checked; absence of a match is not absence of tests";

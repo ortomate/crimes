@@ -802,6 +802,7 @@ describe("context — universal pack on unsupported extensions", () => {
     const root = await makeRepo({ "notes.md": "# Notes\n" });
     const report = await context({ root, file: "notes.md" });
     expect(report.analysis_status).toBe("complete");
+    expect(report.likely_tests_reason).not.toMatch(/not checked/);
   });
 
   it("notes 'universal-pack findings only' when a universal detector fires", async () => {
