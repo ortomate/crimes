@@ -40,7 +40,7 @@ export const KOTLIN_PROFILE: LanguageProfile<"language-kotlin"> = {
       "handles a missing value, not a broken operation.",
     broadTypes: new Set(["Exception", "Throwable", "RuntimeException", "Error"]),
     catchAllIsBroad: false,
-    deliberateParam: /^(?:ignored?|expected|unused|_+)$/,
+    deliberateParam: /^(?:ignored?\d*|expected|unused|_+)$/,
     failureNoun: "exception",
     propagateAdvice:
       "Rethrow, or log the exception itself (`Log.e(TAG, msg, e)`, `Timber.e(e, msg)`). " +

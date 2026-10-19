@@ -55,7 +55,7 @@ export const JAVA_PROFILE: LanguageProfile<"language-java"> = {
     catchAllIsBroad: false,
     // `ignored` is the name IntelliJ suggests for exactly this, and
     // `expected` the JUnit 4 idiom for an exception a test provokes.
-    deliberateParam: /^(?:ignored?|expected|unused|_+)$/,
+    deliberateParam: /^(?:ignored?\d*|expected|unused|_+)$/,
     failureNoun: "exception",
     propagateAdvice:
       "Rethrow (wrapped if the signature requires it), or log the exception " +

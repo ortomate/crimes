@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { AssetDetector } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import { readImageDimensions } from "../util/image-dimensions.js";
+import { isSnapshotBaseline } from "../util/snapshot-baselines.js";
 
 const optionsSchema = z
   .object({
@@ -40,8 +41,18 @@ const ASSET_SET_MIN = 20;
 const ANDROID_DENSITY_DIR =
   /(?:^|\/)res\/(?:drawable|mipmap)(?:-[a-z0-9]+)*-(?:ldpi|mdpi|hdpi|xhdpi|xxhdpi|xxxhdpi|tvdpi)(?:-[a-z0-9]+)*\//;
 
-/** `icon@2x.png`, `icon@3x.png`: resolution variants, the web/iOS answer. */
-const RESOLUTION_VARIANT = /@[23]x\.[a-z]+$/i;
+/**
+ * `icon@2x.png`, `icon@3x.png`: resolution variants, the web/iOS answer.
+ * `@1x` names the base of such a set, and Xcode adds device and duplicate
+ * suffixes (`bg@2x~ipad.png`, `icon@2x-1.png`).
+ */
+const RESOLUTION_VARIANT = /@[123]x(?:[-~][\w-]*)?\.[a-z]+$/i;
+
+/**
+ * An Xcode app-icon set: the App Store and SpringBoard require PNGs at
+ * fixed sizes, so a vector here is not an option.
+ */
+const APP_ICON_SET = /\.appiconset\//i;
 
 /**
  * Email templates: major mail clients (Gmail, Outlook) do not render
@@ -64,6 +75,8 @@ function exemption(file: string, format: string, buffer: Buffer, dims: Dims): bo
   if (Math.min(dims.width, dims.height) <= 2) return true;
   if (ANDROID_DENSITY_DIR.test(file)) return true;
   if (RESOLUTION_VARIANT.test(file)) return true;
+  if (APP_ICON_SET.test(file)) return true;
+  if (isSnapshotBaseline(file)) return true;
   if (EMAIL_SEGMENT.test(file)) return true;
   return false;
 }

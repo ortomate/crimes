@@ -41,6 +41,13 @@ const ASSERTION_CALL =
   /^(?:XCTAssert\w*|XCTFail|XCTUnwrap|XCTExpectFailure|expect|assertSnapshot\w*)$/;
 const ASSERTION_MACRO = /^(?:expect|require)$/;
 
+/**
+ * Assertions called on a receiver: ReactiveSwift's `TestObserver`
+ * (`observer.assertValues([1])`), Combine and RxSwift test helpers.
+ * Requires the camel-case tail so Swift's debug-only `assert(_:)` stays out.
+ */
+const RECEIVER_ASSERTION = /^assert[A-Z]\w*$/;
+
 const LOG_FUNCTION = /^(?:print|debugPrint|NSLog|os_log|dump)$/;
 const LOG_RECEIVER = /^(?:self\.)?(?:log|logger|Log|Logger|os_log)$/i;
 
@@ -142,7 +149,9 @@ function collect(tree: Tree, source: string, result: ParsedSwiftFile): void {
         break;
       case "function_declaration":
       case "protocol_function_declaration":
-        startFunction(buildFunction(cursor.currentNode, type, "function"));
+        startFunction(
+          buildFunction(cursor.currentNode, type, "function", importsXCTest(result)),
+        );
         break;
       case "init_declaration":
       case "deinit_declaration":
@@ -285,10 +294,16 @@ function buildType(
   };
 }
 
+/** Imports precede declarations in Swift, so this is settled by the first function. */
+function importsXCTest(result: ParsedSwiftFile): boolean {
+  return result.imports.some((i) => i.module === "XCTest");
+}
+
 function buildFunction(
   node: Node,
   type: ParsedSwiftType | undefined,
   kind: "function" | "constructor" | "property",
+  xcTest = false,
 ): ParsedSwiftFunction {
   const attributes = attributesOf(node);
   let name: string;
@@ -305,7 +320,12 @@ function buildFunction(
 
   let shape: SwiftFunctionShape = "domain";
   const evidence: string[] = [];
-  const testCase = type?.inherits.some((i) => /\bXCTestCase\b/.test(i)) ?? false;
+  // Suites usually inherit a project base (`final class FeedTests:
+  // TestCase`), so in a file importing XCTest a base named like one counts.
+  const testCase =
+    type?.inherits.some(
+      (i) => /\bXCTestCase\b/.test(i) || (xcTest && /TestCase$|Tests?$/.test(i)),
+    ) ?? false;
   if (kind === "constructor") {
     shape = "constructor";
     evidence.push(name);
@@ -461,7 +481,10 @@ function visitCall(
   if (name === "") return;
   if (receiver === undefined) addTypeLike(ctx.referenced, name);
   if (ctx.fn) {
-    if (receiver === undefined && ASSERTION_CALL.test(name))
+    if (
+      (receiver === undefined && ASSERTION_CALL.test(name)) ||
+      (receiver !== undefined && RECEIVER_ASSERTION.test(name))
+    )
       ctx.fn.fn.assertionCount += 1;
     if (receiver === undefined || receiver.type === "self_expression")
       ctx.fn.calls.add(name);

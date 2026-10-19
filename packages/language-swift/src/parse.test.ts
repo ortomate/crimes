@@ -65,6 +65,34 @@ struct FilmCard: View {
     expect(byName.body!.shape).toBe("ui_component");
   });
 
+  it("treats a project XCTest base class as a test case", async () => {
+    const parsed = await parse(`import XCTest
+final class FormatTests: TestCase {
+  func testCurrency() { XCTAssertEqual(1, 1) }
+}
+`);
+    expect(parsed.methods[0]!.shape).toBe("test_method");
+    const noImport = await parse(`final class FormatTests: TestCase {
+  func testCurrency() { check() }
+}
+`);
+    expect(noImport.methods[0]!.shape).toBe("domain");
+  });
+
+  it("counts assertions made through a test observer", async () => {
+    const parsed = await parse(`import XCTest
+final class VMTests: TestCase {
+  func testLabel() { self.labelText.assertValues(["a"]) }
+  func testNothing() { self.vm.inputs.load() }
+}
+`);
+    const byName = Object.fromEntries(
+      parsed.methods.map((m) => [m.name, m.assertionCount]),
+    );
+    expect(byName.testLabel).toBe(1);
+    expect(byName.testNothing).toBe(0);
+  });
+
   it("does not deepen nesting for else-if", async () => {
     const parsed = await parse(`func f(x: Int) {
   if x == 1 { a() } else if x == 2 { b() } else { c() }
