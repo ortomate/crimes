@@ -32,6 +32,43 @@ Per-version results land in `results/<crimes-version>/<agent>/`,
 committed to the repo. Subsequent releases compare against the pinned
 results to catch detector-tuning regressions.
 
+## Where the agent runs (and why it is not here)
+
+Every invocation gets its own disposable copy of the fixture, created by
+`createAgentWorkspace` and passed to the CLI as `cwd`. The copy
+dereferences symlinks, excludes `.git` and `node_modules`, and is deleted
+when the invocation returns.
+
+This was not always true, and the 0.29.1 round is the record of what
+happens without it. The runner passed no `cwd`, so `claude -p` and
+`codex exec` inherited the runner's own — inside this repository. Three
+things followed:
+
+1. `evals/fixtures/15-risky-service` is a symlink to
+   `examples/risky-service`. A `refactor` scenario asks for a `deletedAt`
+   field on a fixture schema; codex added it to the real file and
+   committed it. Twice, on separate runs, reproducibly. Claude, given the
+   same prompt concurrently, wrote "I have not edited anything" — so this
+   cannot be left to agent judgement.
+2. Agents could read this repository's own `AGENTS.md`, `CLAUDE.md` and
+   `.claude/skills/` while being measured on someone else's code.
+3. One agent ran `pnpm verify` **in the crimes repository** and reported
+   the result inside its answer to a question about a fixture.
+
+A round measured inside the tree that produces the tool is not measuring
+what it claims to. Rule 3 of the round protocol already said so; nothing
+enforced it.
+
+`codex exec` refuses to start outside a "trusted directory", so the
+adapter passes `--skip-git-repo-check`. That check exists to stop an
+agent editing a repository it was not pointed at, which is exactly what
+the sandbox guarantees by other means: there is no repository to edit,
+only a copy that is deleted afterwards.
+
+The cost is that agents no longer have git history for the fixture.
+`crimes` itself still does — the scan runs against the real fixture
+before the prompt is composed, so churn-based evidence is unaffected.
+
 ## Versioning policy (eval baseline bumps)
 
 The runner keys results by the `version` field of

@@ -1404,6 +1404,16 @@ describe("renderRiskProfileLine — test_gap quartile label", () => {
   });
 });
 
+describe("renderRiskProfileLine — unmeasured scores", () => {
+  it("omits test gap and blast radius when core left them unset", () => {
+    const f = stubFinding({ churn: 0.9 });
+    const line = renderRiskProfileLine(f, pc, { alwaysShowRiskProfile: true });
+    expect(line).toContain("churn high");
+    expect(line).not.toContain("test gap");
+    expect(line).not.toContain("blast");
+  });
+});
+
 describe("renderRiskProfileLine — blast radius counts", () => {
   it("distinguishes direct fan-in from transitive reach", () => {
     const f = stubFinding({

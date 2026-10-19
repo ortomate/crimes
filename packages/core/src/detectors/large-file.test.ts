@@ -168,7 +168,7 @@ describe("largeFileDetector — docs shape", () => {
     expect(findings[0]!.severity).toBe("medium");
   });
 
-  it("covers the prose extensions but not data formats", async () => {
+  it("covers the prose extensions, the data formats, and nothing else", async () => {
     for (const file of [
       "README.md",
       "docs/guide.mdx",
@@ -179,11 +179,24 @@ describe("largeFileDetector — docs shape", () => {
     ]) {
       expect(await largeFileDetector.run(makeCtx(900, { file }))).toEqual([]);
     }
-    // Data, not prose — a 900-line config still earns the domain budget.
-    for (const file of ["package.json", "config.yaml", "data.csv"]) {
-      const findings = await largeFileDetector.run(makeCtx(900, { file }));
-      expect(findings, file).toHaveLength(1);
+    // Data formats carry their own budget as of the 0.29.1 calibration:
+    // quiet at 900 lines, where they used to be charged against the
+    // 300-line domain budget and arrive as `high`.
+    for (const file of ["package.json", "config.yaml", "fixtures/users.json"]) {
+      expect(await largeFileDetector.run(makeCtx(900, { file })), file).toEqual([]);
     }
+    // The decision that gave data the domain budget still holds at the
+    // size it was written about: "a 3000-line config is a finding worth
+    // keeping". It is kept — as `medium`, not `high`.
+    for (const file of ["package.json", "config.yaml"]) {
+      const findings = await largeFileDetector.run(makeCtx(3000, { file }));
+      expect(findings, file).toHaveLength(1);
+      expect(findings[0]!.severity, file).toBe("medium");
+    }
+    // Neither prose nor one of the data extensions: domain budget.
+    expect(await largeFileDetector.run(makeCtx(900, { file: "data.csv" }))).toHaveLength(
+      1,
+    );
   });
 
   it("docs agent_risk sits between test_file and domain at the same size", async () => {
@@ -232,5 +245,30 @@ describe("largeFileDetector — universal pack", () => {
     );
     // 900 < 1500 default test_file threshold → no finding.
     expect(findings).toEqual([]);
+  });
+
+  it("gives structured data its own budget instead of domain severity", async () => {
+    // Field notes, rolecred 2026-09-22: large generated audit JSON became
+    // high-severity findings and outranked the runtime changes under
+    // review. Data is still worth flagging; it is not domain code.
+    const findings = await largeFileDetector.run(
+      makeCtx(1200, { file: "docs/audits/evidence-2026-09.json" }),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.severity).toBe("low");
+    expect(findings[0]!.evidence.join(" ")).toContain("data file");
+  });
+
+  it("caps oversized data files at medium", async () => {
+    const findings = await largeFileDetector.run(
+      makeCtx(5000, { file: "config/regions.yaml" }),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.severity).toBe("medium");
+  });
+
+  it("still gives domain code the domain budget", async () => {
+    const findings = await largeFileDetector.run(makeCtx(1200, { file: "src/api.ts" }));
+    expect(findings[0]!.severity).toBe("high");
   });
 });

@@ -22,7 +22,7 @@ export const TEST_EXT = /(?:\.(?:test|spec)|_(?:test|spec))\.(ts|tsx|js|jsx|mjs|
  * nothing, and `crimes context` reported "no likely tests" for a fully
  * covered module.
  */
-const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|cts|mts|py|pyi)$/;
+const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|cts|mts|py|pyi|java|kt|kts|swift)$/;
 const JS_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|cts|mts)$/;
 const PY_EXT = /\.(py|pyi)$/;
 
@@ -81,8 +81,16 @@ export async function findLikelyTests(args: {
     }
   }
 
+  // A test named for the target leads, then other tests the graph proves
+  // reach it. In Java a domain class is referenced by dozens of tests, and
+  // alphabetical order put `FilmTest.java` 26th of 39 for `Film.java`.
+  const named = (rel: string): boolean =>
+    testBaseCovers(basename(rel).replace(SOURCE_EXT, ""), targetBaseNoExt);
   return [...result].sort(
-    (a, b) => Number(graphTests.has(b)) - Number(graphTests.has(a)) || a.localeCompare(b),
+    (a, b) =>
+      Number(named(b)) - Number(named(a)) ||
+      Number(graphTests.has(b)) - Number(graphTests.has(a)) ||
+      a.localeCompare(b),
   );
 }
 

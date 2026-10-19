@@ -14,6 +14,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.19
+      crimes:
+        specifier: workspace:*
+        version: link:packages/cli
       tsup:
         specifier: ^8.3.5
         version: 8.5.1(postcss@8.5.14)(tsx@4.22.0)(typescript@5.9.3)
@@ -94,12 +97,21 @@ importers:
 
   packages/core:
     dependencies:
+      '@crimes/language-java':
+        specifier: workspace:*
+        version: link:../language-java
       '@crimes/language-js':
         specifier: workspace:*
         version: link:../language-js
+      '@crimes/language-kotlin':
+        specifier: workspace:*
+        version: link:../language-kotlin
       '@crimes/language-py':
         specifier: workspace:*
         version: link:../language-py
+      '@crimes/language-swift':
+        specifier: workspace:*
+        version: link:../language-swift
       fast-glob:
         specifier: ^3.3.2
         version: 3.3.3
@@ -112,6 +124,25 @@ importers:
       zod:
         specifier: ^4.4.3
         version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(postcss@8.5.14)(tsx@4.22.0)(typescript@5.9.3)
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.19)
+
+  packages/language-java:
+    dependencies:
+      '@crimes/language-py':
+        specifier: workspace:*
+        version: link:../language-py
+      web-tree-sitter:
+        specifier: ^0.26.11
+        version: 0.26.11
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -142,8 +173,46 @@ importers:
         specifier: ^2.1.5
         version: 2.1.9(@types/node@22.19.19)
 
+  packages/language-kotlin:
+    dependencies:
+      '@crimes/language-py':
+        specifier: workspace:*
+        version: link:../language-py
+      web-tree-sitter:
+        specifier: ^0.26.11
+        version: 0.26.11
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(postcss@8.5.14)(tsx@4.22.0)(typescript@5.9.3)
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.19)
+
   packages/language-py:
     dependencies:
+      web-tree-sitter:
+        specifier: ^0.26.11
+        version: 0.26.11
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(postcss@8.5.14)(tsx@4.22.0)(typescript@5.9.3)
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.19)
+
+  packages/language-swift:
+    dependencies:
+      '@crimes/language-py':
+        specifier: workspace:*
+        version: link:../language-py
       web-tree-sitter:
         specifier: ^0.26.11
         version: 0.26.11

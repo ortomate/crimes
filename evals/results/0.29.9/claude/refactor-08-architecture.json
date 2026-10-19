@@ -1,0 +1,75 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.29.9",
+  "timestamp": "2026-10-19T02:23:50.176Z",
+  "run_id": "541625bf-5369-4b1d-a7fc-8c5828b7f757",
+  "response": "I read the four source files and `crimes.config.json` to check the findings. This is a proposal only; I haven't edited anything.\n\nThe scan has one finding of each type you asked about: **crime_00003** (`layer_violation`) and **crime_00004** (`deep_import`). Two other findings come from the same imports: crime_00002 (an import cycle) and crime_00001 (`some-pkg` isn't declared in `package.json`). The plan below fixes all four.\n\n## A runtime bug the scan doesn't report\n\nThe import cycle (crime_00002) is also a call loop:\n\n```\nrunBillingFlow()  →  chargeCustomer()  →  renderInvoice()  →  runBillingFlow()  → …\n application           domain               presentation\n```\n\nCalling any of these functions loops until the stack overflows. Fixing the import structure has to remove this loop too, not just satisfy the rules.\n\n## Break: crime_00003, `src/domain/billing.ts` → `src/presentation/invoice-view.ts`\n\n**Finding:** the config rule says domain cannot import presentation. `chargeCustomer` returns `renderInvoice(amount)`, so a business rule is producing display text.\n\n**Proposal: delete the import.** The domain shouldn't know that invoices get rendered. The scan suggests adding \"an interface owned by the domain layer,\" but that only makes sense if the domain needs the collaboration. Here it doesn't, so an `InvoiceRenderer` interface in the domain would just hide the dependency without removing it. The domain should return data:\n\n```ts\n// src/domain/billing.ts — no imports\nexport interface Charge { amount: number }\nexport function chargeCustomer(amount: number): Charge {\n  return { amount };\n}\n```\n\n**Related change, same root cause: break `invoice-view.ts` → `billing-flow.ts`.** The config allows presentation to import application, so no rule flags this edge. But it is the edge that closes both the import cycle and the call loop, because a view shouldn't start a billing flow. Make the view a pure function and let the caller run things in order:\n\n```ts\n// src/application/billing-flow.ts\nexport function runBillingFlow(amount: number): Charge {\n  const charge = chargeCustomer(amount);\n  // the external helper call moves behind a port (next section)\n  return charge;\n}\n\n// src/presentation/invoice-view.ts\nimport type { Charge } from \"../domain/billing.js\";   // presentation → domain: allowed; type-only adds no runtime edge\nexport function renderInvoice(charge: Charge): string {\n  return `Invoice: ${charge.amount}`;\n}\n```\n\nWhoever needs the rendered invoice (a controller or the app's startup code) calls `runBillingFlow`, then `renderInvoice`. That clears crime_00003 and crime_00002, and every remaining dependency points the allowed way: presentation → application → domain.\n\n## Redirect: crime_00004, `some-pkg/dist/internal/private/helper.js`\n\n**Finding:** `src/application/billing-flow.ts` reaches into the package's private files. crime_00001 shows the same import, and `some-pkg` isn't declared in any `package.json`.\n\n**Proposal: route this through a proper interface. Don't just delete it.**\n\n1. **Use the published entry point.** If the package exports the function, change the import to `import { internalHelper } from \"some-pkg\"` (or a documented subpath listed in the package's `exports`). If it doesn't export it, file an upstream issue rather than hard-coding the private path, as the scan suggests.\n2. **Isolate it in infrastructure.** The configured `infrastructure` layer has no files under `src/infrastructure/` yet, so this is its first real job. Define an interface in application (e.g. `interface BillingHelper { run(): void }`), implement it in `src/infrastructure/some-pkg-helper.ts`, and connect the two at startup. That leaves exactly one file depending on `some-pkg`, so the next upgrade only touches that file.\n3. **Declare the package (fixes crime_00001).** Add `some-pkg` to `dependencies` in `package.json`. Today it only resolves because some other dependency installs it. Without this step, step 1 doesn't help: a clean install still fails.\n\n## Why `layer_violation` and `deep_import` carry different agent risk\n\n| | `layer_violation` (crime_00003) | `deep_import` (crime_00004) |\n|---|---|---|\n| Whose contract is broken | The team's own, written down in `crimes.config.json` | An outside package's, published through its `exports` / entry point |\n| Can an agent see the damage? | Yes, all of it is in the repo. The cost is that agents copy what they see: the next agent editing `domain/` sees an import from presentation, treats it as normal, and adds more. Here it also caused a cycle and an infinite loop. | No. The package's private files aren't in the repo, and typecheck and tests pass today. The failure comes later, from an upgrade or a clean install, and nothing in the repo warns of it. |\n| What a careless fix looks like | Swapping the import for an interface the domain doesn't need, or loosening the rule. Either one only moves the violation. | Reaching into another private path, or pinning the version. Either one keeps the hidden coupling. |\n| Effort / scope | Medium, across three files and three layers (`blast_radius_transitive_importers: 3`) | Quick: one line, plus one manifest entry |\n| crimes `agent_risk` | 0.10 | 0.08 |\n\nIn short: a layer violation is a visible pattern that agents copy, so it gets worse with every edit. A deep import is a single hidden dependency on code outside the repo, which breaks without warning when the outside code changes. The scan scores the layer violation slightly higher (0.10 vs 0.08) because agents spread it as they edit. The deep import is smaller but harder to notice, since nothing in the repo shows it until an upgrade or clean install breaks it.\n\n## Order of work\n\n1. Fix crime_00003 and break the view → flow edge. This also clears crime_00002 and the call loop.\n2. Fix crime_00001 and crime_00004 together, because they are the same import.\n3. Run `crimes scan --format json` again and expect `findings: []`.\n\nIf you want, I can make these changes in the fixture copy.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap",
+      "crime_00002": "circular_dependency",
+      "crime_00003": "layer_violation",
+      "crime_00004": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap",
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`some-pkg` — imported at src/application/billing-flow.ts as \"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "\"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap",
+      "cycle size: 3 files": "circular_dependency",
+      "member: src/application/billing-flow.ts": "circular_dependency",
+      "member: src/domain/billing.ts": "circular_dependency",
+      "member: src/presentation/invoice-view.ts": "circular_dependency",
+      "src/domain/billing.ts (layer: domain) imports src/presentation/invoice-view.ts (layer: presentation)": "layer_violation",
+      "rule: domain cannotImport presentation": "layer_violation",
+      "1 deep import across 1 package": "deep_import",
+      "specifier: some-pkg/dist/internal/private/helper.js": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

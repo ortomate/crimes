@@ -1,7 +1,7 @@
 # crimes
 
 Local, deterministic change-risk and agent-risk analysis for TypeScript,
-JavaScript and Python. Built for agents, readable by humans.
+JavaScript, Python, Java, Kotlin and Swift. Built for agents, readable by humans.
 
 ```bash
 npx crimes scan .
@@ -37,7 +37,7 @@ supplies advisory context without downloading tools.
 - [Agent workflow](https://crimes.sh/docs/agent-usage/)
 - [Command and detector reference](https://crimes.sh/docs/reference/)
 - [Configuration](https://crimes.sh/docs/configuration/)
-- [0.29.0 release evidence](https://crimes.sh/docs/releases/v0.29.0/)
+- [0.30.0 release notes](https://crimes.sh/docs/releases/v0.30.0/)
 - [Performance methods](https://crimes.sh/docs/performance/)
 - [Source and contributions](https://github.com/ortomate/crimes)
 

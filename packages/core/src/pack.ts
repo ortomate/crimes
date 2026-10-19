@@ -7,15 +7,31 @@
  * `scoring/tier.ts`, which describes a finding's **file scope** rather
  * than the detector capability that produced it.
  */
-export type Pack = "universal" | "language-js" | "language-py" | "cross-language";
+export type Pack =
+  | "universal"
+  | "language-js"
+  | "language-py"
+  | "language-java"
+  | "language-kotlin"
+  | "language-swift"
+  | "cross-language";
 
 export const PACK_IDS = [
   "universal",
   "language-js",
   "language-py",
+  "language-java",
+  "language-kotlin",
+  "language-swift",
   "cross-language",
 ] as const satisfies readonly Pack[];
 
 export function isLanguagePack(pack: Pack): boolean {
-  return pack === "language-js" || pack === "language-py";
+  return (
+    pack === "language-js" ||
+    pack === "language-py" ||
+    pack === "language-java" ||
+    pack === "language-kotlin" ||
+    pack === "language-swift"
+  );
 }

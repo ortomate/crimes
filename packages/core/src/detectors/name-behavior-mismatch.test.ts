@@ -238,4 +238,49 @@ export async function getSummary(id: string) {
     const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
     expect(findings).toHaveLength(1);
   });
+
+  it("ignores a pure prefix that is only part of a longer first word", async () => {
+    // Field notes, rolecred 2026-09-22: `ReadinessForm` was read as a
+    // `read` function because the prefix test had no word boundary.
+    const source = `
+export async function readinessScore(evidence: Evidence) {
+  await saveEvidence(evidence);
+  return evidence.score;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toEqual([]);
+  });
+
+  it("still flags a genuine pure-prefixed name with side effects", async () => {
+    // Guard against over-fixing the boundary rule: `read` followed by a
+    // word boundary is still a claim of purity.
+    const source = `
+export async function readEvidence(evidence: Evidence) {
+  await saveEvidence(evidence);
+  return evidence.score;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.symbol).toBe("readEvidence");
+  });
+
+  it("ignores React components, whose state setters are not hidden side effects", async () => {
+    const source = `
+export function ReadReceipt({ evidence }: Props) {
+  const [status, setStatus] = useState("idle");
+  const onClick = async () => {
+    setStatus("saving");
+    await saveReceipt(evidence);
+    setStatus("done");
+  };
+  return <button onClick={onClick}>{status}</button>;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(
+      makeCtx(source, "src/ReadReceipt.tsx"),
+    );
+    expect(findings).toEqual([]);
+  });
 });

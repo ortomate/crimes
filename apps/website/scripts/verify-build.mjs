@@ -246,6 +246,9 @@ if (!core) {
 const LANGUAGE_NAMES = {
   "language-js": ["JavaScript", "TypeScript"],
   "language-py": ["Python"],
+  "language-java": ["Java"],
+  "language-kotlin": ["Kotlin"],
+  "language-swift": ["Swift"],
 };
 const packDirs = readdirSync(resolve(repoRoot, "packages")).filter((d) =>
   d.startsWith("language-"),

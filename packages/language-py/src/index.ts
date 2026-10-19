@@ -17,6 +17,7 @@ export const PY_EXTENSIONS = [".py", ".pyi"] as const;
 export { parsePyFile } from "./parse/index.js";
 export {
   ensurePythonParser,
+  ensureTreeSitterRuntime,
   resolveGrammarPath,
   resetPythonParserForTests,
   PythonGrammarNotFoundError,

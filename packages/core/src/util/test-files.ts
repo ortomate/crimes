@@ -9,6 +9,12 @@
  *     Go-style `*_test.ts` / `*_spec.ts` forms, `__tests__/`
  *   - Python: `*_test.py`, `test_*.py`
  *   - Go: `*_test.go`
+ *   - Java and Kotlin: `*Test`, `*Tests`, `*IT`, `*TestCase` (`.java`,
+ *     `.kt`, `.kts`), and anything under a Maven/Gradle `src/test/` or
+ *     Android `src/androidTest/` tree (fixtures and test helpers live there
+ *     too, and are test infrastructure)
+ *   - Swift: `*Tests.swift` / `*Test.swift`, and anything under an Xcode
+ *     test target directory (`AppTests/`, `AppUITests/`)
  *   - Rust / generic: `tests/` top-level directory segment
  *
  * The JS underscore forms were recognised by `likely_tests` from 0.4.0
@@ -20,7 +26,7 @@
  * slashes (which is the shape every detector context exposes).
  */
 export const TEST_FILE_RE =
-  /(?:^|\/)(?:__tests__\/|tests\/|.*[._](?:test|spec)\.[cm]?[jt]sx?$|.*_test\.(?:py|go)$|test_[^/]+\.py$)/;
+  /(?:^|\/)(?:__tests__\/|tests\/|src\/(?:test|androidTest)\/.*\.(?:java|kts?)$|.*[._](?:test|spec)\.[cm]?[jt]sx?$|.*_test\.(?:py|go)$|test_[^/]+\.py$|[^/]+(?:Tests?|IT|TestCase)\.(?:java|kts?)$|[^/]+Tests?\.swift$|[^/]*Tests\/.*\.swift$)/;
 
 export function isTestFile(path: string): boolean {
   return TEST_FILE_RE.test(path);
@@ -44,6 +50,7 @@ export const TEST_DIR_RE = /(^|\/)(__tests__|tests?)\//;
  * | `billing.spec.ts`  | `billing` | JS/TS         |
  * | `billing_test.py`  | `billing` | Python, Go    |
  * | `test_billing.py`  | `billing` | Python        |
+ * | `BillingTest.java` | `Billing` | Java (also `Tests`, `IT`, `TestCase`) |
  *
  * Note the asymmetry that made this worth centralising: every
  * convention except Python's dominant one is a *suffix*.
@@ -61,5 +68,8 @@ export function testBaseCovers(testBase: string, sourceBase: string): boolean {
   const suffixStripped = testBase.replace(/[._](test|spec)$/, "");
   if (suffixStripped === sourceBase) return true;
   const prefixStripped = testBase.replace(/^(test|spec)_/, "");
-  return prefixStripped === sourceBase;
+  if (prefixStripped === sourceBase) return true;
+  // Java, Kotlin and Swift: `FilmTest`, `FilmTests`, `FilmIT`.
+  const javaStripped = testBase.replace(/(?:Tests?|IT|TestCase)$/, "");
+  return javaStripped.length > 0 && javaStripped === sourceBase;
 }

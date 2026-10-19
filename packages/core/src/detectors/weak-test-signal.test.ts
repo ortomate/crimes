@@ -55,6 +55,31 @@ it("calculates total", () => {
     expect(findings).toEqual([]);
   });
 
+  it("reads the body, not the destructured fixture, of a Playwright test", async () => {
+    // `({ page }) => {` — the first `{` after the arrow's start is the
+    // destructuring pattern, and reading that as the body turned every
+    // fixture-using test into "contains no expect/assert calls".
+    const source = `
+test("shows totals", async ({ page }) => {
+  await page.goto("/targets");
+  await expect(page.getByText("600")).toBeVisible();
+});
+
+test("loads", async function ({ page }) {
+  await expect(page).toHaveURL("/targets");
+});
+
+test("does nothing", async ({ page }) => {
+  await page.goto("/targets");
+});
+`;
+    const findings = await weakTestSignalDetector.run(
+      makeCtx(source, "e2e/targets.spec.js"),
+    );
+    expect(findings.map((f) => f.evidence[0])).toEqual(['test: "does nothing"']);
+    expect(findings[0]!.lines).toEqual([11, 13]);
+  });
+
   it("ignores non-test files and type-only tests", async () => {
     expect(
       await weakTestSignalDetector.run(makeCtx(`it("x", () => {});`, "src/example.ts")),

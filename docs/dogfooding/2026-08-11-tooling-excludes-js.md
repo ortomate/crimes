@@ -1,5 +1,10 @@
 # Tooling excludes on the JavaScript corpus: measured, decision: do not build
 
+> **Superseded in part (0.29.5):** ESLint flat-config `ignores` plus
+> `.prettierignore`, corroborated per directory, now ship. Re-measured on
+> this same corpus they still exclude nothing; see
+> [2026-10-19](./2026-10-19-tooling-excludes-js-revisited.md).
+
 **Date:** 2026-08-11
 **Build under test:** `crimes` 0.25.3
 **Question:** `0.25.0` shipped `honourToolingExcludes` for `pyproject.toml`

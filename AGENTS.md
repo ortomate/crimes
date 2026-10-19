@@ -6,7 +6,7 @@ contract. Read [README](./README.md) for the workflow and
 
 ## Current capabilities
 
-TypeScript, JavaScript, Python, cross-language and universal analysis ship.
+TypeScript, JavaScript, Python, Java, Kotlin, Swift, cross-language and universal analysis ship.
 The package version is in `packages/cli/package.json`; the JSON schema is
 `0.8.0`. [Generated reference](./docs/reference.md) lists shipped commands,
 detectors and optional defaults. [Roadmap status](./docs/roadmap.md) separates
@@ -42,7 +42,9 @@ warnings before interpreting an empty list. Resolved imports lead the test
 and related-file lists; these are discovery hints, not executed coverage.
 
 Read evidence before acting. Review false positives with
-`crimes feedback <fingerprint> --verdict fp --note "<reason>"`.
+`crimes feedback <fingerprint> --verdict fp --note "<reason>"`, and confirm
+the ones that earned their place with `--verdict tp`. Recording only the
+rejections is what produced a rollup of 54 verdicts and no act rate.
 When JSON says `previously_suppressed: true`, surface the supplied
 “Previously marked fp” hint and ask whether to reconfirm `fp` or mark `tp`;
 do not silently re-suppress. See [feedback](./docs/feedback.md).

@@ -1,0 +1,95 @@
+{
+  "scenario": "plan-11-py-import-cycle",
+  "agent": "claude",
+  "crimes_version": "0.29.9",
+  "timestamp": "2026-10-19T02:19:29.448Z",
+  "run_id": "82a00e51-7aa1-40ef-b220-e6548440d550",
+  "response": "I didn't run `crimes scan` myself. The scenario included its output, so I used that and read the fixture's source to check what each finding means for the extraction.\n\n## The short answer\n\n**Nothing crimes found blocks the extraction itself.** The `tax/` package imports nothing from outside itself. Its only imports are `tax/vat.py` → `tax.rules.regional.eu.vat_bands`. It doesn't depend on `domain`, `api`, FastAPI, or the clock. You could move it into its own distribution today and it would import cleanly.\n\nWhat crimes does find is a problem with the **public surface** you'd be publishing. That has to be fixed as part of the extraction, or the new package ships with its internal layout frozen as its API.\n\n## Each finding sorted against the extraction\n\n| Finding | Verdict | Why |\n|---|---|---|\n| **crime_00007**: deep import in `api/rendering.py:8` (`from tax.rules.regional.eu.vat_bands import STANDARD_BAND`) | **Gating: fix during extraction** | This is the only place outside the package that reaches into `tax`'s internals. Once `tax` is a separate package, that 5-level path becomes a contract across packages. You'd never be able to reorganise `tax.rules.*` without a breaking release. It won't stop the code running, but it must be fixed before you publish v1. |\n| **crime_00008**: deep import in `tax/vat.py:3` | Untidy | It's internal to the package being extracted, so it moves with the package. Clean it up when you build the new `tax/__init__.py`, but it doesn't affect the boundary. |\n| **crime_00005**: import cycle `api/rendering.py` ↔ `domain/invoicing.py` | **Doesn't block the tax extraction** | It looks relevant because it's the \"dependency problem\", but neither module in the cycle is in `tax/`. The cycle is `LINE_ITEM_CAP` and `format_money` going back and forth between api and domain. It's a real startup hazard for the service, just not for this extraction. |\n| crime_00001 / 00002: clock reads in `domain/invoicing.py` | Unrelated | These are invoicing code, not tax code. `apply_vat` is pure. |\n| crime_00003 / 00004: blocking I/O in `api/routes.py` | Unrelated | Service-layer problems. |\n| crime_00006: `build_invoice` god function | Untidy, slightly relevant | Its only tax content is one call, `apply_vat(subtotal - discount_total, region)` at `domain/invoicing.py:63`. Coupon and line-item logic are invoicing, not tax, so leave them out of the package. |\n\n## The plan\n\n**1. Define the public surface in place, before moving any files**\n- In `tax/__init__.py`, re-export what consumers need: `apply_vat`, `BANDS`, `STANDARD_BAND`, `REDUCED_BAND`. Declare `__all__`.\n- Change `tax/vat.py:3` to a relative import (`from .rules.regional.eu.vat_bands import BANDS`). This clears crime_00008.\n- Change `api/rendering.py:8` to `from tax import STANDARD_BAND`. This clears crime_00007.\n- Check: re-run `crimes scan` and confirm both `deep_import` findings are gone. Then `grep -rn \"from tax\\.\\|import tax\\.\" --include=*.py . | grep -v '^./tax/'` should return nothing.\n\n**2. Add tests before moving code.** The fixture has no tests at all. Add a small test suite for `apply_vat` covering the known regions and the unknown-region `0.0` fallback. It goes with the package and is your proof that nothing changed.\n\n**3. Pick a distribution name.** `tax` is far too generic for a top-level import name. It's also likely already taken on PyPI and could clash in other environments. I'd rename it (e.g. `acme_tax`) in this step and leave a temporary `tax/__init__.py` shim that does `from acme_tax import *` with a `DeprecationWarning`. If you only ever install from a private index, keeping `tax` is defensible, but decide now.\n\n**4. Extract the package**\n- Move it to `packages/acme-tax/src/acme_tax/` with its own `pyproject.toml` (`requires-python = \">=3.11\"`, matching the service, and no runtime dependencies).\n- Add it to the service's `pyproject.toml` as a dependency, as a path or editable install while it lives in the monorepo.\n- Check: in a fresh venv, `pip install ./packages/acme-tax && python -I -c \"import acme_tax; print(acme_tax.apply_vat(100, 'GB'))\"` prints `120.0` without the service on `sys.path`.\n\n**5. Remove the shim** once `domain/invoicing.py` and `api/rendering.py` import the new name directly.\n\n## Related work outside this plan\n\n- **Fix the cycle (crime_00005) separately, but soon.** Its own note warns it \"can pass under pytest and fail under a production server\". To fix it, move `LINE_ITEM_CAP` into a leaf module such as `domain/constants.py`, so `api/rendering.py` stops importing from `domain/invoicing.py`. Don't fix it by moving the import inside the function.\n- The clock, blocking I/O and god-function findings are service problems with nothing to do with this work. Don't bundle them into the extraction PR.\n\n## Gaps in the scan\n\n- `pyproject.toml` wasn't scanned (see the `files_not_discovered` warning), so crimes says nothing about packaging metadata. Steps 3–4 are based on reading the file myself.\n- crimes sees imports, not data. If any tax rule is hard-coded somewhere other than `tax/` (I didn't find one in `domain/invoicing.py`), crimes wouldn't flag it. A quick search for VAT rates and region codes outside `tax/` before step 4 is worthwhile.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/rendering.py",
+        "observed": "api/rendering.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tax/rules/regional/eu/vat_bands.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "deep_import",
+        "passed": false
+      }
+    ]
+  }
+}

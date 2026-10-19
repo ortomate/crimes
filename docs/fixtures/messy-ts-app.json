@@ -10,57 +10,13 @@
   },
   "summary": {
     "total": 39,
-    "high": 6,
-    "medium": 16,
+    "high": 5,
+    "medium": 17,
     "low": 17
   },
   "findings": [
     {
       "id": "crime_00001",
-      "type": "direct_date",
-      "claim": "clock_read",
-      "charge": "Temporal Recklessness",
-      "severity": "high",
-      "confidence": 0.9,
-      "file": "src/date.ts",
-      "lines": [
-        4,
-        40
-      ],
-      "summary": "8 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
-      "evidence": [
-        "2× Date.now(), 6× new Date()",
-        "1 decide a branch or comparison (lines 4); 7 only record or render the reading",
-        "lines: 4, 8, 13, 17, 22, 29, 33, 40",
-        "a reading in a comparison changes what the code does — tests cannot pin the behaviour without controlling the clock"
-      ],
-      "effort": "small",
-      "fix_shape": "inject a clock; pass through the domain boundary",
-      "scores": {
-        "severity": 0.8,
-        "confidence": 0.9,
-        "agent_risk": 0.44,
-        "churn": 0,
-        "test_gap": 0.5,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "inject_clock",
-          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "direct_date.js",
-      "tier": "domain",
-      "fingerprint": "direct_date/clock_read::src/date.ts::"
-    },
-    {
-      "id": "crime_00002",
       "type": "return_shape_roulette",
       "charge": "Return Shape Roulette",
       "severity": "low",
@@ -103,7 +59,7 @@
       "fingerprint": "return_shape_roulette::src/petty.ts::resolvePaymentResult"
     },
     {
-      "id": "crime_00003",
+      "id": "crime_00002",
       "type": "missing_agent_context",
       "charge": "Missing Agent Context",
       "severity": "medium",
@@ -141,6 +97,50 @@
       "detector_id": "missing_agent_context",
       "tier": "domain",
       "fingerprint": "missing_agent_context::src/api/files.ts::"
+    },
+    {
+      "id": "crime_00003",
+      "type": "direct_date",
+      "claim": "clock_read",
+      "charge": "Temporal Recklessness",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/date.ts",
+      "lines": [
+        4,
+        40
+      ],
+      "summary": "6 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
+      "evidence": [
+        "2× Date.now(), 4× new Date()",
+        "1 decide a branch or comparison (lines 4); 5 only record or render the reading",
+        "lines: 4, 8, 13, 17, 22, 40",
+        "a reading in a comparison changes what the code does — tests cannot pin the behaviour without controlling the clock"
+      ],
+      "effort": "small",
+      "fix_shape": "inject a clock; pass through the domain boundary",
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.42,
+        "churn": 0,
+        "test_gap": 0.5,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "inject_clock",
+          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "direct_date.js",
+      "tier": "domain",
+      "fingerprint": "direct_date/clock_read::src/date.ts::"
     },
     {
       "id": "crime_00004",
@@ -567,50 +567,6 @@
     },
     {
       "id": "crime_00013",
-      "type": "direct_date",
-      "claim": "clock_read",
-      "charge": "Temporal Recklessness",
-      "severity": "medium",
-      "confidence": 0.9,
-      "file": "src/billing.ts",
-      "lines": [
-        57,
-        273
-      ],
-      "summary": "7 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
-      "evidence": [
-        "5× Date.now(), 2× new Date()",
-        "none decide a branch — all 7 record or render the reading",
-        "lines: 57, 63, 92, 198, 238, 250, 273",
-        "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock"
-      ],
-      "effort": "small",
-      "fix_shape": "inject a clock; pass through the domain boundary",
-      "scores": {
-        "severity": 0.6,
-        "confidence": 0.9,
-        "agent_risk": 0.34,
-        "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
-        "recency": 0
-      },
-      "suggested_actions": [
-        {
-          "kind": "inject_clock",
-          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
-          "risk": "low"
-        }
-      ],
-      "pack": "language-js",
-      "detector_id": "direct_date.js",
-      "tier": "domain",
-      "fingerprint": "direct_date/clock_read::src/billing.ts::"
-    },
-    {
-      "id": "crime_00014",
       "type": "name_behavior_mismatch",
       "charge": "False Identity",
       "severity": "medium",
@@ -653,7 +609,7 @@
       "fingerprint": "name_behavior_mismatch::src/billing.ts::calculateRefundPreview"
     },
     {
-      "id": "crime_00015",
+      "id": "crime_00014",
       "type": "logic_in_comments",
       "charge": "Logic in the Alibi",
       "severity": "medium",
@@ -696,7 +652,7 @@
       "fingerprint": "logic_in_comments::src/billing.ts::::424ab731a4d3"
     },
     {
-      "id": "crime_00016",
+      "id": "crime_00015",
       "type": "hardcoded_localhost",
       "charge": "Dev-Server URL",
       "severity": "medium",
@@ -738,7 +694,7 @@
       "fingerprint": "hardcoded_localhost::src/api/files.ts::"
     },
     {
-      "id": "crime_00017",
+      "id": "crime_00016",
       "type": "hardcoded_local_path",
       "charge": "Localhost-on-Disk",
       "severity": "medium",
@@ -780,7 +736,7 @@
       "fingerprint": "hardcoded_local_path::src/api/files.ts::"
     },
     {
-      "id": "crime_00018",
+      "id": "crime_00017",
       "type": "dst_naive_arithmetic",
       "charge": "DST-Naive Day Math",
       "severity": "medium",
@@ -822,7 +778,7 @@
       "fingerprint": "dst_naive_arithmetic::src/date.ts::"
     },
     {
-      "id": "crime_00019",
+      "id": "crime_00018",
       "type": "concept_alias_drift",
       "charge": "Concept Alias Drift",
       "severity": "medium",
@@ -844,10 +800,6 @@
         "confidence": 0.75,
         "agent_risk": 0.3,
         "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
         "recency": 0
       },
       "suggested_actions": [
@@ -869,7 +821,7 @@
       "fingerprint": "concept_alias_drift::docs/billing.md::"
     },
     {
-      "id": "crime_00020",
+      "id": "crime_00019",
       "type": "direct_date",
       "claim": "clock_read",
       "charge": "Temporal Recklessness",
@@ -913,7 +865,7 @@
       "fingerprint": "direct_date/clock_read::src/api/state.ts::"
     },
     {
-      "id": "crime_00021",
+      "id": "crime_00020",
       "type": "singular_plural_type_mismatch",
       "charge": "Plural Mismatch",
       "severity": "low",
@@ -955,7 +907,7 @@
       "fingerprint": "singular_plural_type_mismatch::src/api/state.ts::"
     },
     {
-      "id": "crime_00022",
+      "id": "crime_00021",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -995,7 +947,7 @@
       "fingerprint": "orphaned_destination::src/routes/account/subscription.tsx::"
     },
     {
-      "id": "crime_00023",
+      "id": "crime_00022",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1035,7 +987,7 @@
       "fingerprint": "orphaned_destination::src/routes/team/index.tsx::"
     },
     {
-      "id": "crime_00024",
+      "id": "crime_00023",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1075,7 +1027,7 @@
       "fingerprint": "orphaned_destination::src/routes/workspace/members.tsx::"
     },
     {
-      "id": "crime_00025",
+      "id": "crime_00024",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "medium",
@@ -1119,7 +1071,7 @@
       "fingerprint": "weak_test_signal/no_assertions::src/billing.test.ts::::renders the enterprise plan"
     },
     {
-      "id": "crime_00026",
+      "id": "crime_00025",
       "type": "date_string_concat",
       "charge": "Date String Sewing",
       "severity": "low",
@@ -1161,7 +1113,7 @@
       "fingerprint": "date_string_concat::src/date.ts::"
     },
     {
-      "id": "crime_00027",
+      "id": "crime_00026",
       "type": "locale_drift",
       "charge": "Host-Locale Drift",
       "severity": "low",
@@ -1203,7 +1155,7 @@
       "fingerprint": "locale_drift::src/date.ts::"
     },
     {
-      "id": "crime_00028",
+      "id": "crime_00027",
       "type": "docs_code_drift",
       "charge": "Docs-Code Drift",
       "severity": "low",
@@ -1220,10 +1172,6 @@
         "confidence": 0.9,
         "agent_risk": 0.24,
         "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
         "recency": 0
       },
       "suggested_actions": [
@@ -1239,7 +1187,7 @@
       "fingerprint": "docs_code_drift::docs/teams.md::"
     },
     {
-      "id": "crime_00029",
+      "id": "crime_00028",
       "type": "commented_out_code",
       "charge": "Commented-Out Corpse",
       "severity": "medium",
@@ -1282,7 +1230,7 @@
       "fingerprint": "commented_out_code::src/billing.ts::::42a4bbb39f1f"
     },
     {
-      "id": "crime_00030",
+      "id": "crime_00029",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "low",
@@ -1326,7 +1274,7 @@
       "fingerprint": "weak_test_signal/weak_assertion_matchers::src/billing.test.ts::::creates an invoice"
     },
     {
-      "id": "crime_00031",
+      "id": "crime_00030",
       "type": "dependency_provenance_gap",
       "charge": "Phantom Accomplice",
       "severity": "low",
@@ -1356,10 +1304,6 @@
         "severity": 0.25,
         "confidence": 0.56,
         "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
         "recency": 0,
         "agent_risk": 0.22
       },
@@ -1377,6 +1321,50 @@
       "detector_id": "dependency_provenance_gap",
       "tier": "domain",
       "fingerprint": "dependency_provenance_gap/undeclared_import::package.json::undeclared imports"
+    },
+    {
+      "id": "crime_00031",
+      "type": "direct_date",
+      "claim": "clock_read",
+      "charge": "Temporal Recklessness",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/billing.ts",
+      "lines": [
+        57,
+        273
+      ],
+      "summary": "7 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
+      "evidence": [
+        "5× Date.now(), 2× new Date()",
+        "none decide a branch — all 7 record or render the reading",
+        "lines: 57, 63, 92, 198, 238, 250, 273",
+        "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock"
+      ],
+      "effort": "small",
+      "fix_shape": "inject a clock; pass through the domain boundary",
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.2,
+        "churn": 0,
+        "test_gap": 0,
+        "blast_radius": 0,
+        "blast_radius_transitive_importers": 0,
+        "blast_radius_direct_importers": 0,
+        "recency": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "inject_clock",
+          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
+          "risk": "low"
+        }
+      ],
+      "pack": "language-js",
+      "detector_id": "direct_date.js",
+      "tier": "domain",
+      "fingerprint": "direct_date/clock_read::src/billing.ts::"
     },
     {
       "id": "crime_00032",
@@ -1534,10 +1522,6 @@
         "confidence": 0.95,
         "agent_risk": 0.07,
         "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
         "recency": 0
       },
       "suggested_actions": [
@@ -1613,10 +1597,6 @@
         "confidence": 0.85,
         "agent_risk": 0.05,
         "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
         "recency": 0
       },
       "suggested_actions": [
@@ -1652,10 +1632,6 @@
         "confidence": 0.95,
         "agent_risk": 0.04,
         "churn": 0,
-        "test_gap": 0,
-        "blast_radius": 0,
-        "blast_radius_transitive_importers": 0,
-        "blast_radius_direct_importers": 0,
         "recency": 0
       },
       "suggested_actions": [
@@ -1725,7 +1701,10 @@
     "packs_loaded": [
       "universal",
       "language-js",
-      "language-py"
+      "language-py",
+      "language-java",
+      "language-kotlin",
+      "language-swift"
     ],
     "detectors_default_off": [
       "accessible_interaction_risk",

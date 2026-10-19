@@ -1,0 +1,55 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T04:06:43.621Z",
+  "run_id": "a1eb8db1-82d8-40a4-96c4-d0b2d8e645c1",
+  "response": "I’ll run the scan, then inspect the tests and billing code to distinguish behavior they verify from code they merely execute.\n\n\nAll 12 tests pass. The invoice tests do reach real assertions in shared helpers, but the credit tests only check that totals balance—not that credit was applied. I’ll check runtime coverage and try a few isolated regressions to see which mistakes the suite catches.\n\n\nRan `crimes scan --format json`: it reproduced **one high-severity finding**, identifying all four reporting tests as assertion-free. **All 12 tests pass**, but their protection varies considerably.\n\n- **Rates: meaningful, limited protection.** [test_rates.py](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-t9CVl4/tests/test_rates.py:6) checks exact GB/DE rates, unknown-region fallback to `DEFAULT_RATE`, and false zero-rating results for GB/FR. It does not pin the default’s numeric value, verify FR’s exact rate, or exercise a true zero-rating result.\n\n- **Invoices: real assertions, with important gaps.** [Shared helpers](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-t9CVl4/tests/support.py:14) check `gross == net + tax`, nonnegative net, and—through an inherited helper—expected gross and account identity for two examples. These tests genuinely assert despite having no assertions directly in the test functions. However, [the credit tests](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-t9CVl4/tests/test_invoices.py:18) never verify the reduction amount or equality after zero credit. Their names promise more than they check.\n\n- **Reporting: smoke coverage only.** [All four tests](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-t9CVl4/tests/test_reporting.py:11) execute functions without checking returned values. Incorrect totals, account data, CSV contents, or JSON contents can pass. The “round trip” merely exports CSV; it never reads it back. Unsupported-format handling is untested.\n\n- **Ledger: incidental execution without correctness checks.** [post_entry](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-t9CVl4/billing/ledger.py:6) runs indirectly through the hollow reporting tests. No test verifies its amounts or metadata. `reverse_entry` is never exercised.\n\nRuntime coverage illustrates the mismatch: **91% combined statement/branch coverage**, including 100% for invoices and rates, 86% for reporting, and 83% for ledger. Those percentages measure execution, not verified behavior.\n\nI also tried isolated, in-memory regressions without editing source files:\n\n| Deliberate regression | Suite result |\n|---|---|\n| Credit does nothing | **All 12 pass** |\n| Every report total becomes zero | **All 12 pass** |\n| Invoice gross excludes VAT | **4 tests fail** |\n\nBefore refactoring, prioritize exact reporting/export assertions, explicit credit amount and zero-credit equality checks, and direct ledger posting/reversal tests. The scan’s `coverage.files_total` counts **files scanned**, not test coverage; its single finding is not a complete inventory of protection gaps.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

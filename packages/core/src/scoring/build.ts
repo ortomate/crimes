@@ -582,7 +582,9 @@ export function computeAgentRisk(args: {
  */
 function declaredIntrinsicFor(type: string | undefined): number {
   if (typeof type !== "string" || type.length === 0) return NEUTRAL_INTRINSIC;
-  const declared = getDefaultsFor(type.replace(/\.(js|py|x)$/, "")).intrinsic;
+  const declared = getDefaultsFor(
+    type.replace(/\.(js|py|java|kt|swift|x)$/, ""),
+  ).intrinsic;
   return typeof declared === "number" ? clamp01(declared) : NEUTRAL_INTRINSIC;
 }
 
@@ -631,17 +633,23 @@ export function finaliseFindingScores(
   let blast_radius = 0;
   if (scoring) {
     churn = round(scoring.churn.forFile(finding.file));
-    test_gap = round(scoring.testGap.forFile(finding.file));
-    blast_radius = round(scoring.blastRadius.forFile(finding.file));
     const recency = round(scoring.recency.forFile(finding.file));
     finding.scores.churn = churn;
-    finding.scores.test_gap = test_gap;
-    finding.scores.blast_radius = blast_radius;
-    finding.scores.blast_radius_transitive_importers =
-      scoring.blastRadius.transitiveCountForFile(finding.file);
-    finding.scores.blast_radius_direct_importers = scoring.blastRadius.directCountForFile(
-      finding.file,
-    );
+    // Test gap and blast radius come from a parsed import graph. For a
+    // file no language pack claims there is no graph, so the honest value
+    // is "unmeasured", not 0: rendered, a 0 read as "bottom-quartile
+    // blast (0 importers)" on a Java class 187 files import. They still
+    // enter `agent_risk` as 0, which is what they always contributed.
+    if (resolveLanguagePackRouter().claimingPack(finding.file) !== undefined) {
+      test_gap = round(scoring.testGap.forFile(finding.file));
+      blast_radius = round(scoring.blastRadius.forFile(finding.file));
+      finding.scores.test_gap = test_gap;
+      finding.scores.blast_radius = blast_radius;
+      finding.scores.blast_radius_transitive_importers =
+        scoring.blastRadius.transitiveCountForFile(finding.file);
+      finding.scores.blast_radius_direct_importers =
+        scoring.blastRadius.directCountForFile(finding.file);
+    }
     finding.scores.recency = recency;
   }
   // Read the detector's own judgement BEFORE overwriting the field.

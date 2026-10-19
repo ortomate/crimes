@@ -4,6 +4,7 @@ import {
 } from "./discovery/coverage-warnings.js";
 import { existsSync } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join, parse, resolve } from "node:path";
+import { isUnsupportedCodeFile } from "./discovery/code-extensions.js";
 import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
 import type { CrimesConfig } from "./config.js";
 import {
@@ -15,6 +16,8 @@ import {
 import { applyEmptyReasons, buildClues } from "./context-clues.js";
 import { safeRealpath } from "./util/realpath.js";
 import { findLikelyTests } from "./context-likely-tests.js";
+import { collectCoChanges } from "./git/co-change.js";
+import { isTestFile } from "./util/test-files.js";
 import type { ContextRelatedFile } from "./context-related-files.js";
 import { findRelatedFiles } from "./context-related-files.js";
 import type { Detector } from "./detector.js";
@@ -179,9 +182,12 @@ function hasProjectRootMarker(dir: string): boolean {
  * {@link PROJECT_ROOT_MARKERS}. Returns its absolute path, or
  * `undefined` if none is found before the filesystem root.
  *
- * The walk is bounded by the filesystem root — there is no separate stop
- * condition, so callers that want to confine the search to a specific
- * subtree should resolve `start` and check against that subtree themselves.
+ * The walk never leaves the enclosing git repository: a directory holding
+ * `.git` (a directory, or a file for worktrees and submodules) is returned
+ * when no marker sits at or below it. Without that stop, a Maven, Gradle
+ * or Xcode repository with no marker of its own resolved to an unrelated
+ * `~/package.json`, and `context` scanned the user's home directory.
+ * Outside any repository the walk is bounded by the filesystem root.
  *
  * Callers should pass an already-canonicalised (realpath'd) directory so
  * the returned root matches the canonical form of any sibling absolute
@@ -194,6 +200,7 @@ export async function findNearestPackageRoot(start: string): Promise<string | un
   // eslint-disable-next-line no-constant-condition
   while (true) {
     if (hasProjectRootMarker(dir)) return dir;
+    if (existsSync(join(dir, ".git"))) return dir;
     const parent = dirname(dir);
     if (parent === dir || parent === parse(dir).root) {
       // Final check at the filesystem root before giving up.
@@ -264,13 +271,22 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   );
   assignIdsAndFingerprints(findings);
 
-  const likely_tests = await findLikelyTests({
+  const graphTests = await findLikelyTests({
     root,
     fileRel,
     targetAbs,
     allFiles,
     imports,
   });
+  // Tests that keep changing with this file are likely its tests, whatever
+  // they are called. Listed after the name- and import-matched ones.
+  const coChange = await collectCoChanges({ root, fileRel });
+  const likely_tests = [
+    ...graphTests,
+    ...coChange.files
+      .map((c) => c.file)
+      .filter((f) => isTestFile(f) && !graphTests.includes(f)),
+  ];
 
   // Repo-relative POSIX paths for every discovered file — the
   // related-files helper works in that vocabulary so it can compare
@@ -283,6 +299,8 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     findings,
     likelyTests: likely_tests,
     imports,
+    coChanges: coChange.files,
+    coChangeWindow: coChange.inspected,
   });
 
   const agent_guidance = buildGuidance(findings, related_files);
@@ -306,6 +324,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     coverage: scanReport.coverage,
     analysis_status: analysisStatus(
       scanReport,
+      indexes.warnings,
       fileRel,
       allFiles.includes(targetAbs) ||
         assetFiles.includes(targetAbs) ||
@@ -315,6 +334,16 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   };
 
   const claimingPack = resolveLanguagePackRouter().claimingPack(targetAbs);
+  // A file in a language no pack parses got universal checks only. Its
+  // empty test and importer lists mean "not looked for", so the status
+  // must not read "complete".
+  if (
+    report.analysis_status === "complete" &&
+    !claimingPack &&
+    isUnsupportedCodeFile(targetAbs)
+  ) {
+    report.analysis_status = "partial";
+  }
   applyEmptyReasons(report, {
     unclaimedExtension: claimingPack
       ? undefined
@@ -350,20 +379,33 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
 
 function analysisStatus(
   report: import("./finding.js").ScanReport,
+  log: CoverageWarningLog | undefined,
   file: string,
   discovered: boolean,
 ): "complete" | "partial" | "not_analyzed" {
   if (!discovered && !report.findings.some((f) => f.file === file)) return "not_analyzed";
-  const incomplete = new Set([
+  // Gaps that can hide evidence about any file: an index that failed or
+  // truncated, or a file that contributed nothing to the graph at all.
+  const repoWide = new Set([
     "index_unavailable",
     "index_truncated",
     "files_unreadable",
     "files_unparsed",
-    "files_partial_parse",
   ]);
-  return report.coverage?.warnings?.some((w) => incomplete.has(w.kind))
-    ? "partial"
-    : "complete";
+  if (report.coverage?.warnings?.some((w) => repoWide.has(w.kind))) return "partial";
+  // A partial parse still yields that file's imports, so elsewhere it does
+  // not weaken this briefing. It does when it is the target: the findings
+  // describe only the part that parsed. Before 0.29.6 any partial parse in
+  // the repository marked every briefing partial, which on a Java repo
+  // with 16 Java 21 pattern switches meant every one of them.
+  if (log?.hasFile("files_partial_parse", file)) return "partial";
+  if (
+    log === undefined &&
+    report.coverage?.warnings?.some((w) => w.kind === "files_partial_parse")
+  ) {
+    return "partial";
+  }
+  return "complete";
 }
 
 /**

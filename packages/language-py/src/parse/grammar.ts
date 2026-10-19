@@ -91,6 +91,41 @@ export function resolveGrammarPath(): string {
   return resolveWasmAsset(GRAMMAR_BASENAME);
 }
 
+type TreeSitterModule = typeof import("web-tree-sitter");
+
+let runtimePromise: Promise<TreeSitterModule> | undefined;
+
+/**
+ * Initialise the `web-tree-sitter` runtime once per process and return
+ * the module.
+ *
+ * Shared by every tree-sitter pack (`@crimes/language-java` imports it
+ * from here). `Parser.init` is not idempotent: a second call replaces the
+ * module's WASM binding, and every parser built on the first one stops
+ * working. One owner of the call is what keeps two packs in one scan
+ * from breaking each other.
+ */
+export async function ensureTreeSitterRuntime(): Promise<TreeSitterModule> {
+  if (runtimePromise === undefined) {
+    runtimePromise = (async () => {
+      const runtime = await import("web-tree-sitter");
+      await runtime.Parser.init({
+        locateFile(path: string) {
+          // Only the runtime's own blob comes through here; anything
+          // else we don't recognise is passed straight back so the
+          // runtime's default handling still applies.
+          if (path.endsWith(RUNTIME_BASENAME)) {
+            return resolveWasmAsset(RUNTIME_BASENAME);
+          }
+          return path;
+        },
+      } as Parameters<typeof runtime.Parser.init>[0]);
+      return runtime;
+    })();
+  }
+  return runtimePromise;
+}
+
 let parserPromise: Promise<Parser> | undefined;
 
 /**
@@ -101,18 +136,7 @@ let parserPromise: Promise<Parser> | undefined;
 export async function ensurePythonParser(): Promise<Parser> {
   if (parserPromise === undefined) {
     parserPromise = (async () => {
-      const { Language, Parser: TSParser } = await import("web-tree-sitter");
-      await TSParser.init({
-        locateFile(path: string) {
-          // Only the runtime's own blob comes through here; anything
-          // else we don't recognise is passed straight back so the
-          // runtime's default handling still applies.
-          if (path.endsWith(RUNTIME_BASENAME)) {
-            return resolveWasmAsset(RUNTIME_BASENAME);
-          }
-          return path;
-        },
-      } as Parameters<typeof TSParser.init>[0]);
+      const { Language, Parser: TSParser } = await ensureTreeSitterRuntime();
       const language = await Language.load(resolveGrammarPath());
       const parser = new TSParser();
       parser.setLanguage(language);

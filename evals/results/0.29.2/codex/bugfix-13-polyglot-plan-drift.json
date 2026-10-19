@@ -1,0 +1,84 @@
+{
+  "scenario": "bugfix-13-polyglot-plan-drift",
+  "agent": "codex",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T02:11:37.411Z",
+  "run_id": "fbde90c6-e09b-40b7-8248-0c8938b05e96",
+  "response": "I’ll run the scan and inspect the plan definitions and validation path to check what causes the rejection.\n\n\nI ran `crimes scan --format json`; it reported five findings. **The relevant one is cross-language `Plan` drift:**\n\n| Definition | Accepted tiers |\n|---|---|\n| Python [plans.py](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-PjeHww/packages/api/billing/plans.py:10) | `free`, `pro`, `team`, `scale` |\n| TypeScript [workspace-client.ts](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-PjeHww/packages/web/src/workspace-client.ts:10) | `free`, `pro`, `enterprise` |\n\nThe backend’s canonical list includes `scale` and `team`, but the web’s independently maintained copy excludes both and retains `enterprise`. A web validator using that stale list would reject the newer tiers before the API could accept them.\n\n**There’s an important limit to what this fixture proves:** TypeScript unions disappear at runtime, and this client merely returns `res.json()` without validation. The mismatch is confirmed; the actual runtime validator producing the reported error is absent. Also, the backend’s `change_team_plan` accepts `plan: str`, so that endpoint does **not** enforce the Python enum—even `enterprise` is not rejected there. The scanner overstates runtime rejection in both directions.\n\nTo fix this and prevent recurrence:\n\n- Align the web’s plan definition and actual runtime validator with the canonical Python tiers.\n- Express the API contract using `Plan`, then generate the TypeScript type **and runtime validation** from that contract or a shared schema.\n- Make CI reject stale generated artifacts, and test every canonical tier through web validation and the API, plus an invalid value.\n\nThere is also an independent plan-change bug: the client sends **PUT**, while the backend declares **POST**, and the client never transmits its `plan` argument. Those request defects need fixing separately; updating the tier list alone will not repair that flow.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    },
+    "detector_id_by_evidence": {
+      "packages/api/billing/plans.py:10 — Plan declares [free, pro, team, scale]": "cross_language_type_drift",
+      "packages/web/src/workspace-client.ts:10 — Plan declares [free, pro, enterprise]": "cross_language_type_drift",
+      "shared: free, pro": "cross_language_type_drift",
+      "only in Python: scale, team — the TypeScript side will reject these values": "cross_language_type_drift",
+      "only in TypeScript: enterprise — the Python side will reject this value": "cross_language_type_drift",
+      "side-effect-like calls: fetch": "name_behavior_mismatch",
+      "2 side-effect signals in the function body": "name_behavior_mismatch",
+      "frontend: packages/web/src/workspace-client.ts:34 — PUT /api/teams/:id/plan": "cross_language_route_drift",
+      "backend:  packages/api/billing/routes.py:25 — POST /api/teams/{team_id}/plan (change_team_plan)": "cross_language_route_drift",
+      "methods declared: POST": "cross_language_route_drift",
+      "concept group \"tenant\" is named differently on each side of the boundary": "cross_language_concept_alias_drift",
+      "Python uses: team": "cross_language_concept_alias_drift",
+      "TypeScript uses: workspace": "cross_language_concept_alias_drift",
+      "packages/api/billing/plans.py:10 — docstring of Plan (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:11 — def get_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:16 — def create_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:21 — def team_seats (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:26 — def change_team_plan (team)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:17 — getWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:22 — createWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:27 — workspaceSeats() (workspace)": "cross_language_concept_alias_drift",
+      "preferred form for this group: \"organization\"": "cross_language_concept_alias_drift",
+      "\"organization\"": "cross_language_concept_alias_drift",
+      "1 frontend call reaches a path no backend route declares": "cross_language_route_drift",
+      "packages/web/src/workspace-client.ts:23 — POST /api/workspaces": "cross_language_route_drift",
+      "4 backend routes declared across 1 file": "cross_language_route_drift",
+      "backend owns: /api — calls outside those namespaces are not counted here": "cross_language_route_drift",
+      "matched on literal path strings — a route or URL assembled at runtime is invisible to this check": "cross_language_route_drift",
+      "decorator routing only — Django `urlpatterns` and DRF `router.register` are not read, so a repo using them looks routeless": "cross_language_route_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/plans.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "cross_language_type_drift",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

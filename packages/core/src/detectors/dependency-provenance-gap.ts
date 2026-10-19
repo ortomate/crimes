@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isBuiltin } from "node:module";
+import { builtinModules } from "node:module";
 import type { UniversalDetector, UniversalDetectorContext } from "../detector.js";
 import type { PreFinding as Finding } from "../finding.js";
 import type { ImportEdge } from "../imports/types.js";
@@ -685,13 +685,14 @@ function matchesAliasPattern(specifier: string, patterns: readonly string[]): bo
 }
 
 function isBuiltinModule(packageName: string): boolean {
-  const bare = packageName.startsWith("node:")
-    ? packageName.slice("node:".length)
-    : packageName;
-  // `isBuiltin` accepts both forms, but calling it with the bare name
-  // keeps behaviour identical across the Node versions this supports.
-  return isBuiltin(bare) || isBuiltin(`node:${bare}`);
+  // `builtinModules` rather than `isBuiltin`: the latter arrived in Node
+  // 18.6, and the package declares `node >=18`. Importing it made the
+  // whole bundle fail to load on 18.0–18.5, before any command ran.
+  const bare = packageName.startsWith("node:") ? packageName.slice(5) : packageName;
+  return BUILTINS.has(bare) || BUILTINS.has(`node:${bare}`);
 }
+
+const BUILTINS: ReadonlySet<string> = new Set(builtinModules);
 
 /** Does a `file:` / `link:` target climb out of the repository? */
 function escapesRepository(specifier: string): boolean {

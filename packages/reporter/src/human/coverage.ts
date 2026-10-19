@@ -1,9 +1,12 @@
 import type { Writable } from "node:stream";
-import { isSkippedWorkKind, type ScanReport } from "@crimes/core";
+import { isSkippedWorkKind, isUnmatchedPinKind, type ScanReport } from "@crimes/core";
 
 const PACK_LABELS: Record<string, string> = {
   js: "language-js (.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts)",
   py: "language-py (.py/.pyi)",
+  java: "language-java (.java)",
+  kotlin: "language-kotlin (.kt/.kts)",
+  swift: "language-swift (.swift)",
 };
 
 /**
@@ -127,6 +130,38 @@ export function buildCoverageWarningNotice(
 const NOTICE_LIMIT = 2;
 
 /**
+ * Notice for source code no language pack parses.
+ *
+ * Not part of the skipped notice: these files were read, and their size
+ * and comment findings are real. What is missing is everything a parser
+ * supplies — functions, imports, tests — and on a Java or Swift repo
+ * that is most of the analysis. Without this line the report read as a
+ * full scan of a repository it had barely parsed.
+ *
+ * Printed regardless of TTY, like the skipped notice.
+ */
+export function buildUniversalOnlyNotice(
+  coverage: ScanReport["coverage"] | undefined,
+): string | null {
+  const warnings = (coverage?.warnings ?? []).filter(
+    (w) => w.kind === "files_universal_only",
+  );
+  if (warnings.length === 0) return null;
+  const total = warnings.reduce((sum, w) => sum + w.files, 0);
+  const counts = warnings
+    .slice(0, NOTICE_LIMIT + 1)
+    .map((w) => `${w.files} × ${w.subject}`)
+    .join(", ");
+  const rest = warnings.length - (NOTICE_LIMIT + 1);
+  return (
+    `partial: ${total} source file${total === 1 ? "" : "s"} in languages no pack ` +
+    `parses got universal checks only (${counts}${rest > 0 ? `, + ${rest} more` : ""}).\n` +
+    `         No functions, imports or tests were analysed there; ` +
+    `an empty result is not a clean one.`
+  );
+}
+
+/**
  * Notice for recorded decisions that stopped applying.
  *
  * Separate from the skipped-work notice above, and not folded into it,
@@ -147,7 +182,7 @@ const NOTICE_LIMIT = 2;
 export function buildUnmatchedPinsNotice(
   coverage: ScanReport["coverage"] | undefined,
 ): string | null {
-  const pins = (coverage?.warnings ?? []).filter((w) => !isSkippedWorkKind(w.kind));
+  const pins = (coverage?.warnings ?? []).filter((w) => isUnmatchedPinKind(w.kind));
   if (pins.length === 0) return null;
 
   const total = pins.reduce((sum, w) => sum + (w.entries ?? 0), 0);
@@ -188,9 +223,14 @@ function renderWarnings(
 ): void {
   if (!warnings || warnings.length === 0) return;
   const skipped = warnings.filter((w) => isSkippedWorkKind(w.kind));
-  const pins = warnings.filter((w) => !isSkippedWorkKind(w.kind));
+  const universal = warnings.filter((w) => w.kind === "files_universal_only");
+  const pins = warnings.filter((w) => isUnmatchedPinKind(w.kind));
   if (skipped.length > 0) out.write(`\n  skipped work (${skipped.length}):\n`);
   renderWarningRows(skipped, out);
+  if (universal.length > 0) {
+    out.write(`\n  code read by universal checks only (${universal.length}):\n`);
+    renderWarningRows(universal, out);
+  }
   if (pins.length > 0) {
     // Its own heading because these are not skipped work. Same rows,
     // same prose from the schema -- only the claim above them changes.

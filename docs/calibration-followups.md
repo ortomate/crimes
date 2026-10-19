@@ -1035,3 +1035,68 @@ This is a scoped advisory correction. Tests may still legitimately need
 restructuring, but a connectivity count alone is not the reason. Final host
 checks are reported separately; one retained failure does not establish a
 population effect or justify suppressing every connected test.
+
+## 0.29.4–0.29.9: Java, Kotlin and Swift calibration
+
+Measured on a private estate (two Java backends, a Kotlin Android
+app and a Swift iOS app) by reading sampled
+findings against their code. These are decisions; read before loosening
+or tightening the structured-surface detectors in
+`packages/core/src/detectors/structured/`.
+
+- **`swallowed_error`: a specific catch type is a decision.** A fallback
+  return or a comment-only body is reported only for a broad catch
+  (`Exception`/`Throwable`/`RuntimeException`/`Error`, or a Swift
+  catch-all). `catch (ObjectNotFoundException e) { return false; }` is
+  find-or-default. An *empty* body is always reported, low and at 0.7
+  confidence when specific (the Java repository 170 → 91 findings). Empty
+  `InterruptedException` handlers stay reported: the interrupt flag is lost.
+- **Boundaries come from receiver-qualified calls only** (`repository.save`),
+  not the protected block's text. Text matching read argument labels
+  (`transition:` → state transition) and local helpers
+  (`updateInnerShadow()` → database write) as consequences and marked UI
+  image loads high. Stricter than the JS detector, which falls back to text.
+- **Swift cancellation is not a swallowed error.** `catch is
+  CancellationError` and a `do` block that only `Task.sleep`s are skipped.
+  Kotlin's `CancellationException` is deliberately *not* exempt: swallowing
+  it breaks structured concurrency.
+- **`direct_date`: a stopwatch is not a clock dependency.** A wall-clock read
+  bound to a timer-named variable (`start`, `t0`) or subtracted from one is
+  skipped: 154 of 247 `currentTimeMillis()` calls on the Java repository. An age
+  (`now - lastModified`) is still reported. Swift `now: Date = Date()`
+  defaults are the injection point and are skipped. A single `new Date()`
+  is reported, as in JS and Python; single-read findings dominate the Java
+  count (249 on the Java repository) and are the first candidate if feedback says
+  they are noise.
+- **`large_function`: UI is layout.** `@Composable` functions and SwiftUI
+  `some View` bodies get the 200-line budget JS gives React components
+  (a private Android app 213 → 133). UIKit view-controller methods and
+  `init`s do not: they are imperative.
+- **`weak_test_signal`: benchmarks time, they do not check.** Tests whose
+  method or class name says benchmark/performance/throughput are out of
+  both sides, as Python's benchmark exemption is. In a test class that
+  extends another, an unresolved no-receiver call gets the benefit of the
+  doubt as a possible inherited assertion helper; the evidence counts them.
+
+## 0.29.11: record-only clock reads rank lower; briefings use co-change
+
+- **`direct_date`, JS and structured packs:** a file whose readings only
+  record or render (`setCreated(new Date())`, timestamp columns) keeps
+  `RECORDED_ONLY_CLOCK_SCALE` (0.6) of the ladder's intrinsic. Severity
+  already capped those files at medium; ranking reads `agent_risk`, which
+  did not distinguish them, so on a private Java/Kotlin/Swift estate
+  clock reads (75% record-only) filled six to eight of each JVM
+  repository's top ten. The ladder literals are unchanged, so the
+  cross-pack parity gate still compares like with like. Python has no
+  decide/record split yet and is unaffected.
+- **Commented-out code on Swift is left alone, deliberately.** On the iOS
+  repository it fills six of the top ten. That follows the 0.25.9 ladder
+  (0.45–0.60, an agent signal: dormant code gets revived) meeting long
+  blocks in large controllers and few strong Swift signals; it is not a
+  Swift-specific error. Changing it is a JS decision too.
+- **`context` related files and likely tests read git history.** Files
+  changed in the same commits as the target (≥2 of its last 40 non-merge
+  commits, sweeps of 40+ files excluded) get up to four of the ten
+  related-file places, and co-changed test files join likely tests. On 82
+  replayed commits this roughly doubled how often a briefing named the
+  files the change went on to touch. See `git/co-change.ts`.

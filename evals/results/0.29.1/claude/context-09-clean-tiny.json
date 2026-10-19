@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T00:07:08.356Z",
+  "run_id": "1b9805f3-db19-4d12-b13a-845e34821d17",
+  "response": "## What crimes found on `src/add.ts`\n\n**Nothing.** `crimes context src/add.ts --root . --format json` (CLI 0.29.1, schema 0.8.0) returns:\n\n- `risk.level: \"none\"` — 0 high / 0 medium / 0 low, `findings: []`\n- `analysis_status: \"complete\"` — so the empty list is a real result, not a parse failure or skipped file\n- `agent_guidance: []`, with `agent_guidance_reason: \"no findings on this file and no deterministic related files\"`\n- `related_files: []` — no neighbourhood signal at all: no shared domain tokens, no domain-prefix filenames, no same-directory siblings\n- `likely_tests: [\"src/add.test.ts\"]`\n- `clues.test_gap: { raw: 0, label: \"unknown\" }`\n\nCoverage confirms the whole repo is 3 files (2 JS, 1 JSON), with the `universal`, `language-js` and `language-py` packs loaded.\n\n## The one finding in the repo isn't on this file\n\nThe repo-wide scan has a single low finding — `dependency_provenance_gap` (\"Phantom Accomplice\", confidence 0.56) on `package.json`: `vitest` is imported by `src/add.test.ts` but declared in no manifest. It resolves today via hoisting; a clean install could fail. That's a test-harness/packaging issue (confidence was docked 0.12 precisely because only test files are affected), not a property of `src/add.ts`.\n\n## Is it safe to extend?\n\nYes, as far as this evidence goes — and the evidence is unusually strong for a \"clean\" verdict here because the repo is tiny enough to verify by eye. `src/add.ts` is a three-line pure function with no imports, no state, no I/O. The empty `related_files` means no other source file in the repo imports it except its own test, so blast radius is effectively zero.\n\nTwo honest caveats:\n\n- **No findings never establishes safety** in general. Here it happens to be corroborated by the file's actual content, but don't read the same empty report on a larger file as a green light.\n- **`test_gap` is labelled `unknown` (raw 0)** — that's a statement about discovery, not coverage. `add.test.ts` does exist and covers the current behaviour, but if you extend `add` with new cases (overflow, non-numeric input, a third argument), that test won't grow on its own.\n\nPractical advice for the edit: keep it a pure function, and add a case to `src/add.test.ts` for whatever behaviour you add. If you touch the manifest while you're in there, declaring `vitest` as a devDependency clears the only outstanding finding in the repo.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

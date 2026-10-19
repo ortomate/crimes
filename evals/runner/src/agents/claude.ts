@@ -18,6 +18,13 @@ export interface InvokeClaudeOptions {
   model?: string;
   /** Max time (ms) to wait for the agent to finish. Default 10 min. */
   timeoutMs?: number;
+  /**
+   * Directory to run the CLI in. The runner always supplies a throwaway
+   * fixture copy (see `createAgentWorkspace`); without one the agent
+   * inherits the runner's own directory, inside this repository, which
+   * is how a codex run edited and committed a fixture during 0.29.1.
+   */
+  cwd?: string;
 }
 
 /**
@@ -38,6 +45,7 @@ export async function invokeClaude(
     "claude",
     args,
     options.timeoutMs ?? 600_000,
+    options.cwd,
   );
 
   if (exitCode !== 0) {

@@ -12,6 +12,7 @@ import type { AgentRunResult } from "./agents/claude.js";
 import { runJudge } from "./judge.js";
 import { FIXTURES_REGISTRY, REPO_ROOT, RESULTS_DIR, SCENARIOS_DIR } from "./paths.js";
 import { buildScanContext, runScan } from "./scan-helpers.js";
+import { createAgentWorkspace } from "./workspace.js";
 import { scoreStructural } from "./score.js";
 import type {
   FixtureRegistryEntry,
@@ -224,7 +225,7 @@ async function processOne(args: ProcessOneArgs): Promise<void> {
   const scanJson = await getCachedScan(scanCache, fixtureDir);
   const scanContext = buildScanContext(scanJson);
 
-  const agentResult = await invokeAgent(item.agent, item.scenario, scanJson);
+  const agentResult = await invokeAgent(item.agent, item.scenario, scanJson, fixtureDir);
   const structural = scoreStructural(
     agentResult.response,
     item.scenario.expected_artifacts,
@@ -396,12 +397,22 @@ async function invokeAgent(
   agent: Agent,
   scenario: Scenario,
   scanJson: string,
+  fixtureDir: string,
 ): Promise<AgentRunResult> {
   const prompt = composePrompt(scenario, scanJson);
-  if (agent === "claude") {
-    return invokeClaude({ prompt });
+  // One disposable copy of the fixture per invocation. The agent has to
+  // run *somewhere*, and every other candidate directory is worse: the
+  // runner's own is inside this repo, and a shared fixture copy would
+  // make one scenario's edits the next scenario's input.
+  const workspace = await createAgentWorkspace(fixtureDir);
+  try {
+    if (agent === "claude") {
+      return await invokeClaude({ prompt, cwd: workspace.dir });
+    }
+    return await invokeCodex({ prompt, cwd: workspace.dir });
+  } finally {
+    await workspace.cleanup();
   }
-  return invokeCodex({ prompt });
 }
 
 function composePrompt(scenario: Scenario, scanJson: string): string {

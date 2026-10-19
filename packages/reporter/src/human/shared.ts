@@ -231,14 +231,19 @@ export function renderRiskProfileLine(
   const notable =
     (churn ?? 0) > 0.5 || (test_gap ?? 0) >= 0.75 || (blast_radius ?? 0) > 0.5;
   if (!notable && !options.alwaysShowRiskProfile) return undefined;
-  const parts = [
-    `churn ${formatChurn(churn ?? 0)}`,
-    `test gap ${testGapLabel(test_gap)}`,
-    `blast ${formatBlastRadius(blast_radius ?? 0, {
-      direct: blast_radius_direct_importers,
-      transitive: blast_radius_transitive_importers,
-    })}`,
-  ];
+  // Core leaves test gap and blast radius unset for a file no language
+  // pack parses. Omit them rather than print a 0 as "bottom-quartile".
+  const unmeasured = test_gap === undefined && blast_radius === undefined;
+  const parts = [`churn ${formatChurn(churn ?? 0)}`];
+  if (!unmeasured) {
+    parts.push(`test gap ${testGapLabel(test_gap)}`);
+    parts.push(
+      `blast ${formatBlastRadius(blast_radius ?? 0, {
+        direct: blast_radius_direct_importers,
+        transitive: blast_radius_transitive_importers,
+      })}`,
+    );
+  }
   return `     ${colour.bold("Risk profile:")} ${colour.dim(parts.join(" · "))}`;
 }
 

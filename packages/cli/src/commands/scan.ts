@@ -23,6 +23,7 @@ import {
   buildCoverageBanner,
   buildCoverageWarningNotice,
   buildUnmatchedPinsNotice,
+  buildUniversalOnlyNotice,
   formatHumanReport,
   formatJsonReport,
   formatScanFailOnLine,
@@ -373,6 +374,10 @@ export function registerScanCommand(program: Command): void {
         // Same policy as `skipped`, and for the same reason: a triage
         // entry that silently stopped applying is the failure this
         // notice exists for, so a pipe must not swallow it.
+        const universalOnly = buildUniversalOnlyNotice(gatedReport.coverage);
+        if (universalOnly) {
+          process.stdout.write(universalOnly + "\n\n");
+        }
         const stalePins = buildUnmatchedPinsNotice(gatedReport.coverage);
         if (stalePins) {
           process.stdout.write(stalePins + "\n\n");

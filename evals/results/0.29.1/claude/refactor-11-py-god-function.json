@@ -1,0 +1,83 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "claude",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T00:35:13.617Z",
+  "run_id": "f1e23057-82d0-4a7a-9f08-3138c95dd32f",
+  "response": "Scan run confirmed (crimes 0.29.1, 8 findings, matches the output above). I also read the fixture and checked one claim empirically.\n\n## The riskiest function: `build_invoice` — `domain/invoicing.py:15`\n\nThe scan ranks *findings*, not functions, and `build_invoice`'s own God Function finding is near the bottom (agent_risk 0.11). Aggregating findings by symbol is what surfaces it: four of the eight crimes converge on this one body.\n\n| Finding | How it lands inside `build_invoice` |\n|---|---|\n| `direct_date` (high) | 3 of the 4 clock reads are its lines 20, 21, 53 |\n| `mixed_utc_local_methods` | both clocks are its first two statements |\n| `circular_dependency` | its line 9 import of `format_money` is one leg of the ring |\n| `large_function` | 61 lines, depth 5 |\n\nPlus it is the callee of `get_invoice` (`api/routes.py:26`), one of the two blocking-hot-path handlers, and its return dict is serialized straight out as the HTTP response body.\n\n## What makes it risky beyond length\n\n**The module does not import.** crimes hedges — \"*can* raise ImportError, depending on which module is imported first.\" In this fixture both orders raise:\n\n```\npython3 -c \"import domain.invoicing\"  → ImportError: cannot import name 'LINE_ITEM_CAP'\n                                         from partially initialized module 'domain.invoicing'\npython3 -c \"import api.rendering\"     → ImportError: cannot import name 'format_money'\n                                         from partially initialized module 'api.rendering'\n```\n\n`domain/invoicing.py:9` imports `format_money` before `LINE_ITEM_CAP` is bound at line 12, and `api/rendering.py:7` wants that constant. Neither entry order survives. So an agent has no runnable baseline at all — it cannot import, cannot test, cannot verify any edit except by reading.\n\n**Two naive clocks, indistinguishable to the type system.** `issued = datetime.now()` (local-naive, line 20) and `period_start = datetime.utcnow()` (UTC-naive, line 21) are both `datetime`. Line 53 compares `coupon[\"expires_at\"]` against a *third* read. The obvious unification — swap both to `datetime.now(timezone.utc)` — silently shifts `issued_at` by the host offset and flips coupon-expiry decisions near the boundary. On a UTC CI runner the before and after are byte-identical, so no test can distinguish them. The drift also escapes the function: `summarise` (line 79) compares the `issued_at` this function produced against its own `datetime.now()`. Fix one, break the other.\n\n**No tests exist.** `likely_tests: []`, confirmed by `find` — not one test file in the repo. `test_gap: 0.5` is a discovery signal; here the real number is zero.\n\n**The input contract is inconsistently defensive.** Everything is `.get()` with a default *except* `item[\"price\"]` (36, 38, 40) and `coupon[\"value\"]` (57, 59). And `coupon.get(\"expires_at\") < datetime.now()` raises `TypeError` on `None`. An agent reading the pervasive `.get(...)` style will reasonably conclude every key is optional, and be wrong in five places.\n\n**The arithmetic has no floor, and the sole caller exercises none of it.** `discount_total += coupon[\"bonus\"]` (line 61) can push the discount past `subtotal`, so `apply_vat` gets a negative amount; the `stackable` bonus also applies when the coupon kind matched neither branch. Meanwhile `api/routes.py:26` calls `build_invoice(profile.json(), [], None, \"GB\", {\"rates\": rates})` — empty items, no coupon. The entire 5-deep nest and the whole coupon block are dead on the live path. \"I hit the route and it worked\" proves nothing.\n\n**`options` is a decoy parameter.** It is threaded to `format_money`, which reads only `locale`; the route passes `{\"rates\": rates}`. Locale is always the `en-GB` default and the rates payload is dead weight — but the parameter looks load-bearing.\n\n## Refactor plan\n\n**1. Break the cycle first — it's the precondition for everything else.** Move `LINE_ITEM_CAP` into a leaf `domain/constants.py` that imports nothing from the ring, and have both modules import from there. Do *not* push the import inside a function body: that removes the error without removing the cycle and hides it from every static reader. Then move `format_money` out of the domain's reach entirely — domain code calling into `api/` is the actual direction violation. Drop `display_total` from the returned dict and let the route format it. That kills the cycle *and* retires the `options` parameter. Verify with the two `python3 -c \"import ...\"` commands above.\n\n**2. Pin current behaviour, including the wrong parts.** Now that the module imports, write characterization tests for each branch: zero-quantity skip, annual+prepaid (×12×0.85), annual, monthly, usage under and over `LINE_ITEM_CAP`, default, and each coupon kind plus the stacking bonus. Assert today's outputs *as they are* — including a discount that exceeds the subtotal. The refactor's job becomes \"identical numbers,\" and the bug fixes stay separate, deliberate commits.\n\n**3. One clock, injected, aware.** Add `*, now: Callable[[], datetime] = lambda: datetime.now(timezone.utc)`. Read it **once** at the top and use that single instant for `issued`, `period_start`, and the expiry check — lines 20/21/53 are currently three different instants. Normalize `expires_at` at the boundary with an explicit check, so a naive coupon date fails loudly instead of raising `TypeError` mid-comparison. Update `summarise` in the same commit to take the same clock. Call out in the message that `issued_at` and `period_start` change from naive-local and naive-UTC to aware-UTC, which changes the JSON on the wire.\n\n**4. Extract three pure helpers.** No clock, no I/O, plain values in and out:\n- `price_subscription(item)` — the annual/prepaid nest, three readable lines\n- `price_line_item(item) -> (total, warning | None)` — the kind dispatch\n- `apply_coupon(subtotal, coupon, at) -> discount` — expiry, kind, bonus\n\n`build_invoice` becomes an orchestrator: read the clock, partition, sum, discount, tax, assemble. ~20 lines, nesting depth 2.\n\n**5. Name the return value.** A frozen dataclass (or `TypedDict` if the dict must survive on the wire) with the nine fields typed, documenting the one thing the current dict actively misleads about: `total` is post-VAT while `subtotal` and `discount` are pre-VAT.\n\n**6. Then fix the bugs, one commit each,** flipping one pinned assertion at a time: clamp the discount to the subtotal; require a matched coupon kind before applying the bonus; decide whether `BANDS.get(region, 0.0)` in `tax/vat.py:7` should raise instead of silently charging zero tax on a typo'd region.\n\n**Verification.** Re-run the same scan and diff fingerprints — `large_function/…::build_invoice`, `direct_date/…::domain/invoicing.py::`, `mixed_utc_local_methods::domain/invoicing.py::`, and `circular_dependency::api/rendering.py::` should all be absent after steps 1–4. Absent is not proof of resolved. The two `sync_io_in_hotpath` findings in `api/routes.py` are outside this plan and will correctly remain.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -24,7 +24,12 @@ export function formatContextHumanReport(
       `analysis: ${report.analysis_status} — an empty finding list does not establish safety`,
     );
   }
-  for (const warning of report.coverage?.warnings ?? []) {
+  // Only under an incomplete briefing: a syntax error in an unrelated file
+  // is still in the JSON, but printed under a complete one it read as a
+  // caveat about this file.
+  const incomplete =
+    report.analysis_status !== undefined && report.analysis_status !== "complete";
+  for (const warning of incomplete ? (report.coverage?.warnings ?? []) : []) {
     if (
       [
         "index_unavailable",

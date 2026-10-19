@@ -1,7 +1,9 @@
-import { extname } from "node:path";
+import { extname, relative, sep } from "node:path";
 import type { ScanReport } from "../finding.js";
 import type { Pack } from "../pack.js";
 import { buildByPackage } from "./by-package.js";
+import { isUnsupportedCodeFile } from "./code-extensions.js";
+import { CoverageWarningLog, mergeCoverageWarnings } from "./coverage-warnings.js";
 import type { CoverageWarning } from "../finding.js";
 import type { LanguagePackRouter } from "./language-pack-router.js";
 
@@ -10,6 +12,9 @@ type Coverage = NonNullable<ScanReport["coverage"]>;
 const PACK_SHORT_ID: Partial<Record<Pack, string>> = {
   "language-js": "js",
   "language-py": "py",
+  "language-java": "java",
+  "language-kotlin": "kotlin",
+  "language-swift": "swift",
 };
 
 /**
@@ -44,6 +49,7 @@ export function buildCoverage(args: {
   const filesByLanguage: Record<string, number> = {};
   const universalOnlyByExtension: Record<string, number> = {};
   let filesUniversalOnly = 0;
+  const unparsedCode = new CoverageWarningLog();
 
   for (const abs of args.files) {
     const claimingPack = args.router.claimingPack(abs);
@@ -51,6 +57,11 @@ export function buildCoverage(args: {
       filesUniversalOnly += 1;
       const ext = extensionKey(abs);
       universalOnlyByExtension[ext] = (universalOnlyByExtension[ext] ?? 0) + 1;
+      if (isUnsupportedCodeFile(abs)) {
+        unparsedCode.record("files_universal_only", ext, {
+          file: args.root !== undefined ? toRepoPath(args.root, abs) : abs,
+        });
+      }
       continue;
     }
     const shortId = PACK_SHORT_ID[claimingPack] ?? claimingPack;
@@ -65,9 +76,8 @@ export function buildCoverage(args: {
     packs_loaded: ["universal", ...args.router.registeredPacks()],
   };
 
-  if (args.warnings !== undefined && args.warnings.length > 0) {
-    coverage.warnings = [...args.warnings];
-  }
+  const warnings = mergeCoverageWarnings(args.warnings, unparsedCode.build());
+  if (warnings.length > 0) coverage.warnings = warnings;
 
   if (args.root !== undefined) {
     const byPackage = buildByPackage({
@@ -90,4 +100,8 @@ export function buildCoverage(args: {
 function extensionKey(absolutePath: string): string {
   const ext = extname(absolutePath).toLowerCase();
   return ext === "" ? "(no extension)" : ext;
+}
+
+function toRepoPath(root: string, abs: string): string {
+  return relative(root, abs).split(sep).join("/");
 }

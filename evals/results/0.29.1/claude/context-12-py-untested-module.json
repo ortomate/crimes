@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T00:09:56.764Z",
+  "run_id": "7cdba090-47cf-4627-9ea0-4590bad72e42",
+  "response": "Ran the crimes skill's pre-edit workflow against the fixture repo (`0.29.1` via the workspace-linked CLI). Here's what it says about changing `reverse_entry` in `billing/ledger.py:16`.\n\n## What protection you have: effectively none\n\n`crimes context billing/ledger.py --root . --format json` reports `analysis_status: complete` and:\n\n- **`likely_tests: []`**, with `likely_tests_reason`: no test file matched the basename (it looked for siblings, `tests/`, `__tests__/`, and the `test_`/`_test`/`.test`/`.spec` conventions) **and no test file imports it**.\n- **`clues.test_gap`: raw 1, percentile 1, \"top-quartile\"** — the most under-discovered file in the repo.\n\nThe skill warns that `test_gap` describes discovery, not coverage, so I checked by hand: `grep` finds no test importing `billing.ledger`, and `reverse_entry` has **no caller anywhere in the repo** — `billing/reporting.py:3` imports only `post_entry`, and `billing/__init__.py` is empty.\n\nThe nearest thing to indirect coverage is a trap. The repo scan's single high finding (`weak_test_signal/file_asserts_nothing`, fingerprint `weak_test_signal/file_asserts_nothing::tests/test_reporting.py::test_build_report`) says **4 of 4 tests in `tests/test_reporting.py` contain 0 assertions**. That file is the only one that reaches ledger code at all, via `build_report` → `post_entry` — and it goes green as long as nothing raises. It never touches `reverse_entry`.\n\nThat finding is credible rather than noisy: `tests/test_rates.py` asserts directly, and `tests/test_invoices.py` asserts through `verify_invoice_balances` / `InvoiceCase` in `tests/support.py` — helpers crimes followed across files without flagging them.\n\n## What the change could affect\n\n`related_files` from context, ranked:\n\n| File | Relationship | Score |\n|---|---|---|\n| `billing/reporting.py` | imports this file | 1.0 |\n| `billing/rates.py` | imported by this file | 0.9 |\n| `billing/invoices.py`, `billing/__init__.py` | same directory only | 0.2 |\n\nThe import graph overstates the direct blast radius here (the edge is `post_entry`, not `reverse_entry`), but the real coupling is the **entry dict shape**. `post_entry` builds `{account, net, gross, region}` with `gross = amount * (1 + rate_for(region))`; `reverse_entry` mirrors it key-for-key; `build_report` lifts `entry[\"gross\"]` into `report[\"total\"]`, which `export_report` formats with `%.2f`. So:\n\n- Renaming or dropping a key in `reverse_entry` breaks the shared contract with `post_entry`/`build_report` with nothing asserting it.\n- Recomputing `gross` via `rate_for(region)` instead of negating the stored value changes behavior for entries posted before a rate change — invisible to the suite.\n- Negative totals flow through `export_report(\"csv\")` without error, so the hollow tests stay green either way.\n\nAlso worth resolving first: `reverse_entry` having zero in-repo callers means it's either dead code or an external API surface. Which one changes whether a signature change is free or breaking, and crimes can't tell you that.\n\n## Analysis limits\n\n- `scan --related-to billing/ledger.py` returned **0 findings** — `tests/test_reporting.py` is a neighbor of `reporting.py`, one hop past the scoped set. The high finding only surfaced in the repo-wide scan. Don't read that zero as safety.\n- Context reports `risk.level: \"none\"` for `ledger.py`: no detector fired on it, not that it's correct. A zero-finding file with zero tests is exactly where \"no findings ≠ safe\" applies.\n- `coverage.warnings`: `crimes.config.json` includes only `**/*.py`, so `pyproject.toml` (where test config and deps live), `crimes.config.json` and `.coverage` were never read by any detector.\n- `churn`: 1 commit in 90 days, 1 author, last touched 2026-07-31 — no recency signal, and nobody's been in this code lately.\n\n## Suggested order of work\n\n1. Write a real test for `reverse_entry` first — assert the round trip: `post_entry` → `reverse_entry` negates `net` and `gross`, preserves `account` and `region`, and that `gross == net * (1 + rate_for(region))` still holds after reversal.\n2. Fix `tests/test_reporting.py` per the finding's `suggested_actions` (`strengthen_assertions`, effort `small`) so the one path that does reach ledger code can fail.\n3. Keep the pre-edit JSON scan I took, then re-scan with the same root and scope after editing and diff on `fingerprint`, not on positional IDs.\n\nI made no changes to the fixture, so there's nothing to commit.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

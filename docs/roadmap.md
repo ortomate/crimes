@@ -1,9 +1,9 @@
 # Implementation status
 
-Repository version: **crimes 0.29.0**, JSON schema **0.8.0**.
+Repository version: **crimes 0.30.0** (prepared), JSON schema **0.8.0**.
 The [npm package](https://www.npmjs.com/package/crimes) and
 `npm view crimes version` identify the published version; a checkout can be ahead.
-[0.29.0 release notes](./releases/v0.29.0.md) record the
+[0.30.0 release notes](./releases/v0.30.0.md) record the
 change and verification. Prior versions are documented in
 [release history](https://github.com/ortomate/crimes/tree/main/docs/releases).
 
@@ -18,6 +18,9 @@ records next outcomes; [strategy](../STRATEGY.md) records the objective;
 | Local scan, JSON and human output | Shipped. Default human view prioritizes five files; JSON retains all visible findings. |
 | TypeScript / JavaScript | Shipped language pack, AST and resolved import graph. |
 | Python | Shipped language pack and packaged parser WASM, including import/test discovery. |
+| Java | Language pack on the shared tree-sitter runtime (0.29.6): import and same-package graph, JUnit test discovery, four detectors. No cross-language or symbol index yet. |
+| Swift | Language pack (0.29.8): referenced-type and extension graph, XCTest and Swift Testing, the same four detectors. |
+| Kotlin | Language pack (0.29.8) sharing the JVM type index with Java; top-level and extension functions; JUnit, kotlin.test, MockK and Kotest assertions; the same four detectors. |
 | Universal and cross-language checks | Shipped; read coverage to distinguish universal checks from parsed language analysis. |
 | Pre-edit context | Shared scan analysis, related-file findings, graph-first neighbors/tests, status and coverage diagnostics in 0.28. |
 | Working sets | `--changed`, `--files`, `--related-to`; full repository analysis supplies cross-file evidence before output selection. |
@@ -46,7 +49,13 @@ These remain available for explicitly scoped reviews.
   still analyzes the repository. See [performance](./performance.md) for
   reproducible timing, memory and unchanged-report checks. No disk cache ships.
 - Homebrew and standalone binaries, with Python WASM parity verification.
-- Further language packs and cross-language import resolution.
+- JSP and LESS/CSS packs (the 0.31 milestone in the [product roadmap](../ROADMAP.md));
+  today they are reported under `files_not_discovered`.
+- Eval fixtures for Java, Kotlin and Swift: no fixture exercises those packs yet.
+- Package-level cycles for Java/Kotlin, a cross-file symbol index for the
+  structured packs, and Java 21 type patterns (a tree-sitter-java gap).
+- Further language packs (Go, Rust, C# and others report as `files_universal_only`)
+  and cross-language import resolution.
 - `crimes ask`, other LLM-assisted modes, hosted services and paid tiers.
 
 The [archived 0.27 sprint](../.planning/archive/SPRINT-0.27.md) records planned

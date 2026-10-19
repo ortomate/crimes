@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T02:31:50.084Z",
+  "run_id": "ebe3f520-3c52-4713-9864-914233c0b288",
+  "response": "## What I verified first\n\nI read all 159 lines rather than plan off the scan summary, and two checks changed the plan:\n\n**The three sanitisers are provably interchangeable.** After normalising identifiers, `sanitize-a/b/c` are textually identical, and all three agree on 12 curated + 20,000 random inputs. The merge is mechanical.\n\n**The three role checks are not interchangeable.** The scan groups them under one finding (`crime_00001`, literal `\"admin\"`) with fix_shape *\"centralise the policy check; everyone calls the one helper.\"* Taken literally, that is an authorization bug:\n\n| role | `assertAdminA` | `assertAdminB` | `assertAdminC` | `policy.ts` |\n|---|---|---|---|---|\n| admin | true | true | **false** | true |\n| owner | false | **true** | true | false |\n| editor | false | false | **true** | false |\n\n`assertAdminC` is `role !== \"admin\"` — the *negation*, true for everyone except admins, behind a name that reads like an admin assertion. `assertAdminB` additionally admits `owner`. Collapsing these onto one predicate flips access for two of the three call shapes. So \"the three role checks\" is really two populations: `policy.ts`'s three genuinely-identical functions (safe to merge) and the three divergent guards (must not be merged).\n\nAlso worth knowing before anyone copy-pastes: the strip regex is `/[<NUL>-<0x1F>]/g` written with **literal control bytes**, identical in all three files. Retyping it by hand silently changes behaviour.\n\n## Step 1 — Consolidate the sanitisers (mechanical, zero semantic risk)\n\nNew `src/sanitize.ts` exporting one `sanitize(input: string): string`. Move the body **byte-exactly** (`sed -n '10,36p' src/sanitize-a.ts`, not retyped), then replace the class with `/[\\x00-\\x1F]/g` as a separate, reviewable commit so the escape-sequence change is visible rather than buried in the move.\n\n`sanitize-a/b/c.ts` become re-exports (`export const sanitizeUserInput = sanitize;`) so the three public names survive, then delete once callers move. There are currently **zero importers** — nothing in the repo references these names — so this is self-contained.\n\nSafety net: no tests exist anywhere. Land a characterization test *before* the merge, pinning current output for empty/whitespace/`<`/`>`/control-char/1000-char-truncation/`!!!`-punctuation/upper-ratio cases. The equivalence harness I ran is that test, ready to commit.\n\n## Step 2 — Centralise the role *vocabulary*, not the predicates\n\nSingle `src/policy.ts` owning the `\"admin\"` literal, exporting **named, distinct** predicates:\n\n```ts\nconst ADMIN = \"admin\", OWNER = \"owner\";\nexport const isAdmin = (role: string) => role === ADMIN;\nexport const isAdminOrOwner = (role: string) => isAdmin(role) || role === OWNER;\n```\n\n- `canEditBilling` / `canSeeAuditLog` / `canImpersonate` → all delegate to `isAdmin`. This is the real consolidation: three identical bodies, one predicate, capability names retained so they can diverge deliberately later.\n- `assertAdminA` → `isAdmin`.\n- `assertAdminB` → `isAdminOrOwner`.\n- `assertAdminC` → delete; call sites use `!isAdmin(role)`. Do **not** add an `isNotAdmin` export — the inverted-name hazard is the actual defect, and negation at the call site makes it unmissable.\n\nThat satisfies the finding's real goal (one definition of `\"admin\"`, no silent drift) without asserting an equivalence that doesn't hold.\n\n## Sequencing\n\nStep 1 first: it is provably behaviour-preserving, needs no judgment, and gets the characterization test in place. Step 2 carries the only semantic risk in the change set and deserves its own review with the truth table above in the PR description. They touch disjoint code (`sanitize-*.ts` bodies vs. the hoisted guards) so step 1 can land independently.\n\n**Not included:** `crime_00003`–`00005` (the exact-duplicate `recordSanitiseEvent` and its two `Date.now()` calls) are outside what you asked for, but they collapse into one follow-up — deduping telemetry into a single module reduces two clock findings to one injected `now()` parameter. Happy to fold that in as a step 3.\n\nI stopped at the plan and haven't edited any files. Say the word and I'll execute step 1 with the characterization test first.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -28,7 +28,17 @@ export const directDateDetector: LanguageJsDetector = {
     if (isTestFile(ctx.file)) return [];
     if (isClockBoundary(ctx.file)) return [];
 
-    const hits = ctx.parsed.dateNowOrNewDateUses;
+    // `new Date(value)` converts a timestamp that already exists; it does
+    // not read the clock. The parser already separates the two —
+    // `DateUse.argKind` is `"none"` only for the no-argument form — and
+    // this detector's single claim is `clock_read`, so counting a
+    // conversion here asserts something untrue rather than something
+    // debatable. Field notes, rolecred 2026-09-22:
+    // `new Date(evidence.submitted_at)` reported as a system-clock
+    // dependency was the finding that cost the reporter's trust in the
+    // rest. The string-literal form keeps its own charge,
+    // `timezone_unsafe_parse`, which is where parse safety belongs.
+    const hits = ctx.parsed.dateNowOrNewDateUses.filter(isClockRead);
     if (hits.length === 0) return [];
 
     // Split the uses by what the clock reading is *for*. A reading that
@@ -102,7 +112,10 @@ export const directDateDetector: LanguageJsDetector = {
         // The nearest JS hazard is `new Date("2026-12-20")`, where the
         // *string* decides UTC-or-local. That is a different operation
         // and already has its own charge, `timezone_unsafe_parse`.
-        agent_risk: intrinsicFrom(hits.length, { base: 0.45, step: 0.07, cap: 0.85 }),
+        agent_risk: scaleRecordedOnly(
+          intrinsicFrom(hits.length, { base: 0.45, step: 0.07, cap: 0.85 }),
+          compared.length,
+        ),
       },
       suggested_actions: [
         {
@@ -119,6 +132,25 @@ export const directDateDetector: LanguageJsDetector = {
   },
 };
 
+/**
+ * How much of the clock-read intrinsic a file keeps when none of its
+ * readings decides anything.
+ *
+ * Severity already capped such files at medium, but ranking reads
+ * `agent_risk`, which counted every reading alike. On a private
+ * Java/Kotlin/Swift estate 75% of clock-read findings were record-only —
+ * `setCreated(new Date())` and timestamp columns — and they filled six to
+ * eight of the top ten places in each JVM repository, above swallowed
+ * errors in payment and persistence code. Shared with the Java, Kotlin
+ * and Swift detector so the packs rank the same evidence the same way.
+ */
+export const RECORDED_ONLY_CLOCK_SCALE = 0.6;
+
+export function scaleRecordedOnly(intrinsic: number, comparedCount: number): number {
+  if (comparedCount > 0) return intrinsic;
+  return Math.round(intrinsic * RECORDED_ONLY_CLOCK_SCALE * 100) / 100;
+}
+
 function pickSeverity(count: number, comparedCount: number): Severity {
   // A single use is noise. Two or more direct clock reads in one file is a
   // recurring pattern — the whole module is bound to wall time. Eight or more
@@ -134,6 +166,20 @@ function pickSeverity(count: number, comparedCount: number): Severity {
   if (count >= 8) return "high";
   if (count >= 2) return "medium";
   return "low";
+}
+
+/**
+ * Is this use a reading of the current time?
+ *
+ * `Date.now()` always is. `new Date()` is; `new Date(x)` is not.
+ * An absent `argKind` resolves to "clock read": the parser sets it for
+ * every `new` use it records, so the only way to reach this branch is a
+ * hand-built fixture, and leaving the finding in place is the direction
+ * that fails safe.
+ */
+function isClockRead(use: DateUse): boolean {
+  if (use.kind === "now") return true;
+  return use.argKind === undefined || use.argKind === "none";
 }
 
 function isClockBoundary(file: string): boolean {

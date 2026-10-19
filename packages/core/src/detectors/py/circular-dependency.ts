@@ -55,6 +55,17 @@ const PY_FILE_RE = /\.pyi?$/;
  * risk a stack overflow that takes out the whole scan.
  */
 function collectPythonCycles(graph: ImportGraph): string[][] {
+  // Once per graph, not once per Python file — see the JS detector.
+  const cached = PY_CYCLES_CACHE.get(graph);
+  if (cached) return cached;
+  const fresh = computePythonCycles(graph);
+  PY_CYCLES_CACHE.set(graph, fresh);
+  return fresh;
+}
+
+const PY_CYCLES_CACHE = new WeakMap<ImportGraph, string[][]>();
+
+function computePythonCycles(graph: ImportGraph): string[][] {
   const adj = new Map<string, Set<string>>();
   const ensure = (key: string): Set<string> => {
     const existing = adj.get(key);

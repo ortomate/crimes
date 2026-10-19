@@ -1,0 +1,43 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T02:22:14.926Z",
+  "run_id": "ee7629dc-5594-403f-9d6d-ddb5d167f753",
+  "response": "I read the scan, then the tree, then ran the suite to check the scan's implications. Here's what holds up.\n\n## Protection for `reverse_entry`: effectively none\n\n`billing/ledger.py:16` has no test anywhere. There is no `tests/test_ledger.py`, and nothing in the repo — production or test — imports `reverse_entry`. The only reference is its own `def`.\n\nCoverage confirms it precisely:\n\n```\nbilling/ledger.py    6   1   83%   Missing: 17\n```\n\nLine 17 is the `return` inside `reverse_entry`. It is the only unexecuted statement in the module.\n\nThat 83% is a trap. Every covered line in `ledger.py` belongs to `post_entry`, and it's reached only indirectly — `billing/reporting.py:3` imports it, and `reporting` is tested only by `tests/test_reporting.py`, the file crimes flagged: 4 of 4 tests, 0 assertions. So ledger's coverage comes entirely from tests that cannot fail on a wrong value.\n\nI verified that on a throwaway copy. I sabotaged `post_entry` (`gross = amount * 0`, `net` sign flipped) and ran the suite: **12 passed.** The gross was zero and the net was negative, and nothing noticed.\n\n## What crimes told me, and what it couldn't\n\nWorth being explicit, because the scan is easy to misread as reassurance: the one finding is about `tests/test_reporting.py`, not about the ledger. It says nothing about `ledger.py` — the weak-test-signal detector reads test files that exist, and a module with no test file gives it nothing to flag. Its `test_gap: 0` and `blast_radius: 0` scores are about the flagged file, not a repo-wide clearance. Silence on the module I'm about to edit is not evidence of safety; I only found the gap by reading the tree.\n\nThe finding it did produce is a true positive, and its restraint is a credibility signal: `tests/test_invoices.py` has no assertion inside any test function either, but every one calls into `verify_invoice_balances` or `InvoiceCase.expect_gross_for` in `tests/support.py`, which do assert — and the detector followed those across files rather than flagging them.\n\n## Blast radius of changing reversal\n\n- **Zero callers.** Changing `reverse_entry`'s semantics (sign convention, an added `reversal_of` marker, rejecting double-reversal) breaks no existing consumer — and no existing test either. Nothing will tell me I got it wrong.\n- **The real coupling is the entry dict shape**, not the function. `post_entry` produces the `account/net/gross/region` shape; `reporting.build_report` reads `entry[\"gross\"]` into the report total, and `export_report` formats it into CSV (`\"%.2f\"`) and JSON. If reversal work touches that shared shape in `ledger.py`, it propagates ledger → reporting → both export formats.\n- **The suite catches crashes, not wrong numbers.** I renamed `gross` → `gross_amount` on the temp copy and all 4 reporting tests failed with `KeyError: 'gross'` — hollow tests still fail when code raises. So I have a structural smoke alarm and no correctness check at all. Sign errors, double-negation, tax handled on the wrong side of the reversal: all green.\n- **The layer below is trustworthy.** `billing/rates.py` is genuinely tested (`test_rates.py` asserts on real values), so `rate_for` is solid. It's the arithmetic stacked on top of it that's unguarded.\n\n## What I'd do before touching it\n\n1. Write `tests/test_ledger.py` first, asserting on `reverse_entry`: round-trip (`reverse(reverse(e)) == e`), signs of both `net` and `gross`, `account`/`region` preserved, and the `gross == net * (1 + rate_for(region))` invariant surviving reversal. That converts this from an unprotected change into a normal one.\n2. Fix the 4 hollow tests in `test_reporting.py` — crimes' suggested action, `effort: small`. That's the only downstream consumer of the entry shape, and right now it pins nothing about the values flowing through it.\n\nSay the word on the reversal semantics you want and I'll do the tests first, then the change.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -63,7 +63,8 @@ That writes `.claude/skills/crimes/SKILL.md` and
     "largeFile": {
       "domain": 300,
       "test_file": 1500,
-      "docs": 1000
+      "docs": 1000,
+      "data": 1000
     }
   },
 
@@ -163,6 +164,7 @@ unset shapes use the built-in defaults:
 | `domain`    | 300               |
 | `test_file` | 1500              |
 | `docs`      | 1000              |
+| `data`      | 1000              |
 
 The `test_file` shape matches `**/*.{test,spec}.[jt]sx?` and files
 under `__tests__/`. Test suites legitimately grow large with many
@@ -173,8 +175,21 @@ The `docs` shape (new in 0.17.0) matches `.md`, `.mdx`, `.markdown`,
 `.rst`, `.adoc`, `.asciidoc`, and `.txt`. Reference documentation is
 supposed to be long, so measuring prose against the domain-code budget
 produced findings nobody could act on. Severity caps at `low` /
-`medium`, same as `test_file`. Data formats (`.json`, `.yaml`, `.csv`) are deliberately *not* docs: a 3000-line config file is still a
-finding worth having.
+`medium`, same as `test_file`.
+
+The `data` shape (new in 0.29.1) matches `.json`, `.jsonc`, `.json5`,
+`.yaml`, `.yml`, and `.toml`. A 3000-line config file is still a finding
+worth having, and still reported — what changed is that it is no longer
+charged against the 300-line domain budget and no longer arrives as
+`high`. Field notes recorded generated audit JSON outranking the runtime
+changes a developer had come to review. Severity caps at `low` /
+`medium`, and `agent_risk` is scaled below the `docs` shape: an agent
+changing behaviour rarely has to load a data file at all. Extensions
+outside both lists (`.csv`, for instance) keep the domain budget.
+
+Lockfiles and manifests never reach this rule — `DEFAULT_CONFIG`
+excludes them by path. A generated data file you do not want reported
+at all belongs in `exclude`, not in a raised threshold.
 
 `thresholds.largeFile.domain` wins over the legacy
 `thresholds.largeFileLines` when both are set.

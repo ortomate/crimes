@@ -9,7 +9,7 @@
 `crimes` is a local, deterministic CLI for **change risk and agent risk**.
 It finds duplicated policies, drifting contracts, hidden side effects,
 weak test signals and dependencies an unfamiliar contributor could miss.
-It supports TypeScript, JavaScript and Python, with universal checks for
+It supports TypeScript, JavaScript, Python, Java, Kotlin and Swift, with universal checks for
 other files and cross-language checks for polyglot repositories.
 No account, cloud service or LLM is required to run the scanner.
 
@@ -97,13 +97,13 @@ and reports what changed. Agent/JSON calls receive a safe update command on
 stderr. CI stays read-only. Custom instructions and hook settings are preserved;
 `--no-skill-update` skips maintenance. [Setup and upgrade guide](./docs/skills.md).
 
-## Status: crimes@0.29.0
+## Status: crimes@0.30.0
 
-0.29 reuses analysis inputs, adds interruption recovery for pin migration,
-and expands the completed-edit benchmark. JSON schema remains **0.8.0**.
-[Performance methods](./docs/performance.md) and
-[release evidence](./docs/releases/v0.29.0.md) distinguish measured latency,
-completed edits and the limits of synthetic trials. Hooks remain optional.
+0.30 adds Java, Kotlin and Swift language packs, reports languages it cannot
+parse instead of reading as clean, and adds files that change together to
+pre-edit briefings. JSON schema remains **0.8.0**; read the Upgrading section
+of the [release notes](./docs/releases/v0.30.0.md) for the new coverage
+warning kind and other JSON-visible changes. Hooks remain optional.
 Read [migration guidance](./docs/pin-migration.md) before changing existing pins.
 The npm badge reports the published version; the package file reports the
 version in this checkout. [Earlier releases](./docs/releases/).

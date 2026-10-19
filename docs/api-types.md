@@ -558,7 +558,7 @@ export interface CoverageWarning {
 [Source](https://github.com/ortomate/crimes/blob/main/packages/core/src/finding.ts).
 
 ```ts
-export type CoverageWarningKind = "files_not_discovered" | "files_excluded" | "files_excluded_by_tooling" | "files_not_followed" | "files_in_hidden_path" | "files_unreadable" | "files_unparsed" | "files_partial_parse" | "index_truncated" | "index_unavailable" | "working_set_path_unmatched" | "triage_entries_unmatched" | "suppression_entries_unmatched";
+export type CoverageWarningKind = "files_not_discovered" | "files_excluded" | "files_excluded_by_tooling" | "files_not_followed" | "files_in_hidden_path" | "files_unreadable" | "files_unparsed" | "files_partial_parse" | "files_universal_only" | "index_truncated" | "index_unavailable" | "working_set_path_unmatched" | "triage_entries_unmatched" | "suppression_entries_unmatched";
 ```
 
 ## DiffFailOn
@@ -683,7 +683,7 @@ export interface Hotspot {
 [Source](https://github.com/ortomate/crimes/blob/main/packages/core/src/pack.ts).
 
 ```ts
-export type Pack = "universal" | "language-js" | "language-py" | "cross-language";
+export type Pack = "universal" | "language-js" | "language-py" | "language-java" | "language-kotlin" | "language-swift" | "cross-language";
 ```
 
 ## ScanSummary

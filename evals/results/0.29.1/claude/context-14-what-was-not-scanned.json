@@ -1,0 +1,55 @@
+{
+  "scenario": "context-14-what-was-not-scanned",
+  "agent": "claude",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T00:10:47.990Z",
+  "run_id": "038794d6-ca50-4b78-b11a-c64d477c70fb",
+  "response": "## Findings (what the scan did look at)\n\nTwo medium findings, both in `app/pricing.py`, both real:\n\n| # | Charge | Where | What |\n|---|---|---|---|\n| `crime_00001` | Temporal Recklessness (`direct_date`) | `app/pricing.py:20` | One `datetime.now()` in domain code, naive (no `tz=`). Can't pin a fixed instant in a test without patching the module; comparing it to an aware datetime raises `TypeError`. Fix: inject a clock, pass `tz=` at the boundary. Confidence 0.9, effort small. |\n| `crime_00002` | Unfinished Business (`todo_density`) | `app/pricing.py:8–11` | 4 TODO markers in a ~22-line file (181.8/1k LOC vs threshold 10). Ambiguity about which logic is load-bearing. Confidence 0.7. |\n\nNo high findings. For a billing service, a naive clock read in pricing is the one I'd actually fix before touching anything — money and dates.\n\n## What the scan did *not* look at, and on whose authority\n\n**2 source files under `legacy_v1/` were skipped** — `legacy_v1/pricing.py` and `legacy_v1/discounts.py`. The scan covered 2 files total; a third of this repo's Python was never parsed.\n\nThe authority was **this repository's own tooling config, `pyproject.toml`** — crimes honoured it rather than deciding on its own. The JSON warning names the subject (`legacy_v1`) and the reason (\"this repository's own tooling excludes them\"); reading `pyproject.toml` gives the three specific asks:\n\n- `[tool.ruff] extend-exclude = ['legacy_v1']`\n- `[tool.coverage.run] omit = ['legacy_v1/*']`\n- `[tool.codespell] skip = '.git,legacy_v1/*'`\n\ncrimes' own wording is the right frame: **\"Findings in them are absent, not zero.\"**\n\nWorth noting what crimes *didn't* over-read: `[tool.hatch.build.targets.sdist] exclude = [\"*\"]` is a packaging decision, and it was correctly ignored as a maintenance signal — otherwise the whole repo would have gone dark.\n\n## Would I trust this as a complete picture of the repo's risk?\n\n**No — and the report doesn't ask me to.** Three reasons:\n\n1. **A third of the source is unexamined**, excluded by lint/coverage/spell-check config — none of which is a statement about correctness risk. \"Nobody lints it\" is a *reason to look harder*, not a reason to skip.\n2. **The blast-radius numbers are computed over the truncated file set.** `app/pricing.py` shows `blast_radius: 0`, `direct_importers: 0` — but the import graph was built without `legacy_v1`. The v1 shim could import it and the count would still read 0.\n3. `test_gap: 1.0` on both findings means *no test was discovered*, not that no test exists. Per the tool's own guidance, a clean or small report never establishes safety.\n\n## What I'd run to check the skipped code\n\nThe remedy is in the warning: set `\"honourToolingExcludes\": false` in `crimes.config.json` and rescan. **I ran it** — on a throwaway copy of the fixture, so nothing in the repo changed:\n\n```bash\nT=$(mktemp -d); cp -R evals/fixtures/14-tooling-excludes/. \"$T/\"\necho '{\"honourToolingExcludes\": false}' > \"$T/crimes.config.json\"\ncd \"$T\" && crimes scan --format json\n```\n\nResult: **6 medium findings instead of 2, 5 files covered instead of 2, and the exclusion warning gone.**\n\n```\nmedium direct_date   app/pricing.py:20\nmedium direct_date   legacy_v1/discounts.py:11     ← was invisible\nmedium direct_date   legacy_v1/pricing.py:24       ← was invisible\nmedium todo_density  app/pricing.py:8-11\nmedium todo_density  legacy_v1/discounts.py:7-10   ← was invisible (285.7/1k LOC)\nmedium todo_density  legacy_v1/pricing.py:12-15    ← was invisible\n```\n\nThe skipped code carries the *same two crimes* as the code that was scanned — naive `datetime.now()` stamped onto money (`{\"total\": ..., \"at\": stamped}`) and dense TODOs — plus an unguarded `os.environ[\"BILLING_REGION\"]` in `legacy_v1/pricing.py` that no default detector charged.\n\nBoth legacy files claim to be generated (`make vendor-v1`) and frozen. If that's true, the right move is to confirm the generator is the real source and scan *that*, not to start editing `legacy_v1/`. If it isn't true — if someone has hand-edited it since — then this is live billing code that three tools have agreed to stop reading, which is exactly the shape of risk worth knowing about before I touch anything.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Unfinished Business": "todo_density"
+    },
+    "detector_id_by_evidence": {
+      "1× datetime.now()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "1 of 1 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20": "direct_date",
+      "181.8 markers per 1k LOC (threshold 10)": "todo_density"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "app/pricing.py",
+        "observed": "app/pricing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -411,7 +411,8 @@ export {
 } from "./scan.js";
 export type { ApplyScanFailOnOptions, ScanOptions } from "./scan.js";
 export { applyTriageFilter } from "./triage-filter.js";
-export { isSkippedWorkKind } from "./discovery/coverage-warnings.js";
+export { isSkippedWorkKind, isUnmatchedPinKind } from "./discovery/coverage-warnings.js";
+export { isUnsupportedCodeFile } from "./discovery/code-extensions.js";
 export {
   classifyUnmatchedPins,
   type PinLike,

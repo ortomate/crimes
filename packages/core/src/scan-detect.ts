@@ -4,7 +4,10 @@ import { readFile } from "node:fs/promises";
 import { looksMinifiedSource } from "./util/scope-class.js";
 import { relative, sep } from "node:path";
 import { parseFile } from "@crimes/language-js";
+import { parseJavaFile } from "@crimes/language-java";
+import { parseKotlinFile } from "@crimes/language-kotlin";
 import { parsePyFile } from "@crimes/language-py";
+import { parseSwiftFile } from "@crimes/language-swift";
 import type { CrimesConfig } from "./config.js";
 import type {
   CrossLanguageDetector,
@@ -12,9 +15,13 @@ import type {
   Detector,
   LanguageJsDetectorContext,
   LanguagePyDetectorContext,
+  LanguageJavaDetectorContext,
+  LanguageKotlinDetectorContext,
+  LanguageSwiftDetectorContext,
   PackedFile,
 } from "./detector.js";
 import { groupDetectorsByPack } from "./detector-registry.js";
+import { structuredSkipFor } from "./util/structured-skip.js";
 import type { PyModuleReferenceIndex } from "./detectors/py/module-references.js";
 import { buildPyModuleReferenceIndex } from "./detectors/py/module-references.js";
 import { CoverageWarningLog } from "./discovery/coverage-warnings.js";
@@ -87,6 +94,11 @@ export interface ScanIndexes {
    * folds it into `ScanReport.coverage.warnings`.
    */
   warnings?: CoverageWarningLog;
+  /**
+   * Files the Java, Kotlin and Swift packs do not parse: generated or
+   * vendored, so never reported. See `util/structured-skip.ts`.
+   */
+  skipStructured?: (repoPath: string) => boolean;
 }
 
 export async function buildScanIndexes(args: {
@@ -175,6 +187,7 @@ export async function buildScanIndexes(args: {
     ...(pySymbols !== undefined ? { pySymbols } : {}),
     ...(pyModuleRefs !== undefined ? { pyModuleRefs } : {}),
     warnings,
+    skipStructured: structuredSkipFor(root),
   };
 }
 
@@ -434,6 +447,110 @@ export async function runDetectorsForFile(args: {
       absolutePath: args.absolutePath,
       parsed,
     });
+  }
+
+  // Language-java pack. Same shape as the Python branch. Java takes no
+  // part in the cross-language pass yet, so it parses only when it has
+  // detectors to run.
+  const javaDetectors = args.grouped["language-java"] ?? [];
+  if (
+    javaDetectors.length > 0 &&
+    args.langPack.claims("language-java", args.absolutePath) &&
+    !(args.indexes.skipStructured?.(file) ?? false)
+  ) {
+    const source = args.indexes.inputs
+      ? await args.indexes.inputs.read(args.absolutePath)
+      : await readFile(args.absolutePath, "utf8");
+    const parsed = args.indexes.inputs
+      ? await args.indexes.inputs.java(args.absolutePath, source)
+      : await profileAsync("parse.detector-java", () =>
+          parseJavaFile({ absolutePath: args.absolutePath, source }),
+        );
+    if (parsed.hasSyntaxErrors) {
+      args.indexes.warnings?.record("files_partial_parse", "language-java", { file });
+    }
+    const javaCtx: LanguageJavaDetectorContext = {
+      kind: "language-java",
+      file,
+      absolutePath: args.absolutePath,
+      source,
+      parsed,
+      config: args.config,
+      imports: args.indexes.imports,
+      scoring: args.indexes.scoring,
+    };
+    for (const detector of javaDetectors) {
+      const detectorFindings = await detector.run(javaCtx);
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
+    }
+  }
+
+  // Language-kotlin pack. Same shape as the Java branch.
+  const kotlinDetectors = args.grouped["language-kotlin"] ?? [];
+  if (
+    kotlinDetectors.length > 0 &&
+    args.langPack.claims("language-kotlin", args.absolutePath) &&
+    !(args.indexes.skipStructured?.(file) ?? false)
+  ) {
+    const source = args.indexes.inputs
+      ? await args.indexes.inputs.read(args.absolutePath)
+      : await readFile(args.absolutePath, "utf8");
+    const parsed = args.indexes.inputs
+      ? await args.indexes.inputs.kotlin(args.absolutePath, source)
+      : await profileAsync("parse.detector-kotlin", () =>
+          parseKotlinFile({ absolutePath: args.absolutePath, source }),
+        );
+    if (parsed.hasSyntaxErrors) {
+      args.indexes.warnings?.record("files_partial_parse", "language-kotlin", { file });
+    }
+    const kotlinCtx: LanguageKotlinDetectorContext = {
+      kind: "language-kotlin",
+      file,
+      absolutePath: args.absolutePath,
+      source,
+      parsed,
+      config: args.config,
+      imports: args.indexes.imports,
+      scoring: args.indexes.scoring,
+    };
+    for (const detector of kotlinDetectors) {
+      const detectorFindings = await detector.run(kotlinCtx);
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
+    }
+  }
+
+  // Language-swift pack. Same shape as the Java branch.
+  const swiftDetectors = args.grouped["language-swift"] ?? [];
+  if (
+    swiftDetectors.length > 0 &&
+    args.langPack.claims("language-swift", args.absolutePath) &&
+    !(args.indexes.skipStructured?.(file) ?? false)
+  ) {
+    const source = args.indexes.inputs
+      ? await args.indexes.inputs.read(args.absolutePath)
+      : await readFile(args.absolutePath, "utf8");
+    const parsed = args.indexes.inputs
+      ? await args.indexes.inputs.swift(args.absolutePath, source)
+      : await profileAsync("parse.detector-swift", () =>
+          parseSwiftFile({ absolutePath: args.absolutePath, source }),
+        );
+    if (parsed.hasSyntaxErrors) {
+      args.indexes.warnings?.record("files_partial_parse", "language-swift", { file });
+    }
+    const swiftCtx: LanguageSwiftDetectorContext = {
+      kind: "language-swift",
+      file,
+      absolutePath: args.absolutePath,
+      source,
+      parsed,
+      config: args.config,
+      imports: args.indexes.imports,
+      scoring: args.indexes.scoring,
+    };
+    for (const detector of swiftDetectors) {
+      const detectorFindings = await detector.run(swiftCtx);
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
+    }
   }
 
   return findings;

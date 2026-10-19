@@ -1,0 +1,83 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "claude",
+  "crimes_version": "0.29.9",
+  "timestamp": "2026-10-19T02:29:38.377Z",
+  "run_id": "1963366f-4d9b-4af6-ae64-3300dff39f90",
+  "response": "I confirmed the scan's findings against `api/routes.py`. The cause is **two `async def` handlers that make blocking calls** (crime_00003, crime_00004). This service runs on FastAPI, so all `async def` handlers share one event loop on one thread. A blocking call inside one of them freezes that thread, and every other in-flight request waits until the call returns. This explains low CPU with collapsing p99: the process spends most of its time waiting, so requests queue up behind whichever call is blocking.\n\n## Ranked by contribution to the latency collapse\n\n| # | Call | Where | Why it ranks here |\n|---|------|-------|-------------------|\n| 1 | `time.sleep(2)` | `api/routes.py:32` (`export_invoice`) | Every export freezes the whole server for at least 2 s, guaranteed. It does no useful work, and the handler then returns `\"queued\"` even though nothing was queued. A few exports a minute are enough to wreck p99 for every route. |\n| 2 | `requests.get(...)` | `api/routes.py:21` (`get_invoice`) | This sits on what is probably the busiest route, and it has **no timeout**. Each GET holds the loop for a full round trip to `billing.internal`, so concurrent GETs run one after another. If billing slows down, so does the whole service, and if it hangs, the service hangs with it. |\n| 3 | `subprocess.run([\"render-pdf\", ...])` | `api/routes.py:31` (`export_invoice`) | Holds the loop for as long as the PDF takes to render, probably hundreds of ms or more. It is placed below #2 only because exports are likely much rarer than reads. Per call, it may cost more. |\n| 4 | `open(\"/etc/billing/rates.json\").read()` | `api/routes.py:23` (`get_invoice`) | This is technically blocking, but reading a small local file that is probably already cached in memory costs microseconds. It is a minor contributor. It is also wasteful, since the file is re-read on every request. |\n\n(The scan reports these as two findings, one per handler. I split them by call because their costs are very different.)\n\n## Fixes, in order\n1. **Delete `time.sleep(2)`.** If a delay is truly needed, use `await asyncio.sleep(...)`.\n2. **`get_invoice`:** use one shared `httpx.AsyncClient` with an explicit timeout and `await` the call. Load `rates.json` once at startup instead of on every request.\n3. **`export_invoice`:** hand the render to a real background job or queue so the \"queued\" response is true. Otherwise, use `await asyncio.create_subprocess_exec(...)`.\n4. **Stopgap you can ship today:** change both handlers from `async def` to plain `def`. FastAPI then runs them in its thread pool, so a blocking call only ties up one worker thread instead of the whole server. That pool is limited (about 40 threads by default), so this buys headroom but isn't the real fix.\n\n## Not related to this problem\nThe other six findings don't affect latency under load:\n- **crime_00001, crime_00002:** timezone and clock bugs in `domain/invoicing.py`. These are real correctness issues, especially the mix of `utcnow()` and `now()`.\n- **crime_00005:** an import cycle between `api/rendering.py` and `domain/invoicing.py`. This is a startup risk.\n- **crime_00006:** `build_invoice` is long and deeply nested, which makes it hard to maintain.\n- **crime_00007, crime_00008:** imports that reach into another package's internals.\n\nThey're worth a later cleanup pass, but fixing them won't change p99.\n\nOne limit on this review: the scan can't see the CPU cost of `build_invoice`, which also runs inside the async handler. It's probably small next to the network call, but if p99 stays high after the fixes above, profile it next.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      }
+    ]
+  }
+}

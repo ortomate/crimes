@@ -1,0 +1,83 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "claude",
+  "crimes_version": "0.29.1",
+  "timestamp": "2026-09-22T01:00:40.719Z",
+  "run_id": "ae38cfa8-e63c-4320-ae32-8fcfff8db0a8",
+  "response": "## The failure mode\n\nLow CPU + collapsing p99 under moderate load is the signature of a **stalled event loop**, not of a saturated one. `api/routes.py` declares two handlers `async def` and then does blocking, synchronous I/O inside them. Uvicorn runs one event loop per worker; while that loop is parked in a blocking syscall, it serves **zero** other requests — including ones that were already mid-flight. The CPU is idle precisely because the process is sitting in `recv()`/`nanosleep()`, not working.\n\nCrimes flagged both handlers (`crime_00003`, `crime_00004`, both high/0.8). Ranked by actual contribution:\n\n---\n\n### 1. `export_invoice` — `time.sleep(2)` + `subprocess.run()` in an `async def` (`api/routes.py:30-33`)\n\nThe dominant contributor. `time.sleep(2)` is an unconditional, deterministic 2-second freeze of the entire loop — every concurrent request in the process waits, not just this one. A single loop has 1 second of capacity per wall-clock second, so **~0.5 export req/s saturates the worker completely**, before `render-pdf` has run at all. `subprocess.run()` adds unbounded wall time on top with no `timeout=`, and `check=True` turns a slow/failed renderer into a 500.\n\nThe response body is `{\"status\": \"queued\"}` — the contract already says this is background work. It just isn't.\n\n**Fix:** actually queue it (`BackgroundTasks` / a real worker), return immediately. If that's too big a step today, deleting `async` from line 30 alone moves it to FastAPI's threadpool and stops the loop stall — a one-word change bounded by the default 40-thread pool.\n\n### 2. `get_invoice` — `requests.get()` with no timeout in an `async def` (`api/routes.py:21`)\n\nSecond by magnitude, first by exposure — this is the primary read path, so it carries the volume. With a 50 ms upstream, the whole worker is capped at ~20 req/s across *all* endpoints; at 50 rps the queue grows without bound and p99 runs to seconds. Two amplifiers crimes' evidence line doesn't name:\n\n- **No `timeout=`.** `requests` defaults to waiting forever. If `billing.internal` degrades, the loop blocks indefinitely rather than failing fast — the difference between \"slow\" and \"gone.\"\n- **No session reuse.** A module-level `requests.get()` builds a new TCP + TLS handshake per call, so every request pays an extra RTT or two *inside* the stall.\n\n**Fix:** `httpx.AsyncClient` held at module scope with an explicit timeout, `await`ed. Same threadpool escape hatch as above if you need the immediate mitigation first.\n\n### 3. `open()` / `.read()` on every request (`api/routes.py:23-24`)\n\nReal, and correctly flagged, but a rounding error against #1 and #2 on local disk — page cache makes it sub-millisecond. It matters for two reasons anyway: it's a *static* rates file re-read on every single request (pure waste), and if `/etc/billing/` is ever a network or container-overlay mount, it becomes a second unbounded stall with the same profile as #2.\n\n**Fix:** load once at startup, or behind a TTL cache.\n\n---\n\n### Aggravating factor: the health check\n\n`health()` at line 37 is correctly declared `def`, so FastAPI offloads it to the threadpool — it's the only handler in the file that doesn't block the loop. But it still can't *respond*, because the loop that schedules its reply is blocked by #1/#2. Your load balancer sees the instance as unhealthy, pulls it or restarts it, and the remaining instances absorb its traffic. That's the cascade that turns degradation into a fall-over.\n\n### What is *not* causing this\n\nThe other five findings are real and worth fixing, but none of them touch latency:\n\n- **`circular_dependency` (`crime_00005`)** — `api/rendering.py:7` ↔ `domain/invoicing.py:9`. Import-time risk only: `routes.py:12` enters the ring via `build_invoice`. It can raise `ImportError` at startup depending on entry order, so it's a real production-vs-pytest divergence — just not this one.\n- **`direct_date` / `mixed_utc_local_methods`** (`crime_00002`, `crime_00001`) — a correctness bug (`invoicing.py:20` local-naive vs `:21` UTC-naive, compared against each other), not a performance one.\n- **`large_function`, 2× `deep_import`** — maintainability.\n\n### One note on reading the scan\n\nBoth hot-path findings carry `blast_radius: 0` / `blast_radius_direct_importers: 0`. That's the metric doing what it's defined to do — counting module importers, and nothing imports `routes.py` by name — but it badly understates reality here. The blast radius of a blocked event loop is *every in-flight request in the process*, including the health check. Rank these two by the `severity: 0.85` and the \"stalls the event loop for every concurrent request\" evidence line, not by the blast-radius score.\n\n**Order of work:** line 32 → line 31 → line 21 (add timeout + async client) → line 23. The first two are the ones that will move p99.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      }
+    ]
+  }
+}

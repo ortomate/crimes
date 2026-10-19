@@ -1,0 +1,48 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.29.2",
+  "timestamp": "2026-09-22T02:44:09.868Z",
+  "run_id": "f8ab1d1b-d770-4b96-898a-2b70c000351b",
+  "response": "## What the finding actually says, and where it's right\n\n`crimes context src/Card.tsx --format json` returns one finding, `crime_00001` (`responsive_fragility`, low, confidence 0.65), with no related files, no `agent_guidance`, and `test_gap: 1` (label `unknown`) — nothing imports this file and nothing tests it, so a change here is cheap to make and unverified by anything but inspection.\n\nEvidence lines map to the source like this (the detector anchors at the JSX element start, so its line numbers run ~2 low):\n\n| Evidence | Actual source | Why it breaks narrow |\n|---|---|---|\n| `line 10: width 800px` | `src/Card.tsx:12` `width: 800` | Hard floor — forces horizontal overflow on any viewport < 800px |\n| `line 24: width 720px` | `src/Card.tsx:24` `width: 720` | Content column can't shrink inside an already-overflowing parent |\n| `line 24: fontSize 18px` | `src/Card.tsx:24` `fontSize: 18` | Fixed type, no fluid scale |\n| `no @media query found in the file` | whole file | Confirmed — styles are all inline `style={{}}`, which **cannot** hold `@media` or `@container` at all |\n\n## Where the evidence is incomplete\n\nThe detector counted 3 fixed values, but there are 5, and it missed the two that do the most damage to content:\n\n- `src/Card.tsx:13` `height: 600` — a fixed height, not a min. As soon as the children reflow taller at narrow widths, **content is clipped or spills outside the painted box**. This is the single biggest threat to \"preserves its content at narrow widths,\" and it isn't in the evidence.\n- `src/Card.tsx:27` `width: 240` — the sidebar column, same fragility class as the flagged `720`.\n\nAlso worth noting: `src/Card.tsx:14` `maxWidth: 1024` is dead code today — `width: 800` already caps the element below 1024, so the cap never engages.\n\nSo fixing only what's flagged would leave the component still broken. I'm proposing against all five.\n\n## The fix shape, and the contradiction in the finding\n\nThe finding gives two conflicting directions:\n\n- `fix_shape`: *\"drive layout from container queries or a fluid scale, **not** pixel media queries\"*\n- `suggested_actions[0]`: *\"...add `@media` queries for grid templates that need to collapse on mobile\"*\n\nI'd follow `fix_shape`. The `suggested_actions` text is the detector's generic boilerplate; `@media` is also impossible here without first moving styles out of the `style` prop, which blows past `effort: small`. A fluid scale gets the content-preservation win inside the stated effort budget.\n\n## Proposed change\n\n```diff\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@\n     <div\n       style={{\n-        width: 800,\n-        height: 600,\n-        maxWidth: 1024,\n+        width: \"100%\",\n+        maxWidth: 800,\n+        minHeight: 600,\n         padding: 24,\n         background: \"#ff00aa\",\n@@\n-      <div style={{ width: 720, fontSize: 18, color: \"#333333\" }}>\n+      <div\n+        style={{\n+          width: \"100%\",\n+          maxWidth: 720,\n+          fontSize: \"clamp(1rem, 0.85rem + 0.6vw, 1.125rem)\",\n+          color: \"#333333\",\n+        }}\n+      >\n         {children}\n       </div>\n-      <div style={{ width: 240, fontSize: 14, color: \"#666666\" }}>\n+      <div style={{ width: \"100%\", maxWidth: 240, fontSize: \"0.875rem\", color: \"#666666\" }}>\n         sidebar\n       </div>\n```\n\nEach edit tied to its evidence:\n\n- **`width: 800` → `width: \"100%\" / maxWidth: 800`** (evidence \"line 10: width 800px\"). This is verbatim the suggested action: *\"Replace fixed widths with `max-width` plus `width: 100%`.\"* Below 800px the card now shrinks to its container instead of overflowing it; at ≥800px rendering is pixel-identical to today. `maxWidth: 1024` is dropped because `maxWidth: 800` subsumes it — no behavior change, since 1024 was already unreachable.\n- **`height: 600` → `minHeight: 600`** (my addition, not in the evidence). Directly serves \"preserves its content at narrow widths\": as the two columns reflow taller on a phone, the box grows with them rather than clipping. On wide viewports where content is short, the card still renders at 600px.\n- **`width: 720` → `width: \"100%\" / maxWidth: 720`** (evidence \"line 24: width 720px\"). Same pattern; the content column now tracks the parent's padding box.\n- **`fontSize: 18` → `clamp(1rem, 0.85rem + 0.6vw, 1.125rem)`** (evidence \"line 24: fontSize 18px (no @media in file)\"). This is the `fix_shape` \"fluid scale\" in a form that survives inside an inline `style` — `clamp()` is a value, so it needs no stylesheet. It resolves to exactly 18px at ≥~1200px and floors at 16px on a 375px phone, so it never drops below comfortable reading size.\n- **`width: 240` → `maxWidth: 240`, `fontSize: 14` → `0.875rem`** (my addition). Same class as the flagged sibling; `rem` makes the sidebar respect user font-size settings. No `clamp()` here — 14px is already at the floor, shrinking it further would hurt legibility.\n\n## What this deliberately does not do\n\n`fix_shape` asks for **container queries**, and this change doesn't deliver them. It can't: `@container` requires a stylesheet, and every style in this file lives in a `style={{}}` prop. Getting there means moving to a CSS module or the Tailwind tokens in `tailwind.config.ts` — which is also the real fix for the `#ff00aa` / `#333333` hex literals sitting next to these values. That's a larger change than this finding's `effort: small`, so I'd treat it as the follow-up rather than fold it in here.\n\nTwo caveats on my proposal:\n\n- I have not applied it. `src/Card.tsx` is an eval fixture whose own header comments assert `responsive_fragility` **should** fire on it (`src/Card.tsx:4-5`); editing it in place would defuse the test it exists to be. Tell me if you want it applied anyway, or applied to a copy.\n- `likely_tests` is empty and `test_gap` is `1`/`unknown` — there is no test that would catch a regression. The verification for this change is a manual render at ~375px confirming both columns stack without horizontal scroll and the card grows past 600px tall rather than clipping.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      }
+    ]
+  }
+}
