@@ -85,6 +85,32 @@ const pkgVersion = JSON.parse(
   readFileSync(resolve(repoRoot, "packages", "cli", "package.json"), "utf8"),
 ).version;
 
+// The site advertises the newest *release*: the highest version with notes
+// in docs/releases/ that is not above the package. Between releases the
+// package carries unpublished patch bumps (eval result keys; see
+// evals/README.md), and a landing page claiming one would name a version
+// npm does not serve. At release time the notes land with the bump, so
+// the page must follow — the control this check exists for still holds.
+const semver = (v) => v.split(".").map(Number);
+const compareVersions = (a, b) => {
+  const [x, y] = [semver(a), semver(b)];
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i];
+  return 0;
+};
+const releasedVersion = readdirSync(resolve(repoRoot, "docs", "releases"))
+  .map((name) => name.match(/^v(\d+\.\d+\.\d+)\.md$/)?.[1])
+  .filter((v) => v !== undefined && compareVersions(v, pkgVersion) <= 0)
+  .sort(compareVersions)
+  .at(-1);
+if (releasedVersion === undefined) {
+  process.stderr.write(
+    `verify-build: no docs/releases/vX.Y.Z.md at or below package version ${pkgVersion}.\n`,
+  );
+  process.exit(1);
+}
+const unreleased =
+  releasedVersion === pkgVersion ? "" : ` (package ${pkgVersion} is unreleased)`;
+
 const match = landingHtml.match(/"softwareVersion"\s*:\s*"([^"]+)"/);
 if (!match) {
   process.stderr.write(
@@ -93,17 +119,17 @@ if (!match) {
   );
   process.exit(1);
 }
-if (match[1] !== pkgVersion) {
+if (match[1] !== releasedVersion) {
   process.stderr.write(
     `verify-build: landing page advertises crimes ${match[1]}, ` +
-      `but packages/cli/package.json is ${pkgVersion}.\n` +
+      `but the current release is ${releasedVersion}${unreleased}.\n` +
       '  Update "softwareVersion" in apps/website/landing/index.html.\n' +
       "  See docs/releasing.md step 2 (website surfaces).\n",
   );
   process.exit(1);
 }
 console.log(
-  `verify-build: landing page advertises crimes ${pkgVersion} (matches package.json)`,
+  `verify-build: landing page advertises crimes ${releasedVersion}, the current release${unreleased}`,
 );
 
 /* ------------------------------------------------------------------ *
@@ -124,9 +150,9 @@ if (!pill) {
       "  If the hero was redesigned, update this check to match — do not delete it.",
   );
 } else {
-  if (pill[1] !== pkgVersion) {
+  if (pill[1] !== releasedVersion) {
     fail(
-      `the hero pill reads v${pill[1]}, but packages/cli/package.json is ${pkgVersion}.\n` +
+      `the hero pill reads v${pill[1]}, but the current release is ${releasedVersion}${unreleased}.\n` +
         "  It is the first thing a visitor sees. Update the pill in apps/website/landing/index.html.",
     );
   }
@@ -139,9 +165,9 @@ if (!pill) {
         `the hero pill links to ${href[1]}, which the build did not produce.\n` +
           "  Add docs/releases/vX.Y.Z.md, or point the pill at notes that exist.",
       );
-    } else if (!href[1].includes(`v${pkgVersion}`)) {
+    } else if (!href[1].includes(`v${releasedVersion}`)) {
       fail(
-        `the hero pill links to ${href[1]}, but the current release is v${pkgVersion}.\n` +
+        `the hero pill links to ${href[1]}, but the current release is v${releasedVersion}.\n` +
           "  Point it at this release's notes.",
       );
     }

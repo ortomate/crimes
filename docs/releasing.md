@@ -374,11 +374,16 @@ than hard-coded:
 
 | Claim on the page | Derived from |
 |---|---|
-| JSON-LD `softwareVersion` | `packages/cli/package.json` |
+| JSON-LD `softwareVersion` | the newest `docs/releases/vX.Y.Z.md` not above `packages/cli/package.json` |
 | Hero pill version and its release-notes link | same, plus the built `dist/docs/releases/` |
 | "N detectors across M families" | the built detector registry and `docs/finding-types/*.md` |
 | Every finding-type family linked | `docs/finding-types/*.md` |
 | Languages named in the prose, packages listed | `packages/language-*` |
+
+Between releases the package carries unpublished patch versions (eval
+result keys), and the page keeps naming the last release until that
+release's notes land. Adding the notes for a release makes the build fail
+until the page follows.
 
 Adding a language pack fails the build until `LANGUAGE_NAMES` in
 `verify-build.mjs` and the page are both updated. That is intended.
