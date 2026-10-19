@@ -798,6 +798,21 @@ describe("context — universal pack on unsupported extensions", () => {
     ).toBe(true);
   });
 
+  it("is partial for a target that only partly parsed, not for its neighbours", async () => {
+    const root = await makeRepo({
+      "src/broken.ts": "export function broken( {\n",
+      "src/clean.ts": "export const clean = 1;\n",
+    });
+    const clean = await context({ root, file: "src/clean.ts" });
+    expect(clean.analysis_status).toBe("complete");
+    // The neighbour's warning is still reported, just not held against it.
+    expect(clean.coverage?.warnings?.some((w) => w.kind === "files_partial_parse")).toBe(
+      true,
+    );
+    const broken = await context({ root, file: "src/broken.ts" });
+    expect(broken.analysis_status).toBe("partial");
+  });
+
   it("keeps docs complete: the universal pack is their whole analysis", async () => {
     const root = await makeRepo({ "notes.md": "# Notes\n" });
     const report = await context({ root, file: "notes.md" });

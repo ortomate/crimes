@@ -311,6 +311,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     coverage: scanReport.coverage,
     analysis_status: analysisStatus(
       scanReport,
+      indexes.warnings,
       fileRel,
       allFiles.includes(targetAbs) ||
         assetFiles.includes(targetAbs) ||
@@ -365,20 +366,33 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
 
 function analysisStatus(
   report: import("./finding.js").ScanReport,
+  log: CoverageWarningLog | undefined,
   file: string,
   discovered: boolean,
 ): "complete" | "partial" | "not_analyzed" {
   if (!discovered && !report.findings.some((f) => f.file === file)) return "not_analyzed";
-  const incomplete = new Set([
+  // Gaps that can hide evidence about any file: an index that failed or
+  // truncated, or a file that contributed nothing to the graph at all.
+  const repoWide = new Set([
     "index_unavailable",
     "index_truncated",
     "files_unreadable",
     "files_unparsed",
-    "files_partial_parse",
   ]);
-  return report.coverage?.warnings?.some((w) => incomplete.has(w.kind))
-    ? "partial"
-    : "complete";
+  if (report.coverage?.warnings?.some((w) => repoWide.has(w.kind))) return "partial";
+  // A partial parse still yields that file's imports, so elsewhere it does
+  // not weaken this briefing. It does when it is the target: the findings
+  // describe only the part that parsed. Before 0.29.6 any partial parse in
+  // the repository marked every briefing partial, which on a Java repo
+  // with 16 Java 21 pattern switches meant every one of them.
+  if (log?.hasFile("files_partial_parse", file)) return "partial";
+  if (
+    log === undefined &&
+    report.coverage?.warnings?.some((w) => w.kind === "files_partial_parse")
+  ) {
+    return "partial";
+  }
+  return "complete";
 }
 
 /**

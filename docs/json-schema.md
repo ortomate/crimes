@@ -142,7 +142,7 @@ the nearest package/project marker and can omit monorepo consumers.
 | Status | Interpretation |
 | --- | --- |
 | `complete` | The enabled configured analysis finished. It is not a safety guarantee. |
-| `partial` | Some analysis/indexing failed or was truncated; inspect coverage. |
+| `partial` | Analysis that bears on this target failed or was truncated; inspect coverage. That is: an index failed or truncated, any file was unreadable or unparseable, the target itself parsed only partly, or no language pack parses the target's language (0.29.4). A partial parse of a *different* file is still listed in coverage but does not make the target partial (0.29.7). |
 | `not_analyzed` | The target did not participate in the configured analysis. |
 | Absent | An older producer; do not assume completeness. |
 
