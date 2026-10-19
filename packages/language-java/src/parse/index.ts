@@ -428,6 +428,11 @@ function buildCatch(
     returnsFallback: statements.length === 1 && isFallbackReturn(statements[0]!),
     inFinally: scope.inFinally,
     protectedText: (tryBlock?.text ?? "").slice(0, 600),
+    protectedCalls: receiverCalls(tryBlock, "method_invocation", (call) => {
+      const object = call.childForFieldName("object");
+      const name = call.childForFieldName("name")?.text;
+      return object && name ? `${object.text}.${name}` : undefined;
+    }),
     ...(scope.method !== undefined ? { enclosingMethod: scope.method.name } : {}),
     ...(scope.type !== undefined ? { enclosingType: scope.type.name } : {}),
   };
@@ -600,6 +605,23 @@ function signatureLine(node: Node): number {
     if (keyword) return lineOf(keyword);
   }
   return lineOf(node);
+}
+
+/** Receiver-qualified calls under `block`, first twenty, de-duplicated. */
+function receiverCalls(
+  block: Node | null | undefined,
+  type: string,
+  render: (call: Node) => string | undefined,
+): string[] {
+  if (!block) return [];
+  const out = new Set<string>();
+  for (const call of block.descendantsOfType(type)) {
+    if (!call) continue;
+    const text = render(call);
+    if (text !== undefined && text.length <= 120) out.add(text);
+    if (out.size >= 20) break;
+  }
+  return [...out];
 }
 
 function simpleName(name: string): string {

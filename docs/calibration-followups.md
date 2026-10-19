@@ -1035,3 +1035,45 @@ This is a scoped advisory correction. Tests may still legitimately need
 restructuring, but a connectivity count alone is not the reason. Final host
 checks are reported separately; one retained failure does not establish a
 population effect or justify suppressing every connected test.
+
+## 0.29.4–0.29.9: Java, Kotlin and Swift calibration
+
+Measured on a private estate (two Java backends, a Kotlin Android
+app and a Swift iOS app) by reading sampled
+findings against their code. These are decisions; read before loosening
+or tightening the structured-surface detectors in
+`packages/core/src/detectors/structured/`.
+
+- **`swallowed_error`: a specific catch type is a decision.** A fallback
+  return or a comment-only body is reported only for a broad catch
+  (`Exception`/`Throwable`/`RuntimeException`/`Error`, or a Swift
+  catch-all). `catch (ObjectNotFoundException e) { return false; }` is
+  find-or-default. An *empty* body is always reported, low and at 0.7
+  confidence when specific (the Java repository 170 → 91 findings). Empty
+  `InterruptedException` handlers stay reported: the interrupt flag is lost.
+- **Boundaries come from receiver-qualified calls only** (`repository.save`),
+  not the protected block's text. Text matching read argument labels
+  (`transition:` → state transition) and local helpers
+  (`updateInnerShadow()` → database write) as consequences and marked UI
+  image loads high. Stricter than the JS detector, which falls back to text.
+- **Swift cancellation is not a swallowed error.** `catch is
+  CancellationError` and a `do` block that only `Task.sleep`s are skipped.
+  Kotlin's `CancellationException` is deliberately *not* exempt: swallowing
+  it breaks structured concurrency.
+- **`direct_date`: a stopwatch is not a clock dependency.** A wall-clock read
+  bound to a timer-named variable (`start`, `t0`) or subtracted from one is
+  skipped: 154 of 247 `currentTimeMillis()` calls on the Java repository. An age
+  (`now - lastModified`) is still reported. Swift `now: Date = Date()`
+  defaults are the injection point and are skipped. A single `new Date()`
+  is reported, as in JS and Python; single-read findings dominate the Java
+  count (249 on the Java repository) and are the first candidate if feedback says
+  they are noise.
+- **`large_function`: UI is layout.** `@Composable` functions and SwiftUI
+  `some View` bodies get the 200-line budget JS gives React components
+  (a private Android app 213 → 133). UIKit view-controller methods and
+  `init`s do not: they are imperative.
+- **`weak_test_signal`: benchmarks time, they do not check.** Tests whose
+  method or class name says benchmark/performance/throughput are out of
+  both sides, as Python's benchmark exemption is. In a test class that
+  extends another, an unresolved no-receiver call gets the benefit of the
+  doubt as a possible inherited assertion helper; the evidence counts them.

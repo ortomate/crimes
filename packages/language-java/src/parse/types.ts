@@ -120,8 +120,10 @@ export interface JavaCatch {
   returnsFallback: boolean;
   /** The clause sits inside a `finally` block: a cleanup path. */
   inFinally: boolean;
-  /** Source text of the protected `try` block, for boundary matching. */
+  /** Source text of the protected `try` block. */
   protectedText: string;
+  /** Receiver-qualified calls in the protected block (`repository.save`). */
+  protectedCalls: string[];
   enclosingMethod?: string;
   enclosingType?: string;
 }

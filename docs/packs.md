@@ -30,7 +30,8 @@ read. Each finding carries a `pack` field identifying its origin pack.
   so edges run from referenced types (and `extension X`) to the files
   declaring them, repo-wide; a name declared in more than three files is
   left unlinked. Same four detectors (`.swift` ids); a catch-all `catch`
-  counts as broad, `now: Date = Date()` defaults are not clock reads, and
+  counts as broad, ignored `CancellationError` is not a swallowed error,
+  `now: Date = Date()` defaults are not clock reads, and
   SwiftUI `some View` bodies get the UI-component budget.
 - **`cross-language`** (0.15.0): Requires aligning artefacts from
   two or more language packs. Runs once per scan, after every per-pack

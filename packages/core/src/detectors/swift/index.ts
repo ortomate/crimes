@@ -40,6 +40,9 @@ export const SWIFT_PROFILE: LanguageProfile<"language-swift"> = {
     broadTypes: new Set(["Error", "NSError"]),
     catchAllIsBroad: true,
     deliberateParam: /^(?:ignored?|_)$/,
+    // Ignoring cancellation is the idiom: the work was abandoned on purpose.
+    ignorableTypes: new Set(["CancellationError"]),
+    cancellationOnlyCall: /^Task\.sleep$/,
     failureNoun: "error",
     propagateAdvice:
       'Rethrow, or log the error itself (`logger.error("…: \\(error)")`). If ignoring ' +

@@ -10,6 +10,9 @@ import type {
   StructuredPack,
 } from "./surface.js";
 
+/** `ParserPerformanceTest`, `benchmarkFolding`, `testThroughput`. */
+const BENCHMARK_NAME = /benchmark|performance|throughput/i;
+
 /** Same bound as the Python detector, for the same measured reason. */
 const MAX_HELPER_HOPS = 2;
 
@@ -50,8 +53,16 @@ export function makeWeakTestSignalDetector<P extends StructuredPack>(
       // An unparsed arm can hide an assertion; the charge is a count.
       if (ctx.parsed.hasSyntaxErrors) return [];
 
+      // Benchmarks and performance tests time code rather than check it, so
+      // their silence is correct; same exemption as the Python detector, by
+      // name since JUnit marks them with nothing else.
       const tests = ctx.parsed.methods.filter(
-        (m) => m.shape === "test_method" && m.hasBody && !m.disabled,
+        (m) =>
+          m.shape === "test_method" &&
+          m.hasBody &&
+          !m.disabled &&
+          !BENCHMARK_NAME.test(m.name) &&
+          !BENCHMARK_NAME.test(m.className ?? ""),
       );
       if (tests.length === 0) return [];
 

@@ -360,8 +360,9 @@ function buildCatch(
   if (pattern) {
     const bound = /^let\s+(\w+)/.exec(pattern.text);
     if (bound) param = bound[1]!;
-    // `let e as NetworkError` names a type; `NetworkError.timeout` a case.
-    const asType = /\bas\s+([\w.]+)/.exec(pattern.text);
+    // `let e as NetworkError` and `is CancellationError` name a type;
+    // `NetworkError.timeout` a case.
+    const asType = /\b(?:as|is)\s+([\w.]+)/.exec(pattern.text);
     if (asType) caughtTypes.push(asType[1]!);
     else if (!/^let\s+\w+$/.test(pattern.text.trim()))
       caughtTypes.push(pattern.text.trim());
@@ -397,6 +398,7 @@ function buildCatch(
     returnsFallback: statements.length === 1 && isFallbackReturn(statements[0]!),
     inFinally: false,
     protectedText: (doBlock?.text ?? "").slice(0, 600),
+    protectedCalls: receiverCalls(doBlock),
     ...(scope.fn !== undefined ? { enclosingMethod: scope.fn.name } : {}),
     ...(scope.type !== undefined ? { enclosingType: scope.type.name } : {}),
   };
@@ -412,6 +414,22 @@ function calleeOf(call: Node): { name: string; receiver?: Node } {
     return { name: suffix, ...(target ? { receiver: target } : {}) };
   }
   return { name: "" };
+}
+
+/** Receiver-qualified calls under `block`, first twenty, de-duplicated. */
+function receiverCalls(block: Node | null | undefined): string[] {
+  if (!block) return [];
+  const out = new Set<string>();
+  for (const call of block.descendantsOfType("call_expression")) {
+    if (!call) continue;
+    const { name, receiver } = calleeOf(call);
+    if (receiver === undefined || name === "" || receiver.type === "self_expression")
+      continue;
+    const text = `${receiver.text}.${name}`;
+    if (text.length <= 120) out.add(text);
+    if (out.size >= 20) break;
+  }
+  return [...out];
 }
 
 function isLogStatement(statement: Node): boolean {

@@ -87,6 +87,24 @@ describe("swallowed_error.swift", () => {
     ).toEqual([]);
   });
 
+  it("leaves ignored cancellation alone, and does not read argument labels as boundaries", async () => {
+    expect(
+      await run(
+        swallowedErrorSwiftDetector,
+        MAIN,
+        wrap("catch is CancellationError { }"),
+      ),
+    ).toEqual([]);
+    const sleep =
+      "func f() async {\n  do { try await Task.sleep(for: window) } catch {\n    // cancelled\n  }\n}\n";
+    expect(await run(swallowedErrorSwiftDetector, MAIN, sleep)).toEqual([]);
+    const image =
+      "func f() async {\n  do { try await imageView.setImage(with: url, transition: 0.2); updateShadow() } catch {}\n}\n";
+    const [finding] = await run(swallowedErrorSwiftDetector, MAIN, image);
+    expect(finding?.evidence.some((e) => e.startsWith("boundary:"))).toBe(false);
+    expect(finding?.severity).toBe("medium");
+  });
+
   it("leaves handlers that interpolate or rethrow the error", async () => {
     for (const handler of [
       'catch { logger.error("failed: \\(error)") }',

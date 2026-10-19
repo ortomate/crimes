@@ -91,6 +91,8 @@ export interface SwiftCatch {
   /** Swift has no `finally`; always false. */
   inFinally: boolean;
   protectedText: string;
+  /** Receiver-qualified calls in the protected block (`repository.save`). */
+  protectedCalls: string[];
   enclosingMethod?: string;
   enclosingType?: string;
 }

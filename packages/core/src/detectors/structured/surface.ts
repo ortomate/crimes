@@ -51,6 +51,12 @@ export interface StructuredCatch {
   returnsFallback: boolean;
   inFinally: boolean;
   protectedText: string;
+  /**
+   * Receiver-qualified calls in the protected block, as written
+   * (`repository.save`). What boundary matching reads: argument labels and
+   * local helpers (`updateInnerShadow()`) say nothing about what can fail.
+   */
+  protectedCalls: string[];
   enclosingMethod?: string;
   enclosingType?: string;
 }
@@ -107,6 +113,10 @@ export interface LanguageProfile<P extends StructuredPack = StructuredPack> {
     failureNoun: string;
     /** Remedy text when the handler discards the failure. */
     propagateAdvice: string;
+    /** Caught types it is correct to ignore (Swift `CancellationError`). */
+    ignorableTypes?: ReadonlySet<string>;
+    /** A protected block whose every call matches this can only be cancelled. */
+    cancellationOnlyCall?: RegExp;
   };
   directDate: {
     description: string;

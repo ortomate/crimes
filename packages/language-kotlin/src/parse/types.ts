@@ -86,6 +86,8 @@ export interface KotlinCatch {
   returnsFallback: boolean;
   inFinally: boolean;
   protectedText: string;
+  /** Receiver-qualified calls in the protected block (`repository.save`). */
+  protectedCalls: string[];
   enclosingMethod?: string;
   enclosingType?: string;
 }

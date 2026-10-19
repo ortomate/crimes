@@ -441,6 +441,7 @@ function buildCatch(
     returnsFallback: statements.length === 1 && isFallback(statements[0]!),
     inFinally: scope.inFinally,
     protectedText: (tryBlock?.text ?? "").slice(0, 600),
+    protectedCalls: receiverCalls(tryBlock),
     ...(scope.fn !== undefined ? { enclosingMethod: scope.fn.name } : {}),
     ...(scope.type !== undefined ? { enclosingType: scope.type.name } : {}),
   };
@@ -460,6 +461,21 @@ function calleeOf(call: Node): { name: string; receiver?: Node } {
     };
   }
   return { name: "" };
+}
+
+/** Receiver-qualified calls under `block`, first twenty, de-duplicated. */
+function receiverCalls(block: Node | null | undefined): string[] {
+  if (!block) return [];
+  const out = new Set<string>();
+  for (const call of block.descendantsOfType("call_expression")) {
+    if (!call) continue;
+    const { name, receiver } = calleeOf(call);
+    if (receiver === undefined || name === "") continue;
+    const text = `${receiver.text}.${name}`;
+    if (text.length <= 120) out.add(text);
+    if (out.size >= 20) break;
+  }
+  return [...out];
 }
 
 function isLogStatement(statement: Node): boolean {

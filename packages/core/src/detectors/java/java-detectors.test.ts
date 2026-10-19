@@ -196,6 +196,15 @@ describe("weak_test_signal.java", () => {
     expect(findings).toEqual([]);
   });
 
+  it("leaves performance tests and benchmarks out", async () => {
+    const findings = await run(
+      weakTestSignalJavaDetector,
+      "core/src/test/java/com/acme/FoldingPerformanceTest.java",
+      "class FoldingPerformanceTest {\n  @Test void folds() { for (int i = 0; i < N; i++) fold(s); }\n}\n",
+    );
+    expect(findings).toEqual([]);
+  });
+
   it("gives an unresolved call the benefit of the doubt in a subclass", async () => {
     const findings = await run(
       weakTestSignalJavaDetector,

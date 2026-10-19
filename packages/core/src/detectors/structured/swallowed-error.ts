@@ -63,6 +63,19 @@ export function makeSwallowedErrorDetector<P extends StructuredPack>(
 
   const classify = (handler: StructuredCatch): Kind | undefined => {
     if (handler.usesParam || handler.rethrows) return undefined;
+    if (
+      handler.caughtTypes.length > 0 &&
+      handler.caughtTypes.every((t) => cfg.ignorableTypes?.has(t) ?? false)
+    ) {
+      return undefined;
+    }
+    if (
+      cfg.cancellationOnlyCall !== undefined &&
+      handler.protectedCalls.length > 0 &&
+      handler.protectedCalls.every((c) => cfg.cancellationOnlyCall!.test(c))
+    ) {
+      return undefined;
+    }
     if (handler.inFinally) return undefined;
     if (cfg.deliberateParam.test(handler.param)) return undefined;
     const enclosing = handler.enclosingMethod;
@@ -87,7 +100,7 @@ export function makeSwallowedErrorDetector<P extends StructuredPack>(
   };
 
   const buildFinding = (file: string, handler: StructuredCatch, kind: Kind): Finding => {
-    const boundary = classifyBoundary(handler.protectedText);
+    const boundary = strongestBoundary(handler);
     const broad = isBroad(handler);
     const severity = pickSeverity(boundary?.id, broad);
     const catchAll = handler.caughtTypes.length === 0;
@@ -182,6 +195,17 @@ export function makeSwallowedErrorDetector<P extends StructuredPack>(
     },
   };
   return detector as unknown as Extract<Detector, { pack: P }>;
+}
+
+/** First consequential-looking receiver call; no fallback to raw text. */
+function strongestBoundary(
+  handler: StructuredCatch,
+): ReturnType<typeof classifyBoundary> {
+  for (const call of handler.protectedCalls) {
+    const boundary = classifyBoundary(call);
+    if (boundary) return boundary;
+  }
+  return undefined;
 }
 
 const CONSEQUENTIAL = new Set([
