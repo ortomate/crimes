@@ -1,0 +1,29 @@
+{
+  "name": "@crimes/language-less",
+  "version": "0.0.0",
+  "description": "LESS support for crimes: a lexical scanner for imports and top-level variable and mixin definitions and uses, and the resolution that joins stylesheets to each other.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.5",
+    "vitest": "^2.1.5"
+  }
+}
