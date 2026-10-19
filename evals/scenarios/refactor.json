@@ -252,5 +252,31 @@
       "Did the agent decide which file is canonical on evidence \u2014 that the copy is stale (no `plan`, no `owner` role) and that nothing imports it \u2014 rather than picking by filename alone?",
       "Did the agent recommend deleting the conflict copy rather than updating both files to match?"
     ]
+  },
+  {
+    "id": "refactor-17-comment-servlet",
+    "fixture": "17",
+    "kind": "refactor",
+    "prompt": "You need to add a rate limit to comment posting in this Java blog server. Run `crimes context app/src/main/java/org/apache/roller/weblogger/ui/rendering/servlets/CommentServlet.java --format json`. Say which method you would have to change, why it is risky to edit as it stands, and the first extraction you would make before adding the limit. Quote the finding's evidence verbatim.",
+    "expected_artifacts": {
+      "referenced_findings": ["large_function"],
+      "referenced_files": [
+        "app/src/main/java/org/apache/roller/weblogger/ui/rendering/servlets/CommentServlet.java"
+      ],
+      "expected_priority": "large_function",
+      "finding_labels": [
+        {
+          "type": "large_function",
+          "claim": "too_long",
+          "file": "app/src/main/java/org/apache/roller/weblogger/ui/rendering/servlets/CommentServlet.java",
+          "symbol": "doPost",
+          "priority": true
+        }
+      ]
+    },
+    "judge_questions": [
+      "Did the agent identify `doPost` (about 250 lines, nesting depth 5) as the method to change and note it has no test?",
+      "Did the agent propose an extraction (validation, spam check, persistence, notification) before adding the rate limit?"
+    ]
   }
 ]

@@ -51,7 +51,8 @@ These remain available for explicitly scoped reviews.
 - Homebrew and standalone binaries, with Python WASM parity verification.
 - JSP and LESS/CSS packs (the 0.31 milestone in the [product roadmap](../ROADMAP.md));
   today they are reported under `files_not_discovered`.
-- Eval fixtures for Java, Kotlin and Swift: no fixture exercises those packs yet.
+- A live agent round on the Java, Kotlin and Swift fixtures (`17`–`19`, added in
+  0.30.1); only the scan-only ranking metric covers them so far.
 - Package-level cycles for Java/Kotlin, a cross-file symbol index for the
   structured packs, and Java 21 type patterns (a tree-sitter-java gap).
 - Further language packs (Go, Rust, C# and others report as `files_universal_only`)
