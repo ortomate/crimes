@@ -6,6 +6,8 @@ const PACK_SUFFIX: Record<Pack, string | null> = {
   "language-js": "js",
   "language-py": "py",
   "language-java": "java",
+  "language-kotlin": "kt",
+  "language-swift": "swift",
   "cross-language": "x",
 };
 

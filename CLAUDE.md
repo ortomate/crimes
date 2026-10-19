@@ -5,10 +5,10 @@ It is the shared instruction source for all coding agents.
 
 `crimes` is a local, deterministic change-risk and agent-risk CLI. JSON is
 its public API; evidence and conservative heuristics are the product.
-The current architecture has TypeScript/JavaScript, Python and Java
+The current architecture has TypeScript/JavaScript, Python, Java, Kotlin and Swift
 language packs, a shared analysis pipeline for scan/context, and human/JSON
 reporters. The website uses Astro and Starlight. TypeScript's compiler API
-backs JS parsing; Python and Java use packaged tree-sitter WASM grammars on
+backs JS parsing; Python, Java, Kotlin and Swift use packaged tree-sitter WASM grammars on
 one shared runtime. See each package's
 manifest for dependencies rather than treating earlier PRD options as the
 implemented stack.

@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { parseFile, type ParsedFile } from "@crimes/language-js";
 import { parseJavaFile, type ParsedJavaFile } from "@crimes/language-java";
+import { parseKotlinFile, type ParsedKotlinFile } from "@crimes/language-kotlin";
 import { parsePyFile, type ParsedPyFile } from "@crimes/language-py";
+import { parseSwiftFile, type ParsedSwiftFile } from "@crimes/language-swift";
 import { profileAsync, profileSync } from "./profile.js";
 
 interface Entry {
@@ -10,6 +12,8 @@ interface Entry {
   js?: ParsedFile;
   py?: ParsedPyFile;
   java?: ParsedJavaFile;
+  kotlin?: ParsedKotlinFile;
+  swift?: ParsedSwiftFile;
   bytes: number;
 }
 
@@ -90,6 +94,34 @@ export class AnalysisInputs {
     this.put(path, {
       source,
       java: parsed,
+      bytes: 2 * (source.length + JSON.stringify(parsed).length),
+    });
+    return parsed;
+  }
+
+  async kotlin(path: string, source: string): Promise<ParsedKotlinFile> {
+    const cached = this.get(path);
+    if (cached?.source === source && cached.kotlin) return cached.kotlin;
+    const parsed = await profileAsync("input.parse-kotlin", () =>
+      parseKotlinFile({ absolutePath: path, source }),
+    );
+    this.put(path, {
+      source,
+      kotlin: parsed,
+      bytes: 2 * (source.length + JSON.stringify(parsed).length),
+    });
+    return parsed;
+  }
+
+  async swift(path: string, source: string): Promise<ParsedSwiftFile> {
+    const cached = this.get(path);
+    if (cached?.source === source && cached.swift) return cached.swift;
+    const parsed = await profileAsync("input.parse-swift", () =>
+      parseSwiftFile({ absolutePath: path, source }),
+    );
+    this.put(path, {
+      source,
+      swift: parsed,
       bytes: 2 * (source.length + JSON.stringify(parsed).length),
     });
     return parsed;

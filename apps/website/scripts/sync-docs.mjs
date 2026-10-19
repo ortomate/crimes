@@ -118,7 +118,7 @@ async function main() {
       "template: doc",
       "---",
       "",
-      "`crimes` scans TypeScript, JavaScript, Python and Java repositories for **change risk** and **agent risk**. Use its findings to plan edits, identify related code and choose tests.",
+      "`crimes` scans TypeScript, JavaScript, Python, Java, Kotlin and Swift repositories for **change risk** and **agent risk**. Use its findings to plan edits, identify related code and choose tests.",
       "",
       "Pick a starting point:",
       "",

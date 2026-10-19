@@ -38,7 +38,7 @@ export const JAVA_PROFILE: LanguageProfile<"language-java"> = {
       "breaks a branch nobody re-read. Extracting named private methods turns an " +
       "implicit sequence of steps into one the reader — and the next agent — can see.",
     extractInto: "named private methods",
-    budgets: { test_method: 150, constructor: 80 },
+    budgets: { test_method: 150, constructor: 80, ui_component: 200 },
   },
   swallowedError: {
     description:

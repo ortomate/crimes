@@ -1,5 +1,5 @@
 import type { Node, Tree } from "web-tree-sitter";
-import { ensureJavaParser } from "./grammar.js";
+import { createJavaParser } from "./grammar.js";
 import type {
   JavaCatch,
   JavaImport,
@@ -13,6 +13,7 @@ import type {
 
 export * from "./types.js";
 export {
+  createJavaParser,
   ensureJavaParser,
   JavaGrammarNotFoundError,
   resolveJavaGrammarPath,
@@ -85,8 +86,9 @@ const EMPTY_FACTORY =
  * tree-sitter recovers locally, and `hasSyntaxErrors` says so.
  */
 export async function parseJavaFile(input: ParseJavaInput): Promise<ParsedJavaFile> {
-  const parser = await ensureJavaParser();
+  const parser = await createJavaParser();
   const tree = parser.parse(input.source);
+  parser.delete();
   const result: ParsedJavaFile = {
     lineCount: input.source.split("\n").length,
     imports: [],

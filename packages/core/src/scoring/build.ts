@@ -582,7 +582,9 @@ export function computeAgentRisk(args: {
  */
 function declaredIntrinsicFor(type: string | undefined): number {
   if (typeof type !== "string" || type.length === 0) return NEUTRAL_INTRINSIC;
-  const declared = getDefaultsFor(type.replace(/\.(js|py|java|x)$/, "")).intrinsic;
+  const declared = getDefaultsFor(
+    type.replace(/\.(js|py|java|kt|swift|x)$/, ""),
+  ).intrinsic;
   return typeof declared === "number" ? clamp01(declared) : NEUTRAL_INTRINSIC;
 }
 

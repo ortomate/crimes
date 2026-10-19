@@ -14,6 +14,13 @@ detector pass reused it, so each file was parsed twice and each JS file three
 times. Peak RSS did not change (499 MB), and `context` fell from 16 s to 9 s. A fresh command creates a fresh session, so edits,
 renames, deletions, configuration, Git state and upgrades are re-evaluated.
 
+The CLI re-executes itself once under V8's `--liftoff-only` (0.29.8): the
+optimising WebAssembly tier spent unbounded memory compiling the
+tree-sitter grammars (a private iOS app: 2.8 GB peak RSS with it, 371 MB
+without, and faster). It has no effect on JavaScript, whose parser is not
+WebAssembly. `CRIMES_NO_REEXEC=1` disables the re-exec; programmatic use of
+`@crimes/core` does not get it, so pass the flag to `node` yourself there.
+
 Coverage attribution uses the same glob matcher in bounded batches, avoiding
 the cost of compiling thousands of literal patterns into large tasks. Report
 equivalence, including coverage diagnostics, is checked separately from time.

@@ -19,6 +19,8 @@ records next outcomes; [strategy](../STRATEGY.md) records the objective;
 | TypeScript / JavaScript | Shipped language pack, AST and resolved import graph. |
 | Python | Shipped language pack and packaged parser WASM, including import/test discovery. |
 | Java | Language pack on the shared tree-sitter runtime (0.29.6): import and same-package graph, JUnit test discovery, four detectors. No cross-language or symbol index yet. |
+| Swift | Language pack (0.29.8): referenced-type and extension graph, XCTest and Swift Testing, the same four detectors. |
+| Kotlin | Language pack (0.29.8) sharing the JVM type index with Java; top-level and extension functions; JUnit, kotlin.test, MockK and Kotest assertions; the same four detectors. |
 | Universal and cross-language checks | Shipped; read coverage to distinguish universal checks from parsed language analysis. |
 | Pre-edit context | Shared scan analysis, related-file findings, graph-first neighbors/tests, status and coverage diagnostics in 0.28. |
 | Working sets | `--changed`, `--files`, `--related-to`; full repository analysis supplies cross-file evidence before output selection. |
@@ -47,7 +49,7 @@ These remain available for explicitly scoped reviews.
   still analyzes the repository. See [performance](./performance.md) for
   reproducible timing, memory and unchanged-report checks. No disk cache ships.
 - Homebrew and standalone binaries, with Python WASM parity verification.
-- Further language packs (Kotlin and Swift report as `files_universal_only`)
+- Further language packs (Go, Rust, C# and others report as `files_universal_only`)
   and cross-language import resolution.
 - `crimes ask`, other LLM-assisted modes, hosted services and paid tiers.
 

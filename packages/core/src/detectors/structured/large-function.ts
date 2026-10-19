@@ -17,6 +17,7 @@ const optionsSchema = z
         domain: z.number().int().positive().optional(),
         test_method: z.number().int().positive().optional(),
         constructor: z.number().int().positive().optional(),
+        ui_component: z.number().int().positive().optional(),
       })
       .optional(),
   })

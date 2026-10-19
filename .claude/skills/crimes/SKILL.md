@@ -1,6 +1,6 @@
 ---
 name: crimes-codebase-risk
-description: Inspect change risk with crimes when planning, editing or reviewing code in a repository that uses the CLI. Covers TypeScript, JavaScript, Python and Java; interpret evidence and analysis limits before acting.
+description: Inspect change risk with crimes when planning, editing or reviewing code in a repository that uses the CLI. Covers TypeScript, JavaScript, Python, Java, Kotlin and Swift; interpret evidence and analysis limits before acting.
 ---
 
 # crimes workflow
@@ -69,4 +69,4 @@ customized-file diffs before replacing. CI skips maintenance; use
 `--no-skill-update` when a task requires no maintenance notices or updates.
 More detail: https://crimes.sh/docs/agent-usage/
 
-<!-- crimes-skill {"format":1,"version":"0.29.2","sha256":"12fbef511bc0fa3affa72dc9250e5da377ad13a96f5e6fc12ad126c7bdd16949"} -->
+<!-- crimes-skill {"format":1,"version":"0.29.2","sha256":"42f24c4726b16eb610a3fa6f5a99dad5c6ef69b8fc0b045c12ea1e43ed0c464d"} -->

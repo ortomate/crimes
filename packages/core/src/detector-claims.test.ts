@@ -45,6 +45,12 @@ describe("declared detector claims", () => {
       "large_function.java",
       "direct_date.java",
       "weak_test_signal.java",
+      "large_function.kt",
+      "direct_date.kt",
+      "weak_test_signal.kt",
+      "large_function.swift",
+      "direct_date.swift",
+      "weak_test_signal.swift",
     ]);
     for (const d of allDetectors) {
       if (d.claims === undefined) continue;

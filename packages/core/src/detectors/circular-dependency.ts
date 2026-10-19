@@ -122,10 +122,10 @@ function buildValueAdjacency(graph: ImportGraph): Map<string, Set<string>> {
     if (edge.external) continue;
     if (edge.to.length === 0) continue;
     if (edgeIsTypeOnly(edge)) continue;
-    // Java edges only ever join Java files, so no cycle through them can
+    // Java, Kotlin and Swift edges only ever join those files, so no cycle through them can
     // be anchored on the JS file this detector reports on. Leaving them
     // out keeps the recursive walk off a graph it can never report.
-    if (edge.from.endsWith(".java")) continue;
+    if (/\.(?:java|kts?|swift)$/.test(edge.from)) continue;
     ensure(edge.from).add(edge.to);
     ensure(edge.to);
   }

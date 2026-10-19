@@ -6,11 +6,51 @@ import { defineConfig } from "tsup";
 import { copyWasmAssets } from "../language-py/scripts/copy-wasm.mjs";
 // @ts-expect-error -- plain .mjs build helper owned by @crimes/language-java.
 import { copyJavaWasmAssets } from "../language-java/scripts/copy-wasm.mjs";
+// @ts-expect-error -- plain .mjs build helper owned by @crimes/language-kotlin.
+import { copyKotlinWasmAssets } from "../language-kotlin/scripts/copy-wasm.mjs";
+// @ts-expect-error -- plain .mjs build helper owned by @crimes/language-swift.
+import { copySwiftWasmAssets } from "../language-swift/scripts/copy-wasm.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(here, "package.json"), "utf8")) as {
   version: string;
 };
+
+/**
+ * Re-run the CLI once under `--liftoff-only`, before any bundled code runs.
+ *
+ * V8's optimising WebAssembly compiler (TurboFan) spends unbounded memory
+ * on the tree-sitter grammars: parsing a private iOS app's 1,604 Swift files
+ * peaked at 2.8 GB RSS with it and 344 MB without, and the scan got
+ * faster (21.4 s -> 12.6 s) because compiling cost more than it saved.
+ * The flag only takes effect at process start — `v8.setFlagsFromString`
+ * is too late, `NODE_OPTIONS` rejects it, and a shebang cannot pass it
+ * portably — so the bundle re-executes itself with it. It changes nothing
+ * for JavaScript: the TypeScript parser is not WebAssembly.
+ *
+ * Exit status and terminating signal pass through. If the child cannot be
+ * started at all, the CLI runs in this process as before.
+ * `CRIMES_NO_REEXEC=1` opts out.
+ */
+const REEXEC_LIFTOFF = [
+  // tsup prepends the banner to every output chunk, and an imported chunk
+  // runs first; so re-run the entry node was given (argv[1]), never this file.
+  "if (",
+  '  !process.execArgv.includes("--liftoff-only") &&',
+  '  process.env.CRIMES_NO_REEXEC !== "1" &&',
+  "  process.argv[1] !== undefined",
+  ") {",
+  "  const __crimesChild = __crimesSpawnSync(",
+  "    process.execPath,",
+  '    ["--liftoff-only", ...process.execArgv, process.argv[1], ...process.argv.slice(2)],',
+  '    { stdio: "inherit" },',
+  "  );",
+  "  if (!__crimesChild.error) {",
+  "    if (__crimesChild.signal) process.kill(process.pid, __crimesChild.signal);",
+  "    process.exit(__crimesChild.status ?? 1);",
+  "  }",
+  "}",
+].join("\n");
 
 export default defineConfig({
   entry: ["src/index.ts"],
@@ -38,9 +78,11 @@ export default defineConfig({
       'import { createRequire as __createRequire } from "node:module";',
       'import { fileURLToPath as __fileURLToPath } from "node:url";',
       'import { dirname as __pathDirname } from "node:path";',
+      'import { spawnSync as __crimesSpawnSync } from "node:child_process";',
       "const require = __createRequire(import.meta.url);",
       "const __filename = __fileURLToPath(import.meta.url);",
       "const __dirname = __pathDirname(__filename);",
+      REEXEC_LIFTOFF,
     ].join("\n"),
   },
   define: {
@@ -54,8 +96,10 @@ export default defineConfig({
   // makes the published single-file CLI able to parse Python at all.
   async onSuccess() {
     copyWasmAssets(resolve(here, "dist"));
-    // The Java grammar travels the same way; the runtime blob above is
-    // shared by both packs.
+    // The Java, Kotlin and Swift grammars travel the same way; the runtime blob
+    // above is shared by every tree-sitter pack.
     copyJavaWasmAssets(resolve(here, "dist"));
+    copyKotlinWasmAssets(resolve(here, "dist"));
+    copySwiftWasmAssets(resolve(here, "dist"));
   },
 });

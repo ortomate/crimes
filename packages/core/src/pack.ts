@@ -12,6 +12,8 @@ export type Pack =
   | "language-js"
   | "language-py"
   | "language-java"
+  | "language-kotlin"
+  | "language-swift"
   | "cross-language";
 
 export const PACK_IDS = [
@@ -19,9 +21,17 @@ export const PACK_IDS = [
   "language-js",
   "language-py",
   "language-java",
+  "language-kotlin",
+  "language-swift",
   "cross-language",
 ] as const satisfies readonly Pack[];
 
 export function isLanguagePack(pack: Pack): boolean {
-  return pack === "language-js" || pack === "language-py" || pack === "language-java";
+  return (
+    pack === "language-js" ||
+    pack === "language-py" ||
+    pack === "language-java" ||
+    pack === "language-kotlin" ||
+    pack === "language-swift"
+  );
 }

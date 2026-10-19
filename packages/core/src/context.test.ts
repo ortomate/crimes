@@ -782,10 +782,10 @@ describe("context — universal pack on unsupported extensions", () => {
 
   it("reports a file in an unparsed language as partial, not complete", async () => {
     const root = await makeRepo({
-      "core/Film.kt": "class Film\n",
-      "core/FilmTest.kt": "class FilmTest\n",
+      "core/film.go": "package core\n",
+      "core/film_test.go": "package core\n",
     });
-    const report = await context({ root, file: "core/Film.kt" });
+    const report = await context({ root, file: "core/film.go" });
     expect(report.analysis_status).toBe("partial");
     expect(report.agent_guidance[0]).toMatch(/incomplete/i);
     // Nothing looked for tests, so no test-gap clue is fabricated.
@@ -793,7 +793,7 @@ describe("context — universal pack on unsupported extensions", () => {
     expect(report.likely_tests_reason).toMatch(/not checked/);
     expect(
       report.coverage?.warnings?.some(
-        (w) => w.kind === "files_universal_only" && w.subject === ".kt",
+        (w) => w.kind === "files_universal_only" && w.subject === ".go",
       ),
     ).toBe(true);
   });

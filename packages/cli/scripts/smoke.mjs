@@ -336,7 +336,7 @@ try {
   // Same packaging risk for the Java pack: its grammar is a separate WASM
   // blob copied beside the bundle. Written inline rather than kept as an
   // eval fixture, so it cannot move the evaluation baseline.
-  step("crimes scan on a Java fixture (exercises the vendored Java grammar)");
+  step("crimes scan on a Java + Kotlin fixture (exercises both vendored grammars)");
   const javaRoot = mkdtempSync(join(tmp, "java-"));
   const javaFiles = {
     "src/main/java/com/acme/om/Film.java":
@@ -345,6 +345,11 @@ try {
       "\n  }\n}\n",
     "src/main/java/com/acme/om/Review.java":
       "package com.acme.om;\npublic class Review { private Film film; }\n",
+    // Kotlin using the Java class with no import: one JVM resolver.
+    "src/main/java/com/acme/om/Rating.kt":
+      "package com.acme.om\nclass Rating(val film: Film) {\n  fun f() {\n" +
+      Array.from({ length: 70 }, (_, i) => `    step${i}()`).join("\n") +
+      "\n  }\n}\n",
   };
   for (const [rel, source] of Object.entries(javaFiles)) {
     const abs = join(javaRoot, rel);
@@ -358,17 +363,52 @@ try {
     (javaReport.coverage?.files_by_language?.java ?? 0) === 2,
     "java scan: coverage.files_by_language.java is not 2 — the pack claimed no files",
   );
+  assert(
+    javaReport.findings.some((f) => f.pack === "language-kotlin"),
+    "kotlin scan: no language-kotlin findings — the Kotlin grammar probably failed to load",
+  );
   const javaFindings = javaReport.findings.filter((f) => f.pack === "language-java");
   assert(
     javaFindings.length > 0,
     "java scan: no language-java findings — the grammar probably failed to load",
   );
-  // Review uses Film with no import; only the same-package resolver sees it.
+  // Review.java and Rating.kt use Film with no import; only the shared
+  // same-package resolver sees both.
   assert(
-    javaFindings.some((f) => (f.scores?.blast_radius_direct_importers ?? 0) > 0),
-    "java scan: Film has no importers — same-package resolution produced nothing",
+    javaFindings.some((f) => (f.scores?.blast_radius_direct_importers ?? 0) === 2),
+    "java scan: Film does not have 2 importers — same-package resolution missed Java or Kotlin",
   );
   process.stdout.write(`  → ${javaFindings.length} language-java findings\n`);
+
+  // Swift: its own grammar blob, and edges from referenced types rather
+  // than imports.
+  step("crimes scan on a Swift fixture (exercises the vendored Swift grammar)");
+  const swiftRoot = mkdtempSync(join(tmp, "swift-"));
+  const swiftFiles = {
+    "App/Film.swift":
+      "struct Film {\n  func sync() {\n" +
+      Array.from({ length: 70 }, (_, i) => `    step${i}()`).join("\n") +
+      "\n  }\n}\n",
+    "App/FilmCell.swift": "final class FilmCell { var film: Film? }\n",
+  };
+  for (const [rel, source] of Object.entries(swiftFiles)) {
+    const abs = join(swiftRoot, rel);
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, source);
+  }
+  const swiftReport = JSON.parse(
+    run(installedBin, ["scan", swiftRoot, "--format", "json"]).stdout,
+  );
+  const swiftFindings = swiftReport.findings.filter((f) => f.pack === "language-swift");
+  assert(
+    swiftFindings.length > 0,
+    "swift scan: no language-swift findings — the grammar probably failed to load",
+  );
+  assert(
+    swiftFindings.some((f) => (f.scores?.blast_radius_direct_importers ?? 0) === 1),
+    "swift scan: Film has no importer — referenced-type resolution produced nothing",
+  );
+  process.stdout.write(`  → ${swiftFindings.length} language-swift findings\n`);
 
   process.stdout.write(`\n✓ smoke test passed (crimes@${expectedVersion})\n`);
 } finally {

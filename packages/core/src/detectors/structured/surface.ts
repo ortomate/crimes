@@ -13,7 +13,12 @@
  */
 import type { CrimesConfig } from "../../config.js";
 
-export type StructuredShape = "domain" | "test_method" | "constructor";
+/**
+ * `ui_component` is declarative UI — a Jetpack Compose `@Composable`, a
+ * SwiftUI view — whose length is layout, like the JS pack's React
+ * component shape, and gets that shape's 200-line budget.
+ */
+export type StructuredShape = "domain" | "test_method" | "constructor" | "ui_component";
 
 export interface StructuredMethod {
   name: string;
@@ -87,7 +92,7 @@ export interface LanguageProfile<P extends StructuredPack = StructuredPack> {
     whyItMatters: string;
     /** "named private methods" — what to extract into. */
     extractInto: string;
-    budgets: { test_method: number; constructor: number };
+    budgets: { test_method: number; constructor: number; ui_component: number };
   };
   swallowedError: {
     description: string;

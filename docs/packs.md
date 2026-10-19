@@ -16,10 +16,33 @@ read. Each finding carries a `pack` field identifying its origin pack.
   `@crimes/language-java` (tree-sitter-java). Runs only on `.java`. Its
   import graph adds same-package edges, which Java resolves without an
   `import`. Ships `large_function.java`, `swallowed_error.java`,
-  `direct_date.java` and `weak_test_signal.java`.
+  `direct_date.java` and `weak_test_signal.java`, built from the shared
+  structured-surface factories in `packages/core/src/detectors/structured/`
+  that Kotlin and Swift also use.
+- **`language-kotlin`** (0.29.8): `@crimes/language-kotlin`
+  (tree-sitter-kotlin). Runs on `.kt/.kts`. Shares one JVM type index
+  with Java, so Kotlin and Java files in a package link to each other
+  without imports; top-level and extension functions resolve too.
+  Same four detectors (`.kt` ids); `@Composable` functions get the
+  200-line UI-component budget.
+- **`language-swift`** (0.29.8): `@crimes/language-swift`
+  (tree-sitter-swift). Runs on `.swift`. A Swift `import` names a module,
+  so edges run from referenced types (and `extension X`) to the files
+  declaring them, repo-wide; a name declared in more than three files is
+  left unlinked. Same four detectors (`.swift` ids); a catch-all `catch`
+  counts as broad, `now: Date = Date()` defaults are not clock reads, and
+  SwiftUI `some View` bodies get the UI-component budget.
 - **`cross-language`** (0.15.0): Requires aligning artefacts from
   two or more language packs. Runs once per scan, after every per-pack
   pass.
+
+Java, Kotlin and Swift skip files declared generated or vendored (path,
+banner or `linguist-generated`): their findings are never reported, and
+parsing them dominated cost. The CLI runs under V8's `--liftoff-only`
+(re-executing itself once; `CRIMES_NO_REEXEC=1` opts out), because the
+optimising WebAssembly compiler used unbounded memory on these grammars —
+a private iOS app peaked at 2.8 GB with it and 371 MB without, and scanned
+faster.
 
 ## Tier vs pack
 

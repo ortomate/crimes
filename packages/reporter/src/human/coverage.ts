@@ -5,6 +5,8 @@ const PACK_LABELS: Record<string, string> = {
   js: "language-js (.ts/.tsx/.js/.jsx/.mjs/.cjs/.cts/.mts)",
   py: "language-py (.py/.pyi)",
   java: "language-java (.java)",
+  kotlin: "language-kotlin (.kt/.kts)",
+  swift: "language-swift (.swift)",
 };
 
 /**

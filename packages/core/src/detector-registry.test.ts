@@ -147,6 +147,8 @@ describe("groupDetectorsByPack", () => {
       (grouped["language-js"]?.length ?? 0) +
       (grouped["language-py"]?.length ?? 0) +
       (grouped["language-java"]?.length ?? 0) +
+      (grouped["language-kotlin"]?.length ?? 0) +
+      (grouped["language-swift"]?.length ?? 0) +
       (grouped["cross-language"]?.length ?? 0);
     expect(total).toBe(builtInDetectors.length);
   });

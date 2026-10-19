@@ -355,7 +355,7 @@ describe("finaliseFindingScores — blast radius counts", () => {
 describe("finaliseFindingScores — files no language pack parses", () => {
   it("leaves test gap and blast radius unmeasured rather than 0", () => {
     const finding = {
-      file: "core/Film.kt",
+      file: "core/film.go",
       severity: "high" as const,
       scores: { severity: 0.9, confidence: 0.8 },
     } as unknown as import("../finding.js").Finding;

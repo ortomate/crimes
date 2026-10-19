@@ -111,7 +111,7 @@ describe("agent-risk intrinsics", () => {
 
 /** Mirror of `assignPackAndDetectorId`'s suffixing, in reverse. */
 function stripPackSuffix(id: string): string {
-  return id.replace(/\.(js|py|java|x)$/, "");
+  return id.replace(/\.(js|py|java|kt|swift|x)$/, "");
 }
 
 /**

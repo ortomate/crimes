@@ -157,12 +157,15 @@ function buildOrLoadStats(graph: ImportGraph): FanStats {
   return fresh;
 }
 
+/** Files whose edges come from the Java, Kotlin and Swift reference resolvers. */
+const STRUCTURED_FILE_RE = /\.(?:java|kts?|swift)$/;
+
 function computeStats(graph: ImportGraph): FanStats {
-  // Java files are graph nodes for blast radius, but this detector does
-  // not judge them, and their same-package edges are far denser than JS
+  // Java, Kotlin and Swift files are graph nodes for blast radius, but
+  // this detector does not judge them, and their reference edges are far denser than JS
   // imports. Left in, a Java backend beside a JS frontend raised every
   // JS cutoff and silently dropped JS findings.
-  const files = [...graph.files].filter((f) => !f.endsWith(".java"));
+  const files = [...graph.files].filter((f) => !STRUCTURED_FILE_RE.test(f));
   if (files.length < 5) {
     // Not enough files to compute a meaningful percentile.
     return {

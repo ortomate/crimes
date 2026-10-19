@@ -99,16 +99,16 @@ describe("buildCoverage", () => {
 
   it("warns about source code no pack parses, but not about docs or data", () => {
     const cov = buildCoverage({
-      files: ["/r/a.ts", "/r/core/Film.kt", "/r/core/Show.kt", "/r/README.md"],
+      files: ["/r/a.ts", "/r/core/film.go", "/r/core/show.go", "/r/README.md"],
       router: routerFor({ ".ts": "language-js" }),
       root: "/r",
     });
     const universal = cov.warnings?.filter((w) => w.kind === "files_universal_only");
     expect(universal).toHaveLength(1);
     expect(universal![0]).toMatchObject({
-      subject: ".kt",
+      subject: ".go",
       files: 2,
-      examples: ["core/Film.kt", "core/Show.kt"],
+      examples: ["core/film.go", "core/show.go"],
     });
   });
 

@@ -1,5 +1,7 @@
 import type { ParsedFile } from "@crimes/language-js";
 import type { ParsedJavaFile } from "@crimes/language-java";
+import type { ParsedKotlinFile } from "@crimes/language-kotlin";
+import type { ParsedSwiftFile } from "@crimes/language-swift";
 import type { ParsedPyFile } from "@crimes/language-py";
 import type { z } from "zod";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
@@ -118,6 +120,14 @@ export type Detector =
       run(ctx: LanguageJavaDetectorContext): Promise<PreFinding[]> | PreFinding[];
     })
   | (BaseDetector & {
+      pack: "language-kotlin";
+      run(ctx: LanguageKotlinDetectorContext): Promise<PreFinding[]> | PreFinding[];
+    })
+  | (BaseDetector & {
+      pack: "language-swift";
+      run(ctx: LanguageSwiftDetectorContext): Promise<PreFinding[]> | PreFinding[];
+    })
+  | (BaseDetector & {
       pack: "cross-language";
       run(ctx: CrossLanguageDetectorContext): Promise<PreFinding[]> | PreFinding[];
     });
@@ -145,6 +155,12 @@ export type LanguagePyDetector = Extract<Detector, { pack: "language-py" }>;
 
 /** Convenience alias for the language-java branch of the `Detector` union. */
 export type LanguageJavaDetector = Extract<Detector, { pack: "language-java" }>;
+
+/** Convenience alias for the language-kotlin branch of the `Detector` union. */
+export type LanguageKotlinDetector = Extract<Detector, { pack: "language-kotlin" }>;
+
+/** Convenience alias for the language-swift branch of the `Detector` union. */
+export type LanguageSwiftDetector = Extract<Detector, { pack: "language-swift" }>;
 
 /**
  * Convenience alias for the cross-language branch of the `Detector`
@@ -254,6 +270,8 @@ export type DetectorContext =
   | LanguageJsDetectorContext
   | LanguagePyDetectorContext
   | LanguageJavaDetectorContext
+  | LanguageKotlinDetectorContext
+  | LanguageSwiftDetectorContext
   | CrossLanguageDetectorContext;
 
 /**
@@ -522,6 +540,30 @@ export interface LanguageJavaDetectorContext {
   /** Optional repo-level import graph. Absent in unit-test stubs. */
   imports?: ImportGraph;
   /** Optional per-file scoring context. */
+  scoring?: ScoringContext;
+}
+
+/** Per-file context for the Kotlin pack; same shape as the Java one. */
+export interface LanguageKotlinDetectorContext {
+  kind: "language-kotlin";
+  file: string;
+  absolutePath: string;
+  source: string;
+  parsed: ParsedKotlinFile;
+  config: CrimesConfig;
+  imports?: ImportGraph;
+  scoring?: ScoringContext;
+}
+
+/** Per-file context for the Swift pack; same shape as the Java one. */
+export interface LanguageSwiftDetectorContext {
+  kind: "language-swift";
+  file: string;
+  absolutePath: string;
+  source: string;
+  parsed: ParsedSwiftFile;
+  config: CrimesConfig;
+  imports?: ImportGraph;
   scoring?: ScoringContext;
 }
 

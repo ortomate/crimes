@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>crimes: change risk for TypeScript, JavaScript, Python and Java</title>
+    <title>crimes: change risk for TypeScript, JavaScript, Python, Java, Kotlin and Swift</title>
     <meta
       name="description"
-      content="Open-source CLI that scans TypeScript, JavaScript & Python repos for change risk and AI-agent risk, including disagreements between languages. Runs locally and produces versioned JSON reports."
+      content="Open-source CLI that scans TypeScript, JavaScript, Python, Java, Kotlin & Swift repos for change risk and AI-agent risk, including disagreements between languages. Runs locally and produces versioned JSON reports."
     />
     <meta name="theme-color" content="#0a0a0a" />
     <meta name="color-scheme" content="dark" />
@@ -14,7 +14,7 @@
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <meta
       name="keywords"
-      content="codebase risk, code scanner, AI coding agents, agent-native, TypeScript, JavaScript, Python, Java, polyglot, monorepo, CLI, code quality, churn, hotspots, Claude Code, AGENTS.md"
+      content="codebase risk, code scanner, AI coding agents, agent-native, TypeScript, JavaScript, Python, Java, Kotlin, Swift, polyglot, monorepo, CLI, code quality, churn, hotspots, Claude Code, AGENTS.md"
     />
     <link rel="canonical" href="https://crimes.sh/" />
 
@@ -22,7 +22,7 @@
     <meta property="og:title" content="crimes: built for agents, readable by humans" />
     <meta
       property="og:description"
-      content="A local, open-source CLI that ranks change-risk and agent-risk in TS/JS, Python and Java repos, including findings that span Python and TypeScript. JSON output is the contract."
+      content="A local, open-source CLI that ranks change-risk and agent-risk in TS/JS, Python, Java, Kotlin and Swift repos, including findings that span Python and TypeScript. JSON output is the contract."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://crimes.sh/" />
@@ -37,7 +37,7 @@
     <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="crimes: built for agents, readable by humans" />
-    <meta name="twitter:description" content="Open-source CLI that ranks change-risk and agent-risk in TS/JS, Python and Java repos, including findings that span Python and TypeScript. JSON output is the contract." />
+    <meta name="twitter:description" content="Open-source CLI that ranks change-risk and agent-risk in TS/JS, Python, Java, Kotlin and Swift repos, including findings that span Python and TypeScript. JSON output is the contract." />
     <meta name="twitter:image" content="https://crimes.sh/og-image.svg" />
     <meta name="twitter:image:alt" content="crimes: a crime scene investigator for your codebase." />
 
@@ -57,7 +57,7 @@
             "@id": "https://crimes.sh/#website",
             "url": "https://crimes.sh/",
             "name": "crimes",
-            "description": "Open-source CLI that scans TypeScript, JavaScript, Python and Java repos for change risk and AI-agent risk, including findings that span Python and TypeScript.",
+            "description": "Open-source CLI that scans TypeScript, JavaScript, Python, Java, Kotlin and Swift repos for change risk and AI-agent risk, including findings that span Python and TypeScript.",
             "inLanguage": "en-US",
             "publisher": {
               "@id": "https://crimes.sh/#publisher"
@@ -80,7 +80,7 @@
             "applicationCategory": "DeveloperApplication",
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
-            "description": "A local, open-source CLI that scans TypeScript, JavaScript, Python and Java repositories for change risk and agent risk, including duplicated business rules, unclear sources of truth, weakly tested hotspots and API disagreements.",
+            "description": "A local, open-source CLI that scans TypeScript, JavaScript, Python, Java, Kotlin and Swift repositories for change risk and agent risk, including duplicated business rules, unclear sources of truth, weakly tested hotspots and API disagreements.",
             "softwareVersion": "0.29.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/ortomate/crimes",
@@ -112,7 +112,8 @@
               "Per-finding effort + fix_shape on every Finding",
               "Stable, versioned JSON output for AI agents",
               "Python language pack with real parsing, not regexes",
-              "Java language pack: same-package dependency graph, JUnit test discovery, swallowed exceptions and clock reads",
+              "Java and Kotlin language packs: one JVM dependency graph across both, same-package references, JUnit test discovery, swallowed exceptions and clock reads",
+              "Swift language pack: dependencies through referenced types and extensions, XCTest and Swift Testing, SwiftUI-aware function budgets",
               "Universal pack: file-level and git-derived findings in any language",
               "Cross-language detectors: route drift, type drift, concept alias drift between Python and TypeScript",
               "Per-finding feedback loop (tp/fp/known) that auto-suppresses and resurfaces for re-confirmation",
@@ -132,7 +133,7 @@
                 "name": "What is crimes?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "crimes is an open-source CLI that scans a TypeScript, JavaScript, Python or Java repository for change risk and AI-agent risk, including duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents. In a polyglot repo it also reports disagreements between languages, such as a frontend calling an endpoint the backend does not serve. It runs locally with no cloud calls and outputs both a human report and a stable, versioned JSON contract."
+                  "text": "crimes is an open-source CLI that scans a TypeScript, JavaScript, Python, Java, Kotlin or Swift repository for change risk and AI-agent risk, including duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents. In a polyglot repo it also reports disagreements between languages, such as a frontend calling an endpoint the backend does not serve. It runs locally with no cloud calls and outputs both a human report and a stable, versioned JSON contract."
                 }
               },
               {
@@ -156,7 +157,7 @@
                 "name": "Which languages does crimes support?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "TypeScript and JavaScript (including JSX and TSX), Python and Java. A universal pack runs on every file in any language, so a Rust or Go repo still gets file-level and git-derived findings, and the report says those files had universal checks only rather than reading as clean. Since 0.15.0 a cross-language pack also reports disagreements between Python and TypeScript that neither language's own tooling can see, such as a frontend calling a path the backend does not serve, or a type listed differently on each side."
+                  "text": "TypeScript and JavaScript (including JSX and TSX), Python, Java, Kotlin and Swift. A universal pack runs on every file in any language, so a Rust or Go repo still gets file-level and git-derived findings, and the report says those files had universal checks only rather than reading as clean. Since 0.15.0 a cross-language pack also reports disagreements between Python and TypeScript that neither language's own tooling can see, such as a frontend calling a path the backend does not serve, or a type listed differently on each side."
                 }
               },
               {
@@ -223,7 +224,7 @@
         <p class="tagline">Built for agents, readable by humans.</p>
         <p class="lede">
           <code>crimes</code> is an open-source CLI that scans
-          <strong>TypeScript, JavaScript, Python and Java</strong> repositories for
+          <strong>TypeScript, JavaScript, Python, Java, Kotlin and Swift</strong> repositories for
           <strong>change risk</strong> and <strong>agent risk</strong>.
           It finds duplicated business rules, unclear sources of truth,
           weakly tested hotspots and swallowed errors. It also checks for
@@ -290,7 +291,7 @@ crimes scan .</code></pre>
             <h3>Scan a directory</h3>
             <pre><code>crimes scan .</code></pre>
             <p class="note">
-              Scans TypeScript, JavaScript, Python and Java with enabled detectors.
+              Scans TypeScript, JavaScript, Python, Java, Kotlin and Swift with enabled detectors.
               Shows the top five files ranked by strongest risk plus diminishing
               contributions from distinct claims. Pass <code>--all</code> for every finding.
             </p>
@@ -789,9 +790,13 @@ Repo-level
           file-level and git-derived findings. The
           <strong>Python pack</strong> (<code>v0.14.0</code>) brings real
           parsing to <code>.py</code> sources, and the
-          <strong>Java pack</strong> (<code>v0.29.6</code>) to
-          <code>.java</code>, including the same-package references Java
-          resolves without an import. The
+          <strong>Java</strong> (<code>v0.29.6</code>) and
+          <strong>Kotlin</strong> (<code>v0.29.8</code>) packs to
+          <code>.java</code> and <code>.kt</code>, with one dependency graph
+          across both, including the same-package references the JVM
+          resolves without an import, and the <strong>Swift pack</strong>
+          (<code>v0.29.8</code>) to <code>.swift</code>, where a module's
+          types need no import at all. The
           <strong>cross-language pack</strong> (<code>v0.15.0</code>)
           reports what neither language's own tooling can: a frontend
           calling a path the backend does not serve, a closed set listed
@@ -964,7 +969,7 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             <summary>What is <code>crimes</code>?</summary>
             <p>
               <code>crimes</code> is an open-source CLI that scans a
-              TypeScript, JavaScript, Python or Java repository for
+              TypeScript, JavaScript, Python, Java, Kotlin or Swift repository for
               <strong>change risk</strong> and <strong>AI-agent
               risk</strong>, including duplicated business rules, ambiguous sources
               of truth, weakly tested hotspots, and patterns that confuse
@@ -1006,8 +1011,8 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
           <details>
             <summary>Which languages does <code>crimes</code> support?</summary>
             <p>
-              TypeScript and JavaScript (including JSX and TSX), Python
-              and Java. A universal pack runs on every file in any
+              TypeScript and JavaScript (including JSX and TSX), Python,
+              Java and Kotlin. A universal pack runs on every file in any
               language, so a Rust or Go repo still gets file-level and
               git-derived findings, and the report says those files had
               universal checks only rather than reading as clean. Since <strong>0.15.0</strong> a

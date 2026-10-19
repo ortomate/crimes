@@ -22,7 +22,7 @@ export const TEST_EXT = /(?:\.(?:test|spec)|_(?:test|spec))\.(ts|tsx|js|jsx|mjs|
  * nothing, and `crimes context` reported "no likely tests" for a fully
  * covered module.
  */
-const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|cts|mts|py|pyi|java)$/;
+const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|cts|mts|py|pyi|java|kt|kts|swift)$/;
 const JS_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|cts|mts)$/;
 const PY_EXT = /\.(py|pyi)$/;
 

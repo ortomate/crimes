@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { isLanguagePack, PACK_IDS, type Pack } from "./pack.js";
 
 describe("Pack type", () => {
-  it("enumerates the five pack ids", () => {
+  it("enumerates the seven pack ids", () => {
     expect(PACK_IDS).toEqual([
       "universal",
       "language-js",
       "language-py",
       "language-java",
+      "language-kotlin",
+      "language-swift",
       "cross-language",
     ]);
   });

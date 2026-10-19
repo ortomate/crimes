@@ -12,6 +12,7 @@
 export const JAVA_EXTENSIONS = [".java"] as const;
 
 export {
+  createJavaParser,
   ensureJavaParser,
   JavaGrammarNotFoundError,
   parseJavaFile,

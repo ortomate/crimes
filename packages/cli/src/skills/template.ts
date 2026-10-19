@@ -9,7 +9,7 @@ export const SKILL_PATHS = {
 
 export const SKILL_BODY = `---
 name: crimes-codebase-risk
-description: Inspect change risk with crimes when planning, editing or reviewing code in a repository that uses the CLI. Covers TypeScript, JavaScript, Python and Java; interpret evidence and analysis limits before acting.
+description: Inspect change risk with crimes when planning, editing or reviewing code in a repository that uses the CLI. Covers TypeScript, JavaScript, Python, Java, Kotlin and Swift; interpret evidence and analysis limits before acting.
 ---
 
 # crimes workflow
