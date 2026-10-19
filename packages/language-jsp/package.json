@@ -1,0 +1,29 @@
+{
+  "name": "@crimes/language-jsp",
+  "version": "0.0.0",
+  "description": "JSP support for crimes: a lexical scanner for pages, fragments, tag files and tag library descriptors, and the reference resolution that joins them to each other and to Java.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.5",
+    "vitest": "^2.1.5"
+  }
+}
