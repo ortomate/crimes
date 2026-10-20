@@ -2,6 +2,12 @@ import type { ParsedFile } from "@crimes/language-js";
 import type { ParsedJavaFile } from "@crimes/language-java";
 import type { ParsedKotlinFile } from "@crimes/language-kotlin";
 import type { ParsedSwiftFile } from "@crimes/language-swift";
+import type {
+  DanglingReference,
+  ParsedJspFile,
+  TagContractBreak,
+} from "@crimes/language-jsp";
+import type { ParsedLessFile } from "@crimes/language-less";
 import type { ParsedPyFile } from "@crimes/language-py";
 import type { z } from "zod";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
@@ -128,6 +134,14 @@ export type Detector =
       run(ctx: LanguageSwiftDetectorContext): Promise<PreFinding[]> | PreFinding[];
     })
   | (BaseDetector & {
+      pack: "language-jsp";
+      run(ctx: LanguageJspDetectorContext): Promise<PreFinding[]> | PreFinding[];
+    })
+  | (BaseDetector & {
+      pack: "language-less";
+      run(ctx: LanguageLessDetectorContext): Promise<PreFinding[]> | PreFinding[];
+    })
+  | (BaseDetector & {
       pack: "cross-language";
       run(ctx: CrossLanguageDetectorContext): Promise<PreFinding[]> | PreFinding[];
     });
@@ -161,6 +175,12 @@ export type LanguageKotlinDetector = Extract<Detector, { pack: "language-kotlin"
 
 /** Convenience alias for the language-swift branch of the `Detector` union. */
 export type LanguageSwiftDetector = Extract<Detector, { pack: "language-swift" }>;
+
+/** Convenience alias for the language-jsp branch of the `Detector` union. */
+export type LanguageJspDetector = Extract<Detector, { pack: "language-jsp" }>;
+
+/** Convenience alias for the language-less branch of the `Detector` union. */
+export type LanguageLessDetector = Extract<Detector, { pack: "language-less" }>;
 
 /**
  * Convenience alias for the cross-language branch of the `Detector`
@@ -272,6 +292,8 @@ export type DetectorContext =
   | LanguageJavaDetectorContext
   | LanguageKotlinDetectorContext
   | LanguageSwiftDetectorContext
+  | LanguageJspDetectorContext
+  | LanguageLessDetectorContext
   | CrossLanguageDetectorContext;
 
 /**
@@ -562,6 +584,43 @@ export interface LanguageSwiftDetectorContext {
   absolutePath: string;
   source: string;
   parsed: ParsedSwiftFile;
+  config: CrimesConfig;
+  imports?: ImportGraph;
+  scoring?: ScoringContext;
+}
+
+/**
+ * Per-file context for the JSP pack: pages, fragments and tag files.
+ * Tag library descriptors are parsed for resolution but have no
+ * detectors, so they never get a context.
+ */
+export interface LanguageJspDetectorContext {
+  kind: "language-jsp";
+  file: string;
+  absolutePath: string;
+  source: string;
+  parsed: ParsedJspFile;
+  config: CrimesConfig;
+  imports?: ImportGraph;
+  scoring?: ScoringContext;
+  /**
+   * What repo-wide resolution found wrong in this file: references to
+   * files that do not exist, and tag calls that break the tag's declared
+   * attributes. Absent when resolution did not run.
+   */
+  jsp?: {
+    dangling: readonly DanglingReference[];
+    contractBreaks: readonly TagContractBreak[];
+  };
+}
+
+/** Per-file context for the LESS pack. */
+export interface LanguageLessDetectorContext {
+  kind: "language-less";
+  file: string;
+  absolutePath: string;
+  source: string;
+  parsed: ParsedLessFile;
   config: CrimesConfig;
   imports?: ImportGraph;
   scoring?: ScoringContext;

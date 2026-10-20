@@ -3,6 +3,7 @@
 import type { ContextClues, ContextReport } from "./context.js";
 import { isUnsupportedCodeFile } from "./discovery/code-extensions.js";
 import { resolveLanguagePackRouter } from "./discovery/language-pack-router.js";
+import { packHasTestConvention } from "./pack.js";
 import type { Finding } from "./finding.js";
 import type { ScoringContext } from "./scoring/build.js";
 import { suppressionsForFile } from "./suppressions.js";
@@ -57,8 +58,10 @@ export function buildClues(args: {
   // test_gap — raw {0, 0.5, 1} plus the quartile percentile and label.
   // Skipped rather than fabricated when scoring is unavailable, and for
   // a file no language pack parses: its raw value would be 1 ("no test
-  // found") only because nothing looked.
-  if (scoring && resolveLanguagePackRouter().claimingPack(fileRel) !== undefined) {
+  // found") only because nothing looked. Skipped too for templates and
+  // stylesheets, whose 0 means "not measured", not "well tested".
+  const pack = resolveLanguagePackRouter().claimingPack(fileRel);
+  if (scoring && pack !== undefined && packHasTestConvention(pack)) {
     const raw = scoring.testGap.rawForFile(fileRel);
     const score = scoring.testGap.forFile(fileRel);
     clues.test_gap =
@@ -120,10 +123,19 @@ export function applyEmptyReasons(
     report.likely_tests_reason =
       `no language pack parses ${args.unclaimedExtension} files, so their test ` +
       "conventions and imports were not checked; absence of a match is not absence of tests";
+  } else if (likely_tests.length === 0 && !testConventionFor(report.file)) {
+    report.likely_tests_reason =
+      "templates and stylesheets have no unit-test convention crimes can map; " +
+      "they are exercised by rendering, which is not traced to files";
   } else if (likely_tests.length === 0) {
     report.likely_tests_reason =
       "no test file matched the target basename (looked for siblings, " +
       "__tests__/ and tests/ directories, and the .test / .spec / _test / " +
       "test_ naming conventions) and no test file imports it";
   }
+}
+
+function testConventionFor(file: string): boolean {
+  const pack = resolveLanguagePackRouter().claimingPack(file);
+  return pack === undefined || packHasTestConvention(pack);
 }

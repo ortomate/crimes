@@ -947,6 +947,8 @@ describe("scan — ScanReport.coverage", () => {
         "language-java",
         "language-kotlin",
         "language-swift",
+        "language-jsp",
+        "language-less",
       ]);
     } finally {
       await rm(root, { recursive: true, force: true });

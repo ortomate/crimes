@@ -124,8 +124,10 @@ function buildValueAdjacency(graph: ImportGraph): Map<string, Set<string>> {
     if (edgeIsTypeOnly(edge)) continue;
     // Java, Kotlin and Swift edges only ever join those files, so no cycle through them can
     // be anchored on the JS file this detector reports on. Leaving them
-    // out keeps the recursive walk off a graph it can never report.
-    if (/\.(?:java|kts?|swift)$/.test(edge.from)) continue;
+    // out keeps the recursive walk off a graph it can never report. JSP
+    // and LESS edges are left out too: a stylesheet's edges include uses
+    // of names it never imports, which are not a load order.
+    if (/\.(?:java|kts?|swift|jsp|jspf|tag|tld|less)$/i.test(edge.from)) continue;
     ensure(edge.from).add(edge.to);
     ensure(edge.to);
   }

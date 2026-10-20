@@ -683,7 +683,7 @@ export interface Hotspot {
 [Source](https://github.com/ortomate/crimes/blob/main/packages/core/src/pack.ts).
 
 ```ts
-export type Pack = "universal" | "language-js" | "language-py" | "language-java" | "language-kotlin" | "language-swift" | "cross-language";
+export type Pack = "universal" | "language-js" | "language-py" | "language-java" | "language-kotlin" | "language-swift" | "language-jsp" | "language-less" | "cross-language";
 ```
 
 ## ScanSummary

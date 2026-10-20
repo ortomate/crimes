@@ -18,10 +18,13 @@ For the agent workflow that consumes findings, see
 | `circular_dependency`    | Tangled Imports         | medium-high    | 0.90       |
 | `deep_import`            | Deep Import Abuse       | low-medium     | 0.70-0.85  |
 | `high_fan_in_fan_out`    | Crowded Module          | low-medium     | 0.70-0.80  |
+| `dangling_template_reference` | Dangling Template Reference | medium | 0.75-0.80 |
 
-All four use the standard `Finding` shape and add an `imports_limited`
+All five use the standard `Finding` shape and add an `imports_limited`
 flag to `ScanReport` when the graph hit its performance budget: same
-shape as `HotspotsReport.history_limited`.
+shape as `HotspotsReport.history_limited`. Crowded Module counts code
+edges only: a component importing its stylesheet, or a template including
+a script, is not the coupling it measures.
 
 ---
 
@@ -138,3 +141,51 @@ restructuring needs an evidenced problem beyond the edge count. Preserve
 useful regression checks. Removing assertions or moving them into a temporary
 command solely to clear this finding loses durable coverage. Review and
 record intentional connectivity through triage when appropriate.
+
+---
+
+## Dangling Template Reference (`dangling_template_reference`)
+
+**What it detects.** JSP references that resolve to nothing, found while
+the JSP pack builds its part of the graph (0.31.0). Four claims:
+
+- `missing_include`: a literal `<%@ include %>`, `<jsp:include>` or
+  `<jsp:forward>` target that does not exist;
+- `missing_tag`: a tag whose taglib prefix is bound to a `tagdir` with no
+  matching `.tag` file;
+- `missing_taglib`: a `taglib uri` that names a `.tld` path that does not
+  exist;
+- `tag_contract`: a call to a tag file or TLD tag that omits an attribute
+  declared `required="true"`, or passes one the tag does not declare
+  (unless it declares `dynamic-attributes`). Attributes supplied as
+  `<jsp:attribute name="…">` children count as passed.
+
+**Example evidence.**
+
+```text
+reference: `/WEB-INF/includes/moved-away.jspf` (line 2)
+expected at: web/src/main/webapp/WEB-INF/includes/moved-away.jspf
+the directory exists; the file does not
+```
+
+**Why it matters.** JSP is translated on the first request, not when the
+application is built. A moved fragment or a renamed tag attribute compiles,
+passes every Java test, and then fails each request for the page. An agent
+that renames an attribute in a tag file has no build step to tell it which
+callers it broke.
+
+**What it deliberately does not claim.** A reference whose *directory* is
+missing is read as a resource supplied from outside the repository — a
+library jar's `META-INF/resources`, a WAR overlay — and is not reported.
+On a 1,089-template estate every unresolved include had that shape. A
+relative path in a fragment, or in a library page, is resolved from the
+pages that include it, and not judged at all when nothing in the
+repository includes it. Paths computed at request time (`${…}`,
+`<%= … %>`) are not resolved. A taglib URI is a logical name (`/struts-tags`
+is one) unless it names a `.tld` file. Nothing about scriptlets, escaping
+or markup style is reported.
+
+**Suggested action.** Point the reference at the file that exists, or
+remove it; for a contract break, pass the attributes the tag requires and
+only those it declares. `crimes context <tag file>` lists the pages that
+call a tag, including through prefixes declared in shared fragments.

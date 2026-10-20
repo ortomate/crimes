@@ -8,6 +8,8 @@ const PACK_SUFFIX: Record<Pack, string | null> = {
   "language-java": "java",
   "language-kotlin": "kt",
   "language-swift": "swift",
+  "language-jsp": "jsp",
+  "language-less": "less",
   "cross-language": "x",
 };
 

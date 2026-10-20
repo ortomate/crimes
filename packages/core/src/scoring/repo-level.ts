@@ -33,5 +33,7 @@ const REPO_LEVEL_TYPES = new Set([
 
 /** Is this finding about the repository rather than about its file? */
 export function isRepoLevelFinding(finding: Pick<Finding, "type">): boolean {
-  return REPO_LEVEL_TYPES.has(finding.type.replace(/\.(js|py|java|kt|swift|x)$/, ""));
+  return REPO_LEVEL_TYPES.has(
+    finding.type.replace(/\.(js|py|java|kt|swift|jsp|less|x)$/, ""),
+  );
 }

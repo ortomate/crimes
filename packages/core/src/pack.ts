@@ -14,6 +14,8 @@ export type Pack =
   | "language-java"
   | "language-kotlin"
   | "language-swift"
+  | "language-jsp"
+  | "language-less"
   | "cross-language";
 
 export const PACK_IDS = [
@@ -23,6 +25,8 @@ export const PACK_IDS = [
   "language-java",
   "language-kotlin",
   "language-swift",
+  "language-jsp",
+  "language-less",
   "cross-language",
 ] as const satisfies readonly Pack[];
 
@@ -32,6 +36,18 @@ export function isLanguagePack(pack: Pack): boolean {
     pack === "language-py" ||
     pack === "language-java" ||
     pack === "language-kotlin" ||
-    pack === "language-swift"
+    pack === "language-swift" ||
+    pack === "language-jsp" ||
+    pack === "language-less"
   );
+}
+
+/**
+ * Packs whose files have no unit-test convention crimes can map:
+ * templates and stylesheets. They stay out of the `test_gap`
+ * population, as documentation does, rather than scoring every one of
+ * them as untested and pushing the code around them down the quartiles.
+ */
+export function packHasTestConvention(pack: Pack): boolean {
+  return pack !== "language-jsp" && pack !== "language-less";
 }

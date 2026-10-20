@@ -1,7 +1,8 @@
 # Templates and stylesheets: JSP and LESS packs (0.31)
 
-Status: in progress. Roadmap item: "0.31 milestone: templates and
-stylesheets".
+Status: implemented in 0.31.0 (unreleased); measurements in
+[calibration follow-ups](../../calibration-followups.md#0310-jsp-and-less-packs).
+Roadmap item: "0.31 milestone: templates and stylesheets".
 
 ## Why
 

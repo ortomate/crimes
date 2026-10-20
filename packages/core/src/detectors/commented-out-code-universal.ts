@@ -4,6 +4,7 @@ import { COMMENTED_OUT_CODE_LADDER } from "./commented-out-code.js";
 import { intrinsicFrom } from "../scoring/intrinsic.js";
 import type { UniversalDetector } from "../detector.js";
 import { JS_EXTENSIONS } from "../discovery/language-pack-router.js";
+import { STYLESHEET_EXT_RE } from "./large-file.js";
 import { resolveDiscriminators } from "./disambiguate.js";
 
 const JS_EXT_SET = new Set<string>(JS_EXTENSIONS);
@@ -102,6 +103,11 @@ export const commentedOutCodeUniversalDetector: UniversalDetector = {
 
   async run(ctx) {
     if (JS_EXT_SET.has(ctx.extension)) return [];
+    // Commented-out declarations in a stylesheet are inert: nothing can
+    // call them, and reviving one changes presentation only. On a
+    // 948-file LESS estate they were 353 findings, mostly 4–9 line runs
+    // of `// color: …;` (0.31.0).
+    if (STYLESHEET_EXT_RE.test(ctx.file)) return [];
     const source = await ctx.readSource();
     const lines = source.split("\n");
 

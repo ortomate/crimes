@@ -33,11 +33,40 @@ read. Each finding carries a `pack` field identifying its origin pack.
   counts as broad, ignored `CancellationError` is not a swallowed error,
   `now: Date = Date()` defaults are not clock reads, and
   SwiftUI `some View` bodies get the UI-component budget.
+- **`language-jsp`** (0.31.0): `@crimes/language-jsp`, a lexical scanner
+  rather than a grammar. Runs on `.jsp/.jspf/.tag`, and reads `.tld`
+  descriptors and each web root's `WEB-INF/web.xml` for resolution. Edges
+  run from a page to what it includes (directives, `<jsp:include>`,
+  `<c:import>`, `web.xml` preludes and codas), to the tag files its tags
+  resolve to (taglib prefixes bind through included fragments, as in a
+  JSP translation unit), to TLDs, and to the Java classes it names in
+  imports, beans, attribute types and scriptlets. TLDs link to their tag,
+  function and listener classes. Ships `dangling_template_reference.jsp`:
+  an include, tag file or TLD path that does not exist while its
+  directory does, and tag calls that omit a required attribute or pass
+  an undeclared one. A missing *directory* is read as a library-supplied
+  resource and never reported, nor is a relative path in a fragment or
+  library page that nothing in the repository includes.
+- **`language-less`** (0.31.0): `@crimes/language-less`, also lexical.
+  Runs on `.less`. Edges run along `@import` (resolved as `lessc` does by
+  default) and from a partial to the files defining the variables and
+  mixins it uses, because a partial compiled inside a bundle uses names
+  it never imports; a name defined in more than three files draws no
+  usage edge. No detectors of its own. JavaScript imports of `.less`
+  files resolve too, and do not count as code fan-out.
 - **`cross-language`** (0.15.0): Requires aligning artefacts from
   two or more language packs. Runs once per scan, after every per-pack
   pass.
 
-Java, Kotlin and Swift skip files declared generated or vendored (path,
+Templates and stylesheets are outside the `test_gap` population: no
+convention maps a unit test to a page or a stylesheet, so they score 0
+there (as documentation does) and `context` gives no test-gap clue for
+them. Their blast radius is scored. `large_file` holds templates to the
+code budget and gives `.less` files a 600-line stylesheet budget;
+`commented_out_code` does not read stylesheets, whose commented-out
+declarations are inert.
+
+Java, Kotlin, Swift, JSP and LESS skip files declared generated or vendored (path,
 banner or `linguist-generated`): their findings are never reported, and
 parsing them dominated cost. The CLI runs under V8's `--liftoff-only`
 (re-executing itself once; `CRIMES_NO_REEXEC=1` opts out), because the

@@ -1,3 +1,4 @@
+import type { JspResolution } from "@crimes/language-jsp";
 import type { AnalysisInputs } from "./analysis-inputs.js";
 import { profileAsync } from "./profile.js";
 import { buildFunctionHashIndex } from "./ast-hash/function-index.js";
@@ -156,6 +157,8 @@ export async function safelyBuildImportGraph(args: {
    * evidence.
    */
   onPySymbolIndex?: (index: PySymbolIndex) => void;
+  /** Receives JSP dangling references and tag-contract breaks. */
+  onJspResolution?: (resolution: JspResolution) => void;
 }): Promise<ImportGraph | undefined> {
   try {
     return await profileAsync("index.imports", () =>
@@ -166,6 +169,9 @@ export async function safelyBuildImportGraph(args: {
         ...(args.warnings !== undefined ? { warnings: args.warnings } : {}),
         ...(args.onPySymbolIndex !== undefined
           ? { onPySymbolIndex: args.onPySymbolIndex }
+          : {}),
+        ...(args.onJspResolution !== undefined
+          ? { onJspResolution: args.onJspResolution }
           : {}),
       }),
     );

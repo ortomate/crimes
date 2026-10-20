@@ -1,7 +1,8 @@
 # crimes
 
 Local, deterministic change-risk and agent-risk analysis for TypeScript,
-JavaScript, Python, Java, Kotlin and Swift. Built for agents, readable by humans.
+JavaScript, Python, Java, Kotlin, Swift, JSP and LESS. Built for agents,
+readable by humans.
 
 ```bash
 npx crimes scan .

@@ -19,6 +19,16 @@ function makeCtx(file: string, source: string): UniversalDetectorContext {
 }
 
 describe("commentedOutCodeUniversalDetector", () => {
+  it("does not read stylesheets, whose commented-out declarations are inert", async () => {
+    const findings = await commentedOutCodeUniversalDetector.run(
+      makeCtx(
+        "styles/x.less",
+        "// .a {\n//   color: red;\n//   margin: 0;\n//   padding: 0;\n// }",
+      ),
+    );
+    expect(findings).toEqual([]);
+  });
+
   it("skips JS files (the AST variant handles those)", async () => {
     const findings = await commentedOutCodeUniversalDetector.run(
       makeCtx(

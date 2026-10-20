@@ -48,12 +48,19 @@ one; 0.5 when a matching sibling or dedicated-directory test exists without
 a resolved import; 1 otherwise. JS suffixes, Python prefixes/suffixes and Go
 suffixes are recognised. Scoring ranks these values among claimed source
 files. Test files and files without a language pack do not contribute to
-that population. `context.clues.test_gap.raw` reports the raw value.
+that population, and neither do templates and stylesheets (`language-jsp`,
+`language-less`), which no unit-test convention maps; they score 0 and get
+no `context.clues.test_gap`. `context.clues.test_gap.raw` reports the raw
+value.
 
 A hollow or heavily mocked test can still import production code. Read
 `weak_test_signal`, `mock_saturation`, and the actual assertions separately.
 Unresolved aliases, dynamic imports, namespace packages or incomplete
 parsing can hide graph edges. `coverage.warnings` reports known gaps.
+JSP and LESS edges are references rather than imports in places — a page
+to a tag file it calls, a LESS partial to the file defining a variable it
+uses — so a fragment of shared taglib declarations, or a variables file,
+gets the blast radius its users give it, not the one its importers do.
 
 The blast-radius integers are separately available as
 `scores.blast_radius_direct_importers` and

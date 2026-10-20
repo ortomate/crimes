@@ -61,6 +61,20 @@ describe("highFanInFanOutDetector", () => {
     expect(findings[0]!.evidence.some((e) => e.startsWith("fan-in: 20"))).toBe(true);
   });
 
+  it("counts neither stylesheet imports nor template includes as code coupling", async () => {
+    const edges: EdgeInput[] = [];
+    for (let i = 0; i < 20; i++) {
+      edges.push({ from: "src/page.tsx", to: `src/styles/s${i}.less` });
+      edges.push({ from: `web/WEB-INF/views/v${i}.jsp`, to: "src/legacy.js" });
+      edges.push({ from: `src/f${i}.ts`, to: `src/g${i}.ts` });
+    }
+    const graph = makeGraph(edges);
+    expect(await highFanInFanOutDetector.run(makeCtx("src/page.tsx", graph))).toEqual([]);
+    expect(await highFanInFanOutDetector.run(makeCtx("src/legacy.js", graph))).toEqual(
+      [],
+    );
+  });
+
   it("does not fire on a leaf file with no importers", async () => {
     const edges: EdgeInput[] = [];
     for (let i = 0; i < 20; i++) {

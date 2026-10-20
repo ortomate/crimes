@@ -8,6 +8,13 @@ import { parseJavaFile } from "@crimes/language-java";
 import { parseKotlinFile } from "@crimes/language-kotlin";
 import { parsePyFile } from "@crimes/language-py";
 import { parseSwiftFile } from "@crimes/language-swift";
+import {
+  type DanglingReference,
+  parseJspFile,
+  type JspResolution,
+  type TagContractBreak,
+} from "@crimes/language-jsp";
+import { parseLessFile } from "@crimes/language-less";
 import type { CrimesConfig } from "./config.js";
 import type {
   CrossLanguageDetector,
@@ -18,6 +25,8 @@ import type {
   LanguageJavaDetectorContext,
   LanguageKotlinDetectorContext,
   LanguageSwiftDetectorContext,
+  LanguageJspDetectorContext,
+  LanguageLessDetectorContext,
   PackedFile,
 } from "./detector.js";
 import { groupDetectorsByPack } from "./detector-registry.js";
@@ -99,6 +108,33 @@ export interface ScanIndexes {
    * vendored, so never reported. See `util/structured-skip.ts`.
    */
   skipStructured?: (repoPath: string) => boolean;
+  /**
+   * JSP resolution's per-file problems: dangling references and tag
+   * contract breaks, keyed by repo path. Built during the import-graph
+   * pass, which is the one place templates are resolved.
+   */
+  jsp?: JspFileProblems;
+}
+
+export interface JspFileProblems {
+  dangling: ReadonlyMap<string, DanglingReference[]>;
+  contractBreaks: ReadonlyMap<string, TagContractBreak[]>;
+}
+
+function indexJspProblems(resolution: JspResolution): JspFileProblems {
+  const dangling = new Map<string, DanglingReference[]>();
+  for (const d of resolution.dangling) {
+    const list = dangling.get(d.file) ?? [];
+    list.push(d);
+    dangling.set(d.file, list);
+  }
+  const contractBreaks = new Map<string, TagContractBreak[]>();
+  for (const b of resolution.contractBreaks) {
+    const list = contractBreaks.get(b.file) ?? [];
+    list.push(b);
+    contractBreaks.set(b.file, list);
+  }
+  return { dangling, contractBreaks };
 }
 
 export async function buildScanIndexes(args: {
@@ -128,6 +164,7 @@ export async function buildScanIndexes(args: {
   // Captured out of the import-graph build because that is the one
   // place a scan parses every Python file. See `py/symbol-index.ts`.
   let pySymbols: PySymbolIndex | undefined;
+  let jsp: JspFileProblems | undefined;
   const imports = await safelyBuildImportGraph({
     root,
     allFiles,
@@ -135,6 +172,9 @@ export async function buildScanIndexes(args: {
     warnings,
     onPySymbolIndex: (index) => {
       pySymbols = index;
+    },
+    onJspResolution: (resolution) => {
+      jsp = indexJspProblems(resolution);
     },
   });
   const jsxShapeIndex = await safelyBuildJsxShapeIndex({
@@ -186,6 +226,7 @@ export async function buildScanIndexes(args: {
     agentConfig,
     ...(pySymbols !== undefined ? { pySymbols } : {}),
     ...(pyModuleRefs !== undefined ? { pyModuleRefs } : {}),
+    ...(jsp !== undefined ? { jsp } : {}),
     warnings,
     skipStructured: structuredSkipFor(root),
   };
@@ -549,6 +590,79 @@ export async function runDetectorsForFile(args: {
     };
     for (const detector of swiftDetectors) {
       const detectorFindings = await detector.run(swiftCtx);
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
+    }
+  }
+
+  // Language-jsp pack: pages, fragments and tag files. Tag library
+  // descriptors are claimed for resolution but have no detectors.
+  const jspDetectors = args.grouped["language-jsp"] ?? [];
+  if (
+    jspDetectors.length > 0 &&
+    args.langPack.claims("language-jsp", args.absolutePath) &&
+    !args.absolutePath.toLowerCase().endsWith(".tld") &&
+    !(args.indexes.skipStructured?.(file) ?? false)
+  ) {
+    const source = args.indexes.inputs
+      ? await args.indexes.inputs.read(args.absolutePath)
+      : await readFile(args.absolutePath, "utf8");
+    const parsed = args.indexes.inputs
+      ? args.indexes.inputs.jsp(args.absolutePath, source)
+      : profileSync("parse.detector-jsp", () =>
+          parseJspFile({ absolutePath: args.absolutePath, source }),
+        );
+    const jspCtx: LanguageJspDetectorContext = {
+      kind: "language-jsp",
+      file,
+      absolutePath: args.absolutePath,
+      source,
+      parsed,
+      config: args.config,
+      imports: args.indexes.imports,
+      scoring: args.indexes.scoring,
+      ...(args.indexes.jsp !== undefined
+        ? {
+            jsp: {
+              dangling: args.indexes.jsp.dangling.get(file) ?? [],
+              contractBreaks: args.indexes.jsp.contractBreaks.get(file) ?? [],
+            },
+          }
+        : {}),
+    };
+    for (const detector of jspDetectors) {
+      const detectorFindings = await detector.run(jspCtx);
+      findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
+    }
+  }
+
+  // Language-less pack. No detectors of its own yet — LESS files get the
+  // universal slate and graph edges — but the seam is here for them.
+  const lessDetectors = args.grouped["language-less"] ?? [];
+  if (
+    lessDetectors.length > 0 &&
+    args.langPack.claims("language-less", args.absolutePath) &&
+    !(args.indexes.skipStructured?.(file) ?? false)
+  ) {
+    const source = args.indexes.inputs
+      ? await args.indexes.inputs.read(args.absolutePath)
+      : await readFile(args.absolutePath, "utf8");
+    const parsed = args.indexes.inputs
+      ? args.indexes.inputs.less(args.absolutePath, source)
+      : profileSync("parse.detector-less", () =>
+          parseLessFile({ absolutePath: args.absolutePath, source }),
+        );
+    const lessCtx: LanguageLessDetectorContext = {
+      kind: "language-less",
+      file,
+      absolutePath: args.absolutePath,
+      source,
+      parsed,
+      config: args.config,
+      imports: args.indexes.imports,
+      scoring: args.indexes.scoring,
+    };
+    for (const detector of lessDetectors) {
+      const detectorFindings = await detector.run(lessCtx);
       findings.push(...detectorFindings.map((f) => assignPackAndDetectorId(f, detector)));
     }
   }

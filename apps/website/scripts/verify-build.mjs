@@ -275,6 +275,8 @@ const LANGUAGE_NAMES = {
   "language-java": ["Java"],
   "language-kotlin": ["Kotlin"],
   "language-swift": ["Swift"],
+  "language-jsp": ["JSP"],
+  "language-less": ["LESS"],
 };
 const packDirs = readdirSync(resolve(repoRoot, "packages")).filter((d) =>
   d.startsWith("language-"),
