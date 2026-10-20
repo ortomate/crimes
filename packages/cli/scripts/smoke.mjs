@@ -415,7 +415,8 @@ try {
   step("crimes scan on a JSP and LESS fixture (exercises the bundled lexical packs)");
   const webRoot = mkdtempSync(join(tmp, "jsp-"));
   const webFiles = {
-    "web/WEB-INF/includes/global.jspf": '<%@ taglib prefix="ui" tagdir="/WEB-INF/tags" %>\n',
+    "web/WEB-INF/includes/global.jspf":
+      '<%@ taglib prefix="ui" tagdir="/WEB-INF/tags" %>\n',
     "web/WEB-INF/tags/card.tag": '<%@ attribute name="title" required="true" %>\n',
     "web/WEB-INF/views/home.jsp":
       '<%@ include file="/WEB-INF/includes/global.jspf" %>\n<ui:card/>\n',
@@ -427,7 +428,9 @@ try {
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, source);
   }
-  const webReport = JSON.parse(run(installedBin, ["scan", webRoot, "--format", "json"]).stdout);
+  const webReport = JSON.parse(
+    run(installedBin, ["scan", webRoot, "--format", "json"]).stdout,
+  );
   assert(
     (webReport.coverage?.files_by_language?.jsp ?? 0) === 3 &&
       (webReport.coverage?.files_by_language?.less ?? 0) === 2,
@@ -435,7 +438,8 @@ try {
   );
   assert(
     webReport.findings.some(
-      (f) => f.detector_id === "dangling_template_reference.jsp" && f.claim === "tag_contract",
+      (f) =>
+        f.detector_id === "dangling_template_reference.jsp" && f.claim === "tag_contract",
     ),
     "jsp scan: the missing required attribute was not reported — prefix resolution through the included fragment failed",
   );

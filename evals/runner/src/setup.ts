@@ -112,8 +112,24 @@ async function cloneIntoExistingFixture(
     // whole history, which for a large project (Bootstrap) timed out
     // mid-transfer, and the history is discarded below anyway.
     await execFileAsync("git", ["init", "--quiet", cloneDir]);
-    await execFileAsync("git", ["-C", cloneDir, "remote", "add", "origin", meta.upstream]);
-    await execFileAsync("git", ["-C", cloneDir, "fetch", "--quiet", "--depth", "1", "origin", meta.sha]);
+    await execFileAsync("git", [
+      "-C",
+      cloneDir,
+      "remote",
+      "add",
+      "origin",
+      meta.upstream,
+    ]);
+    await execFileAsync("git", [
+      "-C",
+      cloneDir,
+      "fetch",
+      "--quiet",
+      "--depth",
+      "1",
+      "origin",
+      meta.sha,
+    ]);
     await execFileAsync("git", ["-C", cloneDir, "checkout", "--quiet", "FETCH_HEAD"]);
     await rm(join(cloneDir, ".git"), { recursive: true, force: true });
     // Move every entry in cloneDir into dir, preserving the existing
