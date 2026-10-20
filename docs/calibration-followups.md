@@ -1251,3 +1251,11 @@ theme files do it on purpose, the estate has 204 multiply-defined names,
 and it needs bundle import order and a precision measurement first.
 TLD-declared tag contracts are checked but were not exercised by any
 measured repository.
+
+Evals: on the stable deep set `mean_ndcg_deep` 0.4059 → 0.4057; the
+headline 0.4001 is membership (see the `0.31.0` row in
+[evals](../evals/README.md)). The new LESS scenario exposes an open
+ranking question: `large_file` on Bootstrap's `variables.less`, used by
+53 partials, ranks 34th of 40, because structural types are scaled ×0.3
+and blast radius is a fifth of the score. Whether wide use should lift a
+structural finding is undecided.

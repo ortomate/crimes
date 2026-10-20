@@ -183,5 +183,45 @@
       "Did the agent name a concrete production-breaking change that the test would not catch, rather than asserting in general terms that the test is weak?",
       "Did the agent notice that every collaborator is doubled with no implementation, so the assertions restate the implementation rather than checking behaviour?"
     ]
+  },
+  {
+    "id": "context-20-tag-callers",
+    "fixture": "20",
+    "kind": "context",
+    "prompt": "You are about to add a required `placeholder` attribute to src/main/webapp/WEB-INF/tags/inputField.tag. JSP is translated on first request, so a caller that does not pass it will build cleanly and then fail. Use `crimes context src/main/webapp/WEB-INF/tags/inputField.tag --format json` to find every page that calls this tag, and list them. Say how the pages reach the tag (the taglib prefix and directory), and what else you would check before shipping the change.",
+    "expected_artifacts": {
+      "referenced_files": [
+        "src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp",
+        "src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp",
+        "src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp"
+      ],
+      "forbidden_actions": ["dangling_template_reference"]
+    },
+    "judge_questions": [
+      "Did the agent list all three form pages that call `inputField`, and no page that does not?",
+      "Did the agent explain that the pages reach the tag through a `tagdir` taglib prefix rather than an import of the file, so a search for the file name would miss them?",
+      "Did the agent avoid claiming that any test would catch a missing attribute, given that templates have no unit-test convention here?"
+    ]
+  },
+  {
+    "id": "context-21-less-variables-reach",
+    "fixture": "21",
+    "kind": "context",
+    "prompt": "You are about to rename several variables in less/variables.less. Use `crimes context less/variables.less --format json` and `crimes scan --format json`. Say which file imports it, roughly how many stylesheets depend on it, and why that number is much larger than its importers. Then say how you would make the rename safe.",
+    "expected_artifacts": {
+      "referenced_findings": ["large_file"],
+      "referenced_files": ["less/variables.less", "less/bootstrap.less"],
+      "finding_labels": [
+        {
+          "type": "large_file",
+          "file": "less/variables.less"
+        }
+      ]
+    },
+    "judge_questions": [
+      "Did the agent say that only the bundle root imports variables.less, while dozens of partials use its variables without importing it?",
+      "Did the agent attribute the difference to LESS compiling partials inside one bundle, so a partial sees every variable the root imported first?",
+      "Did the agent propose a safe rename that covers the users rather than the importers (search by variable name, compile the bundle, or keep an alias)?"
+    ]
   }
 ]
