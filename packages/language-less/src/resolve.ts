@@ -100,7 +100,7 @@ export function resolveLessProject(project: LessProject): LessResolution {
   };
 }
 
-function isExternal(path: string): boolean {
+export function isExternal(path: string): boolean {
   return (
     path.startsWith("~") ||
     path.startsWith("/") ||
@@ -109,7 +109,7 @@ function isExternal(path: string): boolean {
   );
 }
 
-function resolveImport(
+export function resolveImport(
   project: LessProject,
   from: string,
   path: string,

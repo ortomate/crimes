@@ -62,6 +62,11 @@ to a tag file it calls, a LESS partial to the file defining a variable it
 uses — so a fragment of shared taglib declarations, or a variables file,
 gets the blast radius its users give it, not the one its importers do.
 
+A `weak_test_signal` or `mock_saturation` finding on a test file is scored
+by the code under test: its blast radius is that of the most central
+production file the test imports (named in the evidence), because a test
+file has no importers of its own.
+
 The blast-radius integers are separately available as
 `scores.blast_radius_direct_importers` and
 `scores.blast_radius_transitive_importers`. Direct counts exclude self-edges

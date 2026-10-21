@@ -14,7 +14,7 @@ import {
   type JspResolution,
   type TagContractBreak,
 } from "@crimes/language-jsp";
-import { parseLessFile } from "@crimes/language-less";
+import { type OverriddenVariable, parseLessFile } from "@crimes/language-less";
 import type { CrimesConfig } from "./config.js";
 import type {
   CrossLanguageDetector,
@@ -114,6 +114,8 @@ export interface ScanIndexes {
    * pass, which is the one place templates are resolved.
    */
   jsp?: JspFileProblems;
+  /** LESS definitions every bundle reaching them overrides, by repo path. */
+  lessOverrides?: ReadonlyMap<string, OverriddenVariable[]>;
 }
 
 export interface JspFileProblems {
@@ -165,6 +167,7 @@ export async function buildScanIndexes(args: {
   // place a scan parses every Python file. See `py/symbol-index.ts`.
   let pySymbols: PySymbolIndex | undefined;
   let jsp: JspFileProblems | undefined;
+  let lessOverrides: Map<string, OverriddenVariable[]> | undefined;
   const imports = await safelyBuildImportGraph({
     root,
     allFiles,
@@ -175,6 +178,14 @@ export async function buildScanIndexes(args: {
     },
     onJspResolution: (resolution) => {
       jsp = indexJspProblems(resolution);
+    },
+    onLessOverrides: (overridden) => {
+      lessOverrides = new Map();
+      for (const o of overridden) {
+        const list = lessOverrides.get(o.file) ?? [];
+        list.push(o);
+        lessOverrides.set(o.file, list);
+      }
     },
   });
   const jsxShapeIndex = await safelyBuildJsxShapeIndex({
@@ -227,6 +238,7 @@ export async function buildScanIndexes(args: {
     ...(pySymbols !== undefined ? { pySymbols } : {}),
     ...(pyModuleRefs !== undefined ? { pyModuleRefs } : {}),
     ...(jsp !== undefined ? { jsp } : {}),
+    ...(lessOverrides !== undefined ? { lessOverrides } : {}),
     warnings,
     skipStructured: structuredSkipFor(root),
   };
@@ -635,8 +647,7 @@ export async function runDetectorsForFile(args: {
     }
   }
 
-  // Language-less pack. No detectors of its own yet — LESS files get the
-  // universal slate and graph edges — but the seam is here for them.
+  // Language-less pack.
   const lessDetectors = args.grouped["language-less"] ?? [];
   if (
     lessDetectors.length > 0 &&
@@ -660,6 +671,9 @@ export async function runDetectorsForFile(args: {
       config: args.config,
       imports: args.indexes.imports,
       scoring: args.indexes.scoring,
+      ...(args.indexes.lessOverrides !== undefined
+        ? { less: { overridden: args.indexes.lessOverrides.get(file) ?? [] } }
+        : {}),
     };
     for (const detector of lessDetectors) {
       const detectorFindings = await detector.run(lessCtx);

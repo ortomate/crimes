@@ -77,6 +77,7 @@ import { javaDetectors } from "./detectors/java/index.js";
 import { kotlinDetectors } from "./detectors/kotlin/index.js";
 import { swiftDetectors } from "./detectors/swift/index.js";
 import { jspDetectors } from "./detectors/jsp/index.js";
+import { lessDetectors } from "./detectors/less/index.js";
 import { crossLanguageDetectors } from "./detectors/cross/index.js";
 
 /**
@@ -167,6 +168,7 @@ export const builtInDetectors: Detector[] = [
   ...kotlinDetectors,
   ...swiftDetectors,
   ...jspDetectors,
+  ...lessDetectors,
   // Cross-language pack (0.15.0). Run once per scan after every
   // per-language pass, over the whole parsed corpus.
   ...crossLanguageDetectors,

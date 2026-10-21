@@ -22,7 +22,7 @@ records next outcomes; [strategy](../STRATEGY.md) records the objective;
 | Swift | Language pack (0.29.8): referenced-type and extension graph, XCTest and Swift Testing, the same four detectors. |
 | Kotlin | Language pack (0.29.8) sharing the JVM type index with Java; top-level and extension functions; JUnit, kotlin.test, MockK and Kotest assertions; the same four detectors. |
 | JSP | Language pack (0.31.0), a lexical scanner: includes, `web.xml` preludes, taglib prefixes through fragments, tag files, TLDs and the Java they name; `dangling_template_reference.jsp`. Not on npm yet. |
-| LESS | Language pack (0.31.0), a lexical scanner: `@import` and variable/mixin usage edges. No detectors of its own; plain `.css` is not claimed. Not on npm yet. |
+| LESS and CSS | Language pack (0.31.0), a lexical scanner reading `.less` and plain `.css`: `@import` and variable/mixin usage edges, bundle-order simulation; `overridden_variable.less`. Not on npm yet. |
 | Universal and cross-language checks | Shipped; read coverage to distinguish universal checks from parsed language analysis. |
 | Pre-edit context | Shared scan analysis, related-file findings, graph-first neighbors/tests, status and coverage diagnostics in 0.28. |
 | Working sets | `--changed`, `--files`, `--related-to`; full repository analysis supplies cross-file evidence before output selection. |

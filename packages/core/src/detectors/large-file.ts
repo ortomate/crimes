@@ -34,7 +34,7 @@ export const DATA_EXT_RE = /\.(json|jsonc|json5|yaml|yml|toml)$/i;
  * Stylesheets with their own budget (0.31.0). Templates are not here:
  * a JSP holds logic and markup together, and is held to the code budget.
  */
-export const STYLESHEET_EXT_RE = /\.less$/i;
+export const STYLESHEET_EXT_RE = /\.(?:less|css)$/i;
 
 /**
  * Default line budget for the `stylesheet` shape.
@@ -188,12 +188,15 @@ export const largeFileDetector: UniversalDetector = {
     // The "N top-level functions" evidence line the language-js variant
     // emitted is intentionally dropped — we don't have a parser. Severity
     // policy is unchanged.
-    await ctx.readSource();
+    const source = await ctx.readSource();
     const shape = shapeForFile(ctx.file);
     const policy = policyForFile(shape, ctx.config);
     const lines = ctx.lineCount;
 
     if (lines <= policy.threshold) return [];
+    // A stylesheet library copied in by hand (a theme's `bootstrap.css`)
+    // is vendored wherever it sits; its length is not the repo's to fix.
+    if (shape === "stylesheet" && looksLibraryStylesheet(source)) return [];
 
     const ratio = lines / policy.threshold;
     const severity = ratio >= 2 ? policy.severityAtTwoX : policy.severityAtThreshold;
@@ -236,7 +239,7 @@ export const largeFileDetector: UniversalDetector = {
         ...(shape === "data"
           ? ["shape: data file (matches .json/.jsonc/.json5/.yaml/.yml/.toml)"]
           : []),
-        ...(shape === "stylesheet" ? ["shape: stylesheet (matches .less)"] : []),
+        ...(shape === "stylesheet" ? ["shape: stylesheet (matches .less/.css)"] : []),
       ],
       effort: "medium",
       fix_shape:
@@ -309,4 +312,21 @@ function capitalise(s: string): string {
 
 function round(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/**
+ * A stylesheet that opens with a library's preserved-licence banner:
+ * `/*!` followed, within a few lines, by a semantic version and a
+ * copyright, licence or project URL (`/*! Bootstrap v3.4.1 (https://…)`).
+ * Minifiers and copy-in distributions keep exactly this comment; a
+ * repository's own stylesheets rarely start with one.
+ */
+export function looksLibraryStylesheet(source: string): boolean {
+  const head = source.slice(0, 600);
+  const banner = /^\s*\/\*!([\s\S]*?)\*\//.exec(head);
+  if (banner === null) return false;
+  const text = banner[1]!;
+  return (
+    /\bv?\d+\.\d+\.\d+\b/.test(text) && /copyright|licen[cs]e|https?:\/\//i.test(text)
+  );
 }

@@ -114,7 +114,7 @@
               "Python language pack with real parsing, not regexes",
               "Java and Kotlin language packs: one JVM dependency graph across both, same-package references, JUnit test discovery, swallowed exceptions and clock reads",
               "Swift language pack: dependencies through referenced types and extensions, XCTest and Swift Testing, SwiftUI-aware function budgets",
-              "JSP and LESS language packs (0.31, unreleased): pages joined to the tag files, fragments and Java they reach through includes and taglib prefixes, partials joined to the variables and mixins they use, and references JSP only checks at request time",
+              "JSP and LESS/CSS language packs (0.31, unreleased): pages joined to the tag files, fragments and Java they reach through includes and taglib prefixes, partials joined to the variables and mixins they use, references JSP only checks at request time, and LESS overrides a later import undoes",
               "Universal pack: file-level and git-derived findings in any language",
               "Cross-language detectors: route drift, type drift, concept alias drift between Python and TypeScript",
               "Per-finding feedback loop (tp/fp/known) that auto-suppresses and resurfaces for re-confirmation",
@@ -226,7 +226,7 @@
         <p class="lede">
           <code>crimes</code> is an open-source CLI that scans
           <strong>TypeScript, JavaScript, Python, Java, Kotlin and Swift</strong> repositories
-          (with <strong>JSP</strong> templates and <strong>LESS</strong> stylesheets from 0.31) for
+          (with <strong>JSP</strong> templates and <strong>LESS</strong> and CSS stylesheets from 0.31) for
           <strong>change risk</strong> and <strong>agent risk</strong>.
           It finds duplicated business rules, unclear sources of truth,
           weakly tested hotspots and swallowed errors. It also checks for
@@ -718,7 +718,7 @@ Repo-level
       <section id="detects">
         <h2>What it detects today</h2>
         <p>
-          <strong>82 detectors across ten families.</strong> The two tables
+          <strong>83 detectors across ten families.</strong> The two tables
           below are the founding families, shown in full because they are
           the easiest to picture. Every family after them links to its own
           reference page. Each lists the detectors, what raises and

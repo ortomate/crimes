@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import { discoverFiles } from "../discovery/index.js";
 import { DEFAULT_CONFIG } from "../config.js";
+import type { Finding } from "../finding.js";
 import { buildImportGraph } from "../imports/build.js";
 import {
   blastRadiusScore,
@@ -232,6 +233,40 @@ describe("buildScoringContext > blast_radius", () => {
     expect(ctx.blastRadius.directCountForFile("src/a.ts")).toBe(0);
   });
 
+  it("scores a test's quality findings by the code it covers", async () => {
+    const root = await makeRepo({
+      "src/core.ts": "export const v = 1;\n",
+      "src/a.ts": `import { v } from "./core";\nexport const a = v;\n`,
+      "src/b.ts": `import { v } from "./core";\nexport const b = v;\n`,
+      "src/leaf.ts": "export const l = 1;\n",
+      "src/core.test.ts": `import { v } from "./core";\nimport { l } from "./leaf";\nit("x", () => v + l);\n`,
+    });
+    const files = await discover(root);
+    const imports = await buildImportGraph({ root, files });
+    const ctx = await buildScoringContext({ root, files, imports });
+    expect(ctx.blastRadius.subjectOf("src/core.test.ts")?.file).toBe("src/core.ts");
+    const finding = (type: string) =>
+      ({
+        id: "",
+        type,
+        severity: "medium",
+        confidence: 0.8,
+        file: "src/core.test.ts",
+        summary: "",
+        evidence: [],
+        scores: { severity: 0.6, confidence: 0.8, agent_risk: 0.4 },
+      }) as unknown as Finding;
+    const weak = finding("weak_test_signal");
+    finaliseFindingScores(weak, ctx);
+    expect(weak.scores.blast_radius).toBe(round2(ctx.blastRadius.forFile("src/core.ts")));
+    expect(weak.evidence).toContain(
+      "blast radius scored by the code under test: src/core.ts",
+    );
+    const other = finding("large_function");
+    finaliseFindingScores(other, ctx);
+    expect(other.scores.blast_radius).toBe(0);
+  });
+
   it("separates a strongly-connected plateau by direct fan-in", () => {
     // hono has six files all reporting a transitive closure of 197 while
     // their direct fan-in ranges from 2 to 70 — every member of a
@@ -330,6 +365,7 @@ describe("finaliseFindingScores — blast radius counts", () => {
         forFile: () => 1,
         transitiveCountForFile: () => 798,
         directCountForFile: () => 5,
+        subjectOf: () => undefined,
       },
       recency: { forFile: () => 0, limited: false },
     } as import("./build.js").ScoringContext;
@@ -357,6 +393,7 @@ describe("finaliseFindingScores — files no language pack parses", () => {
         forFile: () => 0,
         transitiveCountForFile: () => 0,
         directCountForFile: () => 0,
+        subjectOf: () => undefined,
       },
       recency: { forFile: () => 1, limited: false },
     } as import("./build.js").ScoringContext;
@@ -1060,6 +1097,7 @@ describe("finaliseFindingScores — recency", () => {
         forFile: () => 0,
         transitiveCountForFile: () => 0,
         directCountForFile: () => 0,
+        subjectOf: () => undefined,
       },
       recency: { forFile: () => 0.6, limited: false },
     } as import("./build.js").ScoringContext;
@@ -1077,3 +1115,7 @@ describe("finaliseFindingScores — recency", () => {
     expect(finding.scores.recency).toBeUndefined();
   });
 });
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}

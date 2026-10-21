@@ -77,14 +77,20 @@ export function parseLessFile(input: ParseLessInput): ParsedLessFile {
       const m = IMPORT.exec(s);
       if (m !== null) {
         const options = (m[1] ?? "").split(/[()\s,]+/).filter((o) => o !== "");
-        imports.push({ path: m[3]!.trim(), options, line: lineAt(at) });
+        imports.push({
+          path: m[3]!.trim(),
+          options,
+          line: lineAt(at),
+          nested: blocks.length > 0,
+        });
       }
       return;
     }
     if (blocks.length === 0) {
       const v = VARIABLE_DEF.exec(s);
       if (v !== null && !AT_RULES.has(v[1]!)) {
-        variables.push({ name: v[1]!, line: lineAt(at) });
+        const value = s.slice(v[0].length).replace(/\s+/g, " ").trim().slice(0, 120);
+        variables.push({ name: v[1]!, line: lineAt(at), value });
         return;
       }
     }
@@ -99,7 +105,7 @@ export function parseLessFile(input: ParseLessInput): ParsedLessFile {
     if (blocks.length === 0) {
       const v = /^@([A-Za-z_][\w-]*)\s*:\s*$/.exec(s);
       if (v !== null) {
-        variables.push({ name: v[1]!, line: lineAt(at) });
+        variables.push({ name: v[1]!, line: lineAt(at), value: "{…}" });
         return undefined;
       }
       const ns = s.startsWith("#") ? selectorName(s.slice(1)) : undefined;

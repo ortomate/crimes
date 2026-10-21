@@ -18,6 +18,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
 import type { JspResolution } from "@crimes/language-jsp";
+import type { OverriddenVariable } from "@crimes/language-less";
 import { buildJspImportEdges } from "./jsp.js";
 import { buildJvmImportEdges } from "./jvm.js";
 import { buildLessImportEdges } from "./less.js";
@@ -27,7 +28,7 @@ import type { PySymbolIndex } from "../py/symbol-index.js";
 import type { ImportEdge, ImportGraph } from "./types.js";
 
 const SOURCE_EXT_RE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
-const LESS_EXT_RE = /\.less$/i;
+const LESS_EXT_RE = /\.(?:less|css)$/i;
 const CANDIDATE_EXTENSIONS = [
   ".ts",
   ".tsx",
@@ -74,6 +75,8 @@ export interface BuildImportGraphOptions {
    * callback for the same reason as {@link onPySymbolIndex}.
    */
   onJspResolution?: (resolution: JspResolution) => void;
+  /** Receives LESS variable definitions every bundle overrides. */
+  onLessOverrides?: (overridden: OverriddenVariable[]) => void;
 }
 
 interface TsconfigPaths {
@@ -171,6 +174,7 @@ export async function buildImportGraph(
   });
   edges.push(...less.edges);
   for (const f of less.files) files.add(f);
+  options.onLessOverrides?.(less.overridden);
 
   // Swift edges: referenced types to their declaring files, module-wide.
   const swift = await buildSwiftImportEdges({

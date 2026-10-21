@@ -7,7 +7,7 @@ import type {
   ParsedJspFile,
   TagContractBreak,
 } from "@crimes/language-jsp";
-import type { ParsedLessFile } from "@crimes/language-less";
+import type { OverriddenVariable, ParsedLessFile } from "@crimes/language-less";
 import type { ParsedPyFile } from "@crimes/language-py";
 import type { z } from "zod";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
@@ -624,6 +624,11 @@ export interface LanguageLessDetectorContext {
   config: CrimesConfig;
   imports?: ImportGraph;
   scoring?: ScoringContext;
+  /**
+   * This file's variable definitions that every bundle reaching them
+   * overrides. Absent when the bundle simulation did not run.
+   */
+  less?: { overridden: readonly OverriddenVariable[] };
 }
 
 /**

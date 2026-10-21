@@ -1,4 +1,5 @@
 import type { JspResolution } from "@crimes/language-jsp";
+import type { OverriddenVariable } from "@crimes/language-less";
 import type { AnalysisInputs } from "./analysis-inputs.js";
 import { profileAsync } from "./profile.js";
 import { buildFunctionHashIndex } from "./ast-hash/function-index.js";
@@ -159,6 +160,7 @@ export async function safelyBuildImportGraph(args: {
   onPySymbolIndex?: (index: PySymbolIndex) => void;
   /** Receives JSP dangling references and tag-contract breaks. */
   onJspResolution?: (resolution: JspResolution) => void;
+  onLessOverrides?: (overridden: OverriddenVariable[]) => void;
 }): Promise<ImportGraph | undefined> {
   try {
     return await profileAsync("index.imports", () =>
@@ -172,6 +174,9 @@ export async function safelyBuildImportGraph(args: {
           : {}),
         ...(args.onJspResolution !== undefined
           ? { onJspResolution: args.onJspResolution }
+          : {}),
+        ...(args.onLessOverrides !== undefined
+          ? { onLessOverrides: args.onLessOverrides }
           : {}),
       }),
     );

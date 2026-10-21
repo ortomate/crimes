@@ -32,11 +32,22 @@ describe("largeFileDetector", () => {
       makeCtx(700, { file: "styles/site.less" }),
     );
     expect(less!.severity).toBe("low");
-    expect(less!.evidence).toContain("shape: stylesheet (matches .less)");
+    expect(less!.evidence).toContain("shape: stylesheet (matches .less/.css)");
     const [jsp] = await largeFileDetector.run(
       makeCtx(500, { file: "WEB-INF/views/a.jsp" }),
     );
     expect(jsp!.severity).toBe("medium");
+  });
+
+  it("skips a stylesheet library copied in under its banner", async () => {
+    const banner =
+      "/*!\n * Bootstrap v3.4.1 (https://getbootstrap.com/)\n * Copyright 2011-2019\n */\n";
+    const ctx = makeCtx(900, { file: "themes/a/css/bootstrap.css" });
+    const withBanner = { ...ctx, readSource: async () => banner + "x\n".repeat(900) };
+    expect(await largeFileDetector.run(withBanner)).toEqual([]);
+    expect(
+      await largeFileDetector.run(makeCtx(900, { file: "styles/site.css" })),
+    ).toHaveLength(1);
   });
 
   it("returns nothing for small files", async () => {

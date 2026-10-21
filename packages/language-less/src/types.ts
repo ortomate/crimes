@@ -12,12 +12,22 @@ export interface LessImport {
   /** `(reference)`, `(css)`, `(optional)` … in source order. */
   options: string[];
   line: number;
+  /**
+   * True when the import sits inside a block. Its definitions are then
+   * scoped to that block rather than global to the bundle.
+   */
+  nested: boolean;
 }
 
 export interface LessDefinition {
   /** `brand` for `@brand`; `clearfix` for `.clearfix`; `gradient.vertical` for `#gradient > .vertical`. */
   name: string;
   line: number;
+  /**
+   * For a variable, its value as written, whitespace collapsed and cut at
+   * 120 characters; `{…}` for a detached ruleset. Absent for mixins.
+   */
+  value?: string;
 }
 
 export interface ParsedLessFile {
