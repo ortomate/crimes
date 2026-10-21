@@ -239,6 +239,11 @@ export const DETECTOR_DEFAULTS: Record<string, DetectorDefaults> = {
     effort: "small",
     fix_shape: "propagate, or record the error with enough context to act on",
   },
+  // JSP (0.31.0): a reference JSP only checks at request time.
+  dangling_template_reference: {
+    effort: "quick",
+    fix_shape: "point the reference at the file that exists, or remove it",
+  },
   unsafe_retry: {
     effort: "medium",
     fix_shape: "pass a stable idempotency key, or make the retry read-only",

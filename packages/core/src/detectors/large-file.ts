@@ -3,7 +3,7 @@ import type { UniversalDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
 import { isTestFile } from "../util/test-files.js";
 
-type LargeFileShape = "domain" | "test_file" | "docs" | "data";
+type LargeFileShape = "domain" | "test_file" | "docs" | "data" | "stylesheet";
 
 /**
  * Prose and markup files: reference documentation, not modules.
@@ -29,6 +29,23 @@ export const DOCS_EXT_RE = /\.(md|mdx|markdown|rst|adoc|asciidoc|txt)$/i;
  * manifests are already excluded by path in `DEFAULT_CONFIG`.
  */
 export const DATA_EXT_RE = /\.(json|jsonc|json5|yaml|yml|toml)$/i;
+
+/**
+ * Stylesheets with their own budget (0.31.0). Templates are not here:
+ * a JSP holds logic and markup together, and is held to the code budget.
+ */
+export const STYLESHEET_EXT_RE = /\.less$/i;
+
+/**
+ * Default line budget for the `stylesheet` shape.
+ *
+ * A stylesheet is a flat list of rules that mostly do not depend on one
+ * another, so its length costs an agent navigation — finding the rule —
+ * rather than the reasoning a long module costs. Twice the code budget:
+ * on a 948-file LESS estate the code budget reported 84 files (median
+ * 445 lines) and this one 16, the largest of them still at medium.
+ */
+const DEFAULT_STYLESHEET_THRESHOLD = 600;
 
 /**
  * Default line budget for the `docs` shape.
@@ -106,6 +123,16 @@ export function policyForFile(
       agentRiskScale: 0.5,
     };
   }
+  if (shape === "stylesheet") {
+    return {
+      threshold: overrides?.stylesheet ?? DEFAULT_STYLESHEET_THRESHOLD,
+      severityAtThreshold: "low",
+      severityAtTwoX: "medium",
+      label: "stylesheet",
+      // Below code: an edit to one rule rarely depends on the rest.
+      agentRiskScale: 0.6,
+    };
+  }
   if (shape === "docs") {
     return {
       threshold: overrides?.docs ?? DEFAULT_DOCS_THRESHOLD,
@@ -139,6 +166,7 @@ export function shapeForFile(file: string): LargeFileShape {
   // Before the test-file rule: a fixture named `users.test.json` is data
   // whichever way it is read, and the data budget is the lower of the two.
   if (DATA_EXT_RE.test(file)) return "data";
+  if (STYLESHEET_EXT_RE.test(file)) return "stylesheet";
   return isTestFile(file) ? "test_file" : "domain";
 }
 
@@ -178,7 +206,9 @@ export const largeFileDetector: UniversalDetector = {
         ? `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Documents this long are read in fragments: a reader or agent looking for one rule loads the whole file and may act on the wrong section.`
         : shape === "data"
           ? `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Check whether it is generated or bulk data before acting: length is a maintenance signal only for a file somebody edits by hand.`
-          : `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.`;
+          : shape === "stylesheet"
+            ? `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Rules this far apart are found by search rather than by reading, and a change to one can be overridden by another the editor never saw.`
+            : `${capitalise(policy.label)} is ${lines} lines (${policy.label} threshold ${policy.threshold}). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.`;
     const thresholdEvidence = isDomain
       ? `${ratio.toFixed(1)}× the configured ${policy.threshold}-line threshold`
       : `${ratio.toFixed(1)}× the configured ${policy.threshold}-line ${policy.label} threshold`;
@@ -206,6 +236,7 @@ export const largeFileDetector: UniversalDetector = {
         ...(shape === "data"
           ? ["shape: data file (matches .json/.jsonc/.json5/.yaml/.yml/.toml)"]
           : []),
+        ...(shape === "stylesheet" ? ["shape: stylesheet (matches .less)"] : []),
       ],
       effort: "medium",
       fix_shape:
@@ -213,7 +244,9 @@ export const largeFileDetector: UniversalDetector = {
           ? "split into per-topic pages; one subject per document"
           : shape === "data"
             ? "exclude it if it is generated; split by subject if it is maintained by hand"
-            : "split by responsibility; one concern per module",
+            : shape === "stylesheet"
+              ? "split into partials by component or page"
+              : "split by responsibility; one concern per module",
       scores: {
         severity: severityScore(severity),
         confidence: round(confidence),
@@ -246,6 +279,12 @@ function suggestedActionFor(shape: LargeFileShape): string {
     return (
       "Split the suite into per-feature or per-scenario files so each " +
       "behaviour can be discovered, run, and diffed in isolation."
+    );
+  }
+  if (shape === "stylesheet") {
+    return (
+      "Split into partials per component or page, imported by the bundle, " +
+      "so the rules for one thing live in one place."
     );
   }
   if (shape === "docs") {

@@ -1,6 +1,6 @@
 # Product roadmap
 
-Reviewed: 2026-10-19. This file records desired outcomes; the
+Reviewed: 2026-10-20. This file records desired outcomes; the
 [implementation status](./docs/roadmap.md) records what exists.
 
 - **0.28: trustworthy briefings and quieter defaults.** Share scan/context
@@ -27,13 +27,17 @@ Reviewed: 2026-10-19. This file records desired outcomes; the
   weak-test findings cannot rank because a test file has no test gap or
   blast of its own; score them by the code under test. See
   [calibration follow-ups](./docs/calibration-followups.md).
-- **0.31 milestone: templates and stylesheets.** JSP (`.jsp`, `.jspf`,
-  `.tag`) and LESS/CSS packs. Server-rendered views and stylesheets are a
-  large share of older Java web estates (on the estate behind 0.30, about
-  1,650 files) and are currently only reported as undiscovered. Needs a
-  grammar decision for JSP (embedded Java, EL and tag libraries), links
-  from templates to the Java they call, and detectors chosen for what those
-  files hide from an agent rather than style rules.
+- **0.31 milestone: templates and stylesheets.** JSP and LESS packs are
+  in (0.31.0, unreleased): lexical scanners rather than grammars, links
+  from pages through includes, `web.xml` preludes and taglib prefixes to
+  tag files, TLDs and the Java they name, and LESS usage edges from
+  partials to the files defining what they use. One detector,
+  `dangling_template_reference.jsp`, for references JSP only checks at
+  request time. On the estate behind 0.30 (1,089 templates, 948
+  stylesheets) every tagdir tag resolves and nothing is falsely reported
+  dangling. Still open: a LESS override detector (needs bundle import
+  order and a precision measurement), plain `.css`, and a live agent round
+  on fixtures `20` (JSP) and `21` (LESS).
 - **Measure the new packs.** Fixtures `17`–`19` pin a public Java blog
   server, Compose Android sample and UIKit iOS app, with five labelled
   scenarios (0.30.1). They show the 0.31 ranking problem on public code: a

@@ -43,6 +43,12 @@ export interface JvmImportEdgeResult {
   files: string[];
   limited: boolean;
   droppedFiles: number;
+  /**
+   * Fully qualified class name → declaring file. Templates name Java
+   * classes by qualified name (page imports, beans, tag classes), so the
+   * JSP builder resolves against this rather than re-parsing Java.
+   */
+  classes: ReadonlyMap<string, string>;
 }
 
 /**
@@ -63,7 +69,7 @@ export async function buildJvmImportEdges(
   const javaFiles = all.slice(0, maxFiles);
   const repoPaths = javaFiles.map((abs) => toRepoPath(root, abs));
   if (javaFiles.length === 0) {
-    return { edges: [], files: [], limited: false, droppedFiles: 0 };
+    return { edges: [], files: [], limited: false, droppedFiles: 0, classes: new Map() };
   }
 
   const inputs: JavaFileTypesInput[] = [];
@@ -144,6 +150,7 @@ export async function buildJvmImportEdges(
     files: repoPaths,
     limited: all.length > javaFiles.length,
     droppedFiles: all.length - javaFiles.length,
+    classes: index.byQualifiedName,
   };
 }
 

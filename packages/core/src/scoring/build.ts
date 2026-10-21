@@ -34,6 +34,7 @@ import { referenceNowMs } from "../util/reference-clock.js";
 import type { CollectChurnResult } from "../git/churn.js";
 import { componentIds } from "../imports/components.js";
 import type { ImportGraph } from "../imports/types.js";
+import { packHasTestConvention } from "../pack.js";
 import { TEST_DIR_RE, isTestFile, testBaseCovers } from "../util/test-files.js";
 import { quartileScores } from "./quartile.js";
 import {
@@ -317,9 +318,14 @@ function buildTestGapIndex(args: {
   // including docs/JSON/YAML in the population used to push every
   // markdown file into the top test_gap quartile, which then dominated
   // agent_risk. Restricting the population also keeps the quartile
-  // boundaries meaningful for the code files that remain.
-  const testable = (p: string): boolean =>
-    !isTestFile(p) && langPack.claimingPack(p) !== undefined;
+  // boundaries meaningful for the code files that remain. Templates and
+  // stylesheets are claimed but have no test convention to map, so they
+  // are outside it for the same reason (0.31.0).
+  const hasTestGapSignal = (p: string): boolean => {
+    const pack = langPack.claimingPack(p);
+    return pack !== undefined && packHasTestConvention(pack);
+  };
+  const testable = (p: string): boolean => !isTestFile(p) && hasTestGapSignal(p);
 
   const sourcePaths = repoPaths.filter(testable);
   const rawValues = sourcePaths.map((p) => rawFor(p));
@@ -333,7 +339,7 @@ function buildTestGapIndex(args: {
     forFile(repoPath) {
       if (isTestFile(repoPath)) return 0;
       // Unclaimed by any language pack — no test gap signal exists.
-      if (langPack.claimingPack(repoPath) === undefined) return 0;
+      if (!hasTestGapSignal(repoPath)) return 0;
       return quartileByPath.get(repoPath) ?? rawFor(repoPath);
     },
     rawForFile(repoPath) {
@@ -601,7 +607,7 @@ export function computeAgentRisk(args: {
 function declaredIntrinsicFor(type: string | undefined): number {
   if (typeof type !== "string" || type.length === 0) return NEUTRAL_INTRINSIC;
   const declared = getDefaultsFor(
-    type.replace(/\.(js|py|java|kt|swift|x)$/, ""),
+    type.replace(/\.(js|py|java|kt|swift|jsp|less|x)$/, ""),
   ).intrinsic;
   return typeof declared === "number" ? clamp01(declared) : NEUTRAL_INTRINSIC;
 }

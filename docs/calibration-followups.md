@@ -1180,3 +1180,82 @@ commented-out blocks 7 → 3 on iOS, 6 → 5 on Android; each top ten spans
 more files. **Still open:** clock reads hold five or six of the top ten
 on both Java backends, and short commented-out blocks in central Android
 files still rank above most swallowed errors there.
+
+## 0.31.0: JSP and LESS packs
+
+The 0.31 milestone. Both packs are lexical scanners (see the
+[design note](./superpowers/specs/2026-10-20-templates-and-stylesheets-design.md)),
+measured before they were wired into core on the private estate behind
+0.30 (1,089 templates, 948 stylesheets), on Apache Roller (fixture `17`,
+92 JSPs), spring-framework-petclinic (fixture `20`) and Bootstrap 3.4.1
+(fixture `21`).
+
+Resolution rules that each removed a false "dangling" report:
+
+- **A missing directory is an external resource.** Every one of the
+  estate's 47 unresolved static includes was three or four directory
+  levels from anything on disk: files a library jar serves from
+  `META-INF/resources`. Only a missing file in an existing directory is
+  reported.
+- **A fragment resolves from where it is included.** Relative includes in
+  fragments resolve against their includers' directories, and are not
+  judged in a fragment, or a library page, that nothing includes.
+- **A taglib URI is a name.** `/struts-tags` looks like a path and is
+  bound by a TLD in a jar; only a URI naming a `.tld` file is checked.
+- **Prefixes follow the translation unit, and `web.xml` preludes.** 601
+  tag calls in fragments used prefixes their includers declared; 594
+  pages took theirs from a `jsp-property-group` prelude. Calls whose
+  prefix no file in the repository declares (703, from jar-supplied
+  fragments) are left unresolved, never reported.
+
+With those, the estate resolves every `tagdir` tag (3,828 calls) and
+reports no dangling reference and no tag contract break — the expected
+result for production pages that render. The checks are a guard on
+edits, and are tested on constructed breakage.
+
+What universal detectors did on the new files, and the two calibration
+decisions taken:
+
+- **`commented_out_code` no longer reads `.less`.** 353 findings on 149
+  estate stylesheets, nearly all 4–9 line runs of commented-out
+  declarations. They are inert — nothing calls them, and reviving one
+  changes presentation only — and they would have been a fifth of the
+  report. JSP comments are not read by it either (it never parsed
+  `<%-- --%>`), which is unchanged.
+- **`large_file` gives `.less` a 600-line stylesheet budget**, low at the
+  threshold, medium at twice it (`thresholds.largeFile.stylesheet`). The
+  code budget reported 84 estate stylesheets (median 445 lines); this one
+  16, the largest (3,733 lines) still medium. Templates stay on the code
+  budget: a JSP holds logic and markup together.
+- **Templates and stylesheets leave the test-gap population** (they would
+  all have scored "untested" and pushed code down the quartiles), and
+  `context` gives them no test-gap clue.
+- **Crowded Module counts code edges only.** JS imports of `.less` started
+  resolving, which added a component's stylesheet imports to its fan-out
+  and raised one estate `.tsx` over the cutoff.
+
+Against a 0.30.2 build, finding by finding: Roller 444 → 451 (8 large or
+TODO-dense JSPs added; one false `orphaned_destination` on a script a JSP
+includes removed; 6 Java findings gain blast radius); Bootstrap 37 → 40
+(the three stylesheets over 600 lines); Petclinic unchanged at 1; the
+estate's web application 1,590 → 1,678, 87 of the 88 additions on
+templates or stylesheets, 253 Java findings gaining blast radius from the
+templates that use their classes, and its top 20 unchanged but for
+neighbour swaps. `crimes context` on a tag file now lists the pages that
+call it through prefixes declared elsewhere, which a search for the file
+name does not find.
+
+**Deferred:** a LESS override detector (a variable defined in several
+files of one bundle; lazy evaluation makes the last win everywhere) —
+theme files do it on purpose, the estate has 204 multiply-defined names,
+and it needs bundle import order and a precision measurement first.
+TLD-declared tag contracts are checked but were not exercised by any
+measured repository.
+
+Evals: on the stable deep set `mean_ndcg_deep` 0.4059 → 0.4057; the
+headline 0.4001 is membership (see the `0.31.0` row in
+[evals](../evals/README.md)). The new LESS scenario exposes an open
+ranking question: `large_file` on Bootstrap's `variables.less`, used by
+53 partials, ranks 34th of 40, because structural types are scaled ×0.3
+and blast radius is a fifth of the score. Whether wide use should lift a
+structural finding is undecided.

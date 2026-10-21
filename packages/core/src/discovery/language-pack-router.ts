@@ -1,6 +1,8 @@
 import { extname } from "node:path";
 import { JAVA_EXTENSIONS } from "@crimes/language-java";
+import { JSP_EXTENSIONS } from "@crimes/language-jsp";
 import { KOTLIN_EXTENSIONS } from "@crimes/language-kotlin";
+import { LESS_EXTENSIONS } from "@crimes/language-less";
 import { SWIFT_EXTENSIONS } from "@crimes/language-swift";
 import { PY_EXTENSIONS } from "@crimes/language-py";
 import type { Pack } from "../pack.js";
@@ -54,6 +56,8 @@ packExtensions.set("language-py", new Set<string>(PY_EXTENSIONS));
 packExtensions.set("language-java", new Set<string>(JAVA_EXTENSIONS));
 packExtensions.set("language-kotlin", new Set<string>(KOTLIN_EXTENSIONS));
 packExtensions.set("language-swift", new Set<string>(SWIFT_EXTENSIONS));
+packExtensions.set("language-jsp", new Set<string>(JSP_EXTENSIONS));
+packExtensions.set("language-less", new Set<string>(LESS_EXTENSIONS));
 
 /**
  * Idempotently register a pack's extension claim list. Subsequent calls

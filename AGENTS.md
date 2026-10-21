@@ -6,7 +6,7 @@ contract. Read [README](./README.md) for the workflow and
 
 ## Current capabilities
 
-TypeScript, JavaScript, Python, Java, Kotlin, Swift, cross-language and universal analysis ship.
+TypeScript, JavaScript, Python, Java, Kotlin, Swift, JSP, LESS, cross-language and universal analysis ship.
 The package version is in `packages/cli/package.json`; the JSON schema is
 `0.8.0`. [Generated reference](./docs/reference.md) lists shipped commands,
 detectors and optional defaults. [Roadmap status](./docs/roadmap.md) separates

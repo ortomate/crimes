@@ -24,6 +24,21 @@ function makeCtx(
 }
 
 describe("largeFileDetector", () => {
+  it("gives stylesheets their own budget, and holds templates to the code one", async () => {
+    expect(
+      await largeFileDetector.run(makeCtx(500, { file: "styles/site.less" })),
+    ).toEqual([]);
+    const [less] = await largeFileDetector.run(
+      makeCtx(700, { file: "styles/site.less" }),
+    );
+    expect(less!.severity).toBe("low");
+    expect(less!.evidence).toContain("shape: stylesheet (matches .less)");
+    const [jsp] = await largeFileDetector.run(
+      makeCtx(500, { file: "WEB-INF/views/a.jsp" }),
+    );
+    expect(jsp!.severity).toBe("medium");
+  });
+
   it("returns nothing for small files", async () => {
     const findings = await largeFileDetector.run(makeCtx(100));
     expect(findings).toEqual([]);

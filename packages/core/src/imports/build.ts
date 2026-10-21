@@ -17,13 +17,17 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { type CoverageWarningLog, errnoOf } from "../discovery/coverage-warnings.js";
+import type { JspResolution } from "@crimes/language-jsp";
+import { buildJspImportEdges } from "./jsp.js";
 import { buildJvmImportEdges } from "./jvm.js";
+import { buildLessImportEdges } from "./less.js";
 import { buildPythonImportEdges } from "./python.js";
 import { buildSwiftImportEdges } from "./swift.js";
 import type { PySymbolIndex } from "../py/symbol-index.js";
 import type { ImportEdge, ImportGraph } from "./types.js";
 
 const SOURCE_EXT_RE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
+const LESS_EXT_RE = /\.less$/i;
 const CANDIDATE_EXTENSIONS = [
   ".ts",
   ".tsx",
@@ -64,6 +68,12 @@ export interface BuildImportGraphOptions {
    * is a callback rather than a field on the returned graph.
    */
   onPySymbolIndex?: (index: PySymbolIndex) => void;
+  /**
+   * Receives what JSP resolution found besides edges — dangling
+   * references and tag-contract breaks — for the JSP detectors. A
+   * callback for the same reason as {@link onPySymbolIndex}.
+   */
+  onJspResolution?: (resolution: JspResolution) => void;
 }
 
 interface TsconfigPaths {
@@ -91,7 +101,12 @@ export async function buildImportGraph(
   // The "known set" — files we can resolve to. Used so that out-of-tree
   // resolved paths (e.g. the import landed outside the file set) are
   // demoted to "external" rather than producing dangling edges.
+  // Stylesheets are in it so `import "./button.less"` joins a component
+  // to its styles: LESS files are graph nodes since 0.31.0.
   const knownSet = new Set<string>(sourceFiles.map((abs) => toRepoPath(root, abs)));
+  for (const abs of options.files) {
+    if (LESS_EXT_RE.test(abs)) knownSet.add(toRepoPath(root, abs));
+  }
 
   const edges: ImportEdge[] = [];
   const out = new Map<string, ImportEdge[]>();
@@ -131,6 +146,31 @@ export async function buildImportGraph(
   });
   edges.push(...java.edges);
   for (const f of java.files) files.add(f);
+
+  // JSP: includes, tags, tag libraries, and the Java they name. After the
+  // JVM pass, whose class index it resolves against.
+  const jsp = await buildJspImportEdges({
+    inputs: options.inputs,
+    root,
+    files: options.files,
+    maxFiles,
+    javaClasses: java.classes,
+    ...(options.warnings !== undefined ? { warnings: options.warnings } : {}),
+  });
+  edges.push(...jsp.edges);
+  for (const f of jsp.files) files.add(f);
+  options.onJspResolution?.(jsp.resolution);
+
+  // LESS: imports, and partials to the files defining what they use.
+  const less = await buildLessImportEdges({
+    inputs: options.inputs,
+    root,
+    files: options.files,
+    maxFiles,
+    ...(options.warnings !== undefined ? { warnings: options.warnings } : {}),
+  });
+  edges.push(...less.edges);
+  for (const f of less.files) files.add(f);
 
   // Swift edges: referenced types to their declaring files, module-wide.
   const swift = await buildSwiftImportEdges({
@@ -196,7 +236,14 @@ export async function buildImportGraph(
   };
   const aliasPatterns = collectAliasPatterns(root);
   if (aliasPatterns.length > 0) graph.aliasPatterns = aliasPatterns;
-  if (limited || python.limited || java.limited || swift.limited) {
+  if (
+    limited ||
+    python.limited ||
+    java.limited ||
+    swift.limited ||
+    jsp.limited ||
+    less.limited
+  ) {
     graph.limited = true;
     graph.limitedReason =
       `import graph truncated to first ${maxFiles} source files; ` +
@@ -206,7 +253,9 @@ export async function buildImportGraph(
       sourceFiles.length +
       python.droppedFiles +
       java.droppedFiles +
-      swift.droppedFiles;
+      swift.droppedFiles +
+      jsp.droppedFiles +
+      less.droppedFiles;
     options.warnings?.record("index_truncated", "imports", { files: dropped });
   }
   return graph;

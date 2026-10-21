@@ -410,6 +410,41 @@ try {
   );
   process.stdout.write(`  → ${swiftFindings.length} language-swift findings\n`);
 
+  // JSP and LESS: pure TypeScript, so what can break in a packed install
+  // is the bundle — a workspace package left external would not resolve.
+  step("crimes scan on a JSP and LESS fixture (exercises the bundled lexical packs)");
+  const webRoot = mkdtempSync(join(tmp, "jsp-"));
+  const webFiles = {
+    "web/WEB-INF/includes/global.jspf":
+      '<%@ taglib prefix="ui" tagdir="/WEB-INF/tags" %>\n',
+    "web/WEB-INF/tags/card.tag": '<%@ attribute name="title" required="true" %>\n',
+    "web/WEB-INF/views/home.jsp":
+      '<%@ include file="/WEB-INF/includes/global.jspf" %>\n<ui:card/>\n',
+    "styles/site.less": '@import "variables";\n.a { color: @brand; }\n',
+    "styles/variables.less": "@brand: blue;\n",
+  };
+  for (const [rel, source] of Object.entries(webFiles)) {
+    const abs = join(webRoot, rel);
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, source);
+  }
+  const webReport = JSON.parse(
+    run(installedBin, ["scan", webRoot, "--format", "json"]).stdout,
+  );
+  assert(
+    (webReport.coverage?.files_by_language?.jsp ?? 0) === 3 &&
+      (webReport.coverage?.files_by_language?.less ?? 0) === 2,
+    "jsp/less scan: templates or stylesheets were not claimed by their packs",
+  );
+  assert(
+    webReport.findings.some(
+      (f) =>
+        f.detector_id === "dangling_template_reference.jsp" && f.claim === "tag_contract",
+    ),
+    "jsp scan: the missing required attribute was not reported — prefix resolution through the included fragment failed",
+  );
+  process.stdout.write("  → jsp tag contract checked, less files claimed\n");
+
   process.stdout.write(`\n✓ smoke test passed (crimes@${expectedVersion})\n`);
 } finally {
   if (installRoot) rmSync(installRoot, { recursive: true, force: true });

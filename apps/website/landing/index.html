@@ -114,6 +114,7 @@
               "Python language pack with real parsing, not regexes",
               "Java and Kotlin language packs: one JVM dependency graph across both, same-package references, JUnit test discovery, swallowed exceptions and clock reads",
               "Swift language pack: dependencies through referenced types and extensions, XCTest and Swift Testing, SwiftUI-aware function budgets",
+              "JSP and LESS language packs (0.31, unreleased): pages joined to the tag files, fragments and Java they reach through includes and taglib prefixes, partials joined to the variables and mixins they use, and references JSP only checks at request time",
               "Universal pack: file-level and git-derived findings in any language",
               "Cross-language detectors: route drift, type drift, concept alias drift between Python and TypeScript",
               "Per-finding feedback loop (tp/fp/known) that auto-suppresses and resurfaces for re-confirmation",
@@ -224,7 +225,8 @@
         <p class="tagline">Built for agents, readable by humans.</p>
         <p class="lede">
           <code>crimes</code> is an open-source CLI that scans
-          <strong>TypeScript, JavaScript, Python, Java, Kotlin and Swift</strong> repositories for
+          <strong>TypeScript, JavaScript, Python, Java, Kotlin and Swift</strong> repositories
+          (with <strong>JSP</strong> templates and <strong>LESS</strong> stylesheets from 0.31) for
           <strong>change risk</strong> and <strong>agent risk</strong>.
           It finds duplicated business rules, unclear sources of truth,
           weakly tested hotspots and swallowed errors. It also checks for
@@ -716,7 +718,7 @@ Repo-level
       <section id="detects">
         <h2>What it detects today</h2>
         <p>
-          <strong>81 detectors across ten families.</strong> The two tables
+          <strong>82 detectors across ten families.</strong> The two tables
           below are the founding families, shown in full because they are
           the easiest to picture. Every family after them links to its own
           reference page. Each lists the detectors, what raises and
@@ -796,7 +798,11 @@ Repo-level
           across both, including the same-package references the JVM
           resolves without an import, and the <strong>Swift pack</strong>
           (<code>v0.29.8</code>) to <code>.swift</code>, where a module's
-          types need no import at all. The
+          types need no import at all. On <code>main</code> for the next
+          release, <strong>JSP</strong> and <strong>LESS</strong> packs follow
+          what a single template or stylesheet hides: the pages that reach a
+          tag file through a prefix declared in another fragment, and the
+          partials that use a variables file they never import. The
           <strong>cross-language pack</strong> (<code>v0.15.0</code>)
           reports what neither language's own tooling can: a frontend
           calling a path the backend does not serve, a closed set listed
@@ -1012,7 +1018,8 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             <summary>Which languages does <code>crimes</code> support?</summary>
             <p>
               TypeScript and JavaScript (including JSX and TSX), Python,
-              Java and Kotlin. A universal pack runs on every file in any
+              Java, Kotlin and Swift; JSP templates and LESS stylesheets
+              are on <code>main</code> for the next release. A universal pack runs on every file in any
               language, so a Rust or Go repo still gets file-level and
               git-derived findings, and the report says those files had
               universal checks only rather than reading as clean. Since <strong>0.15.0</strong> a
@@ -1098,8 +1105,10 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
           <code>packages/language-js</code>,
           <code>packages/language-py</code>,
           <code>packages/language-java</code>,
-          <code>packages/language-kotlin</code> and
-          <code>packages/language-swift</code>, reporters in
+          <code>packages/language-kotlin</code>,
+          <code>packages/language-swift</code>,
+          <code>packages/language-jsp</code> and
+          <code>packages/language-less</code>, reporters in
           <code>packages/reporter</code>. See the
           <a href="https://github.com/ortomate/crimes/blob/main/CONTRIBUTING.md">contribution guide</a>
           to add a detector or language pack.

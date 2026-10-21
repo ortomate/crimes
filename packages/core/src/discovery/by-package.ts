@@ -22,6 +22,8 @@ const PACK_SHORT_ID: Partial<Record<Pack, string>> = {
   "language-java": "java",
   "language-kotlin": "kotlin",
   "language-swift": "swift",
+  "language-jsp": "jsp",
+  "language-less": "less",
 };
 
 /**

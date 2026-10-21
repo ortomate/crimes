@@ -108,8 +108,29 @@ async function cloneIntoExistingFixture(
   const temp = await mkdtemp(join(tmpdir(), "crimes-eval-clone-"));
   const cloneDir = join(temp, "clone");
   try {
-    await execFileAsync("git", ["clone", meta.upstream, cloneDir]);
-    await execFileAsync("git", ["-C", cloneDir, "checkout", meta.sha]);
+    // Fetch only the pinned commit. A full clone carries the upstream's
+    // whole history, which for a large project (Bootstrap) timed out
+    // mid-transfer, and the history is discarded below anyway.
+    await execFileAsync("git", ["init", "--quiet", cloneDir]);
+    await execFileAsync("git", [
+      "-C",
+      cloneDir,
+      "remote",
+      "add",
+      "origin",
+      meta.upstream,
+    ]);
+    await execFileAsync("git", [
+      "-C",
+      cloneDir,
+      "fetch",
+      "--quiet",
+      "--depth",
+      "1",
+      "origin",
+      meta.sha,
+    ]);
+    await execFileAsync("git", ["-C", cloneDir, "checkout", "--quiet", "FETCH_HEAD"]);
     await rm(join(cloneDir, ".git"), { recursive: true, force: true });
     // Move every entry in cloneDir into dir, preserving the existing
     // meta file. Skip any name collision (shouldn't happen — the

@@ -1,6 +1,6 @@
 import type { LanguageJsDetector } from "../detector.js";
 import type { PreFinding as Finding, Severity } from "../finding.js";
-import type { ImportGraph } from "../imports/types.js";
+import type { ImportEdge, ImportGraph } from "../imports/types.js";
 
 /**
  * Fires on files whose in-degree (number of importers) or out-degree
@@ -32,7 +32,8 @@ export const highFanInFanOutDetector: LanguageJsDetector = {
       return [];
     }
 
-    const fanIn = (ctx.imports.in.get(ctx.file) ?? []).length;
+    const inEdges = codeInEdges(ctx.imports, ctx.file);
+    const fanIn = inEdges.length;
     const fanOut = countLocalOut(ctx.imports, ctx.file);
 
     const overFanIn = fanIn >= stats.fanInCutoff;
@@ -55,7 +56,6 @@ export const highFanInFanOutDetector: LanguageJsDetector = {
     // The importer side is both already in the graph and cleaner: 19 of
     // that file's 20 importers write `import type`. So the signal is
     // "who is asking, and for what", not "what does this file export".
-    const inEdges = ctx.imports.in.get(ctx.file) ?? [];
     const typeOnlyIn = inEdges.filter((e) => e.typeOnly).length;
     const mostlyTypeOnly = fanIn > 0 && typeOnlyIn / fanIn >= TYPE_ONLY_SHARE;
 
@@ -157,8 +157,11 @@ function buildOrLoadStats(graph: ImportGraph): FanStats {
   return fresh;
 }
 
-/** Files whose edges come from the Java, Kotlin and Swift reference resolvers. */
-const STRUCTURED_FILE_RE = /\.(?:java|kts?|swift)$/;
+/**
+ * Files whose edges come from the Java, Kotlin, Swift, JSP and LESS
+ * reference resolvers rather than from JS/Python imports.
+ */
+const STRUCTURED_FILE_RE = /\.(?:java|kts?|swift|jsp|jspf|tag|tld|less)$/i;
 
 function computeStats(graph: ImportGraph): FanStats {
   // Java, Kotlin and Swift files are graph nodes for blast radius, but
@@ -179,7 +182,7 @@ function computeStats(graph: ImportGraph): FanStats {
   const fanIns: number[] = [];
   const fanOuts: number[] = [];
   for (const f of files) {
-    fanIns.push((graph.in.get(f) ?? []).length);
+    fanIns.push(codeInEdges(graph, f).length);
     fanOuts.push(countLocalOut(graph, f));
   }
   fanIns.sort((a, b) => a - b);
@@ -196,7 +199,9 @@ function computeStats(graph: ImportGraph): FanStats {
 /**
  * Count the file's local out-edges — bare modules don't ripple inside
  * the repo, so they don't count toward the fan-out signal even though
- * they exist on the edges list.
+ * they exist on the edges list. Neither do imports of stylesheets: a
+ * component importing its `.less` is presentation, not the code
+ * coupling this measures (0.31.0, when those edges started resolving).
  */
 function countLocalOut(graph: ImportGraph, file: string): number {
   const edges = graph.out.get(file) ?? [];
@@ -204,9 +209,15 @@ function countLocalOut(graph: ImportGraph, file: string): number {
   for (const e of edges) {
     if (e.external) continue;
     if (e.to.length === 0) continue;
+    if (STRUCTURED_FILE_RE.test(e.to)) continue;
     count += 1;
   }
   return count;
+}
+
+/** In-edges from JS/Python code; a template including a script is not one. */
+function codeInEdges(graph: ImportGraph, file: string): ImportEdge[] {
+  return (graph.in.get(file) ?? []).filter((e) => !STRUCTURED_FILE_RE.test(e.from));
 }
 
 function percentile(sorted: number[], p: number): number {

@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { parseFile, type ParsedFile } from "@crimes/language-js";
 import { parseJavaFile, type ParsedJavaFile } from "@crimes/language-java";
+import {
+  parseJspFile,
+  parseTld,
+  type ParsedJspFile,
+  type ParsedTld,
+} from "@crimes/language-jsp";
 import { parseKotlinFile, type ParsedKotlinFile } from "@crimes/language-kotlin";
+import { parseLessFile, type ParsedLessFile } from "@crimes/language-less";
 import { parsePyFile, type ParsedPyFile } from "@crimes/language-py";
 import { parseSwiftFile, type ParsedSwiftFile } from "@crimes/language-swift";
 import { profileAsync, profileSync } from "./profile.js";
@@ -14,6 +21,9 @@ interface Entry {
   java?: ParsedJavaFile;
   kotlin?: ParsedKotlinFile;
   swift?: ParsedSwiftFile;
+  jsp?: ParsedJspFile;
+  tld?: ParsedTld;
+  less?: ParsedLessFile;
   bytes: number;
 }
 
@@ -122,6 +132,46 @@ export class AnalysisInputs {
     this.put(path, {
       source,
       swift: parsed,
+      bytes: 2 * (source.length + JSON.stringify(parsed).length),
+    });
+    return parsed;
+  }
+
+  jsp(path: string, source: string): ParsedJspFile {
+    const cached = this.get(path);
+    if (cached?.source === source && cached.jsp) return cached.jsp;
+    const parsed = profileSync("input.parse-jsp", () =>
+      parseJspFile({ absolutePath: path, source }),
+    );
+    this.put(path, {
+      source,
+      jsp: parsed,
+      bytes: 2 * (source.length + JSON.stringify(parsed).length),
+    });
+    return parsed;
+  }
+
+  tld(path: string, source: string): ParsedTld {
+    const cached = this.get(path);
+    if (cached?.source === source && cached.tld) return cached.tld;
+    const parsed = profileSync("input.parse-tld", () => parseTld(source));
+    this.put(path, {
+      source,
+      tld: parsed,
+      bytes: 2 * (source.length + JSON.stringify(parsed).length),
+    });
+    return parsed;
+  }
+
+  less(path: string, source: string): ParsedLessFile {
+    const cached = this.get(path);
+    if (cached?.source === source && cached.less) return cached.less;
+    const parsed = profileSync("input.parse-less", () =>
+      parseLessFile({ absolutePath: path, source }),
+    );
+    this.put(path, {
+      source,
+      less: parsed,
       bytes: 2 * (source.length + JSON.stringify(parsed).length),
     });
     return parsed;

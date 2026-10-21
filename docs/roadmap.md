@@ -21,6 +21,8 @@ records next outcomes; [strategy](../STRATEGY.md) records the objective;
 | Java | Language pack on the shared tree-sitter runtime (0.29.6): import and same-package graph, JUnit test discovery, four detectors. No cross-language or symbol index yet. |
 | Swift | Language pack (0.29.8): referenced-type and extension graph, XCTest and Swift Testing, the same four detectors. |
 | Kotlin | Language pack (0.29.8) sharing the JVM type index with Java; top-level and extension functions; JUnit, kotlin.test, MockK and Kotest assertions; the same four detectors. |
+| JSP | Language pack (0.31.0), a lexical scanner: includes, `web.xml` preludes, taglib prefixes through fragments, tag files, TLDs and the Java they name; `dangling_template_reference.jsp`. Not on npm yet. |
+| LESS | Language pack (0.31.0), a lexical scanner: `@import` and variable/mixin usage edges. No detectors of its own; plain `.css` is not claimed. Not on npm yet. |
 | Universal and cross-language checks | Shipped; read coverage to distinguish universal checks from parsed language analysis. |
 | Pre-edit context | Shared scan analysis, related-file findings, graph-first neighbors/tests, status and coverage diagnostics in 0.28. |
 | Working sets | `--changed`, `--files`, `--related-to`; full repository analysis supplies cross-file evidence before output selection. |
@@ -52,8 +54,10 @@ These remain available for explicitly scoped reviews.
 - Scan ranking on JVM and mobile code: clock reads still lead Java backends'
   top tens, and weak-test findings on test files cannot rank (0.30.2 notes in
   [calibration follow-ups](./calibration-followups.md)).
-- JSP and LESS/CSS packs (the 0.31 milestone in the [product roadmap](../ROADMAP.md));
-  today they are reported under `files_not_discovered`.
+- JSP and LESS packs (the 0.31 milestone) are on `main` but unreleased. Still
+  open within it: a LESS detector (lazy-evaluation overrides need bundle import
+  order), TLD-declared tag contracts measured on a real estate, plain `.css`,
+  and a live agent round on fixtures `20` and `21`.
 - A live agent round on the Java, Kotlin and Swift fixtures (`17`–`19`, added in
   0.30.1); only the scan-only ranking metric covers them so far.
 - Package-level cycles for Java/Kotlin, a cross-file symbol index for the
