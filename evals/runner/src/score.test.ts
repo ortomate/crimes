@@ -1,5 +1,8 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { scoreStructural } from "./score.js";
+import { SCORED_FILE_EXTENSIONS, scoreStructural } from "./score.js";
 import { buildEvidenceIndex } from "./scan-helpers.js";
 import type { ScanContext } from "./types.js";
 
@@ -266,4 +269,33 @@ describe("extractFilePaths coverage (via scoreStructural)", () => {
       expect(detail?.passed, `${path} was not extracted from the response`).toBe(true);
     });
   }
+});
+
+describe("SCORED_FILE_EXTENSIONS", () => {
+  it("covers every extension a language pack claims", () => {
+    const packages = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../../packages",
+    );
+    const claimed: string[] = [];
+    for (const dir of readdirSync(packages).filter((d) => d.startsWith("language-"))) {
+      const index = readFileSync(join(packages, dir, "src", "index.ts"), "utf8");
+      for (const list of index.matchAll(/_EXTENSIONS = \[([^\]]*)\]/g)) {
+        for (const ext of list[1]!.matchAll(/"\.([a-z0-9]+)"/g)) claimed.push(ext[1]!);
+      }
+    }
+    expect(claimed.length).toBeGreaterThan(10);
+    const scored = new Set<string>(SCORED_FILE_EXTENSIONS);
+    expect(claimed.filter((ext) => !scored.has(ext))).toEqual([]);
+  });
+});
+
+describe("referenced_files in the agent workspace", () => {
+  it("reads a path linked absolutely into the disposable workspace", () => {
+    const result = scoreStructural(
+      "See [form](/private/var/folders/x/T/crimes-eval-agent-Ab12Cd/src/web/form.jsp:15).",
+      { referenced_files: ["src/web/form.jsp"] },
+    );
+    expect(result.details.find((d) => d.check === "referenced_files")?.passed).toBe(true);
+  });
 });

@@ -19,31 +19,28 @@ Reviewed: 2026-10-20. This file records desired outcomes; the
   use it on the private estate it was built against and judge whether its
   briefings are useful, not just correct.
 - **0.31: scan ranking that leads with what matters on JVM and mobile code.**
-  Started in 0.30.2: blast radius no longer counts round import cycles
-  (it ranked nothing on Kotlin), the commented-out-code ramp saturates at
-  16 lines instead of 6, and one file's repeated findings give way to
-  other files'. Raising the structural scale was measured and rejected.
-  Still open: clock reads lead both Java backends' top tens, and
-  weak-test findings cannot rank because a test file has no test gap or
-  blast of its own; score them by the code under test. See
+  Blast radius no longer counts round import cycles, the commented-out-code
+  ramp saturates at 16 lines, one file's repeats give way (0.30.2), and
+  test-quality findings are scored by the code under test (0.31.0).
+  Measured and rejected: raising the structural scale, and discounting
+  recorded clock reads — the clock reads leading the Java backends' top
+  tens decide expiry checks in their most central files. See
   [calibration follow-ups](./docs/calibration-followups.md).
-- **0.31 milestone: templates and stylesheets.** JSP and LESS packs are
-  in (0.31.0, unreleased): lexical scanners rather than grammars, links
-  from pages through includes, `web.xml` preludes and taglib prefixes to
-  tag files, TLDs and the Java they name, and LESS usage edges from
-  partials to the files defining what they use. One detector,
-  `dangling_template_reference.jsp`, for references JSP only checks at
-  request time. On the estate behind 0.30 (1,089 templates, 948
-  stylesheets) every tagdir tag resolves and nothing is falsely reported
-  dangling. Still open: a LESS override detector (needs bundle import
-  order and a precision measurement), plain `.css`, and a live agent round
-  on fixtures `20` (JSP) and `21` (LESS).
-- **Measure the new packs.** Fixtures `17`–`19` pin a public Java blog
-  server, Compose Android sample and UIKit iOS app, with five labelled
-  scenarios (0.30.1). They show the 0.31 ranking problem on public code: a
-  cache-busting `Date()` ranks first on the iOS app and its two
-  assertion-free view-model tests 64th and 65th. Still to do: their first
-  live agent round, and more scenarios as calibration decisions need them.
+- **0.31 milestone: templates and stylesheets.** JSP, LESS and CSS packs:
+  lexical scanners rather than grammars, links from pages through
+  includes, `web.xml` preludes and taglib prefixes to tag files, TLDs and
+  the Java they name, LESS usage edges from partials to the files defining
+  what they use, and a simulation of each LESS bundle's import order. Two
+  detectors: `dangling_template_reference.jsp` (references JSP checks only
+  at request time) and `overridden_variable.less` (definitions a later
+  import undoes in every bundle). On the estate behind 0.30 every tagdir
+  tag resolves, nothing is falsely dangling, and the four overridden
+  variables reported are all real.
+- **Measure the new packs.** Fixtures `17`–`21` pin public Java, Kotlin,
+  Swift, JSP and LESS repositories with seven labelled scenarios; the 0.31.0
+  live round covered them (0.96 for both agents). Still to do: scenarios
+  that exercise the two new detectors on deliberate breakage, and more
+  labels as calibration decisions need them.
 - **Large-repository cost.** A full n8n scan takes about 27 minutes, nearly
   all of it TypeScript parsing for the IA index. A persistent cache is the
   obvious lever and conflicts with the guarantee that every command

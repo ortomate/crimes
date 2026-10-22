@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { findOverriddenVariables } from "./overrides.js";
 import { resolveLessProject } from "./resolve.js";
 import { parseLessFile } from "./scan.js";
 
@@ -16,11 +17,11 @@ describe("parseLessFile", () => {
       ].join("\n"),
     );
     expect(parsed.imports).toEqual([
-      { path: "variables", options: [], line: 1 },
-      { path: "mixins.less", options: ["reference"], line: 2 },
-      { path: "print.css", options: ["css", "optional"], line: 3 },
-      { path: "theme.less", options: [], line: 4 },
-      { path: "~bootstrap/less/grid", options: [], line: 5 },
+      { path: "variables", options: [], line: 1, nested: false },
+      { path: "mixins.less", options: ["reference"], line: 2, nested: false },
+      { path: "print.css", options: ["css", "optional"], line: 3, nested: false },
+      { path: "theme.less", options: [], line: 4, nested: false },
+      { path: "~bootstrap/less/grid", options: [], line: 5, nested: false },
     ]);
   });
 
@@ -34,10 +35,10 @@ describe("parseLessFile", () => {
         "@media (min-width: @screen-sm) { .b { margin: 0 } }",
       ].join("\n"),
     );
-    expect(parsed.variables.map((v) => [v.name, v.line])).toEqual([
-      ["brand", 1],
-      ["link", 2],
-      ["detached", 3],
+    expect(parsed.variables.map((v) => [v.name, v.line, v.value])).toEqual([
+      ["brand", 1, "#337ab7"],
+      ["link", 2, "darken(@brand, 10%)"],
+      ["detached", 3, "{…}"],
     ]);
     expect(parsed.variableRefs).toEqual([
       "brand",
@@ -165,5 +166,71 @@ describe("resolveLessProject", () => {
       }),
     );
     expect(result.references).toEqual([]);
+  });
+});
+
+describe("findOverriddenVariables", () => {
+  const project = (sources: Record<string, string>) => ({
+    files: new Map(
+      Object.entries(sources).map(([path, source]) => [
+        path,
+        parseLessFile({ absolutePath: `/repo/${path}`, source }),
+      ]),
+    ),
+    isFile: (path: string) => path in sources,
+  });
+
+  it("reports a definition a later import overrides in every bundle", () => {
+    const result = findOverriddenVariables(
+      project({
+        "page.less":
+          '@asset-path: "../../";\n@import "constants";\n.a { background: url("@{asset-path}x.png"); }',
+        "constants.less": '@asset-path: "../";\n@brand: blue;\n@brand: blue;',
+      }),
+    );
+    expect(
+      result.map((o) => [o.file, o.line, o.name, o.value, o.winner.file, o.winner.value]),
+    ).toEqual([
+      ["constants.less", 2, "brand", "blue", "constants.less", "blue"],
+      ["page.less", 1, "asset-path", '"../../"', "constants.less", '"../"'],
+    ]);
+  });
+
+  it("keeps a base value that another bundle uses, and ignores block-scoped imports", () => {
+    const result = findOverriddenVariables(
+      project({
+        "site.less": '@import "variables";',
+        "themed.less": '@import "variables";\n@import "theme";',
+        "scoped.less": '@import "variables";\n.legacy { @import "theme"; }',
+        "variables.less": "@brand: blue;",
+        "theme.less": "@brand: red;",
+      }),
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("does not evaluate css imports", () => {
+    const result = findOverriddenVariables(
+      project({
+        "site.less": '@brand: blue;\n@import (css) "theme.less";\n@import "plain.css";',
+        "theme.less": "@brand: red;",
+        "plain.css": "",
+      }),
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("stays bounded on a chain of repeated (multiple) imports", () => {
+    const sources: Record<string, string> = {};
+    for (let i = 0; i < 40; i++) {
+      sources[`f${i}.less`] =
+        `@v: ${i};\n@import (multiple) "f${i + 1}";\n@import (multiple) "f${i + 1}";`;
+    }
+    sources["f40.less"] = "@v: 40;";
+    const started = performance.now();
+    const result = findOverriddenVariables(project(sources));
+    expect(performance.now() - started).toBeLessThan(2000);
+    // Abandoned, so nothing is claimed dead.
+    expect(result).toEqual([]);
   });
 });

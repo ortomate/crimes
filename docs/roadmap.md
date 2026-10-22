@@ -1,9 +1,9 @@
 # Implementation status
 
-Repository version: **crimes 0.30.0** (prepared), JSON schema **0.8.0**.
+Repository version: **crimes 0.31.0** (prepared), JSON schema **0.8.0**.
 The [npm package](https://www.npmjs.com/package/crimes) and
 `npm view crimes version` identify the published version; a checkout can be ahead.
-[0.30.0 release notes](./releases/v0.30.0.md) record the
+[0.31.0 release notes](./releases/v0.31.0.md) record the
 change and verification. Prior versions are documented in
 [release history](https://github.com/ortomate/crimes/tree/main/docs/releases).
 
@@ -21,8 +21,8 @@ records next outcomes; [strategy](../STRATEGY.md) records the objective;
 | Java | Language pack on the shared tree-sitter runtime (0.29.6): import and same-package graph, JUnit test discovery, four detectors. No cross-language or symbol index yet. |
 | Swift | Language pack (0.29.8): referenced-type and extension graph, XCTest and Swift Testing, the same four detectors. |
 | Kotlin | Language pack (0.29.8) sharing the JVM type index with Java; top-level and extension functions; JUnit, kotlin.test, MockK and Kotest assertions; the same four detectors. |
-| JSP | Language pack (0.31.0), a lexical scanner: includes, `web.xml` preludes, taglib prefixes through fragments, tag files, TLDs and the Java they name; `dangling_template_reference.jsp`. Not on npm yet. |
-| LESS | Language pack (0.31.0), a lexical scanner: `@import` and variable/mixin usage edges. No detectors of its own; plain `.css` is not claimed. Not on npm yet. |
+| JSP | Language pack (0.31.0), a lexical scanner: includes, `web.xml` preludes, taglib prefixes through fragments, tag files, TLDs and the Java they name; `dangling_template_reference.jsp`. |
+| LESS and CSS | Language pack (0.31.0), a lexical scanner reading `.less` and plain `.css`: `@import` and variable/mixin usage edges, bundle-order simulation; `overridden_variable.less`. |
 | Universal and cross-language checks | Shipped; read coverage to distinguish universal checks from parsed language analysis. |
 | Pre-edit context | Shared scan analysis, related-file findings, graph-first neighbors/tests, status and coverage diagnostics in 0.28. |
 | Working sets | `--changed`, `--files`, `--related-to`; full repository analysis supplies cross-file evidence before output selection. |
@@ -51,15 +51,11 @@ These remain available for explicitly scoped reviews.
   still analyzes the repository. See [performance](./performance.md) for
   reproducible timing, memory and unchanged-report checks. No disk cache ships.
 - Homebrew and standalone binaries, with Python WASM parity verification.
-- Scan ranking on JVM and mobile code: clock reads still lead Java backends'
-  top tens, and weak-test findings on test files cannot rank (0.30.2 notes in
-  [calibration follow-ups](./calibration-followups.md)).
-- JSP and LESS packs (the 0.31 milestone) are on `main` but unreleased. Still
-  open within it: a LESS detector (lazy-evaluation overrides need bundle import
-  order), TLD-declared tag contracts measured on a real estate, plain `.css`,
-  and a live agent round on fixtures `20` and `21`.
-- A live agent round on the Java, Kotlin and Swift fixtures (`17`–`19`, added in
-  0.30.1); only the scan-only ranking metric covers them so far.
+- Scan ranking on JVM and mobile code: clock reads still lead the Java
+  backends' top tens; discounting them was measured and rejected (0.31.0
+  notes in [calibration follow-ups](./calibration-followups.md)). Whether a
+  widely used file should lift its structural findings is undecided.
+- TLD-declared tag contracts, which no measured repository exercised.
 - Package-level cycles for Java/Kotlin, a cross-file symbol index for the
   structured packs, and Java 21 type patterns (a tree-sitter-java gap).
 - Further language packs (Go, Rust, C# and others report as `files_universal_only`)

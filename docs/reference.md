@@ -52,7 +52,7 @@ Use `diff`, `verdict`, or a baseline when you need a finding delta.
 
 ## Detectors
 
-83 registered detectors; 5 optional and off by default.
+84 registered detectors; 5 optional and off by default.
 An optional id in `detectors.enable` adds that detector without disabling the defaults.
 
 | ID | Charge | Default |
@@ -115,6 +115,7 @@ An optional id in `detectors.enable` adds that detector without disabling the de
 | `negative_flag_maze` | Negative Flag Maze | On |
 | `option_bag_junk_drawer` | Option Bag Junk Drawer | On |
 | `orphaned_destination` | Orphaned Destination | On |
+| `overridden_variable.less` | Overruled Variable (LESS) | On |
 | `oversized_raster` | Oversized Raster | On |
 | `parallel_destination` | Parallel Destination | Off (optional) |
 | `pass_through_abstraction` | Abstraction Laundering | On |

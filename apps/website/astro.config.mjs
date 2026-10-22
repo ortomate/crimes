@@ -24,7 +24,7 @@ export default defineConfig({
     starlight({
       title: "crimes docs",
       description:
-        "Documentation for `crimes`, the agent-native change & risk scanner for TypeScript, JavaScript, Python, Java, Kotlin and Swift repos, with JSP and LESS from 0.31.",
+        "Documentation for `crimes`, the agent-native change & risk scanner for TypeScript, JavaScript, Python, Java, Kotlin, Swift, JSP and LESS repos.",
       head: [
         {
           tag: "script",

@@ -1,0 +1,55 @@
+{
+  "scenario": "context-14-what-was-not-scanned",
+  "agent": "claude",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.387Z",
+  "run_id": "157b92e3-f679-4387-bb86-ad13afcb6f19",
+  "response": "## What the scan found\n\nThere are 2 findings, both medium and both in `app/pricing.py`:\n\n1. **`crime_00001`: Temporal Recklessness**, line 20. There's a direct `datetime.now()` call with no `tz=`, so it reads the wall clock and returns a naive datetime. Tests can't pin the time without patching the module. Comparing the result with a timezone-aware datetime raises `TypeError`. The suggested fix is to inject a clock and pass `tz=timezone.utc` explicitly.\n2. **`crime_00002`: Unfinished Business**, lines 8–11. There are 4 TODOs in a 22-line file (181.8 per 1k LOC, against a threshold of 10), so it's hard to tell which pricing logic is meant to be final.\n\nNeither finding has test coverage (`test_gap: 1`), and nothing imports the file (`blast_radius: 0`).\n\n## What the scan didn't look at, and why\n\n- **2 Python source files were skipped**, both in **`legacy_v1/`**: `legacy_v1/discounts.py` and `legacy_v1/pricing.py`. The scan's own `files_excluded_by_tooling` warning says they were skipped because the repo's tooling excludes them, and that \"findings in them are absent, not zero.\"\n- **Who asked for it:** the JSON doesn't name the tool, so I opened `pyproject.toml`. Three tools there exclude `legacy_v1`:\n  - **ruff**: `extend-exclude = ['legacy_v1']`\n  - **coverage.py**: `omit = ['legacy_v1/*']`\n  - **codespell**: `skip = '.git,legacy_v1/*'`\n\n  crimes was right to ignore two other entries in the same file. Hatch's sdist `exclude = [\"*\"]` is a packaging setting, not a sign the code is unmaintained. uv's `exclude-newer = \"4 days\"` is a time window, not a path.\n- **Scale:** the scan analysed exactly **one** Python file (`files_by_language: {\"py\": 1}`); the other counted file is `pyproject.toml`. The skipped code is 40 lines against 22 scanned, so **about 65% of the repo's Python wasn't examined.** It includes a second `pricing.py`. `app/` doesn't import anything from `legacy_v1`, but that doesn't tell us whether something outside the repo still calls it.\n- Five detectors are also off by default (`accessible_interaction_risk`, `boolean_naming_drift`, `boolean_naming_drift.py`, `design_token_escape`, `parallel_destination`). That's a smaller gap, but it's also not covered.\n\n## Would I trust it as the full picture?\n\n**No.** It's a fair report on `app/`, but it says nothing about most of the billing code. \"2 medium, 0 high\" means \"no high findings in the one file we looked at,\" not \"low risk.\" The skipped code is also the code every safety net has been switched off for: no linting, no spell-checking, and test coverage isn't measured there. That makes it more likely to hide problems, not less. And a legacy `pricing.py` next to the current one is a classic place for duplicated or drifted billing logic.\n\n## How I'd check the skipped code\n\n1. Set `\"honourToolingExcludes\": false` in `crimes.config.json` (the fix the warning itself suggests) and run `crimes scan --format json` again. Then compare the findings for `legacy_v1/*` with those for `app/`.\n2. Run the repo's own tools on it directly, for example `ruff check legacy_v1/`, and run tests with coverage without the `omit` to see whether anything tests that code.\n3. Look for callers outside this repo (deploy configs, entry points, other services) to decide whether `legacy_v1` is live code or dead code that should be deleted rather than fixed.",
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "app/pricing.py",
+        "observed": "app/pricing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Unfinished Business": "todo_density"
+    },
+    "detector_id_by_evidence": {
+      "1× datetime.now()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "1 of 1 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20": "direct_date",
+      "181.8 markers per 1k LOC (threshold 10)": "todo_density"
+    }
+  }
+}

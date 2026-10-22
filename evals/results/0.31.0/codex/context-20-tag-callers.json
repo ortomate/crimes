@@ -1,0 +1,52 @@
+{
+  "scenario": "context-20-tag-callers",
+  "agent": "codex",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.509Z",
+  "run_id": "a9b1351d-382e-4ce7-843b-628e40d6f0ee",
+  "response": "I’ll run the context command, verify the callers and their taglib declarations, and check what validation is needed before making `placeholder` required.\n\n\nRan `crimes context src/main/webapp/WEB-INF/tags/inputField.tag --format json` and verified the source. It identifies **three calling pages, with nine invocations**:\n\n| Page under `src/main/webapp/WEB-INF/jsp/` | Calls |\n|---|---|\n| [owners/createOrUpdateOwnerForm.jsp](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-X6zNGX/src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp:15) | `firstName`, `lastName`, `address`, `city`, `telephone` |\n| [pets/createOrUpdatePetForm.jsp](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-X6zNGX/src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp:29) | `name`, `birthDate` |\n| [pets/createOrUpdateVisitForm.jsp](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-X6zNGX/src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp:39) | `date`, `description` |\n\nAll three declare:\n\n```jsp\n<%@ taglib prefix=\"petclinic\" tagdir=\"/WEB-INF/tags\" %>\n```\n\nTheir `<petclinic:inputField .../>` calls therefore resolve to `/WEB-INF/tags/inputField.tag`. **None currently supplies `placeholder`.** The other context results are neighboring tag files marked “same directory,” not callers.\n\nBefore shipping, I would check:\n\n- All nine calls receive appropriate placeholders alongside the required attribute declaration, and the tag forwards `${placeholder}` to its inner `<form:input>`.\n- Rendered attributes are escaped correctly, labels remain present, and date hints agree with formatting and date-picker behavior.\n- JSP precompilation or actual requests against a fresh servlet-container deployment succeed for owner/pet create and edit forms, the new-visit form, and validation-error redisplays.\n- Existing controller tests still pass, while recognizing that their standalone MockMvc view-name assertions do not prove JSP translation succeeds.\n\nContext reports no mapped tests and no findings for this tag; neither establishes that this contract change is safe.",
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp",
+        "observed": "src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp",
+        "observed": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp",
+        "observed": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "dangling_template_reference"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "raster_should_be_vector"
+    },
+    "detector_id_by_charge": {
+      "Icon-Sized Raster": "raster_should_be_vector"
+    },
+    "detector_id_by_evidence": {
+      "dimensions: 16 × 16 px (≤ 64 threshold both sides)": "raster_should_be_vector",
+      "consider replacing with an SVG icon — same render at every DPI, smaller bytes": "raster_should_be_vector"
+    }
+  }
+}

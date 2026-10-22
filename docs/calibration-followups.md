@@ -1259,3 +1259,49 @@ ranking question: `large_file` on Bootstrap's `variables.less`, used by
 53 partials, ranks 34th of 40, because structural types are scaled ×0.3
 and blast radius is a fifth of the score. Whether wide use should lift a
 structural finding is undecided.
+
+### Plain CSS, the LESS override detector, and the open ranking items
+
+- **Plain `.css` joins the LESS pack**, read as the subset it is
+  (coverage counts it as `css`). On every fixture and the estate it adds
+  one finding per repository at most: a 934-line application stylesheet
+  on the estate, Bootstrap's own `docs.css`, and Roller's theme copy of
+  `bootstrap.css` — which `large_file` now skips, because a stylesheet
+  opening with a library's `/*! name vX.Y.Z` licence banner is vendored
+  wherever it sits.
+- **`overridden_variable.less`** simulates each bundle's import order and
+  reports a top-level definition that a later one overrides in every
+  bundle compiling it. On the estate the first prototype reported 58,
+  54 of them a vendored Bootstrap `_variables.less` the application's
+  colours file customises — the theme pattern, and never reportable once
+  vendored files are skipped. The four that remain are all real: two
+  identical redefinitions in one file, and two overrides a later
+  `constants` import undoes (an asset path and a feature flag whose
+  intended value never applies). Bootstrap 3 has none. Imports inside a
+  block were found to be common and are not followed.
+- **Accepted: test-quality findings are scored by the code under test.**
+  `weak_test_signal` and `mock_saturation` on a test file take the blast
+  radius of the most central production file it imports, with an
+  evidence line naming it. `mean_ndcg_deep` 0.4001 → 0.4041 (4 up, 7
+  down by at most 0.029): the iOS fixture's silent view-model tests
+  first rank 50 → 6, `bugfix-04-weak-tests` 20 → 9. Test gap stays 0, as
+  measured in 0.30.2.
+- **Rejected: weighting recorded clock reads at a quarter in files that
+  also compare.** It would move clock reads out of the Java backends' top
+  tens (7 → 4 and 5 → 4) but cost 0.0101 deep, all of it on the labelled
+  case it should keep: a date helper with one comparison and five
+  readings. The clock reads leading those top tens sit in the most
+  central files of each backend (blast 0.94–0.97) and decide expiry and
+  age checks; the parser already drops named stopwatches. They stay.
+
+Live round (0.31.0, 134/134 cells): the seven scenarios added since 0.29.9
+score 0.96 for both agents. Both agents answered the two new context
+scenarios correctly while scoring 0.25 and 0 at first: the scorer did not
+recognise `.jsp`/`.less` paths, and did not count paths linked into the
+agent's workspace. Both were scorer faults and were corrected by replay.
+The agents' answers also exposed a product fault, fixed before release:
+`context` called LESS variable users and JSP tag callers "imports this
+file", and one agent went looking for `@import`s that did not exist. Edges
+are now labelled by kind ("uses @brand, defined here", "calls this tag as
+<x:card>", "includes this file").
+

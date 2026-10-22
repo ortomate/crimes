@@ -19,8 +19,9 @@ For the agent workflow that consumes findings, see
 | `deep_import`            | Deep Import Abuse       | low-medium     | 0.70-0.85  |
 | `high_fan_in_fan_out`    | Crowded Module          | low-medium     | 0.70-0.80  |
 | `dangling_template_reference` | Dangling Template Reference | medium | 0.75-0.80 |
+| `overridden_variable` | Overruled Variable | low-medium | 0.80-0.85 |
 
-All five use the standard `Finding` shape and add an `imports_limited`
+All six use the standard `Finding` shape and add an `imports_limited`
 flag to `ScanReport` when the graph hit its performance budget: same
 shape as `HotspotsReport.history_limited`. Crowded Module counts code
 edges only: a component importing its stylesheet, or a template including
@@ -189,3 +190,42 @@ or markup style is reported.
 remove it; for a contract break, pass the attributes the tag requires and
 only those it declares. `crimes context <tag file>` lists the pages that
 call a tag, including through prefixes declared in shared fragments.
+
+---
+
+## Overruled Variable (`overridden_variable`)
+
+**What it detects.** A top-level LESS variable definition that a later
+definition overrides in every bundle that compiles it (0.31.0). LESS
+evaluates variables lazily, and the last definition in a scope wins for
+every use — including uses written above it. Bundles are LESS files no
+other LESS file imports; each one's evaluation order is simulated from its
+imports in source order. Claims: `different_value` (medium — an override
+that never applies) and `same_value` (low — a redundant copy).
+
+**Example evidence.**
+
+```text
+defined here: `@asset-path: '../../'` (line 5)
+overridden by: `@asset-path: '../'` at styles/constants.less:13
+bundles: styles/standalone.less, styles/print.less, styles/embed.less
+no bundle that compiles this file uses this definition
+```
+
+**Why it matters.** The file shows a value that is never used. An agent
+asked to change it edits the line it can see, and nothing changes — or,
+for an override written before the import that undoes it, the intended
+value silently never took effect.
+
+**What it deliberately does not claim.** A base value that one bundle
+overrides and another uses — the theme pattern — is live and not
+reported. Imports inside a block are not followed: what they define is
+scoped to the block. `(css)` imports and `.css` paths are not evaluated.
+Vendored and generated stylesheets are not read at all, so customising a
+vendored framework's variables is not reported against it. A bundle whose
+simulation exceeds its budget (`(multiple)` imports can re-evaluate files
+without bound) is abandoned and counts every definition it reached as live.
+
+**Suggested action.** Decide which value is intended. Move an override
+after the import that redefines it, or delete the dead definition.
+

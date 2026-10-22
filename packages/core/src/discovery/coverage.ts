@@ -66,7 +66,7 @@ export function buildCoverage(args: {
       }
       continue;
     }
-    const shortId = PACK_SHORT_ID[claimingPack] ?? claimingPack;
+    const shortId = languageIdFor(claimingPack, abs);
     filesByLanguage[shortId] = (filesByLanguage[shortId] ?? 0) + 1;
   }
 
@@ -106,4 +106,15 @@ function extensionKey(absolutePath: string): string {
 
 function toRepoPath(root: string, abs: string): string {
   return relative(root, abs).split(sep).join("/");
+}
+
+/**
+ * The `files_by_language` key for a claimed file. One pack can read more
+ * than one language: the LESS pack reads plain CSS as the subset it is,
+ * and a CSS file counted as `less` would misdescribe a React app.
+ */
+export function languageIdFor(pack: Pack, absolutePath: string): string {
+  if (pack === "language-less" && extname(absolutePath).toLowerCase() === ".css")
+    return "css";
+  return PACK_SHORT_ID[pack] ?? pack;
 }

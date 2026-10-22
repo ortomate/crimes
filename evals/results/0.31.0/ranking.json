@@ -2,8 +2,8 @@
   "crimes_version": "0.31.0",
   "reference_date": "2026-08-11T00:00:00Z",
   "depth_floor": 28,
-  "mean_ndcg_deep": 0.4001,
-  "mean_ndcg_all": 0.4758,
+  "mean_ndcg_deep": 0.4041,
+  "mean_ndcg_all": 0.4784,
   "scored_deep": 38,
   "scored_all": 63,
   "skipped": 4,
@@ -34,8 +34,8 @@
     },
     {
       "fixture": "less-bootstrap",
-      "total_findings": 40,
-      "margin": 12,
+      "total_findings": 41,
+      "margin": 13,
       "deep_scenarios": 1,
       "share": 0.02631578947368421,
       "cliff": false
@@ -118,26 +118,26 @@
     {
       "scenario": "bugfix-04-unbounded-fanout",
       "fixture": "monorepo",
-      "ndcg": 0.23981246656813146,
-      "first_relevant_rank": 17,
-      "priority_rank": 17,
+      "ndcg": 0.21533827903669656,
+      "first_relevant_rank": 24,
+      "priority_rank": 24,
       "total_findings": 76,
       "relevant_findings": 1,
-      "top20_dominant_type": "name_behavior_mismatch",
-      "top20_dominant_share": 0.2,
-      "top20_distinct_types": 8
+      "top20_dominant_type": "weak_test_signal",
+      "top20_dominant_share": 0.3,
+      "top20_distinct_types": 7
     },
     {
       "scenario": "bugfix-04-weak-tests",
       "fixture": "monorepo",
-      "ndcg": 0.5510157327417584,
-      "first_relevant_rank": 20,
-      "priority_rank": 20,
+      "ndcg": 0.601763821065507,
+      "first_relevant_rank": 9,
+      "priority_rank": 9,
       "total_findings": 76,
       "relevant_findings": 20,
-      "top20_dominant_type": "name_behavior_mismatch",
-      "top20_dominant_share": 0.2,
-      "top20_distinct_types": 8
+      "top20_dominant_type": "weak_test_signal",
+      "top20_dominant_share": 0.3,
+      "top20_distinct_types": 7
     },
     {
       "scenario": "bugfix-08-stress-dependency",
@@ -255,9 +255,9 @@
       "priority_rank": 4,
       "total_findings": 76,
       "relevant_findings": 1,
-      "top20_dominant_type": "name_behavior_mismatch",
-      "top20_dominant_share": 0.2,
-      "top20_distinct_types": 8
+      "top20_dominant_type": "weak_test_signal",
+      "top20_dominant_share": 0.3,
+      "top20_distinct_types": 7
     },
     {
       "scenario": "context-09-clean-tiny",
@@ -325,9 +325,9 @@
     {
       "scenario": "context-15-mock-saturation",
       "fixture": "risky-service",
-      "ndcg": 0.23981246656813146,
-      "first_relevant_rank": 17,
-      "priority_rank": 17,
+      "ndcg": 0.2559580248098155,
+      "first_relevant_rank": 14,
+      "priority_rank": 14,
       "total_findings": 22,
       "relevant_findings": 1,
       "top20_dominant_type": "swallowed_error",
@@ -353,7 +353,7 @@
       "ndcg": 0.1949590218937863,
       "first_relevant_rank": 34,
       "priority_rank": null,
-      "total_findings": 40,
+      "total_findings": 41,
       "relevant_findings": 1,
       "top20_dominant_type": "large_function",
       "top20_dominant_share": 0.7,
@@ -398,14 +398,14 @@
     {
       "scenario": "plan-04-hotspots",
       "fixture": "monorepo",
-      "ndcg": 0.47179604653265556,
-      "first_relevant_rank": 35,
-      "priority_rank": 52,
+      "ndcg": 0.4668088753209818,
+      "first_relevant_rank": 38,
+      "priority_rank": 54,
       "total_findings": 76,
       "relevant_findings": 32,
-      "top20_dominant_type": "name_behavior_mismatch",
-      "top20_dominant_share": 0.2,
-      "top20_distinct_types": 8
+      "top20_dominant_type": "weak_test_signal",
+      "top20_dominant_share": 0.3,
+      "top20_distinct_types": 7
     },
     {
       "scenario": "plan-06-stress-duplication",
@@ -446,7 +446,7 @@
     {
       "scenario": "plan-16-checkout-rollout",
       "fixture": "recency",
-      "ndcg": 0.8936142427230162,
+      "ndcg": 0.8922817808252513,
       "first_relevant_rank": 1,
       "priority_rank": 1,
       "total_findings": 29,
@@ -542,14 +542,14 @@
     {
       "scenario": "refactor-04-monorepo",
       "fixture": "monorepo",
-      "ndcg": 0.7606315018363996,
+      "ndcg": 0.7380458322989605,
       "first_relevant_rank": 1,
       "priority_rank": 2,
       "total_findings": 76,
       "relevant_findings": 13,
-      "top20_dominant_type": "name_behavior_mismatch",
-      "top20_dominant_share": 0.2,
-      "top20_distinct_types": 8
+      "top20_dominant_type": "weak_test_signal",
+      "top20_dominant_share": 0.3,
+      "top20_distinct_types": 7
     },
     {
       "scenario": "refactor-05-action-labels",
@@ -734,7 +734,7 @@
     {
       "scenario": "review-03-node-cli-tool",
       "fixture": "node-cli-tool",
-      "ndcg": 0.78743778828293,
+      "ndcg": 0.7884456420017804,
       "first_relevant_rank": 1,
       "priority_rank": 5,
       "total_findings": 51,
@@ -746,14 +746,14 @@
     {
       "scenario": "review-04-swallowed-errors",
       "fixture": "monorepo",
-      "ndcg": 0.3637494399231405,
-      "first_relevant_rank": 13,
-      "priority_rank": 13,
+      "ndcg": 0.3351786154822173,
+      "first_relevant_rank": 19,
+      "priority_rank": 19,
       "total_findings": 76,
       "relevant_findings": 4,
-      "top20_dominant_type": "name_behavior_mismatch",
-      "top20_dominant_share": 0.2,
-      "top20_distinct_types": 8
+      "top20_dominant_type": "weak_test_signal",
+      "top20_dominant_share": 0.3,
+      "top20_distinct_types": 7
     },
     {
       "scenario": "review-05-permission-and-parallel",
@@ -818,9 +818,9 @@
     {
       "scenario": "review-15-agent-config",
       "fixture": "risky-service",
-      "ndcg": 0.3426013711908044,
-      "first_relevant_rank": 15,
-      "priority_rank": 15,
+      "ndcg": 0.33782057848058294,
+      "first_relevant_rank": 16,
+      "priority_rank": 16,
       "total_findings": 22,
       "relevant_findings": 3,
       "top20_dominant_type": "swallowed_error",
@@ -842,9 +842,9 @@
     {
       "scenario": "review-16-whole-repo-audit",
       "fixture": "recency",
-      "ndcg": 0.42278983440665036,
-      "first_relevant_rank": 6,
-      "priority_rank": 6,
+      "ndcg": 0.39780880120575696,
+      "first_relevant_rank": 7,
+      "priority_rank": 7,
       "total_findings": 29,
       "relevant_findings": 2,
       "top20_dominant_type": "swallowed_error",
@@ -885,19 +885,19 @@
       "relevant_findings": 2,
       "top20_dominant_type": "large_file",
       "top20_dominant_share": 0.4,
-      "top20_distinct_types": 5
+      "top20_distinct_types": 6
     },
     {
       "scenario": "review-19-silent-view-model-tests",
       "fixture": "swift-ios",
-      "ndcg": 0.21565398338011652,
-      "first_relevant_rank": 50,
-      "priority_rank": 50,
+      "ndcg": 0.42278983440665036,
+      "first_relevant_rank": 6,
+      "priority_rank": 6,
       "total_findings": 366,
       "relevant_findings": 2,
       "top20_dominant_type": "large_file",
       "top20_dominant_share": 0.4,
-      "top20_distinct_types": 5
+      "top20_distinct_types": 6
     }
   ]
 }

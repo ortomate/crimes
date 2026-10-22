@@ -238,9 +238,9 @@ export const DEFAULT_SOURCE_INCLUDES: string[] = [
   // Other popular source languages — universal pack only for now
   "**/*.{rs,go,rb,java,kt,scala,swift,c,h,cpp,hpp,cs,php,ex,exs,lua,sh,bash,zsh}",
   // Server-side templates and stylesheets (language-jsp and language-less
-  // packs, 0.31.0). `.tld` descriptors are what bind a page's taglib to
-  // its tag files and classes.
-  "**/*.{jsp,jspf,tag,tld,less}",
+  // packs, 0.31.0; the LESS pack reads plain CSS too). `.tld` descriptors
+  // are what bind a page's taglib to its tag files and classes.
+  "**/*.{jsp,jspf,tag,tld,less,css}",
   // Documentation. Must stay in step with `large_file`'s `DOCS_EXT_RE`:
   // that detector has recognised seven prose extensions since 0.17.0
   // and only two of them were ever discovered, so the `docs` line

@@ -43,6 +43,8 @@ const FILES: Record<string, string> = {
   "styles/site.less": '@import "variables";\n@import "buttons";\n',
   "styles/variables.less": "@brand: #337ab7;\n",
   "styles/buttons.less": ".btn { color: @brand; }\n",
+  // A page that tries to restyle, then imports the file that undoes it.
+  "styles/promo.less": '@brand: #c00;\n@import "variables";\n.promo { color: @brand; }\n',
 };
 
 describe("JSP and LESS through scan()", () => {
@@ -65,7 +67,7 @@ describe("JSP and LESS through scan()", () => {
   it("counts templates, descriptors and stylesheets under their packs", () => {
     expect(report.coverage?.files_by_language).toMatchObject({
       jsp: 5,
-      less: 3,
+      less: 4,
       java: 1,
     });
     expect(report.coverage?.packs_loaded).toContain("language-jsp");
@@ -101,12 +103,27 @@ describe("JSP and LESS through scan()", () => {
         `${WEB}/WEB-INF/views/home.jsp`,
       ]),
     );
+    expect(
+      report.related_files.find((r) => r.file === `${WEB}/WEB-INF/views/home.jsp`)
+        ?.reason,
+    ).toContain("calls this tag as <ui:card>");
     expect(report.clues?.test_gap).toBeUndefined();
     expect(report.likely_tests_reason).toMatch(/no unit-test convention/);
   });
 
+  it("reports a LESS override a later import undoes", () => {
+    const overridden = report.findings.filter((f) => f.type === "overridden_variable");
+    expect(overridden.map((f) => [f.file, f.lines?.[0], f.claim, f.symbol])).toEqual([
+      ["styles/promo.less", 1, "different_value", "@brand"],
+    ]);
+    expect(overridden[0]!.evidence).toContain(
+      "overridden by: `@brand: #337ab7` at styles/variables.less:1",
+    );
+  });
+
   it("joins a LESS partial to the file defining what it uses", async () => {
     const report = await context({ root, file: "styles/variables.less" });
-    expect(report.related_files.map((r) => r.file)).toContain("styles/buttons.less");
+    const buttons = report.related_files.find((r) => r.file === "styles/buttons.less");
+    expect(buttons?.reason).toContain("uses @brand, defined here");
   });
 });

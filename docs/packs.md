@@ -48,12 +48,17 @@ read. Each finding carries a `pack` field identifying its origin pack.
   resource and never reported, nor is a relative path in a fragment or
   library page that nothing in the repository includes.
 - **`language-less`** (0.31.0): `@crimes/language-less`, also lexical.
-  Runs on `.less`. Edges run along `@import` (resolved as `lessc` does by
-  default) and from a partial to the files defining the variables and
-  mixins it uses, because a partial compiled inside a bundle uses names
-  it never imports; a name defined in more than three files draws no
-  usage edge. No detectors of its own. JavaScript imports of `.less`
-  files resolve too, and do not count as code fan-out.
+  Runs on `.less` and plain `.css`, read as the LESS subset (coverage
+  counts those as `css`). Edges run along `@import` (resolved as `lessc`
+  does by default) and from a partial to the files defining the variables
+  and mixins it uses, because a partial compiled inside a bundle uses
+  names it never imports; a name defined in more than three files draws
+  no usage edge. JavaScript imports of stylesheets resolve too, and do not
+  count as code fan-out. Ships `overridden_variable.less`: a top-level
+  variable definition that a later definition overrides in every bundle
+  compiling it (LESS uses the last definition everywhere), found by
+  simulating each bundle's import order; block-scoped imports are not
+  followed, and a base value one bundle uses is never reported.
 - **`cross-language`** (0.15.0): Requires aligning artefacts from
   two or more language packs. Runs once per scan, after every per-pack
   pass.
@@ -62,7 +67,8 @@ Templates and stylesheets are outside the `test_gap` population: no
 convention maps a unit test to a page or a stylesheet, so they score 0
 there (as documentation does) and `context` gives no test-gap clue for
 them. Their blast radius is scored. `large_file` holds templates to the
-code budget and gives `.less` files a 600-line stylesheet budget;
+code budget and gives stylesheets a 600-line budget (and skips a
+stylesheet library copied in under its `/*! name vX.Y.Z` banner);
 `commented_out_code` does not read stylesheets, whose commented-out
 declarations are inert.
 

@@ -102,6 +102,12 @@ export interface BlastRadiusIndex {
    * signal reported alongside it.
    */
   directCountForFile(repoPath: string): number;
+  /**
+   * For a test file: the production file it imports with the widest
+   * blast radius, which is the code a hollow test leaves unprotected.
+   * Undefined when the test imports no production file in the graph.
+   */
+  subjectOf(testFile: string): { file: string; blast: number } | undefined;
 }
 
 export { referenceNowMs };
@@ -434,8 +440,32 @@ function buildBlastRadiusIndex(args: {
     directCountForFile(repoPath) {
       return directFor(repoPath);
     },
+    subjectOf(testFile) {
+      if (!imports) return undefined;
+      let best: { file: string; blast: number } | undefined;
+      for (const edge of imports.out.get(testFile) ?? []) {
+        if (edge.external || edge.to === "" || isTestFile(edge.to)) continue;
+        const blast = blastRadiusScore(transitiveFor(edge.to), directFor(edge.to));
+        if (
+          best === undefined ||
+          blast > best.blast ||
+          (blast === best.blast && edge.to < best.file)
+        ) {
+          best = { file: edge.to, blast };
+        }
+      }
+      return best;
+    },
   };
 }
+
+/**
+ * Findings about a test's quality, scored by the code the test covers
+ * (0.31.0). A test file has no importers and no test gap of its own, so
+ * a hollow test of the most central module in a repository ranked with
+ * one of a leaf; the risk is the module's, not the test file's.
+ */
+const SUBJECT_SCORED_TYPES = new Set(["weak_test_signal", "mock_saturation"]);
 
 /**
  * Closure size at which the reach term reaches 1.0. See
@@ -665,14 +695,23 @@ export function finaliseFindingScores(
     // blast (0 importers)" on a Java class 187 files import. They still
     // enter `agent_risk` as 0, which is what they always contributed.
     if (resolveLanguagePackRouter().claimingPack(finding.file) !== undefined) {
+      const subject =
+        SUBJECT_SCORED_TYPES.has(finding.type) && isTestFile(finding.file)
+          ? scoring.blastRadius.subjectOf(finding.file)
+          : undefined;
+      const scoredFile = subject?.file ?? finding.file;
       test_gap = round(scoring.testGap.forFile(finding.file));
-      blast_radius = round(scoring.blastRadius.forFile(finding.file));
+      blast_radius = round(scoring.blastRadius.forFile(scoredFile));
       finding.scores.test_gap = test_gap;
       finding.scores.blast_radius = blast_radius;
       finding.scores.blast_radius_transitive_importers =
-        scoring.blastRadius.transitiveCountForFile(finding.file);
+        scoring.blastRadius.transitiveCountForFile(scoredFile);
       finding.scores.blast_radius_direct_importers =
-        scoring.blastRadius.directCountForFile(finding.file);
+        scoring.blastRadius.directCountForFile(scoredFile);
+      if (subject !== undefined) {
+        const line = `blast radius scored by the code under test: ${subject.file}`;
+        if (!finding.evidence.includes(line)) finding.evidence.push(line);
+      }
     }
     finding.scores.recency = recency;
   }

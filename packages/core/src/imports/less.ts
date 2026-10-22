@@ -10,6 +10,8 @@ import { statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
+  findOverriddenVariables,
+  type OverriddenVariable,
   type ParsedLessFile,
   parseLessFile,
   resolveLessProject,
@@ -31,6 +33,8 @@ export interface LessImportEdgeResult {
   files: string[];
   limited: boolean;
   droppedFiles: number;
+  /** Variable definitions every bundle reaching them overrides. */
+  overridden: OverriddenVariable[];
 }
 
 export async function buildLessImportEdges(
@@ -40,11 +44,11 @@ export async function buildLessImportEdges(
   const maxFiles = options.maxFiles ?? 5000;
   const skip = structuredSkipFor(root);
   const all = options.files.filter(
-    (abs) => abs.toLowerCase().endsWith(".less") && !skip(toRepoPath(root, abs)),
+    (abs) => /\.(?:less|css)$/i.test(abs) && !skip(toRepoPath(root, abs)),
   );
   const considered = all.slice(0, maxFiles);
   if (considered.length === 0) {
-    return { edges: [], files: [], limited: false, droppedFiles: 0 };
+    return { edges: [], files: [], limited: false, droppedFiles: 0, overridden: [] };
   }
 
   const files = new Map<string, ParsedLessFile>();
@@ -77,6 +81,10 @@ export async function buildLessImportEdges(
     }
   };
   const { references } = resolveLessProject({ files, isFile });
+  // A truncated file set would change which files are bundles, so the
+  // simulation runs only on a complete one.
+  const overridden =
+    all.length > considered.length ? [] : findOverriddenVariables({ files, isFile });
   const edges: ImportEdge[] = references.map((r) => ({
     from: r.from,
     to: r.to,
@@ -90,6 +98,7 @@ export async function buildLessImportEdges(
     files: [...files.keys()].sort(),
     limited: all.length > considered.length,
     droppedFiles: all.length - considered.length,
+    overridden,
   };
 }
 

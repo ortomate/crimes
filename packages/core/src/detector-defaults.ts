@@ -240,6 +240,10 @@ export const DETECTOR_DEFAULTS: Record<string, DetectorDefaults> = {
     fix_shape: "propagate, or record the error with enough context to act on",
   },
   // JSP (0.31.0): a reference JSP only checks at request time.
+  overridden_variable: {
+    effort: "quick",
+    fix_shape: "move the override after the import that redefines it, or delete it",
+  },
   dangling_template_reference: {
     effort: "quick",
     fix_shape: "point the reference at the file that exists, or remove it",

@@ -1,0 +1,52 @@
+{
+  "scenario": "context-20-tag-callers",
+  "agent": "claude",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.390Z",
+  "run_id": "b66a2367-8738-4846-a65c-01bcd889f7a7",
+  "response": "**`crimes context` didn't help here.** It treated the parent `/Users/andrew/dev/crimes` repo as the root, and that repo's config excludes `evals/`. So the tag was never analysed: `analysis_status: \"not_analyzed\"`, a `working_set_path_unmatched` warning, and `related_files: []`. That empty list doesn't mean the tag has no callers. I found them by grepping the fixture instead.\n\n## Pages that call `inputField.tag` (9 calls in 3 files)\n\n| Page | Line | Call |\n|---|---|---|\n| `src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp` | 15–19 | firstName, lastName, address, city, telephone |\n| `src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp` | 29–30 | name, birthDate |\n| `src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp` | 39–40 | date, description |\n\nAll 9 calls pass only `label` and `name`. A new required `placeholder` would break every one of them, and therefore all three forms.\n\n## How the pages reach the tag\n\nEach page has `<%@ taglib prefix=\"petclinic\" tagdir=\"/WEB-INF/tags\" %>` and calls `<petclinic:inputField …/>`. Because it's a tag file found by `tagdir`, with no `.tld`, `.tagx` or `web.xml` entry, the tag name comes straight from the file name. Nothing checks the attributes until Jasper translates the page.\n\nThe same import appears in `welcome.jsp`, `vetList.jsp`, `ownerDetails.jsp`, `exception.jsp`, `ownersList.jsp`, `findOwners.jsp`, and in the `menu`, `bodyHeader` and `layout` tags. None of those calls `inputField`, so they're unaffected. I also searched for the bare string `inputField` across `src/` and `pom.xml`: the 9 calls above are the only hits.\n\n## What I'd check before shipping\n\n1. **Make it optional, or update all 9 calls in the same change.** `required=\"false\"` plus `<c:if test=\"${not empty placeholder}\">` avoids any breakage. If it must be required, fix every call above together.\n2. **Nothing in the build catches this.** `pom.xml` has `tomcat-jasper-el` but no JSP precompile step (no jspc/jasper plugin). Spring MockMvc tests don't render JSPs either, so they'll pass whatever the attribute says. Either add precompilation, or test against a running server: request `/owners/new`, `/owners/{id}/edit`, `/owners/{id}/pets/new`, `/owners/{id}/pets/{petId}/edit` and `/owners/{id}/pets/{petId}/visits/new`, and confirm each one renders.\n3. **`spring:bind` and `form:input` inside the tag.** `placeholder` has to be passed to `<form:input>`, which accepts it as a normal HTML attribute. Check the escaping if placeholder text could ever come from data.\n4. **`selectField.tag`** follows the same pattern. Decide whether it should get `placeholder` too, so the two stay consistent.\n5. **Date fields** (`birthDate`, visit `date`) need a format hint such as `yyyy-MM-dd`, not just a label. That's the main reason to add this attribute.\n6. **Fix crimes for this fixture.** Run it with the fixture as its own root (for example from inside the fixture with its own config), or remove `evals/` from the parent repo's `exclude`. Otherwise `context` will keep returning nothing for these files.",
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp",
+        "observed": "src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp",
+        "observed": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp",
+        "observed": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "dangling_template_reference"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "raster_should_be_vector"
+    },
+    "detector_id_by_charge": {
+      "Icon-Sized Raster": "raster_should_be_vector"
+    },
+    "detector_id_by_evidence": {
+      "dimensions: 16 × 16 px (≤ 64 threshold both sides)": "raster_should_be_vector",
+      "consider replacing with an SVG icon — same render at every DPI, smaller bytes": "raster_should_be_vector"
+    }
+  }
+}

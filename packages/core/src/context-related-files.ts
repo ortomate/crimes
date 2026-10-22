@@ -11,7 +11,7 @@
  */
 import { basename, dirname } from "node:path";
 import type { Finding } from "./finding.js";
-import type { ImportGraph } from "./imports/types.js";
+import type { ImportEdge, ImportGraph } from "./imports/types.js";
 import type { IaIndex } from "./ia/types.js";
 
 /**
@@ -132,11 +132,10 @@ export function findRelatedFiles(options: FindRelatedFilesOptions): ContextRelat
 
   // Proven graph edges outrank accumulated filename hints.
   for (const edge of options.imports?.in.get(fileRel) ?? []) {
-    add(edge.from, edge.typeOnly ? "imports this file's types" : "imports this file", 1);
+    add(edge.from, incomingReason(edge), 1);
   }
   for (const edge of options.imports?.out.get(fileRel) ?? []) {
-    if (edge.to)
-      add(edge.to, edge.typeOnly ? "type dependency" : "imported by this file", 0.9);
+    if (edge.to) add(edge.to, outgoingReason(edge), 0.9);
   }
 
   // (B/C) Finding.related_files passthrough. This is the highest-confidence
@@ -270,4 +269,48 @@ function matchesDomain(rel: string, domain: string): boolean {
 
 function roundScore(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+const TEMPLATE_RE = /\.(?:jsp|jspf|tag)$/i;
+const STYLESHEET_RE = /\.(?:less|css)$/i;
+
+/**
+ * Why an in-edge's source is related. Template and stylesheet edges are
+ * not all imports — a LESS partial *uses* a variable without importing
+ * the file defining it, a page *calls* a tag — and saying "imports this
+ * file" for those sends a reader looking for an `@import` that is not
+ * there (0.31.0, from an eval agent doing exactly that).
+ */
+function incomingReason(edge: ImportEdge): string {
+  if (STYLESHEET_RE.test(edge.from)) {
+    if (edge.specifier.startsWith("@")) return `uses ${edge.specifier}, defined here`;
+    if (edge.specifier.startsWith("."))
+      return `uses mixin ${edge.specifier}, defined here`;
+    return "imports this file";
+  }
+  if (TEMPLATE_RE.test(edge.from)) {
+    if (edge.specifier.startsWith("<")) return `calls this tag as ${edge.specifier}`;
+    if (/\.tld$/i.test(edge.to)) return "uses this tag library";
+    if (/\.(?:java|kts?)$/.test(edge.to)) return "references this class";
+    return "includes this file";
+  }
+  if (/\.tld$/i.test(edge.from)) return "declares this in a tag library";
+  return edge.typeOnly ? "imports this file's types" : "imports this file";
+}
+
+/** Why an out-edge's target is related; the mirror of {@link incomingReason}. */
+function outgoingReason(edge: ImportEdge): string {
+  if (STYLESHEET_RE.test(edge.from)) {
+    if (edge.specifier.startsWith("@") || edge.specifier.startsWith(".")) {
+      return `defines ${edge.specifier}, used by this file`;
+    }
+    return "imported by this file";
+  }
+  if (TEMPLATE_RE.test(edge.from)) {
+    if (edge.specifier.startsWith("<")) return `tag this file calls as ${edge.specifier}`;
+    if (/\.tld$/i.test(edge.to)) return "tag library this file uses";
+    if (/\.(?:java|kts?)$/.test(edge.to)) return "class this file references";
+    return "included by this file";
+  }
+  return edge.typeOnly ? "type dependency" : "imported by this file";
 }

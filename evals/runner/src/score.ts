@@ -182,7 +182,8 @@ function extractReferencedDetectorIds(
  * `referenced_files` name an extension missing here scores 0 on that
  * check **even when the agent quoted the path verbatim**.
  *
- * It has now bitten twice.
+ * It has now bitten three times; the third (0.31.0, `.jsp` and `.less`)
+ * is why `score.test.ts` now reads every language pack's extension list.
  *
  *  - 0.8.0 added the asset extensions when image-referencing scenarios
  *    scored 0 on files the agent had named correctly.
@@ -199,7 +200,7 @@ function extractReferencedDetectorIds(
  * the next pack fails loudly on its detectors rather than quietly on
  * its scoring.
  */
-const SCORED_FILE_EXTENSIONS = [
+export const SCORED_FILE_EXTENSIONS = [
   // JS / TS
   "ts",
   "tsx",
@@ -212,6 +213,13 @@ const SCORED_FILE_EXTENSIONS = [
   // Python
   "py",
   "pyi",
+  // Kotlin scripts, templates and stylesheets (0.31.0)
+  "kts",
+  "jsp",
+  "jspf",
+  "tag",
+  "tld",
+  "less",
   // Other languages, ahead of their packs
   "rs",
   "go",
@@ -254,7 +262,15 @@ const SCORED_FILE_EXTENSIONS = [
 function extractFilePaths(response: string): Set<string> {
   const found = new Set<string>();
   const re = new RegExp(`[\\w./-]+\\.(?:${SCORED_FILE_EXTENSIONS.join("|")})\\b`, "g");
-  for (const m of response.matchAll(re)) found.add(m[0]);
+  for (const m of response.matchAll(re)) {
+    found.add(m[0]);
+    // Agents run in a disposable copy (see workspace.ts) and some link
+    // files by absolute path into it. The repository path is what follows
+    // the workspace directory; without this, codex naming every expected
+    // file correctly scored as naming none (0.31.0).
+    const inWorkspace = /(?:^|\/)crimes-eval-agent-[^/]+\/(.+)$/.exec(m[0]);
+    if (inWorkspace) found.add(inWorkspace[1]!);
+  }
   return found;
 }
 

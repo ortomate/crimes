@@ -12,19 +12,10 @@ import { existsSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import type { ScanReport } from "../finding.js";
 import type { Pack } from "../pack.js";
+import { languageIdFor } from "./coverage.js";
 import type { LanguagePackRouter } from "./language-pack-router.js";
 
 type ByPackage = NonNullable<NonNullable<ScanReport["coverage"]>["by_package"]>;
-
-const PACK_SHORT_ID: Partial<Record<Pack, string>> = {
-  "language-js": "js",
-  "language-py": "py",
-  "language-java": "java",
-  "language-kotlin": "kotlin",
-  "language-swift": "swift",
-  "language-jsp": "jsp",
-  "language-less": "less",
-};
 
 /**
  * Files whose presence marks a directory as a package root. Kept
@@ -105,7 +96,7 @@ export function buildByPackage(args: {
     bucket.total += 1;
     const pack = router.claimingPack(abs);
     if (pack === undefined) continue;
-    const shortId = PACK_SHORT_ID[pack] ?? pack;
+    const shortId = languageIdFor(pack, abs);
     bucket.byLang[shortId] = (bucket.byLang[shortId] ?? 0) + 1;
   }
 
