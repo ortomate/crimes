@@ -1,0 +1,46 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.384Z",
+  "run_id": "dd3aa1f3-959d-4a6a-b6cb-3f59f1205d55",
+  "response": "I ran `crimes context src/add.ts --format json`. crimes found nothing on `src/add.ts`.\n\n**For `src/add.ts`:**\n- **Risk level: `none`.** There are 0 findings at any severity (high, medium or low).\n- **Analysis finished** (`analysis_status: complete`), so this is a real clean result, not a skipped file. JS detectors were loaded and covered both JS files.\n- **No agent guidance.** The reason crimes gives is \"no findings on this file and no deterministic related files.\"\n- **No related files.** crimes saw nothing linking this file to the rest of the repo: no shared names or domain words, and no other files in the same folder besides the test.\n- **Likely test: `src/add.test.ts`.** The test-gap signal is `unknown`, so crimes isn't vouching for how well that test covers the code. Run it after your change.\n\n**Repo-wide (from the scan), not about this file:**\n- There's one **low**-severity finding at confidence 0.56: `vitest` is imported in `src/add.test.ts` but isn't listed in `package.json`. It only resolves now because of hoisting, so a clean install could break the test run. The fix is quick: add `vitest` to `devDependencies`. It doesn't affect `add.ts` itself.\n\n**Verdict: `src/add.ts` is safe to extend.** It has no findings, nothing depends on it, and there's a test file next to it to check the change against. If you'll rely on running those tests in CI or on a fresh checkout, declare `vitest` first.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/add.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  }
+}

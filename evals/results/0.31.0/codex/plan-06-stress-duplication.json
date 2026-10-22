@@ -1,0 +1,67 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.517Z",
+  "run_id": "62ff3263-f727-4a30-bc3d-5c7299eea660",
+  "response": "I’ll run the scan and inspect the sanitise helpers and role checks to ground the two-step plan in their current behavior.\n\n\n`crimes scan --format json` returned **five findings: three medium duplication findings and two low clock findings**.\n\n| Finding | Duplication |\n|---|---|\n| `crime_00001` | Repeated role checks in `src/policy.ts` and all three `sanitize-*.ts` modules. |\n| `crime_00002` | Equivalent bodies: `sanitizeUserInput` (`sanitize-a.ts:10–36`), `sanitizeText` (`sanitize-b.ts:9–35`), and `cleanMessage` (`sanitize-c.ts:9–35`). |\n| `crime_00003` | Identical `recordSanitiseEvent` implementations in `telemetry-a.ts:6–19` and `telemetry-b.ts:6–19`. |\n\n`crime_00004` and `crime_00005` concern the telemetry functions’ `Date.now()` calls.\n\nThe proposed two-step change set is:\n\n1. **Extract one shared sanitiser.** Move the common implementation into `src/sanitize.ts`, exporting `sanitizeInput`. Replace all three original bodies with named re-exports preserving their existing names and module paths. No configuration parameters are needed—the implementations differ only in identifier names. Preserve operation order, nullish handling, string coercion, control-character removal, whitespace handling, 1,000-character truncation, rejection rules, and uppercase conversion. Add characterization cases covering these behaviors and their boundaries, then verify all three public exports produce identical results.\n\n2. **Centralise role policy while preserving each check’s meaning.** Define `isAdmin(role)` in `src/policy.ts` as the sole comparison against `\"admin\"`. Have `canEditBilling`, `canSeeAuditLog`, and `canImpersonate` delegate to it. Route the three sanitiser-module guards through the same policy module: `assertAdminA` uses `isAdmin`; `assertAdminB` uses an `isAdminOrOwner` policy composed from `isAdmin` and the owner check; `assertAdminC` uses `!isAdmin`. Preserve their existing boolean APIs. Verify this truth table:\n\n   | Role | Three `can*` functions | Guard A | Guard B | Guard C |\n   |---|---|---|---|---|\n   | `admin` | true | true | true | false |\n   | `owner` | false | false | true | true |\n   | Other string | false | false | false | true |\n\nGuard C’s inverted result and Guard B’s owner allowance are existing behavior; collapsing all checks into the same predicate would change authorization semantics.\n\nAfter each step, run the relevant characterization checks and rerun the scan. The target is removal of the sanitiser and role-duplication findings. Telemetry extraction and clock injection remain separate follow-up work. No files were changed.",
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "duplicated_role_status_plan_check",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "exact_duplicate_block",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Temporal Recklessness": "direct_date"
+    },
+    "detector_id_by_evidence": {
+      "literal: \"admin\"": "duplicated_role_status_plan_check",
+      "4 file(s), 2 distinct expression shapes": "duplicated_role_status_plan_check",
+      "src/policy.ts:1: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:3: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:8: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/policy.ts:13: role === \"admin\"": "duplicated_role_status_plan_check",
+      "src/sanitize-a.ts:7: role === \"admin\"": "duplicated_role_status_plan_check",
+      "+2 more occurrence(s)": "duplicated_role_status_plan_check",
+      "hash 289f7da71f3a… across 3 file(s), 3 occurrence(s)": "near_duplicate_block",
+      "src/sanitize-a.ts:10-36 (sanitizeUserInput)": "near_duplicate_block",
+      "src/sanitize-b.ts:9-35 (sanitizeText)": "near_duplicate_block",
+      "src/sanitize-c.ts:9-35 (cleanMessage)": "near_duplicate_block",
+      "hash 4f23be2be37a… across 2 file(s), 2 occurrence(s)": "exact_duplicate_block",
+      "src/telemetry-a.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "src/telemetry-b.ts:6-19 (recordSanitiseEvent)": "exact_duplicate_block",
+      "1× Date.now()": "direct_date",
+      "none decide a branch — all 1 record or render the reading": "direct_date",
+      "these readings change what the code outputs, not what it does — lower risk, but still untestable without a fixed clock": "direct_date"
+    }
+  }
+}

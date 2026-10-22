@@ -1,0 +1,56 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "codex",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.566Z",
+  "run_id": "625cafd3-e541-4275-b231-3b558d0ec26c",
+  "response": "I’ll run the scan, then inspect the tests and billing code to distinguish behavior they verify from code they merely execute.\n\n\nAll 12 tests pass. The invoice tests do make assertions through shared helpers, but some check less than their names promise: the credit tests verify that totals balance, without verifying the credit amount. I’m checking execution coverage to show how much code can run without its results being checked.\n\n\nRan `crimes scan --format json`: it reproduced the **one high-severity finding** in `tests/test_reporting.py`. All **12 tests pass**, but their protection varies substantially.\n\nI also measured execution coverage with statements and branches enabled:\n\n| Area | Coverage | What the tests actually protect |\n|---|---:|---|\n| **Rates** | 100% | Real assertions check GB/DE rates, unknown-region fallback to `DEFAULT_RATE`, and false zero-rating for GB/FR. They don’t test a true zero-rate case or independently pin the default’s numeric value. |\n| **Invoices** | 100% | Real but partial protection. Imported helpers check `gross == net + tax` and nonnegative net; inherited assertions check expected gross and account for a GB invoice and an empty DE invoice. |\n| **Ledger** | 83% | No dedicated tests. `post_entry` executes indirectly through the assertion-free reporting tests, so its numeric results aren’t verified. `reverse_entry` never executes. |\n| **Reporting** | 86% | All four tests are smoke tests: they require execution without an exception, but never check returned results. The unsupported-format exception path is untested. |\n\nTwo distinctions matter particularly:\n\n- **Invoice tests aren’t hollow just because assertions live elsewhere.** [The shared helpers](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-cuZLne/tests/support.py:14) contain actual assertions. However, [the credit tests](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-cuZLne/tests/test_invoices.py:18) only check balance and nonnegative net. An implementation that simply returned the original invoice could pass both. They don’t prove that a credit reduces the amount or that zero credit preserves the complete invoice.\n- **Reporting looks exercised without having correctness protection.** [Its four tests](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-cuZLne/tests/test_reporting.py:11) leave report contents, totals, CSV formatting, and the JSON-format dictionary unchecked. `test_round_trip` only builds and exports; it never reads anything back or compares results. Broken output can pass, provided subsequent calls still accept it.\n\nOverall execution coverage is **91% including branches**, which substantially overstates regression protection. Before refactoring, prioritize reporting output assertions, ledger posting/reversal tests, and exact credit expectations.\n\nThe scan’s `coverage.files_total: 9` counts files analyzed by the scanner—it is **not test coverage**. Likewise, the absence of a ledger finding does not establish that ledger behavior is protected.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal",
+      "blast radius scored by the code under test: billing/reporting.py": "weak_test_signal"
+    }
+  }
+}

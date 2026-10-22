@@ -1,0 +1,48 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.425Z",
+  "run_id": "347515a0-4bb8-4148-b1b5-6a45fe8d791f",
+  "response": "I made the change to `src/Card.tsx`. Re-running `crimes context src/Card.tsx --format json` now shows `risk.level: \"none\"` and no findings. I didn't run a typecheck or render the card at a narrow width, so the only check so far is the detector.\n\n## What the finding said\n\n`crime_00001` (`responsive_fragility`, low severity, 0.65 confidence) listed three fixed pixel values and noted the file has no `@media` query:\n\n| Evidence | Code | Problem at narrow widths |\n|---|---|---|\n| `line 10: width 800px` | outer card `width: 800` (actually line 12; the finding points at the `<div` opening on line 10) | Wider than any phone screen, so the card overflows and the page scrolls sideways. The old `maxWidth: 1024` did nothing, because it was larger than the fixed width. |\n| `line 24: width 720px` | content `width: 720` | Wider than its parent once the card shrinks, so the children spill out of the card. |\n| `line 24: fontSize 18px (no @media in file)` | content `fontSize: 18` | One size at every viewport, with nothing to adjust it. |\n\n## The change\n\n```diff\n-        width: 800,\n-        height: 600,\n-        maxWidth: 1024,\n+        width: \"100%\",\n+        maxWidth: 800,\n+        minHeight: 600,\n+        boxSizing: \"border-box\",\n ...\n-      <div style={{ width: 720, fontSize: 18, color: \"#333333\" }}>\n+      <div\n+        style={{\n+          width: \"100%\",\n+          maxWidth: 720,\n+          fontSize: \"clamp(1rem, 0.95rem + 0.25vw, 1.125rem)\",\n+          color: \"#333333\",\n+        }}\n+      >\n```\n\nHow each piece maps to the evidence:\n- **800px → `width: 100%` + `maxWidth: 800`.** This follows the finding's suggested action (\"fixed widths → `max-width` plus `width: 100%`\"). Desktop looks the same, since the card still tops out at 800px, but it shrinks to fit narrow screens. `boxSizing: border-box` keeps the 24px padding inside the 100% width, so it can't add up to an overflow.\n- **720px → `width: 100%` + `maxWidth: 720`.** Same approach, so the content always stays inside the card.\n- **18px → `clamp(1rem, …, 1.125rem)`.** This is the \"fluid scale\" from the finding's `fix_shape`. The text tops out at exactly 18px (1.125rem) on wide screens and goes down to 16px on small ones. Because it's in `rem`, it also follows the user's browser font-size setting.\n- **No `@media` added, on purpose.** The `fix_shape` says to use fluid values rather than pixel media queries. The suggested action's `@media` step is meant for grid layouts that need to collapse on mobile, and this component has no grid: its children stack vertically.\n\nI also changed one thing the detector didn't flag: `height: 600` → `minHeight: 600`. As the card gets narrower, its text wraps onto more lines and gets taller, and a fixed height would cut it off or let it overflow. With `minHeight` the card still looks the same on desktop, and nothing gets cut off on a phone.\n\n## Left alone (outside this finding)\n- The sidebar's `width: 240` wasn't flagged. It fits even on a 320px screen (320 − 48px padding leaves 272px), though `maxWidth: 240` would be the consistent change if you want it.\n- The file's header comment says it's also meant to trigger `design_token_escape` (the hex colours) and `accessible_interaction_risk` (`<div onClick>`). Both are switched off by default in this scan, so I didn't touch them.\n- The header comment still says this file \"should fire responsive_fragility\". If this file is an eval fixture meant to keep triggering that check, this change makes it stop firing, so you may want to revert it.\n\nThe workspace isn't a git repository, so nothing was committed.",
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  }
+}

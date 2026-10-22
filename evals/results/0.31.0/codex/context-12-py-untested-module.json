@@ -1,0 +1,44 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.505Z",
+  "run_id": "071c039e-02d2-4376-930e-8788d2103ab6",
+  "response": "I’ll use crimes to inspect the reversal code’s test protection and dependencies before making any changes.\n\n**Reversals have no direct regression protection.** I ran `crimes context billing/ledger.py` and a related-file scan, then checked the source. No source changes were made.\n\n- **No reversal tests:** crimes found no likely tests for `billing/ledger.py`: no matching test file and no test importing it. Its test-gap score is `1` (top quartile). The reported risk level of `none` means no detected findings—not that changing it is safe.\n- **Indirect protection is weak:** reporting calls ledger’s `post_entry`. All four reporting tests have zero assertions, matching the supplied high-severity finding. They can catch exceptions on exercised paths, but incorrect totals or exports can pass. They never call `reverse_entry`.\n- **The impact depends on scope:** `billing/reporting.py` directly imports ledger, so changes to posting behavior or returned fields could affect report lines, totals, and CSV/JSON exports. No in-repository caller of `reverse_entry` was found, so a change confined to that function has no demonstrated downstream caller here. External consumers remain unknown.\n- **Rates are a shared dependency:** ledger imports `billing/rates.py`, which invoices also use. Rates have assertion-based tests, and invoice tests assert through shared helpers. Those tests do not protect reversal behavior; invoices become relevant if the change extends into rates.\n\nCurrently, [`reverse_entry`](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-20ErgX/billing/ledger.py:16) returns a new dictionary, preserves account and region, and negates net and gross. Before changing it, I would add tests for the intended reversal rules, preserved fields, and input immutability, and strengthen reporting assertions if shared posting behavior changes.\n\nThe scan’s “9 Python files” describes analysis coverage, not runtime test coverage. I did not run the test suite.",
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal",
+      "blast radius scored by the code under test: billing/reporting.py": "weak_test_signal"
+    }
+  }
+}

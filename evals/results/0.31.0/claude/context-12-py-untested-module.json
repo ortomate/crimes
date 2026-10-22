@@ -1,0 +1,44 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "claude",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.385Z",
+  "run_id": "6ca789ed-cfb6-44d0-bd98-8fb92e848876",
+  "response": "I didn't run anything new. This answer comes only from the scan output above, which covers the whole repo (9 Python files).\n\n## What protection you have if the reversal change is wrong\n\n**The scan says nothing about the ledger code.** All 9 Python files were scanned and there is one finding, which isn't about the ledger. That doesn't mean the reversal logic is safe or tested. This scan only lists problems. It doesn't show per-file coverage, so it can't tell me whether a ledger test file exists or whether reversal is exercised anywhere. The scenario is named \"untested-module\", so the honest answer is that I have no evidence of any protection for reversal yet.\n\n**The tests closest to it can't catch wrong numbers.** The only finding (`crime_00001`, high severity, 0.85 confidence) is about `tests/test_reporting.py`: all 4 tests there contain no assertions (`test_build_report`, `test_export_report`, `test_export_report_json`, `test_round_trip`). They pass as long as nothing raises an error. If `billing/reporting.py` reads ledger entries, which is likely in a billing package but I haven't checked, a reversal that produces wrong amounts or signs would flow into reports and those tests would still pass. They would only fail if the change made the code crash.\n\n## What else your change could affect\n\n- **Known impact:** the scan only measured impact for `billing/reporting.py`, which has 1 direct and 1 transitive importer, so a small reach. It didn't measure the ledger module's importers, so I can't give you its reach from this output.\n- **Likely knock-on:** reporting, including the JSON export and the round-trip test, if it reads ledger data. Whatever is wrong in reversal will show up there without any test failing.\n- **Gaps in what was scanned:** `pyproject.toml`, `crimes.config.json` and `.coverage` weren't read by any check. The `.coverage` file is useful: it's the data that would show whether the reversal code paths ever run under the test suite.\n\n## What I'd do before changing anything\n\n1. Find the reversal code and every place that calls or imports it, and check whether a `tests/test_ledger*` file exists.\n2. Read `.coverage` (`coverage report -m`) to see whether the reversal lines are executed by any test.\n3. Write tests that pin down current reversal behaviour: amounts, signs, the link back to the original entry, and that applying a reversal twice behaves as expected. Do this before changing the code.\n4. Add real assertions to `tests/test_reporting.py`, at least for one report that includes a reversed entry, so reporting stops being an unchecked path for ledger mistakes.\n\n**Bottom line:** right now the only tests near this area check that code runs, not what it produces, and there's no evidence of any test covering reversal itself. A wrong reversal would most likely pass the test suite.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal",
+      "blast radius scored by the code under test: billing/reporting.py": "weak_test_signal"
+    }
+  }
+}

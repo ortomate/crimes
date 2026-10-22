@@ -1294,3 +1294,14 @@ structural finding is undecided.
   central files of each backend (blast 0.94–0.97) and decide expiry and
   age checks; the parser already drops named stopwatches. They stay.
 
+Live round (0.31.0, 134/134 cells): the seven scenarios added since 0.29.9
+score 0.96 for both agents. Both agents answered the two new context
+scenarios correctly while scoring 0.25 and 0 at first: the scorer did not
+recognise `.jsp`/`.less` paths, and did not count paths linked into the
+agent's workspace. Both were scorer faults and were corrected by replay.
+The agents' answers also exposed a product fault, fixed before release:
+`context` called LESS variable users and JSP tag callers "imports this
+file", and one agent went looking for `@import`s that did not exist. Edges
+are now labelled by kind ("uses @brand, defined here", "calls this tag as
+<x:card>", "includes this file").
+

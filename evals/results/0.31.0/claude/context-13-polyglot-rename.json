@@ -1,0 +1,78 @@
+{
+  "scenario": "context-13-polyglot-rename",
+  "agent": "claude",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.386Z",
+  "run_id": "5884dff7-e3b6-48b3-ab23-852bac375eb4",
+  "response": "# Rename recon: what the tenant object is called in each half\n\nI haven't changed anything. This is based on the crimes scan, which read 3 source files: two Python and one TypeScript.\n\n## What it's currently called\n\nThere isn't one name for this object. crimes groups it as the **\"tenant\"** concept (`crime_00004`, low severity, 0.65 confidence):\n\n| Side | Name | Where |\n|---|---|---|\n| Python (`packages/api`) | **team** | `billing/plans.py:10`: the docstring of `Plan`<br>`billing/routes.py:11`: `get_team`<br>`billing/routes.py:16`: `create_team`<br>`billing/routes.py:21`: `team_seats`<br>`billing/routes.py:26`: `change_team_plan`, served at `POST /api/teams/{team_id}/plan` (route at line 25) |\n| TypeScript (`packages/web`) | **workspace** | `src/workspace-client.ts:17`: `getWorkspace()`<br>`src/workspace-client.ts:22`: `createWorkspace()`<br>`src/workspace-client.ts:27`: `workspaceSeats()`<br>The file name itself, `workspace-client.ts`<br>…plus one more use that crimes cut from its evidence list. It's probably the plan-change call near line 34, but I haven't confirmed that. |\n\ncrimes suggests **\"organization\"** as the canonical name. That is only the detector's default, not something taken from this repo. Choosing between `team`, `workspace` and `organization` is your call. Picking `team` or `workspace` means renaming only one side; `organization` means renaming both.\n\n## The name difference is already causing a bug\n\nThe URLs aren't just inconsistent; one of them is broken:\n\n- **`crime_00005` (medium):** `workspace-client.ts:23` calls `POST /api/workspaces`, but no backend route has that path. The backend uses `/api/teams…`, so this call returns a 404 today. One side was renamed and the other wasn't. The rename has to cover URL strings as well as identifiers.\n- The other web calls apparently already use `/api/teams/...` (line 34 does). So the frontend's URLs are a mix of names.\n\n## Other things you'll touch in the same files\n\nThese are separate issues, but they're in the same code, so it's best to decide on them up front:\n\n1. **`crime_00003` (medium): wrong HTTP method.** `workspace-client.ts:34` sends `PUT /api/teams/:id/plan`, but `routes.py:25` only accepts `POST`. That returns a 405 today. You'll be editing this line for the rename anyway.\n2. **`crime_00001` (high): `Plan` values differ between the two sides.** Python has `[free, pro, team, scale]` and TypeScript has `[free, pro, enterprise]`.\n   - **Watch out:** `team` is a *plan value* in Python as well as the tenant name. A blind find-and-replace of `team` → `organization` would also rename that value and break stored data or API payloads. This is the biggest risk in the rename.\n   - The usual fix is the same as for the naming problem: generate one side from the other (OpenAPI or a shared schema).\n3. **`crime_00002` (medium): `getWorkspace` does a `fetch`.** Its name suggests a pure read, but it calls the network. If you're renaming it anyway, you can pick a name that makes the network call obvious.\n\n## What the scan doesn't cover\n\n- **Possible missed uses:** the route check only matches literal path strings. A URL built at runtime wouldn't show up, so grep for `workspace` and `team` before treating the list above as complete.\n- **Unscanned files:** `.json` and `.toml` files weren't read at all, including `package.json`, `packages/web/package.json`, `packages/api/pyproject.toml` and `crimes.config.json`. Package names or config keys there might contain the name.\n- **No tests:** every finding has test gap = 1, so there's nothing to check the rename against. Add at least a contract test between the client and the routes first.\n- **No other importers:** crimes found no other code importing these 3 files. Within the scanned code, nothing else needs to change.\n- **Outside the repo:** database tables and columns, API consumers outside this repo, and anything persisted with `team` in it aren't visible to the scan and would need checking.\n\n## Suggested order\n\n1. Pick the canonical name.\n2. Decide what happens to the `team` *plan value*.\n3. Fix the PUT/POST mismatch and the `/api/workspaces` path.\n4. Rename across both sides, including URL strings and the client file name.\n5. Ideally, generate the client and the `Plan` enum from the backend so they can't drift apart again.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "cross_language_concept_alias_drift",
+        "observed": "cross_language_concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/api/billing/routes.py",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "packages/web/src/workspace-client.ts",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "cross_language_type_drift",
+      "crime_00002": "name_behavior_mismatch",
+      "crime_00003": "cross_language_route_drift",
+      "crime_00004": "cross_language_concept_alias_drift",
+      "crime_00005": "cross_language_route_drift"
+    },
+    "detector_id_by_charge": {
+      "Cross-Language Type Drift": "cross_language_type_drift",
+      "False Identity": "name_behavior_mismatch",
+      "Cross-Language Route Drift": "cross_language_route_drift",
+      "Cross-Language Concept Alias Drift": "cross_language_concept_alias_drift"
+    },
+    "detector_id_by_evidence": {
+      "packages/api/billing/plans.py:10 — Plan declares [free, pro, team, scale]": "cross_language_type_drift",
+      "packages/web/src/workspace-client.ts:10 — Plan declares [free, pro, enterprise]": "cross_language_type_drift",
+      "shared: free, pro": "cross_language_type_drift",
+      "only in Python: scale, team — the TypeScript side will reject these values": "cross_language_type_drift",
+      "only in TypeScript: enterprise — the Python side will reject this value": "cross_language_type_drift",
+      "side-effect-like calls: fetch": "name_behavior_mismatch",
+      "2 side-effect signals in the function body": "name_behavior_mismatch",
+      "frontend: packages/web/src/workspace-client.ts:34 — PUT /api/teams/:id/plan": "cross_language_route_drift",
+      "backend:  packages/api/billing/routes.py:25 — POST /api/teams/{team_id}/plan (change_team_plan)": "cross_language_route_drift",
+      "methods declared: POST": "cross_language_route_drift",
+      "concept group \"tenant\" is named differently on each side of the boundary": "cross_language_concept_alias_drift",
+      "Python uses: team": "cross_language_concept_alias_drift",
+      "TypeScript uses: workspace": "cross_language_concept_alias_drift",
+      "packages/api/billing/plans.py:10 — docstring of Plan (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:11 — def get_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:16 — def create_team (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:21 — def team_seats (team)": "cross_language_concept_alias_drift",
+      "packages/api/billing/routes.py:26 — def change_team_plan (team)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:17 — getWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:22 — createWorkspace() (workspace)": "cross_language_concept_alias_drift",
+      "packages/web/src/workspace-client.ts:27 — workspaceSeats() (workspace)": "cross_language_concept_alias_drift",
+      "preferred form for this group: \"organization\"": "cross_language_concept_alias_drift",
+      "\"organization\"": "cross_language_concept_alias_drift",
+      "1 frontend call reaches a path no backend route declares": "cross_language_route_drift",
+      "packages/web/src/workspace-client.ts:23 — POST /api/workspaces": "cross_language_route_drift",
+      "4 backend routes declared across 1 file": "cross_language_route_drift",
+      "backend owns: /api — calls outside those namespaces are not counted here": "cross_language_route_drift",
+      "matched on literal path strings — a route or URL assembled at runtime is invisible to this check": "cross_language_route_drift",
+      "decorator routing only — Django `urlpatterns` and DRF `router.register` are not read, so a repo using them looks routeless": "cross_language_route_drift"
+    }
+  }
+}

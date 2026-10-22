@@ -1,0 +1,83 @@
+{
+  "scenario": "review-11-py-async-blocking",
+  "agent": "claude",
+  "crimes_version": "0.31.0",
+  "timestamp": "2026-10-21T23:55:27.463Z",
+  "run_id": "66b92db0-02ee-40d5-b54e-b56484c8bcf4",
+  "response": "## What's causing it\n\nThe service blocks its event loop. Both async routes in `api/routes.py` make synchronous, blocking calls inside `async def` handlers. FastAPI runs every `async def` handler on a single event-loop thread. While one of these calls waits, nothing else runs: no other request, not even `/health`. Requests queue up behind whichever call is waiting. The CPU is mostly idle because the thread is waiting on I/O, not computing. That matches what you're seeing: low CPU while p99 collapses.\n\nI read `api/routes.py` to confirm what the scan reported.\n\n## Ranked by how much each one contributes\n\n**1. `export_invoice`: `time.sleep(2)` and `subprocess.run(...)` (crime_00004, `api/routes.py:31-32`)**\n- `time.sleep(2)` (line 32) freezes the whole process for a fixed 2 seconds on every export call. Five concurrent exports stall every other request by about 10 seconds. This is the single largest contributor.\n- `subprocess.run([... \"render-pdf\" ...], check=True)` (line 31) holds the loop for as long as the PDF takes to render, and there's no timeout.\n- The handler returns `{\"status\": \"queued\"}`, so the work was meant to be asynchronous. It actually runs inline and blocks everything else.\n- **Fix:** delete the sleep, since it does nothing useful. Hand the render off to a real job queue or a `BackgroundTasks` task. At minimum, use `asyncio.create_subprocess_exec` with a timeout.\n\n**2. `get_invoice`: `requests.get(...)` (crime_00003, `api/routes.py:21`)**\n- This is a synchronous HTTP call to `billing.internal`, on what is probably the busiest read endpoint. Every request stalls the loop for one full network round-trip.\n- There's no `timeout=`. If the billing service slows down, every request to this service slows down with it. If billing hangs, this service hangs. That's the usual way a slow dependency turns into a p99 collapse.\n- If GET traffic is much heavier than exports, this one could match or overtake #1.\n- **Fix:** use a shared `httpx.AsyncClient` with an explicit timeout. Better still, cache the customer profile.\n\n**3. `get_invoice`: `open(\"/etc/billing/rates.json\")` (same finding, line 23)**\n- This is a blocking file read, but it's a small local file that the OS will usually have cached in memory, so the cost is small. It still shouldn't be read on every request.\n- **Fix:** load it once at startup, or cache it.\n\n**Quick stopgap:** change both handlers from `async def` to plain `def`. FastAPI then runs them in its thread pool and the event loop stays free. That caps the damage at the pool size (about 40 threads by default) instead of stalling everything. The real fixes above are still needed.\n\n**Side effect:** `/health` is a plain `def` handler, but its response still has to go through the blocked event loop. While the loop is stalled, health checks time out too, so your load balancer may be pulling healthy instances out of rotation and adding to the collapse.\n\n## Not contributing to latency\n\nThese findings are real but unrelated to the load problem. Handle them separately:\n- **crime_00001 and crime_00002:** mixing naive `utcnow()` and `now()` timestamps in `domain/invoicing.py`. This is a correctness bug: comparisons are off by the server's UTC offset. It doesn't affect performance.\n- **crime_00005:** the circular import between `api/rendering.py` and `domain/invoicing.py`. This is a risk at startup, not at runtime.\n- **crime_00006:** `build_invoice` is too long and deeply nested. It's hard to maintain, but with CPU low it isn't the bottleneck.\n- **crime_00007 and crime_00008:** deep imports into `tax.rules.regional.eu.vat_bands`. This only couples modules together.\n\n**About the scan's own order:** the scan lists the two blocking-I/O findings third and fourth, behind the timezone findings. That's because it gives them a blast radius of 0: no other module imports `api/routes.py`. That score measures how widely code is imported, not how much it costs at runtime. For this question, ignore it. These two findings are the cause.",
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "api/routes.py",
+        "observed": "api/routes.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "sync_io_in_hotpath",
+        "observed": "sync_io_in_hotpath",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import"
+    }
+  }
+}

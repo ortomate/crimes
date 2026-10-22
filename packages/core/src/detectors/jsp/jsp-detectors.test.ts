@@ -103,6 +103,10 @@ describe("JSP and LESS through scan()", () => {
         `${WEB}/WEB-INF/views/home.jsp`,
       ]),
     );
+    expect(
+      report.related_files.find((r) => r.file === `${WEB}/WEB-INF/views/home.jsp`)
+        ?.reason,
+    ).toContain("calls this tag as <ui:card>");
     expect(report.clues?.test_gap).toBeUndefined();
     expect(report.likely_tests_reason).toMatch(/no unit-test convention/);
   });
@@ -119,6 +123,7 @@ describe("JSP and LESS through scan()", () => {
 
   it("joins a LESS partial to the file defining what it uses", async () => {
     const report = await context({ root, file: "styles/variables.less" });
-    expect(report.related_files.map((r) => r.file)).toContain("styles/buttons.less");
+    const buttons = report.related_files.find((r) => r.file === "styles/buttons.less");
+    expect(buttons?.reason).toContain("uses @brand, defined here");
   });
 });
