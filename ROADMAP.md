@@ -36,12 +36,11 @@ Reviewed: 2026-10-20. This file records desired outcomes; the
   import undoes in every bundle). On the estate behind 0.30 every tagdir
   tag resolves, nothing is falsely dangling, and the four overridden
   variables reported are all real.
-- **Measure the new packs.** Fixtures `17`–`19` pin a public Java blog
-  server, Compose Android sample and UIKit iOS app, with five labelled
-  scenarios (0.30.1). They show the 0.31 ranking problem on public code: a
-  cache-busting `Date()` ranks first on the iOS app and its two
-  assertion-free view-model tests 64th and 65th. Still to do: their first
-  live agent round, and more scenarios as calibration decisions need them.
+- **Measure the new packs.** Fixtures `17`–`21` pin public Java, Kotlin,
+  Swift, JSP and LESS repositories with seven labelled scenarios; the 0.31.0
+  live round covered them (0.96 for both agents). Still to do: scenarios
+  that exercise the two new detectors on deliberate breakage, and more
+  labels as calibration decisions need them.
 - **Large-repository cost.** A full n8n scan takes about 27 minutes, nearly
   all of it TypeScript parsing for the IA index. A persistent cache is the
   obvious lever and conflicts with the guarantee that every command
