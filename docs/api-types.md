@@ -104,6 +104,7 @@ export interface Finding {
         owner: string;
         date: string;
     };
+    outside_change?: true;
     previously_baselined?: true;
     previous_baseline?: {
         date?: string;
@@ -578,6 +579,10 @@ export interface DiffSummary {
     new: number;
     fixed: number;
     unchanged: number;
+    outside_change?: {
+        new: number;
+        fixed: number;
+    };
 }
 ```
 
@@ -815,6 +820,10 @@ export interface VerdictSummary {
     };
     new_weighted: number;
     fixed_weighted: number;
+    outside_change?: {
+        new: number;
+        fixed: number;
+    };
 }
 ```
 

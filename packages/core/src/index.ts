@@ -248,10 +248,12 @@ export {
   classifyDiff,
   diff,
   InvalidDiffRangeError,
+  markOutsideChange,
   parseDiffRange,
 } from "./diff.js";
 export type {
   DiffFailOn,
+  DiffFailOnOptions,
   DiffOptions,
   DiffReport,
   DiffSummary,

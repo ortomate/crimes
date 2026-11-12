@@ -9,6 +9,7 @@ import {
   classifyDiff,
   diff,
   InvalidDiffRangeError,
+  markOutsideChange,
   parseDiffRange,
 } from "./diff.js";
 import type { DiffReport } from "./diff.js";
@@ -216,6 +217,22 @@ describe("classifyDiff", () => {
   });
 });
 
+describe("markOutsideChange", () => {
+  it("marks a finding whose file and related files are all unchanged", () => {
+    const untouched = makeFinding({ file: "src/hub.ts" });
+    const edited = makeFinding({ file: "src/new.ts" });
+    const related = makeFinding({ file: "src/a.ts", related_files: ["src/new.ts"] });
+    const marked = markOutsideChange(
+      [untouched, edited, related],
+      new Set(["src/new.ts"]),
+    );
+    expect(marked).toBe(1);
+    expect(untouched.outside_change).toBe(true);
+    expect(edited.outside_change).toBeUndefined();
+    expect(related.outside_change).toBeUndefined();
+  });
+});
+
 describe("diff (end-to-end against a real git repo)", () => {
   let repo: string;
 
@@ -268,6 +285,41 @@ describe("diff (end-to-end against a real git repo)", () => {
       fixed: report.fixed_findings.length,
       unchanged: report.unchanged_findings.length,
     });
+  });
+
+  it("marks a finding that appears on a file the range did not change", {
+    timeout: 30000,
+  }, async () => {
+    // 40 lines: under the default 60, over a threshold of 30. Lowering the
+    // threshold in HEAD makes `untouched.ts` newly offend without an edit.
+    const body = Array.from({ length: 40 }, (_, i) => `  let v${i} = ${i};`).join("\n");
+    await writeFile(
+      join(repo, "untouched.ts"),
+      `export function mid() {\n${body}\n}\n`,
+      "utf8",
+    );
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "base", "--quiet");
+
+    await writeFile(
+      join(repo, "crimes.config.json"),
+      JSON.stringify({ thresholds: { largeFunctionLines: 30 } }),
+      "utf8",
+    );
+    await writeFile(join(repo, "edited.ts"), bigFunctionSource("freshFn"), "utf8");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "head", "--quiet");
+
+    const report = await diff({ root: repo, base: "HEAD~1", head: "HEAD" });
+    const mid = report.new_findings.find((f) => f.symbol === "mid");
+    const fresh = report.new_findings.find((f) => f.symbol === "freshFn");
+    expect(mid?.outside_change).toBe(true);
+    expect(fresh).toBeDefined();
+    expect(fresh?.outside_change).toBeUndefined();
+    expect(report.summary.outside_change).toEqual({ new: 1, fixed: 0 });
+
+    const gated = applyDiffFailOn({ ...report, new_findings: [mid!] }, "new-medium");
+    expect(gated.failed).toBe(false);
   });
 
   it("does not mutate the working tree", { timeout: 30000 }, async () => {
@@ -386,6 +438,14 @@ describe("applyDiffFailOn", () => {
       "new-medium",
     );
     expect(r.failed).toBe(true);
+  });
+
+  it("ignores outside_change findings unless asked to include them", () => {
+    const report = makeReport([makeFinding({ severity: "high", outside_change: true })]);
+    expect(applyDiffFailOn(report, "new-high").failed).toBe(false);
+    expect(
+      applyDiffFailOn(report, "new-high", { includeOutsideChange: true }).failed,
+    ).toBe(true);
   });
 
   it("ignores suppressed findings on the gate", () => {
