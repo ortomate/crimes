@@ -98,14 +98,15 @@ and reports what changed. Agent/JSON calls receive a safe update command on
 stderr. CI stays read-only. Custom instructions and hook settings are preserved;
 `--no-skill-update` skips maintenance. [Setup and upgrade guide](./docs/skills.md).
 
-## Status: crimes@0.31.0
+## Status: crimes@0.32.0
 
-0.31 reads JSP templates and LESS and CSS stylesheets, joining pages to the
-tag files, fragments and Java they reach and partials to the variables they
-use, and reorders full scans on JVM and mobile code. JSON schema remains
+0.32 is calibrated from field feedback: false-positive verdicts agents
+recorded in five repositories, re-scanned and fixed by pattern. `diff` and
+`verdict` mark findings on files a range did not change (`outside_change`)
+and no longer weigh or gate on them by default. JSON schema remains
 **0.8.0**; read the Upgrading section of the
-[release notes](./docs/releases/v0.31.0.md) for the new pack and finding
-values. Hooks remain optional.
+[release notes](./docs/releases/v0.32.0.md) for the gate change. Hooks
+remain optional.
 Read [migration guidance](./docs/pin-migration.md) before changing existing pins.
 The npm badge reports the published version; the package file reports the
 version in this checkout. [Earlier releases](./docs/releases/).
