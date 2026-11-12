@@ -11,7 +11,7 @@ export interface DiscoverOptions {
    * Apply the repository's `.gitignore` files. Defaults to true —
    * `CLAUDE.md` has listed this as a locked stack decision since v0, and
    * without it a scan charges you for your own build output. On
-   * `buildfest` a gitignored `migrate-output/` was 20.8% of the report
+   * `dogfood-d` a gitignored `migrate-output/` was 20.8% of the report
    * and 86% of all duplicate-block findings.
    */
   respectGitignore?: boolean;

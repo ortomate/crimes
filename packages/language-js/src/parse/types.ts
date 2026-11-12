@@ -794,7 +794,7 @@ export interface ParsedFile {
    * per extension; this field is only trustworthy because of that.
    *
    * With the script kind right, this is **1 file in 39,177** across
-   * n8n, cal.com, posthog and choreograph.cc — n8n's
+   * n8n, cal.com, posthog and dogfood-a — n8n's
    * `scripts/block-npm-install.js`, which writes `'\033[0;31m'`. TS
    * calls an octal escape an error and the parser flags it, but the
    * tree is complete and the script runs, so calling that a partial

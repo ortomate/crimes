@@ -274,7 +274,7 @@ describe("largeFileDetector — universal pack", () => {
   });
 
   it("gives structured data its own budget instead of domain severity", async () => {
-    // Field notes, rolecred 2026-09-22: large generated audit JSON became
+    // Field notes, dogfood-h 2026-09-22: large generated audit JSON became
     // high-severity findings and outranked the runtime changes under
     // review. Data is still worth flagging; it is not domain code.
     const findings = await largeFileDetector.run(

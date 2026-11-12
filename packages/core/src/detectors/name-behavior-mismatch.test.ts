@@ -113,7 +113,7 @@ export async function calculateInvoice(order: Order) {
 /**
  * Building the thing you read *through* is not a side effect.
  *
- * Field notes from choreograph.cc: `getChoreoByDate() → calls
+ * Field notes from dogfood-a: `getPostsByDate() → calls
  * createClient` fired five times in `src/lib/api.ts` alone, "because a
  * `get*` function makes a side-effect-like call — but `createClient()`
  * is constructing the client in order to *do the read*. Every
@@ -128,10 +128,10 @@ export async function calculateInvoice(order: Order) {
 describe("nameBehaviorMismatchDetector — factory calls", () => {
   it("does not charge a reader for constructing its own client", async () => {
     const source = `
-export async function getChoreoByDate(person: string, date: string) {
+export async function getPostsByDate(person: string, date: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('choreograph_posts')
+    .from('daily_posts')
     .select('*')
     .eq('person', person)
     .single();
@@ -289,7 +289,7 @@ export async function getSummary(id: string) {
   });
 
   it("ignores a pure prefix that is only part of a longer first word", async () => {
-    // Field notes, rolecred 2026-09-22: `ReadinessForm` was read as a
+    // Field notes, dogfood-h 2026-09-22: `ReadyForm` was read as a
     // `read` function because the prefix test had no word boundary.
     const source = `
 export async function readinessScore(evidence: Evidence) {

@@ -12,7 +12,7 @@ import type { ColourFns } from "./shared.js";
  * domain findings; non-domain ones (`scopeTiers.nonDomain`, whose first
  * default entry is `scripts/**`) are collapsed into a one-line "Also
  * flagged elsewhere" footer. The header used to count both, so on
- * choreograph.cc it announced *491 findings across 208 files* above a
+ * dogfood-a it announced *491 findings across 208 files* above a
  * report body listing 339 across 137 — describing a superset of itself.
  *
  * That is the mechanism behind "the headline number is demoralising and
@@ -56,7 +56,7 @@ export function scanSummaryLine(
  * Repeat the summary just above the report's closing line, but only on a
  * report long enough that the header has scrolled away.
  *
- * Field notes from choreograph.cc: `scan --top 15` on a 209-file repo
+ * Field notes from dogfood-a: `scan --top 15` on a 209-file repo
  * emits 296 lines, so the header — line 6 — was gone by the time the
  * reader reached the end, and a second run at `--top 3` was needed *just
  * to read the totals*.

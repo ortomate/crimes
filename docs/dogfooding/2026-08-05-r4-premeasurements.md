@@ -17,7 +17,7 @@ thresholds repo-wide: calibration, not a bugfix."
 
 | repo | n | blank share, all | **code files** | prose files |
 |---|---|---|---|---|
-| choreograph.cc | 33 | 12.2% | ~10% | ~20% |
+| dogfood-a | 33 | 12.2% | ~10% | ~20% |
 | crimes (self-scan) | 100 | 5.6% | **3.6%** | 18.8% |
 | hono | 26 | 8.9% | **8.9%** | n/a |
 
@@ -31,7 +31,7 @@ gives `.md` / `.mdx` / `.rst` / `.adoc` / `.txt` a 1000-line allowance at
 `low`/`medium`. So the file class where the correction would bite
 hardest is the one already measured against a different ruler.
 
-On choreograph, **5 of 33** findings would fall below the 300-line
+On dogfood-a, **5 of 33** findings would fall below the 300-line
 domain threshold. On the crimes self-scan a 3.6% shift is inside the
 noise of any threshold worth having.
 
@@ -136,7 +136,7 @@ Two things were measured.
 
 | repo | files with a transitive count | `blast_radius == 1.0` |
 |---|---|---|
-| choreograph.cc | 208 | **0 (0.0%)** |
+| dogfood-a | 208 | **0 (0.0%)** |
 | crimes (self-scan) | 1,136 | **0 (0.0%)** |
 | hono | 152 | **0 (0.0%)** |
 | cal.com | 2,079 | **0 (0.0%)** |
@@ -149,7 +149,7 @@ crying out for correction.
 
 | repo | files on a reported cycle | share |
 |---|---|---|
-| choreograph.cc | 0 of 207 | 0.0% |
+| dogfood-a | 0 of 207 | 0.0% |
 | crimes (self-scan) | 1 of 1,169 | 0.1% |
 | hono | 4 of 152 | 2.6% |
 

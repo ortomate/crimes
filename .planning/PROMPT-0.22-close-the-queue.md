@@ -26,7 +26,7 @@
 >   `ts.NodeFlags.ThisNodeHasError` — and it costs 1262 ms → 1330 ms
 >   over n8n's 2,977 files. The entry had only ever checked
 >   `SourceFile.parseDiagnostics`.
-> - **"5 of 33 choreograph findings would fall below the 300-line
+> - **"5 of 33 dogfood-a findings would fall below the 300-line
 >   threshold"** (from the pre-measurements). It is 8 of 33.
 > - **§4f** does not reproduce at all: the 1762-vs-929 ms reading is a
 >   measurement-order artifact.
@@ -101,7 +101,7 @@ rule did not survive contact with the file that prompted it.
 
 **Measure on real repos.** `~/crimes-dogfood/corpus/`: `hono`,
 `pydantic`, `drf`, `zulip`, `airflow` (~95s), `mlflow`, `cal.com`,
-`posthog`, `n8n`. Also `~/dev/choreograph.cc` — the field-report repo.
+`posthog`, `n8n`. Also `~/dev/dogfood-a` — the field-report repo.
 Its snapshot is `5107cce`; use a git worktree so churn resolves.
 **A null result reported honestly is worth more than a number massaged
 upward.**
@@ -132,7 +132,7 @@ fingerprints and severities.
 
 **2. Never resolve a symbol by name alone — including in prose.**
 `logic_in_comments` matched domain terms with `String.includes`, so
-`auth` matched "**Auth**ored by the Curator" and `utc` matched "captured
+`auth` matched "**Auth**ored by the Editor" and `utc` matched "captured
 that o**utc**ome". Same rule as `2e9b2da`'s `Set.prototype.has` chain.
 
 **3. Apparatus that fails closed on correct input.** Four instances now:
@@ -145,7 +145,7 @@ rejects would look like.
 
 **4. Opening the file settles it.** `direct_date`'s reported false
 positive turned out to contain two real poll timeouts. The field report
-was wrong about its own example, and only reading `JobDetail.tsx` showed
+was wrong about its own example, and only reading `Detail.tsx` showed
 it.
 
 ---
@@ -210,7 +210,7 @@ bugfix than the entry allows — and `countNonEmptyLines()` in
 `packages/language-js/src/parse/utils.ts` counts every line, which makes
 its name a lie of exactly the kind `name_behavior_mismatch` charges.
 
-Still needs measure-then-decide: 5 of 33 choreograph findings would fall
+Still needs measure-then-decide: 5 of 33 dogfood-a findings would fall
 below the 300-line domain threshold. Run `evals:ranking` across it —
 that's the metric with no agent in it.
 

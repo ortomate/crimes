@@ -1,7 +1,7 @@
-# Step 0: re-verifying the choreograph field notes against `main`
+# Step 0: re-verifying the dogfood-a field notes against `main`
 
 **Date:** 2026-08-05
-**Companion to:** [`2026-08-05-choreograph-field-notes.md`](./2026-08-05-choreograph-field-notes.md)
+**Companion to:** [`2026-08-05-field-notes.md`](./2026-08-05-field-notes.md)
 **Purpose:** the field notes were written against `npx crimes@latest`, which
 resolves to the **published** version. `main` carries five unreleased
 eval-baseline bumps (`0.18.0`–`0.18.4`). Before scoping any work off those
@@ -16,13 +16,13 @@ and it also stopped one hypothesis in the release plan from being acted on.
 ## Method
 
 The repo under test is available locally. The field notes describe a task that
-*began* at `choreograph.cc@5107cce` ("feat(artist): cap family presence",
+*began* at `dogfood-a@5107cce` ("feat(artist): cap family presence",
 2026-08-04): the last commit before the cost-tracking work the notes
 accompany. That snapshot was checked out into a dedicated git worktree so
 churn and blame resolve against real history:
 
 ```bash
-git -C ~/dev/choreograph.cc worktree add <scratch>/choreo-0805 5107cce
+git -C ~/dev/dogfood-a worktree add <scratch>/choreo-0805 5107cce
 ```
 
 Both builds were then run against that identical tree:
@@ -65,7 +65,7 @@ inapplicable here:
 
 - `commented_out_code` fires **2 times** on this repo in both builds. The
   airflow drop was a fix to a detector that was misfiring on a *specific
-  shape* (huge commented-out blocks) that choreograph does not contain.
+  shape* (huge commented-out blocks) that dogfood-a does not contain.
 - `parallel_destination` produces **zero** findings here in either build, so
   gating it off changed nothing.
 
@@ -114,7 +114,7 @@ it was.** Nothing in the unreleased work addressed any of them.
 | 1 | "499 findings is demoralising" | **stands** | 491. −1.4%. |
 | 2 | `scripts/` is a third of findings | **stands** | 157 → **148**; still 30% of the total |
 | 3 | `logic_in_comments` worst FP rate | **stands** | 10 → 10, **the same files**: `types.ts` L239, `job-processor.ts` ×2, `game-generator/generate.ts`, `api/admin/jobs/route.ts` |
-| 4 | `direct_date` conflates read/record | **stands** | `JobDetail.tsx` evidence string is byte-identical: `"9× Date.now(), 4× new Date()"` |
+| 4 | `direct_date` conflates read/record | **stands** | `Detail.tsx` evidence string is byte-identical: `"9× Date.now(), 4× new Date()"` |
 | 5 | `high_fan_in_fan_out` on a types module | **stands** | `src/lib/types.ts`: **33 importers**, unchanged |
 | 6 | `name_behavior_mismatch` on data access | **stands** | `src/lib/api.ts`: **5 hits**, all `side-effect-like calls: createClient` |
 | 7 | no way to scope to a plan | **stands** | `crimes context <file>` takes exactly one positional arg |
@@ -150,7 +150,7 @@ So R2's five items are not equally weighted by this evidence:
 - **R2.1 (document `--changed --base main` as the default)** is right for the
   *review* half of an agent loop: after edits, before commit. It does not
   serve the *scoping* half, and documenting it as "the" agent default would
-  send an agent in choreograph's position to a command that prints nothing.
+  send an agent in dogfood-a's position to a command that prints nothing.
   Document it as the **post-edit** default, paired with the scoping command
   below.
 - **R2.2 (`context --files a,b,c` / `scan --related-to X`)** is the answer to
@@ -186,7 +186,7 @@ export const DEFAULT_NON_DOMAIN_PATTERNS: string[] = [
 ];
 ```
 
-Measured on the same choreograph snapshot: **all 148** `scripts/`
+Measured on the same dogfood-a snapshot: **all 148** `scripts/`
 findings already carry `tier: "nonDomain"`. They are already excluded
 from the top-file ranking, already confidence-damped, and already
 collapsed into a single `Also flagged elsewhere · scripts/ 144

@@ -63,7 +63,7 @@ program
     "after",
     // The tips block used to name `init --agents` and `context <file>`
     // and say nothing about scoping a scan. Field notes from
-    // choreograph.cc: bare `scan` on a 209-file repo returned 499
+    // dogfood-a: bare `scan` on a 209-file repo returned 499
     // findings, and the flags that would have cut that to a work list
     // were never reached for. Scoping leads now.
     "\nTips:\n" +

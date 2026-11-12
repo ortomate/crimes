@@ -1,13 +1,13 @@
-# Field notes: crimes on choreograph.cc
+# Field notes: crimes on dogfood-a
 
 **Date:** 2026-08-05
 **Version:** `crimes@latest` via `npx` (0.18.x era)
-**Repo under test:** choreograph.cc: Next.js 16 App Router, TypeScript strict, ~209 files, personal daily-art pipeline
+**Repo under test:** dogfood-a: Next.js 16 App Router, TypeScript strict, ~209 files, a personal app
 **Reporter:** Claude Opus 5, acting as the implementing developer
 **Task shape:** one-shot design + planning task, NOT an ongoing hygiene loop
 
 > **Re-verified against `main`:** see
-> [`2026-08-05-choreograph-reverify.md`](./2026-08-05-choreograph-reverify.md).
+> [`2026-08-05-field-notes-reverify.md`](./2026-08-05-field-notes-reverify.md).
 > The version under test was **`0.17.0`**, not 0.18.x — the published version
 > reproduces these numbers to within one finding. All nine complaints below
 > still reproduce against `main`; the unreleased 0.18.x work moved this repo
@@ -31,7 +31,7 @@ Headline result: **499 findings across 209 files: 34 high, 269 medium,
 
 ### The top-file ranking was accurate
 
-`daily-agents.ts` and `JobDetail.tsx` came back as the two worst files, and
+`daily-agents.ts` and `Detail.tsx` came back as the two worst files, and
 they were independently the two files the task touched most. That is not a
 result a plain linter produces: the risk scoring (churn × blast radius ×
 test gap) did real work.
@@ -115,7 +115,7 @@ the count.
 Representative hit, from `src/lib/types.ts`:
 
 > "Panorama — 360° equirectangular bonus piece (day % 3 == 2; never required
-> for publish). Authored by the Curator…"
+> for publish). Authored by the Editor…"
 > — rule terms: never, required
 
 That is **documentation of a deliberate design decision**: precisely what
@@ -142,7 +142,7 @@ Flagged `formatTs()` in a UI component rendering a timestamp, and
 
 The genuinely risky case (time used in a **branch or comparison**) is a
 much narrower and more valuable signal than time used as a value to record
-or display. As shipped, `JobDetail.tsx` reports "9× Date.now(), 4× new
+or display. As shipped, `Detail.tsx` reports "9× Date.now(), 4× new
 Date()" and essentially all of it is display formatting.
 
 ### `High Fan-In` on `types.ts` reads as a category error
@@ -153,7 +153,7 @@ type-only.
 
 ### `False Identity` on data access
 
-`getChoreoByDate() → calls createClient`: flagged five times in `api.ts`
+`getPostsByDate() → calls createClient`: flagged five times in `api.ts`
 alone, because a `get*` function makes a "side-effect-like call". But
 `createClient()` is constructing the client in order to *do the read*.
 Every data-access layer in every Next.js app has this shape.
@@ -216,7 +216,7 @@ possibly exactly what `baseline` exists to solve: weight it accordingly.
 ## What was actually fixed as a result
 
 Scoped into the accompanying refactor
-(`choreograph.cc/docs/superpowers/plans/2026-08-05-cost-tracking.md`):
+(`dogfood-a/docs/superpowers/plans/2026-08-05-cost-tracking.md`):
 
 | Finding | Action |
 |---|---|
@@ -224,7 +224,7 @@ Scoped into the accompanying refactor
 | Environment Roulette (`*_MODEL` across 8 files) | Centralised in `openrouter/models.ts` |
 | Double Jeopardy (retry-around-fetch, 2 files) | Replaced by a shared `withAttempts` helper |
 | God File `daily-agents.ts` (1276 lines, 4.3×) | Transport + JSON helpers extracted |
-| God File `JobDetail.tsx` (1842 lines, 6.1×) | Five sections extracted to their own files |
+| God File `Detail.tsx` (1842 lines, 6.1×) | Five sections extracted to their own files |
 | 8 near-identical `*RateLimitError` classes | Shared `RateLimitedError` base |
 
 Explicitly declined and recorded as out of scope: `scripts/` (157),

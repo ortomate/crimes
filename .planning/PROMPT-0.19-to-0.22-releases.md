@@ -24,7 +24,7 @@ waiting behind work that isn't done yet.
   green for the first time since `20e4e52`.
 
 **The single most important fact in this document:** the gap between
-`0.17.0` and `main` is now large enough that the choreograph field
+`0.17.0` and `main` is now large enough that the dogfood-a field
 notes below were almost certainly written against **`0.17.0`**, not
 against what you have. `npx crimes@latest` resolves to the published
 version. The notes say "0.18.x era" — that is the reporter's
@@ -38,7 +38,7 @@ assumption, and it is probably wrong.
    output is the contract; **evidence before judgement**; signal over
    exhaustiveness; playful, not unserious. Biome's `lineWidth: 90` is a
    *measurement* setting.
-2. `docs/dogfooding/2026-08-05-choreograph-field-notes.md` — the
+2. `docs/dogfooding/2026-08-05-field-notes.md` — the
    outside evidence. Read all of it, including the caveat at the end.
 3. `docs/dogfooding/2026-08-03-remediation.md` §4 — the queue, every
    entry struck through, with **where the entry was wrong**. Ten
@@ -160,9 +160,9 @@ keep the tarball small — but it has never been weighed against the
 
 ---
 
-## Input B: the choreograph field notes
+## Input B: the dogfood-a field notes
 
-`docs/dogfooding/2026-08-05-choreograph-field-notes.md`. A Next.js 16
+`docs/dogfooding/2026-08-05-field-notes.md`. A Next.js 16
 app, ~209 files, used **mid-design to scope cleanup for a refactor
 touching ~19 files** — not an ongoing hygiene loop. Read the caveat at
 the end: `triage` / `baseline` / `verdict` were never exercised, and
@@ -209,8 +209,8 @@ Charge name → detector, so you can find them:
 ## Step 0 — before planning anything past R1
 
 > **DONE (2026-08-05).** Results in
-> [`docs/dogfooding/2026-08-05-choreograph-reverify.md`](../docs/dogfooding/2026-08-05-choreograph-reverify.md).
-> choreograph.cc was available locally, so the *exact* snapshot the notes
+> [`docs/dogfooding/2026-08-05-field-notes-reverify.md`](../docs/dogfooding/2026-08-05-field-notes-reverify.md).
+> dogfood-a was available locally, so the *exact* snapshot the notes
 > were written against (`5107cce`) was scanned by both builds.
 >
 > - The notes were written against **`0.17.0`** — 498/34/268/196 vs the
@@ -231,7 +231,7 @@ Charge name → detector, so you can find them:
 Re-run the field notes against `main`, on a repo of the same shape
 (Next.js App Router, TypeScript strict, no tests). `cal.com` and
 `posthog` are in the corpus and are the closest available; better still,
-ask the maintainer for access to choreograph.cc itself.
+ask the maintainer for access to dogfood-a itself.
 
 Report, as a table: finding count then vs now, per-detector counts for
 the six charges above, and which of the seven "where it cost time"
@@ -347,7 +347,7 @@ tool. The most valuable invocation is the least discoverable one.
    Design it deliberately — `--related-to` implies walking the import
    graph, which already exists and already carries Python edges.
 3. **`scaffolding` globs in `crimes.config.json`, applied at scan
-   time.** A third of choreograph's findings were in `scripts/` —
+   time.** A third of dogfood-a's findings were in `scripts/` —
    one-off diagnostics that are quick and dirty by design. `triage`
    already has a `scaffolding` disposition but it is per-finding and
    after the fact. **Check first whether `util/scope-class.ts` already
@@ -442,7 +442,7 @@ attribute two changes at once, and `evals:ranking` only sees ordering.
    modules whose exports are type-only. Note this interacts with
    `blast_radius`, which normalises `transitiveImporterCount` — see the
    queue item below.
-4. **`name_behavior_mismatch` on data access.** `getChoreoByDate() →
+4. **`name_behavior_mismatch` on data access.** `getPostsByDate() →
    calls createClient` fired five times in one file, because a `get*`
    function makes a "side-effect-like call" — but `createClient()` is
    constructing the client *in order to do the read*. Every data-access

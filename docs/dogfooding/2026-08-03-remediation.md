@@ -81,9 +81,9 @@ test globs added to the generated `scopeTiers.nonDomain`.
 locked stack decision since v0. Grep for gitignore parsing under
 `discovery/` returned nothing; the `ignore` package was not a dependency.
 
-- buildfest: a gitignored `migrate-output/` was **323 of 1556 findings
+- dogfood-d: a gitignored `migrate-output/` was **323 of 1556 findings
   (20.8%)** and **136 of 158 (86%)** of all `exact_duplicate_block`
-- mysidekick-cc: two gitignored esbuild bundles were **19.1%**, and the
+- dogfood-e: two gitignored esbuild bundles were **19.1%**, and the
   report's single closing recommendation pointed at one of them
 
 Follows git precedence: nested `.gitignore` files apply relative to their
@@ -535,7 +535,7 @@ file currently carrying a `large_file` finding:
 
 | repo | n | blank share, all | code files | prose files |
 |---|---|---|---|---|
-| choreograph.cc | 33 | 6.5% | **3.0%** (n=27) | 21.0% (n=6) |
+| dogfood-a | 33 | 6.5% | **3.0%** (n=27) | 21.0% (n=6) |
 | crimes (self-scan) | 115 | 9.3% | **5.1%** (n=101) | 17.5% (n=14) |
 | hono | 26 | 8.9% | **8.9%** (n=26) | n/a |
 
@@ -544,7 +544,7 @@ construction, and prose has had its own 1000-line `docs` budget since
 `0.17.0`, so the class where the correction bites hardest is already
 measured against a different ruler. Actual source runs **3–9%**.
 
-**Wrong number 2: "5 of 33 choreograph findings would fall below the
+**Wrong number 2: "5 of 33 dogfood-a findings would fall below the
 300-line threshold"** (from the R4 pre-measurements). It is **8 of 33**:
 5 code files and 3 prose ones. Also 6 of 115 on the crimes self-scan
 and 5 of 26 on hono.
@@ -634,7 +634,7 @@ worth revisiting. Two things were measured before touching it:
 
 | repo | files with a transitive count | `blast_radius == 1.0` | files on a reported cycle |
 |---|---|---|---|
-| choreograph.cc | 208 | 0 (0.0%) | 0 of 207 (0.0%) |
+| dogfood-a | 208 | 0 (0.0%) | 0 of 207 (0.0%) |
 | crimes (self-scan) | 1,136 | 0 (0.0%) | 1 of 1,169 (0.1%) |
 | hono | 152 | 0 (0.0%) | 4 of 152 (2.6%) |
 | cal.com | 2,079 | 0 (0.0%) | n/a |
@@ -1036,7 +1036,7 @@ so the signal is one bitwise AND inside a traversal that was
    only trustworthy because of it, and a test now says so.
 
    With the script kind right, the false-positive rate over n8n,
-   cal.com, posthog and choreograph.cc is **1 file in 39,177**: n8n's
+   cal.com, posthog and dogfood-a is **1 file in 39,177**: n8n's
    `scripts/block-npm-install.js`, which writes `'\033[0;31m'`. TS
    calls an octal escape an error, so the parser flags it, but the tree
    is complete and the script runs: reporting it as a partial parse

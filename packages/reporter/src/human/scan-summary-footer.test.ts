@@ -6,7 +6,7 @@ import { formatHumanReport } from "./scan.js";
  * The summary header is the most important line in the report and it is
  * the first thing lost.
  *
- * Field notes from choreograph.cc (2026-08-05): `scan --top 15` on a
+ * Field notes from dogfood-a (2026-08-05): `scan --top 15` on a
  * 209-file repo emits 296 lines, so the header — line 6 — scrolls off
  * the terminal buffer. A second run at `--top 3` was needed *just to
  * read the totals*. Measured again against `main` before these tests
@@ -163,7 +163,7 @@ describe("scan report — the totals survive to the end", () => {
 /**
  * The headline number must describe the report it heads.
  *
- * Field notes from choreograph.cc: "499 findings across 209 files … on a
+ * Field notes from dogfood-a: "499 findings across 209 files … on a
  * working, shipping project reads as *your codebase is a crime scene*
  * when the codebase is in fact fine", and separately "roughly a third of
  * all findings live in `scripts/`".

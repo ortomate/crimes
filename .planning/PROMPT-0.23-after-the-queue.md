@@ -84,7 +84,7 @@ it fails for the right reason, then the minimal fix.
 
 **Measure on real repos.** `~/crimes-dogfood/corpus/`: `hono`,
 `pydantic`, `drf`, `zulip`, `airflow`, `mlflow`, `cal.com`, `posthog`,
-`n8n`. Also `~/dev/choreograph.cc` at `5107cce` — use a git worktree so
+`n8n`. Also `~/dev/dogfood-a` at `5107cce` — use a git worktree so
 churn resolves.
 
 **Two properties you must not break**, both with standing tests:

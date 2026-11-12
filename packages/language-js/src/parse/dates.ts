@@ -49,14 +49,14 @@ export function collectDateUse(
 /**
  * Does this clock reading decide something, or is it just recorded?
  *
- * Field notes from choreograph.cc argued that `direct_date` "conflates
+ * Field notes from dogfood-a argued that `direct_date` "conflates
  * reading time with recording it", and that the genuinely risky case is
  * time used in a branch or comparison. That framing is right and this
  * is what implements it — but note the notes' own example did **not**
- * hold up. `JobDetail.tsx` was reported as "essentially all display
+ * hold up. `Detail.tsx` was reported as "essentially all display
  * formatting"; it contains two poll timeouts of the form
  *
- *   if (Date.now() - startedAt >= VIDEO_POLL_TIMEOUT_MS) { … }
+ *   if (Date.now() - startedAt >= POLL_TIMEOUT_MS) { … }
  *
  * which is exactly the risky shape. Opening the file is what settled
  * it. So this classification exists to make the *evidence* say which

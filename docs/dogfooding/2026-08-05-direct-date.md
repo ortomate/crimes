@@ -1,25 +1,25 @@
 # `direct_date`: the second R3 precision item, and the example that was wrong
 
 **Charge:** Temporal Recklessness.
-**Complaint:** [field notes](./2026-08-05-choreograph-field-notes.md) ("conflates reading time with recording it… the genuinely risky case)
+**Complaint:** [field notes](./2026-08-05-field-notes.md) ("conflates reading time with recording it… the genuinely risky case)
 time used in a **branch or comparison** (is a much narrower and more
 valuable signal than time used as a value to record or display."
-**Status vs `main`:** [re-verified](./2026-08-05-choreograph-reverify.md)) 91 findings, and the cited evidence string reproduced byte-identically.
+**Status vs `main`:** [re-verified](./2026-08-05-field-notes-reverify.md)) 91 findings, and the cited evidence string reproduced byte-identically.
 
 ---
 
 ## The framing is right. The example is not.
 
-The notes cite `src/components/admin/JobDetail.tsx`:
+The notes cite `src/components/admin/Detail.tsx`:
 
-> As shipped, `JobDetail.tsx` reports "9× Date.now(), 4× new Date()" and
+> As shipped, `Detail.tsx` reports "9× Date.now(), 4× new Date()" and
 > essentially all of it is display formatting.
 
 Opening the file (the rule this codebase keeps re-learning) found:
 
 ```ts
 // line 870
-if (Date.now() - startedAt >= VIDEO_POLL_TIMEOUT_MS) {
+if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
   clearInterval(poll); clearInterval(ticker)
 ```
 
@@ -92,7 +92,7 @@ lot of dates.
 
 ## Measured
 
-choreograph.cc @ `5107cce`:
+dogfood-a @ `5107cce`:
 
 | | before | after |
 |---|---|---|
@@ -111,7 +111,7 @@ src/app/[person]/[date]/page.tsx           none decide a branch — all 19 recor
 scripts/_telos-andrew-conversations.ts     none decide a branch — all  8 record or render the reading
 ```
 
-`JobDetail.tsx` **stays `high`**, correctly, and now names lines 642,
+`Detail.tsx` **stays `high`**, correctly, and now names lines 642,
 870 and 1086 out of its thirteen.
 
 Eval fixtures: **0 of 15 moved**: fingerprints *and severities*
@@ -129,4 +129,4 @@ is another reason this landed as evidence-and-severity rather than as a
 gate.
 
 It does not touch the `low` band. A single clock read in a file is still
-`low`, and 33 of choreograph's 91 are exactly that.
+`low`, and 33 of dogfood-a's 91 are exactly that.

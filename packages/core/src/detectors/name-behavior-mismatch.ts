@@ -126,7 +126,7 @@ function looksPure(name: string): boolean {
  * Does `name` start with `prefix` as a *word*, rather than as a run of
  * characters that happens to match?
  *
- * Field notes, rolecred 2026-09-22: `ReadinessForm` was charged as a
+ * Field notes, dogfood-h 2026-09-22: `ReadyForm` was charged as a
  * `read` function, and its React state updates were then read as the
  * hidden side effects that "prove" the mismatch. Two errors compound
  * into one confident finding, and the first of them is this test.
@@ -175,7 +175,7 @@ function matches(text: string, pattern: RegExp): string[] {
  * `create*` calls that build the thing the function then works
  * *through*, rather than causing an effect.
  *
- * Field notes from choreograph.cc: `getChoreoByDate() → calls
+ * Field notes from dogfood-a: `getPostsByDate() → calls
  * createClient` fired five times in one file, "because a `get*`
  * function makes a side-effect-like call — but `createClient()` is
  * constructing the client in order to *do the read*. Every data-access
