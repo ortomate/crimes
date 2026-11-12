@@ -1,0 +1,44 @@
+{
+  "scenario": "context-12-py-untested-module",
+  "agent": "codex",
+  "crimes_version": "0.32.0",
+  "timestamp": "2026-11-12T01:33:37.501Z",
+  "run_id": "8bff28a1-e35b-4b0d-b258-94d56fd00e0a",
+  "response": "I’ll inspect the crimes tooling and ledger context without changing any files, then report the test protection and likely impact of a reversal change.\n\n\nThere is **no direct test protection for ledger reversals**.\n\n- `crimes context billing/ledger.py --format json` found no likely tests: no matching ledger test file and no test imports of the module. It reports no findings, but a test-gap score of 1.0; “risk: none” does **not** establish that a change is safe.\n- `reverse_entry` currently negates `net` and `gross`, preserving `account` and `region`. No callers of `reverse_entry` were found in the package or tests.\n- Crimes identifies `billing/reporting.py` as a downstream importer. It uses `post_entry`, so a reversal-only change has no observed reporting caller; broader ledger changes could affect report lines, totals, and exports.\n- Reporting provides only indirect smoke protection: the supplied scan flags all four reporting tests as assertion-free. They can catch exceptions, but incorrect totals or exports may still pass.\n- Ledger imports `billing/rates.py`. Rates have real assertion-based tests; invoices also use rates and have assertions in shared helpers. Those tests do not validate reversal behavior.\n\nBefore implementing the change, add focused reversal tests for the intended behavior, including amount signs and preserved fields. Strengthen reporting assertions if the change touches posting or shared ledger behavior.\n\nNo source files were changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal",
+      "blast radius scored by the code under test: billing/reporting.py": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "billing/ledger.py",
+        "observed": "billing/ledger.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      }
+    ]
+  }
+}

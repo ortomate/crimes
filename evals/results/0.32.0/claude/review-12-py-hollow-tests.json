@@ -1,0 +1,56 @@
+{
+  "scenario": "review-12-py-hollow-tests",
+  "agent": "claude",
+  "crimes_version": "0.32.0",
+  "timestamp": "2026-11-12T01:48:00.667Z",
+  "run_id": "4c7f9d04-3fcd-4335-adbd-04e045303dc9",
+  "response": "I read all nine Python files to check the scan against the code. The scan has one finding (the reporting tests), but the package has four modules and they're in four different states. I didn't run pytest or coverage, so this comes from reading the code, not from execution.\n\n## Coverage by module\n\n| Module | Test file | Real protection |\n|---|---|---|\n| `billing/rates.py` | `tests/test_rates.py` | **Genuine** |\n| `billing/invoices.py` | `tests/test_invoices.py` (assertions are in `tests/support.py`) | **Genuine but narrow** |\n| `billing/reporting.py` | `tests/test_reporting.py` | **Looks covered, isn't** (the scan finding) |\n| `billing/ledger.py` | none | **Looks covered, isn't** (the scan has no finding for it) |\n\n### `rates.py`: genuinely covered\nThe tests directly assert specific values: `rate_for(\"GB\") == 0.20`, `\"DE\" == 0.19`, the fallback to `DEFAULT_RATE`, and `is_zero_rated` returning False. If the rate table or the fallback breaks during the refactor, these tests fail.\n- Small gaps: nothing asserts the FR rate. Nothing tests `is_zero_rated` returning True, because no zero-rated region exists.\n\n### `invoices.py`: genuinely covered, but only partly\n`test_invoices.py` has no `assert` in the file itself, but it isn't hollow. Every test calls `verify_invoice_balances` or `InvoiceCase.expect_gross_for` in `tests/support.py`, and both make real assertions. The scan follows imported and base-class helpers, which is why it correctly left this file alone. What those assertions actually protect:\n- **`build_invoice` gross value:** pinned. There are real expected numbers (`GB 1000 → 1200.0`, empty DE → `0.0`) and the account is checked.\n- **`apply_credit`:** weak. The three credit tests only call `verify_invoice_balances`, which checks `gross == net + tax` and `net >= 0`. Those checks hold for any rate and any net amount. If `apply_credit` ignored the credit, applied it twice, or lost the region, all three tests would still pass. The tests never assert that the new net equals the original net minus the credit.\n- **Credit larger than the invoice:** untested.\n- **Fragile check:** `gross == net + tax` compares floats exactly. A refactor that changes the arithmetic slightly, while staying correct, could break it.\n\n### `reporting.py`: only looks covered\nAll 4 tests assert nothing (`test_reporting.py:11-25`). They call `build_report` and `export_report` and pass as long as nothing raises. The CSV format string, the JSON dict shape, and `total` could all be wrong and the suite would stay green. The `ValueError` branch for unsupported formats is never run.\n- The finding's `test_gap: 0` means \"a test file exists\", not \"this code is protected\". That's exactly the trap here.\n\n### `ledger.py`: the gap the scan doesn't report\nIt has no test file, and the scan has no finding for it. That doesn't mean it's fine.\n- **`post_entry` looks covered by line coverage.** It runs inside every reporting test, because `build_report` calls it. There's a `.coverage` file in the repo, so a coverage report would likely mark these lines as hit. But none of those tests assert anything, so the gross calculation is unchecked.\n- **`reverse_entry` is never run by any test.** Nothing would catch it if the refactor broke it.\n\n## Before refactoring\n1. **Reporting:** add real assertions, such as the exact CSV string, the JSON dict, and `total == 120.0` for GB, plus a `pytest.raises(ValueError)` for a bad format.\n2. **Ledger:** write tests for `post_entry` values and for `reverse_entry` reversing an entry back to the original.\n3. **`apply_credit`:** add assertions on the resulting net and gross values, not only the balance check.\n4. **Rates and `build_invoice` gross:** these can be relied on as they are.\n\nScan scope: three files weren't read by any detector (`crimes.config.json`, `pyproject.toml`, `.coverage`). None of them contain package logic, so this doesn't change the picture above.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "weak_test_signal"
+    },
+    "detector_id_by_charge": {
+      "Weak Test Signal": "weak_test_signal"
+    },
+    "detector_id_by_evidence": {
+      "4 of 4 test functions contain no assertion": "weak_test_signal",
+      "`test_build_report` (lines 11–12) asserts nothing": "weak_test_signal",
+      "`test_export_report` (lines 15–16) asserts nothing": "weak_test_signal",
+      "`test_export_report_json` (lines 19–20) asserts nothing": "weak_test_signal",
+      "`test_round_trip` (lines 23–25) asserts nothing": "weak_test_signal",
+      "0 total assertions across 4 tests (0.0 per test, expected ≥ 1)": "weak_test_signal",
+      "counted forms: bare `assert`, unittest `self.assert*` / `self.fail`, `pytest.raises`, `pytest.warns`, `@pytest.mark.xfail`, `model_dump_json(warnings='error')`, and any of those reached through up to 2 same-file helper calls, or one call into a base-class or imported helper": "weak_test_signal",
+      "blast radius scored by the code under test: billing/reporting.py": "weak_test_signal"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "tests/test_reporting.py",
+        "observed": "tests/test_reporting.py",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "billing/reporting.py",
+        "observed": "billing/reporting.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

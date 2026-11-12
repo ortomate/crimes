@@ -1,0 +1,83 @@
+{
+  "scenario": "refactor-11-py-god-function",
+  "agent": "claude",
+  "crimes_version": "0.32.0",
+  "timestamp": "2026-11-12T01:43:27.139Z",
+  "run_id": "6a853771-e3d2-4d2a-89f4-47af6788494a",
+  "response": "**The function: `build_invoice` in `domain/invoicing.py:15-75`**\n\nI didn't just take the top `agent_risk` score. `get_invoice` scores higher (0.44), but it's 9 lines and its fix is mechanical: switch to async I/O. `build_invoice` only scores 0.11 as a \"God Function\", yet four of the eight findings fall on it or its module:\n\n| Finding | How it hits `build_invoice` |\n|---|---|\n| crime_00006 God Function | 61 lines, 5 levels of nesting, 5 parameters |\n| crime_00002 Temporal Recklessness | 3 of the module's 4 naive clock reads are inside it (lines 20, 21, 53) |\n| crime_00001 Two Clocks | It mixes `now()` and `utcnow()` within two lines of each other |\n| crime_00005 Circular Dependency | It's the only user of `format_money` (line 72), which is the import that closes the `domain ↔ api.rendering` cycle |\n\nIt's also the only domain entry point the HTTP layer calls (`api/routes.py:26`), and the repo has no tests at all.\n\n### What makes it risky, beyond length\n\n1. **Its output depends on the wall clock, the host timezone, and an import cycle.** None of that shows up in the signature. `issued` is local time and `period_start` is naive UTC, so on a UTC CI runner they agree and on a production host they're off by the UTC offset. An agent's tests can pass while production breaks.\n2. **The coupon check (line 53) can crash in two ways.**\n   - If `expires_at` is timezone-aware, `aware < naive` raises `TypeError`.\n   - If `expires_at` is missing, `None < datetime` raises `TypeError`.\n\n   The obvious fix for crime_00002 is to make `now()` aware. That flips which coupon payloads crash: naive ones start failing instead of aware ones. So a \"simple timezone fix\" changes behaviour for real coupon data.\n3. **It has quirks a tidying agent would \"fix\" without noticing:**\n   - Subscription and usage lines ignore `quantity` (lines 36–46); only the default branch multiplies by it.\n   - `0.85` (the prepaid annual discount) and `12` are bare numbers.\n   - Percent coupons over 100, or `stackable` + `bonus`, can push the discount above the subtotal, so `apply_vat` gets a negative amount.\n   - An expired coupon is silently ignored, with no warning added.\n\n   Some of these may be bugs. All of them are current behaviour, and changing any of them changes what customers are billed.\n4. **The `skipped` and `warnings` lists are built up inside the loop.** You can't pull a branch out into a helper without also passing back the side effects, which is easy to lose during extraction.\n5. **The cycle makes import order matter.** Moving `format_money` or adding imports here can produce an `ImportError` that depends on which module loads first, so it may pass under pytest and fail under uvicorn.\n6. **It takes untyped dicts everywhere** (`customer`, `coupon`, `options`). The keys it relies on are only listed implicitly in the body, so an agent has to read every line to know the input contract.\n\n### Refactor plan (each step is its own commit, tests green between steps)\n\n**Step 0: Characterization tests first, no code changes.** Add `tests/test_invoicing.py` and pin the current behaviour, including the quirks above:\n- one test per line-item kind\n- the usage cap and its warning\n- skipping lines with quantity ≤ 0\n- percent, fixed and stackable+bonus coupons, plus an expired coupon\n- a discount larger than the subtotal (record the current result)\n\nFreeze time with `freezegun` or by monkeypatching `datetime`, and run the suite under at least two `TZ` values. Nothing else starts until this exists.\n\n**Step 1: Inject the clock.** Add a `now: Callable[[], datetime]` keyword argument that defaults to `lambda: datetime.now(timezone.utc)`, and read it once at the top. Use that single instant for `issued_at`, `period_start` and the coupon check (lines 20, 21, 53). Decide explicitly, and record in a test, what happens to naive `expires_at` values: normalise them as UTC at the boundary, or reject them. `summarise` (line 79) gets the same `now` parameter in the same commit so the module ends up with one clock convention.\n\n**Step 2: Extract pure line pricing.**\n```python\ndef price_line(item) -> LinePrice  # returns amount + optional warning, no shared lists\n```\nInside it, split out `_subscription_total`, `_usage_total` and `_flat_total`, and name the constants `ANNUAL_MONTHS = 12` and `PREPAID_ANNUAL_RATE = 0.85`. The loop in `build_invoice` becomes: skip, call `price_line`, add up, collect warnings. That takes the nesting from 5 levels down to 2.\n\n**Step 3: Extract coupon logic.**\n```python\ndef coupon_discount(coupon, subtotal, now) -> Decimal | float\n```\nUse early returns for no coupon or an expired one. Keep the current over-discount behaviour exactly, and file the \"clamp to subtotal?\" question as a separate change for a person to decide.\n\n**Step 4: Take rendering out of the domain function and break the cycle.**\n- Remove `display_total` from `build_invoice` and call `format_money` in `api/routes.py`, which is the presentation layer it belongs to. `domain/invoicing.py` then no longer imports `api.rendering`, so the cycle is gone.\n- Move `LINE_ITEM_CAP` into a leaf module such as `domain/constants.py`, so `api/rendering.py` doesn't import back into `invoicing`.\n- If callers need the response shape to stay the same, keep a thin wrapper in `api/` that adds `display_total`.\n\n**Step 5: Firm up the input contract (optional, but the next agent benefits).** Replace `coupon` and `options` with `TypedDict`s or dataclasses. Once Step 4 is done `options` only matters for rendering, so `build_invoice` can drop it and take 4 parameters.\n\n**End state:** `build_invoice` is about 15 lines that call `price_line`, `coupon_discount` and `apply_vat`. Each helper is pure and tested on its own, the function reads one injected clock, and it no longer imports from `api`.\n\n**Out of scope:** the hot-path findings in `routes.py` (00003, 00004) and the deep imports (00007, 00008) are separate, mechanical fixes. Keep them out of this change so its diff only moves logic around.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "mixed_utc_local_methods",
+      "crime_00002": "direct_date",
+      "crime_00003": "sync_io_in_hotpath",
+      "crime_00004": "sync_io_in_hotpath",
+      "crime_00005": "circular_dependency",
+      "crime_00006": "large_function",
+      "crime_00007": "deep_import",
+      "crime_00008": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Two Clocks, One Module": "mixed_utc_local_methods",
+      "Temporal Recklessness": "direct_date",
+      "Blocking the Hot Path": "sync_io_in_hotpath",
+      "Circular Dependency": "circular_dependency",
+      "God Function": "large_function",
+      "Deep Import": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "UTC-naive reads: datetime.utcnow() line 21": "mixed_utc_local_methods",
+      "local-naive reads: datetime.now() line 20, datetime.now() line 53, datetime.now() line 79": "mixed_utc_local_methods",
+      "both families return naive datetimes — the type system cannot tell them apart": "mixed_utc_local_methods",
+      "a UTC-configured CI runner makes the two agree, so tests pass and production drifts": "mixed_utc_local_methods",
+      "3× datetime.now(), 1× datetime.utcnow()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "4 of 4 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20, 21, 53, 79": "direct_date",
+      "1× utcnow() — deprecated since Python 3.12; returns naive UTC, which reads as local time to every downstream comparison": "direct_date",
+      "2 blocking calls: requests.get() line 21, open() line 23": "sync_io_in_hotpath",
+      "all inside get_invoice (shape \"route_handler\", lines 18–26)": "sync_io_in_hotpath",
+      "\"route_handler\"": "sync_io_in_hotpath",
+      "at least one call sits inside an `async def` — a blocking call there stalls the event loop for every concurrent request, not just this one": "sync_io_in_hotpath",
+      "families: file, network": "sync_io_in_hotpath",
+      "2 blocking calls: subprocess.run() line 31, time.sleep() line 32": "sync_io_in_hotpath",
+      "all inside export_invoice (shape \"route_handler\", lines 30–33)": "sync_io_in_hotpath",
+      "families: sleep, subprocess": "sync_io_in_hotpath",
+      "cycle size: 2 modules": "circular_dependency",
+      "member: api/rendering.py": "circular_dependency",
+      "member: domain/invoicing.py": "circular_dependency",
+      "Python executes a module top-to-bottom on first import, so a module in a cycle can be observed half-initialised": "circular_dependency",
+      "whichever module is imported first decides whether this raises — so it can pass under pytest and fail under a production server": "circular_dependency",
+      "61 lines (threshold 50 for shape \"domain\")": "large_function",
+      "nesting depth 5": "large_function",
+      "5 parameters": "large_function",
+      "nesting reaches 5 levels — each level is a branch a reader has to keep on the stack": "large_function",
+      "from tax.rules.regional.eu.vat_bands import STANDARD_BAND — depth 5, line 8": "deep_import",
+      "threshold: depth > 4, or 3+ leading dots": "deep_import",
+      "from tax.rules.regional.eu.vat_bands import BANDS — depth 5, line 3": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "domain/invoicing.py",
+        "observed": "domain/invoicing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

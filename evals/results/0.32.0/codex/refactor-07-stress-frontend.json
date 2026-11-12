@@ -1,0 +1,48 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "codex",
+  "crimes_version": "0.32.0",
+  "timestamp": "2026-11-12T01:40:00.666Z",
+  "run_id": "90bbc7ae-d2cb-4cf3-94c8-af687d5630d0",
+  "response": "I’ll run the context command and inspect the card, then tie a responsive change to the reported evidence.\n\n\n`crimes context src/Card.tsx --format json` confirms finding `crime_00001`: fixed widths of **800px** and **720px**, plus **18px** typography without responsive rules.\n\nPropose these style changes in [src/Card.tsx](/private/var/folders/8_/6tdb3p2s63v_xxb15r46cqwr0000gn/T/crimes-eval-agent-RHyPdK/src/Card.tsx):\n\n```tsx\n// Outer card\nwidth: \"100%\",\nmaxWidth: 800,\nboxSizing: \"border-box\",\nminHeight: 600,\npadding: \"clamp(12px, 3%, 24px)\",\noverflowWrap: \"anywhere\",\n\n// Content\nwidth: \"100%\",\nmaxWidth: 720,\nfontSize: \"1.125rem\",\n\n// Sidebar\nwidth: \"100%\",\nmaxWidth: 240,\nfontSize: \"0.875rem\",\n```\n\nRemove the fixed `height: 600` so wrapped content can increase the card’s height. These changes directly address the flagged widths while preserving desktop size limits, readable text, and all content at narrow widths without clipping.\n\nProposal only; no files changed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Responsive Fragility": "responsive_fragility"
+    },
+    "detector_id_by_evidence": {
+      "3 responsive-risk style values": "responsive_fragility",
+      "line 10: width 800px": "responsive_fragility",
+      "line 24: width 720px": "responsive_fragility",
+      "line 24: fontSize 18px (no @media in file)": "responsive_fragility",
+      "no `@media` query found in the file": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "expected_priority",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      }
+    ]
+  }
+}

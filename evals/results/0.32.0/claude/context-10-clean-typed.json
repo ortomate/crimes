@@ -1,0 +1,46 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.32.0",
+  "timestamp": "2026-11-12T01:32:26.327Z",
+  "run_id": "26b71cef-fed2-4dcd-a12a-959e6fabc4b7",
+  "response": "I ran `crimes context src/billing.ts --format json`, and there are no findings on this file.\n\n**Context results**\n- `findings: []`, and risk is `\"none\"`, with 0 high, 0 medium and 0 low.\n- `analysis_status: \"complete\"`, so the scan finished.\n- `agent_guidance: []`. The tool says there were \"no findings on this file and no deterministic related files.\"\n- `related_files: []`. It found nothing linking this file to others: no shared domain words, no files with a matching name prefix, and no other files in the same folder.\n- **likely_tests: `src/billing.test.ts`**\n\n**Why it's low risk to edit**\n1. **It's small and has strict types.** `src/billing.ts` has one interface (`Money`) and one pure function (`format`). `currency` can only be `\"USD\" | \"EUR\" | \"GBP\"`, so the type checker catches a bad currency at compile time.\n2. **Nothing else depends on it.** The tool found no related files, so a change here can't break code somewhere else.\n3. **Its test sits right next to it.** `src/billing.test.ts` checks the USD and EUR output exactly (`\"USD 12.50\"`, `\"EUR 7.00\"`). Re-run it after any change.\n4. **The repo scan found nothing in this file either.** Its only finding is a low-severity issue (confidence 0.56) in `package.json`, not in `billing.ts`.\n\n**One catch before you rely on the test:** that repo finding says `vitest` is imported by `src/billing.test.ts` but isn't listed in `package.json`. On a clean install the test may fail to load because vitest isn't there. That's a setup problem, not a problem with the billing code. Adding `vitest` to `package.json` as a dev dependency fixes it and makes the test a dependable check.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`vitest` — imported at src/billing.test.ts as \"vitest\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true,
+        "skipped": "path supplied by the scenario prompt"
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

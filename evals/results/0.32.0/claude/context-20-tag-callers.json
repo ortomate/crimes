@@ -1,0 +1,52 @@
+{
+  "scenario": "context-20-tag-callers",
+  "agent": "claude",
+  "crimes_version": "0.32.0",
+  "timestamp": "2026-11-12T01:35:11.086Z",
+  "run_id": "b00d3b3f-373b-4669-9f9f-92fef999ab3e",
+  "response": "**Three pages call `inputField.tag`, with 9 call sites between them. Every one would break if `placeholder` becomes required.**\n\nOne thing to know first: running the command exactly as given, from the fixture directory, found nothing. crimes treated the parent `/Users/andrew/dev/crimes` repo as the root. That repo excludes the fixture, so the result was `analysis_status: \"not_analyzed\"` with `related_files: []`. Adding `--root .` fixed it: `analysis_status: \"complete\"`, and it listed the three callers below. I also checked them with grep, and the counts match.\n\n## Callers\n\n| Page | Call sites |\n|---|---|\n| `src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp` | lines 15–19: `firstName`, `lastName`, `address`, `city`, `telephone` |\n| `src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp` | lines 29–30: `name`, `birthDate` |\n| `src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp` | lines 39–40: `date`, `description` |\n\nEach call passes only `label` and `name`, which are the tag's two current required attributes.\n\n## How the pages reach the tag\n\nIt's a tag file, not a TLD tag. Each caller declares:\n\n```jsp\n<%@ taglib prefix=\"petclinic\" tagdir=\"/WEB-INF/tags\" %>\n```\n\nand calls it as `<petclinic:inputField .../>`. The tag name comes from the filename. There are no `.tld`, `.tagx` or `.jspf` files in the repo, so the tag can't be reached any other way.\n\nNine files declare that `petclinic` prefix: the three forms plus `exception.jsp`, `welcome.jsp`, `vetList.jsp`, `ownersList.jsp`, `ownerDetails.jsp`, `findOwners.jsp`, and the tags `layout.tag`, `menu.tag` and `bodyHeader.tag`. None of those others call `inputField`. They use the prefix for `layout`, `menuItem` and similar tags. crimes listed the other tags in the same folder only as \"same directory\" (score 0.2), not as callers, which is correct.\n\n## What I'd check before shipping\n\n1. **Which pages fail.** All three forms pass only `label` and `name`, so all would fail. If a required attribute is missing, Jasper throws an error when it translates the JSP. That happens on the first request to the page, not during `mvn package`.\n2. **The visit form.** It sits behind the \"add visit\" flow, so a quick manual click-through might never open it. Visit all three forms: new owner, edit owner, new pet, edit pet and new visit. Remember that the owner and pet JSPs each serve both the create and update pages.\n3. **The tests won't catch it.** crimes reports `likely_tests: []`. The controller tests in `src/test/.../web/*ControllerTests.java` use MockMvc, which stops at the forwarded view name and never compiles the JSP. A green `mvn test` proves nothing about this change. To get a build-time check, add JSP precompilation (for example `jspc-maven-plugin`), or a smoke test that renders the forms in a real container.\n4. **Consider `required=\"false\"`.** The tag would then render `placeholder` only when it is set (`<c:if test=\"${not empty placeholder}\">`), and no caller would break. If it must be required, update all 9 call sites in the same commit.\n5. **How the value gets out.** Spring's `<form:input>` passes unknown attributes like `placeholder` straight through to the HTML, so `placeholder=\"${placeholder}\"` works. Check what an empty value renders as.\n6. **Pages outside this repo.** Look for JSPs in another module or an overlay WAR that share `/WEB-INF/tags`. Only this repo was scanned.\n\nI didn't edit any files.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "raster_should_be_vector"
+    },
+    "detector_id_by_charge": {
+      "Icon-Sized Raster": "raster_should_be_vector"
+    },
+    "detector_id_by_evidence": {
+      "dimensions: 16 × 16 px (≤ 64 threshold both sides)": "raster_should_be_vector",
+      "consider replacing with an SVG icon — same render at every DPI, smaller bytes": "raster_should_be_vector"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp",
+        "observed": "src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp",
+        "observed": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp",
+        "observed": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "dangling_template_reference"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}
