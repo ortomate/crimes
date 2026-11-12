@@ -100,7 +100,14 @@ const POLICY_NAMES = new Set([
   "state",
 ]);
 
+/**
+ * `PromiseSettledResult.status`. "fulfilled" is never a product state;
+ * "rejected" can be, so it is skipped only in files that settle promises.
+ */
+const SETTLEMENT_LITERALS = new Set(["fulfilled", "rejected"]);
+
 function scanFile(file: string, source: string, out: Map<string, CheckHit[]>): void {
+  const settles = source.includes("allSettled");
   let lineStart = 0;
   let line = 1;
   for (const match of source.matchAll(COMPARISON_RE)) {
@@ -108,6 +115,8 @@ function scanFile(file: string, source: string, out: Map<string, CheckHit[]>): v
     const lhsLower = lhsExpr!.toLowerCase();
     const tail = lhsLower.split(".").pop() ?? lhsLower;
     if (!POLICY_NAMES.has(tail)) continue;
+    if (tail === "status" && literal === "fulfilled") continue;
+    if (tail === "status" && settles && SETTLEMENT_LITERALS.has(literal!)) continue;
     const idx = match.index ?? 0;
     while (lineStart <= idx) {
       const next = source.indexOf("\n", lineStart);

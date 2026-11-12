@@ -81,6 +81,19 @@ describe("orphanedDestinationDetector", () => {
     expect(findings[0]!.summary).toMatch(/\/admin\/legacy/);
   });
 
+  it("does not fire on an App Router route handler", async () => {
+    // `route.ts` answers HTTP requests (OAuth callbacks, webhooks); no
+    // nav entry is expected to point at it.
+    for (const file of ["app/api/callback/route.ts", "src/app/api/items/route.js"]) {
+      const ia = buildIndex({
+        routes: [
+          { file, routePath: "/x", componentName: undefined, titles: [], labels: [] },
+        ],
+      });
+      expect(await orphanedDestinationDetector.run(ctxFor(file, ia))).toEqual([]);
+    }
+  });
+
   it("does not fire when a nav source references the destination", async () => {
     const ia = buildIndex({
       routes: [
