@@ -109,6 +109,31 @@ export const CLEANUP_FUNCTION_RE =
 export const BEST_EFFORT_FUNCTION_RE =
   /^(safely|try|maybe|attempt|best[Ee]ffort|optional|soft|quiet|silent)[A-Z_]|(?:OrNull|OrUndefined|OrDefault|OrEmpty|IfPossible|Safe)$/;
 
+/**
+ * Calls that only parse or decode a value already in hand. A handler
+ * around nothing else that returns a bland value is failing closed on
+ * malformed input: invalid signed state, a bad cookie, a broken body.
+ * Rollup 2026-09-22: seven `fp` verdicts gave that reason, several
+ * adding that logging attacker-controlled input would itself be noise.
+ *
+ * A fetch response body (`res.json()`) is deliberately absent: a
+ * provider sending garbage is their outage, and hiding it is the bug
+ * this detector exists for. Request bodies are the caller's input.
+ */
+const INPUT_PARSE_CALL =
+  /^(?:JSON\.parse|decodeURIComponent|decodeURI|atob|parseInt|parseFloat|Number|(?:req|request)\.(?:json|text|formData))$/;
+const PURE_HELPER_CALL =
+  /(?:^|\.)(?:trim|trimStart|trimEnd|slice|split|replace|replaceAll|toLowerCase|toUpperCase)$/;
+const INPUT_PARSE_NEW = /\bnew\s+(?:URL|URLSearchParams|Intl\.[A-Za-z]+)\s*\(/;
+
+function guardsOnlyInputParse(handler: ErrorHandler): boolean {
+  const calls = handler.protectedCalls;
+  const parses = calls.filter((c) => INPUT_PARSE_CALL.test(c));
+  if (!calls.every((c) => INPUT_PARSE_CALL.test(c) || PURE_HELPER_CALL.test(c)))
+    return false;
+  return parses.length > 0 || INPUT_PARSE_NEW.test(handler.protectedOperation);
+}
+
 export const swallowedErrorDetector: LanguageJsDetector = {
   id: "swallowed_error",
   // `SwallowKind` has always computed exactly which of five things the
@@ -183,6 +208,8 @@ interface Verdict {
   disposition: string;
   /** True when the author's intent to suppress is documented. */
   deliberate: boolean;
+  /** A fallback around nothing but a parse of input: see {@link guardsOnlyInputParse}. */
+  failsClosed?: boolean;
 }
 
 function classify(
@@ -248,6 +275,7 @@ function classify(
       kind: "bland_fallback",
       disposition: `the handler returns \`${body.fallback}\` without inspecting the error`,
       deliberate,
+      failsClosed: guardsOnlyInputParse(handler),
     };
   }
 
@@ -307,7 +335,8 @@ function buildFinding(
       "suppression appears deliberate (documented or cleanup path)",
       -0.2,
     )
-    .add(scope === "fixture", "file is fixture material", -0.15);
+    .add(scope === "fixture", "file is fixture material", -0.15)
+    .add(verdict.failsClosed === true, "fails closed on malformed input", -0.15);
 
   const severity = new SeverityLadder(0.35)
     .add(boundary?.id === "payment", "payment operation", 0.35)
@@ -318,7 +347,8 @@ function buildFinding(
     .add(boundary?.id === "filesystem", "file write", 0.14)
     .add(boundary?.id === "network", "external request", 0.1)
     .add(verdict.kind === "empty", "nothing is recorded at all", 0.06)
-    .add(verdict.deliberate, "suppression appears deliberate", -0.25);
+    .add(verdict.deliberate, "suppression appears deliberate", -0.25)
+    .add(verdict.failsClosed === true, "only parses input, then fails closed", -0.25);
 
   const built = buildEvidence(handler, verdict, boundary, confidence, severity);
   const intrinsic = fallbackIntrinsic(boundary?.id, verdict);
@@ -365,6 +395,9 @@ function fallbackIntrinsic(boundary: string | undefined, verdict: Verdict): numb
     return 0.8;
   if (boundary) return verdict.deliberate ? 0.35 : 0.55;
   if (verdict.deliberate) return 0.15;
+  // Between documented intent and an unexplained fallback: the shape is
+  // a known-good one, but nobody said so.
+  if (verdict.failsClosed === true) return 0.22;
   return verdict.kind === "empty" || verdict.kind === "discarded_rejection" ? 0.5 : 0.3;
 }
 
@@ -441,6 +474,14 @@ function buildEvidence(
       "this appears deliberate — the surrounding comment or function name " +
         `(\`${handler.enclosing ?? "…"}\`) marks it as a best-effort or cleanup ` +
         "path — so severity and confidence are both reduced",
+    );
+  }
+
+  if (verdict.failsClosed === true) {
+    evidence.push(
+      "the protected region only parses or decodes input, so this fails closed " +
+        "on malformed input — reduced, not dismissed: confirm the caller treats " +
+        'the fallback as "invalid" rather than "absent"',
     );
   }
 

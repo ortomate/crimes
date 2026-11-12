@@ -27,6 +27,63 @@ function run(
   return swallowedErrorDetector.run(ctx) as PreFinding[];
 }
 
+describe("swallowed_error — failing closed on input", () => {
+  // Rollup 2026-09-22: seven fp verdicts on handlers that parse or decode
+  // untrusted input and return null for "not valid". Kept as findings,
+  // since null can still hide a bug, but no longer at full weight.
+  it("lowers a fallback that guards only a parse of its input", () => {
+    const [finding] = run(`
+      export function parseState(raw) {
+        try { return JSON.parse(raw); } catch { return null; }
+      }
+    `);
+    expect(finding!.claim).toBe("bland_fallback");
+    expect(finding!.severity).toBe("low");
+    expect(finding!.evidence.join("\n")).toContain("fails closed");
+  });
+
+  it("treats decodeURIComponent, new URL and a request body read the same way", () => {
+    const findings = run(`
+      export function readCookie(v) {
+        try { return decodeURIComponent(v); } catch { return null; }
+      }
+      export function hostOf(candidate) {
+        let parsed;
+        try { parsed = new URL(candidate); } catch { return null; }
+        return parsed.host;
+      }
+      export async function POST(request) {
+        let body;
+        try { body = await request.json(); } catch { return null; }
+        return body;
+      }
+    `);
+    expect(findings).toHaveLength(3);
+    for (const f of findings) {
+      expect(f.evidence.join("\n")).toContain("fails closed");
+    }
+  });
+
+  it("does not lower a fallback that also guards an effect", () => {
+    const [finding] = run(`
+      export async function load(raw) {
+        try { await db.orders.insert(JSON.parse(raw)); } catch { return null; }
+      }
+    `);
+    expect(finding!.evidence.join("\n")).not.toContain("fails closed");
+  });
+
+  it("does not lower a fallback around a fetch response body", () => {
+    // A provider's malformed body is their failure, not untrusted input.
+    const [finding] = run(`
+      export async function load(res) {
+        try { return await res.json(); } catch { return null; }
+      }
+    `);
+    expect(finding!.evidence.join("\n")).not.toContain("fails closed");
+  });
+});
+
 describe("swallowed_error — positive cases", () => {
   it("reports an empty catch around a database write", () => {
     const findings = run(`
