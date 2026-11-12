@@ -38,24 +38,30 @@ The six that stopped firing are three `direct_date` entries on
 - `orphaned_destination`: `app/**/route.test.ts` was read as a route. Test
   and story files are no longer routes.
 
-## Still open, by pattern
+## Addressed in 0.32.0
 
 - **Findings on files a branch did not touch** (8 `high_fan_in_fan_out`,
-  2 `duplicated_role_status_plan_check`, all on 0.31.0). The percentile
-  cutoff moves when a file is added elsewhere, and `diff`/`verdict` then
-  report the untouched file as new. This is a `diff` contract question
-  (mark new findings on unchanged files) rather than a detector fix.
+  2 `duplicated_role_status_plan_check`). `diff` and `verdict` mark new and
+  fixed findings whose file and related files are unchanged with
+  `outside_change`, and neither weighs nor gates on them by default. On the
+  range behind the eight fan-in verdicts, exactly those eight are
+  marked.
+- **`swallowed_error` failing closed on input** (7). A fallback guarding
+  only a parse or decode of input is lowered and says "fails closed"; it
+  is not removed.
+- **Single reports:** `Promise.allSettled` statuses are not a status
+  policy; `return_shape_roulette` reads a return type declared after an
+  inline object parameter type; App Router `route.ts` handlers are not
+  orphaned pages.
+
+## Still open
+
 - **`direct_date` at a request boundary** (8 still fire, all `low`). One
   clock read captured at the route or action and injected inward is the
   pattern the detector recommends. Recognising it needs a single read
-  passed as an argument, which the parser does not track yet.
-- **`swallowed_error` fail-closed on untrusted input** (7 still fire).
-  `JSON.parse` or `decodeURIComponent` of attacker-controlled input
-  returning `null` is called a `bland_fallback`. Best-effort telemetry
-  catches make up the rest.
+  followed into a call argument, which the parser does not track. Logged
+  in [the roadmap](../roadmap.md).
 - **Shared literal, unrelated state machines** (`magic_domain_literal_scatter`
-  ×2, `duplicated_policy` ×1, `duplicated_role_status_plan_check` on
-  `Promise.allSettled` `status === "rejected"`).
-- Single reports, not yet a pattern: `return_shape_roulette` with an
-  explicit discriminated-union return type, `hardcoded_localhost` behind a
-  production throw.
+  ×2, `duplicated_policy` ×1). No rule yet separates a shared field name
+  from a shared policy.
+- `hardcoded_localhost` behind a production throw: one report.
