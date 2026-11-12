@@ -172,6 +172,14 @@ syntax do not imply Git's merge-base diff semantics. Suppressions apply to
 new findings. `--show-suppressed` changes display, not gate evaluation.
 `--fail-on new-high` and `new-medium` opt into gates.
 
+A new or fixed finding carries `outside_change: true` (0.32.0) when neither
+its `file` nor any `related_files` entry differs between the two refs. It
+moved because something else did: a repo-wide percentile cutoff, a changed
+threshold, a relocated finding. `summary.outside_change` counts them, and
+`summary.new` and `summary.fixed` still include them. `--fail-on` skips them
+unless `--include-outside-change` is passed. The field is optional and
+additive, so `schema_version` stays `0.8.0`.
+
 ## `Baseline` (on-disk shape of `.crimes/baseline.json`)
 
 Stores compact observations rather than full findings. Review and commit a
@@ -193,6 +201,9 @@ Summarizes a committed-ref comparison as `cleaner`, `worse`, `unchanged` or
 `mixed`, with reasons, counts and optional next actions. Any new high produces
 `worse`; otherwise new/fixed weighted severity uses high=3, medium=2, low=1.
 These are ordinal comparisons, not measured safety improvements.
+Findings marked `outside_change` (see `DiffReport`) are listed but not
+weighed or gated, and a reason says how many there were;
+`--include-outside-change` weighs them like the rest.
 
 Prefer an explicit project base. Automatic selection tries the remote default
 branch (`origin/HEAD`), then `origin/main`, `main`, `origin/master`, `master`.

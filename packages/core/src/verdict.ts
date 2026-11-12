@@ -51,6 +51,12 @@ export interface VerdictSummary {
   new_weighted: number;
   /** Σ SEVERITY_WEIGHT over `fixed_findings`. */
   fixed_weighted: number;
+  /**
+   * New and fixed findings marked `outside_change`, which are counted in
+   * `new` / `fixed` but left out of the by-severity counts and weights
+   * unless `includeOutsideChange` was set. Present only when non-zero.
+   */
+  outside_change?: { new: number; fixed: number };
 }
 
 export interface VerdictReport {
@@ -93,6 +99,11 @@ export interface VerdictOptions {
    * with `suppressed: true` and `suppression_reason`. Defaults to false.
    */
   showSuppressed?: boolean;
+  /**
+   * Weigh findings on files the branch did not change (`outside_change`)
+   * like any other. Defaults to false: they are reported, not judged.
+   */
+  includeOutsideChange?: boolean;
 }
 
 export class NoDefaultBaseError extends Error {
@@ -338,19 +349,31 @@ export async function verdict(options: VerdictOptions = {}): Promise<VerdictRepo
 
   // Gate logic must always evaluate against the unsuppressed slice of
   // the new set, regardless of whether annotated entries are visible.
-  const gateNewFindings = diffReport.new_findings.filter((f) => f.suppressed !== true);
+  const visibleNew = diffReport.new_findings.filter((f) => f.suppressed !== true);
+  // A finding on a file this branch did not touch is not this branch's
+  // to answer for unless the caller says otherwise; see `outside_change`.
+  const isJudged = (f: { outside_change?: true }) =>
+    options.includeOutsideChange === true || f.outside_change !== true;
+  const gateNewFindings = visibleNew.filter(isJudged);
+  const gateFixedFindings = diffReport.fixed_findings.filter(isJudged);
   const judged = judgeVerdict({
     newFindings: gateNewFindings,
-    fixedFindings: diffReport.fixed_findings,
+    fixedFindings: gateFixedFindings,
   });
+  const outsideNew = visibleNew.length - gateNewFindings.length;
+  const outsideFixed = diffReport.fixed_findings.length - gateFixedFindings.length;
 
   // Preserve the unchanged count from the underlying diff so the verdict
   // summary stays a strict superset of the diff summary.
   const summary: VerdictSummary = {
     ...judged.summary,
     new: diffReport.new_findings.length,
+    fixed: diffReport.fixed_findings.length,
     unchanged: diffReport.summary.unchanged,
   };
+  if (outsideNew > 0 || outsideFixed > 0) {
+    summary.outside_change = { new: outsideNew, fixed: outsideFixed };
+  }
 
   const recommended_actions = recommendActions({
     verdict: judged.verdict,
@@ -361,6 +384,15 @@ export async function verdict(options: VerdictOptions = {}): Promise<VerdictRepo
   // verdict either way, but it reads as a judgement about the code when
   // the real answer is that there was nothing to judge. Say which.
   const reasons = [...judged.reasons];
+  if (outsideNew > 0 || outsideFixed > 0) {
+    if (judged.verdict === "unchanged") {
+      reasons[0] = "no new or fixed findings on files this branch changed";
+    }
+    reasons.push(
+      `${outsideNew} new and ${outsideFixed} fixed finding(s) on files this branch did not change, ` +
+        "not weighed (--include-outside-change counts them)",
+    );
+  }
   const baseTree = await treeHashForRef({ repoRoot: root, ref: base });
   const headTree = await treeHashForRef({ repoRoot: root, ref: head });
   if (baseTree !== undefined && baseTree === headTree) {

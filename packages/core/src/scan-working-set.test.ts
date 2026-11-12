@@ -7,7 +7,7 @@ import { scan } from "./scan.js";
 /**
  * The working set: `--files` and `--related-to`.
  *
- * Field notes from choreograph.cc (2026-08-05): crimes was used
+ * Field notes from dogfood-a (2026-08-05): crimes was used
  * mid-design to scope cleanup for a refactor touching ~19 files. Bare
  * `scan` returned 499 findings across 209 files; `crimes context` takes
  * exactly one file. Doing that scoping by hand was called "the single

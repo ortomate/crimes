@@ -88,6 +88,23 @@ describe("duplicatedRoleStatusPlanCheckDetector", () => {
     expect(findings).toEqual([]);
   });
 
+  it("does not count Promise.allSettled settlement checks as a status policy", async () => {
+    // Rollup 2026-09-22: `result.status === "rejected"` from
+    // allSettled was grouped with a domain object's "rejected" status.
+    const root = await makeRepo({
+      "src/a.ts": `const r = await Promise.allSettled(jobs);\nr.filter((x) => x.status === "rejected");`,
+      "src/b.ts": `const s = await Promise.allSettled(jobs);\nif (s[0].status !== "rejected") ok();`,
+      "src/c.ts": `if (order.status === "rejected" || order.status === "cancelled") hide();`,
+      "src/d.ts": `const all = await Promise.allSettled(xs);\nall.every((x) => x.status === "fulfilled");`,
+    });
+    const files = ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts"];
+    const ia = buildIndex(root, files);
+    const findings = await duplicatedRoleStatusPlanCheckDetector.run(
+      ctxFor(files[0]!, ia),
+    );
+    expect(findings).toEqual([]);
+  });
+
   it("does not fire when only two files reference the literal", async () => {
     const root = await makeRepo({
       "src/a.ts": `if (user.role === "admin") {}`,

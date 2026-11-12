@@ -76,6 +76,30 @@ export async function getChangedFiles(options: ChangedFilesOptions): Promise<str
   return absolutes;
 }
 
+/**
+ * Paths, relative to `root`, that differ between two refs: a two-dot
+ * comparison of the trees, which is what `crimes diff` scans. Deletions
+ * and both sides of a rename are included — a finding that vanished
+ * with its file is attributable to the change.
+ */
+export async function listFilesChangedBetween(
+  root: string,
+  base: string,
+  head: string,
+): Promise<Set<string>> {
+  const { stdout } = await execFileAsync(
+    "git",
+    ["diff", "--name-only", "-z", "--no-renames", "--relative", base, head, "--"],
+    { cwd: resolve(root), maxBuffer: 16 * 1024 * 1024 },
+  );
+  return new Set(
+    stdout
+      .split("\0")
+      .filter(Boolean)
+      .map((p) => toPosix(p)),
+  );
+}
+
 export async function isGitRepo(dir: string): Promise<boolean> {
   try {
     const { stdout } = await execFileAsync(

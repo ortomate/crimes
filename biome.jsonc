@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
 
   // Biome is the single formatter *and* linter for this repo. Do not add
   // ESLint or Prettier alongside it — CLAUDE.md locks this to "pick one,
@@ -20,6 +20,14 @@
   "files": {
     "includes": [
       "**",
+
+      // Biome 2.6 added Markdown and YAML support. Prose and skill
+      // fixtures here are hand-wrapped (and skill fixtures byte-compared),
+      // and its Markdown parser misreads globs in code blocks, so both
+      // stay outside Biome as they were before 2.6.
+      "!**/*.md",
+      "!**/*.yml",
+      "!**/*.yaml",
 
       // --- Never format: scanner input ---------------------------------
       // `crimes` scans these directories as *fixtures*. Their formatting

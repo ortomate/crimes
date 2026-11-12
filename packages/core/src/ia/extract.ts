@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { sep } from "node:path";
 import type { ParsedFile } from "@crimes/language-js";
+import { isTestFile } from "../util/test-files.js";
 import type {
   IaDocFencedCommand,
   IaDocHeading,
@@ -65,6 +66,9 @@ export function routeFromFilePath(repoRel: RepoPath): string | undefined {
     }
   }
   if (stripped === undefined) return undefined;
+
+  // A test or story beside a route is not itself a destination.
+  if (isTestFile(p) || /\.stories\.[cm]?[jt]sx?$/.test(p)) return undefined;
 
   // Skip API routes -- they aren't user-facing destinations.
   if (stripped.startsWith("api/")) return undefined;

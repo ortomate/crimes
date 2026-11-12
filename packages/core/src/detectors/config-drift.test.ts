@@ -173,6 +173,50 @@ describe("config_drift — false-positive boundaries", () => {
     expect(findByName(await runOn(repo), "NEXT_PUBLIC_SITE_URL")).toBeUndefined();
   });
 
+  it("does not call a key whose name declares it public a client-exposed secret", async () => {
+    const repo = await makeRepo({
+      "src/a.ts":
+        "export const a = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;\n" +
+        "export const b = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;\n" +
+        "export const c = process.env.VITE_STRIPE_PUBLIC_KEY;\n",
+      "src/b.ts":
+        "export const d = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;\n" +
+        "export const e = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;\n" +
+        "export const f = process.env.VITE_STRIPE_PUBLIC_KEY;\n",
+    });
+    const findings = await runOn(repo);
+    for (const name of [
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "VITE_STRIPE_PUBLIC_KEY",
+    ]) {
+      expect(findByName(findings, name)?.claim ?? "").not.toContain(
+        "client_exposed_secret",
+      );
+    }
+  });
+
+  it("still calls a public-named value exposed when another fragment says secret", async () => {
+    const repo = await makeRepo({
+      "src/a.ts": `export const k = process.env.NEXT_PUBLIC_ANON_SECRET_KEY;`,
+      "src/b.ts": `export const j = process.env.NEXT_PUBLIC_ANON_SECRET_KEY;`,
+    });
+    expect(findByName(await runOn(repo), "NEXT_PUBLIC_ANON_SECRET_KEY")?.claim).toContain(
+      "client_exposed_secret",
+    );
+  });
+
+  it("does not call NODE_ENV undocumented: the runtime and bundlers set it", async () => {
+    const repo = await makeRepo({
+      ".env.example": "PORT=\n",
+      "src/a.ts": `export const d = process.env.NODE_ENV === "production";`,
+      "src/b.ts": `export const e = process.env.NODE_ENV !== "production";`,
+    });
+    expect(findByName(await runOn(repo), "NODE_ENV")?.claim ?? "").not.toContain(
+      "undocumented",
+    );
+  });
+
   it("does not report boundary bypass when there is no central module", async () => {
     const repo = await makeRepo({
       "src/a.ts": `export const p = process.env.PORT;`,

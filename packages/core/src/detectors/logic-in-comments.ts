@@ -28,7 +28,7 @@ const RULE_TERMS = [
  * **Spell out every form you mean.** These used to be matched with
  * `String.includes`, which made short entries behave as stems — and the
  * two silliest false positives this detector produced on a real repo
- * came from exactly that: `auth` matched "**Auth**ored by the Curator"
+ * came from exactly that: `auth` matched "**Auth**ored by the Editor"
  * and `utc` matched "captured that o**utc**ome".
  *
  * Word-boundary matching fixes those, but it also means a stem no longer
@@ -181,8 +181,8 @@ const TERM_PATTERNS = new Map<string, RegExp>();
  * letters inside a longer one?
  *
  * `String.includes` was the original test and it produced the detector's
- * two silliest false positives on choreograph.cc: the domain term `auth`
- * matched "**Auth**ored by the Curator persona", and `utc` matched
+ * two silliest false positives on dogfood-a: the domain term `auth`
+ * matched "**Auth**ored by the Editor persona", and `utc` matched
  * "captured that o**utc**ome". Neither file has anything to do with
  * authentication or timezones, and both findings led an agent to open a
  * file for no reason.

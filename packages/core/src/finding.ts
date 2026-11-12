@@ -303,6 +303,16 @@ export interface Finding {
     date: string;
   };
 
+  /**
+   * Set by `crimes diff` and `crimes verdict` on a new or fixed finding
+   * when neither `file` nor any of `related_files` changed between the
+   * two refs. Such a finding appeared or vanished because something
+   * else moved: a repo-wide percentile cutoff, a config threshold, a
+   * finding relocating. `verdict` does not weigh it and `--fail-on`
+   * does not gate on it unless asked to (`--include-outside-change`).
+   */
+  outside_change?: true;
+
   /** True when this finding matches an entry in `.crimes/baseline.json`. */
   previously_baselined?: true;
   previous_baseline?: {

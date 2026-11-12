@@ -33,7 +33,7 @@ export const directDateDetector: LanguageJsDetector = {
     // `DateUse.argKind` is `"none"` only for the no-argument form — and
     // this detector's single claim is `clock_read`, so counting a
     // conversion here asserts something untrue rather than something
-    // debatable. Field notes, rolecred 2026-09-22:
+    // debatable. Field notes, dogfood-h 2026-09-22:
     // `new Date(evidence.submitted_at)` reported as a system-clock
     // dependency was the finding that cost the reporter's trust in the
     // rest. The string-literal form keeps its own charge,
@@ -60,11 +60,11 @@ export const directDateDetector: LanguageJsDetector = {
           : `${newCount}× new Date()`;
 
     // The line that tells a reader which of the N uses to look at first.
-    // Field notes from choreograph.cc: `JobDetail.tsx` reported "9×
+    // Field notes from dogfood-a: `Detail.tsx` reported "9×
     // Date.now(), 4× new Date()" and nothing else, which reads as
     // undifferentiated noise — the reporter concluded "essentially all
     // of it is display formatting". Two of the thirteen are poll
-    // timeouts (`if (Date.now() - startedAt >= VIDEO_POLL_TIMEOUT_MS)`),
+    // timeouts (`if (Date.now() - startedAt >= POLL_TIMEOUT_MS)`),
     // which is the risky shape exactly. The count was right and the
     // evidence could not say so.
     const usageLine =

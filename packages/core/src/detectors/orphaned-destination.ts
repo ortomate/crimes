@@ -29,6 +29,8 @@ export const orphanedDestinationDetector: LanguageJsDetector = {
     if (!ctx.ia) return [];
     const route = ctx.ia.routes.find((r) => r.file === ctx.file);
     if (!route) return [];
+    // An App Router `route.ts` is an HTTP handler, not a page.
+    if (APP_ROUTE_HANDLER.test(route.file)) return [];
     if (isReachable(route, ctx.ia, ctx.imports)) return [];
 
     const evidence: string[] = [
@@ -71,6 +73,8 @@ export const orphanedDestinationDetector: LanguageJsDetector = {
     return [finding];
   },
 };
+
+const APP_ROUTE_HANDLER = /(?:^|\/)(?:src\/)?app\/(?:.*\/)?route\.[cm]?[jt]sx?$/;
 
 function isReachable(
   route: IaRouteSignal,

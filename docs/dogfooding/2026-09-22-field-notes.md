@@ -1,8 +1,8 @@
-# Field notes: crimes on rolecred (QuickLift)
+# Field notes: crimes on dogfood-h
 
 **Date:** 2026-09-22
 **Version under test:** `crimes` **0.28.1** (global npm install)
-**Repo under test:** rolecred: career product, TypeScript/React, QuickLift feature work
+**Repo under test:** dogfood-h: TypeScript/React product app, feature work
 **Reporter:** the implementing agent in that repo, relayed by the user
 **Task shape:** ongoing feature development — context reports plus before/after
 scans across a multi-file change, not a one-shot audit
@@ -47,12 +47,12 @@ column, not in the miss column.
 ## Friction log
 
 ### `name_behavior_mismatch` matches a prefix without a word boundary
-- **repo:** rolecred
-- **what happened:** `ReadinessForm` was treated as a pure `read` function,
+- **repo:** dogfood-h
+- **what happened:** `ReadyForm` was treated as a pure `read` function,
   and its React state updates were then read as suspicious side effects.
 - **reproduces at 0.29.0:** yes.
   `packages/core/src/detectors/name-behavior-mismatch.ts:113` is
-  `lower === prefix || lower.startsWith(prefix)`. `readinessform`
+  `lower === prefix || lower.startsWith(prefix)`. `readyform`
   starts with `read`, so the prefix test passes on a word that is not
   the prefix. `render` is also in `PURE_PREFIXES`, and the `ASSIGNMENT`
   regex counts `=` occurrences, so a component whose body sets state
@@ -64,7 +64,7 @@ column, not in the miss column.
 - **severity:** real problem
 
 ### `direct_date` does not distinguish parsing a timestamp from reading the clock
-- **repo:** rolecred
+- **repo:** dogfood-h
 - **what happened:** `new Date(evidence.submitted_at)` was reported as a
   system-clock dependency. It formats a timestamp that already exists.
 - **reproduces at 0.29.0:** yes, and the data needed to fix it is already
@@ -81,7 +81,7 @@ column, not in the miss column.
 - **severity:** real problem
 
 ### `large_file` gives generated artefacts production-code severity
-- **repo:** rolecred
+- **repo:** dogfood-h
 - **what happened:** large generated audit JSON files became high-severity
   findings and crowded out runtime changes.
 - **reproduces at 0.29.0:** yes. `packages/core/src/detectors/large-file.ts:6`
@@ -100,10 +100,10 @@ column, not in the miss column.
 - **severity:** real problem
 
 ### Limit comparison read intentional variants as conflicting policy
-- **repo:** rolecred
+- **repo:** dogfood-h
 - **what happened:** a 20,000-character document limit and a 2,400-character
   excerpt limit were reported as conflicting policies. Both are intentional
-  and serve different purposes. Separately, "role" in a career product was
+  and serve different purposes. Separately, "role" as a domain noun was
   interpreted as an authorisation concept.
 - **reproduces at 0.29.0:** unknown — **re-verify before acting**. The
   0.29.0 notes record that literal-scatter advice now "preserves
@@ -118,7 +118,7 @@ column, not in the miss column.
 - **severity:** annoyance, pending re-verification
 
 ### Split advice on a shared schema undercuts the contract it protects
-- **repo:** rolecred
+- **repo:** dogfood-h
 - **what happened:** identifying a schema's 15 importers was called useful;
   automatically recommending that it be split was not, because one
   authoritative contract is the point of the file.

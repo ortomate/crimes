@@ -1,10 +1,10 @@
 # `logic_in_comments`: the first R3 precision item, measured
 
 **Charge:** Logic in the Alibi.
-**Complaint:** [field notes](./2026-08-05-choreograph-field-notes.md):
+**Complaint:** [field notes](./2026-08-05-field-notes.md):
 "had the worst false-positive rate". Fired on five files in a repo that
 documents its reasoning unusually well; **none were actionable**.
-**Status vs `main`:** [re-verified](./2026-08-05-choreograph-reverify.md):
+**Status vs `main`:** [re-verified](./2026-08-05-field-notes-reverify.md):
 all ten hits reproduced, same files.
 
 ---
@@ -30,7 +30,7 @@ three of the ten:
 
 | file | domain term claimed | where it actually came from |
 |---|---|---|
-| `src/lib/types.ts` | `auth` | "**Auth**ored by the Curator persona" |
+| `src/lib/types.ts` | `auth` | "**Auth**ored by the Editor persona" |
 | `src/lib/job-processor.ts` | `utc` | "captured that o**utc**ome" |
 | `apps/web/lib/buildNonce.ts` (cal.com) | `plan` | inside a longer word |
 | `apps/web/modules/auth/verify-view.tsx` (cal.com) | `payment` | inside a longer word |
@@ -85,7 +85,7 @@ it costs the user's trust.
 
 | repo | `logic_in_comments` | total findings |
 |---|---|---|
-| choreograph.cc @ `5107cce` | **10 → 7** | 491 → 488 |
+| dogfood-a @ `5107cce` | **10 → 7** | 491 → 488 |
 | cal.com | 11 → **11** | 4,638 → 4,638 |
 | crimes (self-scan) | 2 → 2 | 1,792 → 1,792 |
 | hono | 0 → 0 | 377 → 377 |
@@ -124,7 +124,7 @@ better in both directions. **Reported as a flat number rather than as
 
 ## Not changed, and why
 
-**Five of choreograph's remaining seven are `admin`**, and four of those
+**Five of dogfood-a's remaining seven are `admin`**, and four of those
 five sit in files whose *path* contains `admin`
 (`src/app/api/admin/jobs/route.ts` and friends). The nearby-code check
 looks at the next 16 lines only, so in an admin route (where "admin" is
@@ -148,7 +148,7 @@ in this change**:
 one the field notes actually asked for. The representative hit:
 
 > "Panorama — 360° equirectangular bonus piece (day % 3 == 2; never
-> required for publish). Authored by the Curator persona."
+> required for publish). Authored by the Editor persona."
 
 : is now gone for the right reason (there was no domain concept in it at
 all), but a comment that *is* explanatory and *does* name a domain

@@ -72,18 +72,19 @@ noisy detector: its behavior may already be an intentional decision.
 
 ## Safety rules for agents
 
-These are non-negotiable inside this repo:
+These hold inside this repo:
 
-1. **Never publish.** Do not run `npm publish`, `pnpm publish`, `pnpm
-   changeset publish`, `git tag`, or `git push --tags`, and never publish
-   a GitHub Release: publishing one fires `release.yml`, which publishes
-   `crimes` to npm, and a published version cannot be reused. Preparing a
-   release and drafting the GitHub Release are yours to do; the Publish
-   click is a human's. The exact split is in
+1. **Do what the work requires; ask before you publish.** You may push,
+   open and merge pull requests, prepare a release and draft it. Before
+   initiating a publish (publishing a GitHub Release, which fires
+   `release.yml` and puts `crimes` on npm), ask the user. A published
+   version cannot be reused. Publish through the GitHub Release, not with
+   `npm publish` or a hand-made tag; the mechanics are in
    [`docs/releasing.md`](./docs/releasing.md), section "If you are an
    agent".
-2. **Never force-push, reset, or rewrite shared branches** (`main`, any
-   branch present on `origin/`). Local feature branches are fine.
+2. **Prefer not to force-push, reset, or rewrite shared branches**
+   (`main`, any branch present on `origin/`). If the work needs it, do it
+   and say so. Local feature branches are fine.
 3. **Don't auto-fix detector findings** without (a) a clear user request,
    (b) tests that cover the touched behaviour, and (c) a scoped change. The
    product's whole point is to surface risk: silently "fixing" findings

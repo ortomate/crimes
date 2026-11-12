@@ -1,0 +1,52 @@
+{
+  "scenario": "context-20-tag-callers",
+  "agent": "codex",
+  "crimes_version": "0.32.0",
+  "timestamp": "2026-11-12T01:34:36.104Z",
+  "run_id": "f21db6a3-6ea4-4a45-b5df-01552724438e",
+  "response": "I’ll run the context command, verify the callers and taglib mapping, and check what needs testing before release.\n\n\nRan `crimes context src/main/webapp/WEB-INF/tags/inputField.tag --format json`. It identifies **three caller pages**, confirmed by source search:\n\n| Page (under `src/main/webapp/WEB-INF/jsp/`) | Fields using the tag |\n|---|---|\n| `owners/createOrUpdateOwnerForm.jsp` | `firstName`, `lastName`, `address`, `city`, `telephone` |\n| `pets/createOrUpdatePetForm.jsp` | `name`, `birthDate` |\n| `pets/createOrUpdateVisitForm.jsp` | `date`, `description` |\n\nAll three declare:\n\n```jsp\n<%@ taglib prefix=\"petclinic\" tagdir=\"/WEB-INF/tags\" %>\n```\n\nTheir `<petclinic:inputField>` calls resolve directly to `/WEB-INF/tags/inputField.tag`. **All nine calls currently omit `placeholder`**, so each needs updating alongside the required attribute declaration.\n\nBefore shipping, I would:\n\n- Verify the tag forwards `${placeholder}` to its inner `<form:input>`.\n- Search all JSP/tag files for additional callers, including alternate prefixes and indirect use through other tags. The context report’s “same directory” entries are not evidence of calls.\n- Precompile JSPs or render every affected form in a real JSP container, covering create/edit and validation-error paths. A clean Java build alone is insufficient.\n- Check rendered placeholder text, escaping, and that visible labels remain usable.\n\nThe context report maps no tests; its empty findings and `risk: none` do not establish compatibility for this change.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "raster_should_be_vector"
+    },
+    "detector_id_by_charge": {
+      "Icon-Sized Raster": "raster_should_be_vector"
+    },
+    "detector_id_by_evidence": {
+      "dimensions: 16 × 16 px (≤ 64 threshold both sides)": "raster_should_be_vector",
+      "consider replacing with an SVG icon — same render at every DPI, smaller bytes": "raster_should_be_vector"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/owners/createOrUpdateOwnerForm.jsp",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdatePetForm.jsp",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/main/webapp/WEB-INF/jsp/pets/createOrUpdateVisitForm.jsp",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "dangling_template_reference"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

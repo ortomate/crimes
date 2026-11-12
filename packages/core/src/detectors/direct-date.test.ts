@@ -127,16 +127,16 @@ describe("directDateDetector", () => {
  * Reading time to *decide* something is not the same finding as reading
  * it to record or render something.
  *
- * Field notes from choreograph.cc: "`Temporal Recklessness` conflates
+ * Field notes from dogfood-a: "`Temporal Recklessness` conflates
  * reading time with recording it… the genuinely risky case — time used
  * in a **branch or comparison** — is a much narrower and more valuable
- * signal", citing `JobDetail.tsx` reporting "9× Date.now(), 4× new
+ * signal", citing `Detail.tsx` reporting "9× Date.now(), 4× new
  * Date()" where "essentially all of it is display formatting".
  *
  * **The framing is right and that example is wrong.** Opening the file
  * found two poll timeouts:
  *
- *   if (Date.now() - startedAt >= VIDEO_POLL_TIMEOUT_MS) { … }
+ *   if (Date.now() - startedAt >= POLL_TIMEOUT_MS) { … }
  *
  * which is precisely the risky shape. The count was correct; the
  * evidence just could not say which two of the thirteen mattered. So
@@ -251,7 +251,7 @@ ${body}
 
 describe("directDateDetector — clock read vs conversion", () => {
   it("does not count new Date(value) as a clock read", async () => {
-    // Field notes, rolecred 2026-09-22: `new Date(evidence.submitted_at)`
+    // Field notes, dogfood-h 2026-09-22: `new Date(evidence.submitted_at)`
     // was reported as a system-clock dependency. It formats a timestamp
     // that already exists. The detector's claim is `clock_read`, so this
     // is a false claim rather than a debatable one.

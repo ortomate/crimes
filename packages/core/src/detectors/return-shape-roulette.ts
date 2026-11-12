@@ -118,9 +118,29 @@ function keyOverlap(left: string[], right: string[]): number {
   return total === 0 ? 1 : shared / total;
 }
 
+/**
+ * Is there a `: Type` after the parameter list? The list is found by
+ * balancing parentheses from the first `(`, because a parameter can
+ * carry its own object type (`input: { … }`) and the first `{` is then
+ * not the body.
+ */
 function hasExplicitReturnType(source: string): boolean {
-  const head = source.slice(0, Math.min(source.indexOf("{") + 1 || 200, 300));
-  return /\)\s*:\s*(?!any\b|unknown\b|Record\b)[^{=]+[{=]/.test(head);
+  const open = source.indexOf("(");
+  if (open === -1) return false;
+  let depth = 0;
+  let close = -1;
+  for (let i = open; i < source.length; i++) {
+    const c = source[i];
+    if (c === "(") depth++;
+    else if (c === ")" && --depth === 0) {
+      close = i;
+      break;
+    }
+  }
+  if (close === -1) return false;
+  return /^\s*:\s*(?!any\b|unknown\b|Record\b)\S/.test(
+    source.slice(close + 1, close + 200),
+  );
 }
 
 function round(n: number): number {

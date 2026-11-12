@@ -1,0 +1,75 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.32.0",
+  "timestamp": "2026-11-12T01:28:45.572Z",
+  "run_id": "3acfa97a-7a2d-4251-86bc-288e1c335fb5",
+  "response": "## The cycle\n\n`crime_00002` (high, confidence 0.95) is a 3-file ring. I read the three files to confirm which way each import points:\n\n```\nsrc/application/billing-flow.ts   ──imports chargeCustomer──▶  src/domain/billing.ts\nsrc/domain/billing.ts             ──imports renderInvoice───▶  src/presentation/invoice-view.ts\nsrc/presentation/invoice-view.ts  ──imports runBillingFlow──▶  src/application/billing-flow.ts\n```\n\nThe imports aren't the only problem. The calls form the same loop, so the code will crash whenever it runs:\n\n`runBillingFlow()` → `chargeCustomer(100)` → `renderInvoice(100)` → `runBillingFlow()` → …\n\nAll three are hoisted function declarations, so the module load order probably won't throw. The likely runtime error is `RangeError: Maximum call stack size exceeded` the first time `runBillingFlow` is called. That means the fix has to remove a runtime call, not just tidy up the module graph.\n\n## Break this one: `domain/billing.ts` → `presentation/invoice-view.ts`\n\nReasons:\n\n1. **The layer rules already forbid it.** `crimes.config.json` says `domain cannotImport presentation`, and `crime_00003` flags exactly this import. It's the only edge in the ring that breaks the architecture. The other two (application → domain, presentation → application) go in the allowed direction.\n2. **The domain layer should depend on nothing.** Once it stops importing presentation, it depends on nothing in the ring and the cycle can't come back through it.\n3. **`import type` won't work here.** The scan suggests `import type` as an option, but `chargeCustomer` calls `renderInvoice` at runtime. A type-only import would just break the build.\n4. **It also stops the recursion.** Removing the `renderInvoice` call from the domain layer breaks the call loop as well as the import loop.\n\nBreaking either of the other edges would be worse. Removing application → domain leaves the flow with no domain logic to run. Removing presentation → application cuts an allowed dependency and leaves the layer violation in place.\n\n## Proposed change\n\n```ts\n// src/domain/billing.ts — pure domain, no outward imports\nexport function chargeCustomer(amount: number): number {\n  // charge logic; return the result instead of rendering it\n  return amount;\n}\n```\n\n```ts\n// src/application/billing-flow.ts\nimport { chargeCustomer } from \"../domain/billing.js\";\nexport function runBillingFlow(amount = 100): number {\n  return chargeCustomer(amount);\n}\n```\n\n```ts\n// src/presentation/invoice-view.ts — presentation drives the flow, then renders\nimport { runBillingFlow } from \"../application/billing-flow.js\";\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${amount}`;\n}\nexport function showInvoice(): string {\n  return renderInvoice(runBillingFlow());\n}\n```\n\nEvery dependency now points one way: presentation → application → domain. That fixes the cycle (`crime_00002`) and the layer violation (`crime_00003`) together. I didn't add a shared leaf module, the scan's other suggestion, because once the domain stops rendering, nothing is left that needs sharing.\n\nI only read the files; this is a proposal, not a change I've applied. I also haven't run the code to see the stack overflow happen; it follows from the call chain above.\n\n## Unrelated to the cycle\n\n`billing-flow.ts` imports `some-pkg/dist/internal/private/helper.js`, but `some-pkg` isn't declared in `package.json` (`crime_00001`) and the path reaches into the package's private internals (`crime_00004`). It could break on a clean install or an upgrade. It's worth fixing separately: declare the dependency and import from the package's public entry point.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "dependency_provenance_gap",
+      "crime_00002": "circular_dependency",
+      "crime_00003": "layer_violation",
+      "crime_00004": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Phantom Accomplice": "dependency_provenance_gap",
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    },
+    "detector_id_by_evidence": {
+      "1 external package(s) imported with no declaring manifest": "dependency_provenance_gap",
+      "`some-pkg` — imported at src/application/billing-flow.ts as \"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "\"some-pkg/dist/internal/private/helper.js\"": "dependency_provenance_gap",
+      "manifests searched: package.json": "dependency_provenance_gap",
+      "resolution walks from the importing file's nearest package.json up to the repo root, so hoisted and workspace-root declarations are counted": "dependency_provenance_gap",
+      "node built-ins, relative paths, path aliases, workspace packages, and subpaths of declared packages are excluded": "dependency_provenance_gap",
+      "this is a statement about this repository's records only — no registry was contacted and no claim is made about the packages themselves": "dependency_provenance_gap",
+      "cycle size: 3 files": "circular_dependency",
+      "member: src/application/billing-flow.ts": "circular_dependency",
+      "member: src/domain/billing.ts": "circular_dependency",
+      "member: src/presentation/invoice-view.ts": "circular_dependency",
+      "src/domain/billing.ts (layer: domain) imports src/presentation/invoice-view.ts (layer: presentation)": "layer_violation",
+      "rule: domain cannotImport presentation": "layer_violation",
+      "1 deep import across 1 package": "deep_import",
+      "specifier: some-pkg/dist/internal/private/helper.js": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      }
+    ]
+  }
+}

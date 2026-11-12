@@ -32,6 +32,7 @@ interface DiffCommandOptions {
   root?: string;
   showSuppressed: boolean;
   failOn?: string;
+  includeOutsideChange: boolean;
 }
 
 const VALID_DIFF_FAIL_ON = new Set<DiffFailOn>(["new-high", "new-medium"]);
@@ -59,6 +60,11 @@ export function registerDiffCommand(program: Command): void {
     .option(
       "--fail-on <threshold>",
       "exit non-zero when threshold is hit on the new set: new-high | new-medium",
+    )
+    .option(
+      "--include-outside-change",
+      "gate on new findings on files the range did not change",
+      false,
     )
     .action(async (range: string, options: DiffCommandOptions) => {
       const root = resolve(options.root ?? process.cwd());
@@ -134,7 +140,12 @@ export function registerDiffCommand(program: Command): void {
       }
 
       const failOn = options.failOn as DiffFailOn | undefined;
-      const gatedReport = failOn !== undefined ? applyDiffFailOn(report, failOn) : report;
+      const gatedReport =
+        failOn !== undefined
+          ? applyDiffFailOn(report, failOn, {
+              includeOutsideChange: options.includeOutsideChange,
+            })
+          : report;
 
       if (format === "json") {
         process.stdout.write(formatDiffJsonReport(gatedReport) + "\n");

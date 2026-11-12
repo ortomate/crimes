@@ -41,6 +41,35 @@ export function parseResult(input: Input): ParseResult {
     expect(findings).toEqual([]);
   });
 
+  it("sees a return type after an inline object parameter type", async () => {
+    // Rollup 2026-09-22: the first `{` was the
+    // parameter type, so the declared union return type was never read.
+    const source = `
+export async function applyEvent(input: {
+  id: string
+  event: Event
+}): Promise<EventResult> {
+  if (input.event.kind === "open") return { state: "opened", id: input.id, at: now };
+  if (input.event.kind === "close") return { state: "closed", reason: input.event.reason };
+  return { state: "skipped" };
+}
+`;
+    const findings = await returnShapeRouletteDetector.run(makeCtx(source));
+    expect(findings).toEqual([]);
+  });
+
+  it("still reports when only a parameter is typed with an object literal", async () => {
+    const source = `
+export function parseResult(input: { error?: boolean; redirect?: boolean }) {
+  if (input.error) return { ok: false, code: 1, message: "x" };
+  if (input.redirect) return { url: "/", permanent: false };
+  return { ok: true, value: 1, cached: false };
+}
+`;
+    const findings = await returnShapeRouletteDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(1);
+  });
+
   it("separates two anonymous functions in one file", async () => {
     // Both collapse to the symbol `<anonymous>`; n8n lost one this way.
     const source = `

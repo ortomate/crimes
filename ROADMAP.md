@@ -36,6 +36,11 @@ Reviewed: 2026-10-20. This file records desired outcomes; the
   import undoes in every bundle). On the estate behind 0.30 every tagdir
   tag resolves, nothing is falsely dangling, and the four overridden
   variables reported are all real.
+- **0.32: calibrated from field feedback.** The first round through the
+  feedback rollup: 54 verdicts re-scanned at their recording commit, the
+  patterns behind them fixed, and `outside_change` so `diff`/`verdict` stop
+  charging a branch for files it never touched. See the
+  [rollup triage](./docs/dogfooding/2026-11-12-rollup-triage.md).
 - **Measure the new packs.** Fixtures `17`–`21` pin public Java, Kotlin,
   Swift, JSP and LESS repositories with seven labelled scenarios; the 0.31.0
   live round covered them (0.96 for both agents). Still to do: scenarios
@@ -55,7 +60,8 @@ Reviewed: 2026-10-20. This file records desired outcomes; the
   scope expansion and integration cost alongside acceptance results.
 - **Close the feedback loop.** Turn real false-positive reports from
   dogfooding into reproductions and calibration decisions; preserve the
-  original feedback reasons and expiry dates.
+  original feedback reasons and expiry dates. 0.32 did this once, by hand;
+  request-boundary clock reads remain open.
 - **Measure outside use.** Seek an independently reported editing outcome,
   issue or feedback export. Establish retention/adoption goals once the
   intended audience is clearer; npm downloads are insufficient evidence.

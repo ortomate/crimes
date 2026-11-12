@@ -1,7 +1,7 @@
 # `high_fan_in_fan_out` and `name_behavior_mismatch`: R3 items 3 and 4
 
 Both re-verified against `main` before anything was touched (see
-[the Step 0 pass](./2026-08-05-choreograph-reverify.md)) and both
+[the Step 0 pass](./2026-08-05-field-notes-reverify.md)) and both
 [pre-measured](./2026-08-05-r3-premeasurements.md) before a line was
 changed, which is what stopped item 3 shipping the wrong rule.
 
@@ -14,7 +14,7 @@ is a shared types module's entire job. Consider **exempting modules
 whose exports are type-only**."
 
 **Measured before implementing:** that file exports **24** interfaces
-and **one** `const` (`JOB_STUCK_THRESHOLD_SECONDS`). An
+and **one** `const` (`STALE_THRESHOLD_SECONDS`). An
 exports-are-type-only test fails on the exact file the complaint is
 about, and would silently re-arm the moment anyone added a constant to
 any types module. A rule a single line defeats is a rule that quietly
@@ -53,7 +53,7 @@ together is what made this read as a category error.
 
 | | before | after |
 |---|---|---|
-| choreograph `high_fan_in_fan_out` | 36 | **36** |
+| dogfood-a `high_fan_in_fan_out` | 36 | **36** |
 | medium | 8 | **7** |
 | low | 28 | 29 |
 
@@ -69,7 +69,7 @@ demotion is correct rather than incidental.
 
 ## `name_behavior_mismatch`: building the thing you read through
 
-**Complaint:** "`getChoreoByDate() → calls createClient`: flagged five
+**Complaint:** "`getPostsByDate() → calls createClient`: flagged five
 times in `api.ts` alone, because a `get*` function makes a
 'side-effect-like call'. But `createClient()` is constructing the client
 in order to *do the read*. Every data-access layer in every Next.js app
@@ -78,9 +78,9 @@ has this shape."
 The shape, verbatim from the repo:
 
 ```ts
-export async function getChoreoByDate(person: string, date: string) {
+export async function getPostsByDate(person: string, date: string) {
   const supabase = await createClient()
-  const { data, error } = await supabase.from('choreograph_posts')…
+  const { data, error } = await supabase.from('daily_posts')…
 ```
 
 The result is bound, then dereferenced. A `create*` called for its
@@ -116,8 +116,8 @@ Only the factory call is discounted. A `get*` that builds a client
 
 | | before | after |
 |---|---|---|
-| choreograph `name_behavior_mismatch` | 19 | **7** |
-| choreograph total findings | 491 | 475 |
+| dogfood-a `name_behavior_mismatch` | 19 | **7** |
+| dogfood-a total findings | 491 | 475 |
 
 All **12** removals are `createClient` / `createAdminClient`: the
 complaint exactly, across `src/lib/api.ts` (5), `lib/api.ts` (2),

@@ -19,7 +19,7 @@ export const DOCS_EXT_RE = /\.(md|mdx|markdown|rst|adoc|asciidoc|txt)$/i;
  *
  * These are scanned (see `DEFAULT_SOURCE_INCLUDES`) and a hand-maintained
  * 3000-line config is still a finding worth keeping — that decision is
- * unchanged. What changes is the *severity*: field notes from rolecred
+ * unchanged. What changes is the *severity*: field notes from dogfood-h
  * (2026-09-22) recorded generated audit JSON arriving as `high` and
  * outranking the runtime changes the developer had come to review.
  *

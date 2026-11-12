@@ -1,9 +1,9 @@
 # Implementation status
 
-Repository version: **crimes 0.31.0** (prepared), JSON schema **0.8.0**.
+Repository version: **crimes 0.32.0** (prepared), JSON schema **0.8.0**.
 The [npm package](https://www.npmjs.com/package/crimes) and
 `npm view crimes version` identify the published version; a checkout can be ahead.
-[0.31.0 release notes](./releases/v0.31.0.md) record the
+[0.32.0 release notes](./releases/v0.32.0.md) record the
 change and verification. Prior versions are documented in
 [release history](https://github.com/ortomate/crimes/tree/main/docs/releases).
 
@@ -55,6 +55,12 @@ These remain available for explicitly scoped reviews.
   backends' top tens; discounting them was measured and rejected (0.31.0
   notes in [calibration follow-ups](./calibration-followups.md)). Whether a
   widely used file should lift its structural findings is undecided.
+- `direct_date` at a request boundary: a route or action that reads the
+  clock once and passes the value inward is the shape the detector
+  recommends, yet is still charged (8 of the 2026-09-22 rollup's `fp`
+  verdicts, all low). Recognising it needs the parser to follow a clock
+  read into a call argument, which it does not; see the
+  [rollup triage](./dogfooding/2026-11-12-rollup-triage.md).
 - TLD-declared tag contracts, which no measured repository exercised.
 - Package-level cycles for Java/Kotlin, a cross-file symbol index for the
   structured packs, and Java 21 type patterns (a tree-sitter-java gap).

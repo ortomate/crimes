@@ -39,6 +39,8 @@ without a pre-edit snapshot from demonstrated new findings.
 but includes old findings in those files. Its failure threshold is not a
 new-findings-only gate. For committed branch changes use `verdict --base
 <project-base> --format json`; verify the actual base instead of assuming main.
+A finding marked `outside_change` sits on a file the branch did not touch;
+mention it, but do not treat it as caused by the change or fix it unasked.
 
 Run the repository's behavior tests independently. Handle new high findings
 according to its policy, explaining evidence and uncertainty. Do not turn
@@ -69,4 +71,4 @@ customized-file diffs before replacing. CI skips maintenance; use
 `--no-skill-update` when a task requires no maintenance notices or updates.
 More detail: https://crimes.sh/docs/agent-usage/
 
-<!-- crimes-skill {"format":1,"version":"0.29.2","sha256":"db86589e62eb8b20a7ef63dc1b94c8049949909a93bbbfa9ee971baf253a5be3"} -->
+<!-- crimes-skill {"format":1,"version":"0.29.2","sha256":"ad38772d6aea9b7e943f10290d125b09fd2fd74c5f500f39c253cb37b314ad2c"} -->

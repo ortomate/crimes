@@ -9,7 +9,7 @@ anything not verified says so.
 
 **The short version.** One file carries the version
 (`packages/cli/package.json`). One commit, titled `Prep crimes@X.Y.Z`,
-bumps it and every surface that mirrors it. One human action, publishing a
+bumps it and every surface that mirrors it. One action, publishing a
 GitHub Release tagged `vX.Y.Z`, fires
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which
 builds, tests, smoke-tests, checks the tag against the version, and runs
@@ -239,8 +239,8 @@ To abandon an unpublished draft safely, remove it and any leftover tag with
 `gh release delete "v${VERSION}" --repo ortomate/crimes --cleanup-tag`, then
 start section 7 again.
 
-**7b. Publish it.** A human does this. Either click **Publish release** on
-the draft, or:
+**7b. Publish it.** A human or, after asking the user, an agent does this.
+Either click **Publish release** on the draft, or:
 
 ```bash
 gh release edit "v${VERSION}" --repo ortomate/crimes --draft=false
@@ -320,48 +320,25 @@ but doing so does not affect npm, and the release workflow has already run.
 
 ## 11. If you are an agent
 
-Read [`AGENTS.md`](../AGENTS.md) first; its safety rules apply. Within
-them, this is the division of labour.
+Read [`AGENTS.md`](../AGENTS.md) first; its safety rules apply. You may
+do whatever the release needs: the prep commit (section 5), pre-flight
+(section 6), the notes in `docs/releases/vX.Y.Z.md`, pushing, opening and
+merging the pull request, the draft (section 7a), watching workflow runs
+and every verification in section 9.
 
-You may do, without asking:
-
-- Every item in section 5 (the prep commit) and section 6 (pre-flight), on
-  a branch or on `main` when the user has asked for the prep.
-- Draft the release notes in `docs/releases/vX.Y.Z.md`.
-- Create the GitHub Release **as a draft** (section 7a). Verify its recorded
-  target commit immediately. Saving a draft creates no tag and triggers no
-  workflow; the draft remains removable before publication.
-- Watch workflow runs and report their result.
-- Run every read-only verification in section 9.
-- Open a pull request.
-
-A human must do these, and you must not do them even if your credentials
-would allow it:
-
-- **Publish the GitHub Release** (section 7b), by clicking Publish or with
-  `gh release edit --draft=false`. This is the single irreversible action
-  in the process and it is what runs `npm publish`.
-  **One exception.** Andrew granted the Hobbes executor release authority
-  on crimes on 4 September 2026; the grant is recorded per product in
-  `ortomate/hobbes` at `docs/portfolio.toml` (`release = "hobbes"`) and
-  shown by `hobbes portfolio` as `release: hobbes`. When you are that
-  executor working a crimes card, you may publish the release, and you must
-  then verify with `npm view crimes version` before the card is done. Every
-  other agent, and the executor on every other product, still stops at the
-  draft. The npm-as-a-user items below stay human for everyone.
-- Anything against the npm registry as a user: `npm publish`,
-  `npm deprecate`, `npm unpublish`, `npm dist-tag`, `npm login`. These
-  require the maintainer account and its 2FA, which you do not have and
-  should not be given.
-- Change the Trusted Publisher configuration on npmjs.com, or add any
-  secret to the GitHub repository. `release.yml` needs none.
-- `git tag` or `git push --tags`. Publishing the GitHub Release creates the tag.
-- Force-push, reset, or rewrite `main`.
-
-When you have done everything you may do, stop and say exactly what remains:
-"Draft release vX.Y.Z is at <url>; publishing it will run release.yml and
-publish to npm." Do not describe the release as done until
+**Ask the user before you initiate a publish** (section 7b, clicking
+Publish or `gh release edit --draft=false`). It is the one irreversible
+step: it creates the tag and runs `npm publish`, and a published version
+cannot be reused. Once the user agrees, publish, confirm the tag points to
+`TARGET`, and do not describe the release as done until
 `npm view crimes version` returns the new number.
+
+Publish through the GitHub Release, not around it. `npm publish` from a
+laptop, a hand-made `git tag`, an `NPM_TOKEN` secret or a change to the
+Trusted Publisher configuration each bypass or break the workflow
+(section 13). Registry actions as a user (`npm deprecate`,
+`npm unpublish`, `npm dist-tag`) need the maintainer account and its 2FA;
+ask the user to run them when section 10 calls for one.
 
 ## 12. Things that have bitten past releases
 

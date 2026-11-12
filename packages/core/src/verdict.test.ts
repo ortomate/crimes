@@ -356,6 +356,43 @@ describe("verdict (end-to-end against a real git repo)", () => {
     await rm(repo, { recursive: true, force: true });
   });
 
+  it("does not weigh a finding on a file the branch did not change", {
+    timeout: 30000,
+  }, async () => {
+    // A 40-line function, newly over a threshold lowered in HEAD: the
+    // finding appears on a file nobody edited.
+    const body = Array.from({ length: 40 }, (_, i) => `  let v${i} = ${i};`).join("\n");
+    await writeFile(
+      join(repo, "untouched.ts"),
+      `export function mid() {\n${body}\n}\n`,
+      "utf8",
+    );
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "base", "--quiet");
+    await writeFile(
+      join(repo, "crimes.config.json"),
+      JSON.stringify({ thresholds: { largeFunctionLines: 30 } }),
+      "utf8",
+    );
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "head", "--quiet");
+
+    const report = await verdict({ root: repo, base: "HEAD~1" });
+    expect(report.summary.new).toBe(1);
+    expect(report.summary.outside_change).toEqual({ new: 1, fixed: 0 });
+    expect(report.verdict).toBe("unchanged");
+    expect(report.reasons.join(" ")).toMatch(/did not change/);
+    expect(shouldFailVerdict(report, "new-medium")).toBe(false);
+
+    const counted = await verdict({
+      root: repo,
+      base: "HEAD~1",
+      includeOutsideChange: true,
+    });
+    expect(counted.verdict).toBe("worse");
+    expect(counted.summary.outside_change).toBeUndefined();
+  });
+
   it("answers `unchanged` from the tree hashes without scanning the head side", {
     timeout: 30000,
   }, async () => {

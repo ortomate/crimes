@@ -108,7 +108,7 @@ export function refundAccount(user: User, plan: Plan) {
 /**
  * Domain and rule terms must match whole words.
  *
- * Field notes from choreograph.cc named `logic_in_comments` as having
+ * Field notes from dogfood-a named `logic_in_comments` as having
  * the worst false-positive rate of any detector — it fired on five
  * files in a repo that documents its reasoning unusually well, and
  * **none were actionable**. Re-verified against `main`: all ten hits
@@ -117,7 +117,7 @@ export function refundAccount(user: User, plan: Plan) {
  * Reading the ten hits' evidence found a cause nobody had proposed.
  * `DOMAIN_TERMS` were matched with `String.includes`, so:
  *
- *   "…never required for publish). Authored by the Curator persona."
+ *   "…never required for publish). Authored by the Editor persona."
  *      → domain term "auth", from **Auth**ored
  *
  *   "…publishResult captured that outcome. If a bonus step overran…"
@@ -136,7 +136,7 @@ describe("logicInCommentsDetector — terms match whole words", () => {
   it("does not read `auth` out of `Authored`", async () => {
     const source = `
 // Panorama — 360° equirectangular bonus piece (day % 3 == 2; never
-// required for publish). Authored by the Curator persona.
+// required for publish). Authored by the Editor persona.
 export interface Post {
   panorama_url?: string | null;
 }

@@ -119,7 +119,7 @@ describe("highFanInFanOutDetector", () => {
 /**
  * A shared type module's fan-in is its job, not a smell.
  *
- * Field notes from choreograph.cc: "`src/lib/types.ts` flagged at 33
+ * Field notes from dogfood-a: "`src/lib/types.ts` flagged at 33
  * importers. High fan-in is a shared types module's entire job.
  * Consider exempting modules whose exports are type-only."
  *
@@ -189,7 +189,7 @@ describe("highFanInFanOutDetector — type-only importers", () => {
   });
 
   it("tolerates a types module that also exports a constant", async () => {
-    // choreograph's exports one `JOB_STUCK_THRESHOLD_SECONDS`. A rule a
+    // dogfood-a's exports one `STALE_THRESHOLD_SECONDS`. A rule a
     // single value import defeats is a rule that quietly stops working.
     const graph = graphWithFanIn("src/types.ts", 40, { typeOnly: true });
     // Make one of the 40 a value import.

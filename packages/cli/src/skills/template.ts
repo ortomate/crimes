@@ -48,6 +48,8 @@ without a pre-edit snapshot from demonstrated new findings.
 but includes old findings in those files. Its failure threshold is not a
 new-findings-only gate. For committed branch changes use \`verdict --base
 <project-base> --format json\`; verify the actual base instead of assuming main.
+A finding marked \`outside_change\` sits on a file the branch did not touch;
+mention it, but do not treat it as caused by the change or fix it unasked.
 
 Run the repository's behavior tests independently. Handle new high findings
 according to its policy, explaining evidence and uncertainty. Do not turn

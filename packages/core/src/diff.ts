@@ -4,7 +4,11 @@ import { fingerprintFinding } from "./fingerprint.js";
 import type { Finding } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { treeHashForRef, withRefCheckout } from "./git/archive.js";
-import { isGitRepo, NotAGitRepoError } from "./git/changed-files.js";
+import {
+  isGitRepo,
+  listFilesChangedBetween,
+  NotAGitRepoError,
+} from "./git/changed-files.js";
 import { scan } from "./scan.js";
 import { loadSuppressionsForRoot, partitionFindings } from "./suppressions.js";
 
@@ -29,6 +33,11 @@ export interface DiffOptions {
   crimesVersion?: string;
 }
 
+export interface DiffFailOnOptions {
+  /** Gate on findings marked `outside_change` too. Defaults to false. */
+  includeOutsideChange?: boolean;
+}
+
 /**
  * Threshold at which `crimes diff --fail-on` becomes a failing CI gate.
  *
@@ -45,6 +54,11 @@ export interface DiffSummary {
   new: number;
   fixed: number;
   unchanged: number;
+  /**
+   * How many of `new` and of `fixed` carry `outside_change`. Present
+   * only when either is non-zero; `new` and `fixed` still count them.
+   */
+  outside_change?: { new: number; fixed: number };
 }
 
 export interface DiffReport {
@@ -195,6 +209,24 @@ export function classifyDiff(args: {
 }
 
 /**
+ * Mark each finding whose file and related files are all absent from
+ * `changed` with `outside_change: true`. Returns how many were marked.
+ */
+export function markOutsideChange(
+  findings: Finding[],
+  changed: ReadonlySet<string>,
+): number {
+  let marked = 0;
+  for (const f of findings) {
+    const touched = [f.file, ...(f.related_files ?? [])].some((p) => changed.has(p));
+    if (touched) continue;
+    f.outside_change = true;
+    marked += 1;
+  }
+  return marked;
+}
+
+/**
  * Run a deterministic two-ref diff. Scans `base` and `head` in isolated
  * temporary directories created from `git archive` — the working tree is
  * **never** mutated. Both temp directories are cleaned up before returning.
@@ -233,6 +265,16 @@ export async function diff(options: DiffOptions): Promise<DiffReport> {
     headFindings,
   });
 
+  // A finding can appear on a file the branch never touched: adding one
+  // module moves the repo's p95 fan-in cutoff and an untouched hub
+  // crosses it. Say so rather than call it new work. (Rollup 2026-09-22:
+  // eight `high_fan_in_fan_out` fp verdicts, all for this reason.)
+  const changed = identicalTrees
+    ? new Set<string>()
+    : await listFilesChangedBetween(root, options.base, head);
+  markOutsideChange(new_findings, changed);
+  const outsideFixed = markOutsideChange(fixed_findings, changed);
+
   // Suppressions apply only to the **new** set in a diff. Fixed and
   // unchanged sets reflect prior state — suppressing those would hide
   // information the reviewer needs.
@@ -267,6 +309,10 @@ export async function diff(options: DiffOptions): Promise<DiffReport> {
     fixed_findings,
     unchanged_findings,
   };
+  const outsideVisibleNew = visibleNew.filter((f) => f.outside_change === true).length;
+  if (outsideVisibleNew > 0 || outsideFixed > 0) {
+    report.summary.outside_change = { new: outsideVisibleNew, fixed: outsideFixed };
+  }
   if (suppressedCount > 0) report.suppressed_count = suppressedCount;
   return report;
 }
@@ -274,11 +320,17 @@ export async function diff(options: DiffOptions): Promise<DiffReport> {
 /**
  * Apply a {@link DiffFailOn} threshold to a diff report. Returns a new
  * report carrying `fail_on` + `failed`. Suppressed entries in
- * `new_findings` are ignored — gate semantics are independent of display.
+ * `new_findings` are ignored — gate semantics are independent of display —
+ * and so are `outside_change` entries unless `includeOutsideChange`.
  */
-export function applyDiffFailOn(report: DiffReport, failOn: DiffFailOn): DiffReport {
+export function applyDiffFailOn(
+  report: DiffReport,
+  failOn: DiffFailOn,
+  options: DiffFailOnOptions = {},
+): DiffReport {
   const failed = report.new_findings.some((f) => {
     if (f.suppressed === true) return false;
+    if (f.outside_change === true && options.includeOutsideChange !== true) return false;
     if (failOn === "new-high") return f.severity === "high";
     return f.severity === "high" || f.severity === "medium";
   });

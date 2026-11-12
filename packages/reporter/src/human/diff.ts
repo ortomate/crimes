@@ -33,6 +33,14 @@ export function formatDiffReport(
   lines.push(`${newPrefix}New crimes: ${newCount}`);
   lines.push(`${fixedPrefix}Fixed crimes: ${fixedCount}`);
   lines.push(`${unchangedPrefix}Unchanged crimes: ${unchangedCount}`);
+  const outside = report.summary.outside_change;
+  if (outside !== undefined) {
+    lines.push(
+      colour.dim(
+        `  of which on files this range did not change: ${outside.new} new, ${outside.fixed} fixed`,
+      ),
+    );
+  }
 
   // Three integers and nothing to act on. A reviewer told "New crimes:
   // 7" has to re-run the command in `--format json` to find out where,
@@ -61,7 +69,11 @@ function renderChangeList(
     const where =
       finding.lines !== undefined ? `${finding.file}:${finding.lines[0]}` : finding.file;
     const symbol = finding.symbol ? ` ${colour.dim(`· ${finding.symbol}`)}` : "";
-    lines.push(`  ${finding.severity.padEnd(6)} ${where}${symbol}  ${finding.charge}`);
+    const outside =
+      finding.outside_change === true ? colour.dim("  (file unchanged)") : "";
+    lines.push(
+      `  ${finding.severity.padEnd(6)} ${where}${symbol}  ${finding.charge}${outside}`,
+    );
   }
   if (findings.length > DIFF_LIST_CAP) {
     lines.push(colour.dim(`  …+${findings.length - DIFF_LIST_CAP} more`));

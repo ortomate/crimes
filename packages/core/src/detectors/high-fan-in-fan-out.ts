@@ -44,7 +44,7 @@ export const highFanInFanOutDetector: LanguageJsDetector = {
     // imports *types* from is a shared type declaration, and being
     // depended on is its entire job.
     //
-    // Field notes from choreograph.cc: "`High Fan-In` on `types.ts`
+    // Field notes from dogfood-a: "`High Fan-In` on `types.ts`
     // reads as a category error… consider exempting modules whose
     // exports are type-only." The exempt-by-exports rule was measured
     // and rejected — `src/lib/types.ts` exports 24 interfaces and
@@ -134,8 +134,8 @@ export const highFanInFanOutDetector: LanguageJsDetector = {
  * Share of type-only importers past which fan-in stops being promoted.
  *
  * 0.8 rather than 1.0 because a types module routinely exports one or
- * two constants alongside its declarations — choreograph's has a single
- * `JOB_STUCK_THRESHOLD_SECONDS` — and a rule that a single value import
+ * two constants alongside its declarations — dogfood-a's has a single
+ * `STALE_THRESHOLD_SECONDS` — and a rule that a single value import
  * defeats is a rule that quietly stops working.
  */
 const TYPE_ONLY_SHARE = 0.8;

@@ -1,8 +1,8 @@
 # R3 pre-measurements: what the field notes' suggested fixes would actually do
 
 Measurements taken before touching any detector, on the same
-`choreograph.cc@5107cce` worktree used for
-[Step 0](./2026-08-05-choreograph-reverify.md). Recorded here so the R3
+`dogfood-a@5107cce` worktree used for
+[Step 0](./2026-08-05-field-notes-reverify.md). Recorded here so the R3
 work starts from evidence rather than from the notes' own suggestions:
 two of which do not survive contact with the file that prompted them.
 
@@ -14,7 +14,7 @@ measurement attached.
 ## `high_fan_in_fan_out`: the notes' suggested rule is a no-op on the file
 ## that prompted it
 
-The [field notes](./2026-08-05-choreograph-field-notes.md) ask:
+The [field notes](./2026-08-05-field-notes.md) ask:
 
 > Consider exempting modules whose exports are **type-only**.
 
@@ -23,7 +23,7 @@ The [field notes](./2026-08-05-choreograph-field-notes.md) ask:
 | kind | count |
 |---|---|
 | `export interface` / `export type` | 24 |
-| `export const` | **1** (`JOB_STUCK_THRESHOLD_SECONDS`) |
+| `export const` | **1** (`STALE_THRESHOLD_SECONDS`) |
 
 **An exports-are-type-only rule would not exempt it.** One 8-minute
 timeout constant, in a 345-line file that is otherwise entirely type
@@ -64,7 +64,7 @@ Three candidate rules, to be measured on the corpus before one is
 chosen:
 
 1. **Discount type-only edges in the fan-in count.** Cheap, uses data
-   already in the graph. choreograph `types.ts`: 33 → ~1.
+   already in the graph. dogfood-a `types.ts`: 33 → ~1.
 2. **Keep the count, drop the severity** when the great majority of
    in-edges are type-only. Preserves the evidence ("33 importers, 19
    type-only") while stopping it leading the report.
@@ -86,7 +86,7 @@ aggregate cannot attribute two changes at once.
 
 ## `logic_in_comments`: all ten hits reproduce, and the split is worth measuring
 
-Ten findings on choreograph, unchanged from `0.17.0`, in the exact files
+Ten findings on dogfood-a, unchanged from `0.17.0`, in the exact files
 the notes named. The notes propose two possible fixes:
 
 - drop confidence hard when the comment references **no identifier
@@ -96,7 +96,7 @@ the notes named. The notes propose two possible fixes:
 The representative hit, `src/lib/types.ts` L239:
 
 > "Panorama — 360° equirectangular bonus piece (day % 3 == 2; never
-> required for publish). Authored by the Curator…"
+> required for publish). Authored by the Editor…"
 > — rule terms: never, required
 
 That comment *does* reference adjacent identifiers, so the first
@@ -114,8 +114,8 @@ comment is redundant, not actionable) versus code that does not.
 
 ## `direct_date`: the narrow signal is real, and the volume is in the wide one
 
-choreograph: 91 findings on `main` (94 at `0.17.0`). The named example,
-`src/components/admin/JobDetail.tsx`, reports the evidence string
+dogfood-a: 91 findings on `main` (94 at `0.17.0`). The named example,
+`src/components/admin/Detail.tsx`, reports the evidence string
 byte-identically to the notes:
 
 ```

@@ -18,6 +18,7 @@ interface VerdictCommandOptions {
   failOn?: string;
   root?: string;
   showSuppressed: boolean;
+  includeOutsideChange: boolean;
 }
 
 const VALID_FAIL_ON = new Set<VerdictFailOn>(["worse", "new-high", "new-medium"]);
@@ -51,6 +52,11 @@ export function registerVerdictCommand(program: Command): void {
       "include new findings filtered by .crimes/suppressions.json, annotated as suppressed",
       false,
     )
+    .option(
+      "--include-outside-change",
+      "weigh new and fixed findings on files the range did not change",
+      false,
+    )
     .action(async (options: VerdictCommandOptions) => {
       const root = resolve(options.root ?? process.cwd());
       const format = options.format;
@@ -77,6 +83,7 @@ export function registerVerdictCommand(program: Command): void {
           root,
           base: options.base,
           showSuppressed: options.showSuppressed,
+          includeOutsideChange: options.includeOutsideChange,
         });
       } catch (error) {
         if (

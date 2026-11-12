@@ -1,0 +1,55 @@
+{
+  "scenario": "context-14-what-was-not-scanned",
+  "agent": "claude",
+  "crimes_version": "0.32.0",
+  "timestamp": "2026-11-12T01:34:01.959Z",
+  "run_id": "76b01351-f0fc-4963-88c6-656f81059a30",
+  "response": "## Findings (2, both medium, both in `app/pricing.py`)\n\n1. **crime_00001: Temporal Recklessness** (`direct_date`, confidence 0.9), line 20. A bare `datetime.now()` returns a naive datetime. Tests can't fix the clock without patching the module. If this value is ever compared with an aware datetime, it raises `TypeError`. The suggested fix is small: inject a clock and pass `tz=` explicitly.\n2. **crime_00002: Unfinished Business** (`todo_density`, confidence 0.7), lines 8–11. There are 4 TODO markers in a tiny file, which works out to 181.8 per 1k LOC against a threshold of 10. In pricing code, that makes it hard to tell which logic is final.\n\nBoth findings have `test_gap: 1` and `blast_radius: 0`. Nothing imports this file, and nothing tests it.\n\n## What the scan did not look at\n\n- **What was skipped:** 2 Python source files under **`legacy_v1/`**, namely `legacy_v1/pricing.py` and `legacy_v1/discounts.py`. Only 2 files were scanned in total: `app/pricing.py` and `pyproject.toml`. So the skipped Python equals the scanned Python, two to one.\n- **On whose authority:** the repo's own tooling, not a crimes default. The JSON only says \"this repository's own tooling\", so I opened `pyproject.toml` to see which tools. Three of them exclude `legacy_v1`:\n  - **ruff:** `extend-exclude = ['legacy_v1']`\n  - **coverage.py:** `omit = ['legacy_v1/*']`\n  - **codespell:** `skip = '.git,legacy_v1/*'`\n- crimes correctly did *not* treat two other entries as path excludes. Hatch's sdist `exclude = [\"*\"]` is a packaging choice, and uv's `exclude-newer = \"4 days\"` is a time window.\n- The report's own wording applies: findings in `legacy_v1` are **absent, not zero**.\n\n## Would I trust this as the full risk picture?\n\nNo. It's an accurate report on `app/`, but it leaves out most of the risk:\n\n- A billing service has a second `pricing.py` plus `discounts.py`, and no tool here looks at them: no linting, no coverage measurement, no spellcheck, and now no crimes scan.\n- Being excluded from tooling doesn't mean the code is dead. I haven't checked whether anything still imports `legacy_v1` or whether it runs in production. Until that's known, it should count as unreviewed live billing code.\n- Also, \"2 medium, 0 high\" covers just one 22-line file, so the totals shouldn't be read as a repo-wide score.\n\n## How I'd check the skipped code\n\n1. **Rescan without the excludes**, using the remedy the report gives: set `\"honourToolingExcludes\": false` in `crimes.config.json`, then run `crimes scan --format json` again. I'd do this in a scratch copy, or revert the config afterwards, so the repo's real setup stays as it is.\n2. **Find out whether it's live:** `grep -rn \"legacy_v1\" --include='*.py' .` along with any entrypoints or deploy config. That decides whether the new findings are urgent or just cleanup.\n3. **Optionally, run the tools that were skipping it:** `ruff check --no-force-exclude legacy_v1/` (or pass the files explicitly), and `codespell legacy_v1/`. Coverage would show 0% there by construction, since nothing measures it.\n\nI haven't changed or run anything beyond reading `pyproject.toml` and listing the files.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "direct_date",
+      "crime_00002": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "Temporal Recklessness": "direct_date",
+      "Unfinished Business": "todo_density"
+    },
+    "detector_id_by_evidence": {
+      "1× datetime.now()": "direct_date",
+      "each call observes wall time at runtime — a test cannot pin a fixed moment without patching the module": "direct_date",
+      "1 of 1 return a naive datetime (no tz= argument) — comparing one against an aware datetime raises TypeError": "direct_date",
+      "naive at lines: 20": "direct_date",
+      "181.8 markers per 1k LOC (threshold 10)": "todo_density"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "app/pricing.py",
+        "observed": "app/pricing.py",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}
