@@ -4,6 +4,13 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  js-yaml@^4: 4.3.2
+  nanoid@^3: 3.3.18
+  postcss@^8: 8.5.31
+  source-map-js@^1: 1.2.2
+  postcss@8.5.18: 8.5.31
+
 importers:
 
   .:
@@ -32,6 +39,9 @@ importers:
 
   apps/website:
     dependencies:
+      '@astrojs/markdown-remark':
+        specifier: ^7.3.4
+        version: 7.3.4
       '@astrojs/starlight':
         specifier: ^0.42.7
         version: 0.42.7(@astrojs/markdown-remark@7.3.4)(astro@7.4.2(@astrojs/markdown-remark@7.3.4)(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))(typescript@6.0.3)
@@ -2069,8 +2079,8 @@ packages:
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
-  nanoid@3.3.20:
-    resolution: {integrity: sha512-uKdg2G3GNCKQn9byYOpxbGqrT2fGO5KRt5J/8b3pok8rT6qxGWF6hxMyJiEYtAf+FVyYuD9hRaDqX5uPFYJ4ZQ==}
+  nanoid@3.3.18:
+    resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
@@ -2168,7 +2178,7 @@ packages:
     engines: {node: '>= 18'}
     peerDependencies:
       jiti: '>=1.21.0'
-      postcss: '>=8.0.9'
+      postcss: 8.5.31
       tsx: ^4.8.1
       yaml: ^2.4.2
     peerDependenciesMeta:
@@ -2185,7 +2195,7 @@ packages:
     resolution: {integrity: sha512-5osppouFc0VR9/VYzYxO03VaDa3e8F23Kfd6/9qcZTUI8P58GIYlArOET2Wq0ywSl2o2PjELhYOFI4W7l5QHKw==}
     engines: {node: '>=18.0'}
     peerDependencies:
-      postcss: ^8.2.14
+      postcss: 8.5.31
 
   postcss-selector-parser@7.1.7:
     resolution: {integrity: sha512-wWBro/7hJ40ye6TPiXkUQoXKCw23xSsjriUvqd7Uls9Sso3oLiON1flc18cCdnjgCRXw4fBVqUJJeOdDTh3P3g==}
@@ -2439,7 +2449,7 @@ packages:
     peerDependencies:
       '@microsoft/api-extractor': ^7.36.0
       '@swc/core': ^1
-      postcss: ^8.4.12
+      postcss: 8.5.31
       typescript: '>=4.5.0'
     peerDependenciesMeta:
       '@microsoft/api-extractor':
@@ -2813,7 +2823,6 @@ snapshots:
       vfile: 6.0.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   '@astrojs/markdown-satteri@0.4.5':
     dependencies:
@@ -3274,7 +3283,6 @@ snapshots:
       vfile: 6.0.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
@@ -3526,8 +3534,7 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
 
-  '@types/mdx@2.0.14':
-    optional: true
+  '@types/mdx@2.0.14': {}
 
   '@types/ms@2.1.0': {}
 
@@ -3567,7 +3574,6 @@ snapshots:
   acorn-jsx@5.3.2(acorn@8.19.0):
     dependencies:
       acorn: 8.19.0
-    optional: true
 
   acorn@8.19.0: {}
 
@@ -3588,13 +3594,11 @@ snapshots:
 
   aria-query@5.3.2: {}
 
-  array-iterate@2.0.1:
-    optional: true
+  array-iterate@2.0.1: {}
 
   assertion-error@2.0.1: {}
 
-  astring@1.9.0:
-    optional: true
+  astring@1.9.0: {}
 
   astro-expressive-code@0.44.3(astro@7.4.2(@astrojs/markdown-remark@7.3.4)(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
@@ -3737,8 +3741,7 @@ snapshots:
 
   clsx@2.1.1: {}
 
-  collapse-white-space@2.1.0:
-    optional: true
+  collapse-white-space@2.1.0: {}
 
   comma-separated-tokens@2.0.3: {}
 
@@ -3838,8 +3841,7 @@ snapshots:
 
   entities@4.5.0: {}
 
-  entities@6.0.1:
-    optional: true
+  entities@6.0.1: {}
 
   es-module-lexer@2.3.2: {}
 
@@ -3851,7 +3853,6 @@ snapshots:
       devlop: 1.1.0
       estree-util-visit: 2.0.0
       unist-util-position-from-estree: 2.0.0
-    optional: true
 
   esast-util-from-js@2.0.1:
     dependencies:
@@ -3859,7 +3860,6 @@ snapshots:
       acorn: 8.19.0
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.3
-    optional: true
 
   esbuild@0.28.2:
     optionalDependencies:
@@ -3890,13 +3890,11 @@ snapshots:
       '@esbuild/win32-ia32': 0.28.2
       '@esbuild/win32-x64': 0.28.2
 
-  escape-string-regexp@5.0.0:
-    optional: true
+  escape-string-regexp@5.0.0: {}
 
   estree-util-attach-comments@3.0.0:
     dependencies:
       '@types/estree': 1.0.9
-    optional: true
 
   estree-util-build-jsx@3.0.1:
     dependencies:
@@ -3904,29 +3902,24 @@ snapshots:
       devlop: 1.1.0
       estree-util-is-identifier-name: 3.0.0
       estree-walker: 3.0.3
-    optional: true
 
-  estree-util-is-identifier-name@3.0.0:
-    optional: true
+  estree-util-is-identifier-name@3.0.0: {}
 
   estree-util-scope@1.0.1:
     dependencies:
       '@types/estree': 1.0.9
       devlop: 1.1.0
-    optional: true
 
   estree-util-to-js@2.0.0:
     dependencies:
       '@types/estree-jsx': 1.0.5
       astring: 1.9.0
       source-map: 0.7.6
-    optional: true
 
   estree-util-visit@2.0.0:
     dependencies:
       '@types/estree-jsx': 1.0.5
       '@types/unist': 3.0.3
-    optional: true
 
   estree-walker@3.0.3:
     dependencies:
@@ -4041,7 +4034,6 @@ snapshots:
       parse5: 7.3.0
       vfile: 6.0.3
       vfile-message: 4.0.3
-    optional: true
 
   hast-util-from-parse5@8.0.3:
     dependencies:
@@ -4053,7 +4045,6 @@ snapshots:
       vfile: 6.0.3
       vfile-location: 5.0.3
       web-namespaces: 2.0.1
-    optional: true
 
   hast-util-has-property@3.0.0:
     dependencies:
@@ -4102,7 +4093,6 @@ snapshots:
       vfile: 6.0.3
       web-namespaces: 2.0.1
       zwitch: 2.0.4
-    optional: true
 
   hast-util-select@6.0.4:
     dependencies:
@@ -4142,7 +4132,6 @@ snapshots:
       zwitch: 2.0.4
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   hast-util-to-html@9.0.5:
     dependencies:
@@ -4177,7 +4166,6 @@ snapshots:
       vfile-message: 4.0.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   hast-util-to-parse5@8.0.1:
     dependencies:
@@ -4188,7 +4176,6 @@ snapshots:
       space-separated-tokens: 2.0.2
       web-namespaces: 2.0.1
       zwitch: 2.0.4
-    optional: true
 
   hast-util-to-string@3.0.1:
     dependencies:
@@ -4227,8 +4214,7 @@ snapshots:
 
   ignore@7.0.13: {}
 
-  inline-style-parser@0.2.7:
-    optional: true
+  inline-style-parser@0.2.7: {}
 
   iron-webcrypto@1.2.1: {}
 
@@ -4338,18 +4324,15 @@ snapshots:
       '@babel/types': 7.29.8
       source-map-js: 1.2.2
 
-  markdown-extensions@2.0.0:
-    optional: true
+  markdown-extensions@2.0.0: {}
 
-  markdown-table@3.0.4:
-    optional: true
+  markdown-table@3.0.4: {}
 
   mdast-util-definitions@6.0.0:
     dependencies:
       '@types/mdast': 4.0.4
       '@types/unist': 3.0.3
       unist-util-visit: 5.1.0
-    optional: true
 
   mdast-util-directive@3.1.1:
     dependencies:
@@ -4372,7 +4355,6 @@ snapshots:
       escape-string-regexp: 5.0.0
       unist-util-is: 6.0.1
       unist-util-visit-parents: 6.0.2
-    optional: true
 
   mdast-util-from-markdown@2.1.0:
     dependencies:
@@ -4398,7 +4380,6 @@ snapshots:
       devlop: 1.1.0
       mdast-util-find-and-replace: 3.0.3
       micromark-util-character: 2.1.1
-    optional: true
 
   mdast-util-gfm-footnote@2.1.0:
     dependencies:
@@ -4409,7 +4390,6 @@ snapshots:
       micromark-util-normalize-identifier: 2.0.1
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   mdast-util-gfm-strikethrough@2.0.1:
     dependencies:
@@ -4418,7 +4398,6 @@ snapshots:
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   mdast-util-gfm-table@2.0.0:
     dependencies:
@@ -4429,7 +4408,6 @@ snapshots:
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   mdast-util-gfm-task-list-item@2.0.0:
     dependencies:
@@ -4439,7 +4417,6 @@ snapshots:
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   mdast-util-gfm@3.1.0:
     dependencies:
@@ -4452,7 +4429,6 @@ snapshots:
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   mdast-util-mdx-expression@2.0.1:
     dependencies:
@@ -4464,7 +4440,6 @@ snapshots:
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   mdast-util-mdx-jsx@3.2.0:
     dependencies:
@@ -4482,7 +4457,6 @@ snapshots:
       vfile-message: 4.0.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   mdast-util-mdx@3.0.0:
     dependencies:
@@ -4493,7 +4467,6 @@ snapshots:
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   mdast-util-mdxjs-esm@2.0.1:
     dependencies:
@@ -4505,7 +4478,6 @@ snapshots:
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   mdast-util-phrasing@4.1.0:
     dependencies:
@@ -4584,7 +4556,6 @@ snapshots:
       micromark-util-sanitize-uri: 2.0.1
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.3
-    optional: true
 
   micromark-extension-gfm-footnote@2.1.0:
     dependencies:
@@ -4596,7 +4567,6 @@ snapshots:
       micromark-util-sanitize-uri: 2.0.1
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.3
-    optional: true
 
   micromark-extension-gfm-strikethrough@2.1.0:
     dependencies:
@@ -4606,7 +4576,6 @@ snapshots:
       micromark-util-resolve-all: 2.0.1
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.3
-    optional: true
 
   micromark-extension-gfm-table@2.1.2:
     dependencies:
@@ -4615,12 +4584,10 @@ snapshots:
       micromark-util-character: 2.1.1
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.3
-    optional: true
 
   micromark-extension-gfm-tagfilter@2.0.0:
     dependencies:
       micromark-util-types: 2.0.3
-    optional: true
 
   micromark-extension-gfm-task-list-item@2.1.0:
     dependencies:
@@ -4629,7 +4596,6 @@ snapshots:
       micromark-util-character: 2.1.1
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.3
-    optional: true
 
   micromark-extension-gfm@3.0.0:
     dependencies:
@@ -4641,7 +4607,6 @@ snapshots:
       micromark-extension-gfm-task-list-item: 2.1.0
       micromark-util-combine-extensions: 2.0.1
       micromark-util-types: 2.0.3
-    optional: true
 
   micromark-extension-mdx-expression@3.0.1:
     dependencies:
@@ -4653,7 +4618,6 @@ snapshots:
       micromark-util-events-to-acorn: 2.0.3
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.3
-    optional: true
 
   micromark-extension-mdx-jsx@3.0.2:
     dependencies:
@@ -4667,12 +4631,10 @@ snapshots:
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.3
       vfile-message: 4.0.3
-    optional: true
 
   micromark-extension-mdx-md@2.0.0:
     dependencies:
       micromark-util-types: 2.0.3
-    optional: true
 
   micromark-extension-mdxjs-esm@3.0.0:
     dependencies:
@@ -4685,7 +4647,6 @@ snapshots:
       micromark-util-types: 2.0.3
       unist-util-position-from-estree: 2.0.0
       vfile-message: 4.0.3
-    optional: true
 
   micromark-extension-mdxjs@3.0.0:
     dependencies:
@@ -4697,7 +4658,6 @@ snapshots:
       micromark-extension-mdxjs-esm: 3.0.0
       micromark-util-combine-extensions: 2.0.1
       micromark-util-types: 2.0.3
-    optional: true
 
   micromark-factory-destination@2.0.1:
     dependencies:
@@ -4723,7 +4683,6 @@ snapshots:
       micromark-util-types: 2.0.3
       unist-util-position-from-estree: 2.0.0
       vfile-message: 4.0.3
-    optional: true
 
   micromark-factory-space@2.1.0:
     dependencies:
@@ -4790,7 +4749,6 @@ snapshots:
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.3
       vfile-message: 4.0.3
-    optional: true
 
   micromark-util-html-tag-name@2.0.1: {}
 
@@ -4864,7 +4822,7 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  nanoid@3.3.20: {}
+  nanoid@3.3.18: {}
 
   neotraverse@1.0.1: {}
 
@@ -4941,12 +4899,10 @@ snapshots:
       unist-util-modify-children: 4.0.0
       unist-util-visit-children: 3.0.0
       vfile: 6.0.3
-    optional: true
 
   parse5@7.3.0:
     dependencies:
       entities: 6.0.1
-    optional: true
 
   pathe@2.0.3: {}
 
@@ -4986,7 +4942,7 @@ snapshots:
 
   postcss@8.5.31:
     dependencies:
-      nanoid: 3.3.20
+      nanoid: 3.3.18
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
@@ -5007,7 +4963,6 @@ snapshots:
       '@types/estree': 1.0.9
       estree-util-build-jsx: 3.0.1
       vfile: 6.0.3
-    optional: true
 
   recma-jsx@1.0.1(acorn@8.19.0):
     dependencies:
@@ -5017,7 +4972,6 @@ snapshots:
       recma-parse: 1.0.0
       recma-stringify: 1.0.0
       unified: 11.0.5
-    optional: true
 
   recma-parse@1.0.0:
     dependencies:
@@ -5025,7 +4979,6 @@ snapshots:
       esast-util-from-js: 2.0.1
       unified: 11.0.5
       vfile: 6.0.3
-    optional: true
 
   recma-stringify@1.0.0:
     dependencies:
@@ -5033,7 +4986,6 @@ snapshots:
       estree-util-to-js: 2.0.0
       unified: 11.0.5
       vfile: 6.0.3
-    optional: true
 
   regex-recursion@6.0.2:
     dependencies:
@@ -5054,7 +5006,6 @@ snapshots:
       '@types/hast': 3.0.5
       hast-util-raw: 9.1.0
       vfile: 6.0.3
-    optional: true
 
   rehype-recma@1.0.0:
     dependencies:
@@ -5063,14 +5014,12 @@ snapshots:
       hast-util-to-estree: 3.1.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   rehype-stringify@10.0.1:
     dependencies:
       '@types/hast': 3.0.5
       hast-util-to-html: 9.0.5
       unified: 11.0.5
-    optional: true
 
   remark-directive@4.0.0:
     dependencies:
@@ -5091,7 +5040,6 @@ snapshots:
       unified: 11.0.5
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   remark-mdx@3.1.1:
     dependencies:
@@ -5099,7 +5047,6 @@ snapshots:
       micromark-extension-mdxjs: 3.0.0
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   remark-parse@11.0.0:
     dependencies:
@@ -5109,7 +5056,6 @@ snapshots:
       unified: 11.0.5
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   remark-rehype@11.1.2:
     dependencies:
@@ -5118,7 +5064,6 @@ snapshots:
       mdast-util-to-hast: 13.2.1
       unified: 11.0.5
       vfile: 6.0.3
-    optional: true
 
   remark-smartypants@3.0.3:
     dependencies:
@@ -5126,14 +5071,12 @@ snapshots:
       retext-smartypants: 6.2.0
       unified: 11.0.5
       unist-util-visit: 5.1.0
-    optional: true
 
   remark-stringify@11.0.0:
     dependencies:
       '@types/mdast': 4.0.4
       mdast-util-to-markdown: 2.2.0
       unified: 11.0.5
-    optional: true
 
   resolve-from@5.0.0: {}
 
@@ -5144,7 +5087,6 @@ snapshots:
       '@types/nlcst': 2.0.3
       parse-latin: 7.0.0
       unified: 11.0.5
-    optional: true
 
   retext-smartypants@6.2.0:
     dependencies:
@@ -5157,7 +5099,6 @@ snapshots:
       '@types/nlcst': 2.0.3
       nlcst-to-string: 4.0.0
       unified: 11.0.5
-    optional: true
 
   retext@9.0.0:
     dependencies:
@@ -5165,7 +5106,6 @@ snapshots:
       retext-latin: 4.0.0
       retext-stringify: 4.0.0
       unified: 11.0.5
-    optional: true
 
   reusify@1.1.0: {}
 
@@ -5306,11 +5246,9 @@ snapshots:
 
   source-map-js@1.2.2: {}
 
-  source-map@0.7.6:
-    optional: true
+  source-map@0.7.6: {}
 
-  source-map@0.8.0:
-    optional: true
+  source-map@0.8.0: {}
 
   space-separated-tokens@2.0.2: {}
 
@@ -5324,12 +5262,10 @@ snapshots:
   style-to-js@1.1.21:
     dependencies:
       style-to-object: 1.0.14
-    optional: true
 
   style-to-object@1.0.14:
     dependencies:
       inline-style-parser: 0.2.7
-    optional: true
 
   sucrase@3.35.1:
     dependencies:
@@ -5466,12 +5402,10 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       array-iterate: 2.0.1
-    optional: true
 
   unist-util-position-from-estree@2.0.0:
     dependencies:
       '@types/unist': 3.0.3
-    optional: true
 
   unist-util-position@5.0.0:
     dependencies:
@@ -5481,7 +5415,6 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       unist-util-visit: 5.1.0
-    optional: true
 
   unist-util-stringify-position@4.0.0:
     dependencies:
@@ -5490,7 +5423,6 @@ snapshots:
   unist-util-visit-children@3.0.0:
     dependencies:
       '@types/unist': 3.0.3
-    optional: true
 
   unist-util-visit-parents@6.0.2:
     dependencies:
@@ -5524,7 +5456,6 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       vfile: 6.0.3
-    optional: true
 
   vfile-message@4.0.3:
     dependencies:
@@ -5575,8 +5506,7 @@ snapshots:
     transitivePeerDependencies:
       - msw
 
-  web-namespaces@2.0.1:
-    optional: true
+  web-namespaces@2.0.1: {}
 
   web-tree-sitter@0.27.1: {}
 

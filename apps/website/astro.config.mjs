@@ -1,5 +1,6 @@
 // @ts-check
 import starlight from "@astrojs/starlight";
+import { unified } from "@astrojs/markdown-remark";
 import { defineConfig } from "astro/config";
 import { remarkRepositoryLinks } from "./scripts/repository-links.mjs";
 
@@ -14,7 +15,8 @@ export default defineConfig({
   base: "/docs",
   // Keep Vercel's documentation redirects aligned with these canonical URLs.
   trailingSlash: "always",
-  markdown: { remarkPlugins: [remarkRepositoryLinks] },
+  compressHTML: true,
+  markdown: { processor: unified(), remarkPlugins: [remarkRepositoryLinks] },
   // Astro's `base` only rewrites URLs — output file paths stay flat
   // unless we mirror the base in `outDir`. Writing into `dist/docs/...`
   // lets `scripts/build.mjs` drop the landing page into `dist/` on top
