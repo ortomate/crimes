@@ -204,7 +204,7 @@ function matches(text: string, pattern: RegExp): string[] {
 function factoryCalls(body: string): Set<string> {
   const found = new Set<string>();
   const BINDING =
-    /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+)?([A-Za-z_$][\w$]*)\s*\(/g;
+    /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+)?(?:[A-Za-z_$][\w$]*\.)*([A-Za-z_$][\w$]*)\s*\(/g;
   for (const match of body.matchAll(BINDING)) {
     const bound = match[1]!;
     const callee = match[2]!;
@@ -221,7 +221,30 @@ function factoryCalls(body: string): Set<string> {
       found.add(callee);
     }
   }
+  // Chained straight into: `createHash("sha256").update(text)`. The
+  // built value is the receiver; `.then`/`.catch`/`.finally` continue a
+  // promise instead, which is the effect, not a read through it.
+  const CALL = /\b([A-Za-z_$][\w$]*)\s*\(/g;
+  for (const match of body.matchAll(CALL)) {
+    const callee = match[1]!;
+    if (!FACTORY_NAME.test(callee)) continue;
+    const close = closingParen(body, match.index + match[0].length);
+    if (close === -1) continue;
+    const after = /^\s*\??\.\s*([A-Za-z_$][\w$]*)/.exec(body.slice(close + 1));
+    if (after && !/^(?:then|catch|finally)$/.test(after[1]!)) found.add(callee);
+  }
   return found;
+}
+
+/** Index of the `)` closing the call whose arguments start at `from`. */
+function closingParen(text: string, from: number): number {
+  let depth = 1;
+  for (let i = from; i < text.length; i++) {
+    const c = text[i];
+    if (c === "(") depth++;
+    else if (c === ")" && --depth === 0) return i;
+  }
+  return -1;
 }
 
 /**

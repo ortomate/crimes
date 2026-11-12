@@ -206,6 +206,55 @@ export async function getThing(id: string) {
   });
 });
 
+describe("nameBehaviorMismatchDetector — in-memory constructors", () => {
+  // Rollup 2026-09-22: both bodies build a value in
+  // memory and use it; neither touches anything outside the function.
+  it("treats a namespaced factory bound and dereferenced as a factory", async () => {
+    const source = `
+export function firstStatement(source) {
+  const sourceFile = ts.createSourceFile("input.ts", source, ts.ScriptTarget.Latest, true);
+  let initializer;
+  sourceFile.forEachChild((node) => {
+    initializer = node;
+  });
+  initializer = initializer ?? null;
+  return initializer;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(
+      makeCtx(source, "scripts/parse.mjs"),
+    );
+    expect(findings).toHaveLength(0);
+  });
+
+  it("treats a factory whose result is chained into as a factory", async () => {
+    const source = `
+export function buildDigest(value) {
+  let text = JSON.stringify(value);
+  text = text.trim();
+  return createHash("sha256").update(text).digest("hex");
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(
+      makeCtx(source, "scripts/digest.mjs"),
+    );
+    expect(findings).toHaveLength(0);
+  });
+
+  it("still charges a create* call whose promise is chained", async () => {
+    // `.then` continues the effect; it does not read through a built value.
+    const source = `
+export async function getCheckout(cartId: string) {
+  let receipt = null;
+  receipt = await createOrder(cartId).then((order) => order.receipt);
+  return receipt;
+}
+`;
+    const findings = await nameBehaviorMismatchDetector.run(makeCtx(source));
+    expect(findings).toHaveLength(1);
+  });
+});
+
 describe("nameBehaviorMismatchDetector — the factory rule stays narrow", () => {
   it("does not discount fetch just because the response is read", async () => {
     // `const res = await fetch(url)` then `res.json()` fits the

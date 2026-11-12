@@ -45,6 +45,13 @@ describe("routeFromFilePath", () => {
     expect(routeFromFilePath("src/billing/tax.ts")).toBeUndefined();
   });
 
+  it("skips test, spec and story files that sit beside a route", () => {
+    expect(routeFromFilePath("app/api/callback/route.test.ts")).toBeUndefined();
+    expect(routeFromFilePath("src/app/settings/page.spec.tsx")).toBeUndefined();
+    expect(routeFromFilePath("src/pages/__tests__/billing.tsx")).toBeUndefined();
+    expect(routeFromFilePath("src/pages/billing.stories.tsx")).toBeUndefined();
+  });
+
   it("skips API routes", () => {
     expect(routeFromFilePath("src/pages/api/users.ts")).toBeUndefined();
   });

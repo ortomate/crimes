@@ -78,7 +78,8 @@ const MAX_FINDINGS = 12;
  * Vite's built-ins count only when read through `import.meta.env`,
  * where Vite injects them; a `process.env.DEV` is somebody's own
  * variable. `CI` is set by every hosted CI runner and is absent locally
- * by design.
+ * by design; `NODE_ENV` is set by Next.js, Vite, webpack and test
+ * runners, which is why projects leave it out of `.env.example`.
  */
 const VITE_BUILTINS: ReadonlySet<string> = new Set([
   "MODE",
@@ -87,7 +88,7 @@ const VITE_BUILTINS: ReadonlySet<string> = new Set([
   "DEV",
   "SSR",
 ]);
-const PLATFORM_SET: ReadonlySet<string> = new Set(["CI"]);
+const PLATFORM_SET: ReadonlySet<string> = new Set(["CI", "NODE_ENV"]);
 
 function runtimeProvided(variable: EnvVariableRecord): boolean {
   if (PLATFORM_SET.has(variable.name)) return true;
@@ -107,6 +108,23 @@ function runtimeProvided(variable: EnvVariableRecord): boolean {
  */
 const SECRET_NAME_RE =
   /(^|_)(SECRET|PRIVATE|PASSWORD|PASSWD|TOKEN|CREDENTIAL|CREDENTIALS|APIKEY|KEY|SIGNING|SALT|CERT|DSN|CONNECTION)(_|$)/i;
+
+/**
+ * Fragments by which a name declares its value safe for browsers:
+ * Stripe and Supabase publishable keys, Supabase's anon key, any
+ * `*_PUBLIC_KEY`. They outweigh `KEY` alone, never `SECRET` or `TOKEN`.
+ */
+const PUBLIC_BY_NAME_RE = /(^|_)(PUBLISHABLE|PUBLIC|ANON)_KEY$/i;
+
+function looksSecretName(name: string, publicPrefix: string | undefined): boolean {
+  if (!SECRET_NAME_RE.test(name)) return false;
+  const rest =
+    publicPrefix !== undefined && name.startsWith(publicPrefix)
+      ? name.slice(publicPrefix.length)
+      : name;
+  if (!PUBLIC_BY_NAME_RE.test(rest)) return true;
+  return SECRET_NAME_RE.test(rest.replace(PUBLIC_BY_NAME_RE, ""));
+}
 
 export const configDriftDetector: LanguageJsDetector = {
   id: "config_drift",
@@ -277,8 +295,11 @@ function assessVariable(
 
   // --- client exposure ----------------------------------------------
   const prefixed = variable.reads.find((r) => r.publicPrefix !== undefined);
-  const looksSecret = SECRET_NAME_RE.test(variable.name);
   const customPrefix = extraPrefixes.find((p) => variable.name.startsWith(p));
+  const looksSecret = looksSecretName(
+    variable.name,
+    prefixed?.publicPrefix ?? customPrefix,
+  );
   if (looksSecret && (prefixed !== undefined || customPrefix !== undefined)) {
     issues.push({
       id: "client_exposed_secret",
